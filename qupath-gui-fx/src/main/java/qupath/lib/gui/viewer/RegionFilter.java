@@ -92,10 +92,10 @@ public interface RegionFilter extends BiPredicate<ImageData<?>, RegionRequest> {
 		public boolean test(ImageData<?> imageData, RegionRequest region) {
 			switch (this) {
 			case ANY_ANNOTATIONS:
-				var annotations = imageData.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, region, null);
+				var annotations = imageData.getHierarchy().getAnnotationsForRegion(region, null);
 				return overlapsObjects(annotations, region);
 			case ANY_OBJECTS:
-				var pathObjects = imageData.getHierarchy().getObjectsForRegion(null, region, null);
+				var pathObjects = imageData.getHierarchy().getAllObjectsForRegion(region, null);
 				return overlapsObjects(pathObjects, region);
 			case IMAGE:
 				return !imageData.getServer().isEmptyRegion(region);

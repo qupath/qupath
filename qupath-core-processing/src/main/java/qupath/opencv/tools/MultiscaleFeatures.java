@@ -1394,19 +1394,6 @@ public class MultiscaleFeatures {
 			opencv_core.patchNaNs(eigvalMin, 0.0);
 			opencv_core.patchNaNs(eigvalMax, 0.0);
 			
-			// Try to debug a lot of zeros in the output (turned out normalization was applied too late)
-//			double total = eigvalMin.total();
-//			double zeroPercentMin = (total - opencv_core.countNonZero(eigvalMin))/total * 100;
-//			double zeroPercentMax = (total - opencv_core.countNonZero(eigvalMax))/total * 100;
-//			System.err.println(String.format("Zeros min: %.1f%%, max: %.1f%%", zeroPercentMin, zeroPercentMax));
-//			if (zeroPercentMax > 5 && zeroPercentMin > 5) {
-//				var imp = OpenCVTools.matToImagePlus("Temp", eigvalMin.clone(), eigvalMax.clone(), det.asMat(), trace.asMat());
-//				var imp2 = new CompositeImage(imp, CompositeImage.GRAYSCALE);
-//				imp2.setDimensions(imp.getStackSize(), 1, 1);
-//				imp2.resetDisplayRanges();
-//				imp2.show();
-//			}
-			
 			if (doEigenvectors) {
 				int width = dxx.cols();
 				int height = dxx.rows();

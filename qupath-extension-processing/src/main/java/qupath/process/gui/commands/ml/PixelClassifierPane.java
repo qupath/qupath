@@ -112,6 +112,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -142,8 +143,7 @@ public class PixelClassifierPane {
 	
 	
 	private QuPathGUI qupath;
-//	private QuPathViewer viewer;
-	
+
 	private GridPane pane;
 	
 	private ObservableList<ClassificationResolution> resolutions = FXCollections.observableArrayList();
@@ -155,8 +155,6 @@ public class PixelClassifierPane {
 	private Slider sliderFeatureOpacity = new Slider(0.0, 1.0, 1.0);
 	private Spinner<Double> spinFeatureMin = FXUtils.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.1, 1);
 	private Spinner<Double> spinFeatureMax = FXUtils.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 1, 0.1, 1);
-//	private Spinner<Double> spinFeatureMin = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 0);
-//	private Spinner<Double> spinFeatureMax = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 1.0);
 	private String DEFAULT_CLASSIFICATION_OVERLAY = "Show classification";
 
 	/**
@@ -192,23 +190,20 @@ public class PixelClassifierPane {
 	private PixelClassificationOverlay featureOverlay;
 	private FeatureRenderer featureRenderer;
 
-	private ChangeListener<ImageData<BufferedImage>> imageDataListener = new ChangeListener<>() {
+	private ChangeListener<ImageData<BufferedImage>> imageDataListener = this::handleImageDataChange;
 
-        @Override
-        public void changed(ObservableValue<? extends ImageData<BufferedImage>> observable,
-                            ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
-            if (oldValue != null)
-                oldValue.getHierarchy().removeListener(hierarchyListener);
-            if (newValue != null)
-                newValue.getHierarchy().addListener(hierarchyListener);
-            updateTitle();
-            updateAvailableResolutions(newValue);
-        }
-
-    };
-	
 	private Stage stage;
-	
+
+	private void handleImageDataChange(ObservableValue<? extends ImageData<BufferedImage>> observable,
+						ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
+		if (oldValue != null)
+			oldValue.getHierarchy().removeListener(hierarchyListener);
+		if (newValue != null)
+			newValue.getHierarchy().addListener(hierarchyListener);
+		updateTitle();
+		updateAvailableResolutions(newValue);
+	}
+
 	/**
 	 * Constructor.
 	 * @param qupath the current {@link QuPathGUI} that will be used for interactive training.
@@ -265,7 +260,6 @@ public class PixelClassifierPane {
 		labelFeatures.setLabelFor(comboFeatures);
 		selectedFeatureCalculatorBuilder = comboFeatures.getSelectionModel().selectedItemProperty();
 		
-//		var labelFeaturesSummary = new Label("No features selected");
 		var btnShowFeatures = new Button("Show");
 		btnShowFeatures.setOnAction(e -> showFeatures());
 		
@@ -284,8 +278,7 @@ public class PixelClassifierPane {
 		
 		comboFeatures.getSelectionModel().select(0);
 		comboFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateFeatureCalculator());
-//		btnCustomizeFeatures.setOnAction(e -> showFeatures());
-		
+
 		GridPaneUtils.addGridRow(pane, row++, 0,
 				"Select features for the classifier",
 				labelFeatures, comboFeatures, btnCustomizeFeatures, btnShowFeatures);
@@ -311,7 +304,6 @@ public class PixelClassifierPane {
 		// Region
 		var labelRegion = new Label("Region");
 		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
-//		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
 		GridPaneUtils.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
 				labelRegion, comboRegionFilter, comboRegionFilter, comboRegionFilter);
 
@@ -357,38 +349,19 @@ public class PixelClassifierPane {
 				
 		var panePredict = GridPaneUtils.createColumnGridControls(btnProject, btnAdvancedOptions);
 		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
-		
-//		addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
-
-//		var btnUpdate = new Button("Update classifier");
-//		btnUpdate.setMaxWidth(Double.MAX_VALUE);
-//		btnUpdate.setOnAction(e -> updateClassifier(true));
-//		btnUpdate.disableProperty().bind(qupath.imageDataProperty().isNull().or(btnLive.selectedProperty()));
 		pane.add(btnLive, 0, row++, pane.getColumnCount(), 1);
 		
 		pieChart = new PieChart();
 		pieChart.getStyleClass().add("training-chart");
 		pieChart.setAnimated(false);
 		
-//		var hierarchy = viewer.getHierarchy();
-//		Map<PathClass, List<PathObject>> map = hierarchy == null ? Collections.emptyMap() : PathClassificationLabellingHelper.getClassificationMap(hierarchy, false);
-		
 		pieChart.setLabelsVisible(false);
 		pieChart.setLegendVisible(true);
 		pieChart.setMinSize(40, 40);
 		pieChart.setPrefSize(120, 120);
-//		pieChart.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		pieChart.setLegendSide(Side.RIGHT);
-//		GridPane.setVgrow(pieChart, Priority.ALWAYS);
-//		Tooltip.install(pieChart, new Tooltip("View training classes by proportion"));
 		var paneChart = new BorderPane(pieChart);
-//		paneChart.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-		
-//		PaneTools.addGridRow(pane, row++, 0, 
-////				null,
-//				"View information about the current classifier training",
-//				paneChart, paneChart, paneChart);
-		
+
 		GridPaneUtils.setFillWidth(Boolean.TRUE, paneChart);
 		GridPaneUtils.setFillHeight(Boolean.TRUE, paneChart);
 		GridPaneUtils.setVGrowPriority(Priority.ALWAYS, paneChart);
@@ -546,6 +519,7 @@ public class PixelClassifierPane {
 		pane.setPadding(new Insets(5));
 		
 		stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setScene(new Scene(fullPane));
 		
 		stage.setMinHeight(400);
@@ -970,9 +944,6 @@ public class PixelClassifierPane {
 		 else
 			 trainData.shuffleTrainTest();
 
-//		 System.err.println("Train: " + trainData.getTrainResponses());
-//		 System.err.println("Test: " + trainData.getTestResponses());
-		 
 		 // Apply normalization, if we need to
 		 FeaturePreprocessor preprocessor = normalization.build(trainData.getTrainSamples(), false);
 		 if (preprocessor.doesSomething()) {
@@ -1456,8 +1427,8 @@ public class PixelClassifierPane {
 		public void hierarchyChanged(PathObjectHierarchyEvent event) {
 			if (!event.isChanging() && !event.isObjectMeasurementEvent() && (event.isStructureChangeEvent() || event.isObjectClassificationEvent() || !event.getChangedObjects().isEmpty())) {
 				if (event.isObjectClassificationEvent() || event.getChangedObjects().stream().anyMatch(p -> p.getPathClass() != null)) {
-					if (event.getChangedObjects().stream().anyMatch(p -> p.isAnnotation()) && 
-							!(event.isAddedOrRemovedEvent() && event.getChangedObjects().stream().allMatch(p -> p.isLocked())))
+					if (event.getChangedObjects().stream().anyMatch(PathObject::isAnnotation) &&
+							!(event.isAddedOrRemovedEvent() && event.getChangedObjects().stream().allMatch(PathObject::isLocked)))
 						updateClassifier();
 				}
 			}

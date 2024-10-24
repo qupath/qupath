@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.LogTools;
+import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.io.PathIO;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
@@ -58,7 +59,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public abstract class PathObject implements Externalizable {
+public abstract class PathObject implements Externalizable, MinimalMetadataStore {
 	
 	private static final long serialVersionUID = 1L;
 		
@@ -72,7 +73,7 @@ public abstract class PathObject implements Externalizable {
 	private Collection<PathObject> childList = null; // Collections.synchronizedList(new ArrayList<>(0));
 	private MeasurementList measurements = null;
 	
-	private MetadataMap metadata = null;
+	private volatile MetadataMap metadata = null;
 	
 	private String name = null;
 	private Integer color;
@@ -300,17 +301,7 @@ public abstract class PathObject implements Externalizable {
 			throw new IllegalArgumentException("PathRootObject cannot be added as child to another PathObject"); //J 
 		addChildObjectImpl(pathObject);
 	}
-	
-	/**
-	 * Legacy method to add a single child object.
-	 * @param pathObject
-	 * @deprecated since v0.4.0, replaced by {@link #addChildObject(PathObject)}
-	 */
-	@Deprecated
-	public void addPathObject(PathObject pathObject) {
-		LogTools.warnOnce(logger, "addPathObject(Collection) is deprecated - use addChildObject(Collection) instead");
-		addChildObject(pathObject);
-	}
+
 	
 	private synchronized void addChildObjectImpl(PathObject pathObject) {
 		ensureChildList(nChildObjects() + 1);
@@ -410,17 +401,7 @@ public abstract class PathObject implements Externalizable {
 	public synchronized void addChildObjects(Collection<? extends PathObject> pathObjects) {
 		addChildObjectsImpl(pathObjects);
 	}
-	
-	/**
-	 * Legacy method to add child objects.
-	 * @param pathObjects
-	 * @deprecated since v0.4.0, replaced by {@link #addChildObjects(Collection)}
-	 */
-	@Deprecated
-	public void addPathObjects(Collection<? extends PathObject> pathObjects) {
-		LogTools.warnOnce(logger, "addPathObjects(Collection) is deprecated - use addChildObjects(Collection) instead");
-		addChildObjects(pathObjects);
-	}
+
 
 	/**
 	 * Remove a single object from the child list of this object.
@@ -434,17 +415,7 @@ public abstract class PathObject implements Externalizable {
 			pathObject.parent = null; //.setParent(null);
 		childList.remove(pathObject);
 	}
-	
-	/**
-	 * Legacy method to remove a single child object.
-	 * @param pathObject
-	 * @deprecated since v0.4.0, replaced by {@link #removeChildObject(PathObject)}
-	 */
-	@Deprecated
-	public void removePathObject(PathObject pathObject) {
-		LogTools.warnOnce(logger, "removePathObject(PathObject) is deprecated - use removeChildObject(PathObject) instead");
-		removeChildObject(pathObject);
-	}
+
 	
 	/**
 	 * Remove multiple objects from the child list of this object.
@@ -462,17 +433,7 @@ public abstract class PathObject implements Externalizable {
 			removeAllQuickly(childList, pathObjects);
 		}
 	}
-	
-	/**
-	 * Legacy method to remove specified child objects.
-	 * @param pathObjects 
-	 * @deprecated since v0.4.0, replaced by {@link #removeChildObjects(Collection)}
-	 */
-	@Deprecated
-	public void removePathObjects(Collection<PathObject> pathObjects) {
-		LogTools.warnOnce(logger, "removePathObjects(Collection) is deprecated - use removeChildObjects(Collection) instead");
-		removeChildObjects(pathObjects);
-	}
+
 	
 	/**
 	 * Remove all child objects.
@@ -489,16 +450,7 @@ public abstract class PathObject implements Externalizable {
 			childList.clear();
 		}
 	}
-	
-	/**
-	 * Legacy method to remove all child objects.
-	 * @deprecated since v0.4.0, replaced by {@link #clearChildObjects()}
-	 */
-	@Deprecated
-	public void clearPathObjects() {
-		LogTools.warnOnce(logger, "clearPathObjects() is deprecated, use clearChildObjects() instead");
-		clearChildObjects();
-	}
+
 	
 	/**
 	 * Total number of child objects.
@@ -534,22 +486,12 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Check if this object has children, or if its child object list is empty.
 	 * @return
-	 * @since v0.4.0, replaces {@link #hasChildren()} for more consistent naming
+	 * @since v0.4.0
 	 */
 	public boolean hasChildObjects() {
 		return childList != null && !childList.isEmpty();
 	}
-	
-	/**
-	 * Legacy method to check for child objects.
-	 * @return
-	 * @deprecated since v0.4.0, replaced by {@link #hasChildObjects()}
-	 */
-	@Deprecated
-	public boolean hasChildren() {
-		LogTools.warnOnce(logger, "hasChildren() is deprecated - use hasChildObjects() instead");
-		return hasChildObjects();
-	}
+
 	
 	/**
 	 * Returns true if this object has a ROI.
@@ -704,16 +646,36 @@ public abstract class PathObject implements Externalizable {
 	
 	/**
 	 * Get the classification of the object.
+	 * <p>
+	 * The {@code PathClass} object is used as the internal representation of the object's classification,
+	 * encapsulating both the different string components of the classification and the color used for display.
+	 * <p>
+	 * For convenience, {@link #getClassification()} and {@link #getClassifications()} provide a simpler way to interact with
+	 * classifications as one or more strings.
 	 * @return
+	 * @see #setPathClass(PathClass)
+	 * @see #getClassification()
+	 * @see #getClassifications()
 	 */
 	public abstract PathClass getPathClass();
 		
 	/**
 	 * Set the classification of the object, without specifying any classification probability.
-	 * @param pc
+	 * <p>
+	 * The {@code PathClass} object is used as the internal representation of the object's classification,
+	 * encapsulating both the different string components of the classification and the color used for display.
+	 * <p>
+	 * If the classification is null, the object is considered to be unclassified.
+	 * <p>
+	 * For convenience, {@link #setClassification(String)} and {@link #setClassifications(Collection)}
+	 * provide alternative ways to set classifications using strings - but this does not allow for setting the color,
+	 * and internally a {@code PathClass} object will still be used.
+	 * @param pathClass
+	 * @see #setClassification(String)
+	 * @see #setClassifications(Collection)
 	 */
-	public void setPathClass(PathClass pc) {
-		setPathClass(pc, Double.NaN);
+	public void setPathClass(PathClass pathClass) {
+		setPathClass(pathClass, Double.NaN);
 	}
 	
 	/**
@@ -724,7 +686,7 @@ public abstract class PathObject implements Externalizable {
 		var previous = getPathClass();
 		if (previous == null)
 			return false;
-		setPathClass((PathClass)null);
+		setPathClass(null);
 		return true;
 	}
 	
@@ -761,7 +723,7 @@ public abstract class PathObject implements Externalizable {
 		if (classifications.isEmpty())
 			resetPathClass();
 		else if (classifications instanceof Set) {
-			setPathClass(PathClass.fromCollection((Set<String>)classifications));
+			setPathClass(PathClass.fromCollection(classifications));
 		} else {
 			// Use LinkedHashSet to maintain ordering
 			var set = new LinkedHashSet<>(classifications);
@@ -794,7 +756,39 @@ public abstract class PathObject implements Externalizable {
 		else
 			return pc.toSet();
 	}
-	
+
+	/**
+	 * Convenience method to get a string representation of the classification (PathClass).
+	 * <p>
+	 * It returns null if there is no classification; otherwise, it is equivalent to calling
+	 * {@code getPathClass().toString()}
+	 * @return
+	 * @see #setClassification(String)
+	 * @see #getPathClass()
+	 * @see #getClassifications()
+	 * @since v0.6.0
+	 */
+	public String getClassification() {
+		var pc = getPathClass();
+		return pc == null || pc == PathClass.NULL_CLASS ? null : pc.toString();
+	}
+
+	/**
+	 * Convenience method to et the classification of the object from a string representation.
+	 * If the string is null or empty, the classification is reset.
+	 * Otherwise, it is equivalent to calling {@code setPathClass(PathClass.fromString(classification))}
+	 * @param classification
+	 * @see #getClassification()
+	 * @see #setPathClass(PathClass)
+	 * @see #setClassifications(Collection)
+	 * @since v0.6.0
+	 */
+	public void setClassification(String classification) {
+		if (classification == null || classification.isEmpty())
+			resetPathClass();
+		else
+			setPathClass(PathClass.fromString(classification));
+	}
 
 	/**
 	 * Set the classification of the object, specifying a classification probability.
@@ -802,6 +796,9 @@ public abstract class PathObject implements Externalizable {
 	 * The probability is expected to be between 0 and 1, or Double.NaN if no probability should be set.
 	 * @param pathClass
 	 * @param classProbability
+	 * @see #setPathClass(PathClass)
+	 * @see #setClassification(String) 
+	 * @see #setClassifications(Collection)
 	 */
 	public abstract void setPathClass(PathClass pathClass, double classProbability);
 	
@@ -870,7 +867,6 @@ public abstract class PathObject implements Externalizable {
 	 * <p>
 	 * This may be null if no color has been set.
 	 * @return
-	 * @see #setColorRGB(Integer)
 	 * @see ColorTools#red(int)
 	 * @see ColorTools#green(int)
 	 * @see ColorTools#blue(int)
@@ -878,30 +874,6 @@ public abstract class PathObject implements Externalizable {
 	 */
 	public Integer getColor() {
 		return color;
-	}
-	
-	/**
-	 * Return any stored color as a packed RGB value.
-	 * <p>
-	 * This may be null if no color has been set
-	 * @return
-	 * @deprecated since v0.4.0, use {@link #getColor()} instead.
-	 */
-	@Deprecated
-	public Integer getColorRGB() {
-		LogTools.warnOnce(logger, "PathObject.getColorRGB() is deprecated since v0.4.0 - use getColor() instead");
-		return getColor();
-	}
-	
-	/**
-	 * Set the display color.
-	 * @param color
-	 * @deprecated since v0.4.0, use {@link #setColor(Integer)} instead.
-	 */
-	@Deprecated
-	public void setColorRGB(Integer color) {
-		LogTools.warnOnce(logger, "PathObject.setColorRGB(Integer) is deprecated since v0.4.0 - use setColor(Integer) instead");
-		setColor(color);
 	}
 	
 	/**
@@ -1022,7 +994,9 @@ public abstract class PathObject implements Externalizable {
 	 * @return 
 	 * 
 	 * @see #retrieveMetadataValue
+	 * @deprecated v0.6.0, use {@link #getMetadata()} to directly access the metadata instead.
 	 */
+	@Deprecated
 	protected Object storeMetadataValue(final String key, final String value) {
 		if (metadata == null)
 			metadata = new MetadataMap();
@@ -1036,7 +1010,9 @@ public abstract class PathObject implements Externalizable {
 	 * @return the metadata value if set, or null if not
 	 * 
 	 * @see #storeMetadataValue
+	 * @deprecated v0.6.0, use {@link #getMetadata()} to directly access the metadata instead.
 	 */
+	@Deprecated
 	protected Object retrieveMetadataValue(final String key) {
 		return metadata == null ? null : metadata.get(key);
 	}
@@ -1045,7 +1021,9 @@ public abstract class PathObject implements Externalizable {
 	 * Get the set of metadata keys.
 	 * 
 	 * @return
+	 * @deprecated v0.6.0, use {@link #getMetadata()} to directly access the metadata instead.
 	 */
+	@Deprecated
 	protected Set<String> retrieveMetadataKeys() {
 		return metadata == null ? Collections.emptySet() : metadata.keySet();
 	}
@@ -1054,14 +1032,18 @@ public abstract class PathObject implements Externalizable {
 	 * Get an unmodifiable map of the metadata.
 	 * 
 	 * @return
+	 * @deprecated v0.6.0, use {@link #getMetadata()} to directly access the metadata instead.
 	 */
+	@Deprecated
 	protected Map<String, String> getUnmodifiableMetadataMap() {
 		return metadata == null ? Collections.emptyMap() : Collections.unmodifiableMap(metadata);
 	}
 	
 	/**
 	 * Remove all stored metadata values.
+	 * @deprecated v0.6.0, use {@link #getMetadata()} to directly access the metadata instead.
 	 */
+	@Deprecated
 	protected void clearMetadataMap() {
 		if (metadata != null)
 			metadata.clear();
@@ -1069,13 +1051,22 @@ public abstract class PathObject implements Externalizable {
 	
 	/**
 	 * Get a key/value pair map for object metadata.
+	 * <p>
+	 * Note that the returned map currently is <i>not</i> threadsafe.
+	 * This may change in future versions.
+	 * <p>
+	 * When adding metadata,
 	 * @return
 	 * @since v0.5.0
-	 * @implNote This is an experimental API change that may be further modified before v0.5.0 is available.
 	 */
+	@Override
 	public Map<String, String> getMetadata() {
-		if (metadata == null)
-			metadata = new MetadataMap();
+		if (metadata == null) {
+			synchronized (this) {
+				if (metadata == null)
+					metadata = new MetadataMap();
+			}
+		}
 		return metadata;
 	}
 	
@@ -1097,7 +1088,7 @@ public abstract class PathObject implements Externalizable {
 				nFields++;
 			}
 			out.writeInt(nFields);
-			if (metadata != null)
+			if (metadata != null && !metadata.isEmpty())
 				out.writeObject(metadata);
 			out.writeObject(measurements);
 		} else {
@@ -1155,13 +1146,14 @@ public abstract class PathObject implements Externalizable {
 			int nFields = in.readInt();
 			for (int i = 0; i < nFields; i++) {
 				nextObject = in.readObject();
-				if (nextObject instanceof MetadataMap) {
+				if (nextObject instanceof MetadataMap mm) {
 					// Read metadata, if we have it
-					metadata = (MetadataMap)nextObject;
-				} else if (nextObject instanceof MeasurementList) {
+					if (!mm.isEmpty())
+						metadata = mm;
+				} else if (nextObject instanceof MeasurementList ml) {
 					// Read a measurement list, if we have one
 					// This is rather hack-ish... but re-closing a list can prompt it to be stored more efficiently
-					measurements = (MeasurementList)nextObject;
+					measurements = ml;
 					measurements.close();
 				} else if (nextObject != null) {
 					logger.debug("Unsupported field during deserialization {}", nextObject);

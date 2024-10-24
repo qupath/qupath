@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -33,6 +33,8 @@ import java.nio.file.Path;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.fx.dialogs.Dialogs;
@@ -47,6 +49,8 @@ import qupath.lib.gui.viewer.tools.PathTools;
  * @author Melvin Gelbard
  */
 final class ViewTrackerTools {
+
+	private static final Logger logger = LoggerFactory.getLogger(ViewTrackerTools.class);
 	
 	// Suppressed default constructor for non-instantiability
 	private ViewTrackerTools() {
@@ -243,7 +247,7 @@ final class ViewTrackerTools {
 				out.print(getSummary(frame, "\t", tracker.hasCursorTrackingData(), tracker.hasActiveToolTrackingData(), tracker.hasEyeTrackingData(), tracker.hasZAndT()));
 			
 		} catch (FileNotFoundException e) {
-			e.printStackTrace();
+			logger.error(e.getMessage(), e);
 		}
 	}
 	

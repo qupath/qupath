@@ -170,7 +170,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		
 		// Ignore the current object if it belongs to a different image plane
 		if (currentObject == null ||
-				PathPrefs.selectionModeProperty().get() || 
+				PathPrefs.selectionModeStatus().get() ||
 				!(currentObject instanceof PathAnnotationObject) || 
 				(!currentObject.isEditable()) || 
 				currentObject.getROI().getZ() != viewer.getZPosition() || 
@@ -204,7 +204,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		
 		// See if, rather than creating something, we can instead reactivate a current object
 		boolean multipleClicks = e.getClickCount() > 1;
-		if (!PathPrefs.selectionModeProperty().get() && (multipleClicks || (createNew && !e.isShiftDown()))) {
+		if (!PathPrefs.selectionModeStatus().get() && (multipleClicks || (createNew && !e.isShiftDown()))) {
 			// See if, rather than creating something, we can instead reactivate a current object
 			if (multipleClicks) {
 				PathObject objectSelectable = ToolUtils.getSelectableObject(viewer, p.getX(), p.getY(), e.getClickCount() - 1);
@@ -216,7 +216,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 					viewer.setSelectedObject(null);
 					currentObject = null;
 				}
-			} else if (!PathPrefs.selectionModeProperty().get()) {
+			} else if (!PathPrefs.selectionModeStatus().get()) {
 					List<PathObject> listSelectable = ToolUtils.getSelectableObjectList(viewer, p.getX(), p.getY());
 					PathObject objectSelectable = null;
 					for (int i = 0; i < listSelectable.size(); i++) {
@@ -308,7 +308,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		PathObject pathObjectUpdated = getUpdatedObject(e, shapeROI, pathObject, -1);
 
 		if (pathObject != pathObjectUpdated) {
-			viewer.setSelectedObject(pathObjectUpdated, PathPrefs.selectionModeProperty().get());
+			viewer.setSelectedObject(pathObjectUpdated, PathPrefs.selectionModeStatus().get());
 		} else {
 			viewer.repaint();
 		}

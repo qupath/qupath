@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
+import javafx.application.ColorScheme;
 import org.controlsfx.control.Notifications;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -445,7 +446,7 @@ public class Dialogs {
 		if (stage == null)
 			return notifications;
 		
-		if (!QuPathStyleManager.isDefaultStyle())
+		if (QuPathStyleManager.getStyleColorScheme() == ColorScheme.DARK)
 			notifications = notifications.darkStyle();
 		
 		return notifications.owner(stage);

@@ -154,7 +154,7 @@ class ScriptMenuLoader {
 				else
 					menu.getItems().setAll(miOpenDirectory, miCreateScript, new SeparatorMenuItem());
 				Path path = Paths.get(scriptDir);
-				if (path != null && path.getFileName() != null) {
+				if (path.getFileName() != null) {
 					addMenuItemsForPath(menu, path);
 				}
 			} else if (miSetPath != null)
@@ -221,7 +221,7 @@ class ScriptMenuLoader {
 			}
 			if (!items.isEmpty()) {
 				// Remove placeholder if available
-				if (menu.getItems().size() == 1 && NO_SCRIPTS_NAME.equals(menu.getItems().get(0).getText()))
+				if (menu.getItems().size() == 1 && NO_SCRIPTS_NAME.equals(menu.getItems().getFirst().getText()))
 					menu.getItems().setAll(items);				
 				else
 					menu.getItems().addAll(items);				

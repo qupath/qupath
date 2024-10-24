@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -39,12 +39,14 @@ import org.slf4j.LoggerFactory;
 /**
  * Helper class for storing metadata key/value pairs.
  * <p>
- * Currently wraps a {@link LinkedHashMap}, but this implementation may change.
+ * This currently wraps a synchronized {@link LinkedHashMap}, but the implementation may change.
  * <p>
- * Serializes itself reasonably efficiently by using Object arrays.
- * 
- * @author Pete Bankhead
- *
+ * The main features of this class are:
+ * <ul>
+ *     <li>It can be serialized reasonably efficiently using Object arrays</li>
+ *     <li>It tries to minimize overhead by creating its internal map implementation lazily,
+ *     only whenever anything is being added.</li>
+ * </ul>
  */
 class MetadataMap implements Map<String, String>, Externalizable {
 	
@@ -58,12 +60,12 @@ class MetadataMap implements Map<String, String>, Externalizable {
 
 	@Override
 	public int size() {
-		return getMapInternal().size();
+		return map == null ? 0 : getMapInternal().size();
 	}
 
 	@Override
 	public boolean isEmpty() {
-		return getMapInternal().isEmpty();
+		return map == null || getMapInternal().isEmpty();
 	}
 
 	@Override
@@ -105,22 +107,24 @@ class MetadataMap implements Map<String, String>, Externalizable {
 		if (map == null)
 			return;
 		map.clear();
-		map = null;
 	}
 
 	@Override
 	public Set<String> keySet() {
-		return getMapInternalOrCreate().keySet();
+		// Returned set does only needs to support removal, so Collections.emptyMap() is ok
+		return getMapInternal().keySet();
 	}
 
 	@Override
 	public Collection<String> values() {
-		return getMapInternalOrCreate().values();
+		// Returned set does only needs to support removal, so Collections.emptyMap() is ok
+		return getMapInternal().values();
 	}
 
 	@Override
 	public Set<java.util.Map.Entry<String, String>> entrySet() {
-		return getMapInternalOrCreate().entrySet();
+		// Returned set does only needs to support removal, so Collections.emptyMap() is ok
+		return getMapInternal().entrySet();
 	}
 
 	@Override

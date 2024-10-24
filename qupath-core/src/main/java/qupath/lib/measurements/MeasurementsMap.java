@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2022-2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -37,7 +37,7 @@ import java.util.Set;
  */
 class MeasurementsMap extends AbstractMap<String, Number> implements Map<String, Number> {
 	
-	private MeasurementList list;
+	private final MeasurementList list;
 	
 	public MeasurementsMap(MeasurementList list) {
 		this.list = list;
@@ -67,17 +67,13 @@ class MeasurementsMap extends AbstractMap<String, Number> implements Map<String,
 	@Override
 	public boolean containsValue(Object value) {
 		double val;
-		if (value instanceof Number)
-			val = ((Number)value).doubleValue();
+		if (value instanceof Number number)
+			val = number.doubleValue();
 		else
 			return false;
-		synchronized(list) {
-			for (int i = 0; i < list.size(); i++) {
-				if (list.getMeasurementValue(i) == val)
-					return true;
-			}
-		}
-		return false;
+		return list.getMeasurements()
+				.stream()
+				.anyMatch(m -> m.getValue() == val);
 	}
 	
 	@Override
@@ -87,12 +83,11 @@ class MeasurementsMap extends AbstractMap<String, Number> implements Map<String,
 	
 	@Override
 	public Double get(Object key) {
-		if (!(key instanceof String))
-			return null;
-		String name = (String)key;
-		synchronized(list) {
-			if (list.containsKey(name))
-				return list.get(name);
+		if (key instanceof String name) {
+			synchronized (list) {
+				if (list.containsKey(name))
+					return list.get(name);
+			}
 		}
 		return null;
 	}
@@ -108,7 +103,7 @@ class MeasurementsMap extends AbstractMap<String, Number> implements Map<String,
 	public Number put(String name, Number value) {
 		Objects.requireNonNull(value);
 		Number current = null;
-		synchronized(list) {
+		synchronized (list) {
 			if (list.containsKey(name))
 				current = list.get(name);
 			list.put(name, value.doubleValue());
@@ -133,13 +128,12 @@ class MeasurementsMap extends AbstractMap<String, Number> implements Map<String,
 	@Override
 	public Double remove(Object key) {
 		synchronized (list) {
-			int ind = list.getMeasurementNames().indexOf(key);
-			Double val = null;
-			if (ind >= 0) {
-				val = list.getMeasurementValue(ind);
-				list.removeMeasurements((String)key);
+			if (key instanceof String name) {
+				if (list.containsKey(name)) {
+					return list.remove(name);
+				}
 			}
-			return val;
+			return null;
 		}
 	}
 	
@@ -164,20 +158,24 @@ class MeasurementsMap extends AbstractMap<String, Number> implements Map<String,
 
 				@Override
 				public Entry<String, Number> next() {
-					SimpleEntry<String, Number> entry = new SimpleEntry<>(list.getMeasurementName(i), list.getMeasurementValue(i));
+					var measurement = list.getByIndex(i);
+					Entry<String, Number> entry = new SimpleImmutableEntry<>(
+							measurement.getName(), measurement.getValue());
 					i++;
 					return entry;
 				}
 				
 				@Override
 				public void remove() {
-					list.removeMeasurements(list.getMeasurementName(i - 1));
+					if (i <= 0)
+						throw new IllegalStateException();
+					list.remove(list.getNames().get(i - 1));
+					i--;
 				}
 				
 			};
 		}
 		
 	}
-	
 
 }

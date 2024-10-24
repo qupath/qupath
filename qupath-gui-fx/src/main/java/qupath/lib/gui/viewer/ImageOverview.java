@@ -212,17 +212,7 @@ class ImageOverview implements QuPathViewerListener {
 			canvas.setWidth(imgPreview.getWidth());
 			canvas.setHeight(imgPreview.getHeight());
 
-//			if (imgPreview == null || imgPreview.getWidth() != preferredWidth || imgPreview.getHeight() != preferredHeight) {
-//				//				imgPreview = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().createCompatibleImage(preferredWidth, preferredHeight, Transparency.OPAQUE);
-//				imgPreview = new BufferedImage(preferredWidth, preferredHeight, BufferedImage.TYPE_INT_RGB);
-//			}
-//			Graphics2D g2d = imgPreview.createGraphics();
-//			g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-//			g2d.drawImage(img, 0, 0, preferredWidth, preferredHeight, this);
-//			g2d.dispose();
-//			//			imgPreview = img.getScaledInstance(preferredWidth, preferredHeight, BufferedImage.SCALE_SMOOTH);
 			imgLastThumbnail = img;
-//			System.out.println("I resized from " + img.getWidth() + " to " + imgPreview.getWidth());
 		}
 		updateTransform();
 	}

@@ -203,7 +203,6 @@ public class Preprocessing {
 		PCAProjector(Mat data, double retainedVariance, boolean normalize) {
 			this.normalize = normalize;
 			opencv_core.PCACompute2(data, mean, eigenvectors, eigenvalues, retainedVariance);
-			//			System.err.println(mean.createIndexer());
 			logger.info("Reduced dimensions from {} to {}",data.cols(), eigenvectors.rows());
 		}
 		

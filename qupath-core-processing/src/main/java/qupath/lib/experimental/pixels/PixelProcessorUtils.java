@@ -22,6 +22,8 @@
 package qupath.lib.experimental.pixels;
 
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -35,6 +37,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.function.Function;
 
 /**
@@ -42,6 +46,11 @@ import java.util.function.Function;
  * @since v0.5.0
  */
 public class PixelProcessorUtils {
+
+    // Introduced because of https://github.com/qupath/qupath-extension-instanseg/issues/88
+    // We could remove it, but then we need a more efficient way to apply ROI masking that
+    // accepts a Geometry (or PreparedGeometry) as input instead of a ROI.
+    private static final Map<ROI, PreparedGeometry> preparedGeometryCache = Collections.synchronizedMap(new WeakHashMap<>());
 
     /**
      * Extract the pixels from one channel of an image using the specified transform, and applying any ROI mask.
@@ -121,9 +130,9 @@ public class PixelProcessorUtils {
             return Collections.singletonList(child);
         if (!childOnSamePlane(parentROI, child.getROI()) || parentROI.isEmpty())
             return Collections.emptyList();
-        var geom = parentROI.getGeometry();
+        var geom = getPreparedGeometry(parentROI);
         var childGeom = child.getROI().getGeometry();
-        var geomOutput = GeometryTools.homogenizeGeometryCollection(geom.intersection(childGeom));
+        var geomOutput = GeometryTools.homogenizeGeometryCollection(computeIntersection(geom, childGeom));
         if (geomOutput.isEmpty() || geomOutput.getDimension() < childGeom.getDimension())
             return Collections.emptyList();
         else if (childGeom.equals(geomOutput))
@@ -135,7 +144,7 @@ public class PixelProcessorUtils {
             var nucleusROI = PathObjectTools.getNucleusROI(child);
             if (nucleusROI != null) {
                 var nucleusGeom = nucleusROI.getGeometry();
-                var nucleusOutput = GeometryTools.homogenizeGeometryCollection(geom.intersection(nucleusGeom));
+                var nucleusOutput = GeometryTools.homogenizeGeometryCollection(computeIntersection(geom, nucleusGeom));
                 if (nucleusOutput.isEmpty() || nucleusOutput.getDimension() < nucleusGeom.getDimension())
                     nucleusROI = null;
                 else
@@ -158,8 +167,8 @@ public class PixelProcessorUtils {
         Geometry geomOutput;
         var childGeom = child.getROI().getGeometry();
         if (parentROI != null) {
-            var geom = parentROI.getGeometry();
-            geomOutput = GeometryTools.homogenizeGeometryCollection(geom.intersection(childGeom));
+            var geom = getPreparedGeometry(parentROI);
+            geomOutput = GeometryTools.homogenizeGeometryCollection(computeIntersection(geom, childGeom));
         } else {
             geomOutput = GeometryTools.homogenizeGeometryCollection(childGeom);
         }
@@ -171,6 +180,17 @@ public class PixelProcessorUtils {
             var newROI = GeometryTools.geometryToROI(geomOutput, child.getROI().getImagePlane());
             return RoiTools.splitROI(newROI).stream().map(r -> PathObjectTools.createLike(child, r)).toList();
         }
+    }
+
+    private static PreparedGeometry getPreparedGeometry(ROI roi) {
+        return preparedGeometryCache.computeIfAbsent(roi, r -> PreparedGeometryFactory.prepare(r.getGeometry()));
+    }
+
+    private static Geometry computeIntersection(PreparedGeometry parent, Geometry child) {
+        if (parent.covers(child))
+            return child;
+        else
+            return parent.getGeometry().intersection(child);
     }
 
     /**

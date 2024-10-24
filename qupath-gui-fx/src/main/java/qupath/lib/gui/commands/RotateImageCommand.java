@@ -39,6 +39,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import qupath.fx.controls.CircularSlider;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.viewer.QuPathViewer;
 
@@ -57,6 +58,7 @@ final class RotateImageCommand implements ChangeListener<QuPathViewer> {
 		QuPathViewer viewerTemp = qupath.getViewer();
 		if (dialog == null) {
 			dialog = new Stage();
+			FXUtils.addCloseWindowShortcuts(dialog);
 			dialog.initOwner(qupath.getStage());
 			
 			dialog.initStyle(StageStyle.TRANSPARENT);

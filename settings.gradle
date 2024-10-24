@@ -29,10 +29,22 @@ dependencyResolutionManagement {
     versionCatalogs {
         libs {
             def javafxOverride = System.properties.getOrDefault('javafx-version', null)
-            if (javafxOverride) {
+            if (javafxOverride instanceof String) {
                 println "Overriding JavaFX version to request $javafxOverride"
-                version('javafx', javafxOverride)
+                version('javafx', javafxOverride as String)
             }
+        }
+
+        // Extra version catalog for bundled extensions
+        // This can be useful to make custom QuPath builds with specific versions of extensions
+        extraLibs {
+            library('djl', 'io.github.qupath', 'qupath-extension-djl').version('0.4.0-20240911.172830-2')
+            library('instanseg', 'io.github.qupath', 'qupath-extension-instanseg').version('0.0.1-20241020.174720-4')
+            library('training', 'io.github.qupath', 'qupath-extension-training').version('0.0.1-20241022.065038-2')
+            library('py4j', 'io.github.qupath', 'qupath-extension-py4j').version('0.1.0-20241021.201937-1')
+            // Include or exclude bundled extensions
+            bundle('extensions', [])
+//            bundle('extensions', ['djl', 'instanseg', 'training', 'py4j'])
         }
     }
 }

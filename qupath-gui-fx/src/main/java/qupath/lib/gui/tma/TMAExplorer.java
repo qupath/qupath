@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tma.TMAEntries.TMAEntry;
@@ -153,17 +154,13 @@ public class TMAExplorer implements Runnable {
 							core.isMissing());
 					
 					MeasurementList ml = core.getMeasurementList();
-					for (int i = 0; i < ml.size(); i++) {
-						String measurement = ml.getMeasurementName(i);
-						double val = ml.getMeasurementValue(i);
+					for (var m : ml.getMeasurements()) {
+						String measurement = m.getName();
+						double val = m.getValue();
 						entry.putMeasurement(measurement, val);
 						if (!Double.isNaN(val)) {
-							RunningStatistics stats = statsMap.get(measurement);
-							if (stats == null) {
-								stats = new RunningStatistics();
-								statsMap.put(measurement, stats);
-							}
-							stats.addValue(val);
+                            RunningStatistics stats = statsMap.computeIfAbsent(measurement, k -> new RunningStatistics());
+                            stats.addValue(val);
 						}
 					}
 					entries.add(entry);
@@ -194,6 +191,7 @@ public class TMAExplorer implements Runnable {
 		
 		
 		Stage stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.initOwner(qupath.getStage());
 		TMASummaryViewer summaryViewer = new TMASummaryViewer(stage);
 		summaryViewer.setTMAEntries(entries);

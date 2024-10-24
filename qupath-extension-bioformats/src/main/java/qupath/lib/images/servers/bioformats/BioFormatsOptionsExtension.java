@@ -51,6 +51,7 @@ import qupath.fx.prefs.annotations.DirectoryPref;
 import qupath.fx.prefs.annotations.IntegerPref;
 import qupath.fx.prefs.annotations.PrefCategory;
 import qupath.lib.images.writers.ome.OMEPyramidWriterCommand;
+import qupath.lib.images.writers.ome.zarr.OMEZarrWriterCommand;
 
 /**
  * A QuPath extension that adds options relating to the BioFormatsImageServer to the main QuPath preference pane.
@@ -79,6 +80,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		
 		var actions = new OmeTiffWriterAction(qupath);
 		qupath.installActions(ActionTools.getAnnotatedActions(actions));
+		qupath.installActions(ActionTools.getAnnotatedActions(new OmeZarrWriterAction(qupath)));
 
 		var prefs = new BioFormatsPreferences();
 		qupath.getPreferencePane()
@@ -182,13 +184,8 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 			pathMemoization.addListener((v, o, n) -> options.setPathMemoization(n));
 			useExtensions.addListener((v, o, n) -> fillCollectionWithTokens(n, options.getUseAlwaysExtensions()));
 			skipExtensions.addListener((v, o, n) -> fillCollectionWithTokens(n, options.getSkipAlwaysExtensions()));
-			
 		}
-		
-		
 	}
-	
-	
 	
 	public static class OmeTiffWriterAction {
 		
@@ -197,9 +194,18 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		public final Action actionWriter;
 		
 		OmeTiffWriterAction(QuPathGUI qupath) {
-			actionWriter = ActionTools.createAction(new OMEPyramidWriterCommand(qupath), "OME TIFF");
+			actionWriter = ActionTools.createAction(new OMEPyramidWriterCommand(qupath), "OME-TIFF");
 		}
-		
 	}
-	
+
+	public static class OmeZarrWriterAction {
+
+		@ActionMenu(value = {"Menu.File", "Menu.File.ExportImage"})
+		@ActionConfig("Action.BioFormats.omeZarr")
+		public final Action actionWriter;
+
+		public OmeZarrWriterAction(QuPathGUI qupath) {
+			actionWriter = ActionTools.createAction(new OMEZarrWriterCommand(qupath), "OME-Zarr");
+		}
+	}
 }

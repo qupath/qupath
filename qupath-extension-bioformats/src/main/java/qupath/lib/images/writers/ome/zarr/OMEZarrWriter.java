@@ -12,12 +12,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
-import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TileRequestManager;
+import qupath.lib.images.servers.TransformedServerBuilder;
+import qupath.lib.regions.ImageRegion;
 
 import java.awt.image.BufferedImage;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +35,7 @@ import java.util.concurrent.TimeUnit;
  * <p>
  *     Create an OME-Zarr file writer as described by version 0.4 of the specifications of the
  *     <a href="https://ngff.openmicroscopy.org/0.4/index.html">Next-generation file formats (NGFF)</a>.
+ *     The transitional "bioformats2raw.layout" and "omero" metadata are also considered.
  * </p>
  * <p>
  *     Use a {@link Builder} to create an instance of this class.
@@ -49,7 +55,7 @@ public class OMEZarrWriter implements AutoCloseable {
     private final ExecutorService executorService;
 
     private OMEZarrWriter(Builder builder) throws IOException {
-        server = ImageServers.pyramidalizeTiled(
+        TransformedServerBuilder transformedServerBuilder = new TransformedServerBuilder(ImageServers.pyramidalizeTiled(
                 builder.server,
                 getChunkSize(
                         builder.tileWidth > 0 ? builder.tileWidth : builder.server.getMetadata().getPreferredTileWidth(),
@@ -62,26 +68,31 @@ public class OMEZarrWriter implements AutoCloseable {
                         builder.server.getHeight()
                 ),
                 builder.downsamples.length == 0 ? builder.server.getPreferredDownsamples() : builder.downsamples
+        ));
+        if (builder.zStart != 0 || builder.zEnd != builder.server.nZSlices() || builder.tStart != 0 || builder.tEnd != builder.server.nTimepoints()) {
+            transformedServerBuilder.slice(
+                    builder.zStart,
+                    builder.zEnd,
+                    builder.tStart,
+                    builder.tEnd
+            );
+        }
+        if (builder.boundingBox != null) {
+            transformedServerBuilder.crop(builder.boundingBox);
+        }
+        server = transformedServerBuilder.build();
+
+        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(server.getMetadata());
+
+        ZarrGroup root = ZarrGroup.create(
+                builder.path,
+                attributes.getGroupAttributes()
         );
 
-        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(
-                server.getMetadata().getName(),
-                server.nZSlices(),
-                server.nTimepoints(),
-                server.nChannels(),
-                server.getMetadata().getPixelCalibration().getPixelWidthUnit().equals(PixelCalibration.MICROMETER),
-                server.getMetadata().getTimeUnit(),
-                server.getPreferredDownsamples(),
-                server.getMetadata().getChannels(),
-                server.isRGB(),
-                server.getPixelType()
-        );
+        OMEXMLCreator.create(server.getMetadata()).ifPresent(omeXML -> createOmeSubGroup(root, builder.path, omeXML));
         levelArrays = createLevelArrays(
                 server,
-                ZarrGroup.create(
-                        builder.path,
-                        attributes.getGroupAttributes()
-                ),
+                root,
                 attributes.getLevelAttributes(),
                 builder.compressor
         );
@@ -92,13 +103,23 @@ public class OMEZarrWriter implements AutoCloseable {
     /**
      * Close this writer. This will wait until all pending tiles
      * are written.
+     * <p>
+     * If this function is interrupted, all pending and active tasks
+     * are cancelled.
      *
      * @throws InterruptedException when the waiting is interrupted
      */
     @Override
     public void close() throws InterruptedException {
         executorService.shutdown();
-        executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+
+        try {
+            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            logger.debug("Waiting interrupted. Stopping tasks", e);
+            executorService.shutdownNow();
+            throw e;
+        }
     }
 
     /**
@@ -180,21 +201,31 @@ public class OMEZarrWriter implements AutoCloseable {
         private int maxNumberOfChunks = 50;
         private int tileWidth = 512;
         private int tileHeight = 512;
+        private ImageRegion boundingBox = null;
+        private int zStart = 0;
+        private int zEnd;
+        private int tStart = 0;
+        private int tEnd;
 
         /**
          * Create the builder.
          *
          * @param server  the image to write
-         * @param path  the path where to write the image. It must end with ".ome.zarr"
-         * @throws IllegalArgumentException when the provided path doesn't end with ".ome.zarr"
+         * @param path  the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
+         * @throws IllegalArgumentException when the provided path doesn't end with ".ome.zarr" or a file/directory already exists at this location
          */
         public Builder(ImageServer<BufferedImage> server, String path) {
             if (!path.endsWith(FILE_EXTENSION)) {
                 throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
             }
+            if (Files.exists(Paths.get(path))) {
+                throw new IllegalArgumentException(String.format("The provided path (%s) already exists", path));
+            }
 
             this.server = server;
             this.path = path;
+            this.zEnd = this.server.nZSlices();
+            this.tEnd = this.server.nTimepoints();
         }
 
         /**
@@ -299,6 +330,45 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         /**
+         * Define a region (on the x-axis and y-axis) of the input image to consider.
+         *
+         * @param boundingBox the region to consider. Only the x, y, width, and height
+         *                    of this region are taken into account. Can be null to use
+         *                    the entire image
+         * @return this builder
+         */
+        public Builder setBoundingBox(ImageRegion boundingBox) {
+            this.boundingBox = boundingBox;
+            return this;
+        }
+
+        /**
+         * Define the z-slices of the input image to consider.
+         *
+         * @param zStart the 0-based inclusive index of the first z-slice to consider
+         * @param zEnd the 0-based exclusive index of the last z-slice to consider
+         * @return this builder
+         */
+        public Builder setZSlices(int zStart, int zEnd) {
+            this.zStart = zStart;
+            this.zEnd = zEnd;
+            return this;
+        }
+
+        /**
+         * Define the timepoints of the input image to consider.
+         *
+         * @param tStart the 0-based inclusive index of the first timepoint to consider
+         * @param tEnd the 0-based exclusive index of the last timepoint to consider
+         * @return this builder
+         */
+        public Builder setTimepoints(int tStart, int tEnd) {
+            this.tStart = tStart;
+            this.tEnd = tEnd;
+            return this;
+        }
+
+        /**
          * Create a new instance of {@link OMEZarrWriter}. This will also
          * create an empty image on the provided path.
          *
@@ -312,9 +382,26 @@ public class OMEZarrWriter implements AutoCloseable {
     }
 
     private static int getChunkSize(int tileSize, int maxNumberOfChunks, int imageSize) {
-        return maxNumberOfChunks > 0 ?
-                Math.max(tileSize, imageSize / maxNumberOfChunks) :
-                tileSize;
+        return Math.min(
+                imageSize,
+                maxNumberOfChunks > 0 ?
+                        Math.max(tileSize, imageSize / maxNumberOfChunks) :
+                        tileSize
+        );
+    }
+
+    private static void createOmeSubGroup(ZarrGroup mainGroup, String imagePath, String omeXMLContent) {
+        String fileName = "OME";
+
+        try {
+            mainGroup.createSubGroup(fileName);
+
+            try (OutputStream outputStream = new FileOutputStream(Files.createFile(Paths.get(imagePath, fileName, "METADATA.ome.xml")).toString())) {
+                outputStream.write(omeXMLContent.getBytes());
+            }
+        } catch (IOException e) {
+            logger.error("Error while creating OME group or metadata XML file", e);
+        }
     }
 
     private static Map<Integer, ZarrArray> createLevelArrays(
@@ -376,7 +463,7 @@ public class OMEZarrWriter implements AutoCloseable {
             chunks.add(1);
         }
         if (server.nZSlices() > 1) {
-            chunks.add(Math.max(server.getMetadata().getPreferredTileWidth(), server.getMetadata().getPreferredTileHeight()));
+            chunks.add(1);
         }
         chunks.add(server.getMetadata().getPreferredTileHeight());
         chunks.add(server.getMetadata().getPreferredTileWidth());

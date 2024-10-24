@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -28,6 +28,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.IOException;
+import java.lang.ref.Cleaner;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -63,6 +64,30 @@ import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
 public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenslideImageServer.class);
+
+	/**
+	 * Use a Cleaner to ensure that the OpenSlide object is closed when the server is no longer needed.
+	 * This is necessary because OpenSlide uses native resources that need to be released,
+	 * and finalize() is both a bad idea and deprecated for removal.
+	 */
+	private static final class OpenSlideState implements Runnable {
+
+		private final OpenSlide osr;
+
+		private OpenSlideState(OpenSlide osr) {
+			this.osr = osr;
+		}
+
+		@Override
+		public void run() {
+			logger.debug("Closing OpenSlide instance");
+			osr.close();
+		}
+	}
+
+	private static final Cleaner cleaner = Cleaner.create();
+	private final OpenSlideState state;
+	private final Cleaner.Cleanable cleanable;
 
 	private static boolean useBoundingBoxes = true;
 
@@ -114,13 +139,16 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		Path filePath = GeneralTools.toPath(uri);
 		String name;
 		// OpenSlide conventionally expects a file path, but some builds might accept a URI
-		if (Files.exists(filePath)) {
-			osr = OpenSlideLoader.openImage(filePath.toAbsolutePath().toString());
+		if (filePath != null && Files.exists(filePath)) {
+			// We need to use the real path to resolve symlinks
+			osr = OpenSlideLoader.openImage(filePath.toRealPath().toString());
 			name = filePath.getFileName().toString();
 		} else {
 			osr = OpenSlideLoader.openImage(uri.toString());
 			name = null;
 		}
+		state = new OpenSlideState(osr);
+		cleanable = cleaner.register(this, state);
 
 		// Parse the parameters
 		int width = (int)osr.getLevel0Width();
@@ -261,9 +289,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	@Override
 	public void close() {
-		if (osr != null) {
-			osr.close();
-		}
+		cleanable.clean();
 	}
 
 	/**

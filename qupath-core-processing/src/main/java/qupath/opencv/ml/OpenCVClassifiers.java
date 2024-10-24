@@ -1314,59 +1314,6 @@ public class OpenCVClassifiers {
 			return ANN_MLP.class;
 		}
 		
-		// This shows how to potentially re-weight training samples
-//		@Override
-//		public void trainWithLock(TrainData trainData) {
-//			var statModel = getStatModel();
-//			updateModel(statModel, getParameterList(), trainData);
-//			statModel.train(trainData, getTrainFlags());
-//			
-//			// Retrain
-//			 Mat results = new Mat();
-//			 Mat probabilities = new Mat();
-//			 var samples = trainData.getTrainSamples();
-//			 var targets = trainData.getTrainResponses();
-//			 long n = samples.rows();
-//			 Mat weights = new Mat((int)n, 1, opencv_core.CV_32FC1);
-//			 FloatIndexer idxTargets = targets.createIndexer();
-//			 for (int i = 0; i < 5; i++) {
-//				 predictWithLock(samples, results, probabilities);
-//				 
-//				 IntIndexer idxResults = results.createIndexer();
-//				 FloatIndexer idxProbabilities = probabilities.createIndexer();
-//				 FloatIndexer idxWeights = weights.createIndexer();
-//				 int correct = 0;
-//				 for (long j = 0; j < n; j++) {
-//					 int col = idxResults.get(j);
-//					 double pt = idxProbabilities.get(j, col);
-//					 boolean isCorrect = idxTargets.get(j, col) == 1f;
-//					 if (isCorrect) {
-//						 correct++;
-//					 } else {
-//						 pt = 1 - pt;
-//					 }
-//					 // TODO: Calculate weights in a smarter way!
-//					 double weight = 1-Math.log(Math.max(pt, 0.1));
-//					 idxWeights.put(j, (float)weight);
-//				 }
-//				 System.err.println(String.format("Correct: %.2f %%", correct * 100.0 / n));
-//				 idxResults.release();
-//				 idxProbabilities.release();
-//				 idxWeights.release();
-//				 
-//			 	 trainData = TrainData.create(
-//			 			samples,
-//			 			 trainData.getLayout(),
-//			 			 targets,
-//			 			 new Mat(),
-//			 			 new Mat(),
-//			 			weights,
-//			 			 trainData.getVarType());
-//			 	 statModel.train(trainData, getTrainFlags() + ANN_MLP.UPDATE_WEIGHTS);
-//			 }
-//		}
-
-		
 		@Override
 		public TrainData createTrainData(Mat samples, Mat targets, Mat weights, boolean doMulticlass) {
 			if (doMulticlass) {

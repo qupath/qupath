@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,6 +25,9 @@ package qupath.lib.gui.viewer;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import qupath.lib.gui.prefs.PathPrefs;
+
+import java.util.List;
 
 /**
  * A group of properties determining what should be displayed for each viewer.
@@ -34,10 +37,28 @@ import javafx.beans.property.SimpleBooleanProperty;
  */
 public class ViewerPlusDisplayOptions {
 	
-	private BooleanProperty showOverview = new SimpleBooleanProperty(true);
-	private BooleanProperty showLocation = new SimpleBooleanProperty(true);
-	private BooleanProperty showScalebar = new SimpleBooleanProperty(true);
-	
+	private BooleanProperty showOverview = new SimpleBooleanProperty(null, "showOverview", true);
+	private BooleanProperty showLocation = new SimpleBooleanProperty(null, "showLocation", true);
+	private BooleanProperty showScalebar = new SimpleBooleanProperty(null, "showScalebar", true);
+
+	private static ViewerPlusDisplayOptions SHARED_INSTANCE = createSharedInstance();
+
+	private static ViewerPlusDisplayOptions createSharedInstance() {
+		ViewerPlusDisplayOptions options = new ViewerPlusDisplayOptions();
+		for (var prop : List.of(options.showOverview, options.showLocation, options.showScalebar)) {
+			prop.bindBidirectional(PathPrefs.createPersistentPreference("viewerOptions_" + prop.getName(), prop.get()));
+		}
+		return options;
+	}
+
+	/**
+	 * Get a shared instance with persistence properties.
+	 * @return
+	 */
+	public static ViewerPlusDisplayOptions getSharedInstance() {
+		return SHARED_INSTANCE;
+	}
+
 	/**
 	 * Show the overview image.
 	 * @return

@@ -80,8 +80,8 @@ import qupath.lib.scripting.languages.ScriptLanguage;
 @Command(name = "QuPath", subcommands = {HelpCommand.class, ScriptCommand.class, GenerateCompletion.class},
 	footer = {"",
 			"Copyright(c) The Queen's University Belfast (2014-2016)",
-			"Copyright(c) QuPath developers (2017-2022)",
-			"Copyright(c) The University of Edinburgh (2018-2022)"
+			"Copyright(c) QuPath developers (2017-2024)",
+			"Copyright(c) The University of Edinburgh (2018-2024)"
 			}, mixinStandardHelpOptions = true, versionProvider = QuPath.VersionProvider.class)
 public class QuPath {
 	
@@ -220,8 +220,8 @@ public class QuPath {
 	private static void initializeDJL() {
 		// Set offline mode - used to prevent DJL downloading anything
 		// except when explicitly requested
-		if (System.getProperty("offline", null) == null)
-			System.setProperty("offline", "true");
+		if (System.getProperty("ai.djl.offline", null) == null)
+			System.setProperty("ai.djl.offline", "true");
 	}
 	
 	/**

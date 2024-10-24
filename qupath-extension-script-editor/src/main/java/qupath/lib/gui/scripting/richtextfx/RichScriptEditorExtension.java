@@ -27,13 +27,9 @@ import org.fxmisc.richtext.LineNumberFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.scripting.richtextfx.stylers.ScriptStylerProvider;
 
 /**
  * QuPath extension to add a more attractive script editor with syntax highlighting, 
@@ -46,23 +42,16 @@ public class RichScriptEditorExtension implements QuPathExtension {
 	
 	private static final Logger logger = LoggerFactory.getLogger(RichScriptEditorExtension.class);
 	
-	private static BooleanProperty styleLog = PathPrefs.createPersistentPreference("styleLog", true);
-
 	@Override
 	public void installExtension(QuPathGUI qupath) {
 		qupath.setScriptEditor(new RichScriptEditor(qupath));
 		try {
-			var styler = ScriptStylerProvider.PLAIN;
-			var console = RichScriptEditor.createLogConsole(
-					new SimpleObjectProperty<>(styler), styleLog);
+			var console = RichScriptEditor.createLogConsole();
 			var codeArea = console.getRegion().getContent();
 			codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea, digits -> "%1$" + digits + "s", null, null));
 			
 			codeArea.getStyleClass().add("qupath-log");
 			codeArea.setStyle("-fx-font-family: sans-serif; " + codeArea.getStyle());
-			
-			qupath.getPreferencePane().addPropertyPreference(styleLog, Boolean.class,
-					"General", "Style log viewer", "Use colors to distinguish between different types of log message");
 		} catch (Exception e) {
 			logger.warn("Unable to set rich text log viewer: " + e.getLocalizedMessage(), e);
 		}
@@ -85,7 +74,5 @@ public class RichScriptEditorExtension implements QuPathExtension {
 	public Version getQuPathVersion() {
 		return getVersion();
 	}
-	
-
 	
 }

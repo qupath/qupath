@@ -197,10 +197,6 @@ public class OpenCVTypeAdapters {
 				
 				JsonObject element = gson.fromJson(json.trim(), JsonObject.class);
 				gson.toJson(element, out);
-				
-//				out.jsonValue(json);
-//			} catch (Throwable e) {
-//				e.printStackTrace();
 			} finally {
 				out.setLenient(lenient);
 			}

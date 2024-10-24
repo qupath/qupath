@@ -56,8 +56,9 @@ import qupath.lib.roi.interfaces.ROI;
  * Compute Delaunay triangulation using OpenCV.
  * 
  * @author Pete Bankhead
- *
+ * @deprecated v0.6.0, to be replaced by {@link qupath.lib.analysis.DelaunayTools.Subdivision}
  */
+@Deprecated
 public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DelaunayTriangulation.class);
@@ -277,22 +278,6 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 					destinationNode.addEdge(node);
 				}
 
-				// Unused code exploring how a similarity test could be included
-//				if (ignoreDistance || distance(pathObject.getROI(), destination.getROI()) < distanceThreshold) {
-//					MeasurementList m1 = pathObject.getMeasurementList();
-//					MeasurementList m2 = destination.getMeasurementList();
-//					double d2 = 0;
-//					for (String name : new String[]{"Nucleus: Area", "Nucleus: DAB OD mean", "Nucleus: Eccentricity"}) {
-//						double t1 = m1.getMeasurementValue(name);
-//						double t2 = m2.getMeasurementValue(name);
-//						double temp = ((t1 - t2) / (t1 + t2)) * 2;
-//						d2 += temp*temp;
-//					}
-//					if (d2 < 1)
-////					System.out.println(d2);
-//						node.addEdge(factory.getNode(destination));
-//				}
-
 				edge = subdiv.getEdge(edge, Subdiv2D.NEXT_AROUND_ORG);
 				if (edge == firstEdge)
 					break;
@@ -470,7 +455,6 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		if (!missing.isEmpty()) {
 			logger.warn("Some objects have missing measurements! Statistics will calculated only for objects with measurements available.");
 			logger.warn("Missing measurements: {}", missing);
-//			System.err.println("Missing measurements will be ignored! " + nMissing);
 		}
 		
 	}
@@ -502,7 +486,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 				node.addNeighborsToSet(neighborSet, averagingSeparation);
 				
 				// Get the smoothed measurements now, since access is likely to be much faster we start modifying it
-				measurementNames = measurementList.getMeasurementNames().toArray(measurementNames);
+				measurementNames = measurementList.getNames().toArray(measurementNames);
 				if (averagedMeasurements.length < measurementNames.length)
 					averagedMeasurements = new double[measurementNames.length];
 				for (int i = 0; i < measurementNames.length; i++) {
@@ -790,18 +774,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 			double ay = node1.y - node3.y;
 			double bx = node2.x - node3.x;
 			double by = node2.y - node3.y;
-			
-//			// Little bit of checking...
-//			List<Point2> points = new ArrayList<>();
-//			points.add(new Point2(node1.x, node1.y));
-//			points.add(new Point2(node2.x, node2.y));
-//			points.add(new Point2(node3.x, node3.y));
-//			double area = Math.abs(ax * by - ay * bx)/2;
-//			PolygonROI polygon = new PolygonROI(points);
-//			System.out.println(area + "\t-\t" + polygon.getArea() + "\tDiff: " + (area - polygon.getArea()));
-			
 			return Math.abs(ax * by - ay * bx)/2;
-			
 		}
 		
 	}

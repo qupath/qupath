@@ -230,49 +230,40 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 			if (pathROI == null)
 				return null;
 			// Get a PathImage if we have a new ROI
-//			boolean imageChanged = false;
 			PathImage<ImagePlus> pathImage = null;
-//			if (pathImage == null || lastServerPath == null || !lastServerPath.equals(imageData.getServerPath()) || !pathROI.equals(this.pathROI)) {
-				ImageServer<BufferedImage> server = imageData.getServer();
-				pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(),
-						ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params)),
-						pathROI));
-//				System.out.println("Downsample: " + pathImage.getDownsampleFactor());
-//				this.pathROI = pathROI;
-//				lastServerPath = imageData.getServerPath();
-//				imageChanged = true;
-//			}
+			ImageServer<BufferedImage> server = imageData.getServer();
+			pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(),
+					ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params)),
+					pathROI));
 			// Create a detector if we don't already have one for this image
 			boolean isBrightfield = imageData.isBrightfield();
 			FloatProcessor fpDetection = null, fpH = null, fpDAB = null;
-//			if (detector2 == null || imageChanged || stains != imageData.getColorDeconvolutionStains()) {
-				ImageProcessor ip = pathImage.getImage().getProcessor();
-				ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
-				if (ip instanceof ColorProcessor && stains != null) {
-					
-					FloatProcessor[] fps = IJTools.colorDeconvolve((ColorProcessor)ip, stains);
-					fpH = fps[0];
-					if (stains.isH_DAB())
-						fpDAB = fps[1];
-					else
-						fpDAB = null; // At this point, only DAB is quantified (eosin ignored for H&E)
-					
-					if (!params.getParameters().get("detectionImageBrightfield").isHidden()) {
-						if (params.getChoiceParameterValue("detectionImageBrightfield").equals(IMAGE_OPTICAL_DENSITY))
-							fpDetection = IJTools.convertToOpticalDensitySum((ColorProcessor)ip, stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
-						else
-							fpDetection = (FloatProcessor)fpH.duplicate();
-					}
+			ImageProcessor ip = pathImage.getImage().getProcessor();
+			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
+			if (ip instanceof ColorProcessor && stains != null) {
 
-					
+				FloatProcessor[] fps = IJTools.colorDeconvolve((ColorProcessor)ip, stains);
+				fpH = fps[0];
+				if (stains.isH_DAB())
+					fpDAB = fps[1];
+				else
+					fpDAB = null; // At this point, only DAB is quantified (eosin ignored for H&E)
+
+				if (!params.getParameters().get("detectionImageBrightfield").isHidden()) {
+					if (params.getChoiceParameterValue("detectionImageBrightfield").equals(IMAGE_OPTICAL_DENSITY))
+						fpDetection = IJTools.convertToOpticalDensitySum((ColorProcessor)ip, stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
+					else
+						fpDetection = (FloatProcessor)fpH.duplicate();
 				}
-				if (fpDetection == null) {
-					// TODO: Deal with fluorescence
-					fpDetection = ip.convertToFloatProcessor();
-					fpH = ip.convertToFloatProcessor();
-					fpDAB = null;
-				}
-//			}
+
+
+			}
+			if (fpDetection == null) {
+				// TODO: Deal with fluorescence
+				fpDetection = ip.convertToFloatProcessor();
+				fpH = ip.convertToFloatProcessor();
+				fpDAB = null;
+			}
 			Roi roi = null;
 			if (pathROI != null)
 				roi = IJTools.convertToIJRoi(pathROI, pathImage);
@@ -466,10 +457,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 						if (bpMask.getf(i) != 0f) {
 							ipBackground.setf(i, Float.NEGATIVE_INFINITY);
 						}
-					}				
-//				} else {
-//					// Don't return a mask - all pixels are ok
-//					System.out.println("Skipping background mask!");
+					}
 				}
 			}
 			
@@ -799,10 +787,10 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 				PolygonROI pathROI = IJTools.convertToPolygonROI(r, cal, pathImage.getDownsampleFactor(), plane);
 				
 				if (smoothBoundaries) {
-//					int nBefore = pathROI.nVertices();
+					int nBefore = pathROI.nVertices();
 					pathROI = ShapeSimplifier.simplifyPolygon(pathROI, pathImage.getDownsampleFactor()/4.0);
-//					int nAfter = pathROI.nVertices();
-//					System.out.println("Vertices removed: " + (nBefore - nAfter));
+					int nAfter = pathROI.nVertices();
+					logger.trace("Vertices removed: {}", (nBefore - nAfter));
 				}
 				
 				// Create a new shared measurement list
@@ -1094,7 +1082,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 			try {
 				doDetection(updateNucleusROIs);
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.error(e.getMessage(), e);
 			}
 		}
 		
@@ -1129,7 +1117,6 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 			return params.getDoubleParameterValue("cellExpansion") > 0 ? 25 : 10;
 		double cellExpansion = params.getDoubleParameterValue("cellExpansionMicrons") / pxSize;
 		int overlap = cellExpansion > 0 ? (int)(cellExpansion * 2) : 10;
-//		System.out.println("Tile overlap: " + overlap + " pixels");
 		return overlap;
 	}
 	

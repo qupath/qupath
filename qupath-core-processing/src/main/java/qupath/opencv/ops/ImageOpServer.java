@@ -63,7 +63,7 @@ class ImageOpServer extends AbstractTileableImageServer implements ImageDataServ
 		// Update channels according to the op
 		var channels = dataOp.getChannels(imageData);
 					
-		metadata = new ImageServerMetadata.Builder(imageData.getServer().getMetadata())
+		metadata = new ImageServerMetadata.Builder(imageData.getServerMetadata())
 				.levelsFromDownsamples(downsample)
 				.preferredTileSize(tileWidth, tileHeight)
 				.pixelType(pixelType)

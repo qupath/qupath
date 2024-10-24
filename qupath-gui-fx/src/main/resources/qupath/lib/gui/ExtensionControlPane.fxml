@@ -12,26 +12,16 @@
 <?import javafx.scene.layout.VBox?>
 
 <fx:root prefHeight="400.0" prefWidth="700.0" type="VBox" xmlns="http://javafx.com/javafx/20" xmlns:fx="http://javafx.com/fxml/1">
-        <TitledPane animated="false" text="%ExtensionControlPane.installExtension">
+        <TitledPane animated="false" text="%ExtensionControlPane.installExtension" collapsible="false">
             <VBox spacing="5">
                 <HBox fx:id="addHBox" alignment="CENTER" spacing="2">
-                    <Label text="%ExtensionControlPane.owner">
-                        <tooltip>
-                            <Tooltip text="%ExtensionControlPane.ownerTooltip" />
-                        </tooltip>
-                    </Label>
-                    <TextField fx:id="ownerTextArea">
-                        <tooltip>
-                            <Tooltip text="%ExtensionControlPane.ownerTooltip" />
-                        </tooltip>
-                    </TextField>
-                    <Pane minWidth="5" />
                     <Label text="%ExtensionControlPane.repository">
                         <tooltip>
                             <Tooltip text="%ExtensionControlPane.repositoryTooltip" />
                         </tooltip>
                     </Label>
-                    <TextField fx:id="repoTextArea">
+                    <Pane minWidth="5" />
+                    <TextField fx:id="textArea" HBox.hgrow="ALWAYS">
                         <tooltip>
                             <Tooltip text="%ExtensionControlPane.repositoryTooltip" />
                         </tooltip>

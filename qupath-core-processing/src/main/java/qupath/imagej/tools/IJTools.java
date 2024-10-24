@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,8 +24,6 @@
 package qupath.imagej.tools;
 
 import java.awt.Color;
-import java.awt.Shape;
-import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.SampleModel;
@@ -41,6 +39,7 @@ import java.util.zip.ZipFile;
 
 import javax.swing.SwingUtilities;
 
+import org.locationtech.jts.geom.Polygon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,7 +63,7 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
-import qupath.imagej.processing.RoiLabeling;
+import qupath.imagej.processing.IJProcessing;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.awt.common.BufferedImageTools;
@@ -94,7 +93,6 @@ import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -173,7 +171,7 @@ public class IJTools {
 						   "Try again with a smaller region, or a higher downsample factor,"+
 						   "or modify the memory threshold using IJTools.setMemoryThreshold(double threshold)");
 		
-		return (approxPixelCount > 2147480000L || approxMemory > presumableFreeMemory * MEMORY_THRESHOLD);
+		return approxMemory > presumableFreeMemory * MEMORY_THRESHOLD;
 	}
 
 
@@ -463,7 +461,7 @@ public class IJTools {
 	 * @since v0.4.0
 	 */
 	public static PathObject convertToAnnotation(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
-		return convertToPathObject(roi, xOrigin, yOrigin, downsampleFactor, r -> PathObjects.createAnnotationObject(r), plane);
+		return convertToPathObject(roi, xOrigin, yOrigin, downsampleFactor, PathObjects::createAnnotationObject, plane);
 	}
 
 	/**
@@ -570,16 +568,51 @@ public class IJTools {
 	public static void calibrateObject(PathObject pathObject, Roi roi) {
 		Color color = roi.getStrokeColor();
 		Integer colorRGB = color == null ? null : color.getRGB();
-		String name = roi.getName();
+		// Take name from properties first, then from Roi name
+		String name = IJProperties.getObjectName(roi);
+		if (name == null)
+			name = roi.getName();
 		if (name != null && !name.isBlank()) {
 			pathObject.setName(name);
-		} else if (roi.getGroup() > 0) {
-			// If the group is set, use it as a classification
-			pathObject.setPathClass(PathClass.getInstance("Group " + roi.getGroup(), colorRGB));
 		}
+		// Take classification from properties first
+		var classification = IJProperties.getClassification(roi);
+		if (classification != null) {
+			var pathClass = PathClass.fromString(classification, colorRGB);
+			pathObject.setPathClass(pathClass);
+		} else{
+			// Take classification from Roi group
+			if (roi.getGroup() > 0) {
+				// If the group is set, use it as a classification
+				int group = roi.getGroup();
+				var groupName = Roi.getGroupName(group);
+				if (groupName == null)
+					groupName = "Group " + group;
+				pathObject.setPathClass(PathClass.getInstance(groupName, colorRGB));
+			}
+		}
+		// Set color if we haven't already assigned a color via the classification
 		if (colorRGB != null && pathObject.getPathClass() == null) {
 			pathObject.setColor(colorRGB);
 		}
+		// Set ID if it is stored
+		var id = IJProperties.getObjectId(roi);
+		if (id != null) {
+			pathObject.setID(id);
+		}
+		// Set measurements, if stored
+		var measurements = IJProperties.getAllMeasurements(roi);
+		if (!measurements.isEmpty()) {
+			pathObject.getMeasurementList().putAll(measurements);
+		}
+	}
+
+
+	public static void calibrateRoi(Roi roi, PathObject pathObject) {
+		IJProperties.setClassification(roi, pathObject);
+		IJProperties.setObjectName(roi, pathObject);
+		IJProperties.setObjectId(roi, pathObject);
+		roi.setProperty("qupath.object.type", PathObjectTools.getSuitableName(pathObject.getClass(), false));
 	}
 	
 	
@@ -674,9 +707,9 @@ public class IJTools {
 					continue;
 				
 				wandNuclei.autoOutline(x, y, labelNucleus, labelNucleus, wandMode);
-				var nucleusRoi = RoiLabeling.wandToRoi(wandNuclei);
+				var nucleusRoi = IJProcessing.wandToRoi(wandNuclei);
 				wandCells.autoOutline(x, y, labelCell, labelCell, wandMode);
-				var cellRoi = RoiLabeling.wandToRoi(wandCells);
+				var cellRoi = IJProcessing.wandToRoi(wandCells);
 				
 				var roiNucleus = convertToROI(nucleusRoi, xOrigin, yOrigin, downsample, plane);
 				var roiCell = convertToROI(cellRoi, xOrigin, yOrigin, downsample, plane);
@@ -701,7 +734,7 @@ public class IJTools {
 				if (label == 0 || bpDone.get(x, y) != (byte)0)
 					continue;
 				wandCells.autoOutline(x, y, label, label, wandMode);
-				var cellRoi = RoiLabeling.wandToRoi(wandCells);
+				var cellRoi = IJProcessing.wandToRoi(wandCells);
 				var roiCell = convertToROI(cellRoi, xOrigin, yOrigin, downsample, plane);
 				// Use putIfAbsent as we'd rather retain the first cell (which might have a nucleus associated with it)
 				var previous = cells.putIfAbsent(label, PathObjects.createCellObject(roiCell, null, null, null));
@@ -968,6 +1001,27 @@ public class IJTools {
 		double y = cal == null ? 0 : cal.yOrigin;
 		return IJTools.convertToROI(roi, x, y, downsampleFactor, plane);
 	}
+
+	/**
+	 * Convert an ImageJ Roi to a QuPath ROI.
+	 * @param roi the ImageJ ROI
+	 * @param request the region request for the image that defines the coordinate space for the Roi
+	 * @return the QuPath ROI
+	 * @since v0.6.0
+	 */
+	public static ROI convertToROI(Roi roi, RegionRequest request) {
+		double xOrigin = 0;
+		double yOrigin = 0;
+		double downsampleFactor = 1.0;
+		ImagePlane plane = ImagePlane.getDefaultPlane();
+		if (request != null) {
+			downsampleFactor = request.getDownsample();
+			xOrigin = -request.getX() / downsampleFactor;
+			yOrigin = -request.getY() / downsampleFactor;
+			plane = request.getImagePlane();
+		}
+		return convertToROI(roi, xOrigin, yOrigin, downsampleFactor, plane);
+	}
 	
 	
 	/**
@@ -1007,14 +1061,10 @@ public class IJTools {
 	 * @return
 	 */
 	public static <T extends PathImage<? extends ImagePlus>> ROI convertToROI(Roi roi, T pathImage) {
-		Calibration cal = null;
-		double downsampleFactor = 1;
 		ImageRegion region = pathImage.getImageRegion();
-		if (pathImage != null) {
-			cal = pathImage.getImage().getCalibration();
-			downsampleFactor = pathImage.getDownsampleFactor();
-		}
-		return convertToROI(roi, cal, downsampleFactor, region.getImagePlane());	
+        Calibration cal = pathImage.getImage().getCalibration();
+        double downsampleFactor = pathImage.getDownsampleFactor();
+        return convertToROI(roi, cal, downsampleFactor, region.getImagePlane());
 	}
 
 	/**
@@ -1027,83 +1077,102 @@ public class IJTools {
 	 */
 	public static PolygonROI convertToPolygonROI(PolygonRoi roi, Calibration cal, double downsampleFactor, final ImagePlane plane) {
 		List<Point2> points = ROIConverterIJ.convertToPointsList(roi.getFloatPolygon(), cal, downsampleFactor);
-		if (points == null)
-			return null;
 		return ROIs.createPolygonROI(points, plane);
 	}
 
 	/**
-		 * Convert a QuPath ROI to an ImageJ Roi.
-		 * @param <T>
-		 * @param pathROI
-		 * @param xOrigin x-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
-		 * @param yOrigin y-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
-		 * @param downsampleFactor downsample factor at which the ImagePlus was extracted from the full-resolution image
-		 * @return
-		 */
-		public static <T extends PathImage<ImagePlus>> Roi convertToIJRoi(ROI pathROI, double xOrigin, double yOrigin, double downsampleFactor) {
-			if (pathROI instanceof PolygonROI)
-				return ROIConverterIJ.convertToPolygonROI((PolygonROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			if (pathROI instanceof RectangleROI)
-				return ROIConverterIJ.getRectangleROI((RectangleROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			if (pathROI instanceof EllipseROI)
-				return ROIConverterIJ.convertToOvalROI((EllipseROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			if (pathROI instanceof LineROI)
-				return ROIConverterIJ.convertToLineROI((LineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			if (pathROI instanceof PolylineROI)
-				return ROIConverterIJ.convertToPolygonROI((PolylineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			if (pathROI instanceof PointsROI)
-				return ROIConverterIJ.convertToPointROI((PointsROI)pathROI, xOrigin, yOrigin, downsampleFactor);
-			// If we have any other kind of shape, create a general shape roi
-			if (pathROI != null && pathROI.isArea()) { // TODO: Deal with non-AWT area ROIs!
-				Shape shape = RoiTools.getArea(pathROI);
-	//			"scaleX", "shearY", "shearX", "scaleY", "translateX", "translateY"
-				shape = new AffineTransform(1.0/downsampleFactor, 0, 0, 1.0/downsampleFactor, xOrigin, yOrigin).createTransformedShape(shape);
-				return ROIConverterIJ.setIJRoiProperties(new ShapeRoi(shape), pathROI);
-			}
-			// TODO: Integrate ROI not supported exception...?
-			return null;		
+	 * Convert a QuPath ROI to an ImageJ Roi.
+	 * @param roi the QuPath ROI
+	 * @param request the request encoding the bounding box and downsample of the image for which the Roi should be
+	 *                scaled and translated. If null, no scaling or translation will be applied.
+	 * @return the converted ROI, or null if no input ROI was provided
+	 */
+	public static Roi convertToIJRoi(ROI roi, RegionRequest request) {
+		double xOrigin = 0;
+		double yOrigin = 0;
+		double downsampleFactor = 1.0;
+		if (request != null) {
+			downsampleFactor = request.getDownsample();
+			xOrigin = -request.getX() / downsampleFactor;
+			yOrigin = -request.getY() / downsampleFactor;
 		}
+		return convertToIJRoi(roi, xOrigin, yOrigin, downsampleFactor);
+	}
 
 	/**
-		 * Create a ROI from an ImageJ Roi.
-		 * 
-		 * @param roi ImageJ Roi
-		 * @param xOrigin x-origin, as stored in an ImageJ Calibration object
-		 * @param yOrigin y-origin, as stored in an ImageJ Calibration object
-		 * @param downsampleFactor
-		 * @param plane plane defining c, z and t indices
-		 * @return
-		 */
-		public static ROI convertToROI(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
-			if (plane == null)
-				plane = getImagePlane(roi, null);
-			int c = plane.getC();
-			int z = plane.getZ();
-			int t = plane.getT();
-	//		if (roi.getType() == Roi.POLYGON || roi.getType() == Roi.TRACED_ROI)
-	//			return convertToPolygonROI((PolygonRoi)roi, cal, downsampleFactor);
-			if (roi.getType() == Roi.RECTANGLE && roi.getCornerDiameter() == 0)
-				return ROIConverterIJ.getRectangleROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			if (roi.getType() == Roi.OVAL)
-				return ROIConverterIJ.convertToEllipseROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			if (roi instanceof Line)
-				return ROIConverterIJ.convertToLineROI((Line)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			if (roi instanceof PointRoi)
-				return ROIConverterIJ.convertToPointROI((PolygonRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-	//		if (roi instanceof ShapeRoi)
-	//			return convertToAreaROI((ShapeRoi)roi, cal, downsampleFactor);
-	//		// Shape ROIs should be able to handle most eventualities
-			if (roi instanceof ShapeRoi)
-				return ROIConverterIJ.convertToAreaROI((ShapeRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			if (roi.isArea())
-				return ROIConverterIJ.convertToPolygonOrAreaROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			if (roi instanceof PolygonRoi) {
-				if (roi.getType() == Roi.FREELINE || roi.getType() == Roi.POLYLINE)
-					return ROIConverterIJ.convertToPolylineROI((PolygonRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
-			}
-			throw new IllegalArgumentException("Unknown Roi: " + roi);	
+	 * Convert a QuPath ROI to an ImageJ Roi.
+	 * @param pathROI
+	 * @param xOrigin x-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
+	 * @param yOrigin y-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
+	 * @param downsampleFactor downsample factor at which the ImagePlus was extracted from the full-resolution image
+	 * @return the converted ROI, or null if no input ROI was provided
+	 */
+	public static Roi convertToIJRoi(ROI pathROI, double xOrigin, double yOrigin, double downsampleFactor) {
+		if (pathROI == null)
+			return null;
+		if (pathROI instanceof RectangleROI)
+			return ROIConverterIJ.getRectangleROI((RectangleROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+		if (pathROI instanceof EllipseROI)
+			return ROIConverterIJ.convertToOvalROI((EllipseROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+		if (pathROI instanceof LineROI)
+			return ROIConverterIJ.convertToLineROI((LineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+		if (pathROI instanceof PolylineROI)
+			return ROIConverterIJ.convertToPolygonROI((PolylineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+		if (pathROI instanceof PointsROI)
+			return ROIConverterIJ.convertToPointROI((PointsROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+		if (pathROI instanceof PolygonROI) {
+			// We should only use a PolygonROI if we have a simple polygon, without holes or self-intersections
+			// See https://github.com/qupath/qupath/issues/1674
+			var geom = pathROI.getGeometry();
+			if (geom instanceof Polygon && geom.getNumGeometries() == 1 && ((Polygon) geom).getNumInteriorRing() == 0)
+				return ROIConverterIJ.convertToPolygonROI((PolygonROI) pathROI, xOrigin, yOrigin, downsampleFactor);
 		}
+		// If we have any other kind of area, create a general shape roi
+		if (pathROI.isArea()) {
+			return ROIConverterIJ.convertToShapeRoi(pathROI, xOrigin, yOrigin, downsampleFactor);
+		}
+		throw new UnsupportedOperationException("Unknown ROI " + pathROI + " - cannot convert to ImageJ Roi");
+	}
+
+	/**
+	 * Create a ROI from an ImageJ Roi.
+	 *
+	 * @param roi ImageJ Roi
+	 * @param xOrigin x-origin, as stored in an ImageJ Calibration object
+	 * @param yOrigin y-origin, as stored in an ImageJ Calibration object
+	 * @param downsampleFactor
+	 * @param plane plane defining c, z and t indices
+	 * @return
+	 */
+	public static ROI convertToROI(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
+		if (plane == null)
+			plane = getImagePlane(roi, null);
+		int c = plane.getC();
+		int z = plane.getZ();
+		int t = plane.getT();
+//		if (roi.getType() == Roi.POLYGON || roi.getType() == Roi.TRACED_ROI)
+//			return convertToPolygonROI((PolygonRoi)roi, cal, downsampleFactor);
+		if (roi.getType() == Roi.RECTANGLE && roi.getCornerDiameter() == 0)
+			return ROIConverterIJ.getRectangleROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		if (roi.getType() == Roi.OVAL)
+			return ROIConverterIJ.convertToEllipseROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		if (roi instanceof Line)
+			return ROIConverterIJ.convertToLineROI((Line)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		if (roi instanceof PointRoi)
+			return ROIConverterIJ.convertToPointROI((PolygonRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+//		if (roi instanceof ShapeRoi)
+//			return convertToAreaROI((ShapeRoi)roi, cal, downsampleFactor);
+//		// Shape ROIs should be able to handle most eventualities
+		if (roi instanceof ShapeRoi)
+			return ROIConverterIJ.convertToAreaROI((ShapeRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		if (roi.isArea())
+			return ROIConverterIJ.convertToPolygonOrAreaROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		if (roi instanceof PolygonRoi) {
+			if (roi.getType() == Roi.FREELINE || roi.getType() == Roi.POLYLINE)
+				return ROIConverterIJ.convertToPolylineROI((PolygonRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+		}
+		throw new IllegalArgumentException("Unknown Roi: " + roi);
+	}
 
 	/**
 	 * Calculate optical density values for the red, green and blue channels, then add these all together.
@@ -1144,17 +1213,5 @@ public class IJTools {
 		FloatProcessor fpStain3 = new FloatProcessor(width, height, ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_3, null, stains));
 		return new FloatProcessor[] {fpStain1, fpStain2, fpStain3};
 	}
-
-//	private static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final RegionRequest request) {
-//		return new PathImagePlus(server, request, null);
-//	}
-//
-//	private static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final double downsample) {
-//		return createPathImage(server, RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight()));
-//	}
-//
-//	private static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final ROI pathROI, final double downsample) {
-//		return createPathImage(server, RegionRequest.createInstance(server.getPath(), downsample, pathROI));
-//	}
 
 }

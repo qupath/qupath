@@ -55,17 +55,21 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.common.ColorTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.InfoMessage;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.objects.classes.PathClass;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
@@ -88,7 +92,7 @@ public class ContextHelpViewer {
 	
 	private int iconSize = 16;
 
-	private Stage stage = new Stage();
+	private Stage stage;
 	private ObservableList<Window> windows;
 	private EventHandler<MouseEvent> handler = this::handleMouseMove;
 
@@ -140,6 +144,8 @@ public class ContextHelpViewer {
 
 	private BooleanProperty largeNonPyramidalImage = new SimpleBooleanProperty(false);
 
+	private BooleanProperty classificationAndDefaultObjectColorsSimilar = new SimpleBooleanProperty(false);
+
 	private ContextHelpViewer(QuPathGUI qupath) {
 		this.qupath = qupath;
 		this.imageDataProperty.addListener(this::imageDataChanged);
@@ -189,6 +195,31 @@ public class ContextHelpViewer {
 		}
 	}
 
+	private void updateSimilarClassificationColors() {
+		var pathClasses = qupath.getAvailablePathClasses();
+		var defaultColor = PathPrefs.colorDefaultObjectsProperty();
+		for (var pathClass : pathClasses) {
+			if (similarColors(pathClass.getColor(), defaultColor.get())) {
+				classificationAndDefaultObjectColorsSimilar.set(true);
+				return;
+			}
+		}
+		classificationAndDefaultObjectColorsSimilar.set(false);
+	}
+
+	private static boolean similarColors(Integer rgba1, Integer rgba2) {
+		if (rgba1 == null || rgba2 == null)
+			return false;
+		double tol = 10.0;
+		if (Math.abs(ColorTools.red(rgba1) - ColorTools.red(rgba2)) > tol)
+			return false;
+		if (Math.abs(ColorTools.green(rgba1) - ColorTools.green(rgba2)) > tol)
+			return false;
+		if (Math.abs(ColorTools.blue(rgba1) - ColorTools.blue(rgba2)) > tol)
+			return false;
+		return true;
+	}
+
 	private void updateLargeNonPyramidalProperty() {
 		var imageData = imageDataProperty.get();
 		if (imageData == null)
@@ -218,7 +249,8 @@ public class ContextHelpViewer {
 		stage.titleProperty().bind(title);
 		stage.setWidth(300);
 		stage.setHeight(400);
-		stage.setScene(scene);		
+		stage.setScene(scene);
+		FXUtils.addCloseWindowShortcuts(stage);
 		return stage;
 	}
 	
@@ -247,7 +279,8 @@ public class ContextHelpViewer {
 				createOpacityZeroEntry(),
 				createGammaNotDefault(),
 				createInvertedColors(),
-				createNoChannelsVisible()
+				createNoChannelsVisible(),
+				createColorsTooSimilar()
 				);
 	}
 
@@ -607,6 +640,15 @@ public class ContextHelpViewer {
 		entry.visibleProperty().bind(qupath.imageDataProperty().isNotNull().and(Bindings.createBooleanBinding(
 				() -> emptyChannels == null || emptyChannels.getValue() == null ? false : emptyChannels.getValue(), emptyChannels
 		)));
+		return entry;
+	}
+
+	private HelpListEntry createColorsTooSimilar() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.colorsSimilar");
+		qupath.getAvailablePathClasses().addListener((Change<? extends PathClass> c) -> updateSimilarClassificationColors());
+		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> updateSimilarClassificationColors());
+		entry.visibleProperty().bind(classificationAndDefaultObjectColorsSimilar);
 		return entry;
 	}
 

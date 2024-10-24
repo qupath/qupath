@@ -54,6 +54,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.fx.dialogs.Dialogs;
@@ -287,7 +288,8 @@ public class CountingDialogCommand implements Runnable, ChangeListener<ImageData
 		
 		dialog = new Stage();
 		dialog.setTitle("Points");
-		
+		FXUtils.addCloseWindowShortcuts(dialog);
+
 		countingPane = new CountingPane(qupath, hierarchy);
 		BorderPane pane = new BorderPane();
 		

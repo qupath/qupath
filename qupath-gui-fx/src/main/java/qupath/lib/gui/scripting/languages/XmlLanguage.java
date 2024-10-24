@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,7 +22,6 @@
 package qupath.lib.gui.scripting.languages;
 
 import java.util.Collections;
-import java.util.ServiceLoader;
 
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
@@ -34,26 +33,11 @@ import qupath.lib.scripting.languages.ScriptLanguage;
  * @since v0.4.0
  */
 public class XmlLanguage extends ScriptLanguage {
-	
-	/**
-	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
-	 */
-	private static XmlLanguage INSTANCE;
-	
-	/**
-	 * Constructor for XML Language. This constructor should never be 
-	 * called. Instead, use the static {@link #getInstance()} method.
-	 * <p>
-	 * Note: this has to be public for the {@link ServiceLoader} to work.
-	 */
-	public XmlLanguage() {
+
+	private static final XmlLanguage INSTANCE = new XmlLanguage();
+
+	private XmlLanguage() {
 		super("XML", Collections.singleton(".xml"));
-		
-		if (INSTANCE != null)
-			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
-		
-		// Because of ServiceLoader, have to assign INSTANCE here.
-		XmlLanguage.INSTANCE = this;
 	}
 	
 	/**

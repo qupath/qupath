@@ -42,7 +42,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	/**
 	 * Enum for rotations in increments of 90 degrees.
 	 */
-	public static enum Rotation{
+	public enum Rotation{
 		
 		/**
 		 * No rotation.

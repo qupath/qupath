@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -114,7 +114,7 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.JavadocViewer;
+import qupath.lib.gui.JavadocViewerRunner;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.fx.dialogs.Dialogs;
@@ -166,7 +166,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private SplitPane splitMain;
 	private ToggleGroup toggleLanguages = new ToggleGroup();
 	private Font fontMain = Font.font("Courier");
-	
+
+	/**
+	 * Flag that quit was cancelled.
+	 * This is a workaround for the fact that (on macOS at least) Cmd+Q triggers a close request on all windows,
+	 * which can't be cancelled.
+	 * If the user cancels quitting because of unsaved changes, the window close requests continue anyway - leading to
+	 * the 'Save changes?' dialog being shown again.
+	 * This flag is set to true if the quit was cancelled recently, and then reset by Platform.runLater().
+	 * The purpose is to give an indication that the user has already requested to cancel quitting, and shouldn't be
+	 * immediately prompted again.
+	 */
+	private boolean quitCancelled = false;
+
 	/**
 	 * Pane to hold the main code component in its center
 	 */
@@ -418,7 +430,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		paneCode.setStyle(style);
 		paneConsole.setStyle(style);
 
-		showJavadocsAction = ActionTools.createAction(new JavadocViewer(qupath.getStage()), "Show Javadocs");
+		showJavadocsAction = ActionTools.createAction(new JavadocViewerRunner(qupath.getStage()), "Show Javadocs");
 	}
 	
 	private void setToggle(ScriptLanguage language) {
@@ -513,7 +525,34 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		return false;
 	}
-	
+
+	@Override
+	public boolean requestClose() {
+		// If the quit was cancelled, don't prompt again
+		if (quitCancelled) {
+			logger.debug("Script editor quit was cancelled, won't close or prompt again");
+			return false;
+		}
+		var ret = true;
+		while (ret) {
+			var tab = getCurrentScriptTab();
+			if (tab == null) {
+				break;
+			}
+			// We're probably quitting QuPath - if we're prompting for changes, then we should show the tab
+			if (dialog != null && !dialog.isShowing() && tab.isModifiedProperty().get() && tab.hasScript())
+				dialog.show();
+			ret = promptToClose(tab);
+		}
+		if (ret && dialog != null) {
+			dialog.close();
+		} else if (!ret) {
+			quitCancelled = true;
+			logger.trace("Script Editor quit was cancelled");
+			Platform.runLater(() -> quitCancelled = false);
+		}
+		return ret;
+	}
 
 
 	void maybeRefreshTab(final ScriptTab tab, boolean updateLanguage) {
@@ -668,6 +707,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return new TextAreaControl(false);
 	}
 
+	public ScriptEditorControl<?> createNewEditor() {
+		return getNewEditor();
+	}
+
 	protected ScriptEditorControl<?> getNewEditor() {
 		TextArea editor = new CustomTextArea();
 		editor.setFont(fontMain);
@@ -684,18 +727,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 	        } else if (e.isShortcutDown() && e.getCode() == KeyCode.SLASH) {
 	        	syntax.handleLineComment(control);
 	        	e.consume();
-	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
+	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().isEmpty()) {
 	        	syntax.handleNewLine(control, smartEditing.get());
 				e.consume();
 			}
 	    });
-
-//		editor.getDocument().addUndoableEditListener(new UndoManager());
-//		// Handle tabs
-//		editor.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0), "tab");
-//		editor.getActionMap().put("tab", new TabIndenter(editor, false));
-//		editor.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK), "shiftTab");
-//		editor.getActionMap().put("shiftTab", new TabIndenter(editor, true));
 		return control;
 	}
 	
@@ -711,7 +747,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 				maybeRefreshTab(getCurrentScriptTab(), false);
 		});
 
-//		dialog.setOnCloseRequest(e -> attemptToQuitScriptEditor());
+		dialog.setOnCloseRequest(e -> {
+			if (dialog != null) {
+				dialog.hide();
+				e.consume();
+			}
+		});
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());
 		dialog.titleProperty().bind(title);
@@ -732,10 +773,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createRevertAction("Revert/Refresh"),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoRefreshFiles, "Auto refresh files")),
 				null,
-				createCloseAction("Close script")
-//				null,
-//				createExitAction("Exit") // Exit actually dramatically quits the entire application...
-				);
+				createCloseAction("Close script"),
+				createExitAction("Close editor"));
 		
 		
 		menubar.getMenus().add(menuFile);
@@ -765,27 +804,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				smartEditingAction,
 				miWrapLines
 				);
-//		menuEdit.setMnemonic(KeyEvent.VK_E);
-//
-//		menuEdit.add(undoAction);
-//		menuEdit.add(redoAction);
-//		menuEdit.addSeparator();
-//		
-//		menuItem = new MenuItem(cutAction);
-//		menuItem.setText("Cut");
-//		menuItem.setMnemonic(KeyEvent.VK_T);
-//		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, SHORTCUT_MASK));
-//		menuEdit.add(menuItem);
-//		menuItem = new MenuItem(copyAction);
-//		menuItem.setText("Copy");
-//		menuItem.setMnemonic(KeyEvent.VK_C);
-//		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, SHORTCUT_MASK));
-//		menuEdit.add(menuItem);
-//		menuItem = new MenuItem(pasteAction);
-//		menuItem.setText("Paste");
-//		menuItem.setMnemonic(KeyEvent.VK_P);
-//		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, SHORTCUT_MASK));
-//		menuEdit.add(menuItem);
+
 		menubar.getMenus().add(menuEdit);
 
 		// Set font size (common user request)
@@ -1445,8 +1464,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 				doc.appendText(s);
 			else
 				Platform.runLater(() -> doc.appendText(s));
-//			flushCount++;
-//			System.err.println("Flush called: " + flushCount);
 		}
 
 		@Override
@@ -1732,7 +1749,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					executeScript(tab, tab.getEditorControl().getText(), project, imageData, batchIndex, batchSize, doSave, useCompiled);
 					if (doSave)
 						entry.saveImageData(imageData);
-					imageData.getServer().close();
+					imageData.close();
 					
 					if (clearCache.get()) {
 						try {
@@ -1777,18 +1794,28 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 	};
-	
-	
-	protected static String getClipboardText(boolean escapeCharacters) {
+
+	/**
+	 * Get the text from the system clipboard, optionally escaping characters.
+	 * This is useful when trying to avoid path trouble on Windows with unescaped characters.
+	 * <p>
+	 * This command also queries the clipboard for files, using their paths where available.
+	 *
+	 * @param escapeCharacters if true, escape characters using Java language rules
+	 * @return the clipboard text
+	 */
+	public static String getClipboardText(boolean escapeCharacters) {
 		var clipboard = Clipboard.getSystemClipboard();
 		var files = clipboard.getFiles();
 		String text = clipboard.getString();
 		if (files != null && !files.isEmpty()) {
 			String s;
 			if (files.size() == 1)
-				s = files.get(0).getAbsolutePath();
+				s = files.getFirst().getAbsolutePath();
 			else {
-				s = "[" + files.stream().map(f -> "\"" + f.getAbsolutePath() + "\"").collect(Collectors.joining("," + System.lineSeparator())) + "]";
+				s = "[" + files.stream()
+						.map(f -> "\"" + f.getAbsolutePath() + "\"")
+						.collect(Collectors.joining("," + System.lineSeparator())) + "]";
 			}
 			if ("\\".equals(File.separator)) {
 				s = s.replace("\\", "/");
@@ -1989,10 +2016,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createExitAction(final String name) {
 		Action action = new Action(name, e -> {
-			attemptToQuitScriptEditor();
+			if (dialog != null)
+				dialog.hide();
 			e.consume();
 		});
-		action.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
+		action.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		return action;
 	}
 	
@@ -2029,7 +2057,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					measurements = imageData.getHierarchy()
 							.getDetectionObjects()
 							.stream()
-							.flatMap(d -> d.getMeasurementList().getMeasurementNames().stream())
+							.flatMap(d -> d.getMeasurementList().getNames().stream())
 							.distinct()
 							.map(m -> "\"" + m + "\"")
 							.collect(Collectors.joining(join))
@@ -2088,20 +2116,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 		return action;
 	}
-	
-	
-	void attemptToQuitScriptEditor() {
-		if (listScripts.getItems().isEmpty())
-			dialog.close();
-		while (promptToClose(getCurrentScriptTab()))
-			continue;
-	}
-	
+
 	boolean promptToClose(final ScriptTab tab) {
 		int ind = listScripts.getItems().indexOf(tab);
-		if (ind < 0)
+		if (ind < 0) {
 			return false;
-		
+		}
+
 		// Check if we need to save
 		if (tab.isModifiedProperty().get() && tab.hasScript()) {
 			// TODO: Consider that this previously had a different parent for the dialog... and probably should

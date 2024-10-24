@@ -79,6 +79,7 @@ import javafx.util.Duration;
 import org.controlsfx.control.HiddenSidesPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -322,12 +323,7 @@ public class CommandFinderTools {
 
 		stage.setScene(new Scene(pane, 600, 400));
 
-		stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-			if (e.getCode() == KeyCode.ESCAPE) {
-				stage.hide();
-				e.consume();
-			}
-		});
+		FXUtils.addCloseWindowShortcuts(stage);
 
 		textField.textProperty().addListener((v, o, n) -> {
 			// Ensure the table is up to date if we are just starting
@@ -382,13 +378,8 @@ public class CommandFinderTools {
 		pane.setBottom(panelSearch);
 		
 		stage.setScene(new Scene(pane, 600, 400));
-		
-		stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-	        if (e.getCode() == KeyCode.ESCAPE) {
-	        	stage.hide();
-	        	e.consume();
-	        }
-		});
+
+		FXUtils.addCloseWindowShortcuts(stage);
 		
 		textField.textProperty().addListener((v, o, n) -> {
 			// Ensure the table is up to date if we are just starting
@@ -398,7 +389,8 @@ public class CommandFinderTools {
 
 		table.setOnMouseClicked(e -> {
 			if (e.getClickCount() > 1 && !(e.getTarget() instanceof TableColumnHeader)) {
-				if (runSelectedCommand(table.getSelectionModel().getSelectedItem())) {
+				var selected = table.getSelectionModel().getSelectedItem();
+				if (runSelectedCommand(selected)) {
 					if (cbAutoClose.isSelected()) {
 						stage.hide();
 					}
@@ -575,10 +567,12 @@ public class CommandFinderTools {
 				if (!runSelectedCommand(table.getSelectionModel().getSelectedItem()))
 					return;
 				
-				if (clearTextOnRun)
+				if (clearTextOnRun) {
 					textField.clear();
-				if (hideDialogOnRun != null && hideDialogOnRun.get() && dialog != null)
+				}
+				if (hideDialogOnRun != null && hideDialogOnRun.get() && dialog != null) {
 					dialog.hide();
+				}
 				e.consume();
 			} else if (e.getCode() == KeyCode.DOWN) {
 				if (table.getItems().size() == 1)
@@ -784,12 +778,15 @@ public class CommandFinderTools {
 				logger.error("'{}' command is not currently available!", menuItem.getText());
 				return false;
 			}
-			if (menuItem instanceof CheckMenuItem)
-				fireMenuItem((CheckMenuItem)menuItem);
-			else if (menuItem instanceof RadioMenuItem)
-				fireMenuItem((RadioMenuItem)menuItem);
-			else
-				menuItem.fire();
+			if (menuItem instanceof CheckMenuItem) {
+				fireMenuItem((CheckMenuItem) menuItem);
+			} else if (menuItem instanceof RadioMenuItem) {
+				fireMenuItem((RadioMenuItem) menuItem);
+			} else {
+				// Running this later helps deal with
+				// https://github.com/qupath/qupath/issues/1647
+				Platform.runLater(menuItem::fire);
+			}
 			return true;
 		}
 		

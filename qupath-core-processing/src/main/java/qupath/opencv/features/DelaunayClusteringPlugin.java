@@ -56,8 +56,10 @@ import qupath.lib.plugins.parameters.ParameterList;
  * 
  * @author Pete Bankhead
  * @param <T> 
- *
+ * @deprecated v0.6.0 to be replaced by {@link qupath.lib.analysis.DelaunayTools}.
+ *             See https://github.com/qupath/qupath/issues/1590 for discussion of the problems with this command.
  */
+@Deprecated
 public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	private static final Logger logger = LoggerFactory.getLogger(DelaunayClusteringPlugin.class);

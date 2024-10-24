@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -46,11 +46,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import javax.swing.SwingUtilities;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.fx.utils.FXUtils;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
@@ -80,11 +82,11 @@ import qupathj.QuPath_Send_Overlay_to_QuPath;
 /**
  * QuPath plugin for running ImageJ macros &amp; returning detected regions.
  * 
- * TODO: Support script recording.
- * 
  * @author Pete Bankhead
- *
+ * @deprecated since v0.6.0; use {@link qupath.imagej.gui.scripts.ImageJScriptRunner} and
+ *             {@link qupath.imagej.gui.scripts.ImageJScriptRunnerController }instead.
  */
+@Deprecated
 public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 
 	private static Logger logger = LoggerFactory.getLogger(ImageJMacroRunner.class);
@@ -124,7 +126,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			dialog = new Stage();
 			dialog.initOwner(qupath.getStage());
 			dialog.setTitle("ImageJ macro runner");
-			
+			FXUtils.addCloseWindowShortcuts(dialog);
+
 			BorderPane pane = new BorderPane();
 
 			if (arg != null)
@@ -139,7 +142,6 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			if (macroText != null)
 				textArea.setText(macroText);
 			BorderPane panelMacro = new BorderPane();
-//			panelMacro.setBorder(BorderFactory.createTitledBorder("Macro"));
 			panelMacro.setCenter(textArea);
 
 
@@ -152,7 +154,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			btnRun.setOnAction(e -> {
 
 					macroText = textArea.getText().trim();
-					if (macroText.length() == 0)
+					if (macroText.isEmpty())
 						return;
 
 					// TODO: Consider that we're requesting a new ImageData here (probably right, but need to check)
@@ -167,9 +169,6 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 									viewer.getImageDisplay(), pathObject, macroText);
 						});
 					} else {
-						//						DisplayHelpers.showErrorMessage(getClass().getSimpleName(), "Sorry, ImageJ macros can only be run for single selected images");
-//						logger.warn("ImageJ macro being run in current thread");
-//						runPlugin(runner, arg); // TODO: Consider running in a background thread?
 						// Run in a background thread
 						Collection<? extends PathObject> parents = getParentObjects(imageDataLocal);
 						if (parents.isEmpty()) {
@@ -239,7 +238,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			else
 				pathImage = IJExtension.extractROI(server, pathObject, region, sendROI);
 		} catch (IOException e) {
-			logger.error("Unable to extract image region " + region, e);
+            logger.error("Unable to extract image region {}", region, e);
 			return;
 		}
 
@@ -250,9 +249,6 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		else
 			argument = String.format("Region (%d, %d, %d, %d)", region.getX(), region.getY(), region.getWidth(), region.getHeight());
 
-		// Check if we have an image already - if so, we need to be more cautious so we don't accidentally use it...
-//		boolean hasImage = WindowManager.getCurrentImage() != null;
-
 		// Actually run the macro
 		final ImagePlus imp = pathImage.getImage();
 		imp.setProperty("QuPath region", argument);
@@ -261,88 +257,79 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		
 		// TODO: Pay attention to how threading should be done... I think Swing EDT ok?
 		try {
-//			SwingUtilities.invokeAndWait(() -> {
-				boolean cancelled = false;
-				ImagePlus impResult = null;
-				try {
-					IJ.redirectErrorMessages();
-					Interpreter interpreter = new Interpreter();
-					impResult = interpreter.runBatchMacro(macroText, imp);
-					
-					// If we had an error, return
-					if (interpreter.wasError()) {
-						Thread.currentThread().interrupt();
-						return;
-					}
-					
-					// Get the resulting image, if available
-					if (impResult == null)
-						impResult = WindowManager.getCurrentImage();
-				} catch (RuntimeException e) {
-					logger.error(e.getLocalizedMessage());
-					//			DisplayHelpers.showErrorMessage("ImageJ macro error", e.getLocalizedMessage());
+			boolean cancelled = false;
+			ImagePlus impResult = null;
+			try {
+				IJ.redirectErrorMessages();
+				Interpreter interpreter = new Interpreter();
+				impResult = interpreter.runBatchMacro(macroText, imp);
+
+				// If we had an error, return
+				if (interpreter.wasError()) {
 					Thread.currentThread().interrupt();
-					cancelled = true;
-				} finally {
-					//		IJ.runMacro(macroText, argument);
-					WindowManager.setTempCurrentImage(null);
-//					IJ.run("Close all");
-				}
-				if (cancelled)
 					return;
-				
-				
-				// Get the current image when the macro has finished - which may or may not be the same as the original
+				}
+
+				// Get the resulting image, if available
 				if (impResult == null)
-					impResult = imp;
-				
-				
-				boolean changes = false;
-				if (params.getBooleanParameterValue("clearObjects") && pathObject.hasChildObjects()) {
-					pathObject.clearChildObjects();
-					changes = true;
-				}
-				if (params.getBooleanParameterValue("getROI") && impResult.getRoi() != null) {
-					Roi roi = impResult.getRoi();
-					Calibration cal = impResult.getCalibration();
-					PathObject pathObjectNew = roi == null ? null : IJTools.convertToAnnotation(roi, cal.xOrigin, cal.yOrigin, downsampleFactor, region.getImagePlane());
-					if (pathObjectNew != null) {
-						// If necessary, trim any returned annotation
-						if (pathROI != null && !(pathROI instanceof RectangleROI) && pathObjectNew.isAnnotation() && RoiTools.isShapeROI(pathROI) && RoiTools.isShapeROI(pathObjectNew.getROI())) {
-							ROI roiNew = RoiTools.combineROIs(pathROI, pathObjectNew.getROI(), CombineOp.INTERSECT);
-							((PathAnnotationObject)pathObjectNew).setROI(roiNew);
-						}
-						// Only add if we have something
-						if (pathObjectNew.getROI() instanceof LineROI || !pathObjectNew.getROI().isEmpty()) {
-							pathObject.addChildObject(pathObjectNew);
-							//			imageData.getHierarchy().addPathObject(IJHelpers.convertToPathObject(imp, imageData.getServer(), imp.getRoi(), downsampleFactor, false), true);
-							changes = true;
-						}
+					impResult = WindowManager.getCurrentImage();
+			} catch (RuntimeException e) {
+				logger.error(e.getLocalizedMessage());
+				//			DisplayHelpers.showErrorMessage("ImageJ macro error", e.getLocalizedMessage());
+				Thread.currentThread().interrupt();
+				cancelled = true;
+			} finally {
+				//		IJ.runMacro(macroText, argument);
+				WindowManager.setTempCurrentImage(null);
+//					IJ.run("Close all");
+			}
+			if (cancelled)
+				return;
+
+
+			// Get the current image when the macro has finished - which may or may not be the same as the original
+			if (impResult == null)
+				impResult = imp;
+
+
+			boolean changes = false;
+			if (params.getBooleanParameterValue("clearObjects") && pathObject.hasChildObjects()) {
+				pathObject.clearChildObjects();
+				changes = true;
+			}
+			if (params.getBooleanParameterValue("getROI") && impResult.getRoi() != null) {
+				Roi roi = impResult.getRoi();
+				Calibration cal = impResult.getCalibration();
+				PathObject pathObjectNew = roi == null ? null : IJTools.convertToAnnotation(roi, cal.xOrigin, cal.yOrigin, downsampleFactor, region.getImagePlane());
+				if (pathObjectNew != null) {
+					// If necessary, trim any returned annotation
+					if (pathROI != null && !(pathROI instanceof RectangleROI) && pathObjectNew.isAnnotation() && RoiTools.isShapeROI(pathROI) && RoiTools.isShapeROI(pathObjectNew.getROI())) {
+						ROI roiNew = RoiTools.combineROIs(pathROI, pathObjectNew.getROI(), CombineOp.INTERSECT);
+						((PathAnnotationObject)pathObjectNew).setROI(roiNew);
 					}
-				}
-				
-				boolean exportAsDetection = ((String) params.getChoiceParameterValue("getOverlayAs")).equals("Detections") ? true : false;
-				if (params.getBooleanParameterValue("getOverlay") && impResult.getOverlay() != null) {
-					var overlay = impResult.getOverlay();
-					List<PathObject> childObjects = QuPath_Send_Overlay_to_QuPath.createObjectsFromROIs(imp, Arrays.asList(overlay.toArray()), downsampleFactor, exportAsDetection, true, region.getImagePlane());
-					if (!childObjects.isEmpty()) {
-						pathObject.addChildObjects(childObjects);
+					// Only add if we have something
+					if (pathObjectNew.getROI() instanceof LineROI || !pathObjectNew.getROI().isEmpty()) {
+						pathObject.addChildObject(pathObjectNew);
 						changes = true;
 					}
-//					for (Roi roi : impResult.getOverlay().toArray()) {
-//						pathObject.addPathObject(IJTools.convertToPathObject(imp, imageData.getServer(), roi, downsampleFactor, true));
-//						changes = true;
-//					}
 				}
-				
-				if (changes) {
-					Platform.runLater(() -> imageData.getHierarchy().fireHierarchyChangedEvent(null));
+			}
+
+			boolean exportAsDetection = Objects.equals(params.getChoiceParameterValue("getOverlayAs"), "Detections");
+			if (params.getBooleanParameterValue("getOverlay") && impResult.getOverlay() != null) {
+				var overlay = impResult.getOverlay();
+				List<PathObject> childObjects = QuPath_Send_Overlay_to_QuPath.createObjectsFromROIs(imp, Arrays.asList(overlay.toArray()), downsampleFactor, exportAsDetection, true, region.getImagePlane());
+				if (!childObjects.isEmpty()) {
+					pathObject.addChildObjects(childObjects);
+					changes = true;
 				}
-				
-//			});
+			}
+
+			if (changes) {
+				Platform.runLater(() -> imageData.getHierarchy().fireHierarchyChangedEvent(null));
+			}
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error(e.getMessage(), e);
 		}
 
 	}
@@ -408,12 +395,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				else {
 					try {
 						SwingUtilities.invokeAndWait(() -> runMacro(params, imageData, null, parentObject, macroText));
-					} catch (InvocationTargetException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+					} catch (InvocationTargetException | InterruptedException e) {
+						logger.error(e.getMessage(), e);
 					} // TODO: Deal with logging macro text properly
 				}
 			}
@@ -432,13 +415,5 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 		}
 		return pathObjects;
-		
-//		// TODO: Give option to analyse annotations, even when TMA grid is present
-//		ImageData<BufferedImage> imageData = runner.getImageData();
-//		TMAGrid tmaGrid = imageData.getHierarchy().getTMAGrid();
-//		if (tmaGrid != null && tmaGrid.nCores() > 0)
-//			return PathObjectTools.getTMACoreObjects(imageData.getHierarchy(), false);
-//		else
-//			return imageData.getHierarchy().getObjects(null, PathAnnotationObject.class);
 	}
 }

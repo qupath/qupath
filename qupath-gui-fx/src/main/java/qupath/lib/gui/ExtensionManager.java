@@ -161,13 +161,14 @@ public class ExtensionManager {
 					if (showNotification)
 						Dialogs.showErrorNotification("Extension error", message);
 					logger.error("Error loading extension " + extension + ": " + e.getLocalizedMessage(), e);
-					if (!Objects.equals(qupathVersion, version)) {
-						if (version == null || Version.UNKNOWN.equals(version))
+					var compatibleQuPathVersion = extension.getQuPathVersion();
+					if (!Objects.equals(qupathVersion, compatibleQuPathVersion)) {
+						if (compatibleQuPathVersion == null || Version.UNKNOWN.equals(compatibleQuPathVersion))
 							logger.warn("QuPath version for which the '{}' was written is unknown!", extension.getName());
-						else if (version.equals(qupathVersion))
-							logger.warn("'{}' reports that it is compatible with the current QuPath version {}", extension.getName(), qupathVersion);
+						else if (compatibleQuPathVersion.getMajor() == qupathVersion.getMajor() && compatibleQuPathVersion.getMinor() == qupathVersion.getMinor())
+							logger.warn("'{}' reports that it is compatible with QuPath {}; the current QuPath version is {}", extension.getName(), compatibleQuPathVersion, qupathVersion);
 						else
-							logger.warn("'{}' was written for QuPath {} but current version is {}", extension.getName(), version, qupathVersion);
+							logger.warn("'{}' was written for QuPath {} but current version is {}", extension.getName(), compatibleQuPathVersion, qupathVersion);
 					}
 					try {
 						logger.warn("It is recommended that you delete {} and restart QuPath",

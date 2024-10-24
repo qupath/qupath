@@ -269,20 +269,6 @@ public class CellTools {
 					geomCell = GeometryTools.ensurePolygonal(geomCell);
 					geomCell = VWSimplifier.simplify(geomCell, 1.0);
 				} catch (Exception e) {
-					// Debugging code used to create GeoJSON objects that could later be import for visualization
-	//				if (bounds instanceof GeometryCollection)
-	//					System.err.println("Collection FAILED");
-	//				else
-	//					System.err.println("Non-collection FAILED");
-	//				
-	//				var gson = GsonTools.getInstance(true);
-	//				var failedObjects = Arrays.asList(
-	//						detection,
-	//						PathObjects.createAnnotationObject(GeometryTools.geometryToROI(bounds, ImagePlane.getDefaultPlane()), PathClassFactory.getPathClass("Temporary")),
-	//						PathObjects.createAnnotationObject(GeometryTools.geometryToROI(face, ImagePlane.getDefaultPlane()), PathClassFactory.getPathClass("Temporary face"))						
-	//						);
-	//				System.err.println(gson.toJson(GsonTools.wrapFeatureCollection(failedObjects)));
-	
 					if (face.getArea() > bounds.getArea()) {
 						geomCell = bounds;
 						logger.warn("Error computing intersection between cell boundary and Voronoi face - will use bounds result: " + e.getLocalizedMessage(), e);

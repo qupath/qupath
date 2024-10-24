@@ -63,8 +63,7 @@ public class TestOMETiffImageWriter {
 			assertNotNull(bytes);
 			assertTrue(bytes.length > 0);
 		} catch (IOException e) {
-			e.printStackTrace();
-			fail("Error writing to byte array: " + e.getLocalizedMessage());
+			fail("Error writing to byte array: " + e.getLocalizedMessage(), e);
 			return;
 		}
 		// Haven't been able to read from in-memory image with Bio-Formats yet...
@@ -78,8 +77,7 @@ public class TestOMETiffImageWriter {
 //			compareImages(img, imgRead);
 //			bufferedReader.close();
 //		} catch (Exception e) {
-//			e.printStackTrace();
-//			fail("Error reading from byte array: " + e.getLocalizedMessage());
+//			fail("Error reading from byte array: " + e.getMessage());
 //			return;
 //		}
 	}

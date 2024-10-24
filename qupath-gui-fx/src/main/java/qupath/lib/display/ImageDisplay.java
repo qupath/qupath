@@ -97,10 +97,19 @@ public class ImageDisplay extends AbstractImageRenderer {
 	private static final String PROPERTY_DISPLAY = ImageDisplay.class.getName();
 
 	// Lists to store the different kinds of channels we might need
+	// Pack RGB (all channels in one image, only adjustable together)
 	private RGBDirectChannelInfo rgbDirectChannelInfo;
+	// Normalized optical density channels; useful to find the 'predominant' color when selecting stain vectors
 	private RGBNormalizedChannelInfo rgbNormalizedChannelInfo;
-	private List<ChannelDisplayInfo> rgbBasicChannels = new ArrayList<>();
+	// Direct (editable) RGB channels
+	private List<ChannelDisplayInfo> rgbDirectChannels = new ArrayList<>();
+	// Split (uneditable) RGB channels
+	private List<ChannelDisplayInfo> rgbSplitChannels = new ArrayList<>();
+	// Hue, Saturation, Value
+	private List<ChannelDisplayInfo> rgbHsvChannels = new ArrayList<>();
+	// Color-deconvolved channels
 	private List<ChannelDisplayInfo> rgbBrightfieldChannels = new ArrayList<>();
+	// Chromaticity channels
 	private List<ChannelDisplayInfo> rgbChromaticityChannels = new ArrayList<>();
 
 	// Image & color transform-related variables
@@ -367,7 +376,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 		rgbDirectChannelInfo = null;
 		rgbNormalizedChannelInfo = null;
 
-		rgbBasicChannels.clear();
+		rgbSplitChannels.clear();
+		rgbDirectChannels.clear();
+		rgbHsvChannels.clear();
 		rgbBrightfieldChannels.clear();
 		rgbChromaticityChannels.clear();
 		
@@ -377,16 +388,18 @@ public class ImageDisplay extends AbstractImageRenderer {
 		rgbDirectChannelInfo = new RGBDirectChannelInfo(imageData);
 		rgbNormalizedChannelInfo = new RGBNormalizedChannelInfo(imageData);
 
-		// Add simple channel separation
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Red, false));
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Green, false));
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Blue, false));
-//		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Red", 8, 0, 255, 0, 0));
-//		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Green", 8, 1, 0, 255, 0));
-//		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Blue", 8, 2, 0, 0, 255));
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Hue, false));
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Saturation, false));
-		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean, false));
+		// Add simple channel separation (changed for v0.6.0)
+		rgbSplitChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Red, false));
+		rgbSplitChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Green, false));
+		rgbSplitChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Blue, false));
+
+		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 0));
+		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 1));
+		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 2));
+
+		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Hue, false));
+		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Saturation, false));
+		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean, false));
 
 		// Add optical density & color deconvolution options for brightfield images
 		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_1));
@@ -461,21 +474,34 @@ public class ImageDisplay extends AbstractImageRenderer {
 		List<ChannelDisplayInfo> tempSelectedChannels = new ArrayList<>(this.selectedChannels);
 		if (server.isRGB()) {
 			createRGBChannels(imageData);
-			tempChannelOptions.add(rgbDirectChannelInfo);
-			// Add color deconvolution options if we have a brightfield image
-			if (imageData.isBrightfield()) {
-				tempChannelOptions.addAll(rgbBrightfieldChannels);
-				tempChannelOptions.add(rgbNormalizedChannelInfo);
-			}
-			if (showAllRGBTransforms.get()) {
-				tempChannelOptions.addAll(rgbBasicChannels);
-				tempChannelOptions.addAll(rgbChromaticityChannels);
+			if (imageData.isFluorescence()) {
+				tempChannelOptions.addAll(rgbDirectChannels);
+			} else {
+				// Remove joint RGB display as an option for fluorescence
+				tempChannelOptions.add(rgbDirectChannelInfo);
+				// Add color deconvolution options if we have a brightfield image
+				if (imageData.isBrightfield()) {
+					tempChannelOptions.addAll(rgbBrightfieldChannels);
+					tempChannelOptions.add(rgbNormalizedChannelInfo);
+				}
+				tempChannelOptions.addAll(rgbSplitChannels);
+				if (showAllRGBTransforms.get()) {
+					// Change v0.6.0 - don't show all channels for fluorescence (as they are more distracting than helpful)
+					// If they are needed, using ImageType.OTHER
+					tempChannelOptions.addAll(rgbHsvChannels);
+					tempChannelOptions.addAll(rgbChromaticityChannels);
+				}
 			}
 			// Remove any invalid channels
 			tempSelectedChannels.retainAll(tempChannelOptions);
 			// Select the original channel (RGB)
-			if (tempSelectedChannels.isEmpty())
-				tempSelectedChannels.add(tempChannelOptions.get(0));
+			if (tempSelectedChannels.isEmpty()) {
+				// Default to all channels
+				if (!useGrayscaleLuts.get() && tempChannelOptions.stream().allMatch(c -> c instanceof DirectServerChannelInfo))
+					tempSelectedChannels.addAll(tempChannelOptions);
+				else
+					tempSelectedChannels.add(tempChannelOptions.getFirst());
+			}
 		} else if (serverChanged) {
 			if (server.nChannels() == 1) {
 				tempChannelOptions.add(new DirectServerChannelInfo(imageData, 0));
@@ -507,7 +533,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 		if (serverChanged) {
 			tempSelectedChannels.clear();
 			if (server.isRGB() || !useColorLUTs())
-				tempSelectedChannels.add(tempChannelOptions.get(0));
+				tempSelectedChannels.add(tempChannelOptions.getFirst());
 			else if (useColorLUTs())
 				tempSelectedChannels.addAll(tempChannelOptions);
 			selectedChannels.clear();
@@ -563,7 +589,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 		if (n == 1)
 			logger.info("Loaded color channel info for one channel");
 		else if (n > 1)
-			logger.info("Loaded color channel info for " + n + " channels");
+            logger.info("Loaded color channel info for {} channels", n);
 		return n > 0;
 	}
 	
@@ -598,7 +624,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 */
 	public void saveChannelColorProperties() {
 		// Don't process a change if we're still setting the image data
-		if (settingImageData == true)
+		if (settingImageData)
 			return;
 		if (imageData == null) {
 			logger.warn("Cannot save color channel properties - no ImageData available");
@@ -608,11 +634,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 		imageData.setProperty(PROPERTY_DISPLAY, toJSON(false));
 		changeTimestamp.set(System.currentTimeMillis());
 	}
-	
 
-//	public List<ChannelDisplayInfo> getAvailableChannels() {
-//		return Collections.unmodifiableList(channelOptions);
-//	}
 
 	private ObservableList<ChannelDisplayInfo> selectedChannelsReadOnly = FXCollections.unmodifiableObservableList(selectedChannels);	
 	
@@ -651,9 +673,6 @@ public class ImageDisplay extends AbstractImageRenderer {
 		// Try to minimize the number of events fired
 		List<ChannelDisplayInfo> tempSelectedChannels = new ArrayList<>(selectedChannels);
 		if (selected) {
-			// If the channel is already selected, or wouldn't be valid anyway, we've got nothing to do
-			//			if (selectedChannels.contains(channel) || !getAvailableChannels().contains(channel))
-			//				return getSelectedChannels();
 			// If this channel can't be combined with existing channels, clear the existing ones
 			if (!useColorLUTs() || !channel.isAdditive() || (!tempSelectedChannels.isEmpty()) && !tempSelectedChannels.get(0).isAdditive())
 				tempSelectedChannels.clear();
@@ -696,11 +715,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 */
 	@Override
 	public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
-//		long startTime = System.currentTimeMillis();
-		
 		BufferedImage imgResult = applyTransforms(imgInput, imgOutput, selectedChannels, displayMode().getValue());
-//		long endTime = System.currentTimeMillis();
-//		System.err.println("Transform time: " + (endTime - startTime));
 		return imgResult;
 	}
 	
@@ -743,18 +758,6 @@ public class ImageDisplay extends AbstractImageRenderer {
 		
 		boolean invertBackground = mode.invertColors();
 		boolean isGrayscale = mode == ChannelDisplayMode.GRAYSCALE || mode == ChannelDisplayMode.INVERTED_GRAYSCALE;
-
-//		// If we don't have anything, just give a black image
-//		if (selectedChannels.isEmpty()) {
-//			Graphics2D g2d = imgOutput.createGraphics();
-////			if (invertBackground) // Don't really know if it should be black or white at this point
-//				g2d.setColor(Color.BLACK);
-////			else
-////				g2d.setColor(Color.WHITE); // TODO: Check if this is sensible
-//			g2d.fillRect(0, 0, width, height);
-//			g2d.dispose();
-//			return imgOutput;
-//		}
 				
 		// Check if we have any changes to make - if not, just copy the image
 		// Sometimes the first entry of selectedChannels was null... not sure why... this test is therefore to paper over the cracks...
@@ -800,15 +803,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 		if (mode.invertColors()) {
 			invertRGB(pixels);
 		}
-
 		imgOutput.getRaster().setDataElements(0, 0, imgOutput.getWidth(), imgOutput.getHeight(), pixels);
-		
-//		imgOutput.setRGB(0, 0, imgOutput.getWidth(), imgOutput.getHeight(), pixels, 0, imgOutput.getWidth());
-
-
-		//		imgOutput.setRGB(0, 0, width, height, pixels, 0, width);
-		//		long endTime = System.currentTimeMillis();
-		//		System.out.println("Time taken: " + (endTime - startTime)/1000.);
 		return imgOutput;
 	}
 	
@@ -910,7 +905,6 @@ public class ImageDisplay extends AbstractImageRenderer {
 			// TODO: Look at other times whenever no histogram will be provided
 			if (!(info instanceof RGBDirectChannelInfo))
 				logger.warn("Cannot set display range for {} - no histogram found", info);
-			//			System.out.println("Cannot set display range for " + info + " - no histogram found");
 			return;
 		}
 		// For unsupported saturation values, just set to the min/max

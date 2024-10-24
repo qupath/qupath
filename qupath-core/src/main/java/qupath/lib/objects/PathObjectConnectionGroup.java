@@ -36,8 +36,9 @@ import qupath.lib.regions.ImageRegion;
  * Such connections can be represented on an overlay by drawing lines between object centroids.
  * 
  * @author Pete Bankhead
- *
+ * @deprecated v0.6.0, to be replaced by {@link qupath.lib.analysis.DelaunayTools.Subdivision}
  */
+@Deprecated
 public interface PathObjectConnectionGroup {
 	
 	/**

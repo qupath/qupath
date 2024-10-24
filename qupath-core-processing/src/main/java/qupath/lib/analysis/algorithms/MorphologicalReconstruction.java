@@ -178,8 +178,6 @@ public class MorphologicalReconstruction {
 		while (!queue.isEmpty()) {
 			counter++;
 			
-//			System.out.println("Counter " + counter);
-
 			// If we were interrupted, stop
 			if (counter % 2500 == 0 && currentThread.isInterrupted())
 				return false;

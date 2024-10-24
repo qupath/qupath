@@ -54,7 +54,6 @@ import qupath.lib.images.servers.LabeledImageServer;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.io.GsonTools;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
@@ -537,7 +536,7 @@ public class TileExporter  {
 						continue;
 					}
 				} else if (imageData != null) {
-					if (!imageData.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, r, null)
+					if (!imageData.getHierarchy().getAnnotationsForRegion(r, null)
 							.stream().anyMatch(p -> RoiTools.intersectsRegion(p.getROI(), r))) {
 						iterator.remove();
 						continue;

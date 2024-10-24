@@ -125,7 +125,7 @@ class AwtMenuBarBlocker implements PropertyChangeListener {
         if (menuBar == null)
             return;
         logger.debug("Adding menubar notifications {}", menuBar);
-        menuBar.removeNotify();
+        menuBar.addNotify();
     }
 
 

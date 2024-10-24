@@ -116,7 +116,7 @@ public class BioFormatsServerOptions {
 	private Set<String> useExtensions = new TreeSet<>();
 	
 	private boolean requestParallelization = true;
-	private boolean filesOnly = true;
+	private boolean filesOnly = false;
 	private int memoizationTimeMillis = -1;
 //	private boolean requestParallelizeMultichannel = false;
 	private String pathMemoization;

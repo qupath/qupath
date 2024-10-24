@@ -125,13 +125,6 @@ class DefaultRegionCache<T> implements Map<RegionRequest, T> {
 			memoryBytes -= sizeEstimator.getApproxImageSize(imgPrevious);
 			nonNullSize--;
 		}
-//		System.err.println(
-//				String.format("Cache: %d entries, %.1f/%.1f GB, %.1f%%", map.size(),
-//						memoryBytes/1024.0/1024.0/1024.0,
-//						maxMemoryBytes/1024.0/1024.0/1024.0,
-//						memoryBytes * 100.0/maxMemoryBytes));
-//		else
-//			System.out.println("PUTTING NEW: " + nonNullSize + ", " + request + ", " + Thread.currentThread());
 		return imgPrevious;
 	}
 

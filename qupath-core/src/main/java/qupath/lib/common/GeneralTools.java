@@ -182,7 +182,7 @@ public final class GeneralTools {
 	
 	
 	private static List<String> DEFAULT_EXTENSIONS = Arrays.asList(
-			".ome.tif", ".ome.tiff", ".tar.gz"
+			".ome.tif", ".ome.tiff", ".tar.gz", ".ome.zarr"
 			);
 	
 	/**
@@ -724,7 +724,15 @@ public final class GeneralTools {
 	 */
 	public static boolean isMac() {
 		String os = System.getProperty("os.name").toLowerCase();
-		return os.indexOf("mac") >= 0 || os.indexOf("darwin") >= 0;
+		return os.contains("mac") || os.contains("darwin");
+	}
+
+	/**
+	 * Return true if running on macOS and Apple Silicon.
+	 * @return
+	 */
+	public static boolean isAppleSilicon() {
+		return isMac() && "aarch64".equals(System.getProperty("os.arch"));
 	}
 
 	/**
@@ -920,8 +928,6 @@ public final class GeneralTools {
 	 * @param extractor function used to convert each element of the collection to a String representation
 	 */
 	public static <T> void smartStringSort(Collection<T> collection, Function<T, String> extractor) {
-//		for (var temp : collection)
-//			System.err.println(new StringPartsSorter<T>(temp, temp.toString()));
 		var list = collection.stream().map(c -> new StringPartsSorter<>(c, extractor.apply(c))).sorted().map(s -> s.obj).toList();
 		collection.clear();
 		collection.addAll(list);

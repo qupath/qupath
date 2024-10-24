@@ -48,7 +48,7 @@ public class Watershed {
 	 * @param conn8 if true, use 8-connectivity
 	 */
 	public static void watershedExpandLabels(final ImageProcessor ipLabels, final double maxDistance, final boolean conn8) {
-		var bp = SimpleThresholding.thresholdAbove(ipLabels, 0f);
+		var bp = SimpleThresholding.thresholdAbove(ipLabels, 0.0);
 		FloatProcessor fpEDM = new EDM().makeFloatEDM(bp, (byte)255, false);
 		fpEDM.multiply(-1);
 		doWatershed(fpEDM, ipLabels, -maxDistance, conn8);
@@ -311,18 +311,10 @@ public class Watershed {
 			this.y = y;
 			this.value = value;
 			this.count = count;
-			
-//			System.out.println("My count: " + count);
 		}
 
 		@Override
 		public int compareTo(final PixelWithValue pwv) {
-//			// Profiling indicates that the many comparisons are the slowest part of the algorithm...
-//			if (value == pwv.value) 
-//				return count > pwv.count ? 1 : -1;
-//			else
-//				return value > pwv.value ? -1 : 1;
-					
 			// Profiling indicates that the many comparisons are the slowest part of the algorithm...
 			if (value < pwv.value) {
 				return 1;
@@ -331,13 +323,6 @@ public class Watershed {
 				return -1;
 			}
 			return count > pwv.count ? 1 : -1;
-			
-//			// Profiling indicates that the many comparisons are the slowest part of the algorithm...
-//			if (value > pwv.value)
-//				return 1;
-//			else if (value < pwv.value)
-//				return -1;
-//			return count > pwv.count ? 1 : -1;
 		}
 		
 	}

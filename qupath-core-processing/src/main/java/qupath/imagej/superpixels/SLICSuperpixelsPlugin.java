@@ -200,9 +200,6 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 				ColorProcessor cp = (ColorProcessor)imp.getProcessor();
 				if (doDeconvolve && imageData.isBrightfield() && imageData.getColorDeconvolutionStains() != null) {
 					ipColor = IJTools.colorDeconvolve(cp, imageData.getColorDeconvolutionStains());
-//					fpDeconvolved = Arrays.copyOf(fpDeconvolved, 1);
-//					for (ImageProcessor fp : fpDeconvolved)
-//						System.err.println(fp.getStatistics().stdDev);
 					m = m / 2;
 					mergeThreshold = mergeThreshold / 2;
 				} else {
@@ -439,37 +436,13 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 				dist += (f1-f2)*(f1-f2);
 			}
 			dist = Math.sqrt(dist);
-//			System.err.println(dist);
 			boolean doMerge = dist <= distanceThreshold;
-						
-						
-//			// Check merge based on cosine distance
-//			double distanceThreshold = 0.9999;
-//			double dist = 0;
-//			double mag1 = 0;
-//			double mag2 = 0;
-//			for (int i = 0; i < center.features.length; i++) {
-//				double f1 = center.features[i];
-//				mag1 += f1*f1;
-//				double f2 = center2.features[i];
-//				mag2 += f2*f2;				
-//				dist += f1*f2;
-//			}
-//			dist = dist / (Math.sqrt(mag1) * Math.sqrt(mag2));
-////			dist = 1-2*Math.acos(dist)/Math.PI;
-//			boolean doMerge = dist >= distanceThreshold;
-						
-//			// Check merge based on distance standard deviations within each cluster
-//			double distanceThreshold = Math.min(center.getColorDistanceStdDev(), center2.getColorDistanceStdDev());
-//			double dist = center.colorDistance(center2.features);
-//			boolean doMerge = dist < distanceThreshold;
 			
 			// Perform the merge
 			if (doMerge) {
 				for (int label : center2.getLabels())
 					labels[label] = center.primaryLabel;
 				center2.primaryLabel = center.primaryLabel;
-//				center2.labels.addAll(center.labels);
 				return true;
 			}
 			return false;

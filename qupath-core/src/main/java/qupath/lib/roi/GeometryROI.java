@@ -27,11 +27,15 @@ import java.awt.geom.Path2D;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+
+import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
+import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.io.ParseException;
@@ -68,7 +72,12 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	
 	private transient GeometryStats stats = null;
 	private transient Shape shape = null;
-	
+
+	/**
+	 * Cache a locator for faster 'contains' checks.
+	 */
+	private transient PointOnGeometryLocator cachedLocator;
+
 	/**
 	 * Create a GeometryROI, without checking for validity.
 	 * @param geometry
@@ -83,15 +92,18 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	 * @param geometry
 	 * @param plane
 	 * @param checkValid if true, check the Geometry is valid before computing measurements. 
-	 *                   Because the validity check can be (very) slow, it may be desireable to skip it if not needed.
+	 *                   Because the validity check can be (very) slow, it may be desirable to skip it if not needed.
 	 */
 	GeometryROI(Geometry geometry, ImagePlane plane, boolean checkValid) {
 		super(plane);
 		this.checkValid = checkValid;
 		this.geometry = geometry.copy();
-//		this.stats = computeGeometryStats(geometry, 1, 1);
-//		if (!stats.isValid())
-//			logger.warn("Creating invalid geometry: {}", stats.getError());
+		// We can cache a locator for 'contains' checks now because it is built lazily anyway
+		// but we only want it for large polygonal geometries
+		if (geometry instanceof Polygonal && geometry.getNumPoints() > 1000) {
+			logger.trace("Creating IndexedPointInAreaLocator for large geometry");
+			cachedLocator = new IndexedPointInAreaLocator(geometry);
+		}
 	}
 
 	@Override
@@ -212,10 +224,14 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 
 	@Override
 	public boolean contains(double x, double y) {
-		if (isArea())
-			return SimplePointInAreaLocator.locate(
-				new Coordinate(x, y), geometry) != Location.EXTERIOR;
-		else
+		if (isArea()) {
+			var coord = new Coordinate(x, y);
+			if (cachedLocator != null) {
+				return cachedLocator.locate(coord) != Location.EXTERIOR;
+			} else {
+				return SimplePointInAreaLocator.locate(coord, geometry) != Location.EXTERIOR;
+			}
+		} else
 			return false;
 	}
 
@@ -227,12 +243,6 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	private Object writeReplace() {
 		// This relies on JTS serialization
 		return new WKBSerializationProxy(this);
-//		// Try to preserve areas as they were... but we need to use JTS serialization for others
-//		if (isArea()) {
-//			AreaROI roi = new AreaROI(RoiTools.getVertices(getShape()), ImagePlane.getPlaneWithChannel(c, z, t));
-//			return roi;
-//		} else
-//			return this;
 	}
 	
 	

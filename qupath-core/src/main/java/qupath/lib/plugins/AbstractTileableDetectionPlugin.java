@@ -28,12 +28,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
@@ -50,7 +53,9 @@ import qupath.lib.roi.interfaces.ROI;
  * @param <T>
  */
 public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetectionPlugin<T> {
-	
+
+	private static final Logger logger = LoggerFactory.getLogger(AbstractTileableDetectionPlugin.class);
+
 	private static int PREFERRED_TILE_SIZE = 2048;
 	private static int MAX_TILE_SIZE = 3072;
 
@@ -110,7 +115,8 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 
 		// Determine appropriate sizes
 		// Note, for v0.1.2 and earlier the downsample was restricted to be a power of 2
-		double downsampleFactor = ServerTools.getDownsampleFactor(imageData.getServer(), getPreferredPixelSizeMicrons(imageData, params));
+		var server = imageData.getServer();
+		double downsampleFactor = ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params));
 		int preferred = (int)(PREFERRED_TILE_SIZE * downsampleFactor);
 		int max = (int)(MAX_TILE_SIZE * downsampleFactor);
 		ImmutableDimension sizePreferred = ImmutableDimension.getInstance(preferred, preferred);
@@ -121,7 +127,19 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 		// Extract (or create) suitable ROI
 		ROI parentROI = parentObject.getROI();
 		if (parentROI == null)
-			parentROI = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), ImagePlane.getDefaultPlane());
+			parentROI = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane());
+		else if (parentROI.getBoundsX() < 0 ||
+				parentROI.getBoundsY() < 0 ||
+				parentROI.getBoundsX() + parentROI.getBoundsWidth() >= server.getWidth() ||
+				parentROI.getBoundsY() + parentROI.getBoundsHeight() >= server.getHeight()) {
+			// Ensure the request is within the image bounds -
+			// see https://forum.image.sc/t/qupath-wrongly-placed-detections-with-out-of-bounds-annotations/100914
+			logger.debug("Parent ROI is out of bounds; adjusting to image bounds");
+			parentROI = RoiTools.combineROIs(
+					parentROI,
+					ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), parentROI.getImagePlane()),
+					RoiTools.CombineOp.INTERSECT);
+		}
 
 		// Make tiles
 		Collection<? extends ROI> pathROIs = RoiTools.computeTiledROIs(parentROI, sizePreferred, sizeMax, false, getTileOverlap(imageData, params));

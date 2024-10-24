@@ -87,7 +87,7 @@ class GroovySyntax extends GeneralCodeSyntax {
 		String subString = text.substring(startRowPos, caretPos);
 		String trimmedSubString = subString.trim();
 		int indentation = subString.length() - subString.stripLeading().length();
-		int ind = trimmedSubString.length() == 0 ? subString.length() : subString.indexOf(trimmedSubString);
+		int ind = trimmedSubString.isEmpty() ? subString.length() : subString.indexOf(trimmedSubString);
 		int finalPos = caretPos;
 		String insertText = System.lineSeparator();
 

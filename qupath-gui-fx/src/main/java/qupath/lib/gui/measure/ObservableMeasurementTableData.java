@@ -61,7 +61,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.objects.MetadataStore;
+import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -219,7 +219,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		builderMap.put("Name", new ObjectNameMeasurementBuilder());
 
 		// Include the class
-		if (containsAnnotations || containsDetections) {
+		if (containsAnnotations || containsDetections || containsTMACores) {
 			builderMap.put("Classification", new PathClassMeasurementBuilder());
 			// Get the name of the containing TMA core if we have anything other than cores
 			if (imageData != null && imageData.getHierarchy().getTMAGrid() != null) {
@@ -251,12 +251,12 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 
 		// New v0.4.0: include z and time indices
-		var imageServer = imageData == null ? null : imageData.getServer();
-		if (containsMultiZ || (containsROIs && imageServer != null && imageServer.nZSlices() > 1)) {
+		var serverMetadata = imageData == null ? null : imageData.getServerMetadata();
+		if (containsMultiZ || (containsROIs && serverMetadata != null && serverMetadata.getSizeZ() > 1)) {
 			builderMap.put("Z index", new ZSliceMeasurementBuilder());
 		}
 
-		if (containsMultiT || (containsROIs && imageServer != null && imageServer.nTimepoints() > 1)) {
+		if (containsMultiT || (containsROIs && serverMetadata != null && serverMetadata.getSizeT() > 1)) {
 			builderMap.put("Time index", new TimepointMeasurementBuilder());
 		}
 
@@ -264,9 +264,12 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		Set<String> metadataNames = new LinkedHashSet<>();
 		metadataNames.addAll(builderMap.keySet());
 		for (PathObject pathObject : pathObjectListCopy) {
-			if (pathObject instanceof MetadataStore) {
-				metadataNames.addAll(((MetadataStore)pathObject).getMetadataKeys());
-			}
+			// Don't show metadata keys that start with "_"
+			pathObject.getMetadata()
+					.keySet()
+							.stream()
+									.filter(key -> key != null && !key.startsWith("_"))
+											.forEach(metadataNames::add);
 		}
 		// Ensure we have suitable builders
 		for (String name : metadataNames) {
@@ -712,7 +715,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				for (PathClass pathClass : pathClassList) {
 					if (PathClassTools.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass)
 	//				if (!(PathClassFactory.isDefaultIntensityClass(pathClass) || PathClassFactory.isNegativeClass(pathClass)))
-						builders.add(new ClassDensityMeasurementBuilder(imageData.getServer(), pathClass));
+						builders.add(new ClassDensityMeasurementBuilder(pathClass));
 				}
 			}
 
@@ -757,12 +760,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		class ClassDensityMeasurementPerMM extends DoubleBinding {
 			
-			private ImageServer<?> server;
 			private PathObject pathObject;
 			private PathClass pathClass;
 			
-			public ClassDensityMeasurementPerMM(final ImageServer<?> server, final PathObject pathObject, final PathClass pathClass) {
-				this.server = server;
+			public ClassDensityMeasurementPerMM(final PathObject pathObject, final PathClass pathClass) {
 				this.pathObject = pathObject;
 				this.pathClass = pathClass;
 			}
@@ -791,13 +792,14 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				int n = counts.getCountForAncestor(pathClass);
 				ROI roi = pathObjectTemp.getROI();
 				// For the root, we can measure density only for 2D images of a single time-point
-				if (pathObjectTemp.isRootObject() && server.nZSlices() == 1 && server.nTimepoints() == 1)
-					roi = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane());
+				var serverMetadata = imageData.getServerMetadata();
+				if (pathObjectTemp.isRootObject() && serverMetadata.getSizeZ() == 1 && serverMetadata.getSizeT() == 1)
+					roi = ROIs.createRectangleROI(0, 0, serverMetadata.getWidth(), serverMetadata.getHeight(), ImagePlane.getDefaultPlane());
 				
 				if (roi != null && roi.isArea()) {
 					double pixelWidth = 1;
 					double pixelHeight = 1;
-					PixelCalibration cal = server == null ? null : server.getPixelCalibration();
+					PixelCalibration cal = serverMetadata == null ? null : serverMetadata.getPixelCalibration();
 					if (cal != null && cal.hasPixelSizeMicrons()) {
 						pixelWidth = cal.getPixelWidthMicrons() / 1000;
 						pixelHeight = cal.getPixelHeightMicrons() / 1000;
@@ -970,17 +972,15 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		class ClassDensityMeasurementBuilder extends NumericMeasurementBuilder {
 			
-			private ImageServer<?> server;
 			private PathClass pathClass;
 			
-			ClassDensityMeasurementBuilder(final ImageServer<?> server, final PathClass pathClass) {
-				this.server = server;
+			ClassDensityMeasurementBuilder(final PathClass pathClass) {
 				this.pathClass = pathClass;
 			}
 			
 			@Override
 			public String getName() {
-				if (server != null && server.getPixelCalibration().hasPixelSizeMicrons())
+				if (imageData != null && imageData.getServerMetadata().getPixelCalibration().hasPixelSizeMicrons())
 					return String.format("Num %s per mm^2", pathClass.toString());
 //					return String.format("Num %s per %s^2", pathClass.toString(), GeneralTools.micrometerSymbol());
 				else
@@ -991,7 +991,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			public Binding<Number> createMeasurement(final PathObject pathObject) {
 				// Only return density measurements for annotations
 				if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.nChildObjects() == 1))
-					return new ClassDensityMeasurementPerMM(server, pathObject, pathClass);
+					return new ClassDensityMeasurementPerMM(pathObject, pathClass);
 				return Bindings.createDoubleBinding(() -> Double.NaN);
 			}
 			
@@ -1350,9 +1350,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		public String getMeasurementValue(PathObject pathObject) {
-			if (pathObject instanceof MetadataStore) {
-				MetadataStore store = (MetadataStore)pathObject;
-				return store.getMetadataString(name);
+			if (pathObject != null) {
+				return pathObject.getMetadata().getOrDefault(name, null);
 			}
 			return null;
 		}
@@ -1410,7 +1409,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				return null;
 			var hierarchy = imageData.getHierarchy();
 			if (PathObjectTools.hierarchyContainsObject(hierarchy, pathObject)) {
-				return imageData.getServer().getMetadata().getName();
+				return imageData.getServerMetadata().getName();
 			}
 			return null;
 		}
@@ -1490,18 +1489,18 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		
 		boolean hasPixelSizeMicrons() {
-			return imageData != null && imageData.getServer() != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
+			return imageData != null && imageData.getServerMetadata().getPixelCalibration().hasPixelSizeMicrons();
 		}
 
 		double pixelWidthMicrons() {
 			if (hasPixelSizeMicrons())
-				return imageData.getServer().getPixelCalibration().getPixelWidthMicrons();
+				return imageData.getServerMetadata().getPixelCalibration().getPixelWidthMicrons();
 			return Double.NaN;
 		}
 
 		double pixelHeightMicrons() {
 			if (hasPixelSizeMicrons())
-				return imageData.getServer().getPixelCalibration().getPixelHeightMicrons();
+				return imageData.getServerMetadata().getPixelCalibration().getPixelHeightMicrons();
 			return Double.NaN;
 		}
 		
@@ -1753,7 +1752,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			if (parentObject.isRootObject())
 				pathObjects = hierarchy.getDetectionObjects();
 			else
-				pathObjects = hierarchy.getObjectsForROI(PathDetectionObject.class, parentObject.getROI());
+				pathObjects = hierarchy.getAllDetectionsForROI(parentObject.getROI());
 			
 			for (PathObject child : pathObjects) {
 				if (child == parentObject || !child.isDetection())

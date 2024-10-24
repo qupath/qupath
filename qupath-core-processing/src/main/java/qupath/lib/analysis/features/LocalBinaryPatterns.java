@@ -158,38 +158,6 @@ public class LocalBinaryPatterns {
 	}
 	
 	
-	
-	
-//	public static void main(String[] args) {
-//		System.out.println("Size: " + nLBF8);
-//		System.out.println(Arrays.toString(lbf8map));
-//
-//		System.out.println("Size uniform: " + nLBF8Uniform);
-//		System.out.println(Arrays.toString(lbf8UniformMap));
-//		
-//		System.out.println("Size uniform 16: " + nLBF16Uniform);
-////		// Just to check there really are the correct number of entries...
-////		Arrays.sort(lbf16UniformMap);
-////		System.out.println(Arrays.toString(lbf16UniformMap));
-//		
-//		System.out.println("X offsets (8): " + Arrays.toString(xo8));
-//		System.out.println("Y offsets (8): " + Arrays.toString(yo8));
-//		
-//		System.out.println("X offsets (16): " + Arrays.toString(xo16));
-//		System.out.println("Y offsets (16): " + Arrays.toString(yo16));
-//		
-//		
-//		// TODO: Move to test code location
-//		SimpleImage img = SimpleImages.createFloatImage(new float[]{1f, 2f, 3f, 4f}, 2, 2);
-//		double[] xx = {0, 0.25, 0.5, 0.75, 1};
-//		for (double y = 0; y <= 1; y += 0.25) {
-//			for (double x : xx)
-////			for (double x : new double[]{0.5})
-//				System.out.println(String.format("(%.2f, %.2f): %.4f", x, y, getInterpolatedPixel(img, x, y)));
-//		}
-//	}
-	
-	
 	private static int computeLocalBinaryPattern(final SimpleImage img, final int x, final int y) {
 		
 		float val = img.getValue(x, y);

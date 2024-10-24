@@ -26,7 +26,6 @@ package qupath.lib.objects;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -133,37 +132,62 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 		putMetadataValue(KEY_CASE_ID, caseID);
 	}
 
+	/**
+	 * Put a metadata value
+	 * @param key
+	 * @param value
+	 * @return any previous metadata value, or null if none
+	 * @deprecated v0.6.0. Use {@link #putMetadataValue(String, String)} instead.
+	 */
 	@Override
+	@Deprecated
 	public Object putMetadataValue(final String key, final String value) {
 		return storeMetadataValue(key, value);
 	}
-	
+
+	/**
+	 * Get a string metadata value
+	 * @param key
+	 * @return
+	 * @deprecated v0.6.0. Use {@link #getMetadata()} to directly access metadata instead.
+	 */
 	@Override
+	@Deprecated
 	public String getMetadataString(final String key) {
 		Object value = getMetadataValue(key);
 		if (value instanceof String)
 			return (String)value;
 		return null;
 	}
-	
+
+	/**
+	 * Get a metadata value of any kind.
+	 * @param key
+	 * @return
+	 * @deprecated v0.6.0. Use {@link #getMetadata()} to directly access metadata instead.
+	 */
 	@Override
+	@Deprecated
 	public Object getMetadataValue(final String key) {
 		return super.retrieveMetadataValue(key);
 	}
-	
+
+	/**
+	 * Get all metadata keys.
+	 * @return
+	 * @deprecated v0.6.0. Use {@link #getMetadata()} to directly access metadata instead.
+	 */
 	@Override
+	@Deprecated
 	public Set<String> getMetadataKeys() {
 		return super.retrieveMetadataKeys();
 	}
 	
-	@Override
-	public Map<String, String> getMetadataMap() {
-		return super.getUnmodifiableMetadataMap();
-	}
-	
 	/**
 	 * Clear all associated metadata.
+	 * @deprecated v0.6.0. Use {@link #getMetadata()} to directly access metadata instead.
 	 */
+	@Deprecated
 	public void clearMetadata() {
 		super.clearMetadataMap();
 	}
@@ -173,27 +197,6 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	public String toString() {
 		return getDisplayedName() + objectCountPostfix();
 	}
-	
-	
-//	/**
-//	 * TMA core cannot be edited if it contains any detections.
-//	 * (Removed for v0.4.0 to rely on locking like other objects instead - 
-//	 * see https://github.com/qupath/qupath/issues/1021
-//	 */
-//	@Override
-//	public boolean isEditable() {
-//		return super.isEditable() && !containsChildOfClass(this, PathDetectionObject.class, true);
-//	}
-//	
-//	private static boolean containsChildOfClass(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendants) {
-//		for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
-//			if (cls.isAssignableFrom(childObject.getClass()))
-//				return true;
-//			if (childObject.hasChildren() && allDescendants && containsChildOfClass(childObject, cls, allDescendants))
-//				return true;
-//		}
-//		return false;
-//	}
 	
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {

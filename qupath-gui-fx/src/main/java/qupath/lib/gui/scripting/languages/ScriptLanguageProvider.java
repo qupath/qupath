@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,21 +23,18 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.ServiceLoader;
-import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.ExtensionClassLoader;
+import qupath.lib.scripting.languages.ScriptLanguage;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
 import javax.script.ScriptEngineManager;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.gui.ExtensionClassLoader;
-import qupath.lib.scripting.languages.ScriptLanguage;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Class with static methods to fetch all the available {@linkplain ScriptLanguage ScriptLanguages}.
@@ -50,11 +47,16 @@ public class ScriptLanguageProvider {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ScriptLanguageProvider.class);
 	
-	private static ServiceLoader<ScriptLanguage> serviceLoader = ServiceLoader.load(ScriptLanguage.class);
-	private static final ScriptEngineManager manager = createManager();
+	private static ScriptEngineManager manager;
 	
-	private static final Collection<ScriptLanguage> availableLanguages = loadAvailableScriptLanguages();
+	private static Collection<ScriptLanguage> availableLanguages;
 
+	private static Collection<ScriptLanguage> getAvailableScriptLanguages() {
+		if (availableLanguages == null) {
+			availableLanguages = loadAvailableScriptLanguages();
+		}
+		return availableLanguages;
+	}
 
 	/**
 	 * Get all the currently installed {@link ScriptLanguage}s in a list (i.e. custom {@link ScriptEngine}s 
@@ -62,25 +64,17 @@ public class ScriptLanguageProvider {
 	 * @return list of installed languages
 	 */
 	private static Collection<ScriptLanguage> loadAvailableScriptLanguages() {
-		Set<ScriptLanguage> languages = new LinkedHashSet<>();
-		
-		// Load all built-in implementations of ScriptLanguage
-		synchronized (serviceLoader) {
-			for (ScriptLanguage l : serviceLoader) {
-				languages.add(l);
-			}
-		}
+
+        Set<ScriptLanguage> languages = new LinkedHashSet<>(getDefaultLanguages());
 		
 		// Load all ScriptEngines on the build path that don't have a built-in ScriptLanguage QuPath implementation
 		ScriptEngineManager manager = new ScriptEngineManager(getExtensionClassLoader());
 		for (ScriptEngineFactory factory : manager.getEngineFactories()) {
 			boolean builtIn = false;
-				synchronized (serviceLoader) {
-					for (ScriptLanguage l : serviceLoader) {
-					if (factory.getNames().contains(l.getName().toLowerCase())) {
-						builtIn = true;
-						break;
-					}
+			for (ScriptLanguage l : languages) {
+				if (factory.getNames().contains(l.getName().toLowerCase())) {
+					builtIn = true;
+					break;
 				}
 			}
 			if (!builtIn) {
@@ -95,6 +89,21 @@ public class ScriptLanguageProvider {
 		
 		return languages;
 	}
+
+	private static List<ScriptLanguage> getDefaultLanguages() {
+		return List.of(
+				GroovyLanguage.getInstance(),
+				MarkdownLanguage.getInstance(),
+
+				CssLanguage.getInstance(),
+				JsonLanguage.getInstance(),
+				ImageJMacroLanguage.getInstance(),
+				PropertiesLanguage.getInstance(),
+				XmlLanguage.getInstance(),
+				YamlLanguage.getInstance(),
+				PlainLanguage.getInstance()
+		);
+	}
 	
 	
 	private static ExtensionClassLoader getExtensionClassLoader() {
@@ -108,7 +117,7 @@ public class ScriptLanguageProvider {
 	 * @return
 	 */
 	public static Collection<ScriptLanguage> getAvailableLanguages() {
-		return Collections.unmodifiableCollection(availableLanguages);
+		return List.copyOf(getAvailableScriptLanguages());
 	}
 	
 	
@@ -119,7 +128,7 @@ public class ScriptLanguageProvider {
 	 * @return
 	 */
 	public static ScriptLanguage getLanguageFromName(String name) {
-		for (ScriptLanguage l : availableLanguages) {
+		for (ScriptLanguage l : getAvailableScriptLanguages()) {
 			for (String possibleExt: l.getExtensions()) {
 				if (name.toLowerCase().endsWith(possibleExt))
 					return l;
@@ -137,7 +146,10 @@ public class ScriptLanguageProvider {
 	 * @return corresponding script language, or {@link PlainLanguage} if no match
 	 */
 	public static ScriptLanguage fromString(String languageString) {
-		return getAvailableLanguages().stream().filter(l -> l.getName().equals(languageString)).findFirst().orElseGet(() -> PlainLanguage.getInstance());
+		return getAvailableScriptLanguages().stream()
+				.filter(l -> l.getName().equalsIgnoreCase(languageString))
+				.findFirst()
+				.orElseGet(PlainLanguage::getInstance);
 	}
 	
 	/**
@@ -146,15 +158,23 @@ public class ScriptLanguageProvider {
 	 * @return compatible script language
 	 */
 	public static ScriptLanguage getLanguageFromExtension(String ext) {
-		synchronized (serviceLoader) {
-			for (ScriptLanguage l : serviceLoader) {
-				for (String tempExt: l.getExtensions()) {
-					if (tempExt.equals(ext))
-						return l;
-				}		
+		for (ScriptLanguage l : getAvailableScriptLanguages()) {
+			for (String tempExt: l.getExtensions()) {
+				if (tempExt.equals(ext))
+					return l;
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Install a new script language.
+	 * @param language the language to install
+	 * @return true if the language was installed, false otherwise (e.g. it was already installed)
+	 */
+	public static boolean installLanguage(ScriptLanguage language) {
+		getAvailableLanguages();
+		return availableLanguages.add(language);
 	}
 	
 	private static ScriptEngineManager createManager() {
@@ -162,26 +182,24 @@ public class ScriptLanguageProvider {
 		ScriptEngineManager manager = new ScriptEngineManager(getExtensionClassLoader());
 		for (ScriptEngineFactory factory : manager.getEngineFactories()) {
 			boolean builtIn = false;
-			synchronized (serviceLoader) {
-				for (ScriptLanguage l : serviceLoader) {
-					if (factory.getNames().contains(l.getName().toLowerCase())) {
-						manager.registerEngineName(l.toString(), factory);
-	
-						logger.trace("-------------------------------");
-						logger.trace(factory.getLanguageName());
-						logger.trace(factory.getLanguageVersion());
-						logger.trace(factory.getEngineName());
-						logger.trace(factory.getEngineVersion());
-						logger.trace("Names: {}", factory.getNames());
-						logger.trace("MIME types: {}", factory.getMimeTypes().toString());
-						logger.trace("Extensions: {}", factory.getExtensions().toString());
-	
-						logger.trace(factory.getMethodCallSyntax("QuPath", "runPlugin", "imageData", "\"{ key : value }\""));
-						logger.trace(factory.getOutputStatement("This is my output"));
-	
-						builtIn = true;
-						break;
-					}
+			for (ScriptLanguage l : getAvailableScriptLanguages()) {
+				if (factory.getNames().contains(l.getName().toLowerCase())) {
+					manager.registerEngineName(l.toString(), factory);
+
+					logger.trace("-------------------------------");
+					logger.trace(factory.getLanguageName());
+					logger.trace(factory.getLanguageVersion());
+					logger.trace(factory.getEngineName());
+					logger.trace(factory.getEngineVersion());
+					logger.trace("Names: {}", factory.getNames());
+					logger.trace("MIME types: {}", factory.getMimeTypes().toString());
+					logger.trace("Extensions: {}", factory.getExtensions().toString());
+
+					logger.trace(factory.getMethodCallSyntax("QuPath", "runPlugin", "imageData", "\"{ key : value }\""));
+					logger.trace(factory.getOutputStatement("This is my output"));
+
+					builtIn = true;
+					break;
 				}
 			}
 			
@@ -200,6 +218,9 @@ public class ScriptLanguageProvider {
 	 * @return script engine
 	 */
 	public static ScriptEngine getEngineByName(String languageName) {
+		if (manager == null) {
+			manager = createManager();
+		}
 		return manager.getEngineByName(languageName);
 	}
 }

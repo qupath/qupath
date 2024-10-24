@@ -38,16 +38,16 @@ public final class Urls {
 	
 	private static final Logger logger = LoggerFactory.getLogger(Urls.class);
 	
-	private static final String DOCS_VERSION = "0.5";
+	private static final String DOCS_VERSION = "latest";
 	
 	static {
 		var version = QuPathGUI.getVersion();
 		if (version == null || version == Version.UNKNOWN) {
-			logger.warn("Docs version is {} but QuPath version is unknown", DOCS_VERSION);
+			logger.warn("Docs version is '{}' but QuPath version is unknown", DOCS_VERSION);
 		} else if (!DOCS_VERSION.equals(version.getMajor() + "." + version.getMinor())) {
-			logger.warn("Docs version is {} but QuPath version is {}", DOCS_VERSION, version);			
+			logger.warn("Docs version is '{}' but QuPath version is '{}'", DOCS_VERSION, version);
 		} else {
-			logger.debug("Docs version is {}, QuPath version is {}", DOCS_VERSION, version);						
+			logger.debug("Docs version is '{}', QuPath version is '{}'", DOCS_VERSION, version);
 		}
 	}
 	

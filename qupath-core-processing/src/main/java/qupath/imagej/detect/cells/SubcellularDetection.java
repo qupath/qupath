@@ -194,9 +194,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		pathObject.clearChildObjects();
 
 		// Ensure we have no existing subcellular detection measurements - if we do, remove them
-		String[] existingMeasurements = pathObject.getMeasurementList().getMeasurementNames().stream().filter(n -> n.startsWith("Subcellular:")).toArray(n -> new String[n]);
+		String[] existingMeasurements = pathObject.getMeasurementList().getNames().stream().filter(n -> n.startsWith("Subcellular:")).toArray(n -> new String[n]);
 		if (existingMeasurements.length > 0) {
-			pathObject.getMeasurementList().removeMeasurements(existingMeasurements);
+			pathObject.getMeasurementList().removeAll(existingMeasurements);
 			pathObject.getMeasurementList().close();
 		}
 
@@ -319,7 +319,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			if (splitByIntensity)
 				bpSpots = new MaximumFinder().findMaxima(fpDetection, detectionThreshold/10.0, detectionThreshold, MaximumFinder.SEGMENTED, false, false);
 			else
-				bpSpots = SimpleThresholding.thresholdAboveEquals(fpDetection, (float)detectionThreshold);
+				bpSpots = SimpleThresholding.thresholdAboveEquals(fpDetection, detectionThreshold);
 			
 			if (splitByShape) {
 				new EDM().toWatershed(bpSpots);

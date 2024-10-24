@@ -566,8 +566,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		public void setRotationByVector(final double x, final double y) {
 			double vecY = (anchorY + dy) - y;
 			double vecX = x - (anchorX + dx);
-			theta = Math.atan2(vecX, vecY);// + Math.PI/2;
-//			System.err.println(String.format("Theta: %.2f (%.2f, %.2f)", theta, vecX, vecY));
+			theta = Math.atan2(vecX, vecY);
 			resetCachedShapes();
 		}
 		

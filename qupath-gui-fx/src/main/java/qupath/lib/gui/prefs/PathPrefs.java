@@ -43,7 +43,9 @@ import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
 
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.*;
+import javafx.beans.value.ObservableBooleanValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -659,9 +661,28 @@ public class PathPrefs {
 	/**
 	 * Convert drawing tools to select objects, rather than creating new objects.
 	 * @return
+	 * @see #tempSelectionModeProperty()
 	 */
 	public static BooleanProperty selectionModeProperty() {
 		return selectionMode;
+	}
+
+	private static BooleanProperty tempSelectionMode = MANAGER.createTransientBooleanProperty("tempSelectionMode", false);
+
+	/**
+	 * Temporarily request selection mode, without changing the value of #selectionModeProperty().
+	 * This can be used by a key-down shortcut to temporarily switch to selection mode, without changing the main toggle.
+	 * @return
+	 * @see #selectionModeProperty()
+	 */
+	public static BooleanProperty tempSelectionModeProperty() {
+		return tempSelectionMode;
+	}
+
+	private static BooleanBinding selectionModeStatus = selectionModeProperty().or(tempSelectionModeProperty());
+
+	public static ObservableBooleanValue selectionModeStatus() {
+		return selectionModeStatus;
 	}
 
 	
@@ -848,8 +869,22 @@ public class PathPrefs {
 	public static ObservableList<URI> getRecentScriptsList() {
 		return recentScripts;
 	}
-	
-	
+
+
+	private static BooleanProperty skipProjectUriChecks = createPersistentPreference("Skip checking URIs in the project browser",
+			false);
+
+	/**
+	 * Property to suppress checking whether image files exists in the project browser.
+	 * You might want to skip these checks if they are causing performance problems, e.g. working with images on a
+	 * server with slow access.
+	 *
+	 * @return skipProjectUriChecks
+	 */
+	public static BooleanProperty skipProjectUriChecksProperty() {
+		return skipProjectUriChecks;
+	}
+
 	
 	private static BooleanProperty invertScrolling = createPersistentPreference("invertScrolling", !GeneralTools.isMac());
 	
@@ -1244,8 +1279,8 @@ public class PathPrefs {
 	private static IntegerProperty colorDefaultObjects = createPersistentPreference("colorDefaultAnnotations", ColorTools.packRGB(255, 0, 0));
 		
 	private static IntegerProperty colorSelectedObject = createPersistentPreference("colorSelectedObject", ColorTools.packRGB(255, 255, 0));
-	private static IntegerProperty colorTMA = createPersistentPreference("colorTMA", ColorTools.packRGB(20, 20, 180));
-	private static IntegerProperty colorTMAMissing = createPersistentPreference("colorTMAMissing", ColorTools.packARGB(50, 20, 20, 180));
+	private static IntegerProperty colorTMA = createPersistentPreference("colorTMA", ColorTools.packRGB(102, 128, 230));
+	private static DoubleProperty opacityTMAMissing = createPersistentPreference("opacityTMAMissing", 0.4);
 	private static IntegerProperty colorTile = createPersistentPreference("colorTile", ColorTools.packRGB(80, 80, 80));
 	
 	/**
@@ -1272,13 +1307,13 @@ public class PathPrefs {
 	public static IntegerProperty colorTMAProperty() {
 		return colorTMA;
 	}
-	
+
 	/**
-	 * The default color used to display missing TMA core objects.
+	 * The default opacity to use when display TMA core objects, between 0 and 1.
 	 * @return
 	 */
-	public static IntegerProperty colorTMAMissingProperty() {
-		return colorTMAMissing;
+	public static DoubleProperty opacityTMAMissingProperty() {
+		return opacityTMAMissing;
 	}
 	
 	/**
@@ -1677,6 +1712,18 @@ public class PathPrefs {
     public static DoubleProperty annotationStrokeThicknessProperty() {
     	return strokeThickThickness;
     }
+
+	private static BooleanProperty newDetectionRendering = new SimpleBooleanProperty(false);
+
+	/**
+	 * Flag to enable the new rendering strategy for detections.
+	 * This can be used to temporarily turn on/off the rendering, to help refine the behavior.
+	 * @return
+	 * @since v0.6.0
+	 */
+	public static BooleanProperty newDetectionRenderingProperty() {
+		return newDetectionRendering;
+	}
     
     private static final BooleanProperty usePixelSnapping = createPersistentPreference("usePixelSnapping", true);
     

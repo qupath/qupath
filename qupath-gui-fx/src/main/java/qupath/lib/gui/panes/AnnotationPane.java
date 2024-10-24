@@ -345,16 +345,11 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 				return;
 			}
 			
-//			System.err.println("Starting...");
-//			System.err.println(hierarchy.getAnnotationObjects().size());
-//			System.err.println(hierarchySelected.size());
-//			System.err.println(listAnnotations.getItems().size());
 			if (hierarchySelected.containsAll(listAnnotations.getItems())) {
 				model.selectAll();
 				return;
 			}
 			
-	//		System.err.println("Setting " + currentlySelected + " to " + selected);
 			int[] inds = new int[selected.size()];
 			int i = 0;
 			model.clearSelection();

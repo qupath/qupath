@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,9 +21,6 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.ServiceLoader;
-
-import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
@@ -33,27 +30,11 @@ import qupath.lib.scripting.languages.ScriptLanguage;
  * @since v0.4.0
  */
 public class YamlLanguage extends ScriptLanguage {
+
+	private static final YamlLanguage INSTANCE = new YamlLanguage();
 	
-	/**
-	 * Instance of this language. Can't be final because of {@link ServiceLoader}.
-	 */
-	private static YamlLanguage INSTANCE;
-	
-	private ScriptAutoCompletor completor = null;
-	
-	/**
-	 * Constructor for YAML language. This constructor should never be 
-	 * called. Instead, use the static {@link #getInstance()} method.
-	 * <p>
-	 * Note: this has to be public for the {@link ServiceLoader} to work.
-	 */
-	public YamlLanguage() {
+	private YamlLanguage() {
 		super("YAML", ".yaml");
-		if (INSTANCE != null)
-			throw new UnsupportedOperationException("Language classes cannot be instantiated more than once!");
-		
-		// Because of ServiceLoader, have to assign INSTANCE here.
-		YamlLanguage.INSTANCE = this;
 	}
 
 	/**
@@ -63,9 +44,5 @@ public class YamlLanguage extends ScriptLanguage {
 	public static YamlLanguage getInstance() {
 		return INSTANCE;
 	}
-	
-	@Override
-	public ScriptAutoCompletor getAutoCompletor() {
-		return completor;
-	}
+
 }

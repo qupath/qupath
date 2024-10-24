@@ -213,7 +213,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				ImageServer<BufferedImage> server = imageData.getServer();
 				lastServerPath = imageData.getServerPath();
 				double downsample = ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params));
-				pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(), downsample, pathROI));
+				var request = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
+				pathImage = IJTools.convertToImagePlus(server, request);
 //				pathImage = IJTools.createPathImage(server, pathROI, ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params), false));
 				logger.trace("Cell detection with downsample: {}", pathImage.getDownsampleFactor());
 				this.pathROI = pathROI;
@@ -292,7 +293,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				
 			} //else {
 			if (fpDetection == null) {
-				List<ImageChannel> imageChannels = imageData.getServer().getMetadata().getChannels();
+				List<ImageChannel> imageChannels = imageData.getServerMetadata().getChannels();
 				if (ip instanceof ColorProcessor) {
 					for (int c = 0; c < 3; c++) {
 						String name = imageChannels.get(c).getName();
@@ -415,7 +416,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		String defaultChannel = null;
 		List<String> channelNames = new ArrayList<>();
 		String[] nucleusGuesses = new String[] {"dapi", "hoechst", "nucleus", "nuclei", "nuclear", "hematoxylin", "haematoxylin"};
-		for (ImageChannel channel : imageData.getServer().getMetadata().getChannels()) {
+		for (ImageChannel channel : imageData.getServerMetadata().getChannels()) {
 			String name = channel.getName();
 			channelNames.add(name);
 			if (defaultChannel == null) {
@@ -780,7 +781,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				}
 				
 				// Threshold the main LoG image
-				bpLoG = SimpleThresholding.thresholdAbove(fpLoG, 0f);
+				bpLoG = SimpleThresholding.thresholdAbove(fpLoG, 0.0);
 				// Need to set the threshold very slightly above zero for ImageJ
 				// TODO: DECIDE ON USING MY WATERSHED OR IMAGEJ'S....
 				fpLoG.setRoi(roi);
@@ -867,7 +868,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				FloatProcessor fpBoundaryCleanup = (FloatProcessor)fpDetection.duplicate();
 				fpBoundaryCleanup.blurGaussian(1);
 				fpBoundaryCleanup.convolve(new float[]{0, -1, 0, -1, 4, -1, 0, -1, 0}, 3, 3);
-				ByteProcessor bp2 = SimpleThresholding.thresholdAbove(fpBoundaryCleanup, 0f);
+				ByteProcessor bp2 = SimpleThresholding.thresholdAbove(fpBoundaryCleanup, 0.0);
 				bp2.copyBits(bp, 0, 0, Blitter.MIN); // Remove everything not detected in bp
 				bp.filter(ByteProcessor.MIN);
 				bp.copyBits(bp2, 0, 0, Blitter.MAX);
@@ -1251,7 +1252,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 
 	@Override
 	protected int getTileOverlap(ImageData<BufferedImage> imageData, ParameterList params) {
-//		double pxSize = getPreferredPixelSizeMicrons(imageData, params);
 		double pxSize = imageData.getServer().getPixelCalibration().getAveragedPixelSizeMicrons();
 		if (!Double.isFinite(pxSize))
 			return params.getDoubleParameterValue("cellExpansion") > 0 ? 25 : 10;
@@ -1261,7 +1261,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		if (cellExpansion > 0)
 			expansionMicrons += params.getDoubleParameterValue("cellExpansionMicrons");
 		int overlap = (int)(expansionMicrons / pxSize * 2.0);
-//		System.out.println("Tile overlap: " + overlap + " pixels");
 		return overlap;
 	}
 		

@@ -453,13 +453,15 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
         ChannelDisplayInfo info = row.getItem();
         var imageData = getImageData();
-        if (imageData != null && info instanceof DirectServerChannelInfo multiInfo) {
+        if (imageData == null)
+            return;
+
+        if (info instanceof DirectServerChannelInfo multiInfo) {
             int c = multiInfo.getChannel();
-            var channel = imageData.getServer().getMetadata().getChannel(c);
+            var channel = imageData.getServerMetadata().getChannel(c);
 
             Color color = ColorToolsFX.getCachedColor(multiInfo.getColor());
             picker.setValue(color);
-
 
             Dialog<ButtonType> colorDialog = new Dialog<>();
             colorDialog.setTitle("Channel properties");
@@ -473,11 +475,15 @@ public class BrightnessContrastChannelPane extends BorderPane {
             labelName.setLabelFor(tfName);
             GridPaneUtils.addGridRow(paneColor, r++, 0,
                     "Enter a name for the current channel", labelName, tfName);
+
+            // Only show color if it can be changed
             var labelColor = new Label("Channel color");
             labelColor.setLabelFor(picker);
+            String colorTooltipText = "Choose the color for the current channel";
+
             GridPaneUtils.setFillWidth(Boolean.TRUE, picker, tfName);
             GridPaneUtils.addGridRow(paneColor, r++, 0,
-                    "Choose the color for the current channel", labelColor, picker);
+                    colorTooltipText, labelColor, picker);
             paneColor.setVgap(5.0);
             paneColor.setHgap(5.0);
 
@@ -508,10 +514,6 @@ public class BrightnessContrastChannelPane extends BorderPane {
             return;
         }
         var server = imageData.getServer();
-        if (server.isRGB()) {
-            logger.warn("Cannot update channel color for RGB images");
-            return;
-        }
         Objects.requireNonNull(channel, "Channel cannot be null");
         Objects.requireNonNull(newName, "Channel name cannot be null");
         Objects.requireNonNull(newColor, "Channel color cannot be null");
@@ -521,7 +523,8 @@ public class BrightnessContrastChannelPane extends BorderPane {
         var channels = new ArrayList<>(metadata.getChannels());
         channels.set(channelIndex, ImageChannel.getInstance(newName, ColorToolsFX.getRGB(newColor)));
         var metadata2 = new ImageServerMetadata.Builder(metadata)
-                .channels(channels).build();
+                .channels(channels)
+                .build();
         imageData.updateServerMetadata(metadata2);
 
 
@@ -712,15 +715,20 @@ public class BrightnessContrastChannelPane extends BorderPane {
             setGraphic(colorPicker);
             updateStyle();
 
-            Integer rgb = item.getColor();
+            // Check if we have an RGB image - if we do, we shouldn't allow the colors to change
+            var imageData = getImageData();
+            var isRGB = imageData != null && imageData.getServerMetadata().isRGB();
+
+            Integer channelRGB = item.getColor();
             // Can only set the color for direct, non-RGB channels
-            boolean canChangeColor = rgb != null && item instanceof DirectServerChannelInfo;
+//            boolean canChangeColor = !isRGB && channelRGB != null && item instanceof DirectServerChannelInfo;
+            boolean canChangeColor = channelRGB != null && item instanceof DirectServerChannelInfo;
             colorPicker.setDisable(!canChangeColor);
             colorPicker.setOnShowing(null);
-            if (rgb == null) {
+            if (channelRGB == null) {
                 colorPicker.setValue(Color.TRANSPARENT);
             } else {
-                Color color = ColorToolsFX.getCachedColor(rgb);
+                Color color = ColorToolsFX.getCachedColor(channelRGB);
                 setColorQuietly(color);
                 colorPicker.setOnShowing(e -> {
                     if (customColors == null)

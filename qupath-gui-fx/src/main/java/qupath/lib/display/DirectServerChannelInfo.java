@@ -171,9 +171,7 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 	public float[] getValues(BufferedImage img, int x, int y, int w, int h, float[] array) {
 		if (array == null || array.length < w * h)
 			array = new float[w * h];
-		//			long start = System.currentTimeMillis();
 		float[] samples = img.getRaster().getSamples(x, y, w, h, channel, array);
-		//			System.err.println("Time here: " + (System.currentTimeMillis() - start));
 		return samples;
 	}
 

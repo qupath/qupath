@@ -31,7 +31,7 @@ import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.imagej.processing.RoiLabeling;
+import qupath.imagej.processing.IJProcessing;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.objects.PathObject;
@@ -249,9 +249,7 @@ public class ImageJProcessor {
                 return handleRoiListOutput(params, Collections.singletonList(roi));
             }
             if (output instanceof ByteProcessor || output instanceof ShortProcessor) {
-                var rois = Arrays.stream(RoiLabeling.labelsToConnectedROIs(output, (int) Math.round(output.getStatistics().max) + 1))
-                        .filter(r -> r != null)
-                        .toList();
+                var rois = IJProcessing.labelsToRois(output);
                 return handleRoiListOutput(params, rois);
             }
             return Collections.emptyList();

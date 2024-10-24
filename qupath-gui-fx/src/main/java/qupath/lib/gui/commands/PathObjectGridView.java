@@ -23,19 +23,6 @@
 
 package qupath.lib.gui.commands;
 
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.concurrent.ForkJoinPool;
-import java.util.WeakHashMap;
-import java.util.function.Function;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.animation.Interpolator;
 import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
@@ -68,24 +55,40 @@ import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.Separator;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import org.controlsfx.control.CheckComboBox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.WeakHashMap;
+import java.util.concurrent.ForkJoinPool;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Grid display of objects.
@@ -101,39 +104,38 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	private static final Logger logger = LoggerFactory.getLogger(PathObjectGridView.class);
 	
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 	private Stage stage;
 	
-	private StringProperty title = new SimpleStringProperty("Object grid view");
+	private final StringProperty title = new SimpleStringProperty(QuPathResources.getString("GridView.title"));
 	
-	private QuPathGridView grid = new QuPathGridView();
+	private final QuPathGridView grid = new QuPathGridView();
 	
-	private ComboBox<String> comboMeasurement;
+	private ComboBox<String> comboSortBy;
 	
-	private ObservableList<PathObject> backingList = FXCollections.observableArrayList();
-	private FilteredList<PathObject> filteredList = new FilteredList<>(backingList);
+	private final ObservableList<PathObject> backingList = FXCollections.observableArrayList();
+	private final FilteredList<PathObject> filteredList = new FilteredList<>(backingList);
 	
-	private ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+	private final ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 
-	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
-	
-	
-	private StringProperty measurement = new SimpleStringProperty();
-	private BooleanProperty showMeasurement = new SimpleBooleanProperty(true);
-	private BooleanProperty descending = new SimpleBooleanProperty(false);
-	private BooleanProperty doAnimate = new SimpleBooleanProperty(true);
-	
-	private Function<PathObjectHierarchy, Collection<? extends PathObject>> objectExtractor;
+	private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+	private final StringProperty measurement = new SimpleStringProperty();
+	private final BooleanProperty showMeasurement = new SimpleBooleanProperty(true);
+	private final BooleanProperty descending = new SimpleBooleanProperty(false);
+	private final BooleanProperty doAnimate = new SimpleBooleanProperty(true);
 
-	
+	private final Function<PathObjectHierarchy, Collection<? extends PathObject>> objectExtractor;
+	private ObservableList<PathClass> selectedClasses;
+
+
 	public static enum GridDisplaySize {
 			TINY("Tiny", 60),
 			SMALL("Small", 100),
 			MEDIUM("Medium", 200),
 			LARGE("Large", 300);
 		
-		private String name;
-		private int size;
+		private final String name;
+		private final int size;
 		
 		GridDisplaySize(final String name, final int size) {
 			this.name = name;
@@ -149,7 +151,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			return size;
 		}
 		
-	};
+	}
 	
 
 	private PathObjectGridView(final QuPathGUI qupath, final Function<PathObjectHierarchy, Collection<? extends PathObject>> extractor) {
@@ -163,7 +165,6 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	 * Create a grid view for a custom object extractor.
 	 * @param qupath QuPath instance
 	 * @param objectExtractor function to select the objects to display
-	 * @return
 	 */
 	public static PathObjectGridView createGridView(QuPathGUI qupath, Function<PathObjectHierarchy, Collection<? extends PathObject>> objectExtractor) {
 		return new PathObjectGridView(qupath, objectExtractor);
@@ -171,23 +172,19 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	/**
 	 * Create a grid view for TMA core objects.
-	 * @param qupath
-	 * @return
 	 */
 	public static PathObjectGridView createTmaCoreView(QuPathGUI qupath) {
 		var view = createGridView(qupath, PathObjectGridView::getTmaCores);
-		view.title.set("TMA core grid view");
+		view.title.set(QuPathResources.getString("GridView.TMAGridView"));
 		return view;
 	}
 
 	/**
 	 * Create a grid view for annotations.
-	 * @param qupath
-	 * @return
 	 */
 	public static PathObjectGridView createAnnotationView(QuPathGUI qupath) {
 		var view = createGridView(qupath, PathObjectGridView::getAnnotations);
-		view.title.set("Annotation object grid view");
+		view.title.set(QuPathResources.getString("GridView.AnnotationGridView"));
 		return view;
 	}
 
@@ -209,7 +206,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	/**
 	 * Get the stage used to show the grid view.
-	 * @return
+	 * @return The stage
 	 */
 	public Stage getStage() {
 		if (stage == null) {
@@ -246,30 +243,50 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	public ObjectProperty<ImageData<BufferedImage>> imageDataProperty() {
 		return imageDataProperty;
 	}
-	
+
+
 	
 	private static void sortPathObjects(final ObservableList<? extends PathObject> cores, final ObservableMeasurementTableData model, final String measurementName, final boolean doDescending) {
-		cores.sort((t1, t2) -> {
-			double m1 = model.getNumericValue(t1, measurementName);
-			double m2 = model.getNumericValue(t2, measurementName);
-			int comp;
-			if (doDescending)
-				comp = -Double.compare(m1, m2);
-			else
-				comp = Double.compare(m1, m2);
-			if (comp == 0) {
-				if (Double.isNaN(m1) && !Double.isNaN(m2))
-					return doDescending ? 1 : -1;
-				if (Double.isNaN(m2) && !Double.isNaN(m1))
-					return doDescending ? -1 : 1;
-				
-				if (doDescending)
-					comp = t2.getDisplayedName().compareTo(t1.getDisplayedName());
-				else
-					comp = t1.getDisplayedName().compareTo(t2.getDisplayedName());
+		if (measurementName == null) return;
+
+		// special case for eg A-1, A-10 for TMA cores
+		if (measurementName.equals(QuPathResources.getString("GridView.name"))) {
+			GeneralTools.smartStringSort(cores, PathObject::getDisplayedName);
+			if (!doDescending) {
+				Collections.reverse(cores);
 			}
-			return comp;
-		});
+			return;
+		}
+
+		Comparator<PathObject> sorter;
+		if (measurementName.equals(QuPathResources.getString("GridView.classification"))) {
+			sorter = (po1, po2) -> {
+				Comparator<PathObject> comp = Comparator.comparing(po -> po.getPathClass() == null ? "Unclassified" : po.getPathClass().toString());
+				return comp.compare(po1, po2);
+			};
+		} else {
+			// if it's a measurement, then we're numeric sorting
+			sorter = (po1, po2) -> {
+				double m1 = model.getNumericValue(po1, measurementName);
+				double m2 = model.getNumericValue(po2, measurementName);
+				int comp;
+				comp = Double.compare(m1, m2);
+				// resolve ties by checking missingness, and then names
+				if (comp == 0) {
+					// todo: should missing values always be last?
+					if (Double.isNaN(m1) && !Double.isNaN(m2))
+						return 1;
+					if (Double.isNaN(m2) && !Double.isNaN(m1))
+						return -1;
+					comp = po1.getDisplayedName().compareTo(po2.getDisplayedName());
+				}
+				return comp;
+			};
+		}
+		if (doDescending) {
+			sorter = sorter.reversed();
+		}
+		cores.sort(sorter);
 	}
 	
 	
@@ -312,99 +329,99 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		model.setImageData(imageData, pathObjects);
 		backingList.setAll(pathObjects);
-		
+
 		String m = measurement.getValue();
-		sortPathObjects(backingList, model, m, descending.get());
-		filteredList.setPredicate(p -> m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m))));
-		grid.getItems().setAll(filteredList);
-		
+		sortAndFilter();
+
 		// Select the first measurement if necessary
 		var names = model.getMeasurementNames();
 		if (m == null || !names.contains(m)) {
-			if (!comboMeasurement.getItems().isEmpty())
-				comboMeasurement.getSelectionModel().selectFirst();
+			if (!comboSortBy.getItems().isEmpty())
+				comboSortBy.getSelectionModel().selectFirst();
 		}
 		
 	}
 	
 	
 	private void initializeGUI() {
-		
-//		grid.setVerticalCellSpacing(10);
-//		grid.setHorizontalCellSpacing(5);
-	
-		
+
 		ComboBox<GridDisplaySize> comboDisplaySize = new ComboBox<>();
 		comboDisplaySize.getItems().setAll(GridDisplaySize.values());
 		comboDisplaySize.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			grid.imageSize.set(n.getSize());
-//			grid.setCellWidth(n.getSize());
-//			grid.setCellHeight(n.getSize());
-//			updateGridDisplay();
 		});
 		comboDisplaySize.getSelectionModel().select(GridDisplaySize.SMALL);
 		
 		
 		ComboBox<String> comboOrder = new ComboBox<>();
-		comboOrder.getItems().setAll("Ascending", "Descending");
-		comboOrder.getSelectionModel().select("Descending");
-		descending.bind(Bindings.createBooleanBinding(() -> "Descending".equals(comboOrder.getSelectionModel().getSelectedItem()), comboOrder.getSelectionModel().selectedItemProperty()));
-		
+		comboOrder.getItems().setAll(
+				QuPathResources.getString("GridView.ascending"),
+				QuPathResources.getString("GridView.descending"));
+		comboOrder.getSelectionModel().select(QuPathResources.getString("GridView.descending"));
+		descending.bind(Bindings.createBooleanBinding(() ->
+						QuPathResources.getString("GridView.descending").equals(comboOrder.getSelectionModel().getSelectedItem()),
+				comboOrder.getSelectionModel().selectedItemProperty()));
+		descending.addListener((v, o, n) -> sortAndFilter());
+		comboOrder.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> sortAndFilter());
 
-		comboMeasurement = new ComboBox<>();
-		comboMeasurement.setPlaceholder(createPlaceholderText("No measurements!"));
-		comboMeasurement.setItems(model.getMeasurementNames());
-		if (!comboMeasurement.getItems().isEmpty())
-			comboMeasurement.getSelectionModel().select(0);
-		
-		
-		measurement.bind(comboMeasurement.getSelectionModel().selectedItemProperty());
-		
-		comboOrder.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			String m = measurement.getValue();
-			sortPathObjects(backingList, model, m, descending.get());
-			filteredList.setPredicate(p -> {
-				return m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)));
-			});
+		comboSortBy = new ComboBox<>();
+		// todo: never needed now because we always have class?
+		comboSortBy.setPlaceholder(createPlaceholderText(QuPathResources.getString("GridView.noMeasurements")));
+		comboSortBy.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> sortAndFilter());
 
-			
-			grid.getItems().setAll(filteredList);
-		});
-		
-		comboMeasurement.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			String m = measurement.getValue();
-			sortPathObjects(backingList, model, m, descending.get());
-			filteredList.setPredicate(p -> {
-				return m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m)));
-			});
-			grid.getItems().setAll(filteredList);
-		});
-		
-		
-		CheckBox cbShowMeasurement = new CheckBox("Show measurement");
+		var measureNames = model.getMeasurementNames();
+		ObservableList<String> measureList = FXCollections.observableArrayList(measureNames);
+		measureNames.addListener((ListChangeListener<String>) c -> {
+            measureList.clear();
+            measureList.add(QuPathResources.getString("GridView.classification"));
+            measureList.addAll(measureNames);
+        });
+		measureList.add(QuPathResources.getString("GridView.classification"));
+		measureList.add(QuPathResources.getString("GridView.name"));
+		comboSortBy.setItems(measureList);
+		if (!comboSortBy.getItems().isEmpty())
+			comboSortBy.getSelectionModel().select(0);
+
+		measurement.bind(comboSortBy.getSelectionModel().selectedItemProperty());
+
+		CheckBox cbShowMeasurement = new CheckBox(QuPathResources.getString("GridView.showValue"));
 		showMeasurement.bind(cbShowMeasurement.selectedProperty());
 		showMeasurement.addListener(c -> updateMeasurement()); // Force an update
-		
-		
-		CheckBox cbAnimation = new CheckBox("Animate");
+
+		CheckBox cbAnimation = new CheckBox(QuPathResources.getString("GridView.animate"));
 		cbAnimation.setSelected(doAnimate.get());
 		doAnimate.bindBidirectional(cbAnimation.selectedProperty());
-		
-		
-		
+
+		CheckComboBox<PathClass> classComboBox = new CheckComboBox<>();
+		selectedClasses = classComboBox.getCheckModel().getCheckedItems();
+		selectedClasses.addListener((ListChangeListener<PathClass>) c -> sortAndFilter());
+		FXUtils.installSelectAllOrNoneMenu(classComboBox);
+		classComboBox.getCheckModel().getCheckedItems().addListener((ListChangeListener<PathClass>) c -> {
+			classComboBox.setTitle(getCheckComboBoxText(classComboBox));
+		});
+
+
+		updateClasses(classComboBox);
+		qupath.getImageData().getHierarchy().addListener(event -> updateClasses(classComboBox));
+
+		classComboBox.getCheckModel().checkAll();
+
 		BorderPane pane = new BorderPane();
 		
 		ToolBar paneTop = new ToolBar();
-		paneTop.getItems().add(new Label("Measurement"));
-		paneTop.getItems().add(comboMeasurement);
+		paneTop.getItems().add(new Label(QuPathResources.getString("GridView.sortBy")));
+		paneTop.getItems().add(comboSortBy);
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
-		paneTop.getItems().add(new Label("Order"));
+		paneTop.getItems().add(new Label(QuPathResources.getString("GridView.order")));
 		paneTop.getItems().add(comboOrder);
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
 		paneTop.getItems().add(cbShowMeasurement);
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
-		paneTop.getItems().add(new Label("Size"));
+		paneTop.getItems().add(new Label(QuPathResources.getString("GridView.size")));
 		paneTop.getItems().add(comboDisplaySize);
+		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
+		paneTop.getItems().add(new Label(QuPathResources.getString("GridView.classes")));
+		paneTop.getItems().add(classComboBox);
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
 		paneTop.getItems().add(cbAnimation);
 		paneTop.setPadding(new Insets(10, 10, 10, 10));
@@ -413,28 +430,22 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 				((Label) item).setMinWidth(Label.USE_PREF_SIZE);
 			}
 		}
-//		paneTop.setHgap(5);
-//		paneTop.setVgap(5);
-		
-		comboMeasurement.setMaxWidth(Double.MAX_VALUE);
+
+		comboSortBy.setMaxWidth(Double.MAX_VALUE);
 		comboOrder.setMaxWidth(Double.MAX_VALUE);
-//		GridPane.setHgrow(comboMeasurement, Priority.SOMETIMES);
-		
+
 		pane.setTop(paneTop);
 		
 		var scrollPane = new ScrollPane(grid);
 		scrollPane.setFitToWidth(true);
-//		scrollPane.setFitToHeight(true);
 		scrollPane.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
 		
 		pane.setCenter(scrollPane);
-//		if (grid.getSkin() != null)
-//			((GridViewSkin<?>)grid.getSkin()).updateGridViewItems();
-		
-		
+
 		Scene scene = new Scene(pane, 640, 480);
 		
 		stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.initOwner(qupath.getStage());
 		stage.titleProperty().bindBidirectional(title);
 		stage.setScene(scene);
@@ -442,19 +453,63 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		stage.show();
 	}
 
+	private void updateClasses(CheckComboBox<PathClass> classComboBox) {
+		// if a new class is added to the hierarchy, then update the list but leave the set of checked classes unchanged
+		var previouslyChecked = new ArrayList<>(classComboBox.getCheckModel().getCheckedItems());
+		List<PathClass> representedClasses = qupath.getImageData().getHierarchy().getFlattenedObjectList(null).stream()
+				.filter(p -> !p.isRootObject())
+				.map(PathObject::getPathClass)
+				.filter(p -> p != null && p != PathClass.NULL_CLASS)
+				.distinct()
+				.collect(Collectors.toList());
+		representedClasses.add(PathClass.NULL_CLASS);
+		classComboBox.getItems().clear();
+		classComboBox.getItems().addAll(representedClasses);
+		classComboBox.getCheckModel().clearChecks();
+		int[] inds = previouslyChecked.stream().mapToInt(representedClasses::indexOf).toArray();
+		classComboBox.getCheckModel().checkIndices(inds);
+	}
+
+
+	private static String getCheckComboBoxText(CheckComboBox<PathClass> comboBox) {
+		int n = comboBox.getCheckModel().getCheckedItems().stream()
+				.filter(Objects::nonNull)
+				.toList()
+				.size();
+		if (n == 0)
+			return QuPathResources.getString("GridView.noClassSelected");
+		if (n == 1)
+			return comboBox.getCheckModel().getCheckedItems().getFirst().toString();
+		return String.format(QuPathResources.getString("GridView.nClassSelected"), n);
+	}
 
 	private void updateMeasurement() {
+		sortAndFilter();
+	}
+
+	private void sortAndFilter() {
 		String m = measurement.getValue();
 		sortPathObjects(backingList, model, m, descending.get());
-		filteredList.setPredicate(p -> m == null || !(isMissingCore(p) || Double.isNaN(model.getNumericValue(p, m))));
-		grid.getItems().setAll(filteredList);
+		filteredList.setPredicate(p ->
+				// no measurement selected, we're going by classification or name, or it's not missing, then keep
+				(m == null
+						|| m.equals(QuPathResources.getString("GridView.classification"))
+						|| m.equals(QuPathResources.getString("GridView.name"))
+						|| !isMissingCore(p))
+						// pathclass is present and selected, or missing and we're showing unclassifier
+						&& (selectedClasses.contains(p.getPathClass()) || (p.getPathClass() == null && selectedClasses.contains(PathClass.NULL_CLASS)))
+		);
+		Runnable r = () -> grid.getItems().setAll(filteredList);
+		if (Platform.isFxApplicationThread()) {
+			r.run();
+		} else {
+			Platform.runLater(r);
+		}
 	}
-	
-	
+
+
 	/**
 	 * Check if an object is a TMA core flagged as missing
-	 * @param pathObject
-	 * @return
 	 */
 	private static boolean isMissingCore(PathObject pathObject) {
 		if (pathObject instanceof TMACoreObject)
@@ -498,24 +553,17 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	
 	class QuPathGridView extends StackPane {
 		
-		private ObservableList<PathObject> list = FXCollections.observableArrayList();
-		private WeakHashMap<Node, TranslateTransition> translationMap = new WeakHashMap<>();
-		private WeakHashMap<PathObject, Label> nodeMap = new WeakHashMap<>();
+		private final ObservableList<PathObject> list = FXCollections.observableArrayList();
+		private final WeakHashMap<Node, TranslateTransition> translationMap = new WeakHashMap<>();
+		private final WeakHashMap<PathObject, Label> nodeMap = new WeakHashMap<>();
 		
-		private IntegerProperty imageSize = new SimpleIntegerProperty();
+		private final IntegerProperty imageSize = new SimpleIntegerProperty();
 		
-		private Text textEmpty = createPlaceholderText("No objects available!");
+		private final Text textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
 		
 		QuPathGridView() {
-			imageSize.addListener(v -> {
-				updateChildren();
-			});
-			list.addListener(new ListChangeListener<>() {
-                @Override
-                public void onChanged(javafx.collections.ListChangeListener.Change<? extends PathObject> c) {
-                    updateChildren();
-                }
-            });
+			imageSize.addListener(v -> updateChildren());
+			list.addListener((ListChangeListener<PathObject>) c -> updateChildren());
 			updateChildren();
 			StackPane.setAlignment(textEmpty, Pos.CENTER);
 		}
@@ -531,52 +579,58 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			}
 			List<Node> images = new ArrayList<>();
 			for (PathObject pathObject : list) {
-				Label viewNode = nodeMap.get(pathObject);
-				if (viewNode == null) {
-					
-					var painter = PathObjectImageManagers.createImageViewPainter(
-							 qupath.getViewer(), imageDataProperty.get().getServer(), true, 
-							 ForkJoinPool.commonPool());
-
-					var imageView = painter.getNode();
-					imageView.fitWidthProperty().bind(imageSize);
-					imageView.fitHeightProperty().bind(imageSize);
-					
-					painter.setPathObject(pathObject);
-					
-					viewNode = new Label("", imageView);
-					StackPane.setAlignment(viewNode, Pos.TOP_LEFT);
-					
-					Tooltip.install(viewNode, new Tooltip(pathObject.getName()));
-					viewNode.setOnMouseClicked(e -> {
-						var imageData = imageDataProperty.get();
-						if (imageData != null) {
-							imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
-							if (e.getClickCount() > 1 && pathObject.hasROI()) {
-								ROI roi = pathObject.getROI();
-								if (roi != null && qupath.getViewer().getImageData() == imageData)
-									qupath.getViewer().setCenterPixelLocation(roi.getCentroidX(), roi.getCentroidY());
-							}
-						}
-					});
-					
-					viewNode.setEffect(new DropShadow(8, -2, 2, Color.GRAY));
-					nodeMap.put(pathObject, viewNode);
-				}
+				Label viewNode = nodeMap.computeIfAbsent(pathObject, po -> getLabel(pathObject));
 				images.add(viewNode);
 			}
 			updateMeasurementText();
 			getChildren().setAll(images);
 		}
-		
+
+		private Label getLabel(PathObject pathObject) {
+			var painter = PathObjectImageManagers.createImageViewPainter(
+					qupath.getViewer(), imageDataProperty.get().getServer(), true,
+					ForkJoinPool.commonPool());
+
+			var imageView = painter.getNode();
+			imageView.fitWidthProperty().bind(imageSize);
+			imageView.fitHeightProperty().bind(imageSize);
+
+			painter.setPathObject(pathObject);
+
+			var out = new Label("", imageView);
+			StackPane.setAlignment(out, Pos.TOP_LEFT);
+
+			Tooltip.install(out, new Tooltip(pathObject.getName()));
+			out.setOnMouseClicked(e -> {
+				var imageData = imageDataProperty.get();
+				if (imageData != null) {
+					imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
+					if (e.getClickCount() > 1 && pathObject.hasROI()) {
+						ROI roi = pathObject.getROI();
+						if (roi != null && qupath.getViewer().getImageData() == imageData)
+							qupath.getViewer().setCenterPixelLocation(roi.getCentroidX(), roi.getCentroidY());
+					}
+				}
+			});
+			return out;
+		}
+
 		void updateMeasurementText() {
 			String m = measurement == null ? null : measurement.get();
 			for (Entry<PathObject, Label> entry : nodeMap.entrySet()) {
 				if (m == null || !showMeasurement.get())
 					entry.getValue().setText(" ");
 				else {
-					double val = model.getNumericValue(entry.getKey(), m);
-					entry.getValue().setText(GeneralTools.formatNumber(val, 3));
+					if (m.equals(QuPathResources.getString("GridView.classification"))) {
+						PathClass pc = entry.getKey().getPathClass();
+						String text = pc == null ? PathClass.getNullClass().toString() : pc.toString();
+						entry.getValue().setText(text);
+					} else if (m.equals(QuPathResources.getString("GridView.name"))) {
+						entry.getValue().setText(entry.getKey().getDisplayedName());
+					} else {
+						double val = model.getNumericValue(entry.getKey(), m);
+						entry.getValue().setText(GeneralTools.formatNumber(val, 3));
+					}
 				}
 				entry.getValue().setContentDisplay(ContentDisplay.TOP);
 			}
@@ -594,22 +648,23 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			}
 			
 			int padding = 5;
-			int dx = imageSize.get() + padding;
-			int w = Math.max(dx, (int)getWidth());
-			int nx = (int)Math.floor(w / dx);
+			int dxy = imageSize.get() + padding;
+			int w = Math.max(dxy, (int)getWidth());
+			int nx = (int) (double) (w / dxy);
 			nx = Math.max(1, nx);
-			int spaceX = (int)((w - (dx) * nx) / (nx)); // Space to divide equally
+			int spaceX = (w - dxy * nx) / nx; // Space to divide equally
 			
 			int x = spaceX/2;
 			int y = padding;
-			
+
+			double h = imageSize.get();
 			for (Node node : getChildren()) {
-				if (x + dx > w) {
+				if (node instanceof Label label) {
+					h = label.getHeight();
+				}
+				if (x + dxy > w) {
 					x = spaceX/2;
-					if (node instanceof Label label)
-						y += label.getHeight() + spaceX + 2;
-					else
-						y += imageSize.get() + spaceX + 2;
+					y += (int) (h + spaceX + 2);
 				}
 				
 				if (doAnimate.get()) {
@@ -640,22 +695,12 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 					node.setTranslateX(x);
 					node.setTranslateY(y);
 				}
-				
-//				node.setLayoutX(x);
-//				node.setLayoutY(y);
-				x += (dx + spaceX);
+				x += dxy + spaceX;
 			}
-			
-//			setHeight(y);
-			setHeight(y + dx);
-			setPrefHeight(y + dx);
+			setHeight(y + h + padding);
+			setPrefHeight(y + h + padding);
 		}
-		
-		
-		
-		
+
 	}
-	
-	
 
 }

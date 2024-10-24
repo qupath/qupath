@@ -85,6 +85,7 @@ import javafx.scene.text.Text;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import jfxtras.scene.layout.GridPane;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.ObjectTreeBrowser;
@@ -169,6 +170,7 @@ class ScriptInterpreter {
 		setWriters(preferredContext);
 
 		stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setTitle("QuPath Interpreter");
 
 		initialize();

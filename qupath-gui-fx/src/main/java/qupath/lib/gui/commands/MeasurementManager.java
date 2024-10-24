@@ -146,7 +146,7 @@ class MeasurementManager {
 		for (var entry : map.entrySet()) {
 			var set = new LinkedHashSet<String>();
 			for (var pathObject : entry.getValue())
-				set.addAll(pathObject.getMeasurementList().getMeasurementNames());
+				set.addAll(pathObject.getMeasurementList().getNames());
 			mapMeasurements.put(entry.getKey(), set);
 		}
 		if (comboBox != null) {

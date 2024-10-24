@@ -60,6 +60,7 @@ import javafx.stage.Stage;
 import jfxtras.scene.layout.HBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
@@ -203,6 +204,7 @@ public class BrightnessContrastCommand implements Runnable {
 
 		Stage dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
+		FXUtils.addCloseWindowShortcuts(dialog);
 		dialog.setTitle("Brightness & contrast");
 
 		GridPane pane = new GridPane();
@@ -282,6 +284,7 @@ public class BrightnessContrastCommand implements Runnable {
 		dialog.setMinWidth(300);
 		dialog.setMinHeight(600);
 //		dialog.setMaxWidth(600);
+		FXUtils.addCloseWindowShortcuts(dialog);
 
 		table.updateTable();
 
@@ -570,8 +573,16 @@ public class BrightnessContrastCommand implements Runnable {
 			var imageDisplay = imageDisplayProperty.getValue();
 			if (imageDisplay != null) {
 				if (evt.getPropertyName().equals("serverMetadata") ||
-						((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("imageType")))
+						((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("imageType"))) {
+					var available = List.copyOf(imageDisplay.availableChannels());
 					imageDisplay.refreshChannelOptions();
+					// When channels change (e.g. setting RGB image to fluorescence),
+					// this is needed to trigger viewer repaint & to save the channels in the properties -
+					// otherwise we can get a black image if we save now and reload.
+					if (!available.equals(imageDisplay.availableChannels())) {
+						imageDisplay.saveChannelColorProperties();
+					}
+				}
 			}
 
 			table.updateTable();

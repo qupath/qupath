@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -27,20 +27,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Function;
 
+import qupath.imagej.gui.scripts.ImageJScriptRunner;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.gui.Overlay;
-import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.measure.ResultsTable;
@@ -50,6 +51,7 @@ import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
 import javafx.application.Platform;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * ImageJ plugin for sending back all the ROIs on an ImageJ overlay to QuPath.
@@ -93,8 +95,8 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 		if (rois.isEmpty())
 			return;
 
-		var gui = QuPathGUI.getInstance();
-		var viewer = gui == null ? null : gui.getViewer();
+		var qupath = QuPathGUI.getInstance();
+		var viewer = qupath == null ? null : qupath.getViewer();
 		var imageData = viewer == null ? null : viewer.getImageData();
 		if (imageData == null) {
 			IJ.showMessage("No image selected in QuPath!");
@@ -127,7 +129,7 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 		ImagePlane plane = currentPlane;
 		if (imp == null)
 			plane = null;
-		else if (imp != null && server.nZSlices() * server.nTimepoints() > 1) {
+		else if (server.nZSlices() * server.nTimepoints() > 1) {
 			if (imp.getNSlices() == server.nZSlices() && imp.getNFrames() == server.nTimepoints())
 				plane = null;
 		}
@@ -144,37 +146,44 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 	}
 
 	/**
-	 * Legacy method to turn an array of ImageJ ROIs into a list of QuPath PathObjects, optionally adding measurements as well.
+	 * Turn an array of ImageJ ROIs into a list of QuPath PathObjects, optionally adding measurements as well.
+	 *
 	 * @param imp
 	 * @param rois
-	 * @param server
 	 * @param downsample
 	 * @param asDetection
 	 * @param includeMeasurements
 	 * @param plane
 	 * @return
-	 * @deprecated use instead {@link #createObjectsFromROIs(ImagePlus, Collection, double, boolean, boolean, ImagePlane)}
+	 * @since v0.4.0
 	 */
-	@Deprecated
-	public static List<PathObject> createPathObjectsFromROIs(final ImagePlus imp, final Roi[] rois, final ImageServer<?> server, 
-			final double downsample, final boolean asDetection, final boolean includeMeasurements, final ImagePlane plane) {
-		return createObjectsFromROIs(imp, Arrays.asList(rois), downsample, asDetection, includeMeasurements, plane);
+	public static List<PathObject> createObjectsFromROIs(final ImagePlus imp, final Collection<? extends Roi> rois,
+														 final double downsample, final boolean asDetection, final boolean includeMeasurements, final ImagePlane plane) {
+		Function<ROI, PathObject> creator;
+		if (asDetection) {
+			// Legacy behavior - create detections if requested, unless we have a point ROI - in which case we can only create annotations
+			creator = ImageJScriptRunner::createDetectionOrPointAnnotation;
+		} else {
+			creator = PathObjects::createAnnotationObject;
+		}
+		return createObjectsFromROIs(imp, rois, downsample, creator, includeMeasurements, plane);
 	}
 	
 	/**
 	 * Turn an array of ImageJ ROIs into a list of QuPath PathObjects, optionally adding measurements as well.
 	 * 
-	 * @param imp
-	 * @param rois
-	 * @param downsample
-	 * @param asDetection
-	 * @param includeMeasurements
-	 * @param plane 
+	 * @param imp the image to use for measurements
+	 * @param rois the ROIs to convert
+	 * @param downsample the downsample factor of the image
+	 * @param creator the function to create QuPath objects from ROIs
+	 * @param includeMeasurements request to include measurements for the objects that are created
+	 * @param plane the image plane for the created objects
 	 * @return
-	 * @since v0.4.0
+	 * @since v0.6.0
 	 */
-	public static List<PathObject> createObjectsFromROIs(final ImagePlus imp, final Collection<? extends Roi> rois, 
-			final double downsample, final boolean asDetection, final boolean includeMeasurements, final ImagePlane plane) {
+	public static List<PathObject> createObjectsFromROIs(final ImagePlus imp, final Collection<? extends Roi> rois,
+														 final double downsample, final Function<ROI, PathObject> creator,
+														 final boolean includeMeasurements, final ImagePlane plane) {
 		List<PathObject> pathObjects = new ArrayList<>();
 		ResultsTable rt = new ResultsTable();
 		Analyzer analyzer = imp == null ? null : new Analyzer(imp, Analyzer.getMeasurements(), rt);
@@ -183,11 +192,7 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 		var xOrigin = cal == null ? 0 : cal.xOrigin;
 		var yOrigin = cal == null ? 0 : cal.yOrigin;
 		for (Roi roi : rois) {
-			PathObject pathObject;
-			if (asDetection && !(roi instanceof PointRoi))
-				pathObject = IJTools.convertToDetection(roi, xOrigin, yOrigin, downsample, plane);
-			else
-				pathObject = IJTools.convertToAnnotation(roi, xOrigin, yOrigin, downsample, plane);
+			PathObject pathObject = IJTools.convertToPathObject(roi, xOrigin, yOrigin, downsample, creator, plane);
 			if (pathObject == null)
 				IJ.log("Sorry, I couldn't convert " + roi + " to a valid QuPath object");
 			else {

@@ -86,6 +86,20 @@
         -fx-body-color;
 }
 
+/* Default theme always darkens scrollbar buttons, but we need to lighten */
+.scroll-bar > .increment-button > .increment-arrow,
+.scroll-bar > .decrement-button > .decrement-arrow {
+    -fx-background-color: -fx-mark-highlight-color,derive(-fx-base,45%);
+}
+.scroll-bar > .increment-button:hover > .increment-arrow,
+.scroll-bar > .decrement-button:hover > .decrement-arrow {
+    -fx-background-color: -fx-mark-highlight-color,derive(-fx-base,50%);
+}
+.scroll-bar > .increment-button:pressed > .increment-arrow,
+.scroll-bar > .decrement-button:pressed > .decrement-arrow {
+    -fx-background-color: -fx-mark-highlight-color,derive(-fx-base,55%);
+}
+
 .table-view,
 .tree-table-view {
     -fx-table-header-border-color: -fx-box-border;
@@ -96,7 +110,4 @@
     AXIS_COLOR: derive(-fx-background,40%);
 }
 
-.list-cell:filled:selected:focused .button .text {
-    -fx-fill: -fx-text-base-color;
-}
 

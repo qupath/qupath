@@ -137,6 +137,7 @@ import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
@@ -272,9 +273,10 @@ public class TMASummaryViewer {
 	 * @param stage stage that should be used for this TMA summary viewer. If null, a new stage will be created.
 	 */
 	public TMASummaryViewer(final Stage stage) {
-		if (stage == null)
+		if (stage == null) {
 			this.stage = new Stage();
-		else
+			FXUtils.addCloseWindowShortcuts(stage);
+		} else
 			this.stage = stage;
 		
 		logger.trace("Creating TMA summary viewer");
@@ -774,8 +776,6 @@ public class TMASummaryViewer {
 		// Generate a pseudo TMA core hierarchy
 		Map<String, List<TMAEntry>> scoreMap = createScoresMap(model.getItems(), colScore, colID);
 		
-//		System.err.println("Score map size: " + scoreMap.size() + "\tEntries: " + model.getEntries().size());
-		
 		List<TMACoreObject> cores = new ArrayList<>(scoreMap.size());
 		double[] scores = new double[15];
 		for (Entry<String, List<TMAEntry>> entry : scoreMap.entrySet()) {
@@ -801,15 +801,12 @@ public class TMASummaryViewer {
 				score = (scores[n/2-1] + scores[n/2]) / 2;
 
 			core.putMetadataValue(TMACoreObject.KEY_CASE_ID, entry.getKey());
-//			System.err.println("Putting: " + list.get(0).getMeasurement(colSurvival).doubleValue() + " LIST: " + list.size());
 			ml.put(colSurvival, list.get(0).getMeasurementAsDouble(colSurvival));
 			ml.put(colCensoredRequested, list.get(0).getMeasurementAsDouble(colCensored));
 			if (colScore != null)
 				ml.put(colScore, score);
 
 			cores.add(core);
-			
-//			logger.info(entry.getKey() + "\t" + score);
 		}
 
 		TMAGrid grid = DefaultTMAGrid.create(cores, 1);
@@ -1240,7 +1237,7 @@ public class TMASummaryViewer {
 		
 		if (file.getName().toLowerCase().endsWith(PathPrefs.getSerializationExtension())) {
 			try {
-				ImageData<BufferedImage> imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
+				ImageData<BufferedImage> imageData = PathIO.readImageData(file);
 				setTMAEntriesFromImageData(imageData);
 			} catch (IOException e) {
 				logger.error("Error reading image data", e);
@@ -1296,31 +1293,13 @@ public class TMASummaryViewer {
 		
 		// Store the names of any currently hidden columns
 		lastHiddenColumns = table.getColumns().stream().filter(c -> !c.isVisible()).map(c -> c.getText()).collect(Collectors.toSet());
-		
-//		this.table.getColumns().clear();
-		
-//		// Useful for a paper, but not generally...
-//		int count = 0;
-//		int nCells = 0;
-//		int nTumor = 0;
-//		for (TMAEntry entry : entriesBase) {
-//			if (!entry.isMissing() && (predicate.get() == null || predicate.get().test(entry))) {
-//				count++;
-//				nCells += (int)(entry.getMeasurement("Num Tumor").doubleValue() + entry.getMeasurement("Num Stroma").doubleValue());
-//				nTumor += (int)(entry.getMeasurement("Num Tumor").doubleValue());
-//			}
-//		}
-//		System.err.println(String.format("Num entries:\t%d\tNum tumor:\t%d\tNum cells:\t%d", count, nTumor, nCells));
-		
-		
+
 		// Update measurement names
 		Set<String> namesMeasurements = new LinkedHashSet<>();
 		Set<String> namesMetadata = new LinkedHashSet<>();
-//		boolean containsSummaries = false;
 		for (TMAEntry entry : newEntries) {
 			namesMeasurements.addAll(entry.getMeasurementNames());
 			namesMetadata.addAll(entry.getMetadataNames());
-//			containsSummaries = containsSummaries || entry instanceof TMASummaryEntry;
 		}
 		
 		// Get the available survival columns
@@ -1400,17 +1379,7 @@ public class TMASummaryViewer {
 	 * @see #refreshTable()
 	 */
 	private void refreshTableData() {
-		
-//		int nn = 0;
-//		double nPositive = 0;
-//		for (TMAEntry entry : entriesBase) {
-//			if (entry.isMissing())
-//				continue;
-//			nPositive += entry.getMeasurementAsDouble("Num Positive");
-//			nn++;
-//		}
-//		System.err.println(nPositive + " positive cells across " + nn + " tissue samples");
-		
+
 		Collection<? extends TMAEntry> entries = groupByIDProperty.get() ? createSummaryEntries(entriesBase) : entriesBase;
 
 		// Ensure that we don't try to modify a filtered list

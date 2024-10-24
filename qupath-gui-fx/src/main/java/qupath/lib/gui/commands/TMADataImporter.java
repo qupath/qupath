@@ -59,7 +59,6 @@ import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
@@ -383,11 +382,8 @@ class TMADataImporter {
 				setTooltip(null);
 				return;
 			}
-			if (item.isMissing())
-				setTextFill(ColorToolsFX.getCachedColor(PathPrefs.colorTMAMissingProperty().get()));
-			else
-				setTextFill(ColorToolsFX.getCachedColor(PathPrefs.colorTMAProperty().get()));
-			
+			setTextFill(ColorToolsFX.getDisplayedColor(item));
+
 			setAlignment(Pos.CENTER);
 			setTextAlignment(TextAlignment.CENTER);
 			setContentDisplay(ContentDisplay.CENTER);
@@ -546,11 +542,11 @@ class TMADataImporter {
 			core.setMissing(isMissing());
 			core.setName(getName());
 			core.setCaseID(getCaseID());
-			for (String name : getMeasurementList().getMeasurementNames()) {
+			for (String name : getMeasurementList().getNames()) {
 				core.getMeasurementList().put(name, getMeasurementList().get(name));
 			}
 			core.getMeasurementList().close();
-			for (Entry<String, String> entry : getMetadataMap().entrySet()) {
+			for (Entry<String, String> entry : this.getMetadata().entrySet()) {
 				core.putMetadataValue(entry.getKey(), (String)entry.getValue());
 			}
 		}
@@ -594,10 +590,10 @@ class TMADataImporter {
 //		else
 //			sb.append("-");
 		sb.append("\n");
-		for (Entry<String, String> entry : core.getMetadataMap().entrySet()) {
+		for (Entry<String, String> entry : core.getMetadata().entrySet()) {
 			sb.append(entry.getKey()).append("\t").append(entry.getValue()).append("\n");
 		}
-		for (String name : core.getMeasurementList().getMeasurementNames()) {
+		for (String name : core.getMeasurementList().getNames()) {
 			sb.append(name).append("\t").append(core.getMeasurementList().get(name)).append("\n");
 		}
 		return sb.toString();

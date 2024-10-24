@@ -65,6 +65,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ObjectArrays;
 
 import qupath.bioimageio.spec.BioimageIoSpec;
+import qupath.imagej.processing.IJFilters;
+import qupath.imagej.tools.IJProperties;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.analysis.DistanceTools;
@@ -96,6 +98,7 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.LabeledImageServer;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.images.writers.TileExporter;
 import qupath.lib.io.GsonTools;
@@ -265,6 +268,8 @@ public class QP {
 			PathObject.class,
 			PathObjectHierarchy.class,
 			PathClass.class,
+
+			TransformedServerBuilder.class,
 			
 			ImageRegion.class,
 			RegionRequest.class,
@@ -301,6 +306,8 @@ public class QP {
 			PathClassTools.class,
 			GeometryTools.class,
 			IJTools.class,
+			IJProperties.class,
+			IJFilters.class,
 			OpenCVTools.class,
 			NumpyTools.class,
 			DnnTools.class,
@@ -550,7 +557,7 @@ public class QP {
 	 */
 	@Deprecated
 	public static ImageData<BufferedImage> loadImageData(final String path, final boolean setBatchData) throws IOException {
-		ImageData<BufferedImage> imageData = PathIO.readImageData(new File(resolvePath(path)), null, null, BufferedImage.class);
+		ImageData<BufferedImage> imageData = PathIO.readImageData(new File(resolvePath(path)));
 		if (setBatchData && imageData != null)
 			setBatchImageData(imageData);
 		return imageData;
@@ -1331,7 +1338,7 @@ public class QP {
 	 * @param names
 	 */
 	public static void setChannelNames(ImageData<?> imageData, String... names) {
-		List<ImageChannel> oldChannels = imageData.getServer().getMetadata().getChannels();
+		List<ImageChannel> oldChannels = imageData.getServerMetadata().getChannels();
 		List<ImageChannel> newChannels = new ArrayList<>(oldChannels);
 		for (int i = 0; i < names.length; i++) {
 			String name = names[i];
@@ -1368,7 +1375,7 @@ public class QP {
 	 * @see #setChannelNames(ImageData, String...)
 	 */
 	public static void setChannelColors(ImageData<?> imageData, Integer... colors) {
-		List<ImageChannel> oldChannels = imageData.getServer().getMetadata().getChannels();
+		List<ImageChannel> oldChannels = imageData.getServerMetadata().getChannels();
 		List<ImageChannel> newChannels = new ArrayList<>(oldChannels);
 		for (int i = 0; i < colors.length; i++) {
 			Integer color = colors[i];
@@ -1396,9 +1403,6 @@ public class QP {
 	/**
 	 * Set the channels for the specified ImageData.
 	 * Note that number of channels provided must match the number of channels of the current image.
-	 * <p>
-	 * Also, currently it is not possible to set channels for RGB images - attempting to do so 
-	 * will throw an IllegalArgumentException.
 	 * 
 	 * @param imageData 
 	 * @param channels
@@ -1406,11 +1410,8 @@ public class QP {
 	 * @see #setChannelColors(ImageData, Integer...)
 	 */
 	public static void setChannels(ImageData<?> imageData, ImageChannel... channels) {
-		ImageServer<?> server = imageData.getServer();
-		if (server.isRGB()) {
-			throw new IllegalArgumentException("Cannot set channels for RGB images");
-		}
-		List<ImageChannel> oldChannels = server.getMetadata().getChannels();
+		var metadata = imageData.getServerMetadata();
+		List<ImageChannel> oldChannels = metadata.getChannels();
 		List<ImageChannel> newChannels = Arrays.asList(channels);
 		if (oldChannels.equals(newChannels)) {
 			logger.trace("Setting channels to the same values (no changes)");
@@ -1418,9 +1419,8 @@ public class QP {
 		}
 		if (oldChannels.size() != newChannels.size())
 			throw new IllegalArgumentException("Cannot set channels - require " + oldChannels.size() + " channels but you provided " + channels.length);
-		
+
 		// Set the metadata
-		var metadata = server.getMetadata();
 		var metadata2 = new ImageServerMetadata.Builder(metadata)
 				.channels(newChannels)
 				.build();
@@ -2973,7 +2973,7 @@ public class QP {
 				continue;
 			// Remove the measurements
 			try (var ml = pathObject.getMeasurementList()) {
-				ml.removeMeasurements(measurementNames);
+				ml.removeAll(measurementNames);
 			}
 		}
 		hierarchy.fireObjectMeasurementsChangedEvent(null, pathObjects);
@@ -3486,17 +3486,17 @@ public class QP {
 	 * @return true if the size was set, false otherwise
 	 */
 	public static boolean setPixelSizeMicrons(ImageData<?> imageData, Number pixelWidthMicrons, Number pixelHeightMicrons, Number zSpacingMicrons) {
-		var server = imageData.getServer();
 		if (isFinite(pixelWidthMicrons) && !isFinite(pixelHeightMicrons))
 			pixelHeightMicrons = pixelWidthMicrons;
 		else if (isFinite(pixelHeightMicrons) && !isFinite(pixelWidthMicrons))
 			pixelWidthMicrons = pixelHeightMicrons;
-		
-		var metadataNew = new ImageServerMetadata.Builder(server.getMetadata())
+
+		var serverMetadata = imageData.getServerMetadata();
+		var metadataNew = new ImageServerMetadata.Builder(serverMetadata)
 			.pixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons)
 			.zSpacingMicrons(zSpacingMicrons)
 			.build();
-		if (server.getMetadata().equals(metadataNew))
+		if (serverMetadata.equals(metadataNew))
 			return false;
 		imageData.updateServerMetadata(metadataNew);
 		return true;

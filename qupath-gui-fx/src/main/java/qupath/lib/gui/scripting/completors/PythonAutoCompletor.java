@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -64,10 +64,9 @@ public class PythonAutoCompletor extends DefaultAutoCompletor {
 
 	/**
 	 * Constructor.
-	 * @param addQuPathCompletions if true, add standard Java completions for core QuPath classes.
 	 */
-	public PythonAutoCompletor(boolean addQuPathCompletions) {
-		super(addQuPathCompletions);
+	public PythonAutoCompletor() {
+		super();
 		addCompletions(PYTHON_AUTOCOMPLETIONS);
 	}
 	

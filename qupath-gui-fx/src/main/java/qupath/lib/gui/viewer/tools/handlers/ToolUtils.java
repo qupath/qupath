@@ -24,6 +24,7 @@
 
 package qupath.lib.gui.viewer.tools.handlers;
 
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -96,9 +97,13 @@ class ToolUtils {
         PathObjectHierarchy hierarchy = viewer == null ? null : viewer.getHierarchy();
         if (hierarchy == null)
             return Collections.emptyList();
-
+        // Note that this means that point display size can impact how easy it is to select lines as well,
+        // but it helps address https://github.com/qupath/qupath/issues/1552
+        double vertexTolerance = Math.max(
+                PathPrefs.pointRadiusProperty().get() * viewer.getDownsampleFactor(),
+                viewer.getMaxROIHandleSize());
         Collection<PathObject> pathObjects = PathObjectTools.getObjectsForLocation(
-                hierarchy, x, y, viewer.getZPosition(), viewer.getTPosition(), viewer.getMaxROIHandleSize());
+                hierarchy, x, y, viewer.getZPosition(), viewer.getTPosition(), vertexTolerance);
         if (pathObjects.isEmpty())
             return Collections.emptyList();
         List<PathObject> pathObjectList = new ArrayList<>(pathObjects);

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -35,26 +35,33 @@ public interface ScriptEditor {
 	/**
 	 * Show the script editor.
 	 */
-	public void showEditor();
+	void showEditor();
 	
 	/**
 	 * Show the script editor, including a new script with the specified name.
 	 * @param name name of the script to show
 	 * @param script content of the script
 	 */
-	public void showScript(String name, String script);
+	void showScript(String name, String script);
 	
 	/**
 	 * Show the script editor, opening an existing script file.
 	 * @param file the script file
 	 */
-	public void showScript(File file);
+	void showScript(File file);
 	
 	/**
 	 * Check if the script editor supports a particular file.
 	 * @param file
 	 * @return
 	 */
-	public boolean supportsFile(File file);
-	
+	boolean supportsFile(File file);
+
+	/**
+	 * Attempt to close the editor, saving changes if requested.
+	 * @return True if the editor can be closed without losing changes,
+	 * unless the user consents to losing changes.
+	 */
+	boolean requestClose();
+
 }

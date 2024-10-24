@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,24 +23,27 @@
 
 package qupath.lib.objects.hierarchy;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.common.LogTools;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathAnnotationObject;
@@ -55,6 +58,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -74,39 +78,23 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public final class PathObjectHierarchy implements Serializable {
-	
+
+	@Serial
 	private static final long serialVersionUID = 1L;
 	
 	private static final Logger logger = LoggerFactory.getLogger(PathObjectHierarchy.class);
-			
-	// TODO: Make this a choice - currently a cell object is considered 'inside' if its nucleus is fully contained (as cell boundaries themselves are a little more questionable)
-	/*
-	 * TODO: Consider how to explain this...
-	 * The idea is that cell nuclei are used to determine whether an object is 'inside' another object,
-	 * which is important when adding annotations etc. to the object hierarchy.
-	 * 
-	 * @return
-	 */
-	static boolean useCellNucleiForInsideTest = true;
-	/*
-	 * TODO: Consider how to explain this...
-	 * The idea is that tile centroids are used to determine whether an object is 'inside' another object,
-	 * which is important when adding annotations etc. to the object hierarchy.
-	 * 
-	 * @return
-	 */
-	static boolean useTileCentroidsForInsideTest = true;
-
-	
 	
 	private TMAGrid tmaGrid = null;
 	private PathObject rootObject = new PathRootObject();
 	
-	private transient PathObjectSelectionModel selectionModel = new PathObjectSelectionModel();
-	private transient List<PathObjectHierarchyListener> listeners = new ArrayList<>();
+	private final transient PathObjectSelectionModel selectionModel = new PathObjectSelectionModel();
+	private final transient List<PathObjectHierarchyListener> listeners = new ArrayList<>();
 
 	// Cache enabling faster access of objects according to location
-	private transient PathObjectTileCache tileCache = new PathObjectTileCache(this);
+	private final transient PathObjectTileCache tileCache = new PathObjectTileCache(this);
+
+	// A map to store subdivisions, useful for finding neighbors
+	private transient SubdivisionManager subdivisionManager = new SubdivisionManager();
 
 	/**
 	 * Default constructor, creates an empty hierarchy.
@@ -128,29 +116,19 @@ public final class PathObjectHierarchy implements Serializable {
 	/**
 	 * Add a hierarchy change listener.
 	 * @param listener
-	 * @since v0.4.0; replaced {@link #addPathObjectListener(PathObjectHierarchyListener)}
+	 * @since v0.4.0; replaced {@code addPathObjectListener(PathObjectHierarchyListener)}
 	 */
 	public void addListener(PathObjectHierarchyListener listener) {
 		synchronized(listeners) {
 			listeners.add(listener);
 		}
 	}
-	
-	/**
-	 * Legacy method to add a hierarchy change listener; use {@link #addListener(PathObjectHierarchyListener)} instead.
-	 * @param listener
-	 * @deprecated since v0.4.0 (the name was confusing because it wasn't intended primarily to listen to changes <i>within</i> individual PathObjects)
-	 */
-	@Deprecated
-	public void addPathObjectListener(PathObjectHierarchyListener listener) {
-		LogTools.warnOnce(logger, "addPathObjectListener() is deprecated, use addListener() instead");
-		addListener(listener);
-	}
+
 	
 	/**
 	 * Remove a hierarchy change listener.
 	 * @param listener
-	 * @since v0.4.0; replaced {@link #removePathObjectListener(PathObjectHierarchyListener)}
+	 * @since v0.4.0; replaced {@code removePathObjectListener(PathObjectHierarchyListener)}
 	 */
 	public void removeListener(PathObjectHierarchyListener listener) {
 		synchronized(listeners) {
@@ -158,16 +136,6 @@ public final class PathObjectHierarchy implements Serializable {
 		}
 	}
 
-	/**
-	 * Legacy method to remove a hierarchy change listener; use {@link #removeListener(PathObjectHierarchyListener)} instead.
-	 * @param listener
-	 * @deprecated since v0.4.0 (the name was confusing because it wasn't intended primarily to listen to changes <i>within</i> individual PathObjects)
-	 */
-	@Deprecated
-	public void removePathObjectListener(PathObjectHierarchyListener listener) {
-		LogTools.warnOnce(logger, "removePathObjectListener() is deprecated, use removeListener() instead");
-		removeListener(listener);
-	}
 
 	/**
 	 * Get the root object. All other objects in the hierarchy are descendants of the root.
@@ -192,20 +160,6 @@ public final class PathObjectHierarchy implements Serializable {
 	public PathObjectSelectionModel getSelectionModel() {
 		return selectionModel;
 	}
-	
-//	/**
-//	 * Check if the hierarchy is changing.  This can occur, for example, if a plugin is running
-//	 * that modifies the hierarchy frequently, and so listeners may want to avoid responding to
-//	 * events for performance reasons.
-//	 * @return
-//	 */
-//	public boolean isChanging() {
-//		return changing;
-//	}
-//	
-//	public void setChanging(boolean changing) {
-//		this.changing = changing;
-//	}
 	
 	/**
 	 * Set the tma grid for this hierarchy.
@@ -268,7 +222,7 @@ public final class PathObjectHierarchy implements Serializable {
 	public synchronized boolean insertPathObjects(Collection<? extends PathObject> pathObjects) {
 		var selectedObjects =  new ArrayList<>(pathObjects);
 		int nObjects = selectedObjects.size();
-		selectedObjects.removeIf(p -> p.isTMACore());
+		selectedObjects.removeIf(PathObject::isTMACore);
 		if (selectedObjects.size() < nObjects)
 			logger.warn("TMA core objects cannot be inserted - use resolveHierarchy() instead");
 		
@@ -278,7 +232,7 @@ public final class PathObjectHierarchy implements Serializable {
 		selectedObjects.sort(PathObjectHierarchy.HIERARCHY_COMPARATOR.reversed());
 		boolean singleObject = selectedObjects.size() == 1;
 		// We don't want to reset caches for every object if we have only detections, since previously-inserted objects don't impact the potential parent
-		boolean allDetections = selectedObjects.stream().allMatch(p -> p.isDetection());
+		boolean allDetections = selectedObjects.stream().allMatch(PathObject::isDetection);
 		for (var pathObject : selectedObjects) {
 //			hierarchy.insertPathObject(pathObject, true);
 			insertPathObject(getRootObject(), pathObject, singleObject, !singleObject && !allDetections);
@@ -331,7 +285,7 @@ public final class PathObjectHierarchy implements Serializable {
 			logger.warn("TMA core objects cannot be inserted - use resolveHierarchy() instead");
 			return false;
 		}
-		
+
 		// Get all the annotations that might be a parent of this object
 		var region = ImageRegion.createInstance(pathObject.getROI());
 		Collection<PathObject> tempSet = new HashSet<>();
@@ -345,7 +299,7 @@ public final class PathObjectHierarchy implements Serializable {
 		}
 
 		var possibleParentObjects = new ArrayList<>(tempSet);
-		Collections.sort(possibleParentObjects, HIERARCHY_COMPARATOR);
+		possibleParentObjects.sort(HIERARCHY_COMPARATOR);
 
 		for (PathObject possibleParent : possibleParentObjects) {
 			if (possibleParent == pathObject || possibleParent.isDetection())
@@ -372,10 +326,10 @@ public final class PathObjectHierarchy implements Serializable {
 				// Reassign child objects if we need to
 				Collection<PathObject> previousChildren = pathObject.isDetection() ? new ArrayList<>() : new ArrayList<>(possibleParent.getChildObjects());
 				// Can't reassign TMA core objects (these must be directly below the root object)
-				previousChildren.removeIf(p -> p.isTMACore());
+				previousChildren.removeIf(PathObject::isTMACore);
 				// Beware that we could have 'orphaned' detections
 				if (possibleParent.isTMACore())
-					possibleParent.getParent().getChildObjects().stream().filter(p -> p.isDetection()).forEach(previousChildren::add);
+					possibleParent.getParent().getChildObjects().stream().filter(PathObject::isDetection).forEach(previousChildren::add);
 				possibleParent.addChildObject(pathObject);
 				if (!previousChildren.isEmpty()) {
 					pathObject.addChildObjects(filterObjectsForROI(pathObject.getROI(), previousChildren));
@@ -470,12 +424,8 @@ public final class PathObjectHierarchy implements Serializable {
 			PathObject parent = pathObject.getParent();
 			if (parent == null)
 				continue;
-			List<PathObject> list = map.get(parent);
-			if (list == null) {
-				list = new ArrayList<>();
-				map.put(parent, list);
-			}
-			list.add(pathObject);
+            List<PathObject> list = map.computeIfAbsent(parent, k -> new ArrayList<>());
+            list.add(pathObject);
 		}
 		
 		if (map.isEmpty())
@@ -499,25 +449,6 @@ public final class PathObjectHierarchy implements Serializable {
 			addPathObjectImpl(pathObject, false);
 		}
 		fireHierarchyChangedEvent(this);
-		
-		// This previously could result in child objects being deleted even if keepChildren was 
-		// true, depending upon the order in which objects were removed.
-//		// Loop through and remove objects
-//		for (Entry<PathObject, List<PathObject>> entry : map.entrySet()) {
-//			PathObject parent = entry.getKey();
-//			List<PathObject> children = entry.getValue();
-//			parent.removePathObjects(children);
-//			if (keepChildren) {
-//				for (PathObject child : children) {
-//					if (child.hasChildren()) {
-//						List<PathObject> newChildList = new ArrayList<>(child.getChildObjects());
-//						newChildList.removeAll(pathObjects);
-//						parent.addPathObjects(newChildList);
-//					}
-//				}
-//			}
-//		}
-//		fireHierarchyChangedEvent(this);
 	}
 	
 	
@@ -561,51 +492,12 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param pathObject
 	 * @param fireUpdate 
 	 * @return
-	 * @since v0.4.0; replaces {@link #addPathObjectWithoutUpdate(PathObject)}
+	 * @since v0.4.0; replaces {@code addPathObjectWithoutUpdate(PathObject)}
 	 */
 	public boolean addObject(PathObject pathObject, boolean fireUpdate) {
 		return addPathObjectImpl(pathObject, fireUpdate);
 	}
-	
-			
-	/**
-	 * Legacy method to add an object to the hierarchy, firing an event.
-	 * @param pathObject
-	 * @return
-	 * @deprecated since v0.4.0; use {@link #addObject(PathObject)} instead (for naming consistency)
-	 */
-	@Deprecated
-	public boolean addPathObject(PathObject pathObject) {
-		LogTools.warnOnce(logger, "addPathObject(PathObject) is deprecated - use addObject(PathObject) instead");
-		return addObject(pathObject);
-	}
 
-	/**
-	 * Legacy method to add an object to the hierarchy, without firing an event.
-	 * @param pathObject
-	 * @return
-	 * @deprecated since v0.4.0, use {@link #addObject(PathObject, boolean)} instead (for naming consistency)
-	 */
-	@Deprecated
-	public boolean addPathObjectWithoutUpdate(PathObject pathObject) {
-		LogTools.warnOnce(logger, "addPathObjectWithoutUpdate(PathObject) is deprecated - use addObject(PathObject, false) instead");
-		return addObject(pathObject, false);
-	}
-
-	
-	/**
-	 * Legacy method to path object as descendant of the requested parent.
-	 * @param pathObjectParent
-	 * @param pathObject
-	 * @param fireUpdate
-	 * @return
-	 * @deprecated since v0.4.0; use {@link #addObjectBelowParent(PathObject, PathObject, boolean)}
-	 */
-	@Deprecated
-	public boolean addPathObjectBelowParent(PathObject pathObjectParent, PathObject pathObject, boolean fireUpdate) {
-		LogTools.warnOnce(logger, "addPathObjectBelowParent is deprecated - use addObjectBelowParent instead");
-		return addObjectBelowParent(pathObjectParent, pathObject, fireUpdate);
-	}
 	
 	/**
 	 * Add path object as descendant of the requested parent.
@@ -614,7 +506,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param pathObject
 	 * @param fireUpdate
 	 * @return
-	 * @since v0.4.0 (replaces {@link #addPathObjectBelowParent(PathObject, PathObject, boolean)}
+	 * @since v0.4.0 (replaces {@code addPathObjectBelowParent(PathObject, PathObject, boolean)}
 	 */
 	public synchronized boolean addObjectBelowParent(PathObject pathObjectParent, PathObject pathObject, boolean fireUpdate) {
 		if (pathObjectParent == pathObject)
@@ -642,7 +534,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Add multiple objects to the hierarchy.
 	 * @param pathObjects
 	 * @return
-	 * @since v0.4.0; replaces {@link #addPathObjects(Collection)}
+	 * @since v0.4.0; replaces {@code addPathObjects(Collection)}
 	 */
 	public synchronized boolean addObjects(Collection<? extends PathObject> pathObjects) {
 		boolean changes = false;
@@ -657,22 +549,10 @@ public final class PathObjectHierarchy implements Serializable {
 			changes = addPathObjectToList(getRootObject(), pathObject, false) || changes;
 			counter++;
 		}
-		if (changes)
+		if (changes) {
 			fireHierarchyChangedEvent(getRootObject());
-//			fireChangeEvent(getRootObject());
+		}
 		return changes;
-	}
-	
-	/**
-	 * Legacy method to add multiple objects to the hierarchy.
-	 * @param pathObjects
-	 * @return
-	 * @deprecated since v0.4.0; use {@link #addObjects(Collection)} instead
-	 */
-	@Deprecated
-	public boolean addPathObjects(Collection<? extends PathObject> pathObjects) {
-		LogTools.warnOnce(logger, "addPathObjects(Collection) is deprecated - use addObjects(Collection) instead");
-		return addObjects(pathObjects);
 	}
 
 	
@@ -690,18 +570,34 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Get objects that contain Point ROIs.
 	 * @param cls
 	 * @return
+	 * @deprecated v0.6.0; use {@link #getAllPointObjects()} instead, and filter by object type if required.
 	 */
+	@Deprecated
 	public synchronized Collection<PathObject> getPointObjects(Class<? extends PathObject> cls) {
+		LogTools.warnOnce(logger, "getPointObjects() is deprecated, use getAllPointObjects() instead");
 		Collection<PathObject> pathObjects = getObjects(null, cls);
 		if (!pathObjects.isEmpty()) {
-			Iterator<PathObject> iter = pathObjects.iterator();
-			while (iter.hasNext()) {
-				if (!PathObjectTools.hasPointROI(iter.next())) {
-					iter.remove();
-				}
-			}
+            pathObjects.removeIf(pathObject -> !PathObjectTools.hasPointROI(pathObject));
 		}
 		return pathObjects;
+	}
+
+	/**
+	 * Get all objects in the hierarchy that have a point (or multi-point) ROI.
+	 * @return
+	 */
+	public Collection<PathObject> getAllPointObjects() {
+		return getAllObjects(false).stream().filter(PathObjectTools::hasPointROI).toList();
+	}
+
+	/**
+	 * Get all annotation objects in the hierarchy that have a point (or multi-point) ROI.
+	 * @return
+	 */
+	public Collection<PathObject> getAllPointAnnotations() {
+		return getAnnotationObjects().stream()
+				.filter(PathObjectTools::hasPointROI)
+				.toList();
 	}
 	
 	/**
@@ -818,8 +714,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @return
 	 */
 	public synchronized int nObjects() {
-		int count = PathObjectTools.countDescendants(getRootObject());
-		return count;
+		return PathObjectTools.countDescendants(getRootObject());
 	}
 	
 	/**
@@ -837,18 +732,108 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	/**
 	 * Get the objects within a specified ROI, as defined by the general rules for resolving the hierarchy. 
-	 * This relies on centroids for detections, and a 'covers' rule for others.
-	 * 
+	 * This relies on centroids for detections (including subclasses), and a 'covers' rule for others (annotations, TMA cores).
+	 * <p>
+	 * <b>Note: </b> Since v0.6.0 use of this method is discouraged, and it may be deprecated and/or removed in a future
+	 * release.
+	 * Instead use {@link #getAllObjectsForROI(ROI)} and filter the returned collection;
+	 * or, alternatively, use {@link #getAnnotationsForROI(ROI)}, {@link #getCellsForROI(ROI)},
+	 * {@link #getAllDetectionsForROI(ROI)} or {@link #getTilesForROI(ROI)}.
+	 * </p>
 	 * @param cls class of PathObjects (e.g. PathDetectionObject), or null to accept all
 	 * @param roi
 	 * @return
 	 */
 	public Collection<PathObject> getObjectsForROI(Class<? extends PathObject> cls, ROI roi) {
+		return getObjectsOfClassForROI(cls, roi);
+	}
+
+
+	private Collection<PathObject> getObjectsOfClassForROI(Class<? extends PathObject> cls, ROI roi) {
 		if (roi.isEmpty() || !roi.isArea())
 			return Collections.emptyList();
-		
+
 		Collection<PathObject> pathObjects = tileCache.getObjectsForRegion(cls, ImageRegion.createInstance(roi), new HashSet<>(), true);
 		return filterObjectsForROI(roi, pathObjects);
+	}
+
+	/**
+	 * Get all objects for a ROI.
+	 * This uses the same rules as {@link #resolveHierarchy()}: annotations must be completely covered
+	 * by the ROI, while detections need only have their centroid within the ROI.
+	 * @param roi
+	 * @return
+	 * @see #getAnnotationsForROI(ROI)
+	 * @see #getCellsForROI(ROI)
+	 * @see #getAllDetectionsForROI(ROI)
+	 * @see #getTilesForROI(ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllObjectsForROI(ROI roi) {
+		return getObjectsOfClassForROI(null, roi);
+	}
+
+	/**
+	 * Get all the annotations covered by the specified ROI.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of annotation objects that are completely covered by the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @implSpec This does <i>not</i> return all annotations that intersect with the ROI,
+	 *           but rather only those that are <i>covered</i> by the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAnnotationsForROI(ROI roi) {
+		return getObjectsOfClassForROI(PathAnnotationObject.class, roi);
+	}
+
+	/**
+	 * Get all the tile objects with centroids falling within the specified ROI.
+	 * Tile objects are a special subclass of detections.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of tile objects with centroids contained within the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllDetectionsForROI(ROI)
+	 * @implSpec This does <i>not</i> return all tiles that intersect with the ROI,
+	 *           but rather only those whose centroid falls within the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getTilesForROI(ROI roi) {
+		return getObjectsOfClassForROI(PathTileObject.class, roi);
+	}
+
+	/**
+	 * Get all the cell objects with centroids falling within the specified ROI.
+	 * Cell objects are a special subclass of detections.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of cell objects with centroids contained within the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllDetectionsForROI(ROI)
+	 * @implSpec This does <i>not</i> return all cells that intersect with the ROI,
+	 *           but rather only those whose centroid falls within the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getCellsForROI(ROI roi) {
+		return getObjectsOfClassForROI(PathCellObject.class, roi);
+	}
+
+	/**
+	 * Get all the detection objects with centroids falling within the specified ROI -
+	 * including subclasses of detections, such as cells and tiles.
+	 * @param roi the ROI to use for filtering
+	 * @return a collection of detection objects with centroids contained within the specified ROI
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getCellsForROI(ROI)
+	 * @see #getTilesForROI(ROI)
+	 * @implSpec This does <i>not</i> return all cells that intersect with the ROI,
+	 *           but rather only those whose centroid falls within the ROI - consistent with the
+	 *           behavior of {@link #resolveHierarchy()}.
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllDetectionsForROI(ROI roi) {
+		return getObjectsOfClassForROI(PathDetectionObject.class, roi);
 	}
 	
 	/**
@@ -870,7 +855,7 @@ public final class PathObjectHierarchy implements Serializable {
 		// A change in getLocator() overcomes this - but watch out for future problems
 		return pathObjects.parallelStream().filter(child -> {
 			// Test plane first
-			if (!samePlane(roi, child.getROI(), false))
+			if (!sameZT(roi, child.getROI()))
 				return false;
 			
 			if (child.isDetection())
@@ -883,19 +868,15 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	
 	/**
-	 * Check if two ROIs fall in the same plane, optionally testing the channel as well.
+	 * Check if two ROIs fall in the same plane, i.e. have the same Z and T values.
 	 * @param roi1
 	 * @param roi2
-	 * @param checkChannel
 	 * @return
 	 */
-	static boolean samePlane(ROI roi1, ROI roi2, boolean checkChannel) {
-		if (checkChannel)
-			return roi1.getImagePlane().equals(roi2.getImagePlane());
-		else
-			return roi1.getZ() == roi2.getZ() && roi1.getT() == roi2.getT();
+	private static boolean sameZT(ROI roi1, ROI roi2) {
+		return roi1.getZ() == roi2.getZ() && roi1.getT() == roi2.getT();
 	}
-	
+
 	
 	/**
 	 * Get the objects overlapping or close to a specified region.
@@ -905,9 +886,111 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param region requested region overlapping the objects ROI
 	 * @param pathObjects optionally collection to which objects will be added
 	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @deprecated v0.6.0, use {@link #getAllObjectsForRegion(ImageRegion, Collection)} or its related methods instead.
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
+	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
 	 */
+	@Deprecated
 	public Collection<PathObject> getObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region, Collection<PathObject> pathObjects) {
 		return tileCache.getObjectsForRegion(cls, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the objects overlapping or close to a specified region, optionally adding to an existing collection.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @param pathObjects optional collection to which objects will be added
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllObjectsForRegion(ImageRegion)
+	 * @see PathObjectTools#filterByROICovers(ROI, Collection)
+	 * @see PathObjectTools#filterByROIIntersects(ROI, Collection) (ROI, Collection)
+	 * @see PathObjectTools#filterByROIContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllObjectsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
+		return tileCache.getObjectsForRegion(null, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllObjectsForROI(ROI)
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see PathObjectTools#filterByROICovers(ROI, Collection)
+	 * @see PathObjectTools#filterByROIIntersects(ROI, Collection) (ROI, Collection)
+	 * @see PathObjectTools#filterByROIContainsCentroid(ROI, Collection) (ROI, Collection) (ROI, Collection)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllObjectsForRegion(ImageRegion region) {
+		return getAllObjectsForRegion(region, null);
+	}
+
+	/**
+	 * Get all the annotation objects overlapping or close to a specified region, optionally adding to an existing collection.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @param pathObjects optional collection to which objects will be added
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAnnotationsForRegion(ImageRegion)
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see #getAnnotationsForROI(ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAnnotationsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
+		return tileCache.getObjectsForRegion(PathAnnotationObject.class, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the annotation objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
+	 * @see #getAllObjectsForRegion(ImageRegion)
+	 * @see #getAnnotationsForROI(ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAnnotationsForRegion(ImageRegion region) {
+		return getAnnotationsForRegion(region, null);
+	}
+
+	/**
+	 * Get all the detection objects overlapping or close to a specified region, optionally adding to an existing collection.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @param pathObjects optional collection to which objects will be added
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllDetectionsForRegion(ImageRegion)
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @see #getAllDetectionsForROI(ROI) (ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllDetectionsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
+		return tileCache.getObjectsForRegion(PathDetectionObject.class, region, pathObjects, true);
+	}
+
+	/**
+	 * Get all the detection objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 *
+	 * @param region requested region overlapping the objects ROI
+	 * @return collection containing identified objects (same as the input collection, if provided)
+	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
+	 * @see #getAllObjectsForRegion(ImageRegion)
+	 * @see #getAllDetectionsForROI(ROI) (ROI)
+	 * @since v0.6.0
+	 */
+	public Collection<PathObject> getAllDetectionsForRegion(ImageRegion region) {
+		return getAllDetectionsForRegion(region, null);
 	}
 	
 	/**
@@ -916,11 +999,50 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param cls
 	 * @param region
 	 * @return
+	 * @since v0.6.0
 	 */
 	public boolean hasObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region) {
 		return tileCache.hasObjectsForRegion(cls, region, true);
 	}
-	
+
+	/**
+	 * Returns true if the hierarchy contains any objects intersecting a specific region.
+	 * This is similar to {@link #getAllObjectsForRegion(ImageRegion, Collection)}, 
+	 * but does not return the objects themselves.
+	 * @param region
+	 * @return true if objects are found, false otherwise.
+	 * @see #getAllObjectsForRegion(ImageRegion, Collection)
+	 * @since v0.6.0
+	 */
+	public boolean hasObjectsForRegion(ImageRegion region) {
+		return tileCache.hasObjectsForRegion(null, region, true);
+	}
+
+	/**
+	 * Returns true if the hierarchy contains any annotation objects intersecting a specific region.
+	 * This is similar to {@link #getAnnotationsForRegion(ImageRegion, Collection)}, 
+	 * but does not return the objects themselves.
+	 * @param region
+	 * @return true if annotations are found, false otherwise.
+	 * @see #getAnnotationsForRegion(ImageRegion, Collection)
+	 * @since v0.6.0
+	 */
+	public boolean hasAnnotationsForRegion(ImageRegion region) {
+		return tileCache.hasObjectsForRegion(PathAnnotationObject.class, region, true);
+	}
+
+	/**
+	 * Returns true if the hierarchy contains any detection objects (including subclasses) intersecting a specific region.
+	 * This is similar to {@link #getAllDetectionsForRegion(ImageRegion, Collection)},
+	 * but does not return the objects themselves.
+	 * @param region
+	 * @return true if detections are found, false otherwise.
+	 * @see #getAllDetectionsForRegion(ImageRegion, Collection)
+	 * @since v0.6.0
+	 */
+	public boolean hasDetectionsForRegion(ImageRegion region) {
+		return tileCache.hasObjectsForRegion(PathDetectionObject.class, region, true);
+	}
 	
 	void fireObjectRemovedEvent(Object source, PathObject pathObject, PathObject previousParent) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectRemovedEvent(source, this, previousParent, pathObject);
@@ -1005,15 +1127,163 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	synchronized void fireEvent(PathObjectHierarchyEvent event) {
 		synchronized(listeners) {
+			if (!event.isChanging()) {
+				if (event.isStructureChangeEvent()) {
+					var changed = event.getChangedObjects();
+					var classes = changed.stream().map(PathObject::getClass).distinct().toList();
+					if (classes.isEmpty() || classes.contains(PathRootObject.class))
+						resetNeighbors();
+					else {
+						for (var cls : classes) {
+							resetNeighborsForClass(cls);
+						}
+					}
+				}
+			}
+
 			for (PathObjectHierarchyListener listener : listeners)
 				listener.hierarchyChanged(event);
 		}
 	}
-	
+
+	private synchronized void resetNeighborsForClass(Class<? extends PathObject> cls) {
+		subdivisionManager.clear();
+	}
+
+	private synchronized void resetNeighbors() {
+		subdivisionManager.clear();
+	}
+
+	/**
+	 * Find all neighbors of a PathObject, having the same class as the object (e.g. detection, cell, annotation).
+	 * This is based on centroids and Delaunay triangulation.
+	 * It also assumes 'square' pixels, and searches for neighbors only on the same 2D plane (z and t).
+	 * @param pathObject
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
+	 * @return
+	 * @since v0.6.0
+	 */
+	public synchronized List<PathObject> findAllNeighbors(PathObject pathObject) {
+		var subdivision = getSubdivision(pathObject);
+		return subdivision == null ? Collections.emptyList() : subdivision.getNeighbors(pathObject);
+	}
+
+	/**
+	 * Find the nearest neighbor of a PathObject, having the same class as the object (e.g. detection, cell, annotation).
+	 * This is based on centroids and Delaunay triangulation.
+	 * It also assumes 'square' pixels, and searches for neighbors only on the same 2D plane (z and t).
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
+	 * @param pathObject
+	 * @return
+	 * @since v0.6.0
+	 */
+	public synchronized PathObject findNearestNeighbor(PathObject pathObject) {
+		var subdivision = getSubdivision(pathObject);
+		return subdivision == null ? null : subdivision.getNearestNeighbor(pathObject);
+	}
+
+	/**
+	 * Get the subdivision containing a specific PathObject.
+	 * This is based on centroids and Delaunay triangulation in 2D.
+	 * It supports #findAllNeighbors(PathObject) and #findNearestNeighbor(PathObject); obtaining the subdivision
+	 * enables a wider range of spatial queries.
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
+	 * @param pathObject
+	 * @return
+	 * @since v0.6.0
+	 */
+	public synchronized DelaunayTools.Subdivision getSubdivision(PathObject pathObject) {
+		return subdivisionManager.getSubdivision(pathObject);
+	}
+
+	/**
+	 * Get a subdivision containing detections.
+	 * This does <i>not</i> include sub-classes such as 'cell' or 'tile'.
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
+	 * @param plane
+	 * @return
+	 * @since v0.6.0
+	 */
+	public synchronized DelaunayTools.Subdivision getDetectionSubdivision(ImagePlane plane) {
+		return subdivisionManager.getSubdivision(PathDetectionObject.class, plane);
+	}
+
+	/**
+	 * Get a subdivision containing cell objects.
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
+	 * @param plane
+	 * @return
+	 * @since v0.6.0
+	 */
+	public synchronized DelaunayTools.Subdivision getCellSubdivision(ImagePlane plane) {
+		return subdivisionManager.getSubdivision(PathCellObject.class, plane);
+	}
+
+	/**
+	 * Get a subdivision containing annotation objects.
+	 * <p>
+	 * This is an <i>experimental method</i> added in v0.6.0, subject to change.
+	 * @param plane
+	 * @return
+	 * @since v0.6.0
+	 */
+	public synchronized DelaunayTools.Subdivision getAnnotationSubdivision(ImagePlane plane) {
+		return subdivisionManager.getSubdivision(PathAnnotationObject.class, plane);
+	}
+
+
+	private DelaunayTools.Subdivision computeSubdivision(Class<? extends PathObject> cls) {
+		var pathObjects = tileCache.getObjectsForRegion(cls,
+				null, null, false);
+		return DelaunayTools.createFromCentroids(pathObjects, true);
+	}
+
 	
 	@Override
 	public String toString() {
 		return "Hierarchy: " + nObjects() + " objects";
+	}
+
+	private class SubdivisionManager {
+
+		private static final DelaunayTools.Subdivision EMPTY = DelaunayTools.createFromCentroids(Collections.emptyList(), true);
+
+		private static final Map<Class<? extends PathObject>,
+				Map<ImagePlane, DelaunayTools.Subdivision>> subdivisionMap = new ConcurrentHashMap<>();
+
+		synchronized DelaunayTools.Subdivision getSubdivision(PathObject pathObject) {
+			if (pathObject == null || !pathObject.hasROI()) {
+				return EMPTY;
+			}
+			return getSubdivision(pathObject.getClass(), pathObject.getROI().getImagePlane());
+		}
+
+		synchronized DelaunayTools.Subdivision getSubdivision(Class<? extends PathObject> cls, ImagePlane plane) {
+			var map = subdivisionMap.computeIfAbsent(cls, k -> new ConcurrentHashMap<>());
+			return map.computeIfAbsent(plane, k -> computeSubdivision(cls, plane));
+		}
+
+		private DelaunayTools.Subdivision computeSubdivision(Class<? extends PathObject> cls, ImagePlane plane) {
+			var pathObjects = tileCache.getObjectsForRegion(cls,
+					ImageRegion.createInstance(-Integer.MAX_VALUE/2, -Integer.MAX_VALUE/2,
+							Integer.MAX_VALUE, Integer.MAX_VALUE, plane.getZ(), plane.getT()),
+					null, false);
+			return DelaunayTools.createFromCentroids(pathObjects, true);
+		}
+
+		private synchronized void clear() {
+			subdivisionMap.clear();
+		}
+
+		private synchronized void clearClass(Class<? extends PathObject> cls) {
+			subdivisionMap.getOrDefault(cls, Collections.emptyMap()).clear();
+		}
+
 	}
 	
 }

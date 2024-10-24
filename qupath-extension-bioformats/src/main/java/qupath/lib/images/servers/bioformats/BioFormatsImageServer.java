@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -276,7 +276,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		// Create variables for metadata
 		int width = 0, height = 0, nChannels = 1, nZSlices = 1, nTimepoints = 1, tileWidth = 0, tileHeight = 0;
 		double pixelWidth = Double.NaN, pixelHeight = Double.NaN, zSpacing = Double.NaN, magnification = Double.NaN;
-		TimeUnit timeUnit = null;
 
 		// Zarr images can be opened by selecting the .zattrs or .zgroup file
 		// In that case, the parent directory contains the whole image
@@ -317,7 +316,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		try {
 			var path = GeneralTools.toPath(uri);
 			if (path != null) {
-				filePathOrUrl = path.toString();
+				// Use toRealPath to resolve any symbolic links
+				filePathOrUrl = path.toRealPath().toString();
 			}
 		} catch (Exception e) {
 			logger.error(e.getLocalizedMessage(), e);
@@ -489,8 +489,18 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			// The first resolution is the highest, i.e. the largest image
 			width = reader.getSizeX();
 			height = reader.getSizeY();
+
+			// When opening Zarr images, reader.getOptimalTileWidth/Height() returns by default
+			// the chunk width/height of the lowest resolution image. See
+			// https://github.com/qupath/qupath/pull/1645#issue-2533834067 for why it may be a problem.
+			// A workaround to get the chunk size of the full resolution image is to set the resolution
+			// to 0 with the Zarr reader
+			if (reader instanceof ZarrReader zarrReader) {
+				zarrReader.setResolution(0, true);
+			}
 			tileWidth = reader.getOptimalTileWidth();
 			tileHeight = reader.getOptimalTileHeight();
+
 			nChannels = reader.getSizeC();
 
 			// Make sure tile sizes are within range
@@ -665,7 +675,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 
 			// Try parsing pixel sizes in micrometers
-			double[] timepoints;
+			double[] timepoints = null;
+			TimeUnit timeUnit = null;
 			try {
 				Length xSize = meta.getPixelsPhysicalSizeX(series);
 				Length ySize = meta.getPixelsPhysicalSizeY(series);
@@ -686,25 +697,16 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				}
 				// TODO: Check the Bioformats TimeStamps
 				if (nTimepoints > 1) {
-					logger.warn("Time stamps read from Bioformats have not been fully verified & should not be relied upon");
-					// Here, we don't try to separate timings by z-slice & channel...
-					int lastTimepoint = -1;
-					int count = 0;
-					timepoints = new double[nTimepoints];
-					logger.debug("Plane count: " + meta.getPlaneCount(series));
-					for (int plane = 0; plane < meta.getPlaneCount(series); plane++) {
-						int timePoint = meta.getPlaneTheT(series, plane).getValue();
-						logger.debug("Checking " + timePoint);
-						if (timePoint != lastTimepoint) {
-							timepoints[count] = meta.getPlaneDeltaT(series, plane).value(UNITS.SECOND).doubleValue();
-							logger.debug(String.format("Timepoint %d: %.3f seconds", count, timepoints[count]));
-							lastTimepoint = timePoint;
-							count++;
+					logger.warn("Time stamps read from Bioformats have not been fully verified & should not be relied upon (values updated in v0.6.0)");
+					var timeIncrement = meta.getPixelsTimeIncrement(series);
+					if (timeIncrement != null) {
+						timepoints = new double[nTimepoints];
+						double timeIncrementSeconds = timeIncrement.value(UNITS.SECOND).doubleValue();
+						for (int t = 0; t < nTimepoints; t++) {
+							timepoints[t] = t * timeIncrementSeconds;
 						}
+						timeUnit = TimeUnit.SECONDS;
 					}
-					timeUnit = TimeUnit.SECONDS;
-				} else {
-					timepoints = new double[0];
 				}
 			} catch (Exception e) {
 				logger.error("Error parsing metadata", e);
@@ -798,7 +800,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			if (Double.isFinite(magnification))
 				builder = builder.magnification(magnification);
 
-			if (timeUnit != null)
+			if (timeUnit != null && timepoints != null)
 				builder = builder.timepoints(timeUnit, timepoints);
 
 			if (Double.isFinite(pixelWidth + pixelHeight))
@@ -878,6 +880,20 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			id += "[" + String.join(", ", args) + "]";
 		}
 		return id;
+	}
+
+	@Override
+	public void setMetadata(ImageServerMetadata metadata) {
+		var currentMetadata = getMetadata();
+		super.setMetadata(metadata);
+		if (currentMetadata != metadata && !currentMetadata.getLevels().equals(metadata.getLevels())) {
+			logger.warn("Can't set metadata to use incompatible pyramid levels - reverting to original pyramid levels");
+			super.setMetadata(
+					new ImageServerMetadata.Builder(metadata)
+					.levels(currentMetadata.getLevels())
+					.build()
+			);
+		}
 	}
 	
 	/**
@@ -1192,9 +1208,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			
 			IFormatReader imageReader;
-			if (new File(id).isDirectory()) {
+			if (new File(id).isDirectory() || id.toLowerCase().endsWith(".zarr") || id.toLowerCase().endsWith(".zarr/")) {
 				// Using new ImageReader() on a directory won't work
 				imageReader = new ZarrReader();
+				if (id.startsWith("https") && imageReader.getMetadataOptions() instanceof DynamicMetadataOptions zarrOptions) {
+					zarrOptions.set("omezarr.alt_store", id);
+				}
 			} else {
 				if (classList != null) {
 					imageReader = new ImageReader(classList);
@@ -1317,7 +1336,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			
 			
-			cleanables.add(cleaner.register(this, new ReaderCleaner(Integer.toString(cleanables.size()+1), imageReader)));
+			cleanables.add(cleaner.register(this,
+					new ReaderCleaner(Integer.toString(cleanables.size()+1), imageReader)));
 			
 			return imageReader;
 		}
@@ -1528,6 +1548,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 		@Override
 		public void close() throws Exception {
+			logger.debug("Closing ReaderManager");
 			isClosed = true;
 			if (task != null && !task.isDone())
 				task.cancel(true);
@@ -1535,19 +1556,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				try {
 					c.clean();
 				} catch (Exception e) {
-					logger.error("Exception during cleanup: " + e.getLocalizedMessage());
-					logger.debug(e.getLocalizedMessage(), e);
+					logger.error("Exception during cleanup: {}", e.getMessage(), e);
 				}
 			}
-			// Allow the queue to be garbage collected - clearing could result in a queue.poll()
-			// lingering far too long
-//			queue.clear();
 		}
+
 		
-		
-		
-		private static Cleaner cleaner = Cleaner.create();
-		private List<Cleanable> cleanables = new ArrayList<>();
+		private static final Cleaner cleaner = Cleaner.create();
+		private final List<Cleanable> cleanables = new ArrayList<>();
 
 
 		/**
@@ -1663,8 +1679,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 */
 		static class ReaderCleaner implements Runnable {
 
-			private String name;
-			private IFormatReader reader;
+			private final String name;
+			private final IFormatReader reader;
 
 			ReaderCleaner(String name, IFormatReader reader) {
 				this.name = name;
@@ -1673,11 +1689,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 			@Override
 			public void run() {
-				logger.debug("Cleaner " + name + " called for " + reader + " (" + reader.getCurrentFile() + ")");
+                logger.debug("Cleaner {} called for {} ({})", name, reader, reader.getCurrentFile());
 				try {
 					this.reader.close(false);
 				} catch (IOException e) {
-					logger.warn("Error when calling cleaner for " + name, e);
+                    logger.warn("Error when calling cleaner for {}", name, e);
 				}
 			}
 

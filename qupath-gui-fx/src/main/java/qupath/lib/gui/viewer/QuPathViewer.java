@@ -443,42 +443,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			context.strokeRect(0, 0, canvas.getWidth(), canvas.getHeight());
 		}
 		
-		
-		
-//		// Basic code for including the TMA core name
-//		if (getHierarchy().getTMAGrid() != null) {
-//			Point2D pSource = new Point2D.Double();
-//			Point2D pDest = new Point2D.Double();
-//			context.setTextAlign(TextAlignment.CENTER);
-//			context.setTextBaseline(VPos.CENTER);
-//			for (TMACoreObject core : getHierarchy().getTMAGrid().getTMACoreList()) {
-//				if (core.getName() == null)
-//					continue;
-//				double x = core.getROI().getBoundsX() + core.getROI().getBoundsWidth()/2;
-//				double y = core.getROI().getBoundsY() + core.getROI().getBoundsHeight()/2;
-//				pSource.setLocation(x, y);
-//				transform.transform(pSource, pDest);
-//				context.setFill(getSuggestedOverlayColorFX());
-//				context.setStroke(javafx.scene.paint.Color.WHITE);
-//				double xf = pDest.getX();
-//				double yf = pDest.getY();
-//				context.fillText(core.getName(), xf, yf, core.getROI().getBoundsWidth()/getDownsampleFactor()*0.5);
-//			}
-//		}
-		
-		
-//		if (getServer() == null) {
-//			context.setStroke(javafx.scene.paint.Color.GREENYELLOW);
-//			context.setLineWidth(borderLineWidth);
-//			context.strokeRect(0, 0, canvas.getWidth(), canvas.getHeight());
-//		}
-		
 		long time = System.currentTimeMillis();
 		logger.trace("Time since last repaint: {} ms", (time - lastPaint));
 		lastPaint = System.currentTimeMillis();
 		
 		imageDataChanging.set(false);
-//		repaintRequested = false;
 	}
 	
 	/**
@@ -740,12 +709,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		
 	}
 	
-//	protected void finalize() throws Throwable {
-//		System.err.println("Viewer being removed!");
-//		super.finalize();
-//	}
-	
-	
 	private ListenerManager manager = new ListenerManager();
 	private ListenerManager overlayOptionsManager = new ListenerManager();
 	
@@ -774,7 +737,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		
 		// We need a simple repaint for color changes & simple (thick) line changes
 		manager.attachListener(PathPrefs.annotationStrokeThicknessProperty(), repainter);
-		
+		manager.attachListener(PathPrefs.newDetectionRenderingProperty(), repainter);
+
 		gammaProperty.set(PathPrefs.viewerGammaProperty().get());
 		gammaProperty.bind(PathPrefs.viewerGammaProperty());
 		manager.attachListener(gammaProperty, repainterEntire);
@@ -789,7 +753,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		manager.attachListener(PathPrefs.colorSelectedObjectProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTileProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);
-		manager.attachListener(PathPrefs.colorTMAMissingProperty(), repainter);
+		manager.attachListener(PathPrefs.opacityTMAMissingProperty(), repainter);
 		manager.attachListener(PathPrefs.alwaysPaintSelectedObjectsProperty(), repainter);
 		manager.attachListener(PathPrefs.locationFontSizeProperty(), repainter);
 		manager.attachListener(PathPrefs.scalebarFontSizeProperty(), repainter);
@@ -1030,11 +994,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (activeTool != PathTools.MOVE && activeTool != null) {
 			if (spaceDown) {
 				// Temporarily switch to 'move' tool
-				if (activeTool != null)
-					activeTool.deregisterTool(this);
+				activeTool.deregisterTool(this);
 				activeTool = PathTools.MOVE;
-				if (activeTool != null)
-					activeTool.registerTool(this);
+				activeTool.registerTool(this);
 			} else {
 				// Reset tool, as required
 				PathTools.MOVE.deregisterTool(this);
@@ -2716,8 +2678,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		TMAGrid tmaGrid = getHierarchy().getTMAGrid();
 		if (tmaGrid != null) {
 			TMACoreObject core = PathObjectTools.getTMACoreForPixel(tmaGrid, xx, yy);
-			if (core != null && core.getName() != null)
-				prefix = "Core: " + core.getName() + "\n";
+			if (core != null) {
+				if (core.getName() != null)
+					prefix = "Core: " + core.getName();
+				else
+					prefix = "TMA core";
+				var pathClass = core.getPathClass();
+				if (pathClass != null)
+					prefix += " (" + pathClass + ")";
+				if (core.isMissing())
+					prefix += " (missing)";
+				prefix += "\n";
+			}
 		}
 
 		String s = null;
@@ -2868,12 +2840,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if ((this.xCenter == x && this.yCenter == y) || Double.isNaN(x + y))
 			return;
 		
-//		double dx = xCenter - x;
-//		double dy = yCenter - y;
-//		if (dx*dx + dy*dy > 1000) {
-//			System.err.println("Moving a lot");
-//		}
-
 		this.xCenter = x;
 		this.yCenter = y;
 		updateAffineTransform();
@@ -2971,9 +2937,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	@Override
 	public void tileAvailable(String serverPath, ImageRegion region, BufferedImage tile) {
-		//		if (serverPath == null || serverPath.equals(getServerPath()))
-//		System.out.println(region);
-		
+
 		if (!hasServer())
 			return;
 		
@@ -2981,8 +2945,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (serverPath == null || serverPath.contains(getServerPath()))
 			repaintImageRegion(AwtTools.getBounds(region), true);//!serverPath.startsWith(PathHierarchyImageServer.DEFAULT_PREFIX));
 		
-		//		imageUpdated = true;
-		//		repaint();
 	}
 
 

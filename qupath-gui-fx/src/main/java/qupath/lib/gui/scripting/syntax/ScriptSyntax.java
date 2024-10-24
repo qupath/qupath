@@ -37,7 +37,7 @@ public interface ScriptSyntax {
 	 * Get a set of the scripting languages supported by this syntax.
 	 * @return
 	 */
-	public Set<String> getLanguageNames();
+	Set<String> getLanguageNames();
 	
 	/**
 	 * String to insert when tab key pressed
@@ -107,7 +107,7 @@ public interface ScriptSyntax {
 	 * @param smartEditing whether smart editing is enabled
 	 * @return whether the source event should be consumed; if this returns false then backspace is handled elsewhere
 	 */
-	public default boolean handleBackspace(EditableText control, boolean smartEditing) {
+	default boolean handleBackspace(EditableText control, boolean smartEditing) {
 		return false;
 	}
 	
@@ -116,7 +116,7 @@ public interface ScriptSyntax {
 	 * @param control the text/code area
 	 * @param shiftDown
 	 */
-	public default void handleTabPress(EditableText control, boolean shiftDown) {
+	default void handleTabPress(EditableText control, boolean shiftDown) {
 		control.insertText(control.getCaretPosition(), getTabString());
 	}
 	
@@ -125,7 +125,7 @@ public interface ScriptSyntax {
 	 * @param text the text to beautify
 	 * @return beautified text
 	 */
-	public default String beautify(String text) {
+	default String beautify(String text) {
 		return text;
 	}
 	
@@ -133,7 +133,7 @@ public interface ScriptSyntax {
 	 * Returns {@code true} if {@link #beautify(String)} is capable of beautifying the text, {@code false} otherwise.
 	 * @return
 	 */
-	public default boolean canBeautify() {
+	default boolean canBeautify() {
 		return false;
 	}
 	
@@ -142,7 +142,7 @@ public interface ScriptSyntax {
 	 * @param text the text to compress
 	 * @return beautified text
 	 */
-	public default String compress(String text) {
+	default String compress(String text) {
 		return text;
 	}
 	
@@ -150,7 +150,7 @@ public interface ScriptSyntax {
 	 * Returns {@code true} if {@link #compress(String)} is capable of compressing the text, {@code false} otherwise.
 	 * @return
 	 */
-	public default boolean canCompress() {
+	default boolean canCompress() {
 		return false;
 	}
 	

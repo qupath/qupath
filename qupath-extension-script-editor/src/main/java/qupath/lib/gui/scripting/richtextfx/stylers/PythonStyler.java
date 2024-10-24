@@ -96,7 +96,7 @@ public class PythonStyler implements ScriptStyler {
 	
 	@Override
 	public Set<String> getLanguageNames() {
-		return Set.of("python", "jython", "cpython", "python py4j");
+		return Set.of("python", "jython", "cpython", "python py4j", "graalpy");
 	}
 	
 	@Override

@@ -170,7 +170,6 @@ public class TestImageOps {
 					var idxStd = matStdDev.createIndexer();
 					var matOrig = new Mat();
 					for (int i = 0; i < mat.channels(); i++) {
-//						System.err.println("Channel " + i + ", radius " + radius);
 						// Extract channels
 						opencv_core.extractChannel(mat, matOrig, i);
 						// Extract first filtered location
@@ -182,9 +181,6 @@ public class TestImageOps {
 						opencv_core.meanStdDev(matOrig, matLocalMean, matLocalStd, kernel);
 						double localStd = OpenCVTools.extractDoubles(matLocalStd)[0];
 						double localMean = OpenCVTools.extractDoubles(matLocalMean)[0];
-//						OpenCVTools.matToImagePlus(""+radius, mat, matMean, matStdDev).show();
-//						System.err.println("Mean: " + localMean + ": " + mean);
-//						System.err.println("Std.dev: " + localStd + ": " + std);
 						assertEquals(localStd, std, eps);
 						assertEquals(localMean, mean, eps);
 					}
@@ -192,7 +188,23 @@ public class TestImageOps {
 			}
 		}
 	}
-	
+
+	@Test
+	public void testReplaceValues() {
+		try (var scope = new PointerScope()) {
+			float[] vals = new float[]{1f, 2f, 3f, 4f};
+			var mat = new Mat(vals);
+
+			var matSame = ImageOps.Core.replace(0, 10).apply(mat.clone());
+			assertArrayEquals(vals, OpenCVTools.extractFloats(matSame));
+
+			var matOneToZero = ImageOps.Core.replace(1, 0).apply(mat.clone());
+			assertArrayEquals(new float[]{0f, 2f, 3f, 4f}, OpenCVTools.extractFloats(matOneToZero));
+
+			var matTwoToOne = ImageOps.Core.replace(2, 1).apply(mat.clone());
+			assertArrayEquals(new float[]{1f, 1f, 3f, 4f}, OpenCVTools.extractFloats(matTwoToOne));
+		}
+	}
 	
 	
 	@Test
@@ -236,9 +248,6 @@ public class TestImageOps {
 						
 						compareValues(m1, ImageOps.Core.clip(0.25, 2.5), Math.min(2.5, Math.max(0.25, v1)));
 						compareValues(m2, ImageOps.Core.clip(0.25, 2.5), Math.min(2.5, Math.max(0.25, v2)));
-						
-	//					System.err.println("v1: " + v1);
-	//					System.err.println("v2: " + v2);
 						
 						compareValues(m1, ImageOps.Core.exp(), Math.exp(v1));
 						compareValues(m2, ImageOps.Core.exp(), Math.exp(v2));

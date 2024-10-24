@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -202,16 +203,6 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 			if (pathObject.isAnnotation() || pathObject.isTMACore()) {
 				geometryMap.put(roi, geometry);
 			}
-////			long startTime = System.currentTimeMillis();
-//			if (!geometry.isValid()) {
-//				int nVertices = geometry.getNumPoints();
-//				if (geometry.getNumPoints() < 100)
-//					logger.warn("{} is not a valid geometry! Actual geometry {}", pathObject, geometry);
-//				else
-//					logger.warn("{} is not a valid geometry! Actual geometry {} ({} vertices)", pathObject, geometry.getGeometryType(), nVertices);
-//			}
-////			long endTime = System.currentTimeMillis();
-////			System.err.println("Testing " + (endTime - startTime) + " ms for " + geometry);
 		}
 		return geometry;
 	}
@@ -220,13 +211,6 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		ROI roi = PathObjectTools.getROI(pathObject, true);
 		// It's faster not to rely on a synchronized map
 		return new Coordinate(roi.getCentroidX(), roi.getCentroidY());
-//		Coordinate coordinate = centroidMap.get(roi);
-//		if (coordinate == null) {
-//			coordinate = new Coordinate(roi.getCentroidX(), roi.getCentroidY());
-////			coordinate = getGeometry(pathObject).getCentroid().getCoordinate();
-//			centroidMap.put(roi, coordinate);
-//		}
-//		return coordinate;
 	}
 	
 	PointOnGeometryLocator getLocator(ROI roi, boolean addToCache) {
@@ -243,10 +227,6 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		}
 		return locator;
 	}
-	
-//	public boolean covers(PathObject possibleParent, PathObject possibleChild) {
-//		return getGeometry(possibleParent).covers(getGeometry(possibleChild));
-//	}
 	
 	private Map<Geometry, PreparedGeometry> preparedGeometryMap = new WeakHashMap<>();
 	
@@ -281,17 +261,6 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	}
 	
 	boolean covers(Geometry parent, Geometry child) {
-//		if (!parent.getEnvelopeInternal().covers(child.getEnvelopeInternal()))
-//			return false;
-//		if (parent instanceof Polygon)
-//			return parent.covers(child);
-//		if (parent instanceof MultiPolygon) {
-//			for (int i = 0; i < parent.getNumGeometries(); i++) {
-//				if (covers(parent.getGeometryN(i), child))
-//					return true;
-//			}
-//			return false;
-//		}
 		return covers(getPreparedGeometry(parent), child);
 	}
 	
@@ -373,7 +342,6 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 			} else {
 				logger.debug("No envelope found for {}", pathObject);					
 			}
-//				System.err.println("After: " + mapObjects.query(MAX_ENVELOPE).size());
 			// Remove the children
 			if (removeChildren) {
 				for (PathObject child : pathObject.getChildObjectsAsArray())
@@ -387,16 +355,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 			constructCache(null);
 		}
 	}
-	
-	
-//	/**
-//	 * Add a PathObject to the cache.  Child objects are not added.
-//	 * @param pathObject
-//	 */
-//	private void addToCache(PathObject pathObject) {
-//		addToCache(pathObject, false);
-//	}
-	
+
 	
 	/**
 	 * Get all the PathObjects stored in this cache of a specified type and having ROIs with bounds overlapping a specified region.
@@ -427,7 +386,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		try {
 			// Iterate through all the classes, getting objects of the specified class or subclasses thereof
 			for (Entry<Class<? extends PathObject>, SpatialIndex> entry : map.entrySet()) {
-				if (cls == null || (includeSubclasses && cls.isAssignableFrom(entry.getKey())) || cls.isInstance(entry.getKey())) {
+				if (cls == null || (includeSubclasses && cls.isAssignableFrom(entry.getKey())) || Objects.equals(cls, entry.getKey())) {
 					if (entry.getValue() != null) {
 						var list = entry.getValue().query(envelope);
 						if (list.isEmpty())
@@ -447,10 +406,8 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 							}
 						}
 					}
-//						pathObjects = entry.getValue().getObjectsForRegion(region, pathObjects);
 				}
 			}
-	//		logger.info("Objects for " + region + ": " + (pathObjects == null ? 0 : pathObjects.size()));
 			if (pathObjects == null)
 				return Collections.emptySet();
 			return pathObjects;
@@ -470,7 +427,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		try {
 			// Iterate through all the classes, getting objects of the specified class or subclasses thereof
 			for (Entry<Class<? extends PathObject>, SpatialIndex> entry : map.entrySet()) {
-				if (cls == null || cls.isInstance(entry.getKey()) || (includeSubclasses && cls.isAssignableFrom(entry.getKey()))) {
+				if (cls == null || Objects.equals(cls, entry.getKey()) || (includeSubclasses && cls.isAssignableFrom(entry.getKey()))) {
 					if (entry.getValue() != null) {
 						var list = (List<PathObject>)entry.getValue().query(envelope);
 						for (var pathObject : list) {
@@ -498,37 +455,6 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 			r.unlock();
 		}
 	}
-	
-//	public synchronized Collection<PathObject> getObjectsForRegion(Class<? extends PathObject> cls, Rectangle region, Collection<PathObject> pathObjects) {
-//		ensureCacheConstructed();
-//		
-//		if (pathObjects == null)
-//			pathObjects = new HashSet<>();
-//		
-//		// Iterate through all the classes, getting objects of the specified class or subclasses thereof
-//		if (cls == null) {
-//			for (Class<? extends PathObject> tempClass : map.keySet())
-//				getObjectsForRegion(tempClass, region, pathObjects);
-//			return pathObjects;
-//		}
-//		
-//		// Extract the map for the type
-//		PathObjectTileMap mapObjects = map.get(cls);
-//		if (mapObjects == null)
-//			return pathObjects;
-//		
-//		// Get the objects
-//		return mapObjects.getObjectsForRegion(region, pathObjects);
-//	}
-	
-	
-
-//	@Override
-//	public void pathObjectChanged(PathObjectHierarchy pathObjectHierarchy, PathObject pathObject) {
-//		// Remove, then re-add the object - ignoring children (which shouldn't be changed, as no structural change is associated with this event)
-//		removeFromCache(pathObject, false);
-//		addToCache(pathObject, false);
-//	}
 
 
 	@Override
@@ -543,19 +469,12 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 			} else if (singleChange && event.getEventType() == HierarchyEventType.REMOVED) {
 				removeFromCache(singleObject, false);
 			} else if (event.getEventType() == HierarchyEventType.OTHER_STRUCTURE_CHANGE || event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
-//				if (singleChange && !singleObject.isRootObject()) {
-//					removeFromCache(singleObject, false);
-//					addToCache(singleObject, false, singleObject.getClass());					
-//				} else
-//				System.err.println(event);
 				if (!event.isChanging())
 					resetCache();
 			}
 		} finally {
 			w.unlock();
 		}
-//		else if (event.getEventType() == HierarchyEventType.OBJECT_CHANGE)
-//			resetCache(); // TODO: Check if full change is necessary for object change events			
 	}
 	
 }

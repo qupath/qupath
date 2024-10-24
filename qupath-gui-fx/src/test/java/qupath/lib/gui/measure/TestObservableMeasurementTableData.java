@@ -31,6 +31,7 @@ import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -60,7 +61,9 @@ public class TestObservableMeasurementTableData {
 		// See https://github.com/locationtech/jts/issues/571
 		for (int counter = 0; counter < 50; counter++) {
 		
-			ImageData<BufferedImage> imageData = new ImageData<>(null);
+			ImageData<BufferedImage> imageData = new ImageData<>(
+					new WrappedBufferedImageServer("Dummy",
+							new BufferedImage(50, 50, BufferedImage.TYPE_INT_RGB)));
 			
 			PathClass tumorClass = PathClass.StandardPathClasses.TUMOR;
 			PathClass stromaClass = PathClass.StandardPathClasses.STROMA;

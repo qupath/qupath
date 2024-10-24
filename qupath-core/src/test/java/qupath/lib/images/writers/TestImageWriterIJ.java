@@ -60,16 +60,14 @@ public class TestImageWriterIJ {
 			writer.writeImage(img, stream);
 			bytes = stream.toByteArray();
 		} catch (IOException e) {
-			e.printStackTrace();
-			fail("Error writing to byte array: " + e.getLocalizedMessage());
+			fail("Error writing to byte array: " + e.getLocalizedMessage(), e);
 			return;
 		}
 		try (var stream = new ByteArrayInputStream(bytes)) {
 			var imgRead = ImageIO.read(stream);
 			compareImages(img, imgRead);
 		} catch (IOException e) {
-			e.printStackTrace();
-			fail("Error reading from byte array: " + e.getLocalizedMessage());
+			fail("Error reading from byte array: " + e.getLocalizedMessage(), e);
 			return;
 		}
 	}

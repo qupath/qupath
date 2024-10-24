@@ -78,6 +78,10 @@ application {
     applicationDefaultJvmArgs << '--add-opens'
     applicationDefaultJvmArgs << 'javafx.graphics/com.sun.javafx.css=ALL-UNNAMED'
 
+    // Necessary when using ./gradlew run to support project metadata autocomplete
+    // See https://github.com/controlsfx/controlsfx/issues/1505
+    applicationDefaultJvmArgs << '--add-opens'
+    applicationDefaultJvmArgs << 'javafx.base/com.sun.javafx.event=ALL-UNNAMED'
 }
 
 /**
@@ -104,6 +108,11 @@ def includedProjects = rootProject.subprojects.findAll { !excludedProjects.conta
 dependencies {
     implementation includedProjects
     implementation libs.picocli
+
+    implementation(extraLibs.bundles.extensions) {
+        // We don't want to bring in snapshot versions
+        exclude group: 'io.github.qupath'
+    }
 }
 
 
@@ -114,10 +123,14 @@ tasks.register("assembleJavadocs", Copy) {
     group = "documentation"
     description = "Copies the Javadoc jars to a directory for access within QuPath"
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    dependsOn rootProject.subprojects.tasks.collect {it.withType(Jar)}
+
+    dependsOn rootProject.subprojects.collect {it.tasks.withType(Jar)}
 
     def subProjectsJavadoc = rootProject.subprojects
-            .collect {it.layout.buildDirectory.dir("libs").get().getAsFileTree().getFiles().findAll {it.name.contains("javadoc")}}
+            .collect {it.layout.buildDirectory.dir("libs").get()
+                    .getAsFileTree()
+                    .getFiles()
+                    .findAll {it.name.contains("javadoc")}}
             .findAll {it.size() == 1}
             .collect {it.toList().get(0)}
     def dependenciesJavadoc = dependencies.createArtifactResolutionQuery()
@@ -153,6 +166,7 @@ tasks.register("assembleJavadocs", Copy) {
             }
     into layout.buildDirectory.dir("javadocs")
 }
+tasks.distTar.dependsOn("assembleJavadocs")
 tasks.installDist.dependsOn("assembleJavadocs")
 
 /**
@@ -184,6 +198,9 @@ tasks.startScripts.dependsOn("generateLicenseReport")
 distributions {
     main {
         contents {
+            // We need a DuplicatesStrategy if settings.gradle uses includeFlat for extra extensions
+            // (which require QuPath as a dependency)
+            duplicatesStrategy DuplicatesStrategy.EXCLUDE
             into('lib') {
                 from project.rootDir
                 include 'CHANGELOG.md'
@@ -210,7 +227,9 @@ distributions {
             }
             // Copy javadocs
             into('lib/docs') {
-                from layout.buildDirectory.dir("javadocs")
+                from javadocJar
+                from this.project.layout.buildDirectory.dir("javadocs").get()
+                include '*.jar'
             }
         }
     }
@@ -233,7 +252,7 @@ runtime {
             '--no-header-files',
             '--no-man-pages',
             '--strip-native-commands',
-            '--compress', '2',
+            '--compress', 'zip-6', // jlink option; can be zip-0 (no compression) to zip-9; default is zip-6
             '--bind-services'
     ]
     modules = [

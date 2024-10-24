@@ -959,8 +959,6 @@ public class ColorTransformer {
 	 * @see qupath.lib.common.ColorTools
 	 */
 	public static void transformRGB(int[] buf, int[] bufOutput, ColorTransformer.ColorTransformMethod method, float offset, float scale, boolean useColorLUT) {
-		//		System.out.println("Scale and offset: " + scale + ", " + offset);
-		//		int[] buf = img.getRGB(0, 0, img.getWidth(), img.getHeight(), buf, 0, img.getWidth());
 		ColorModel cm = useColorLUT ? COLOR_MODEL_MAP.get(method) : null;
 		switch (method) {
 		case Original:
@@ -974,8 +972,6 @@ public class ColorTransformer {
 				int r = ColorTools.do8BitRangeCheck((ColorTools.red(rgb) - offset) * scale);
 				int g = ColorTools.do8BitRangeCheck((ColorTools.green(rgb) - offset) * scale);
 				int b = ColorTools.do8BitRangeCheck((ColorTools.blue(rgb) - offset) * scale);
-				//				if (r != g)
-				//					System.out.println(r + ", " + g + ", " + b);
 				bufOutput[i] = ((r<<16) + (g<<8) + b) & ~ColorTools.MASK_ALPHA | (buf[i] & ColorTools.MASK_ALPHA);
 			}
 			return;
@@ -1127,7 +1123,7 @@ public class ColorTransformer {
 	 */
 	private static double pow10Approx(double x) {
 		int ind = (int)(x / POW_10_INC);
-		if (ind < 0 || ind > POW_10_TABLE.length)
+		if (ind < 0 || ind >= POW_10_TABLE.length)
 			return Math.exp(-LOG_10 * x);
 		return POW_10_TABLE[ind];
 	}
@@ -1144,13 +1140,20 @@ public class ColorTransformer {
 	 * @param stainsOutput
 	 * @param discardResidual
 	 * @param bufOutput
-	 * @return
+	 * @return output RGB buffer
 	 */
 	public static int[] colorDeconvolveReconvolveRGBArray(int[] buf, ColorDeconvolutionStains stainsInput, ColorDeconvolutionStains stainsOutput, boolean discardResidual, int[] bufOutput) {
-		return colorDeconvolveReconvolveRGBArray(buf, stainsInput, stainsOutput, discardResidual, bufOutput, 1f, 0f);
+		double[] scales = null;
+		if (discardResidual) {
+			scales = new double[3];
+			for (int i = 0; i < 3; i++) {
+				scales[i] = stainsInput.getStain(i + 1).isResidual() ? 0.0 : 1.0;
+			}
+		}
+		return colorDeconvolveReconvolveRGBArray(buf, stainsInput, stainsOutput, bufOutput, scales);
 	}
 	
-	
+
 	/**
 	 * Deconvolve RGB array with one set of stain vectors, and reconvolve with another - with optional scaling.
 	 * <p>
@@ -1158,21 +1161,35 @@ public class ColorTransformer {
 	 * Otherwise, if bufOutput == null, a new output array will be created.
 	 * <p>
 	 * Note: If {@code stainsInput} is null, the returned array will be filled with zeros.
-	 * 
-	 * @param buf
-	 * @param stainsInput
-	 * @param stainsOutput
-	 * @param discardResidual
-	 * @param bufOutput
-	 * @param scale
-	 * @param offset
-	 * @return
+	 *
+	 * @param buf buffer of input RGB values
+	 * @param stainsInput stain vectors for deconvolution
+	 * @param stainsOutput stain vectors for reconvolution
+	 * @param bufOutput output RGB buffer
+	 * @param stainScales optional array of scale values for each stain (e.g. [1, 2, 0] to double the second stain and
+	 *                    discard the third)
+	 * @return output RGB buffer
+	 *
+	 * @since v0.6.0
+	 * @implNote this method changed in v0.6.0 to support scaling of the stains, and to retain the alpha value.
 	 */
-	public static int[] colorDeconvolveReconvolveRGBArray(int[] buf, ColorDeconvolutionStains stainsInput, ColorDeconvolutionStains stainsOutput, boolean discardResidual, int[] bufOutput, float scale, float offset) {
+	public static int[] colorDeconvolveReconvolveRGBArray(int[] buf,
+														  ColorDeconvolutionStains stainsInput,
+														  ColorDeconvolutionStains stainsOutput,
+														  int[] bufOutput,
+														  double[] stainScales) {
 		if (bufOutput == null || bufOutput.length < buf.length)
 			bufOutput = new int[buf.length];
 		else if (stainsInput == null)
 			Arrays.fill(bufOutput, 0);
+
+		// Rescale the stains if needed
+		double[] scales = null;
+		if (stainScales != null) {
+			scales = new double[3];
+			Arrays.fill(scales, 1.0);
+			System.arraycopy(stainScales, 0, scales, 0, Math.min(scales.length, stainScales.length));
+		}
 		
 		// Handle case where we have no stains
 		if (stainsInput == null)
@@ -1190,11 +1207,7 @@ public class ColorTransformer {
 		double s20 = matInv[2][0];
 		double s21 = matInv[2][1];
 		double s22 = matInv[2][2];
-		// If the third stain isn't actually a residual, we shouldn't discard it
-		discardResidual = discardResidual && stainsInput.getStain(3).isResidual();
-		
-//		discardResidual = false;
-		
+
 		// Extract output values
 		double d00 = stainsOutput.getStain(1).getRed();
 		double d01 = stainsOutput.getStain(1).getGreen();
@@ -1215,71 +1228,40 @@ public class ColorTransformer {
 		double[] od_lut_red = ColorDeconvolutionHelper.makeODLUT(stainsInput.getMaxRed());
 		double[] od_lut_green = ColorDeconvolutionHelper.makeODLUT(stainsInput.getMaxGreen());
 		double[] od_lut_blue = ColorDeconvolutionHelper.makeODLUT(stainsInput.getMaxBlue());
-		
+
 		for (int i = 0; i < buf.length; i++) {
 			int c = buf[i];
+
+			// Retain alpha
+			int a = ColorTools.alpha(c);
+
 			// Extract RGB values & convert to optical densities using a lookup table
 			double r = od_lut_red[(c & 0xff0000) >> 16];
 			double g = od_lut_green[(c & 0xff00) >> 8];
 			double b = od_lut_blue[c & 0xff];
-			
-			// Apply deconvolution
-			double stain1 = r*s00 + g*s10 + b*s20;
-			double stain2 = r*s01 + g*s11 + b*s21;
-//			double stain3 = r*s02 + g*s12 + b*s22;
-			double stain3 = discardResidual ? 0 : r*s02 + g*s12 + b*s22;
-			
-//			// Apply reconvolution & convert back to 8-bit (or thereabouts)
-//			r = Math.pow(10, -stain1 * d00 - stain2 * d10 - stain3 * d20) * maxRed;
-//			g = Math.pow(10, -stain1 * d01 - stain2 * d11 - stain3 * d21) * maxGreen;
-//			b = Math.pow(10, -stain1 * d02 - stain2 * d12 - stain3 * d22) * maxBlue;
-			// This implementation is considerably faster than Math.pow... but still not very fast
-//			if (discardResidual) {
-//				r = Math.exp(-log10 * (stain1 * d00 + stain2 * d10)) * maxRed;
-//				g = Math.exp(-log10 * (stain1 * d01 + stain2 * d11)) * maxGreen;
-//				b = Math.exp(-log10 * (stain1 * d02 + stain2 * d12)) * maxBlue;
-//			} else {
-//				r = Math.exp(-log10 * (stain1 * d00 + stain2 * d10 + stain3 * d20)) * maxRed;
-//				g = Math.exp(-log10 * (stain1 * d01 + stain2 * d11 + stain3 * d21)) * maxGreen;
-//				b = Math.exp(-log10 * (stain1 * d02 + stain2 * d12 + stain3 * d22)) * maxBlue;
-//			}
 
-			if (discardResidual) {
-				r = pow10Approx(stain1 * d00 + stain2 * d10) * maxRed;
-				g = pow10Approx(stain1 * d01 + stain2 * d11) * maxGreen;
-				b = pow10Approx(stain1 * d02 + stain2 * d12) * maxBlue;
-			} else {
-				r = pow10Approx(stain1 * d00 + stain2 * d10 + stain3 * d20) * maxRed;
-				g = pow10Approx(stain1 * d01 + stain2 * d11 + stain3 * d21) * maxGreen;
-				b = pow10Approx(stain1 * d02 + stain2 * d12 + stain3 * d22) * maxBlue;
+			// Apply deconvolution
+			double stain1 = r * s00 + g * s10 + b * s20;
+			double stain2 = r * s01 + g * s11 + b * s21;
+			double stain3 = r * s02 + g * s12 + b * s22;
+
+			// Scale the stains, if required
+			if (scales != null) {
+				stain1 *= scales[0];
+				stain2 *= scales[1];
+				stain3 *= scales[2];
 			}
 
-
-//			// This is pretty odd, but about the same speed as the exp method
-//			r = Arrays.binarySearch(od_lut_red2, (stain1 * d00 + stain2 * d10 + stain3 * d20));
-//			r = r < 0 ? 256 + r : 255 - r;
-//			g = Arrays.binarySearch(od_lut_green2, (stain1 * d01 + stain2 * d11 + stain3 * d21));
-//			g = g < 0 ? 256 + g : 255 - g;
-//			b = Arrays.binarySearch(od_lut_blue2, (stain1 * d02 + stain2 * d12 + stain3 * d22));
-//			b = b < 0 ? 256 + b : 255 - b;
-			
-////			// This is pretty odd, but about the same speed as the exp method
-//			r = getIndex(od_lut_red, (stain1 * d00 + stain2 * d10 + stain3 * d20));
-//			g = getIndex(od_lut_green, (stain1 * d01 + stain2 * d11 + stain3 * d21));
-//			b = getIndex(od_lut_blue, (stain1 * d02 + stain2 * d12 + stain3 * d22));
-			
-//			// Confirming, it really is the exp that makes it slow...
-//			r = 255 - log10 * (stain1 * d00 + stain2 * d10 + stain3 * d20) * 50;
-//			g = 255 - log10 * (stain1 * d01 + stain2 * d11 + stain3 * d21) * 50;
-//			b = 255 - log10 * (stain1 * d02 + stain2 * d12 + stain3 * d22) * 50;
-			
+			// Perform the rescaling
+			r = pow10Approx(stain1 * d00 + stain2 * d10 + stain3 * d20) * maxRed;
+			g = pow10Approx(stain1 * d01 + stain2 * d11 + stain3 * d21) * maxGreen;
+			b = pow10Approx(stain1 * d02 + stain2 * d12 + stain3 * d22) * maxBlue;
 
 			// Store the result
-			bufOutput[i] = (ColorTools.do8BitRangeCheck((r + offset) * scale) << 16) +
-						(ColorTools.do8BitRangeCheck((g + offset) * scale) << 8) +
-						ColorTools.do8BitRangeCheck((b + offset) * scale);
-			
-//			bufOutput[i] = ColorTransformer.makeRGBwithRangeCheck((float)(stain2)*100, null);
+			bufOutput[i] = ColorTools.packARGB(a,
+					ColorTools.do8BitRangeCheck(r),
+					ColorTools.do8BitRangeCheck(g),
+					ColorTools.do8BitRangeCheck(b));
 		}
 		return bufOutput;
 	}

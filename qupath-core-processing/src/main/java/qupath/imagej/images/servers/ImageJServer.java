@@ -143,19 +143,15 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 		double xMicrons = IJTools.tryToParseMicrons(cal.pixelWidth, cal.getXUnit());
 		double yMicrons = IJTools.tryToParseMicrons(cal.pixelHeight, cal.getYUnit());
 		double zMicrons = IJTools.tryToParseMicrons(cal.pixelDepth, cal.getZUnit());
-		TimeUnit timeUnit = null;
+		TimeUnit timeUnit = parseTimeUnit(cal.getTimeUnit());
 		double[] timepoints = null;
-		for (TimeUnit temp : TimeUnit.values()) {
-			if (temp.toString().toLowerCase().equals(cal.getTimeUnit())) {
-				timeUnit = temp;
-				timepoints = new double[imp.getNFrames()];
-				for (int i = 0; i < timepoints.length; i++) {
-					timepoints[i] = i * cal.frameInterval;
-				}
-				break;
+		if (timeUnit != null) {
+			timepoints = new double[imp.getNFrames()];
+			for (int i = 0; i < timepoints.length; i++) {
+				timepoints[i] = i * cal.frameInterval;
 			}
 		}
-		
+
 		PixelType pixelType;
 		boolean isRGB = false;
 		switch (imp.getType()) {
@@ -252,7 +248,58 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 //		if ((!isRGB() && nChannels() > 1) || getBitsPerPixel() == 32)
 //			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
 	}
-	
+
+	/**
+	 * Attempt to parse a time unit from an ImageJ calibration string.
+	 * @param unit
+	 * @return a time unit if possible, or null if none could be found
+	 */
+	private static TimeUnit parseTimeUnit(String unit) {
+		if (unit == null || unit.isBlank())
+			return null;
+		unit = unit.toLowerCase().strip();
+		switch (unit) {
+		case "s":
+		case "sec":
+		case "second":
+		case "seconds":
+			return TimeUnit.SECONDS;
+		case "ms":
+		case "msec":
+		case "millisecond":
+		case "milliseconds":
+			return TimeUnit.MILLISECONDS;
+		case "us":
+		case "usec":
+		case "microsecond":
+		case "microseconds":
+			return TimeUnit.MICROSECONDS;
+		case "ns":
+		case "nsec":
+		case "nanosecond":
+		case "nanoseconds":
+			return TimeUnit.NANOSECONDS;
+		case "min":
+		case "minute":
+		case "minutes":
+			return TimeUnit.MINUTES;
+		case "h":
+		case "hr":
+		case "hour":
+		case "hours":
+			return TimeUnit.HOURS;
+		case "d":
+		case "day":
+		case "days":
+			return TimeUnit.DAYS;
+		}
+		for (TimeUnit timeUnit : TimeUnit.values()) {
+			if (timeUnit.toString().equalsIgnoreCase(unit))
+				return timeUnit;
+		}
+		return null;
+	}
+
 	
 	@Override
 	public Collection<PathObject> readPathObjects() {
@@ -305,8 +352,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 	
 	@Override
 	public BufferedImage readRegion(RegionRequest request) {
-		
-//		long startTime = System.nanoTime();
 		
 		int z = request.getZ()+1;
 		int t = request.getT()+1;
@@ -389,9 +434,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 		
 		if (colorModel == null)
 			colorModel = img.getColorModel();
-		
-//		long endTime = System.nanoTime();
-//		System.err.println("Duration: " + GeneralTools.formatNumber((endTime - startTime)/1000000.0, 1));
 
 		return img;
 	}

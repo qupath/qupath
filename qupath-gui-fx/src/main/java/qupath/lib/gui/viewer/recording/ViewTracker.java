@@ -234,7 +234,7 @@ public class ViewTracker implements QuPathViewerListener {
 
 	private void initializeRecording() {
 		var imageData = viewer.getImageData();
-		hasZAndT = imageData.getServer().getMetadata().getSizeZ() != 1 || imageData.getServer().getMetadata().getSizeT() != 1;
+		hasZAndT = imageData.getServerMetadata().getSizeZ() != 1 || imageData.getServerMetadata().getSizeT() != 1;
 		frames.clear();
 		startTime = System.currentTimeMillis();
 		lastFrame = null;

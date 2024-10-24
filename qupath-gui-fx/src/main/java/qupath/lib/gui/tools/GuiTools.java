@@ -629,10 +629,7 @@ public class GuiTools {
 	public static String getMagnificationString(final QuPathViewer viewer) {
 		if (viewer == null || !viewer.hasServer())
 			return "";
-//		if (Double.isFinite(viewer.getServer().getMetadata().getMagnification()))
-			return String.format("%.2fx", viewer.getMagnification());
-//		else
-//			return String.format("Scale %.2f", viewer.getDownsampleFactor());
+		return String.format("%.2fx", viewer.getMagnification());
 	}
 
 	/**
@@ -1239,7 +1236,7 @@ public class GuiTools {
 		Menu menuRecent = MenuTools.createMenu(menuTitle);
 
 		EventHandler<Event> validationHandler = e -> {
-			menuRecent.getItems().clear();
+			List<MenuItem> items = new ArrayList<>();
 			for (URI uri : recentItems) {
 				if (uri == null)
 					continue;
@@ -1247,8 +1244,9 @@ public class GuiTools {
 				name = ".../" + name;
 				MenuItem item = new MenuItem(name);
 				item.setOnAction(event -> consumer.accept(uri));
-				menuRecent.getItems().add(item);
+				items.add(item);
 			}
+			menuRecent.getItems().setAll(items);
 		};
 
 		// Ensure the menu is populated

@@ -278,30 +278,21 @@ public class MorphologicalReconstruction {
 		// repeat propagation steps so long as they are changing a sufficiently high proportion of the pixels
 		// at each step (here, 10%)
 		
-//		long startTime = System.currentTimeMillis();
 		final int nPixels = ipMarker.getWidth() * ipMarker.getHeight();
 		// Apply forward propagation, counting the number of pixels that changed
 		int nChanges = dilateAndCompare(ipMarker, ipMask, false, null);
 		// For as long as > ?% pixels change, continue propagations
-//		int counter = 0;
 		while (nChanges/(double)nPixels > 0.1) {
-//			System.out.println(String.format("Changes as propagation iteration %d: %.2f%%", counter++, 100.*nChanges/nPixels));
 			// Apply backwards propagation
 			dilateAndCompare(ipMarker, ipMask, true, null);
 			// Apply forward propagation again
 			nChanges = dilateAndCompare(ipMarker, ipMask, false, null);			
 		}
-//		System.out.println(String.format("Changes as propagation iteration %d: %.2f%%", counter++, 100.*nChanges/nPixels));
 		// Apply backwards propagation, filling the queue
 		final IntDequeue queue = new IntDequeue(nPixels/4);
 		dilateAndCompare(ipMarker, ipMask, true, queue);
-//		long endTime = System.currentTimeMillis();
-//		System.out.println("Queue setup time: " + (endTime - startTime)/1000.);
-		
-//		startTime = System.currentTimeMillis();
 		processQueue(ipMarker, ipMask, queue);
-//		endTime = System.currentTimeMillis();
-//		System.out.println("Queue process time: " + (endTime - startTime)/1000.);
+
 		// Process pixels in the queue (FIFO)
 		return processQueue(ipMarker, ipMask, queue);
 	}
@@ -569,8 +560,6 @@ public class MorphologicalReconstruction {
 			array = array2;
 			array[tail] = val;
 			tail++;
-//			IJ.log("Expanding IntDeque to length " + array.length);
-//			System.out.println("Expanding IntDeque to length " + array.length);
 		}
 		
 	}

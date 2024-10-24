@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -40,6 +40,8 @@ import qupath.lib.gui.tools.MeasurementMapper;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 
+import java.util.Arrays;
+
 /**
  * Default class for storing overlay display options.
  * 
@@ -71,37 +73,58 @@ public class OverlayOptions {
 		};
 	
 	private ObjectProperty<MeasurementMapper> measurementMapper = new SimpleObjectProperty<>();
-	private BooleanProperty showAnnotations = new SimpleBooleanProperty(true);
-	private BooleanProperty showNames = new SimpleBooleanProperty(true);
-	private BooleanProperty showTMAGrid = new SimpleBooleanProperty(true);
-	private BooleanProperty showDetections = new SimpleBooleanProperty(true);
-	private BooleanProperty showConnections = new SimpleBooleanProperty(true);
-	private BooleanProperty fillDetections = new SimpleBooleanProperty(false);
-	private BooleanProperty fillAnnotations = new SimpleBooleanProperty(false);
-	private BooleanProperty showTMACoreLabels = new SimpleBooleanProperty(false);
-	private BooleanProperty showGrid = new SimpleBooleanProperty(false);
-	private ObjectProperty<GridLines> gridLines = new SimpleObjectProperty<>(new GridLines());
+	private BooleanProperty showAnnotations = new SimpleBooleanProperty(null, "showAnnotations", true);
+	private BooleanProperty showNames = new SimpleBooleanProperty(null, "showAnnotationNames", true);
+	private BooleanProperty showTMAGrid = new SimpleBooleanProperty(null, "showTMAGrid", true);
+	private BooleanProperty showDetections = new SimpleBooleanProperty(null, "showDetections", true);
+	private BooleanProperty showConnections = new SimpleBooleanProperty(null, "showConnections", false);
+	private BooleanProperty fillDetections = new SimpleBooleanProperty(null, "fillDetections", false);
+	private BooleanProperty fillAnnotations = new SimpleBooleanProperty(null, "fillAnnotations", false);
+	private BooleanProperty showTMACoreLabels = new SimpleBooleanProperty(null, "showTMACoreLabels", false);
+	private BooleanProperty showGrid = new SimpleBooleanProperty(null, "showGrid", false);
+	private ObjectProperty<GridLines> gridLines = new SimpleObjectProperty<>(null, "showGridLines", new GridLines());
 
-	private BooleanProperty showPixelClassification = new SimpleBooleanProperty(true);
-	private ObjectProperty<RegionFilter> pixelClassificationFilter = new SimpleObjectProperty<>(RegionFilter.StandardRegionFilters.EVERYWHERE);
+	private BooleanProperty showPixelClassification = new SimpleBooleanProperty(null, "showPixelClassification", true);
+	private ObjectProperty<RegionFilter> pixelClassificationFilter = new SimpleObjectProperty<>(null, "pixelClassificationFilter", RegionFilter.StandardRegionFilters.EVERYWHERE);
 
 	private FloatProperty fontSize = new SimpleFloatProperty();
 
 	private ObservableSet<PathClass> hiddenClasses = FXCollections.observableSet();
 
-	private ObjectProperty<DetectionDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(DetectionDisplayMode.NUCLEI_AND_BOUNDARIES);
+	private ObjectProperty<DetectionDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(null, "cellDisplayMode", DetectionDisplayMode.NUCLEI_AND_BOUNDARIES);
 
 	private FloatProperty opacity = new SimpleFloatProperty(1.0f);
 	
 	private LongProperty timestamp = new SimpleLongProperty(System.currentTimeMillis());
-	
-//    public void addPropertyChangeListener(PropertyChangeListener listener) {
-//        this.pcs.addPropertyChangeListener(listener);
-//    }
-//
-//    public void removePropertyChangeListener(PropertyChangeListener listener) {
-//        this.pcs.removePropertyChangeListener(listener);
-//    }
+
+	private static final OverlayOptions SHARED_INSTANCE = createSharedInstance();
+
+	/**
+	 * Create a shared instance that makes <i>some</i> properties persistent.
+	 * Not all can/should be persistent, e.g. because a confused user who has hidden annotations will be relieved
+	 * to find them back when they restart QuPath.
+	 * @return
+	 */
+	private static OverlayOptions createSharedInstance() {
+		var options = new OverlayOptions();
+		for (var prop : Arrays.asList(options.showNames, options.showConnections, options.fillDetections,
+				options.fillAnnotations, options.showTMACoreLabels,
+				options.showGrid, options.showAnnotations, options.showDetections,
+				options.showPixelClassification, options.showTMAGrid)) {
+			prop.bindBidirectional(PathPrefs.createPersistentPreference("overlayOptions_" + prop.getName(), prop.get()));
+		}
+		options.cellDisplayMode.bindBidirectional(PathPrefs.createPersistentPreference("overlayOptions_cellDisplayMode", options.cellDisplayMode.get(), DetectionDisplayMode.class));
+		options.fontSize.bindBidirectional(PathPrefs.createPersistentPreference("overlayOptions_fontSize", options.fontSize.get()));
+		return options;
+	}
+
+	/**
+	 * Get a shared OverlayOptions instance that makes some properties persistent.
+	 * @return
+	 */
+	public static OverlayOptions getSharedInstance() {
+		return SHARED_INSTANCE;
+	}
     
 	/**
 	 * Constructor, using default values.

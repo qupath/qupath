@@ -66,6 +66,7 @@ class ShowInstalledExtensionsCommand {
 
 	private Stage createDialog(QuPathGUI qupath) {
 		dialog = new Stage();
+		FXUtils.addCloseWindowShortcuts(dialog);
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle(QuPathResources.getString("ExtensionControlPane"));

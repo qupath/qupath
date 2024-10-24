@@ -263,7 +263,6 @@ public class Watershed {
 			this.y = y;
 			this.value = value;
 			this.count = count;
-//			System.out.println("My count: " + count);
 		}
 
 		@Override

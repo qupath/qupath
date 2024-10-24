@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -28,6 +28,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.utils.ObjectMerger;
+import qupath.lib.objects.utils.ObjectProcessor;
 import qupath.lib.objects.utils.Tiler;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.TaskRunner;
@@ -86,14 +87,14 @@ public class PixelProcessor<S, T, U> {
     private final DownsampleCalculator downsampleCalculator;
 
     private final Tiler tiler;
-    private final ObjectMerger merger;
+    private final ObjectProcessor objectProcessor;
 
     private PixelProcessor(ImageSupplier<S> imageSupplier,
                           MaskSupplier<S, T> maskSupplier,
                           OutputHandler<S, T, U> outputHandler,
                           Processor<S, T, U> processor,
                           Tiler tiler,
-                          ObjectMerger merger,
+                          ObjectProcessor objectProcessor,
                           Padding padding,
                           DownsampleCalculator downsampleCalculator) {
         Objects.requireNonNull(imageSupplier, "Image supplier cannot be null");
@@ -105,7 +106,7 @@ public class PixelProcessor<S, T, U> {
         this.outputHandler = outputHandler;
         this.processor = processor;
         this.tiler = tiler;
-        this.merger = merger;
+        this.objectProcessor = objectProcessor;
         this.padding = padding;
         this.downsampleCalculator = downsampleCalculator;
     }
@@ -184,7 +185,8 @@ public class PixelProcessor<S, T, U> {
                 tasks.add(new ProcessorTask(imageData, pathObject, processor, proxy));
         }
         // Run the tasks
-        runner.runTasks(tasks);
+        String message = tasks.size() == 1 ? "Processing 1 tile" : "Processing " + tasks.size() + " tiles";
+        runner.runTasks(message, tasks);
 
         // Reassign the proxy objects to the parent
         // If merging is involved, this can be slow - so pass these as new tasks
@@ -194,30 +196,34 @@ public class PixelProcessor<S, T, U> {
         }
         List<Runnable> mergeTasks = new ArrayList<>();
         for (var entry : tempObjects.entrySet()) {
+            // Get the original parent object
             var pathObject = entry.getKey();
+            // Get all new objects detected from the tile
             var proxyList = entry.getValue().stream()
                     .flatMap(proxy -> proxy.getChildObjects().stream())
                     .toList();
-            if (merger != null) {
-                mergeTasks.add(() -> mergeAndAddObjects(merger, pathObject, proxyList));
+            if (objectProcessor != null) {
+                // Use the merger if we have one
+                mergeTasks.add(() -> postprocessObjects(objectProcessor, pathObject, proxyList));
             } else {
+                // Just add the new objects if we have no merger
                 pathObject.clearChildObjects();
                 pathObject.addChildObjects(proxyList);
                 pathObject.setLocked(true);
             }
         }
         if (!mergeTasks.isEmpty())
-           runner.runTasks(mergeTasks);
+           runner.runTasks("Post-processing", mergeTasks);
     }
 
     /**
-     * Merge the child objects and add them to the parent.
-     * @param merger
+     * Postprocess the child objects and add them to the parent.
+     * @param objectProcessor
      * @param parent
      * @param childObjects
      */
-    private void mergeAndAddObjects(ObjectMerger merger, PathObject parent, List<PathObject> childObjects) {
-        var toAdd = merger.merge(childObjects);
+    private static void postprocessObjects(ObjectProcessor objectProcessor, PathObject parent, List<PathObject> childObjects) {
+        var toAdd = objectProcessor.process(childObjects);
         parent.clearChildObjects();
         parent.addChildObjects(toAdd);
         parent.setLocked(true);
@@ -227,7 +233,7 @@ public class PixelProcessor<S, T, U> {
 
     private class ProcessorTask implements PathTask {
 
-        private static Logger logger = LoggerFactory.getLogger(PixelProcessor.class);
+        private static final Logger logger = LoggerFactory.getLogger(PixelProcessor.class);
 
         private final ImageData<BufferedImage> imageData;
         private final PathObject pathObject;
@@ -315,7 +321,7 @@ public class PixelProcessor<S, T, U> {
         private Processor<S, T, U> processor;
 
         private Tiler tiler;
-        private ObjectMerger merger;
+        private ObjectProcessor objectProcessor;
         private Padding padding = Padding.empty();
         private DownsampleCalculator downsampleCalculator = DownsampleCalculator.createForDownsample(1.0);
 
@@ -436,9 +442,21 @@ public class PixelProcessor<S, T, U> {
          * @param merger
          * @return
          * @see #mergeSharedBoundaries(double)
+         * @deprecated v0.6.0, use {@link #postProcess(ObjectProcessor)} instead
          */
+        @Deprecated
         public Builder<S, T, U> merger(ObjectMerger merger) {
-            this.merger = merger;
+            return postProcess(merger);
+        }
+
+        /**
+         * Set an object post-processor to apply to any objects created when using a tiler.
+         * This may be handle overlaps, e.g. by merging or clipping.
+         * @param objectProcessor
+         * @return
+         */
+        public Builder<S, T, U> postProcess(ObjectProcessor objectProcessor) {
+            this.objectProcessor = objectProcessor;
             return this;
         }
 
@@ -450,7 +468,7 @@ public class PixelProcessor<S, T, U> {
          * @see #merger(ObjectMerger)
          */
         public Builder<S, T, U> mergeSharedBoundaries(double threshold) {
-            return merger(ObjectMerger.createSharedTileBoundaryMerger(threshold));
+            return postProcess(ObjectMerger.createSharedTileBoundaryMerger(threshold));
         }
 
         /**
@@ -460,7 +478,7 @@ public class PixelProcessor<S, T, U> {
          */
         public PixelProcessor<S, T, U> build() {
             return new PixelProcessor<>(imageSupplier, maskSupplier, outputHandler, processor,
-                    tiler, merger, padding, downsampleCalculator);
+                    tiler, objectProcessor, padding, downsampleCalculator);
         }
 
 

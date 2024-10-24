@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -132,8 +132,8 @@ public class ViewerManager implements QuPathViewerListener {
 
 	private SplitPaneGrid splitPaneGrid;
 
-	private ViewerPlusDisplayOptions viewerDisplayOptions = new ViewerPlusDisplayOptions();
-	private OverlayOptions overlayOptions = new OverlayOptions();
+	private ViewerPlusDisplayOptions viewerDisplayOptions = ViewerPlusDisplayOptions.getSharedInstance();
+	private OverlayOptions overlayOptions = OverlayOptions.getSharedInstance();
 	
 	/**
 	 * Since v0.5.0, this uses a Reference so that we can potentially allow garbage collection is memory is scare
@@ -248,10 +248,11 @@ public class ViewerManager implements QuPathViewerListener {
 			return;
 
 		ImageData<BufferedImage> imageDataNew = viewer == null ? null : viewer.getImageData();
+		boolean spaceDown = false;
 		if (previousActiveViewer != null) {
+			spaceDown = previousActiveViewer.isSpaceDown();
+			previousActiveViewer.setSpaceDown(false);
 			previousActiveViewer.setBorderColor(null);
-			//				activeViewer.setBorder(BorderFactory.createLineBorder(colorTransparent, borderWidth));
-			//				activeViewer.setBorder(null);
 			deactivateTools(previousActiveViewer);
 
 			// Grab reference to the current annotation, if there is one
@@ -267,6 +268,8 @@ public class ViewerManager implements QuPathViewerListener {
 			viewer.setBorderColor(colorBorder);
 			if (viewer.getServer() != null) {
 				getLastViewerPosition(viewer).update(viewer);
+				if (spaceDown)
+					viewer.setSpaceDown(true);
 			}
 		}
 		logger.debug("Active viewer set to {}", viewer);
@@ -381,8 +384,6 @@ public class ViewerManager implements QuPathViewerListener {
 	 * @return true if the row was removed, false otherwise
 	 */
 	public boolean removeRow(final QuPathViewer viewer) {
-		//			if (viewer.getServer() != null)
-		//				System.err.println(viewer.getServer().getShortServerName());
 		// Note: These are the internal row numbers... these don't necessarily match with the displayed row (?)
 		int row = splitPaneGrid.getRow(viewer);
 		if (row < 0) {
@@ -848,8 +849,10 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		
 		viewer.getView().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+			if (e.isConsumed())
+				return;
 			PathObject pathObject = viewer.getSelectedObject();
-			if (!e.isConsumed() && pathObject != null) {
+			if (pathObject != null) {
 				if (pathObject.isTMACore()) {
 					TMACoreObject core = (TMACoreObject)pathObject;
 					if (e.getCode() == KeyCode.ENTER) {
@@ -867,6 +870,16 @@ public class ViewerManager implements QuPathViewerListener {
 					}
 				}
 			}
+			// For temporarily setting selection mode, we want to grab any S key presses eagerly
+			if (e.getCode() == KeyCode.S && e.getEventType() == KeyEvent.KEY_PRESSED) {
+				PathPrefs.tempSelectionModeProperty().set(true);
+				e.consume();
+			}
+		});
+		viewer.getView().addEventHandler(KeyEvent.KEY_RELEASED, e -> {
+			// For temporarily setting selection mode, we want to switch off the mode quickly for any key release events -
+			// to reduce the risk of accidentally leaving selection mode 'stuck' on if the S key release is missed
+			PathPrefs.tempSelectionModeProperty().set(false);
 		});
 
 	}
@@ -1138,6 +1151,7 @@ public class ViewerManager implements QuPathViewerListener {
 				splitRow.getItems().set(col, createViewer().getView());
 				refreshDividerBindings();
 				var stage = new Stage();
+				FXUtils.addCloseWindowShortcuts(stage);
 				var pane = new BorderPane(viewer.getView());
 				var scene = new Scene(pane);
 				stage.setScene(scene);
@@ -1360,8 +1374,8 @@ public class ViewerManager implements QuPathViewerListener {
 			Collection<PathObject> selectedObjects = viewer.getAllSelectedObjects();
 			PathObject pathObject = viewer.getSelectedObject();
 			menuTMA.setVisible(false);
-			if (pathObject instanceof TMACoreObject) {
-				boolean isMissing = ((TMACoreObject)pathObject).isMissing();
+			if (pathObject instanceof TMACoreObject core) {
+				boolean isMissing = core.isMissing();
 				miTMAValid.setSelected(!isMissing);
 				miTMAMissing.setSelected(isMissing);
 				menuTMA.setVisible(true);
@@ -1384,7 +1398,8 @@ public class ViewerManager implements QuPathViewerListener {
 				menuTools.getItems().addAll(createToolMenu(qupath.getToolManager()));
 			}
 			
-			boolean hasAnnotations = pathObject instanceof PathAnnotationObject || (!selectedObjects.isEmpty() && selectedObjects.stream().allMatch(p -> p.isAnnotation()));
+			boolean hasAnnotations = pathObject instanceof PathAnnotationObject ||
+					(!selectedObjects.isEmpty() && selectedObjects.stream().allMatch(PathObject::isAnnotation));
 			
 			updateSetAnnotationPathClassMenu(menuSetClass, viewer);
 			menuAnnotations.setVisible(hasAnnotations);
@@ -1509,7 +1524,8 @@ public class ViewerManager implements QuPathViewerListener {
 	private void updateSetAnnotationPathClassMenu(final ObservableList<MenuItem> menuSetClassItems, final QuPathViewer viewer, final boolean useFancyIcons) {
 		// We need a viewer and an annotation, as well as some PathClasses, otherwise we just need to ensure the menu isn't visible
 		var availablePathClasses = qupath.getAvailablePathClasses();
-		if (viewer == null || !(viewer.getSelectedObject() instanceof PathAnnotationObject) || availablePathClasses.isEmpty()) {
+		if (viewer == null || availablePathClasses.isEmpty() || viewer.getSelectedObject() == null ||
+			!(viewer.getSelectedObject().isAnnotation() || viewer.getSelectedObject().isTMACore())) {
 			menuSetClassItems.clear();
 			return;
 		}
@@ -1528,7 +1544,7 @@ public class ViewerManager implements QuPathViewerListener {
 			Action actionSetClass = new Action(name, e -> {
 				List<PathObject> changed = new ArrayList<>();
 				for (PathObject pathObject : viewer.getAllSelectedObjects()) {
-					if (!pathObject.isAnnotation() || pathObject.getPathClass() == pathClassToSet)
+					if (pathObject.getPathClass() == pathClassToSet)
 						continue;
 					pathObject.setPathClass(pathClassToSet);
 					changed.add(pathObject);
@@ -1556,6 +1572,7 @@ public class ViewerManager implements QuPathViewerListener {
 			}
 //			actionSetClass.setGraphic(r);
 			RadioMenuItem item = ActionUtils.createRadioMenuItem(actionSetClass);
+			item.setMnemonicParsing(false); // Fix display of underscores in classification names
 			item.graphicProperty().unbind();
 			item.setGraphic(shape);
 			item.setToggleGroup(group);

@@ -167,9 +167,7 @@ public class ToolManager {
 		// Keep the points tool last
 		if (accelerator != null) {
 			var action = getToolAction(tool);
-			if (accelerator != null) {
-				action.setAccelerator(accelerator);
-			}
+			action.setAccelerator(accelerator);
 		}
 		int ind = tools.indexOf(PathTools.POINTS);
 		if (ind < 0)

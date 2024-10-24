@@ -1,23 +1,23 @@
 [versions]
 
-bioformats      = "7.3.0"
+bioformats      = "7.3.1"
 bioimageIoSpec  = "0.1.0"
-omeZarrReader   = "0.4.1"
+omeZarrReader   = "0.5.2"
 blosc           = "1.21.5"
 
-commonmark      = "0.22.0"
+commonmark      = "0.23.0"
 commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.1.2"
 
-deepJavaLibrary = "0.28.0"
+deepJavaLibrary = "0.30.0"
 
-groovy          = "4.0.21"
+groovy          = "4.0.22"
 gson            = "2.11.0"
-guava           = "33.1.0-jre"
+guava           = "33.3.1-jre"
 
 ikonli          = "12.3.1"
-imagej          = "1.54f"
+imagej          = "1.54k"
 
 # Compatibility with Java 21 with QuPath v0.6.x
 jdk             = "21"
@@ -28,27 +28,27 @@ opencv          = "4.9.0-1.5.10"
 cuda            = "12.3-8.9-1.5.10"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
-javafx          = "22.0.1"
+javafx          = "23"
 jna             = "5.14.0"
-jfreeSvg        = "5.0.5"
+jfreeSvg        = "5.0.6"
 jfxtras         = "17-r1"
-jts             = "1.19.0"
-junit           = "5.9.2"
+jts             = "1.20.0"
+junit           = "5.11.0"
 
-logback         = "1.3.11"
-logviewer       = "0.2.0-SNAPSHOT"
+logback         = "1.5.8"
+logviewer       = "0.2.0"
 
-javadocviewer   = "0.1.1-SNAPSHOT"
+javadocviewer   = "0.1.1"
 
-openslide       = "4.0.0"
+openslide       = "4.0.0.3"
 
 picocli         = "4.7.6"
-qupath-fxtras   = "0.1.5-SNAPSHOT"
+qupath-fxtras   = "0.1.5"
 
-richtextfx      = "0.11.2"
+richtextfx      = "0.11.3"
 
-slf4j           = "2.0.12"
-snakeyaml       = "2.2"
+slf4j           = "2.0.16"
+snakeyaml       = "2.3"
 
 
 [libraries]
@@ -126,6 +126,6 @@ javacpp        = { id = "org.bytedeco.gradle-javacpp-platform",     version.ref 
 # If javafx plugin causes trouble, see https://github.com/openjfx/javafx-gradle-plugin#migrating-from-0014-to-010
 javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.1.0" }
 #javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.0.14" }
-jpackage       = { id = "org.beryx.runtime",                        version = "1.13.0" } # Non-modular
+jpackage       = { id = "org.beryx.runtime",                        version = "1.13.1" } # Non-modular
 # jpackage       = { id = "org.beryx.jlink",                          version = "2.26.0" } # Modular
-license-report = { id = "com.github.jk1.dependency-license-report", version = "2.5" }
+license-report = { id = "com.github.jk1.dependency-license-report", version = "2.9" }

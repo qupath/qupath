@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2022-2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.ROIs;
 
 public class TestPathObject {
@@ -134,9 +136,9 @@ public class TestPathObject {
 	@MethodSource("provideObjects")
 	public void test_measurementMapAndList(PathObject p) {
 		
-		p.getMeasurementList().addMeasurement("added", 1);
+		p.getMeasurementList().put("added", 1);
 		assertEquals(1, p.getMeasurementList().size());
-		p.getMeasurementList().addMeasurement("added", 2);
+		p.getMeasurementList().put("added", 2);
 		assertEquals(1, p.getMeasurementList().size());
 		assertEquals(2, p.getMeasurementList().get("added"));
 		
@@ -162,11 +164,11 @@ public class TestPathObject {
 		// Not expected to pass! val is unboxed internally, precise value not stored
 //		assertSame(val, p.getMeasurements().get("mapAdded"));
 		
-		p.getMeasurementList().removeMeasurements("Not there");
+		p.getMeasurementList().removeAll("Not there");
 		assertEquals(3, p.getMeasurementList().size());
 		assertEquals(3, p.getMeasurements().size());
 		
-		p.getMeasurementList().removeMeasurements("put");
+		p.getMeasurementList().removeAll("put");
 		assertEquals(2, p.getMeasurementList().size());
 		assertEquals(2, p.getMeasurements().size());
 
@@ -189,15 +191,16 @@ public class TestPathObject {
 	 * @param p
 	 */
 	private static void checkSameKeysAndValues(PathObject p) {
-		assertEquals(p.getMeasurementList().getMeasurementNames(), new ArrayList<>(p.getMeasurements().keySet()));
-		assertEquals(new LinkedHashSet<>(p.getMeasurementList().getMeasurementNames()), p.getMeasurements().keySet());
+		assertEquals(p.getMeasurementList().getNames(), new ArrayList<>(p.getMeasurements().keySet()));
+		assertEquals(new LinkedHashSet<>(p.getMeasurementList().getNames()), p.getMeasurements().keySet());
 		
 		double[] listValues = new double[p.getMeasurementList().size()];
 		double[] listValuesByName = new double[p.getMeasurementList().size()];
 		double[] listValuesAsArray = p.getMeasurementList().values();
 		for (int i = 0; i < listValues.length; i++) {
-			listValues[i] = p.getMeasurementList().getMeasurementValue(i);
-			listValuesByName[i] = p.getMeasurementList().get(p.getMeasurementList().getMeasurementName(i));
+			var m = p.getMeasurementList().getByIndex(i);
+			listValues[i] = m.getValue();
+			listValuesByName[i] = p.getMeasurementList().get(m.getName());
 		}
 		double[] mapValues = p.getMeasurements().values().stream().mapToDouble(v -> v.doubleValue()).toArray();
 		double[] mapValuesByIterator = new double[p.getMeasurements().size()];
@@ -251,7 +254,7 @@ public class TestPathObject {
 
 			// Set the legacy ID - don't automatically update it
 			var core3 = PathObjects.createTMACoreObject(0, 10, 20, 30, false);
-			((MetadataStore)core).putMetadataValue(TMACoreObject.LEGACY_KEY_UNIQUE_ID, id);
+			core.getMetadata().put(TMACoreObject.LEGACY_KEY_UNIQUE_ID, id);
 			assertNull(core3.getCaseID());
 
 			// Update legacy ID during deserialization
@@ -313,7 +316,51 @@ public class TestPathObject {
 			pathObject.addChildObject(child);
 		}
 	}
-	
+
+
+	@Test
+	void test_setClassification() {
+		var pathObject = PathObjects.createAnnotationObject(ROIs.createEmptyROI());
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+
+		pathObject.setClassification("Something");
+		assertEquals("Something", pathObject.getClassification());
+		assertEquals(PathClass.getInstance("Something"), pathObject.getPathClass());
+		assertEquals(Set.of("Something"), pathObject.getClassifications());
+
+		pathObject.setClassification("Something:    else");
+		assertEquals("Something: else", pathObject.getClassification());
+		assertEquals(PathClass.fromString("Something: else"), pathObject.getPathClass());
+		assertEquals(PathClass.getInstance("Something"), pathObject.getPathClass().getBaseClass());
+		assertEquals(Set.of("Something", "else"), pathObject.getClassifications());
+
+		pathObject.setClassification(null);
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+
+		pathObject.setClassification("");
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+
+		pathObject.setClassifications(Set.of());
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+
+		pathObject.setPathClass(null);
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+
+		pathObject.setPathClass(PathClass.NULL_CLASS);
+		assertNull(pathObject.getClassification());
+		assertNull(pathObject.getPathClass());
+		assertTrue(pathObject.getClassifications().isEmpty());
+	}
 	
 	
 	

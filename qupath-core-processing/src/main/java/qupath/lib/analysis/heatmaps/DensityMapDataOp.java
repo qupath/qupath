@@ -240,7 +240,7 @@ class DensityMapDataOp implements ImageDataOp {
 		}
 		
 		// Get all objects within the padded region
-		var allPathObjects = imageData.getHierarchy().getObjectsForRegion(null, request, null)
+		var allPathObjects = imageData.getHierarchy().getAllObjectsForRegion(request, null)
 				.stream()
 				.filter(allObjects)
 				.toList();

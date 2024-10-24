@@ -325,7 +325,7 @@ public final class ColorModelFactory {
 	 * @param channels
 	 * @return
 	 */
-	public static ColorModel createColorModel(final PixelType type, final List<ImageChannel> channels) {
+	public static ColorModel createColorModel(final PixelType type, final List<? extends ImageChannel> channels) {
 		return new DefaultColorModel(type, channels.size(), false, channels.stream().mapToInt(c -> {
 			Integer color = c.getColor();
 			if (color == null)

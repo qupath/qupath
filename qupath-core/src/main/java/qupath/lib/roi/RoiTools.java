@@ -112,9 +112,13 @@ public class RoiTools {
 		case ADD:
 			return GeometryTools.geometryToROI(area1.union(area2), shape1.getImagePlane());
 		case INTERSECT:
-			return GeometryTools.geometryToROI(area1.intersection(area2), shape1.getImagePlane());
+			return GeometryTools.geometryToROI(
+					GeometryTools.homogenizeGeometryCollection(area1.intersection(area2)),
+					shape1.getImagePlane());
 		case SUBTRACT:
-			return GeometryTools.geometryToROI(area1.difference(area2), shape1.getImagePlane());
+			return GeometryTools.geometryToROI(
+					GeometryTools.homogenizeGeometryCollection(area1.difference(area2)),
+					shape1.getImagePlane());
 		default:
 			throw new IllegalArgumentException("Unknown op " + op);
 		}
@@ -274,7 +278,8 @@ public class RoiTools {
 		
 		// Quick method using the union of ROIs to subtract
 		// Could *possibly* be improved by iteratively removing ROIs if they are large
-		roiMain = difference(roiMain, union(roisToSubtract2));
+		if (!roisToSubtract2.isEmpty())
+			roiMain = difference(roiMain, union(roisToSubtract2));
 
 		return roiMain;
 	}
@@ -898,9 +903,6 @@ public class RoiTools {
 				
 				if (geometryLocal.isEmpty())
 					continue;
-				
-//				if (geometry != geometryLocal)
-//					System.err.println("Using row or column geometry!");
 				
 				// Create the tile
 				var rect = GeometryTools.createRectangle(x, y, w + overlap*2, h + overlap*2);

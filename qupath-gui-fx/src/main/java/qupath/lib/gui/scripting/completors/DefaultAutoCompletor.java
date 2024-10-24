@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -102,11 +102,19 @@ public class DefaultAutoCompletor implements ScriptAutoCompletor {
 	
 	/**
 	 * Constructor.
-	 * @param addQuPathCompletions if true, add standard Java completions for core QuPath classes.
+	 * @param completions optionally include specific code completions, or an empty list if no completions
+	 *                    should be added.
 	 */
-	public DefaultAutoCompletor(boolean addQuPathCompletions) {
-		if (addQuPathCompletions)
-			allCompletions.addAll(DEFAULT_QUPATH_JAVA_COMPLETIONS);
+	public DefaultAutoCompletor(Collection<? extends Completion> completions) {
+		if (completions != null)
+			allCompletions.addAll(completions);
+	}
+
+	/**
+	 * Constructor, using the default Java code completions for QuPath.
+	 */
+	public DefaultAutoCompletor() {
+		this(DEFAULT_QUPATH_JAVA_COMPLETIONS);
 	}
 	
 	protected void addCompletion(Completion completion) {

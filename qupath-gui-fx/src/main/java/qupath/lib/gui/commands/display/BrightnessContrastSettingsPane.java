@@ -135,7 +135,9 @@ public class BrightnessContrastSettingsPane extends GridPane {
         });
         comboSettings.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
         comboSettings.setButtonCell(new SettingListCell(settingsChanged));
-        comboSettings.setPlaceholder(new Text("No compatible settings"));
+        var placeholder = new Text("No compatible settings");
+        placeholder.setStyle("-fx-fill: -fx-text-base-color;");
+        comboSettings.setPlaceholder(placeholder);
         resourceManagerProperty.addListener((v, o, n) -> refreshResources());
         var btnSave = new Button("Save");
         btnSave.setTooltip(new Tooltip("Save the current display settings in the project"));

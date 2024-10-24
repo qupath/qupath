@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -62,23 +62,27 @@ public class ScriptStylerProvider {
 	/**
 	 * Styler for Groovy
 	 */
-	public static final ScriptStyler GROOVY = GroovyStyler.createGroovyStyler();
+	public static final ScriptStyler GROOVY = new GroovyStyler();
 
 	/**
 	 * Styler for Java
 	 */
-	public static final ScriptStyler JAVA = GroovyStyler.createJavaStyler();
+	public static final ScriptStyler JAVA = new JavaStyler();
 
 	/**
 	 * Styler for JSON
 	 */
 	public static final ScriptStyler JSON = new JsonStyler();
-	
+
+	/**
+	 * Styler for the ImageJ macro language
+	 */
+	public static final ScriptStyler IMAGEJ_MACRO = new ImageJMacroStyler();
+
 	/**
 	 * Styler for Java properties files
 	 */
 	public static final ScriptStyler PROPERTIES = new PropertiesStyler();
-
 
 	/**
 	 * Styler for Python
@@ -114,6 +118,7 @@ public class ScriptStylerProvider {
 		stylers.add(JAVA);
 		stylers.add(MARKDOWN);
 		stylers.add(JSON);
+		stylers.add(IMAGEJ_MACRO);
 		stylers.add(PYTHON);
 		stylers.add(PROPERTIES);
 		stylers.add(XML);

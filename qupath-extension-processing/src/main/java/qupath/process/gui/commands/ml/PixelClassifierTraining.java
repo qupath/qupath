@@ -349,7 +349,7 @@ public class PixelClassifierTraining {
 		TileFeatures features = cache.get(request);
 		Map<ROI, PathClass> rois = null;
 		
-		var annotations = featureServer.getImageData().getHierarchy().getObjectsForRegion(PathAnnotationObject.class, request, null);
+		var annotations = featureServer.getImageData().getHierarchy().getAllObjectsForRegion(request, null);
 		if (annotations != null && !annotations.isEmpty()) {
     		rois = new HashMap<>();
     		for (var annotation : annotations) {
@@ -397,7 +397,6 @@ public class PixelClassifierTraining {
 		
 		// Calculate new features
 		try {
-//			System.err.println("Calculating " + request);
     		features = new TileFeatures(request, featureServer, strategy, rois, labels);
     		cache.put(request, features);
 		} catch (IOException e) {
@@ -518,9 +517,6 @@ public class PixelClassifierTraining {
     		matTargets = new Mat(n, 1, opencv_core.CV_32SC1);
 
     		if (n == 0) {
-//    			new ImagePlus("Mask", IJTools.convertToImageProcessor(imgLabels, 0)).show(); 
-//    			for (var r : rois.keySet())
-//    				System.err.println(r.getArea());
     			// This can happen if a training annotation falls exactly on a tile boundary
     			// (However note that the boundary strategy can still make some annotations useful sometimes)
     			logger.debug("I thought I'd have features but I don't! " + rois.size() + " - " + request);

@@ -248,9 +248,6 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 		if (region.getWidth() / downsample < 3 || region.getHeight() / downsample < 3)
 			return false;
 
-//		System.out.println(bounds);
-//		System.out.println("Size: " + size);
-
 		BufferedImage img = server.readRegion(region);
 
 		if (img == null) {
@@ -424,9 +421,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 				kurtosis += d3*d/n;
 			}			
 		}
-		// TODO: Reinsert skewness & kurtosis measurements, after checking
-////		double sigma = stats.getStdDev();
-////		System.out.println("Variance difference: " + variance + ",  " + stats.getVariance());
+		// TODO: Consider reinstating skewness & kurtosis measurements, after checking
 ////		measurementList.putMeasurement(name + " Variance (again)", variance);
 		measurementList.put(name + " Skewness", skewness/(variance*Math.sqrt(variance)));
 		measurementList.put(name + " Kurtosis", kurtosis/(variance*variance));
@@ -446,7 +441,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
 		boolean hasMicrons = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
-		boolean hasMagnification = !Double.isNaN(imageData.getServer().getMetadata().getMagnification());
+		boolean hasMagnification = !Double.isNaN(imageData.getServerMetadata().getMagnification());
 		
 		params.getParameters().get("tileSizeMicrons").setHidden(!hasMicrons);
 		params.getParameters().get("tileSizePx").setHidden(hasMicrons);

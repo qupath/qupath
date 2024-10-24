@@ -138,8 +138,12 @@ class PathClassPane {
 		// Intercept space presses because we handle them elsewhere
 		listClasses.addEventFilter(KeyEvent.KEY_PRESSED, this::filterKeyPresses);
 		listClasses.setOnMouseClicked(e -> {
-			if (!e.isPopupTrigger() && e.getClickCount() == 2)
-				promptToEditSelectedClass();
+			if (!e.isPopupTrigger() && e.getClickCount() == 2) {
+				if (promptToEditSelectedClass()) {
+					// This fires a change event to notify any listeners
+					availablePathClasses.setAll(availablePathClasses.stream().toList());
+				}
+			}
 		});
 
 		ContextMenu menuClasses = createClassesMenu();
@@ -195,8 +199,8 @@ class PathClassPane {
 		var pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 		List<PathObject> changed = new ArrayList<>();
 		for (PathObject pathObject : pathObjects) {
-			if (pathObject.isTMACore())
-				continue;
+			// Previously we didn't allow TMA core objects to be classified this way,
+			// but since v0.6.0 we do
 			if (pathObject.getPathClass() == pathClass)
 				continue;				
 			pathObject.setPathClass(pathClass);

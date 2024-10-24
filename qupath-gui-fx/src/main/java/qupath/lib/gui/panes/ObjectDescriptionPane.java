@@ -51,6 +51,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PathObjectLabels;
@@ -147,6 +148,7 @@ public class ObjectDescriptionPane<T> {
 		var pane = createPane(qupath.imageDataProperty(), true);
 		var scene = new Scene(pane);
 		var stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setScene(scene);
 		stage.initOwner(qupath.getStage());
 		stage.setTitle("Object description");

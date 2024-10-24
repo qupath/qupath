@@ -103,6 +103,16 @@ public class ROIs {
 	}
 
 	/**
+	 * Create an ellipse ROI defined by its bounding box.
+	 *
+	 * @param region
+	 * @return
+	 */
+	public static ROI createEllipseROI(ImageRegion region) {
+		return createEllipseROI(region.getX(), region.getY(), region.getWidth(), region.getHeight(), region.getImagePlane());
+	}
+
+	/**
 	 * Create a line ROI with start and end coordinates.
 	 * 
 	 * @param x

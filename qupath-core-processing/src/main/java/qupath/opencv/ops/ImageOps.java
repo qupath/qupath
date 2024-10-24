@@ -333,9 +333,9 @@ public class ImageOps {
 		@Override
 		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData) {
 			if (op == null)
-				return imageData.getServer().getMetadata().getChannels();
+				return imageData.getServerMetadata().getChannels();
 			else
-				return op.getChannels(imageData.getServer().getMetadata().getChannels());
+				return op.getChannels(imageData.getServerMetadata().getChannels());
 		}
 
 		@Override
@@ -2187,7 +2187,8 @@ public class ImageOps {
 			private double newValue;
 			
 			ReplaceValueOp(double originalValue, double newValue) {
-				this.originalValue = newValue;
+				this.originalValue = originalValue;
+				this.newValue = newValue;
 			}
 
 			@Override
@@ -2355,23 +2356,6 @@ public class ImageOps {
 				// Use FastMath - there are too many caveats with OpenCV's log implementation
 				OpenCVTools.apply(input, d -> FastMath.log(d));
 				return input;
-//				System.err.println("BEFORE: " + input.createIndexer());
-//				
-//				Mat maskZero = opencv_core.equals(input, 0.0).asMat();
-//				Mat maskInvalid = OpenCVTools.createMask(input, d -> d < 0 || !Double.isFinite(d));
-//				
-//				
-//
-//				System.err.println("BEFORE LATER: " + input.createIndexer());
-//
-//				opencv_core.log(input, input);
-//				
-//				OpenCVTools.fill(input, maskZero, Double.NEGATIVE_INFINITY);
-//				OpenCVTools.fill(input, maskInvalid, Double.NaN);
-//				maskZero.close();
-//				maskInvalid.close();
-//				System.err.println(input.createIndexer());
-//				return input;
 			}
 			
 		}

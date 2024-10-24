@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.LogTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
@@ -86,9 +87,6 @@ import java.util.zip.ZipOutputStream;
 
 /**
  * Primary class for loading/saving {@link ImageData} objects.
- * 
- * @author Pete Bankhead
- *
  */
 public class PathIO {
 	
@@ -107,16 +105,6 @@ public class PathIO {
 	 * Input filter for deserialization that is limited to QuPath-related classes.
 	 */
 	private static final ObjectInputFilter QUPATH_INPUT_FILTER = PathIO::qupathInputFilter;
-	// Less restrictive ObjectInputFilter
-//	private static final ObjectInputFilter CLASS_LOADER_INPUT_FILTER = PathIO::classLoaderInputFilter;
-	
-//	static {
-//		/**
-//		 * TODO: Consider setting global filter.
-//		 * However note that this then impacts scripts and extensions, so could become restrictive.
-//		 */
-//		ObjectInputFilter.Config.setSerialFilter(OBJECT_INPUT_FILTER);
-//	}
 	
 	private PathIO() {}
 	
@@ -150,7 +138,7 @@ public class PathIO {
 	 * <li><b>1.0</b> Initial version stored in very early .qpdata files (no longer supported)</li>
 	 * <li><b>2</b> Switched versions to use integers, added Locale information (used in QuPath v0.1.2)</li>
 	 * <li><b>3</b> Switched {@link ImageServer} paths to be a JSON representation rather than a single path/URL</li>
-	 * <li><b>4</b> Added support for UUID to be stored in each {@link PathObject} (introducted QuPath v0.4.0)</li>
+	 * <li><b>4</b> Added support for UUID to be stored in each {@link PathObject} (introduced QuPath v0.4.0)</li>
 	 * </ul>
 	 * 
 	 * @param version integer representation of the requested version
@@ -228,7 +216,7 @@ public class PathIO {
 	 * @return
 	 * @throws IOException
 	 */
-	public static final ObjectInputStream createObjectInputStream(InputStream stream) throws IOException {
+	public static ObjectInputStream createObjectInputStream(InputStream stream) throws IOException {
 		ObjectInputStream inStream = new ObjectInputStream(stream);
 		inStream.setObjectInputFilter(QUPATH_INPUT_FILTER);
 		return inStream;
@@ -240,7 +228,7 @@ public class PathIO {
 	 * This may represent an image path (for v0.2 and earlier) or JSON (from v0.3).
 	 * 
 	 * @param <T>
-	 * @param serverString
+	 * @param serverString string including the builder as JSON, or a legacy image path
 	 * @param warnIfInvalid log warnings if the server is a different version
 	 * @return
 	 * @throws IOException
@@ -287,27 +275,26 @@ public class PathIO {
 		}
 		
 	}
-	
-	
-	
-	private static <T> ImageData<T> readImageDataSerialized(final Path path, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws FileNotFoundException, IOException {
-		if (path == null)
-			return null;
-		logger.info("Reading data from {}...", path.getFileName().toString());
-		try (InputStream stream = Files.newInputStream(path)) {
-			imageData = readImageDataSerialized(stream, imageData, server, cls);	
+
+
+	private static <T> ImageData<T> readImageDataSerialized(final Path path, ImageServer<T> server) throws IOException {
+		try (var stream = new BufferedInputStream(Files.newInputStream(path))) {
+			var imageData = readImageDataSerialized(stream, server);
 			// Set the last saved path (actually the path from which this was opened)
-			if (imageData != null)
-				imageData.setLastSavedPath(path.toAbsolutePath().toString(), true);
+			imageData.setLastSavedPath(path.toAbsolutePath().toString(), true);
 			return imageData;
-//		} catch (IOException e) {
-//			logger.error("Error reading ImageData from file", e);
-//			return null;
 		}
 	}
-	
+
+	private static <T> ImageData<T> readImageDataSerialized(final InputStream stream,
+															ImageServer<T> server) throws FileNotFoundException, IOException {
+		return readImageDataSerialized(stream, server, null);
+	}
+
+
 	@SuppressWarnings("unchecked")
-	private static <T> ImageData<T> readImageDataSerialized(final InputStream stream, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
+	private static <T> ImageData<T> readImageDataSerialized(final InputStream stream, ImageServer<T> server,
+															ServerBuilder<T> requestedServerBuilder) throws IOException {
 		
 		long startTime = System.currentTimeMillis();
 		Locale locale = Locale.getDefault(Category.FORMAT);
@@ -315,7 +302,7 @@ public class PathIO {
 
 		try (ObjectInputStream inStream = createObjectInputStream(new BufferedInputStream(stream))) {
 			
-			ServerBuilder<T> serverBuilder = null;
+			ServerBuilder<T> serverBuilder = requestedServerBuilder;
 			PathObjectHierarchy hierarchy = null;
 			ImageData.ImageType imageType = null;
 			ColorDeconvolutionStains stains = null;
@@ -338,45 +325,43 @@ public class PathIO {
 
 			String serverString = (String)inStream.readObject();
 			// Don't log warnings if we are provided with a server
-			serverBuilder = extractServerBuilder(serverString, server == null);
+			if (serverBuilder == null)
+				serverBuilder = extractServerBuilder(serverString, true);
 
 			while (true) {
-				//					logger.debug("Starting read: " + inStream.available());
 				try {
 					// Try to read a relevant object from the stream
 					Object input = inStream.readObject();
-					logger.debug("Read: {}", input);
+					logger.trace("Read object: {}", input);
 
 					// If we have a Locale, then set it
 					if (input instanceof Locale) {
 						if (input != locale) {
-							Locale.setDefault(Category.FORMAT, (Locale)input);
+							Locale.setDefault(Category.FORMAT, (Locale) input);
 							localeChanged = true;
 						}
-					} else if (input instanceof PathObjectHierarchy)
-						hierarchy = (PathObjectHierarchy)input;
-					else if (input instanceof ImageData.ImageType)
-						imageType = (ImageData.ImageType)input;
-					else if (input instanceof String && "EOF".equals(input))  {
-						//							if (serverPath == null) // serverPath should be first string
-						//								serverPath = (String)input;
-						//							else if ("EOF".equals(input)) {
+					} else if (input instanceof PathObjectHierarchy readHierarchy) {
+						// Clumsy... but we need to ensure we have a fully-initialized hierarchy
+						// (which deserialization alone doesn't achieve)
+						hierarchy = new PathObjectHierarchy();
+						hierarchy.setHierarchy(readHierarchy);
+					} else if (input instanceof ImageData.ImageType readImageType) {
+						imageType = readImageType;
+					} else if ("EOF".equals(input)) {
 						break;
-						//							}
-					}
-					else if (input instanceof ColorDeconvolutionStains)
-						stains = (ColorDeconvolutionStains)input;
-					else if (input instanceof Workflow)
-						workflow = (Workflow)input;
-					else if (input instanceof Map)
-						propertyMap = (Map<String, Object>)input;
-					else if (input == null) {
+					} else if (input instanceof ColorDeconvolutionStains readStains) {
+						stains = readStains;
+					} else if (input instanceof Workflow readWorkflow) {
+						workflow = readWorkflow;
+					} else if (input instanceof Map<?, ?> readPropertyMap) {
+						propertyMap = (Map<String, Object>)readPropertyMap;
+					} else if (input == null) {
 						logger.debug("Null object will be skipped");
 					} else
 						logger.warn("Unsupported object of class {} will be skipped: {}", input.getClass().getName(), input);
 
 				} catch (ClassNotFoundException e) {
-					logger.error("Unable to find class: " + e.getLocalizedMessage(), e);
+					logger.error("Unable to find class: {}", e.getLocalizedMessage(), e);
 				} catch (EOFException e) {
 					// Try to recover from EOFExceptions - we may already have enough info
 					logger.error("Reached end of file...");
@@ -391,37 +376,17 @@ public class PathIO {
 				}
 			}
 
-			// Create an entirely new ImageData if necessary
-			var existingBuilder = imageData == null || imageData.getServer() == null ? null : imageData.getServer().getBuilder();
-			if (imageData == null || !Objects.equals(serverBuilder, existingBuilder)) {
-				// Create a new server if we need to
-				if (server == null) {
-					try {
-						server = serverBuilder.build();
-					} catch (Exception e) {
-						logger.error(e.getLocalizedMessage());
-					};
-					if (server == null) {
-						logger.error("Warning: Unable to build server with " + serverBuilder);
-						//							throw new RuntimeException("Warning: Unable to create server for path " + serverPath);
-					}
-				}
-				// TODO: Make this less clumsy... but for now we need to ensure we have a fully-initialized hierarchy (which deserialization alone doesn't achieve)
-				PathObjectHierarchy hierarchy2 = new PathObjectHierarchy();
-				hierarchy2.setHierarchy(hierarchy);
-				hierarchy = hierarchy2;
-
+			// Create a new ImageData
+			ImageData<T> imageData;
+			if (server != null)
 				imageData = new ImageData<>(server, hierarchy, imageType);
-			} else {
-				if (imageType != null)
-					imageData.setImageType(imageType);
-				// Set the new hierarchy
-				if (hierarchy != null)
-					imageData.getHierarchy().setHierarchy(hierarchy);
-			}
+			else if (serverBuilder != null)
+				imageData = new ImageData<>(serverBuilder, hierarchy, imageType);
+			else
+				throw new IOException("Can't read ImageData without a server or server builder");
+
 			// Set the other properties we have just read
 			if (workflow != null) {
-				imageData.getHistoryWorkflow().clear();
 				imageData.getHistoryWorkflow().addSteps(workflow.getSteps());
 			}
 			if (stains != null) {
@@ -433,93 +398,200 @@ public class PathIO {
 			}
 
 			long endTime = System.currentTimeMillis();
+			if (hierarchy != null)
+				logger.debug(String.format("Hierarchy with %d object(s) read in %.2f seconds",
+						hierarchy.nObjects(),
+						(endTime - startTime)/1000.));
 
-			//				if (hierarchy == null) {
-			//					logger.error(String.format("%s does not contain a valid QUPath object hierarchy!", file.getAbsolutePath()));
-			//					return null;
-			//				}
-			logger.debug(String.format("Hierarchy with %d object(s) read in %.2f seconds", hierarchy.nObjects(), (endTime - startTime)/1000.));
-
+			return imageData;
 		} catch (ClassNotFoundException e1) {
-			logger.warn("Class not found reading image data", e1);
+			logger.warn("Stream does not appear to be a valid .qpdata file", e1);
+			throw new IOException("Cannot read ImageData from stream", e1);
 		} finally {
 			if (localeChanged)
 				Locale.setDefault(Category.FORMAT, locale);
 		}
-		return imageData;
 	}
-	
-	
-//	/**
-//	 * Test if a specified file can be identified as a zip file.
-//	 * 
-//	 * Zip 'magic number' contents are tested rather than file extension.
-//	 * 
-//	 * @param file
-//	 * @return
-//	 */
-//	public static boolean isZipFile(final File file) {
-//		if (!file.canRead() || file.length() < 4)
-//			return false;
-//		
-//		try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(file)))) {
-//			int zipTest = in.readInt();
-//			in.close();
-//			return zipTest == 0x504b0304;
-//		} catch (IOException e) {
-//			return false;
-//		}
-//	}
-	
+
+
 	/**
-	 * Read ImageData from an InputStream into an existing ImageData object, or creating a new one if required.
-	 * 
-	 * @param stream
-	 * @param imageData
+	 * Try to update an original ImageData object to match a new one.
+	 * @param imageDataOriginal
+	 * @param imageDataNew
+	 * @return the updated original if they refer to the same image, or the new ImageData otherwise
+	 * @param <T>
+	 */
+	private static <T> ImageData<T> tryToUpdateImageData(ImageData<T> imageDataOriginal, ImageData<T> imageDataNew) {
+		if (Objects.equals(imageDataOriginal.getServerBuilder(), imageDataNew.getServerBuilder())) {
+			imageDataOriginal.setImageType(imageDataNew.getImageType());
+			imageDataOriginal.getHierarchy().setHierarchy(imageDataNew.getHierarchy());
+			imageDataOriginal.getHistoryWorkflow().clear();
+			imageDataOriginal.getHistoryWorkflow().addSteps(imageDataNew.getHistoryWorkflow().getSteps());
+			imageDataOriginal.setColorDeconvolutionStains(imageDataNew.getColorDeconvolutionStains());
+			for (var entry : imageDataNew.getProperties().entrySet()) {
+				imageDataOriginal.setProperty(entry.getKey(), entry.getValue());
+			}
+			imageDataOriginal.setLastSavedPath(imageDataNew.getLastSavedPath(), false);
+			return imageDataOriginal;
+		} else {
+			return imageDataNew;
+		}
+	}
+
+	/**
+	 * Legacy method to read an {@link ImageData} from a file.
+	 * <p>
+	 * This previously tried to reuse an existing ImageData if it referred to the same ImageServer, but in practice
+	 * it usually returned a new ImageData object instead.
+	 * Therefore this method is deprecated, and {@link #readImageData(Path, ImageServer)} should be used instead.
+	 *
+	 * @param file the .qpdata file
+	 * @param imageData optional existing ImageData, to update if possible
 	 * @param server an ImageServer to use rather than any that might be stored within the serialized data.  Should be null to use the serialized path to build a new server.
 	 * 								The main purpose of this is to make it possible to open ImageData where the original image location has been moved, so the
 	 * 								stored path is no longer accurate.
-	 * @param cls
+	 * @param cls the generic class for the ImageServer
+	 * @return
+	 * @throws IOException
+	 * @deprecated since v0.6.0
+	 */
+	@Deprecated
+	public static <T> ImageData<T> readImageData(final File file, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
+		return readImageData(file.toPath(), imageData, server, cls);
+	}
+
+	/**
+	 * Legacy method to read an {@link ImageData} from a file.
+	 * <p>
+	 * This previously tried to reuse an existing ImageData if it referred to the same ImageServer, but in practice
+	 * it usually returned a new ImageData object instead.
+	 * Therefore this method is deprecated, and {@link #readImageData(Path, ImageServer)} should be used instead.
+	 *
+	 * @param path the .qpdata file
+	 * @param imageData optional existing ImageData, to update if possible
+	 * @param server an ImageServer to use rather than any that might be stored within the serialized data.  Should be null to use the serialized path to build a new server.
+	 * 								The main purpose of this is to make it possible to open ImageData where the original image location has been moved, so the
+	 * 								stored path is no longer accurate.
+	 * @param cls the generic class for the ImageServer
+	 * @return
+	 * @throws IOException
+	 * @deprecated since v0.6.0
+	 */
+	@Deprecated
+	public static <T> ImageData<T> readImageData(final Path path, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
+		LogTools.warnOnce(logger, "readImageData(Path, ImageData, ImageServer, Class) is deprecated and will be removed in a future version");
+		var newImageData = readImageDataSerialized(path, server);
+		if (imageData != null)
+			return tryToUpdateImageData(imageData, newImageData);
+		else
+			return newImageData;
+	}
+	
+	/**
+	 * Legacy method to read an {@link ImageData} from a stream.
+	 * <p>
+	 * This previously tried to reuse an existing ImageData if it referred to the same ImageServer, but in practice
+	 * it usually returned a new ImageData object instead.
+	 * Therefore this method is deprecated, and {@link #readImageData(Path, ImageServer)} should be used instead.
+	 *
+	 * @param stream data stream containing the serialized ImageData
+	 * @param imageData optional existing ImageData, to update if possible
+	 * @param server an ImageServer to use rather than any that might be stored within the serialized data.  Should be null to use the serialized path to build a new server.
+	 * 								The main purpose of this is to make it possible to open ImageData where the original image location has been moved, so the
+	 * 								stored path is no longer accurate.
+	 * @param cls the generic class for the ImageServer
+	 * @return
+	 * @throws IOException
+	 * @deprecated since v0.6.0
+	 */
+	@Deprecated
+	public static <T> ImageData<T> readImageData(final InputStream stream, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
+		LogTools.warnOnce(logger, "readImageData(InputStream, ImageData, ImageServer, Class) is deprecated and will be removed in a future version");
+		var newImageData = readImageDataSerialized(stream, server);
+		if (imageData != null)
+			return tryToUpdateImageData(imageData, newImageData);
+		else
+			return newImageData;
+	}
+
+	/**
+	 * Read an ImageData, optionally providing a serverBuilder for lazy image loading.
+	 * @param path the .qpdata file to read
+	 * @param serverBuilder the server builder to use, or null to use the one stored in the file
 	 * @return
 	 * @throws IOException
 	 */
-	public static <T> ImageData<T> readImageData(final InputStream stream, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
-		return readImageDataSerialized(stream, imageData, server, cls);
+	public static <T> ImageData<T> readImageData(final Path path, ServerBuilder<T> serverBuilder) throws IOException {
+		try (var stream = new BufferedInputStream(Files.newInputStream(path))) {
+			var imageData = readImageDataSerialized(stream, null, serverBuilder);
+			// Set the last saved path (actually the path from which this was opened)
+			imageData.setLastSavedPath(path.toAbsolutePath().toString(), true);
+			return imageData;
+		}
+	}
+
+	/**
+	 * Read an ImageData, optionally providing a serverBuilder for lazy image loading.
+	 * @param stream the .qpdata file to read
+	 * @param serverBuilder the server builder to use, or null to use the one stored in the file
+	 * @return
+	 * @throws IOException
+	 */
+	public static <T> ImageData<T> readImageData(final InputStream stream, ServerBuilder<T> serverBuilder) throws IOException {
+		return readImageDataSerialized(stream, null, serverBuilder);
+	}
+
+
+	/**
+	 * Read and initialize an {@link ImageData} from a data file.
+	 * @param file the .qpdata file to read
+	 * @return
+	 * @throws IOException
+	 */
+	public static <T> ImageData<T> readImageData(final File file) throws IOException {
+		return readImageData(file.toPath());
+	}
+
+	/**
+	 * Read and initialize an {@link ImageData} from a data file.
+	 * @param path the .qpdata file to read
+	 * @return
+	 * @throws IOException
+	 */
+	public static <T> ImageData<T> readImageData(final Path path) throws IOException {
+		return readImageDataSerialized(path, null);
 	}
 
 	
 	/**
-	 * Read ImageData from a File into an existing ImageData object, or create a new one if required.
-	 * @param <T> 
-	 * 
-	 * @param file
-	 * @param imageData
+	 * Read and initialize an {@link ImageData} from a data file.
+	 *
+	 * @param file the .qpdata file to read
 	 * @param server an ImageServer to use rather than any that might be stored within the serialized data.  Should be null to use the serialized path to build a new server.
 	 * 								The main purpose of this is to make it possible to open ImageData where the original image location has been moved, so the
 	 * 								stored path is no longer accurate.
-	 * @param cls 
 	 * @return
-	 * @throws IOException 
+	 * @throws IOException
+	 * @param <T> generic parameter for the {@link ImageServer}, usually BufferedImage
 	 */
-	public static <T> ImageData<T> readImageData(final File file, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
-		return readImageData(file.toPath(), imageData, server, cls);
+	public static <T> ImageData<T> readImageData(final File file, ImageServer<T> server) throws IOException {
+		return readImageData(file.toPath(), server);
 	}
 	
 	/**
-	 * Read {@link ImageData} from a File into an existing ImageData object, or create a new one if required.
-	 * @param <T> 
-	 * 
-	 * @param path
-	 * @param imageData
-	 * @param server an ImageServer to use rather than any that might be stored within the serialized data.  Should be null to use the serialized path to build a new server.
-	 * 								The main purpose of this is to make it possible to open ImageData where the original image location has been moved, so the
-	 * 								stored path is no longer accurate.
-	 * @param cls 
+	 * Read and initialize an {@link ImageData} from a data file.
+	 *
+	 * @param path path to data file
+	 * @param server an ImageServer to use rather than any that might be stored within the serialized data.
+	 *              Should be null to use the serialized path to build a new server.
+	 * 				The main purpose of this is to make it possible to open ImageData where the original image location has been moved, so the
+	 * 				stored path is no longer accurate.
 	 * @return
-	 * @throws IOException 
+	 * @throws IOException
+	 * @param <T> generic parameter for the {@link ImageServer}, usually BufferedImage
 	 */
-	public static <T> ImageData<T> readImageData(final Path path, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
-		return readImageDataSerialized(path, imageData, server, cls);
+	public static <T> ImageData<T> readImageData(final Path path, ImageServer<T> server) throws IOException {
+		return readImageDataSerialized(path, server);
 	}
 
 	/**
@@ -587,27 +659,18 @@ public class PathIO {
 			// Write the identifier
 			outStream.writeUTF("Data file version " + DATA_FILE_VERSION);
 			
-			// Try to write a backwards-compatible image path
-			var server = imageData.getServer();
-//			var uris = server.getURIs();
-//			String path;
-//			if (uris.size() == 1) {
-//				var uri = uris.iterator().next();
-//				var serverPath = GeneralTools.toPath(uri);
-//				if (serverPath != null && Files.exists(serverPath))
-//					path = serverPath.toFile().getAbsolutePath();
-//				else
-//					path = uri.toString();
-//			} else
-//				path = server.getPath();
-//			outStream.writeObject("Image path: " + path);
-			
 			// Write JSON object including QuPath version and ServerBuilder
 			// Note that the builder may be null, in which case the server cannot be recreated
-			var builder = server.getBuilder();
-			if (builder == null)
+			var builder = imageData.getServerBuilder();
+			String serverPath;
+			if (builder == null) {
+				var server = imageData.getServer();
 				logger.warn("Server {} does not provide a builder - it will not be possible to recover the ImageServer from this data file", server);
-			var wrapper = ServerBuilderWrapper.create(builder, server.getPath());
+				serverPath = server.getPath();
+			} else {
+				serverPath = imageData.getLastSavedPath();
+			}
+			var wrapper = ServerBuilderWrapper.create(builder, serverPath);
 			String json = GsonTools.getInstance().toJson(wrapper);
 			outStream.writeObject(json);
 			
@@ -651,7 +714,7 @@ public class PathIO {
 	 * @throws IOException 
 	 * @throws FileNotFoundException 
 	 */
-	public static PathObjectHierarchy readHierarchy(final File file) throws FileNotFoundException, IOException {
+	public static PathObjectHierarchy readHierarchy(final File file) throws IOException {
 		return readHierarchy(file.toPath());
 	}
 	
@@ -661,15 +724,11 @@ public class PathIO {
 	 * @param path
 	 * @return
 	 * @throws IOException 
-	 * @throws FileNotFoundException 
 	 */
-	public static PathObjectHierarchy readHierarchy(final Path path) throws FileNotFoundException, IOException {
-		logger.info("Reading hierarchy from {}...", path.getFileName().toString());
+	public static PathObjectHierarchy readHierarchy(final Path path) throws IOException {
+		logger.info("Reading hierarchy from {}", path.getFileName().toString());
 		try (var stream = Files.newInputStream(path)) {
-			var hierarchy = readHierarchy(stream);			
-			if (hierarchy == null)
-				logger.error("Unable to find object hierarchy in " + path);
-			return hierarchy;
+			return readHierarchy(stream);
 		}
 	}
 	
@@ -695,7 +754,7 @@ public class PathIO {
 				try {
 					// Try to read a relevant object from the stream
 					Object input = inStream.readObject();
-					logger.debug("Read: {}", input);
+					logger.trace("Read object: {}", input);
 
 					// Set locale - may be needed (although probably isn't...)
 					if (input instanceof Locale) {
@@ -703,12 +762,13 @@ public class PathIO {
 							Locale.setDefault(Category.FORMAT, (Locale)input);
 							localeChanged = true;
 						}
-					} else if (input instanceof PathObjectHierarchy) {
+					} else if (input instanceof PathObjectHierarchy newHierarchy) {
 						/* This would ideally be unnecessary, but it's needed to ensure that the PathObjectHierarchy
-						 * has been property initialized.  We can't count on the deserialized hierarchy being immediately functional.
+						 * has been property initialized.
+						 * We can't count on the deserialized hierarchy being immediately functional.
 						 */
 						PathObjectHierarchy hierarchy = new PathObjectHierarchy();
-						hierarchy.setHierarchy((PathObjectHierarchy)input);
+						hierarchy.setHierarchy(newHierarchy);
 						return hierarchy;
 					}
 
@@ -777,7 +837,7 @@ public class PathIO {
 				return allObjects;
 			}
 		}
-		
+
 		
 		try (var stream = new BufferedInputStream(Files.newInputStream(path))) {
 			InputStream stream2;
@@ -796,7 +856,7 @@ public class PathIO {
 			}
 		}
 			
-		logger.debug("Unable to read objects from {}", path.toString());
+		logger.debug("Unable to read objects from {}", path);
 		return Collections.emptyList();
 	}
 	
@@ -829,11 +889,11 @@ public class PathIO {
 	}
 	
 	
-	private static String EXT_ZIP = ".zip";
-	private static String EXT_GZIP = ".gz";
-	private static String EXT_JSON = ".json";
-	private static String EXT_GEOJSON = ".geojson";
-	private static String EXT_DATA = ".qpdata";
+	private static final String EXT_ZIP = ".zip";
+	private static final String EXT_GZIP = ".gz";
+	private static final String EXT_JSON = ".json";
+	private static final String EXT_GEOJSON = ".geojson";
+	private static final String EXT_DATA = ".qpdata";
 	
 	/**
 	 * Get a list of known file extensions that may contain objects, optionally including compressed files.
@@ -863,7 +923,7 @@ public class PathIO {
 	/**
 	 * Options to customize the export of PathObjects as GeoJSON.
 	 */
-	public static enum GeoJsonExportOptions {
+	public enum GeoJsonExportOptions {
 		/**
 		 * Request pretty-printing for the JSON. This is more readable, but results in larger files.
 		 */
@@ -992,7 +1052,7 @@ public class PathIO {
 		}
 	}
 	
-	private static final boolean serializableObject(Object obj) {
+	private static boolean serializableObject(Object obj) {
 		if (obj == null)
 			return true;
 		if (obj instanceof Serializable)
@@ -1005,7 +1065,7 @@ public class PathIO {
 	 * @param serialClass
 	 * @return
 	 */
-	private static final boolean checkQuPathSerializableClass(Class<?> serialClass) {
+	private static boolean checkQuPathSerializableClass(Class<?> serialClass) {
 		if (serialClass == null)
 			return true;
 		
@@ -1035,18 +1095,18 @@ public class PathIO {
 	 * @param serialClass
 	 * @return
 	 */
-	private static final boolean checkClassLoader(Class<?> serialClass) {
+	private static boolean checkClassLoader(Class<?> serialClass) {
 		if (serialClass == null)
 			return true;
 		var classloader = serialClass.getClassLoader();
 		return classloader == null || classloader == ClassLoader.getPlatformClassLoader() || classloader == ClassLoader.getSystemClassLoader();
 	}
 	
-	private static final Status classLoaderInputFilter(FilterInfo filterInfo) {
+	private static Status classLoaderInputFilter(FilterInfo filterInfo) {
 		return checkClassLoader(filterInfo.serialClass()) ? Status.ALLOWED : Status.REJECTED;
 	}
 	
-	private static final Status qupathInputFilter(FilterInfo filterInfo) {
+	private static Status qupathInputFilter(FilterInfo filterInfo) {
 		return checkQuPathSerializableClass(filterInfo.serialClass()) ? Status.ALLOWED : Status.REJECTED;
 	}
 	

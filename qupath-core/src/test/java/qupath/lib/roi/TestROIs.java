@@ -35,6 +35,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Geometry;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.geom.Point2;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
@@ -46,6 +48,8 @@ import qupath.lib.roi.interfaces.ROI;
  */
 @SuppressWarnings("javadoc")
 public class TestROIs {
+
+	private static final Logger logger = LoggerFactory.getLogger(TestROIs.class);
 	
 	/**
 	 * Compare areas as returned from ROIs and after converting to JTS Geometry objects.
@@ -122,8 +126,7 @@ public class TestROIs {
 				}
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getLocalizedMessage());
+			fail(e);
 		}
 		
 	}
@@ -242,7 +245,7 @@ public class TestROIs {
 			new ObjectOutputStream(stream).writeObject(o);
 			return stream.toByteArray();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error(e.getMessage(), e);
 			return null;
 		}
 	}
@@ -251,7 +254,7 @@ public class TestROIs {
 		try (ByteArrayInputStream stream = new ByteArrayInputStream(bytes)) {
 			return new ObjectInputStream(stream).readObject();
 		} catch (IOException | ClassNotFoundException e) {
-			e.printStackTrace();
+			logger.error(e.getMessage(), e);
 			return null;
 		}
 	}

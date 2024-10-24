@@ -181,9 +181,6 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 		int height = Math.min(server.getHeight(), yStart + size.height) - yStart;
 		RegionRequest region = RegionRequest.createInstance(server.getPath(), downsample, xStart, yStart, width, height, pathROI.getT(), pathROI.getZ());
 
-//		System.out.println(bounds);
-//		System.out.println("Size: " + size);
-
 		BufferedImage img = server.readRegion(region);
 
 		// Get a buffer containing the image pixels
@@ -239,16 +236,12 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 			double cy = (h-1) / 2;
 			double radius = Math.max(w, h) * .5;
 			double distThreshold = radius * radius;
-//			int count = 0;
 			for (int y = 0; y < h; y++) {
 				for (int x = 0; x < w; x++) {
 					if ((cx - x)*(cx - x) + (cy - y)*(cy - y) > distThreshold)
 						pxImg.setValue(x, y, Float.NaN);
-//					else
-//						count++;
-				}			
+				}
 			}
-//			System.out.println("Masked count: " + count + " for dimension " + w + ", " + h);
 		}
 		
 		
@@ -311,13 +304,6 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 		
 		double ratio = (l1 - l2) / (l1 + l2);
 		return ratio*ratio;
-		
-//		denominator = (fxx + fyy);
-//		numerator = ((fyy - fxx)*(fyy - fxx) + 4*fxy);
-//
-//		System.out.println(numerator);
-//		return Math.sqrt(numerator) / denominator;
-////		return numerator / (denominator * denominator);
 	}
 	
 	

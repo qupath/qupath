@@ -246,16 +246,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				int xr2 = x2 - subRegion.getX();
 				int yr2 = y2 - subRegion.getY();
 				double requestDownsample = downsample;
-//				if (requestDownsample > 1 && serverTemp.nResolutions() == 1) {
-//					requestDownsample = serverTemp.getDownsampleForResolution(0);
-//					double scale = requestDownsample / downsample;
-//					xr = (int)Math.round(xr * scale);					
-//					yr = (int)Math.round(yr * scale);					
-//					xr2 = (int)Math.round(xr2 * scale);					
-//					yr2 = (int)Math.round(yr2 * scale);	
-//					System.err.println(downsample + ", " + scale + ": " + serverTemp.getPath());
-//				}
-				
+
 				RegionRequest requestTemp = RegionRequest.createInstance(
 						serverTemp.getPath(), requestDownsample,
 						xr, yr, xr2-xr, yr2-yr, tileRequest.getZ() + originZ, tileRequest.getT() + originT);
@@ -286,7 +277,6 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		if (raster == null) {
 			return getEmptyTile(tileRequest.getTileWidth(), tileRequest.getTileHeight(), true);
 		}
-//		System.err.println(String.format("%.2f - %.2f", (double)tileRequest.getImageHeight()/raster.getHeight(), tileRequest.getDownsample()));
 		return new BufferedImage(colorModel, raster, false, null);
 	}
 	

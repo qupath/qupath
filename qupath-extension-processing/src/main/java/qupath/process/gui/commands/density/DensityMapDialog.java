@@ -190,6 +190,7 @@ public class DensityMapDialog {
 		pane.setPadding(new Insets(10));
 
 		stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setScene(new Scene(pane));
 		stage.setResizable(false);
 		stage.initOwner(qupath.getStage());

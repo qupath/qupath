@@ -75,6 +75,7 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.converter.DateTimeStringConverter;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.common.GeneralTools;
@@ -162,6 +163,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 	public void run() {
 		if (dialog == null) {
 			dialog = new Stage();
+			FXUtils.addCloseWindowShortcuts(dialog);
 			dialog.sizeToScene();
 			dialog.initOwner(qupath.getStage());
 			dialog.setTitle("Recording analysis");

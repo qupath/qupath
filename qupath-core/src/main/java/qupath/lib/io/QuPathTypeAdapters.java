@@ -34,9 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
-import java.util.Set;
 import java.util.UUID;
 
+import com.google.gson.Strictness;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +57,6 @@ import qupath.lib.io.GsonTools.PathClassTypeAdapter;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
-import qupath.lib.objects.MetadataStore;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -75,7 +74,7 @@ import qupath.lib.roi.interfaces.ROI;
 class QuPathTypeAdapters {
 	
 	static Gson gson = new GsonBuilder()
-			.setLenient()
+			.setStrictness(Strictness.LENIENT)
 			.serializeSpecialFloatingPointValues()
 			.create();
 		
@@ -403,21 +402,18 @@ class QuPathTypeAdapters {
 				if (!measurements.isEmpty()) {
 					out.name("Measurement count");
 					out.value(measurements.size());
-					for (int i = 0; i < measurements.size(); i++) {
-						out.name(measurements.getMeasurementName(i));
-						out.value(measurements.getMeasurementValue(i));
+					for (var m : measurements.getMeasurements()) {
+						out.name(m.getName());
+						out.value(m.getValue());
 					}
 				}
-				if (value instanceof MetadataStore) {
-					MetadataStore store = (MetadataStore)value;
-					Set<String> keys = store.getMetadataKeys();
-					if (!keys.isEmpty()) {
-						out.name("Metadata count");
-						out.value(keys.size());
-						for (String key : keys) {
-							out.name(key);
-							out.value(store.getMetadataString(key));
-						}
+				var map = value.getMetadata();
+				if (!map.isEmpty()) {
+					out.name("Metadata count");
+					out.value(map.size());
+					for (var entry : map.entrySet()) {
+						out.name(entry.getKey());
+						out.value(entry.getValue());
 					}
 				}
 			} else {
@@ -426,13 +422,10 @@ class QuPathTypeAdapters {
 					MeasurementListTypeAdapter.INSTANCE.write(out, measurements);
 				}
 				
-				if (value instanceof MetadataStore) {
-					MetadataStore store = (MetadataStore)value;
-					Map<String, String> map = store.getMetadataMap();
-					if (!map.isEmpty()) {
-						out.name("metadata");
-						gson.toJson(map, Map.class, out);
-					}
+				Map<String, String> map = value.getMetadata();
+				if (!map.isEmpty()) {
+					out.name("metadata");
+					gson.toJson(map, Map.class, out);
 				}
 			}
 			

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,8 +22,6 @@
  */
 
 package qupath.lib.objects;
-
-import java.util.Objects;
 
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
@@ -69,14 +67,14 @@ public class PathAnnotationObject extends PathROIObject {
 	/**
 	 * Set a free text description for this annotation.
 	 * 
-	 * @param text
+	 * @param text to use as a description; if null, any existing description will be removed
 	 */
 	public void setDescription(final String text) {
 		// Don't store unless we need to (which can also help avoid creating unnecessary metadata stores)
-		Object existing = retrieveMetadataValue(KEY_ANNOTATION_TEXT);
-		if (Objects.equals(text, existing))
-			return;
-		this.storeMetadataValue(KEY_ANNOTATION_TEXT, text);
+		if (text == null)
+			getMetadata().remove(KEY_ANNOTATION_TEXT);
+		else
+			getMetadata().put(KEY_ANNOTATION_TEXT, text);
 	}
 
 	/**
@@ -84,11 +82,7 @@ public class PathAnnotationObject extends PathROIObject {
 	 * @return 
 	 */
 	public String getDescription() {
-		return (String)retrieveMetadataValue(KEY_ANNOTATION_TEXT);
+		return getMetadata().get(KEY_ANNOTATION_TEXT);
 	}
-
-//	PathAnnotationObject(PathAnnotationObject pathObject, PathROI pathROI) {
-//		super(pathROI, pathObject.getPathClass(), pathObject.getMeasurementList());
-//	}
 
 }

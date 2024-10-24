@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -83,7 +83,7 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 	protected abstract SimpleProgressMonitor makeProgressMonitor();
 	
 	@Override
-	public synchronized void runTasks(Collection<? extends Runnable> tasks) {
+	public synchronized void runTasks(String message, Collection<? extends Runnable> tasks) {
 		
 		if (tasks.isEmpty())
 			return;
@@ -101,7 +101,7 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 			service = new ExecutorCompletionService<>(pool);
 		
 		monitor = makeProgressMonitor();
-		monitor.startMonitoring(null, tasks.size(), true);
+		monitor.startMonitoring(message, tasks.size(), true);
 		for (Runnable task : tasks) {
 			// If a task if null, then skip it - otherwise the monitor can get stuck
 			if (task == null) {
@@ -151,7 +151,7 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 				pendingTasks.remove(future);
 			}
 			if (monitor != null)
-				monitor.pluginCompleted("Tasks completed!");
+				monitor.pluginCompleted("");
 		} catch (InterruptedException e) {
 			logger.error("Plugin interrupted: {}", e.getMessage(), e);
 			monitor.pluginCompleted("Completed with error " + e.getMessage());

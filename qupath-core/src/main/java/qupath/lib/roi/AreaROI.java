@@ -54,8 +54,9 @@ import qupath.lib.roi.interfaces.ROI;
  * (e.g. java.awt.Area or some JavaFX alternative.)
  * 
  * @author Pete Bankhead
- *
+ * @deprecated since v0.6.0 (but really not used in recent versions)
  */
+@Deprecated
 public class AreaROI extends AbstractPathROI implements Serializable {
 	
 //	private static final Logger logger = LoggerFactory.getLogger(AreaROI.class);
@@ -173,12 +174,7 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 		int sum = 0;
 		for (Vertices v : vertices) {
 			sum += WindingTest.getWindingNumber(v, x, y);
-//			if (WindingTest.getWindingNumber(v, x, y) != 0) {
-//				System.err.println(WindingTest.getWindingNumber(v, x, y) + "(" + ind + " of " + vertices.size() + ")");
-////				return true;
-//			}
 		}
-//		return false;
 		return sum != 0;
 	}
 

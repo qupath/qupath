@@ -131,11 +131,11 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		String name = languageName.toLowerCase();
 		
 		if ("groovy".equals(name))
-			return new GroovyAutoCompletor(true);
+			return new GroovyAutoCompletor();
 		else if ("java".equals(name))
-			return new DefaultAutoCompletor(true);
-		else if (Set.of("python", "cpython", "python py4j", "jython").contains(name))
-			return new PythonAutoCompletor(true);
+			return new DefaultAutoCompletor();
+		else if (Set.of("python", "cpython", "python py4j", "jython", "graalpy").contains(name))
+			return new PythonAutoCompletor();
 		
 		return null;
 	}

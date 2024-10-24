@@ -27,12 +27,15 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -41,7 +44,12 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.shape.Arc;
+import javafx.scene.shape.CubicCurveTo;
+import javafx.scene.shape.QuadCurve;
 import javafx.scene.text.TextAlignment;
+import javafx.scene.text.TextBoundsType;
 import javafx.scene.transform.Transform;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.controlsfx.glyphfont.Glyph;
@@ -70,6 +78,8 @@ import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Text;
+import qupath.lib.geom.Point2;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -253,6 +263,10 @@ public class IconFactory {
 			return i -> new DuplicatableNode(() -> drawPixelClassificationIcon(i));
 		}
 
+		static IntFunction<Node> drawConnectionsIcon() {
+			return i -> new DuplicatableNode(() -> IconFactory.drawConnectionsIcon(i));
+		}
+
 		static IntFunction<Node> showNamesIcon() {
 			return i -> new DuplicatableNode(() -> drawShowNamesIcon(i));
 		}
@@ -330,6 +344,7 @@ public class IconFactory {
 
 									SHOW_NAMES(IconSuppliers.showNamesIcon()),
 									SHOW_SCALEBAR(IconSuppliers.icoMoon('\ue917')),
+									SHOW_CONNECTIONS(IconSuppliers.drawConnectionsIcon()),
 									SCREENSHOT(IconSuppliers.icoMoon('\ue918')),
 									
 									TRACKING_REWIND(IconSuppliers.fontAwesome(FontAwesome.Glyph.BACKWARD)),
@@ -409,6 +424,8 @@ public class IconFactory {
 		if (path.getClip() == null)
 			path.setClip(new Rectangle(0, 0, width, height));
 
+		bindStrokeToSelectionMode(path.getStrokeDashArray());
+
 		return wrapInGroup(width, height, path);
 	}
 	
@@ -418,8 +435,19 @@ public class IconFactory {
 		var shape = new Rectangle(padX, padY, size-padX*2.0, size-padY*2.0);
 		shape.setStrokeWidth(1.0);
 		bindShapeColorToObjectColor(shape);
+		bindStrokeToSelectionMode(shape.getStrokeDashArray());
 		shape.setFill(Color.TRANSPARENT);
 		return wrapInGroup(size, shape);
+	}
+
+	private static void bindStrokeToSelectionMode(ObservableList<Double> dashList) {
+		PathPrefs.selectionModeStatus().addListener((obs, oldVal, newVal) -> {
+			if (newVal) {
+				dashList.setAll(3.0, 3.0);
+			} else {
+				dashList.clear();
+			}
+		});
 	}
 
 	/**
@@ -499,6 +527,8 @@ public class IconFactory {
 		addNodesToPath(path, Math.max(3.0, size/10.0));
 		bindShapeColorToObjectColor(path);
 
+		bindStrokeToSelectionMode(path.getStrokeDashArray());
+
 		return wrapInGroup(size, addNodesToPath(path, Math.max(2.0, size/10.0)));
 	}
 	
@@ -513,9 +543,8 @@ public class IconFactory {
 				new QuadCurveTo(size-size/8.0, 0, size/2.0, 0),
 				new ClosePath()
 				);
-//		var transform = Affine.rotate(30.0, size/2.0, size/2.0);
-//		path.getTransforms().add(transform);
 		path.setRotate(30.0);
+		bindStrokeToSelectionMode(path.getStrokeDashArray());
 		bindShapeColorToObjectColor(path);		
 		return wrapInGroup(size, path);
 	}
@@ -533,9 +562,10 @@ public class IconFactory {
 				);
 		
 		bindShapeColorToObjectColor(path);
-		
+
+		bindStrokeToSelectionMode(path.getStrokeDashArray());
+
 		return wrapInGroup(size, addNodesToPath(path, Math.max(2.0, size/10.0)));
-//		return path;
 	}
 	
 	
@@ -563,7 +593,48 @@ public class IconFactory {
 		}
 		return group;
 	}
-	
+
+	private static Node drawConnectionsIcon(int size) {
+		double padX = 2;
+		double padY = 2;
+
+		var ptl = new Point2(padX, padY);
+		var ptr = new Point2(size-padX, padY);
+		var pbl = new Point2(padX, size-padY);
+		var pbr = new Point2(size-padX, size-padY);
+		var pc = new Point2(size/2.0, size/2.0);
+
+		Path path = new Path();
+		path.getElements().setAll(
+				move(ptl), line(ptr),
+				line(pbr), line(pbl),
+				line(ptl), line(pc),
+				line(ptr),
+				move(pc), line(pbl),
+				move(pc), line(pbr)
+		);
+
+		path.setStyle("-fx-stroke: -fx-text-fill; -fx-opacity: 0.4;");
+		var group = new Group(Stream.of(ptl, ptr, pbl, pbr, pc)
+				.map(p -> {
+					var circle = new Circle(p.getX(), p.getY(), 2.0, DETECTION_COLOR);
+					var fillColor = ColorToolsFX.getColorWithOpacity(DETECTION_COLOR, 0.75);
+					circle.setFill(fillColor);
+//					bindShapeColorToObjectColor(circle);
+					return circle;
+				})
+				.toArray(Node[]::new));
+
+		return wrapInGroup(size, path, group);
+	}
+
+	private static MoveTo move(Point2 p) {
+		return new MoveTo(p.getX(), p.getY());
+	}
+
+	private static LineTo line(Point2 p) {
+		return new LineTo(p.getX(), p.getY());
+	}
 	
 	private static Node drawEllipseIcon(int size) {
 		double padX = 2.0;
@@ -576,6 +647,7 @@ public class IconFactory {
 		shape.setStrokeWidth(1.0);
 		bindShapeColorToObjectColor(shape);
 		shape.setFill(Color.TRANSPARENT);
+		bindStrokeToSelectionMode(shape.getStrokeDashArray());
 		return wrapInGroup(size, shape);
 	}
 	
@@ -638,7 +710,68 @@ public class IconFactory {
 		// Because the default selection color yellow, it's not very prominent
 //		bindColorPropertyToRGB(text.fillProperty(), PathPrefs.colorSelectedObjectProperty());
 		bindColorPropertyToRGB(text.fillProperty(), PathPrefs.colorDefaultObjectsProperty());
-		return text;
+
+		var circle = new Circle(size/2.0, size/2.0, size/2.0, Color.TRANSPARENT);
+		bindColorPropertyToRGB(circle.strokeProperty(), PathPrefs.colorDefaultObjectsProperty());
+		circle.getStrokeDashArray().setAll(3.0, 3.0);
+		circle.setOpacity(0.5);
+
+		var stack = new StackPane(circle, text);
+		text.setBoundsType(TextBoundsType.VISUAL);
+
+		return wrapInGroup(size, stack);
+	}
+
+	private static Node drawDashedS(int size) {
+		int pad = 2;
+
+		var path = new Path();
+		double unit = (size - pad) / 6.0;
+		path.getElements().setAll(
+				new MoveTo(-unit*1.5, unit*2),
+				new CubicCurveTo(
+						unit, unit*2.5,
+						unit*3, unit,
+						0, 0),
+				new CubicCurveTo(
+						-unit*3, -unit,
+						-unit, -unit*2.5,
+						unit*1, -unit*2)
+		);
+		path.setTranslateX(size/2.0);
+		path.setTranslateY(size/2.0);
+
+		path.getStrokeDashArray().setAll(2.0, 2.0);
+		path.setFill(Color.TRANSPARENT);
+
+		bindColorPropertyToRGB(path.strokeProperty(), PathPrefs.colorDefaultObjectsProperty());
+
+		return wrapInGroup(size, path);
+	}
+
+
+	private static Node drawLassoNode(int size) {
+		int pad = 2;
+		var ellipse = new Ellipse(size/2.0+pad, pad*2, size/2.0, size/4.0);
+		ellipse.getStrokeDashArray().setAll(3.0, 3.0);
+		ellipse.setFill(Color.TRANSPARENT);
+
+		var circle = new Circle(ellipse.getCenterX(), ellipse.getCenterY()+ellipse.getRadiusY(), size/20.0);
+
+		var arc = new QuadCurve(
+				circle.getCenterX(), circle.getCenterY(),
+				size-pad, size-pad,
+				pad, size-pad);
+		arc.setFill(Color.TRANSPARENT);
+		arc.setStrokeDashOffset(1.0);
+		arc.getStrokeDashArray().setAll(3.0, 3.0);
+
+		bindColorPropertyToRGB(ellipse.strokeProperty(), PathPrefs.colorDefaultObjectsProperty());
+		bindColorPropertyToRGB(circle.strokeProperty(), PathPrefs.colorDefaultObjectsProperty());
+		bindColorPropertyToRGB(circle.fillProperty(), PathPrefs.colorDefaultObjectsProperty());
+		bindColorPropertyToRGB(arc.strokeProperty(), PathPrefs.colorDefaultObjectsProperty());
+
+		return wrapInGroup(size, ellipse, circle, arc);
 	}
 	
 	private static void bindShapeColorToObjectColor(Shape shape) {
@@ -749,7 +882,8 @@ public class IconFactory {
 		} else {
 			var path = pathCache.getOrDefault(roi, null);
 			if (path == null) {
-				var shape = roi.isArea() ? RoiTools.getArea(roi) : RoiTools.getShape(roi);
+				var shape = RoiTools.getShape(roi);
+//				var shape = roi.isArea() ? RoiTools.getArea(roi) : RoiTools.getShape(roi);
 				if (shape != null) {
 					var transform = new AffineTransform();
 					transform.translate(-roi.getBoundsX(), -roi.getBoundsY());
@@ -827,6 +961,27 @@ public class IconFactory {
 			return null;
 		}
 	}
+
+
+	/**
+	 * Create a node from a FontAwesome Glyph.
+	 * @param glyph the glyph (should be part of the free FontAwesome collection supported by ControlsFX)
+	 * @param size the glyph size
+	 * @return a duplicatable node
+	 */
+	public static Node createNode(FontAwesome.Glyph glyph, int size) {
+		return new DuplicatableNode(() -> IconSuppliers.fontAwesome(glyph).apply(size));
+	}
+
+	/**
+	 * Create a node from a FontAwesome Glyph with the default size for toolbars.
+	 * @param glyph the glyph (should be part of the free FontAwesome collection supported by ControlsFX)
+	 * @return a duplicatable node
+	 */
+	public static Node createNode(FontAwesome.Glyph glyph) {
+		return new DuplicatableNode(() -> IconSuppliers.fontAwesome(glyph).apply(QuPathGUI.TOOLBAR_ICON_SIZE));
+	}
+
 
 	/**
 	 * Create an image from a default icon glyph.

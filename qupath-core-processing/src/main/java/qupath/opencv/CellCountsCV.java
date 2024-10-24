@@ -115,7 +115,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// Get the filter size & calculate a suitable downsample value
 			double gaussianSigma;
 			double backgroundRadius;
-			double downsample = imageData.getServer().getMetadata().getMagnification() / magnification;
+			double downsample = imageData.getServerMetadata().getMagnification() / magnification;
 			if (downsample < 1)
 				downsample = 1;
 			if (hasMicrons) {
@@ -126,7 +126,6 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				// aiming for a sigma value of at approximately 1.25 pixels
 				if (!Double.isFinite(downsample)) {
 					downsample = Math.max(1, Math.round(gaussianSigma / 1.25));
-//					System.err.println("Downsample: " + downsample);
 				}
 				// Update filter sizes according to downsampling factor
 				gaussianSigma /= downsample;
@@ -141,9 +140,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				backgroundRadius = params.getDoubleParameterValue("backgroundRadiusPixels") / downsample;
 			}
 			logger.debug("Fast cell counting with Gaussian sigma {} pixels, downsample {}", gaussianSigma, downsample);
-//			System.err.println("ACTUAL Downsample: " + downsample);
 
-			
 			// Read the buffered image
 			ImageServer<BufferedImage> server = imageData.getServer();
 			RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, pathROI);

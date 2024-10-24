@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,7 +23,6 @@
 
 package qupath.lib.gui;
 
-import java.awt.image.BufferedImage;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -47,7 +46,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.images.ImageData;
 import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.AbstractTaskRunner;
@@ -98,12 +96,12 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 	}
 	
 	@Override
-	public synchronized void runTasks(Collection<? extends Runnable> tasks) {
+	public synchronized void runTasks(String message, Collection<? extends Runnable> tasks) {
 		var viewer = qupath == null || repaintDelayMillis <= 0 ? null : qupath.getViewer();
 		if (viewer != null)
 			viewer.setMinimumRepaintSpacingMillis(repaintDelayMillis);
 		try {
-			super.runTasks(tasks);
+			super.runTasks(message, tasks);
 		} catch (Exception e) {
 			throw(e);
 		} finally {
@@ -308,7 +306,7 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 			}
 			long endTime = System.currentTimeMillis();
 			logger.info(String.format("Processing complete in %.2f seconds", (endTime - startTimeMS)/1000.));
-			if (message != null && message.trim().length() > 0)
+			if (message != null && !message.trim().isEmpty())
 				logger.info(message);
 		}
 		
@@ -321,7 +319,7 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 			int progressPercent = (int)Math.round((double)progressValue / maxProgress * 100.0);
 			// Update the display
 			// Don't update the label if cancel was pressed, since this is probably already giving a more informative message
-			if (!cancelPressed)
+			if (!cancelPressed && STARTING_MESSAGE.equals(progressDialog.getDialogPane().getHeaderText()))
 				progressDialog.getDialogPane().setHeaderText(RUNNING_MESSAGE);
 
 			if (lastMessage == null)

@@ -22,6 +22,7 @@
 
 package qupath.lib.analysis.images;
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
@@ -49,8 +50,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.imageio.ImageIO;
-
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
@@ -66,7 +65,6 @@ import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
@@ -89,8 +87,8 @@ import qupath.lib.roi.interfaces.ROI;
 public class ContourTracing {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ContourTracing.class);
-	
-	
+
+
 	/**
 	 * Convert labeled images to detection objects, determining the region from the filename if possible.
 	 * @param paths paths to image files (e.g. PNGs)
@@ -582,7 +580,7 @@ public class ContourTracing {
 	}
 	
 	/**
-	 * Create ROIs from a labelled image containing integer labels.
+	 * Create Geometries from a labelled image containing integer labels.
 	 * 
 	 * @param image the labelled image
 	 * @param region region used to convert coordinates into the full image space (optional)
@@ -590,7 +588,7 @@ public class ContourTracing {
 	 * @param maxLabel maximum label; if less than minLabel, the maximum label will be found in the image and used
 	 * @return an ordered map containing all the ROIs that could be found; corresponding labels are keys in the map
 	 */
-	public static Map<Number, ROI> createROIs(SimpleImage image, RegionRequest region, int minLabel, int maxLabel) {
+	public static Map<Number, Geometry> createGeometries(SimpleImage image, RegionRequest region, int minLabel, int maxLabel) {
 		var envelopes = new HashMap<Number, Envelope>();
 		if (minLabel == maxLabel) {
 			// Don't bother storing an envelope here - we'll iterate the full image when tracing
@@ -632,17 +630,42 @@ public class ContourTracing {
 				.collect(
 						Collectors.toMap(
 								Map.Entry::getKey,
-								e -> labelToROI(image, e.getKey().doubleValue(), region, e.getValue()))
+								e -> createTracedGeometry(image, e.getKey().doubleValue(), e.getKey().doubleValue(), region, e.getValue())
+						)
 				);
 
 		// Return a sorted map with all non-empty ROIs
-		Map<Number, ROI> rois = new TreeMap<>();
+		Map<Number, Geometry> rois = new TreeMap<>();
 		for (var entry : map.entrySet()) {
 			if (entry.getValue() != null && !entry.getValue().isEmpty())
 				rois.put(entry.getKey(), entry.getValue());
 		}
 		return rois;
 	}
+
+	/**
+	 * Create ROIs from a labelled image containing integer labels.
+	 *
+	 * @param image the labelled image
+	 * @param region region used to convert coordinates into the full image space (optional)
+	 * @param minLabel minimum label; usually 1, but may be 0 if a background ROI should be created
+	 * @param maxLabel maximum label; if less than minLabel, the maximum label will be found in the image and used
+	 * @return an ordered map containing all the ROIs that could be found; corresponding labels are keys in the map
+	 */
+	public static Map<Number, ROI> createROIs(SimpleImage image, RegionRequest region, int minLabel, int maxLabel) {
+		var map = createGeometries(image, region, minLabel, maxLabel);
+		return map.entrySet().stream()
+				.collect(
+						Collectors.toMap(
+								Map.Entry::getKey,
+								es -> {
+									var geom = es.getValue();
+									return geom == null ? null : GeometryTools.geometryToROI(geom, region == null ? ImagePlane.getDefaultPlane() : region.getImagePlane());
+								}
+						)
+				);
+	}
+
 
 	private static ROI labelToROI(SimpleImage image, double label, RegionRequest region, Envelope envelope) {
 		return createTracedROI(image, label, label, region, envelope);
@@ -961,21 +984,6 @@ public class ContourTracing {
 		}
 		
 		return traceGeometriesImpl(server, tiles, clipArea, thresholds);
-		
-		// TODO: Consider restricting parallelization
-//		int nThreads = Math.min(Math.max(1, Math.max(thresholds.length, tiles.size())), Runtime.getRuntime().availableProcessors());
-//		var pool = new ForkJoinPool(nThreads);
-//		var task = pool.submit(() -> traceGeometriesImpl(server, tiles, clipArea, thresholds));
-//		pool.shutdown();
-//		try {
-//			return task.get();
-//		} catch (InterruptedException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (ExecutionException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
 	}
 	
 	
@@ -1103,8 +1111,7 @@ public class ContourTracing {
 			if (!toMerge.isEmpty()) {
 				logger.debug("Computing union for {}/{} polygons", toMerge.size(), allPolygons.size());
 				var mergedGeometry = GeometryTools.union(toMerge);
-//				System.err.println("To merge: " + toMerge.size());
-//				var mergedGeometry = factory.buildGeometry(toMerge).buffer(0);
+
 				var iter = allPolygons.iterator();
 				while (iter.hasNext()) {
 					if (toMerge.contains(iter.next()))

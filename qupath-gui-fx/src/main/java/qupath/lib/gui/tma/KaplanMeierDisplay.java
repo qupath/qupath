@@ -74,6 +74,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Callback;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.analysis.stats.StatisticsHelper;
 import qupath.lib.analysis.stats.survival.KaplanMeierData;
@@ -210,6 +211,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 	private Stage createStage(final Window parent, final String title) {
 		Stage frame = new Stage();
+		FXUtils.addCloseWindowShortcuts(frame);
 		if (parent != null)
 			frame.initOwner(parent);
 		frame.setTitle("Kaplan Meier: " + title);
@@ -1168,7 +1170,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 						NormalDistribution dist = new NormalDistribution();
 						z = dist.inverseCumulativeProbability(1 - pValue/2);
 						double phi = dist.density(z);
-						//								System.err.println("PHI: " + phi + " for " + z);
+
 						double pValueAdjusted = phi * (z - 1/z) * Math.log((1 - epsilon)*(1 - epsilon)/(epsilon*epsilon)) + 4 * phi/z;
 
 						values.add(df4.format(pValueAdjusted));	

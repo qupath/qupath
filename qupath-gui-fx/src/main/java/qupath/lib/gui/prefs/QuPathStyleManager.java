@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -42,6 +42,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 
+import javafx.application.ColorScheme;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.scene.control.ButtonType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,7 +72,7 @@ import qupath.fx.dialogs.Dialogs;
  */
 public class QuPathStyleManager {
 	
-	private static Logger logger = LoggerFactory.getLogger(QuPathStyleManager.class);
+	private static final Logger logger = LoggerFactory.getLogger(QuPathStyleManager.class);
 	
 	/**
 	 * Main stylesheet, used to define new colors for QuPath.
@@ -86,24 +88,33 @@ public class QuPathStyleManager {
 	/**
 	 * Default JavaFX stylesheet
 	 */
-	private static final StyleOption DEFAULT_STYLE = new JavaFXStylesheet("Modena Light", Application.STYLESHEET_MODENA);
+	private static final StyleOption DEFAULT_LIGHT_STYLE = new JavaFXStylesheet("Modena Light", Application.STYLESHEET_MODENA);
 
 	/**
 	 * Default QuPath stylesheet used for 'dark mode'
 	 */
-	private static final StyleOption DEFAULT_DARK_STYLE = new CustomStylesheet("Modena Dark", "Darker version of JavaFX Modena stylesheet", STYLESHEET_DARK);
+	private static final StyleOption DEFAULT_DARK_STYLE = new CustomStylesheet(
+			"Modena Dark",
+			"Darker version of JavaFX Modena stylesheet",
+			ColorScheme.DARK,
+			STYLESHEET_DARK);
 
 	// Maintain a record of what stylesheets we've added, so we can try to clean up later if needed
 	private static final List<String> previouslyAddedStyleSheets = new ArrayList<>();
 
+	private static final StyleOption DEFAULT_SYSTEM_STYLE = new SystemStylesheet(DEFAULT_LIGHT_STYLE, DEFAULT_DARK_STYLE);
+
+	private static final ReadOnlyObjectProperty<ColorScheme> systemColorScheme = Platform.getPreferences().colorSchemeProperty();
+
 	private static final ObservableList<StyleOption> styles = FXCollections.observableArrayList(
-			DEFAULT_STYLE,
+			DEFAULT_SYSTEM_STYLE,
+			DEFAULT_LIGHT_STYLE,
 			DEFAULT_DARK_STYLE
 			);
 	
 	private static final ObservableList<StyleOption> stylesUnmodifiable = FXCollections.unmodifiableObservableList(styles);
 	
-	private static ObjectProperty<StyleOption> selectedStyle;
+	private static final ObjectProperty<StyleOption> selectedStyle;
 
 	/**
 	 * Find the first available {@link StyleOption} with the specified name.
@@ -111,7 +122,7 @@ public class QuPathStyleManager {
 	 * @return
 	 */
 	private static StyleOption findByName(String name) {
-		return styles.stream().filter(s -> Objects.equals(s.getName(), name)).findFirst().orElse(DEFAULT_STYLE);
+		return styles.stream().filter(s -> Objects.equals(s.getName(), name)).findFirst().orElse(DEFAULT_LIGHT_STYLE);
 	}
 	
 	/**
@@ -122,7 +133,7 @@ public class QuPathStyleManager {
 	/**
 	 * Available font families.
 	 */
-	public static enum Fonts {
+	public enum Fonts {
 		/**
 		 * JavaFX default. May not look great on macOS, which lacks support for bold font weight by default.
 		 */
@@ -137,36 +148,28 @@ public class QuPathStyleManager {
 		SERIF;
 		
 		private String getURL() {
-			switch(this) {
-			case SANS_SERIF:
-				return "css/sans-serif.css";
-			case SERIF:
-				return "css/serif.css";
-			case DEFAULT:
-			default:
-				return null;
-			}
+            return switch (this) {
+                case SANS_SERIF -> "css/sans-serif.css";
+                case SERIF -> "css/serif.css";
+                default -> null;
+            };
 		}
 		
 		@Override
 		public String toString() {
-			switch(this) {
-			case SANS_SERIF:
-				return "Sans-serif";
-			case SERIF:
-				return "Serif";
-			case DEFAULT:
-			default:
-				return "Default";
-			}
+            return switch (this) {
+                case SANS_SERIF -> "Sans-serif";
+                case SERIF -> "Serif";
+                default -> "Default";
+            };
 		}
 	}
 
-	private static ObservableList<Fonts> availableFonts = 
+	private static final ObservableList<Fonts> availableFonts =
 			FXCollections.unmodifiableObservableList(
 					FXCollections.observableArrayList(Fonts.values()));
 
-	private static ObjectProperty<Fonts> selectedFont = PathPrefs.createPersistentPreference("selectedFont", 
+	private static final ObjectProperty<Fonts> selectedFont = PathPrefs.createPersistentPreference("selectedFont",
 			GeneralTools.isMac() ? Fonts.SANS_SERIF : Fonts.DEFAULT, Fonts.class);
 
 	static {
@@ -176,8 +179,15 @@ public class QuPathStyleManager {
 		 * We need to do this before setting the default (since the last used style might be one of these).
 		 */
 		updateAvailableStyles();
-		selectedStyle = PathPrefs.createPersistentPreference("qupathStylesheet", DEFAULT_STYLE, s -> s.getName(), QuPathStyleManager::findByName);
-		
+		selectedStyle = PathPrefs.createPersistentPreference("qupathStylesheet", DEFAULT_SYSTEM_STYLE, StyleOption::getName, QuPathStyleManager::findByName);
+
+		systemColorScheme.addListener((v, o, n) -> {
+			if (selectedStyle.get() == DEFAULT_SYSTEM_STYLE) {
+				updateStyle();
+			}
+		});
+
+
 		// Add listener to adjust style as required
 		selectedStyle.addListener((v, o, n) -> updateStyle());
 		selectedFont.addListener((v, o, n) -> updateStyle());
@@ -228,7 +238,7 @@ public class QuPathStyleManager {
 						updateAvailableStyles();
 					});
 				} catch (Exception e) {
-					logger.warn("Exception searching for css files: " + e.getLocalizedMessage(), e);
+                    logger.warn("Exception searching for css files: {}", e.getMessage(), e);
 				}
 			} else if (!Objects.equals(watcher.cssPath, cssPath)) {
 				watcher.setCssPath(cssPath);
@@ -241,20 +251,20 @@ public class QuPathStyleManager {
 		
 		// Update all available styles
 		if (watcher == null || watcher.styles.isEmpty())
-			styles.setAll(DEFAULT_STYLE, DEFAULT_DARK_STYLE);
+			styles.setAll(DEFAULT_SYSTEM_STYLE, DEFAULT_LIGHT_STYLE, DEFAULT_DARK_STYLE);
 		else {
 			var temp = new ArrayList<StyleOption>();
-			temp.add(DEFAULT_STYLE);
+			temp.add(DEFAULT_SYSTEM_STYLE);
+			temp.add(DEFAULT_LIGHT_STYLE);
 			temp.add(DEFAULT_DARK_STYLE);
 			temp.addAll(watcher.styles);
-//			temp.sort(Comparator.comparing(StyleOption::getName));
 			styles.setAll(temp);
 		}
 		
 		// Reinstate the selection, or use the default if necessary
 		if (selectedStyle != null) {
 			if (previouslySelected == null || !styles.contains(previouslySelected))
-				selectedStyle.set(DEFAULT_STYLE);
+				selectedStyle.set(DEFAULT_LIGHT_STYLE);
 			else
 				selectedStyle.set(previouslySelected);
 		}
@@ -318,7 +328,7 @@ public class QuPathStyleManager {
 				nInstalled++;
 			}
 		} catch (IOException e) {
-			logger.error("Exception installing CSS files: " + e.getLocalizedMessage(), e);
+            logger.error("Exception installing CSS files: {}", e.getLocalizedMessage(), e);
 			return false;
 		}
 		if (nInstalled > 0)
@@ -338,11 +348,12 @@ public class QuPathStyleManager {
 	}
 	
 	/**
-	 * Check if the default JavaFX style is used.
-	 * @return true if the default style is used, false otherwise.
+	 * Get the color scheme of the current style, or the system color scheme if no other is available.
+	 * @return
 	 */
-	public static boolean isDefaultStyle() {
-		return DEFAULT_STYLE.equals(selectedStyle.get());
+	public static ColorScheme getStyleColorScheme() {
+		var selected = selectedStyle.get();
+		return selected == null ? Platform.getPreferences().getColorScheme() : selected.getColorScheme();
 	}
 	
 	/**
@@ -383,25 +394,73 @@ public class QuPathStyleManager {
 	/**
 	 * Interface defining a style that may be applied to QuPath.
 	 */
-	public static interface StyleOption {
+	public interface StyleOption {
 		
 		/**
 		 * Set the style for the QuPath application.
 		 */
-		public void setStyle();
+		void setStyle();
 		
 		/**
 		 * Get a user-friendly description of the style.
 		 * @return
 		 */
-		public String getDescription();
+		String getDescription();
 		
 		/**
 		 * Get a user-friendly name for the style.
 		 * @return
 		 */
-		public String getName();
+		String getName();
+
+		/**
+		 * Get the color scheme. By default this will return the color scheme from the Platform preferences,
+		 * but implementations may return a different one for the specific theme.
+		 * @return
+		 */
+		default ColorScheme getColorScheme() {
+			return Platform.getPreferences().getColorScheme();
+		}
 		
+	}
+
+	/**
+	 * Default JavaFX stylesheet.
+	 */
+	static class SystemStylesheet implements StyleOption {
+
+		private final StyleOption defaultLight;
+		private final StyleOption defaultDark;
+
+		private SystemStylesheet(StyleOption defaultLight, StyleOption defaultDark) {
+			this.defaultLight = defaultLight;
+			this.defaultDark = defaultDark;
+		}
+
+		@Override
+		public void setStyle() {
+			if (Platform.getPreferences().getColorScheme() == ColorScheme.DARK) {
+				defaultDark.setStyle();
+			} else {
+				defaultLight.setStyle();
+			}
+		}
+
+		@Override
+		public String getDescription() {
+			return "Use a style based on the system-wide light/dark setting";
+		}
+
+		@Override
+		public String getName() {
+			return "System theme";
+		}
+
+		@Override
+		public String toString() {
+			return getName();
+		}
+
 	}
 	
 	
@@ -434,7 +493,12 @@ public class QuPathStyleManager {
 		public String getName() {
 			return name;
 		}
-		
+
+		@Override
+		public ColorScheme getColorScheme() {
+			return ColorScheme.LIGHT;
+		}
+
 		@Override
 		public String toString() {
 			return getName();
@@ -465,18 +529,20 @@ public class QuPathStyleManager {
 	 */
 	static class CustomStylesheet implements StyleOption {
 		
-		private String name;
-		private String description;
-		private String[] urls;
+		private final String name;
+		private final String description;
+		private final String[] urls;
+		private final ColorScheme colorScheme;
 		
-		CustomStylesheet(final String name, final String description, final String... urls) {
+		CustomStylesheet(final String name, final String description, final ColorScheme colorScheme, final String... urls) {
 			this.name = name;
 			this.description = description;
 			this.urls = urls.clone();
+			this.colorScheme = colorScheme;
 		}
 		
 		CustomStylesheet(final Path path) {
-			this(GeneralTools.getNameWithoutExtension(path.toFile()), path.toString(), path.toUri().toString());
+			this(GeneralTools.getNameWithoutExtension(path.toFile()), path.toString(), null, path.toUri().toString());
 		}
 
 		@Override
@@ -498,7 +564,20 @@ public class QuPathStyleManager {
 		public String toString() {
 			return getName();
 		}
-		
+
+		@Override
+		public ColorScheme getColorScheme() {
+			if (colorScheme != null)
+				return colorScheme;
+			String name = getName().toLowerCase();
+			if (name.contains("dark"))
+				return ColorScheme.DARK;
+			else if (name.contains("light"))
+				return ColorScheme.LIGHT;
+			else
+				return Platform.getPreferences().getColorScheme();
+		}
+
 		/**
 		 * Check if a specified url is used as part of this stylesheet.
 		 * @param url
@@ -538,10 +617,7 @@ public class QuPathStyleManager {
 	
 	private static void setStyleSheets(String... urls) {
 		Application.setUserAgentStylesheet(null);
-//		// Check if we need to do anything
-//		var toAdd = Arrays.asList(urls);
-//		if (previouslyAddedStyleSheets.equals(toAdd))
-//			return;
+
 		// Replace previous stylesheets with the new ones
 		removePreviousStyleSheets();
 		
@@ -564,7 +640,6 @@ public class QuPathStyleManager {
 				m.invoke(styleManager, url);
 				logger.debug("Stylesheet removed {}", url);
 			}
-//			System.err.println("After removal: " + previouslyAddedStyleSheets);
 		} catch (Exception e) {
 			logger.error("Unable to call removeUserAgentStylesheet", e);
 		}
@@ -582,7 +657,6 @@ public class QuPathStyleManager {
 				previouslyAddedStyleSheets.add(url);
 				logger.debug("Stylesheet added {}", url);
 			}
-//			System.err.println("After adding: " + previouslyAddedStyleSheets);
 		} catch (Exception e) {
 			logger.error("Unable to call addUserAgentStylesheet", e);
 		}
@@ -610,7 +684,7 @@ public class QuPathStyleManager {
 				watcher = FileSystems.getDefault().newWatchService();
 				logger.debug("Watching for changes in {}", cssPath);
 			} catch (IOException e) {
-				logger.error("Exception setting up CSS watcher: " + e.getLocalizedMessage(), e);
+				logger.error("Exception setting up CSS watcher: {}", e.getMessage(), e);
 			}
 			setCssPath(cssPath);
 			thread.start();
@@ -628,7 +702,7 @@ public class QuPathStyleManager {
 							StandardWatchEventKinds.ENTRY_DELETE);
 					logger.debug("Watching for changes in {}", cssPath);
 				} catch (IOException e) {
-					logger.error("Exception setting up CSS watcher: " + e.getLocalizedMessage(), e);
+					logger.error("Exception setting up CSS watcher: {}", e.getMessage(), e);
 				}
 			}
 			refreshStylesheets();
@@ -666,9 +740,8 @@ public class QuPathStyleManager {
 					if (ev.kind() == StandardWatchEventKinds.ENTRY_MODIFY && Files.isRegularFile(path)) {
 						try {
 							var currentStyle = selectedStyle.get();
-							if (currentStyle instanceof CustomStylesheet) {
-								var currentCustomStyle = ((CustomStylesheet)currentStyle);
-								var url = path.toUri().toString();
+							if (currentStyle instanceof CustomStylesheet currentCustomStyle) {
+                                var url = path.toUri().toString();
 								if (currentCustomStyle.containsUrl(url)) {
 									logger.info("Refreshing style {}", currentStyle.getName());
 									refresh();
@@ -676,7 +749,7 @@ public class QuPathStyleManager {
 								break;
 							}
 						} catch (Exception e) {
-							logger.warn("Exception processing CSS refresh: " + e.getLocalizedMessage(), e);
+                            logger.warn("Exception processing CSS refresh: {}", e.getMessage(), e);
 						}
 					} else {
 						// For everything else, refresh the available stylesheets
@@ -698,7 +771,7 @@ public class QuPathStyleManager {
 				if (Files.isDirectory(cssPath)) {
 					var newStyles = Files.list(cssPath)
 						.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().toLowerCase().endsWith(".css"))
-						.map(path -> new CustomStylesheet(path))
+						.map(CustomStylesheet::new)
 						.sorted(Comparator.comparing(StyleOption::getName))
 						.toList();
 					FXUtils.runOnApplicationThread(() -> styles.setAll(newStyles));
@@ -709,10 +782,7 @@ public class QuPathStyleManager {
 			}
 			FXUtils.runOnApplicationThread(() -> styles.clear());
 		}
-				
-		
 		
 	}
-	
-	
+
 }

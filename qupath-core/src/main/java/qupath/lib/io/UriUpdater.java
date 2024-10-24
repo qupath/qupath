@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2021, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -244,7 +244,7 @@ public class UriUpdater<T extends UriResource> {
 	}
 
 	/**
-	 * Identify replacements for missing URIs by relativizing URI.
+	 * Identify replacements for missing URIs by relativizing the URI.
 	 * This is generally used to make corrections whenever a project has been moved.
 	 * 
 	 * @param uriOriginal the previous path (usually for the project)
@@ -316,7 +316,9 @@ public class UriUpdater<T extends UriResource> {
 	 */
 	public Map<URI, URI> getReplacements() {
 		return Collections.unmodifiableMap(
-				replacements.entrySet().stream().filter(s -> s.getValue() != null).collect(Collectors.toMap(s -> s.getKey().getURI(), s -> s.getValue().getURI()))
+				replacements.entrySet().stream()
+						.filter(s -> s.getValue() != null)
+						.collect(Collectors.toMap(s -> s.getKey().getURI(), s -> s.getValue().getURI()))
 				);
 	}
 	
@@ -385,10 +387,10 @@ public class UriUpdater<T extends UriResource> {
 	private static int updateReplacementsRelative(Collection<SingleUriItem> items, Path pathPrevious, Path pathBase, Map<SingleUriItem, SingleUriItem> replacements) {
 
 		// We care about the directory rather than the actual file
-		if (pathBase != null && !Files.isDirectory(pathBase)) {
+		if (pathBase != null && Files.exists(pathBase) && !Files.isDirectory(pathBase)) {
 			pathBase = pathBase.getParent();
 		}
-		if (pathPrevious != null && !Files.isDirectory(pathPrevious)) {
+		if (pathPrevious != null && Files.exists(pathPrevious) && !Files.isDirectory(pathPrevious)) {
 			pathPrevious = pathPrevious.getParent();
 		}
 		boolean tryRelative = pathBase != null && pathPrevious != null && !pathBase.equals(pathPrevious);

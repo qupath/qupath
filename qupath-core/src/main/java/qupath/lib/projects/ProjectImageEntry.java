@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,15 +24,16 @@
 package qupath.lib.projects;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.io.UriResource;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.ResourceManager.Manager;
@@ -46,27 +47,20 @@ import qupath.lib.projects.ResourceManager.Manager;
  *
  * @param <T> Depends upon the project used; typically BufferedImage for QuPath
  */
-public interface ProjectImageEntry<T> extends UriResource {
-	
-//	/**
-//	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
-//	 * 
-//	 * @return
-//	 */
-//	public String getServerPath();
+public interface ProjectImageEntry<T> extends UriResource, MinimalMetadataStore {
 	
 	/**
 	 * Get a unique ID to represent this entry.
 	 * @return
 	 */
-	public String getID();
+	String getID();
 	
 	/**
 	 * Set the image name for this project entry.
 	 * 
 	 * @param name
 	 */
-	public void setImageName(String name);
+	void setImageName(String name);
 
 	/**
 	 * Get a name that may be used for this entry.
@@ -80,7 +74,7 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * @see qupath.lib.projects.Project#setMaskImageNames(boolean)
 	 * @see qupath.lib.projects.Project#getMaskImageNames()
 	 */
-	public String getImageName();
+	String getImageName();
 	
 	/**
 	 * Get the original image name, without any randomization.  Most UI elements should prefer {@link #getImageName} to 
@@ -88,7 +82,7 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * 
 	 * @return
 	 */
-	public String getOriginalImageName();
+	String getOriginalImageName();
 		
 	
 	/**
@@ -100,7 +94,7 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * 
 	 * @return
 	 */
-	public Path getEntryPath();
+	Path getEntryPath();
 	
 	
 	/**
@@ -108,8 +102,12 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * 
 	 * @param key
 	 * @return
+	 * @deprecated v0.6.0, use {@link #getMetadata()} instead to directly access the metadata.
 	 */
-	public String removeMetadataValue(final String key);
+	@Deprecated
+	default String removeMetadataValue(final String key) {
+		return getMetadata().remove(key);
+	}
 	
 	/**
 	 * Request a metadata value.
@@ -118,8 +116,12 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * 
 	 * @param key
 	 * @return
+	 * @deprecated v0.6.0, use {@link #getMetadata()} instead to directly access the metadata.
 	 */
-	public String getMetadataValue(final String key);
+	@Deprecated
+	default String getMetadataValue(final String key) {
+		return getMetadata().get(key);
+	}
 
 	/**
 	 * Store a metadata value.
@@ -130,22 +132,30 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * @param key
 	 * @param value
 	 * @return
+	 * @deprecated v0.6.0, use {@link #getMetadata()} instead to directly access the metadata.
 	 */
-	public String putMetadataValue(final String key, final String value);
+	@Deprecated
+	default String putMetadataValue(final String key, final String value) {
+		return getMetadata().put(key, value);
+	}
 	
 	/**
 	 * Check if a metadata value is present for a specified key.
 	 * 
 	 * @param key
 	 * @return <code>true</code> if <code>getDescription()</code> does not return null or an empty string, <code>false</code> otherwise.
+	 * @deprecated v0.6.0, use {@link #getMetadata()} instead to directly access the metadata.
 	 */
-	public boolean containsMetadata(final String key);
+	@Deprecated
+	default boolean containsMetadata(final String key) {
+		return getMetadata().containsKey(key);
+	}
 	
 	/**
 	 * Get a description; this is free text describing the image.
 	 * @return
 	 */
-	public String getDescription();
+	String getDescription();
 	
 	/**
 	 * Set the description.
@@ -153,33 +163,45 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * @see #getDescription
 	 * @param description
 	 */
-	public void setDescription(final String description);
+	void setDescription(final String description);
 	
 	/**
 	 * Remove all metadata.
+	 * @deprecated v0.6.0, use {@link #getMetadata()} instead to directly access the metadata.
 	 */
-	public void clearMetadata();
+	@Deprecated
+	default void clearMetadata() {
+		getMetadata().clear();
+	}
 	
 	/**
 	 * Get an unmodifiable view of the underlying metadata map.
 	 * 
 	 * @return
+	 * @deprecated v0.6.0, use {@link #getMetadata()} instead to directly access the metadata.
 	 */
-	public Map<String, String> getMetadataMap();
+	@Deprecated
+	default Map<String, String> getMetadataMap() {
+		return Collections.unmodifiableMap(getMetadata());
+	}
 	
 	/**
 	 * Get an unmodifiable collection of the metadata map's keys.
 	 * 
 	 * @return
+	 * @deprecated v0.6.0, use {@link #getMetadata()} instead to directly access the metadata.
 	 */
-	public Collection<String> getMetadataKeys();
+	@Deprecated
+	default Collection<String> getMetadataKeys() {
+		return getMetadata().keySet();
+	}
 
 	/**
 	 * Get a {@link ServerBuilder} that can be used to open this image.
 	 * 
 	 * @return
 	 */
-	public ServerBuilder<T> getServerBuilder();
+	ServerBuilder<T> getServerBuilder();
 	
 	/**
 	 * Read the {@link ImageData} associated with this entry, or create a new ImageData if none is currently present.
@@ -191,14 +213,14 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * 
 	 * @see #readHierarchy()
 	 */
-	public ImageData<T> readImageData() throws IOException;
+	ImageData<T> readImageData() throws IOException;
 	
 	/**
 	 * Save the {@link ImageData} for this entry using the default storage location for the project.
 	 * @param imageData 
 	 * @throws IOException 
 	 */
-	public void saveImageData(ImageData<T> imageData) throws IOException;
+	void saveImageData(ImageData<T> imageData) throws IOException;
 	
 	/**
 	 * Read the {@link PathObjectHierarchy} for this entry, or return an empty hierarchy if none is available.
@@ -208,20 +230,20 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * @see #readImageData()
 	 * @see #hasImageData()
 	 */
-	public PathObjectHierarchy readHierarchy() throws IOException;
+	PathObjectHierarchy readHierarchy() throws IOException;
 	
 	/**
 	 * Check if this entry has saved {@link ImageData} already available.
 	 * 
 	 * @return
 	 */
-	public boolean hasImageData();
+	boolean hasImageData();
 	
 	/**
 	 * Get a summary string representing this image entry.
 	 * @return
 	 */
-	public String getSummary();
+	String getSummary();
 	
 	/**
 	 * Request a thumbnail for the image.
@@ -229,7 +251,7 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * @return a thumbnail if one has already been set, otherwise null.
 	 * @throws IOException
 	 */
-	public T getThumbnail() throws IOException;
+	T getThumbnail() throws IOException;
 	
 	/**
 	 * Set a thumbnail for the image. This will replace any existing thumbnail.
@@ -237,45 +259,17 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * @param img
 	 * @throws IOException
 	 */
-	public void setThumbnail(T img) throws IOException;	
-	
-	/**
-	 * Get a collection of the URIs required by this project's ImageServer.
-	 * <p>
-	 * The purpose of this is to help query if they can be found. They might not be 
-	 * e.g. if the images have been moved.
-	 * 
-	 * @return
-	 * @throws IOException
-	 * @deprecated use instead {@link #getURIs()}
-	 */
-	@Deprecated
-	public default Collection<URI> getServerURIs() throws IOException {
-		return getURIs();
-	}
-	
-	/**
-	 * Update the URIs for the server (optional operation).
-	 * 
-	 * @param replacements a map with current URIs as keys, and desired URIs as values.
-	 * @return true if changes were made
-	 * @throws IOException
-	 * @deprecated use instead {@link #updateURIs(Map)}
-	 */
-	@Deprecated
-	public default boolean updateServerURIs(Map<URI, URI> replacements) throws IOException {
-		return updateURIs(replacements);
-	}
+	void setThumbnail(T img) throws IOException;
 	
 	/**
 	 * Get a formatted string representation of the metadata map's contents.
 	 * 
 	 * @return
 	 */
-	public default String getMetadataSummaryString() {
+	default String getMetadataSummaryString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("{");
-		for (Entry<String, String> entry : getMetadataMap().entrySet()) {
+		for (Entry<String, String> entry : getMetadata().entrySet()) {
 			if (sb.length() > 1)
 				sb.append(", ");
 			sb.append(entry.getKey());
@@ -293,7 +287,7 @@ public interface ProjectImageEntry<T> extends UriResource {
 	 * 
 	 * @return
 	 */
-	public Manager<ImageServer<T>> getImages();
+	Manager<ImageServer<T>> getImages();
 	
 	
 

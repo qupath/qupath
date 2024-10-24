@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -27,6 +27,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -47,6 +48,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
@@ -75,12 +77,38 @@ public class ProjectCommands {
 	 * @throws IOException
 	 */
 	public static boolean promptToCheckURIs(Project<?> project, boolean onlyIfMissing) throws IOException {
-		int n = UpdateUrisCommand.promptToUpdateUris(project.getImageList(), project.getPreviousURI(), project.getURI(), onlyIfMissing);
+		int n = UpdateUrisCommand.promptToUpdateUris(
+				project.getImageList(),
+				getProjectUriPath(project.getPreviousURI()),
+				getProjectUriPath(project.getURI()),
+				onlyIfMissing);
 		if (n < 0)
 			return false;
 		if (n > 0)
 			project.syncChanges();
 		return true;
+	}
+
+	/**
+	 * For a project URI, we want to strip off any file name to get the base directory.
+	 * @param uri
+	 * @return
+	 */
+	private static URI getProjectUriPath(URI uri) {
+		if (uri == null)
+			return null;
+		var path = uri.getPath();
+		if (!path.endsWith("/")) {
+			int ind = path.lastIndexOf('/');
+			if (ind >= 0)
+				path = path.substring(0, ind+1);
+		}
+		try {
+			return new URI(uri.getScheme(), uri.getHost(), path, null);
+		} catch (URISyntaxException e) {
+			logger.warn("Exception getting project base URI: {}", e.getMessage(), e);
+			return uri;
+		}
 	}
 	
 	/**
@@ -317,7 +345,7 @@ public class ProjectCommands {
 			        // Save the data if needed
 			        if (fileData.exists()) {
 			            logger.debug("Reading image data found for {}", name);
-			            var imageData = PathIO.readImageData(fileData, null, server, BufferedImage.class);
+			            ImageData<BufferedImage> imageData = PathIO.readImageData(fileData, server);
 			            entry.saveImageData(imageData);
 			        } else {
 			            logger.warn("No image data found for {}", name);

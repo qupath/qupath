@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2023-2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -49,11 +49,9 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Helper class for merging objects using different criteria.
@@ -62,7 +60,7 @@ import java.util.stream.IntStream;
  *
  * @since v0.5.0
  */
-public class ObjectMerger {
+public class ObjectMerger implements ObjectProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(ObjectMerger.class);
 
@@ -86,6 +84,17 @@ public class ObjectMerger {
     }
 
     /**
+     * Merge the input objects using the merging strategy.
+     * @param pathObjects the input objects for which merges should be calculated
+     * @return a list of objects, with the same number or fewer than the input
+     * @deprecated Use {@link #process(Collection)} instead
+     */
+    @Deprecated
+    public List<PathObject> merge(Collection<? extends PathObject> pathObjects) {
+        return process(pathObjects);
+    }
+
+    /**
      * Calculate the result of applying the merging strategy to the input objects.
      * <p>
      * The output list will contain the same number of objects or fewer.
@@ -99,7 +108,7 @@ public class ObjectMerger {
      * @param pathObjects the input objects for which merges should be calculated
      * @return a list of objects, with the same number or fewer than the input
      */
-    public List<PathObject> merge(Collection<? extends PathObject> pathObjects) {
+    public List<PathObject> process(Collection<? extends PathObject> pathObjects) {
 
         if (pathObjects == null || pathObjects.isEmpty())
             return Collections.emptyList();
@@ -394,6 +403,48 @@ public class ObjectMerger {
     }
 
     /**
+     * Create an object merger that can merge together any objects with sufficiently large intersection over minimum
+     * area (IoMin).
+     * This is similar to IoU, but uses the minimum area of the two objects as the denominator.
+     * <p>
+     * This is useful in the (common) case where we are happy for small objects falling within larger objects to be
+     * swallowed up by the larger object.
+     * <p>
+     * Objects must also have the same classification and be on the same image plane to be mergeable.
+     * <p>
+     * IoM is calculated using Java Topology Suite intersection, union, and getArea calls.
+     * <p>
+     * This merger assumes that you are using an OutputHandler that doesn't clip to tile boundaries (only to region
+     * requests) and that you are using sufficient padding to ensure that objects are being detected in more than on
+     * tile/region request.
+     * You should probably also remove any objects that touch the regionRequest boundaries, as these will probably be
+     * clipped, and merging them will result in weirdly shaped detections.
+     * @param iomThreshold Intersection over minimum threshold; any pairs with values greater than or equal to this are merged.
+     * @return an object merger that can merge together any objects with sufficiently high IoM and the same classification
+     * @implNote This method does not currently merge objects with zero area. It is assumed that they will be handled separately.
+     */
+    public static ObjectMerger createIoMinMerger(double iomThreshold) {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                createIoMinMergeTest(iomThreshold),
+                0.0625);
+    }
+
+    private static BiPredicate<Geometry, Geometry> createIoMinMergeTest(double iomThreshold) {
+        return (geom, geomOverlap) -> {
+            double minArea = Math.min(geom.getArea(), geomOverlap.getArea());
+            // If the minimum area is zero, then we can't calculate the IoM
+            // Here, we don't merge - assuming that empty ROIs should be handled separately
+            if (minArea == 0) {
+                return false;
+            }
+            var i = geom.intersection(geomOverlap);
+            var intersection = i.getArea();
+            return (intersection / minArea) >= iomThreshold;
+        };
+    }
+
+    /**
      * Method to use as a predicate, indicating that two geometries have the same dimension and also touch.
      * @param geom
      * @param geom2
@@ -484,11 +535,14 @@ public class ObjectMerger {
         if (pathObjects.isEmpty())
             return null;
 
-        var pathObject = pathObjects.get(0);
+        var pathObject = pathObjects.getFirst();
         if (pathObjects.size() == 1)
             return pathObject;
 
-        var allROIs = pathObjects.stream().map(PathObject::getROI).filter(Objects::nonNull).collect(Collectors.toList());
+        var allROIs = pathObjects.stream().map(PathObject::getROI)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
         ROI mergedROI = RoiTools.union(allROIs);
 
         PathObject mergedObject = null;
@@ -498,6 +552,7 @@ public class ObjectMerger {
             var nucleusROIs = pathObjects.stream()
                     .map(PathObjectTools::getNucleusROI)
                     .filter(Objects::nonNull)
+                    .distinct()
                     .collect(Collectors.toList());
             ROI nucleusROI = nucleusROIs.isEmpty() ? null : RoiTools.union(nucleusROIs);
             mergedObject = PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass(), null);

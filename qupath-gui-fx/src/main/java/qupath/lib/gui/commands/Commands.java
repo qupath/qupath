@@ -199,7 +199,7 @@ public class Commands {
 	 */
 	public static void createFullImageAnnotation(QuPathViewer viewer) {
 		// If we are using selection mode, we should select objects rather that create an annotation
-		if (PathPrefs.selectionModeProperty().get()) {
+		if (PathPrefs.selectionModeStatus().get()) {
 			logger.debug("Select all objects (create full image annotation with selection mode on)");
 			selectObjectsOnCurrentPlane(viewer);
 			return;
@@ -603,6 +603,7 @@ public class Commands {
 		var dialog = new Stage();
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());
+		FXUtils.addCloseWindowShortcuts(dialog);
 		dialog.setTitle("Measurement maps");
 		
 		var panel = new MeasurementMapPane(qupath);
@@ -668,6 +669,7 @@ public class Commands {
 		
 		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
+		FXUtils.addCloseWindowShortcuts(dialog);
 //			dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle("Preferences");
 		
@@ -776,6 +778,7 @@ public class Commands {
 	public static Stage createSpecifyAnnotationDialog(QuPathGUI qupath) {
 		SpecifyAnnotationCommand pane = new SpecifyAnnotationCommand(qupath);
 		var stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		var scene = new Scene(pane.getPane());
 		stage.setScene(scene);
 		stage.setWidth(300);
@@ -872,12 +875,7 @@ public class Commands {
 	public static boolean saveSnapshot(QuPathGUI qupath, GuiTools.SnapshotType type) {
 		BufferedImage img = GuiTools.makeSnapshot(qupath, type);
 
-		String ext = defaultScreenshotExtension.get();
-		List<ImageWriter<BufferedImage>> compatibleWriters = ImageWriterTools.getCompatibleWriters(BufferedImage.class, ext);
-		if (compatibleWriters.isEmpty()) {
-			logger.error("No compatible image writers found for extension: " + ext);
-			return false;
-		}
+		String defaultExtension = defaultScreenshotExtension.get();
 
 		List<FileChooser.ExtensionFilter> extensionFilters = new ArrayList<>(Arrays.asList(
 				FileChoosers.createExtensionFilter("PNG", "png"),
@@ -886,7 +884,7 @@ public class Commands {
 		));
 		FileChooser.ExtensionFilter selectedFilter = extensionFilters
 				.stream()
-				.filter(e -> e.getExtensions().contains(ext))
+				.filter(e -> defaultExtension == null ? false : e.getExtensions().contains(defaultExtension))
 				.findFirst()
 				.orElse(extensionFilters.get(0));
 		if (!Objects.equals(selectedFilter, extensionFilters.get(0))) {
@@ -919,6 +917,14 @@ public class Commands {
 		if (fileOutput == null)
 			return false;
 		lastSnapshotDirectory = fileOutput.getParentFile();
+
+		String ext = GeneralTools.getExtension(fileOutput).orElse(null);
+		List<ImageWriter<BufferedImage>> compatibleWriters = ext == null ? Collections.emptyList() :
+				ImageWriterTools.getCompatibleWriters(BufferedImage.class, ext);
+		if (compatibleWriters.isEmpty()) {
+			logger.error("No compatible image writers found for extension: " + ext);
+			return false;
+		}
 
 		// Loop through the writers and stop when we are successful
 		for (var writer : compatibleWriters) {
@@ -1396,6 +1402,7 @@ public class Commands {
 	 */
 	public static void launchTMADataViewer(QuPathGUI qupath) {
 		Stage stage = new Stage();
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setMinHeight(200);
 		stage.setMinWidth(200);
 		if (qupath != null)
@@ -1612,7 +1619,7 @@ public class Commands {
 					imageDataNew = entry.readImageData();
 				} else {
 					logger.info("Reverting to last saved version: {}", savedFile.getAbsolutePath());
-					imageDataNew = PathIO.readImageData(savedFile, null, imageData.getServer(), BufferedImage.class);
+					imageDataNew = PathIO.readImageData(savedFile, imageData.getServer());
 				}
 				viewer.setImageData(imageDataNew);
 			} catch (Exception e) {
@@ -1943,6 +1950,7 @@ public class Commands {
 	public static Stage createWorkflowDisplayDialog(QuPathGUI qupath) {
 		var view = new WorkflowCommandLogView(qupath);
 		Stage dialog = new Stage();
+		FXUtils.addCloseWindowShortcuts(dialog);
 		dialog.setMinHeight(200);
 		dialog.setMinWidth(200);
 		dialog.initOwner(qupath.getStage());

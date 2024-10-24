@@ -60,6 +60,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.localization.LocalizedResourceManager;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
@@ -158,6 +159,7 @@ public class SimpleImageViewer {
         initializeContextMenu();
 
         stage = new Stage();
+        FXUtils.addCloseWindowShortcuts(stage);
         stage.titleProperty().bind(createTitleBinding());
         var scene = new Scene(pane);
 //        pane.setStyle("-fx-background-color: black;");

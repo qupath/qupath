@@ -34,6 +34,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 
@@ -49,6 +50,7 @@ class ShowSystemInfoCommand {
 	
 	public static Stage createShowSystemInfoDialog(QuPathGUI qupath) {
 		var dialog = new Stage();
+		FXUtils.addCloseWindowShortcuts(dialog);
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle("System info");

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,19 +23,19 @@
 
 package qupath.imagej.gui;
 
+import ij.Executer;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.Menus;
 import ij.Prefs;
-import ij.gui.ImageWindow;
 import ij.gui.Overlay;
 import ij.gui.Roi;
 import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Orientation;
+import javafx.scene.Scene;
 import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Tooltip;
@@ -43,14 +43,15 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 
 import java.awt.Color;
-import java.awt.Frame;
-import java.awt.Rectangle;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -58,6 +59,8 @@ import java.util.WeakHashMap;
 import java.util.function.Predicate;
 import javax.swing.SwingUtilities;
 
+import javafx.scene.layout.BorderPane;
+import javafx.stage.Stage;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,10 +74,10 @@ import qupath.imagej.detect.cells.WatershedCellMembraneDetection;
 import qupath.imagej.detect.dearray.TMADearrayerPluginIJ;
 import qupath.imagej.detect.tissue.PositivePixelCounterIJ;
 import qupath.imagej.detect.tissue.SimpleTissueDetection2;
+import qupath.imagej.gui.scripts.ImageJScriptRunnerController;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
 import qupath.imagej.superpixels.SLICSuperpixelsPlugin;
 import qupath.imagej.tools.IJTools;
-import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
@@ -90,6 +93,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.DragDropImportListener.DropHandler;
@@ -124,6 +128,9 @@ public class IJExtension implements QuPathExtension {
 	// Path to ImageJ - used to determine plugins directory
 	private static StringProperty imageJPath = null;
 
+	// Handle quitting ImageJ quietly, without prompts to save images
+	private static ImageJQuitCommandListener quitCommandListener;
+
 	/**
 	 * It is necessary to block MenuBars created with AWT on macOS, otherwise shortcuts
 	 * can be fired twice and menus confused.
@@ -135,11 +142,7 @@ public class IJExtension implements QuPathExtension {
 	private static final AwtMenuBarBlocker menuBarBlocker = new AwtMenuBarBlocker();
 
 	static {
-		// Try to default to the most likely ImageJ path on a Mac
-		if (GeneralTools.isMac() && new File("/Applications/ImageJ/").isDirectory())
-			imageJPath = PathPrefs.createPersistentPreference("ijPath", "/Applications/ImageJ");
-		else
-			imageJPath = PathPrefs.createPersistentPreference("ijPath", null);
+		imageJPath = PathPrefs.createPersistentPreference("ijPath", null);
 	}
 	
 	/**
@@ -186,7 +189,7 @@ public class IJExtension implements QuPathExtension {
 		return getImageJInstanceOnEDT();
 	}
 
-	private static Set<ImageJ> installedPlugins = Collections.newSetFromMap(new WeakHashMap<>());
+	private static final Set<ImageJ> installedPlugins = Collections.newSetFromMap(new WeakHashMap<>());
 	
 	/**
 	 * Ensure we have installed the necessary plugins.
@@ -234,16 +237,19 @@ public class IJExtension implements QuPathExtension {
 			// so here ensure that all remaining displayed images are closed
 			final ImageJ ij = ijTemp;
 			ij.exitWhenQuitting(false);
-			var windowListener = new ImageJWindowListener(ij);
-			ij.addWindowListener(windowListener);
+			if (quitCommandListener == null) {
+				quitCommandListener = new ImageJQuitCommandListener();
+				Executer.addCommandListener(quitCommandListener);
+			}
 
 			// Attempt to block the AWT menu bar when ImageJ is not in focus.
 			// Also try to work around a macOS issue where ImageJ's menubar and QuPath's don't work nicely together,
 			// by ensuring that any system menubar request by QuPath is (temporarily) overridden.
 			if (blockAwtMenuBars)
 				menuBarBlocker.startBlocking();
-			if (ij.isShowing())
-				SystemMenuBar.setOverrideSystemMenuBar(true);
+			if (ij.isShowing()) {
+				Platform.runLater(() -> SystemMenuBar.setOverrideSystemMenuBar(true));
+			}
 
 			logger.debug("Created ImageJ instance: {}", ijTemp);
 		}
@@ -255,43 +261,6 @@ public class IJExtension implements QuPathExtension {
 	}
 
 
-	private static class ImageJWindowListener extends WindowAdapter {
-
-		private final ImageJ ij;
-
-		private ImageJWindowListener(ImageJ ij) {
-			this.ij = ij;
-		}
-
-		@Override
-		public void windowClosing(WindowEvent e) {
-			ij.requestFocus();
-			for (Frame frame : Frame.getFrames()) {
-				// Close any images we have open
-				if (frame instanceof ImageWindow) {
-					ImageWindow win = (ImageWindow) frame;
-					ImagePlus imp = win.getImagePlus();
-					if (imp != null)
-						imp.setIJMenuBar(false);
-					win.setVisible(false);
-					if (imp != null) {
-						// Save message still appears...
-						imp.changes = false;
-						// Initially tried to close, but then ImageJ hung
-						// Flush was ok, unless it was selected to save changes - in which case that didn't work out
-						//							imp.flush();
-						//							imp.close();
-						//								imp.flush();
-					} else
-						win.dispose();
-				}
-			}
-			SystemMenuBar.setOverrideSystemMenuBar(false);
-		}
-
-	}
-	
-	
 	/**
 	 * Extract a region of interest from an image as an ImageJ ImagePlus.
 	 * @param server the image
@@ -304,13 +273,10 @@ public class IJExtension implements QuPathExtension {
 	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, ROI pathROI, RegionRequest request, boolean setROI) throws IOException {
 		setROI = setROI && (pathROI != null);
 		// Ensure the ROI bounds & ensure it fits within the image
-		Rectangle bounds = AwtTools.getBounds(request);
-		if (bounds != null)
-			bounds = bounds.intersection(new Rectangle(0, 0, server.getWidth(), server.getHeight()));
-		if (bounds == null) {
+		if (!request.intersects(0, 0, server.getWidth(), server.getHeight())) {
 			return null;
 		}
-	
+
 		PathImage<ImagePlus> pathImage = IJTools.convertToImagePlus(server, request);
 		if (pathImage == null || pathImage.getImage() == null)
 			return null;
@@ -319,10 +285,8 @@ public class IJExtension implements QuPathExtension {
 	
 		if (setROI) {
 			ImagePlus imp = pathImage.getImage();
-//			if (!(pathROI instanceof RectangleROI)) {
-				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
-				imp.setRoi(roi);
-//			}
+			Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
+			imp.setRoi(roi);
 		}
 		return pathImage;
 	}
@@ -363,8 +327,6 @@ public class IJExtension implements QuPathExtension {
 		ROI pathROI;
 		if (pathObject == null || !pathObject.hasROI()) {
 			pathROI = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane());
-			//			logger.error("No ROI found to extract!");
-			//			return null;
 		} else
 			pathROI = pathObject.getROI();
 
@@ -404,7 +366,7 @@ public class IJExtension implements QuPathExtension {
 		double yOrigin = -request.getY() / downsample;
 		
 		// TODO: Permit filling/unfilling ROIs
-		for (PathObject child : hierarchy.getObjectsForRegion(PathObject.class, request, null)) {
+		for (PathObject child : hierarchy.getAllObjectsForRegion(request, null)) {
 			if (filter != null && !filter.test(child))
 				continue;
 			
@@ -424,14 +386,14 @@ public class IJExtension implements QuPathExtension {
 					Roi roi = IJTools.convertToIJRoi(child.getROI(), xOrigin, yOrigin, downsample);
 					roi.setStrokeColor(color);
 					roi.setName(child.getDisplayedName());
-					//						roi.setStrokeWidth(2);
 					overlay.add(roi);
 				}
 				if (isCell && (options == null || options.getShowCellNuclei())) {
-					ROI nucleus = ((PathCellObject)child).getNucleusROI();
+					PathCellObject cell = (PathCellObject) child;
+					ROI nucleus = cell.getNucleusROI();
 					if (nucleus == null)
 						continue;
-					Roi roi = IJTools.convertToIJRoi(((PathCellObject)child).getNucleusROI(), xOrigin, yOrigin, downsample);
+					Roi roi = IJTools.convertToIJRoi(nucleus, xOrigin, yOrigin, downsample);
 					roi.setStrokeColor(color);
 					roi.setName(child.getDisplayedName() + " - nucleus");
 					overlay.add(roi);
@@ -527,15 +489,22 @@ public class IJExtension implements QuPathExtension {
 		public final Action SEP_3 = ActionTools.createSeparator();
 		
 		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
-		@ActionConfig("Action.ImageJ.setPluginsDirectory")
-		public final Action actionPlugins = ActionTools.createAction(() -> promptToSetPluginsDirectory());
+		@ActionConfig("Action.ImageJ.setImageJDirectory")
+		public final Action actionImageJDirectory = ActionTools.createAction(IJExtension::promptToSetImageJDirectory);
 		
 		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
 		public final Action SEP_4 = ActionTools.createSeparator();
 
 		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
-		@ActionConfig("Action.ImageJ.macroRunner")
-		public final Action actionMacroRunner;
+		@ActionConfig("Action.ImageJ.legacyMacroRunner")
+		@Deprecated
+		public final Action actionLegacyMacroRunner;
+
+		private final ScriptRunnerWrapper scriptRunner;
+
+		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
+		@ActionConfig("Action.ImageJ.scriptRunner")
+		public final Action actionScriptRunner;
 				
 		IJExtensionCommands(QuPathGUI qupath) {
 			
@@ -546,9 +515,11 @@ public class IJExtension implements QuPathExtension {
 			actionExtractRegion = qupath.createImageDataAction(imageData -> commandExtractRegionCustom.run());
 
 			var screenshotCommand = new ScreenshotCommand(qupath);
-			actionSnapshot = ActionTools.createAction(screenshotCommand);		
-			
-			actionMacroRunner = createPluginAction(new ImageJMacroRunner(qupath));
+			actionSnapshot = ActionTools.createAction(screenshotCommand);
+
+			actionLegacyMacroRunner = createPluginAction(new ImageJMacroRunner(qupath));
+			scriptRunner = new ScriptRunnerWrapper(qupath);
+			actionScriptRunner = scriptRunner.createAction();
 			
 			actionSLIC = createPluginAction(SLICSuperpixelsPlugin.class);
 			actionDoG = createPluginAction(DoGSuperpixelsPlugin.class);
@@ -579,12 +550,113 @@ public class IJExtension implements QuPathExtension {
 		
 		
 	}
-		
-	static void promptToSetPluginsDirectory() {
-		String path = getImageJPath();
-		File dir = FileChoosers.promptForDirectory("Set ImageJ plugins directory", path == null ? null : new File(path));
+
+	private static class ScriptRunnerWrapper {
+
+		private final QuPathGUI qupath;
+
+		private final String title = ImageJScriptRunnerController.getTitle();
+
+		private Stage stage;
+		private ImageJScriptRunnerController controller;
+
+		private ScriptRunnerWrapper(QuPathGUI qupath) {
+			this.qupath = qupath;
+		}
+
+		Action createAction() {
+			return new Action(e -> showStage());
+		}
+
+		void openMacro(File file) {
+			showStage();
+			if (file != null) {
+				controller.openMacro(file.toPath());
+			}
+		}
+
+		private void showStage() {
+			if (stage == null) {
+				try {
+					stage = new Stage();
+					controller = ImageJScriptRunnerController.createInstance(qupath);
+					Scene scene = new Scene(new BorderPane(controller));
+					stage.setScene(scene);
+					stage.initOwner(QuPathGUI.getInstance().getStage());
+//					stage.setTitle(resources.getString("title"));
+					stage.setTitle(title);
+					stage.setResizable(true);
+					stage.setMinWidth(400);
+					stage.setMinHeight(400);
+				} catch (IOException e) {
+					Dialogs.showErrorMessage(title, "GUI loading failed");
+					logger.error("Unable to load InstanSeg FXML", e);
+				}
+			}
+			stage.show();
+		}
+
+	}
+
+
+	private static void promptToSetImageJDirectory() {
+		String ijPath = getImageJPath();
+		if (ijPath == null) {
+			var likelyPath = searchForDefaultImageJPath();
+			if (likelyPath != null) {
+				ijPath = likelyPath.toString();
+			}
+		}
+		File dir = FileChoosers.promptForDirectory("Set ImageJ directory", ijPath == null ? null : new File(ijPath));
 		if (dir != null && dir.isDirectory())
 			setImageJPath(dir.getAbsolutePath());
+	}
+
+	/**
+	 * Search for a potential ImageJ directory.
+	 * This looks in a collection of (possibly system-dependent) paths to try to find an ImageJ installation.
+	 * @return
+	 */
+	private static Path searchForDefaultImageJPath() {
+		// App names, in order of preference
+		List<String> appNames = List.of("ImageJ.app", "ImageJ", "Fiji", "Fiji.app");
+		List<Path> possiblePaths = new ArrayList<>();
+		for (var appName : appNames) {
+			if (GeneralTools.isMac()) {
+				possiblePaths.add(Paths.get("Applications", appName));
+			}
+			String home = System.getProperty("user.home");
+			if (home != null && !home.isBlank()) {
+				possiblePaths.add(Paths.get(home, appName));
+				possiblePaths.add(Paths.get(home, "Documents", appName));
+				possiblePaths.add(Paths.get(home, "Desktop", appName));
+			}
+		}
+		return findPotentialImageJDirectory(possiblePaths);
+	}
+
+	/**
+	 * Find the first path in a collection that is likely to be a valid ImageJ directory.
+	 * @param paths
+	 * @return
+	 */
+	private static Path findPotentialImageJDirectory(Collection<Path> paths) {
+		return paths.stream()
+				.filter(IJExtension::isImageJDirectory)
+				.findFirst()
+				.orElse(null);
+	}
+
+	/**
+	 * Check whether a path corresponds to a directory that is likely to be a suitable ImageJ directory.
+	 * @param path
+	 * @return
+	 */
+	private static boolean isImageJDirectory(Path path) {
+		if (!Files.isDirectory(path))
+			return false;
+		return Files.isDirectory(path.resolve("plugins")) &&
+				Files.isDirectory(path.resolve("luts"));
 	}
 	
 	
@@ -621,9 +693,14 @@ public class IJExtension implements QuPathExtension {
 			MenuButton btnImageJ = new MenuButton();
 			btnImageJ.setGraphic(imageView);
 			btnImageJ.setTooltip(new Tooltip("ImageJ commands"));
-			btnImageJ.getItems().addAll(
-					ActionTools.createMenuItem(commands.actionExtractRegion),
-					ActionTools.createMenuItem(commands.actionSnapshot)
+			MenuTools.addMenuItems(
+					btnImageJ.getItems(),
+					commands.actionExtractRegion,
+					commands.actionSnapshot,
+					null,
+					commands.actionImageJDirectory,
+					null,
+					commands.actionScriptRunner
 			);
 			toolbar.getItems().add(btnImageJ);
 		} catch (Exception e) {
@@ -636,27 +713,27 @@ public class IJExtension implements QuPathExtension {
 		// TODO: Switch to use @ActionConfig
 		var actionTMADearray = qupath.createPluginAction(QuPathResources.getString("Action.ImageJ.tmaDearrayer"), TMADearrayerPluginIJ.class, null);
 		actionTMADearray.setLongText(QuPathResources.getString("Action.ImageJ.tmaDearrayer.description"));
-		menuTMA.getItems().add(0,
-						ActionTools.createMenuItem(actionTMADearray)
-				);
+		menuTMA.getItems().addFirst(ActionTools.createMenuItem(actionTMADearray));
 		
-		qupath.getDefaultDragDropListener().addFileDropHandler(new ImageJDropHandler(qupath));
+		qupath.getDefaultDragDropListener().addFileDropHandler(new ImageJDropHandler(qupath, commands));
 		
 	}
-	
+
 	
 	static class ImageJDropHandler implements DropHandler<File> {
 		
-		private QuPathGUI qupath;
+		private final QuPathGUI qupath;
+		private final IJExtensionCommands commands;
 		
-		private ImageJDropHandler(QuPathGUI qupath) {
+		private ImageJDropHandler(QuPathGUI qupath, IJExtensionCommands commands) {
 			this.qupath = qupath;
+			this.commands = commands;
 		}
 
 		@Override
 		public boolean handleDrop(QuPathViewer viewer, List<File> list) {
 			if (list.size() == 1) {
-				if (handleMacro(list.get(0)))
+				if (handleMacro(list.getFirst()))
 					return true;
 			}
 			return handleRois(viewer, list);
@@ -667,7 +744,7 @@ public class IJExtension implements QuPathExtension {
 			if (imageData == null)
 				return false;
 			
-			var roiFiles = files.stream().filter(f -> IJTools.containsImageJRois(f)).toList();
+			var roiFiles = files.stream().filter(IJTools::containsImageJRois).toList();
 			if (roiFiles.isEmpty())
 				return false;
 			
@@ -683,17 +760,9 @@ public class IJExtension implements QuPathExtension {
 		
 		
 		private boolean handleMacro(File file) {
-			// TODO: Handle embedding useful running info within ImageJ macro comments
 			if (file.getName().toLowerCase().endsWith(".ijm")) {
-				String macro;
-				try {
-					macro = GeneralTools.readFileAsString(file.getAbsolutePath());
-					qupath.runPlugin(new ImageJMacroRunner(qupath), macro, true);
-					return true;
-				} catch (Exception e) {
-					Dialogs.showErrorMessage("Error opening ImageJ macro", e);
-					logger.error(e.getMessage(), e);
-				}
+				commands.scriptRunner.openMacro(file);
+				return true;
 			}
 			return false;
 		}
@@ -713,7 +782,7 @@ public class IJExtension implements QuPathExtension {
 	public static Image getImageJIcon(final int width, final int height) {
 		try {
 			URL url = ImageJ.class.getClassLoader().getResource("microscope.gif");
-			return new Image(url.toString(), width, height, true, true);
+			return url == null ? null : new Image(url.toString(), width, height, true, true);
 		} catch (Exception e) {
 			logger.error("Unable to load ImageJ icon!", e);
 		}	

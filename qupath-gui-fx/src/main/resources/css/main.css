@@ -52,7 +52,7 @@
 }
 
 /* Adapt menu icon colors */
-.menu-item > * > .qupath-icon {
+.qupath-icon {
   -fx-text-fill: -fx-text-base-color;
 }
 
@@ -125,22 +125,60 @@
   -fx-text-alignment: center;
 }
 
-.list-cell > .failed-extension {
-  -fx-text-background-color: -qp-script-error-color;
-  -fx-opacity: 0.8;
+/*to prevent icons from being dark when the row is selected*/
+.list-cell .button .text {
+  -fx-fill: -fx-text-base-color;
+}
+.table-row-cell .button .text {
+  -fx-fill: -fx-text-base-color;
 }
 
 .list-cell .extension-manager-list-icon {
   -fx-text-fill: -fx-text-background-color;
 }
 
+.table-row-cell .extension-manager-list-icon {
+  -fx-text-fill: -fx-text-background-color;
+}
+
+.list-cell > .failed-extension {
+  -fx-text-background-color: -qp-script-error-color;
+  -fx-opacity: 0.8;
+}
+
 .list-cell > .failed-extension .extension-manager-list-icon {
   -fx-text-fill: -qp-script-error-color;
 }
-
 
 /* Don't make the title for the training piechart too large */
 .training-chart .chart-title {
   -fx-font-size: 1em;
   -fx-font-weight: bold;
+}
+
+/* Project browser */
+.project-browser .tree-cell {
+  -fx-font-family: arial;
+}
+
+.project-browser .tree-cell.current-image {
+  -fx-font-weight: bold;
+}
+
+.project-browser .tree-cell.no-saved-data {
+  -fx-font-style: italic;
+}
+
+.project-browser .tree-cell.missing-uri {
+  -fx-text-fill: -qp-script-warn-color;
+}
+
+.project-browser .project-thumbnail {
+  -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);
+}
+
+.project-browser .missing-uri {
+  -fx-text-fill: -qp-script-warn-color;
+  -fx-fill: -qp-script-warn-color;
+  -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.25), 2, 0, 1, 1);
 }

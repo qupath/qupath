@@ -81,7 +81,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 			return 0;
 		
 		try {
-			File file = Paths.get(uri).toFile();
+			File file = Paths.get(uri).toFile().getCanonicalFile();
 			String vendor = OpenSlideLoader.detectVendor(file.toString());
 			if (vendor == null)
 				return 0;

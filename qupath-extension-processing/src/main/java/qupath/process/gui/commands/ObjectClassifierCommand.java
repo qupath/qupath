@@ -103,6 +103,7 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.fx.controls.PredicateTextField;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
@@ -168,6 +169,7 @@ public class ObjectClassifierCommand implements Runnable {
 	public void run() {
 		if (dialog == null) {
 			dialog = new Stage();
+			FXUtils.addCloseWindowShortcuts(dialog);
 			if (qupath != null)
 				dialog.initOwner(qupath.getStage());
 			dialog.setTitle(name);
@@ -721,7 +723,7 @@ public class ObjectClassifierCommand implements Runnable {
 							set.addAll(pathObjectsTemp);
 						}
 					} else {
-						var pathObjectsTemp = hierarchy.getObjectsForROI(PathDetectionObject.class, annotation.getROI());
+						var pathObjectsTemp = hierarchy.getAllDetectionsForROI(annotation.getROI());
 						pathObjectsTemp.removeIf(filterNegated);
 						set.addAll(pathObjectsTemp);
 					}

@@ -78,7 +78,7 @@ public class CreateChannelTrainingImagesCommand implements Runnable {
 			return;
 		}
 
-		var channels = new ArrayList<>(imageData.getServer().getMetadata().getChannels());
+		var channels = new ArrayList<>(imageData.getServerMetadata().getChannels());
 
 		var list = new CheckListView<ImageChannel>();
 		list.getItems().setAll(channels);

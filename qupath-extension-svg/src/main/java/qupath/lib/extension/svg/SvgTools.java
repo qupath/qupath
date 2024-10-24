@@ -472,7 +472,7 @@ public class SvgTools {
 				if (hierarchy == null)
 					pathObjects = Collections.emptyList();
 				else
-					pathObjects = hierarchy.getObjectsForRegion(null, region, null);				
+					pathObjects = hierarchy.getAllObjectsForRegion(region, null);
 			}
 
 			// Important! Needed to determine where to draw objects and overlays

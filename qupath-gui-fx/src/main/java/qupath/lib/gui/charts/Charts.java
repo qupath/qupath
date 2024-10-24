@@ -38,6 +38,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -448,7 +450,9 @@ public class Charts {
 	
 	
 	abstract static class XYNumberChartBuilder<T extends XYNumberChartBuilder<T, S>, S extends XYChart<Number, Number>> extends XYChartBuilder<T, S, Number, Number> {
-		
+
+		private static final Logger logger = LoggerFactory.getLogger(XYNumberChartBuilder.class);
+
 		protected abstract S createNewChart(Axis<Number> xAxis, Axis<Number> yAxis);
 
 		private Double xLower, xUpper;
@@ -548,7 +552,9 @@ public class Charts {
 	 * Builder for creating scatter charts.
 	 */
 	public static class ScatterChartBuilder extends XYNumberChartBuilder<ScatterChartBuilder, ScatterChart<Number, Number>> {
-	
+
+		private static final Logger logger = LoggerFactory.getLogger(ScatterChartBuilder.class);
+
 		private ObservableList<Series<Number, Number>> series = FXCollections.observableArrayList();
 		
 		private Integer DEFAULT_MAX_DATAPOINTS = 10_000;
@@ -728,7 +734,7 @@ public class Charts {
 			} else
 				n = maxDatapoints.intValue();
 			if (data.size() > n) {
-				System.err.println("Subsampling " + data.size() + " data points to " + n);
+				logger.warn("Subsampling {} data points to {}", data.size(), n);
 				var list = new ArrayList<>(data);
 				Collections.shuffle(list);
 				data = list.subList(0, n);

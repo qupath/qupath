@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2022-2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Streams;
 
+import qupath.lib.geom.Point2;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
@@ -154,11 +156,9 @@ public class TestPathObjectTools extends TestPathObjectMethods {
 				var outsideOrIntersects = Streams.concat(pathObjectsOverlaps.stream(), pathObjectsOutside.stream()).collect(Collectors.toSet());
 				
 				var foundOutside = PathObjectTools.findObjectsOutsideRegion(allObjects, region, 0, region.getZ()+1, 0, region.getT()+1, true);
-//				System.err.println(foundOutside.size() + " / " + pathObjectsOutside.size());
 				assertEquals(pathObjectsOutside, new HashSet<>(foundOutside));
 
 				var foundOutsideStrict = PathObjectTools.findObjectsOutsideRegion(allObjects, region, 0, region.getZ()+1, 0, region.getT()+1, false);
-//				System.err.println(foundOutsideStrict.size() + " / " + outsideOrIntersects.size());
 				assertEquals(outsideOrIntersects, new HashSet<>(foundOutsideStrict));
 
 			}			
@@ -169,7 +169,57 @@ public class TestPathObjectTools extends TestPathObjectMethods {
 	private static Set<PathObject> createObjects(ROI...rois) {
 		return Arrays.asList(rois).stream().map(r -> PathObjects.createDetectionObject(r)).collect(Collectors.toSet());
 	}
-	
+
+
+	@Test
+	public void testRoiFilters() {
+		var roiRect = ROIs.createRectangleROI(1, 2, 100, 200, ImagePlane.getDefaultPlane());
+		var roiEllipse = ROIs.createEllipseROI(1, 2, 100, 200, ImagePlane.getDefaultPlane());
+		var roiDiamond = ROIs.createPolygonROI(List.of(
+				new Point2(roiRect.getBoundsX(), roiRect.getCentroidY()),
+				new Point2(roiRect.getCentroidX(), roiRect.getBoundsY()),
+				new Point2(roiRect.getBoundsX()+roiRect.getBoundsWidth(), roiRect.getCentroidY()),
+				new Point2(roiRect.getBoundsX(), roiRect.getBoundsY()+roiRect.getBoundsHeight())
+				), ImagePlane.getDefaultPlane());
+		var roiOverlaps = roiRect.translate(10, 0);
+		var roiOverlaps2 = roiRect.translate(0, 10);
+		var roiSeparate = roiRect.translate(1000, 1000);
+
+		var allRois = List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2, roiSeparate);
+		var pathObjects = allRois
+				.stream()
+				.map(r -> PathObjects.createDetectionObject(r))
+				.toList();
+
+		// Note that we can test list equality since we don't expect any reordering
+
+		// Test covers
+		assertEquals(List.of(roiRect, roiEllipse, roiDiamond),
+				PathObjectTools.filterByROICovers(roiRect, pathObjects).stream().map(PathObject::getROI).toList());
+		// Every other ROI only completely covers itself
+		for (var roi : List.of(roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2, roiSeparate)) {
+			assertEquals(List.of(roi),
+					PathObjectTools.filterByROICovers(roi, pathObjects).stream().map(PathObject::getROI).toList());
+		}
+
+		// Test intersects
+		// One ROI is separate, all other intersect
+		assertEquals(List.of(roiSeparate),
+				PathObjectTools.filterByROIIntersects(roiSeparate, pathObjects).stream().map(PathObject::getROI).toList());
+		for (var roi : List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2)) {
+			assertEquals(List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2),
+					PathObjectTools.filterByROIIntersects(roi, pathObjects).stream().map(PathObject::getROI).toList());
+		}
+
+		// Test contains centroid
+		// One ROI is separate, all other intersect
+		assertEquals(List.of(roiSeparate),
+				PathObjectTools.filterByROIContainsCentroid(roiSeparate, pathObjects).stream().map(PathObject::getROI).toList());
+		for (var roi : List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2)) {
+			assertEquals(List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2),
+					PathObjectTools.filterByROIContainsCentroid(roi, pathObjects).stream().map(PathObject::getROI).toList());
+		}
+	}
 	
 	
 }

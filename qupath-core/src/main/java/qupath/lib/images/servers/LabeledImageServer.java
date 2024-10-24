@@ -836,14 +836,11 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	 * @return a list of objects with ROIs that intersect the specified region
 	 */
 	public List<PathObject> getObjectsForRegion(ImageRegion region) {
-		return hierarchy.getObjectsForRegion(null, region, null).stream()
+		return hierarchy.getAllObjectsForRegion(region, null).stream()
 				.filter(params.objectFilter)
 				.filter(p -> params.createInstanceLabels || params.labels.containsKey(p.getPathClass()) || params.boundaryLabels.containsKey(p.getPathClass()))
 				.toList();
 	}
-
-	@Override
-	public void close() {}
 
 	@Override
 	public String getServerType() {
@@ -875,7 +872,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
 		long startTime = System.currentTimeMillis();
 
-		var pathObjects = hierarchy.getObjectsForRegion(null, tileRequest.getRegionRequest(), null)
+		var pathObjects = hierarchy.getAllObjectsForRegion(tileRequest.getRegionRequest(), null)
 				.stream()
 				.filter(params.objectFilter)
 				.toList();

@@ -753,6 +753,7 @@ public class QuPathGUI {
 			var action = toolManager.getToolAction(t);
 			registerAccelerator(action);
 		}
+		registerAccelerator(toolManager.getSelectionModeAction());
 	}
 
 
@@ -885,8 +886,12 @@ public class QuPathGUI {
 					// tools, and we don't want tools to be registered to inactive viewers...)
 					var active = viewerManager.getActiveViewer();
 					if (active != null)
-						active.setSpaceDown(pressed.booleanValue());
+						active.setSpaceDown(pressed);
 				}
+			} else if (e.getCode() == KeyCode.S && e.getEventType() == KeyEvent.KEY_PRESSED) {
+				PathPrefs.tempSelectionModeProperty().set(true);
+			} else if (e.getEventType() == KeyEvent.KEY_RELEASED) {
+				PathPrefs.tempSelectionModeProperty().set(false);
 			}
 		}
 		
@@ -1013,9 +1018,15 @@ public class QuPathGUI {
 				return;
 			}
 		}
+
+		// should prompt users to save changes if desired.
+		if (!scriptEditor.requestClose()) {
+			e.consume();
+			return;
+		}
 		
 		// Warn if there is a script running
-		if (scriptRunning.get()) {
+        if (scriptRunning.get()) {
 			if (!Dialogs.showYesNoDialog("Quit QuPath", "A script is currently running! Quit anyway?")) {
 				logger.trace("Pressed no to quit window with script running!");
 				e.consume();
@@ -1368,7 +1379,7 @@ public class QuPathGUI {
 			try {
 				serverBuilder = PathIO.extractServerBuilder(file.toPath());
 			} catch (Exception e) {
-				logger.warn("Unable to read server path from file: {}", e.getLocalizedMessage());
+				logger.warn("Unable to read image server from file: {}", e.getLocalizedMessage());
 			}
 			var existingBuilder = imageData == null || imageData.getServer() == null ? null : imageData.getServer().getBuilder();
 			boolean sameServer = Objects.equals(existingBuilder, serverBuilder);			
@@ -1411,12 +1422,12 @@ public class QuPathGUI {
 					try {
 						server = serverBuilder.build();
 					} catch (Exception e) {
-						logger.error("Unable to build server " + serverBuilder, e);
+						logger.error("Unable to build server {}", serverBuilder, e);
 					}
 				}
 				if (server == null)
 					return false;
-	//			
+
 				// Small optimization... put in a thumbnail request early in a background thread.
 				// This way that it will be fetched while the image data is being read -
 				// generally leading to improved performance in the viewer's setImageData method
@@ -1432,10 +1443,8 @@ public class QuPathGUI {
 			}
 			
 			try {
-				ImageData<BufferedImage> imageData2 = PathIO.readImageData(file, imageData, server, BufferedImage.class);
-				if (imageData2 != imageData) {
-					viewer.setImageData(imageData2);
-				}
+				ImageData<BufferedImage> imageData2 = PathIO.readImageData(file, server);
+				viewer.setImageData(imageData2);
 			} catch (IOException e) {
 				Dialogs.showErrorMessage("Read image data", "Error reading image data\n" + e.getLocalizedMessage());
 				logger.error(e.getMessage(), e);

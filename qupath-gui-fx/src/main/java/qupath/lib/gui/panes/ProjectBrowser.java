@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -29,6 +29,7 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,6 +42,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
@@ -50,6 +52,9 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.Node;
+import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.ToggleGroup;
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -116,6 +121,7 @@ import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.io.UriUpdater;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -198,10 +204,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		// Get thumbnails in separate thread
 		executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
-		
+
 		PathPrefs.maskImageNamesProperty().addListener((v, o, n) -> refreshTree(null));
+		PathPrefs.skipProjectUriChecksProperty().addListener((v, o, n) -> tree.refresh());
 
 		panel = new BorderPane();
+		panel.getStyleClass().add("project-browser");
 
 		tree.setCellFactory(n -> new ProjectTreeRowCell());
 		
@@ -283,231 +291,22 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	ContextMenu getPopup() {
 		
 		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
-		Action actionRemoveImage = new Action("Remove image(s)", e -> {
-			Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
-			Collection<ProjectImageEntry<BufferedImage>> entries = ProjectTreeRow.getEntries(imageRows);
-			
-			if (entries.isEmpty())
-				return;
-			
-			// Don't allow us to remove any entries that are currently open (in any viewer)
-			for (var viewer : qupath.getAllViewers()) {
-				var imageData = viewer.getImageData();
-				var entry = imageData == null ? null : getProject().getEntry(imageData);
-				if (entry != null && entries.contains(entry)) {
-					Dialogs.showErrorMessage("Remove project entries", "Please close all images you want to remove!");
-					return;
-				}
-			}
-			
-			if (entries.size() == 1) {
-				if (!Dialogs.showConfirmDialog("Remove project entry", "Remove " + entries.iterator().next().getImageName() + " from project?"))
-					return;
-			} else if (!Dialogs.showYesNoDialog("Remove project entries", String.format("Remove %d entries?", entries.size())))
-				return;
-			
-			var result = Dialogs.showYesNoCancelDialog("Remove project entries",
-					"Delete all associated data?");
-			if (result == ButtonType.CANCEL)
-				return;
-			
-			project.removeAllImages(entries, result == ButtonType.YES);
-			refreshTree(null);
-			syncProject(project);
-			if (tree != null) {
-				boolean isExpanded = tree.getRoot() != null && tree.getRoot().isExpanded();
-				tree.setRoot(model.getRoot());
-				tree.getRoot().setExpanded(isExpanded);
-			}
-		});
+		Action actionRemoveImage = new Action("Remove image(s)", e -> promptToRemoveSelectedImages());
 		
-		Action actionDuplicateImages = new Action("Duplicate image(s)", e -> {
-			Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
-			if (imageRows.isEmpty()) {
-				logger.debug("Nothing to duplicate - no entries selected");
-				return;
-			}
-			
-			boolean singleImage = false;
-			String name = "";
-			String title = "Duplicate images";
-			String namePrompt = "Append to image name";
-			String nameHelp = "Specify text to append to the image name to distinguish duplicated images";
-			if (imageRows.size() == 1) {
-				title = "Duplicate image";
-				namePrompt = "Duplicate image name";
-				nameHelp = "Specify name for the duplicated image";
-				singleImage = true;
-				name = imageRows.iterator().next().getDisplayableString();
-				name = GeneralTools.generateDistinctName(
-						name,
-						project.getImageList().stream().map(p -> p.getImageName()).collect(Collectors.toSet()));
-			}
-			var params = new ParameterList()
-					.addStringParameter("name", namePrompt, name, nameHelp)
-					.addBooleanParameter("copyData", "Also duplicate data files", true, "Duplicate any associated data files along with the image");
-			
-			if (!GuiTools.showParameterDialog(title, params))
-				return;
-
-			boolean copyData = params.getBooleanParameterValue("copyData");
-			name = params.getStringParameterValue("name");
-
-			// Ensure we have a single space and then the text to append, with extra whitespace removed
-			if (!singleImage && !name.isBlank())
-				name = " " + name.strip();
-			
-			for (var imageRow : imageRows) {
-				try {
-					var newEntry = project.addDuplicate(ProjectTreeRow.getEntry(imageRow), copyData);
-					if (newEntry != null && !name.isBlank()) {
-						if (singleImage)
-							newEntry.setImageName(name);
-						else
-							newEntry.setImageName(newEntry.getImageName() + name);
-					}
-				} catch (Exception ex) {
-					Dialogs.showErrorNotification("Duplicating image", "Error duplicating " + ProjectTreeRow.getEntry(imageRow).getImageName());
-					logger.error(ex.getLocalizedMessage(), ex);
-				}
-			}
-			try {
-				project.syncChanges();
-			} catch (Exception ex) {
-				logger.error("Error synchronizing project changes: " + ex.getLocalizedMessage(), ex);
-			}
-			refreshProject();
-			if (imageRows.size() == 1)
-				logger.debug("Duplicated 1 image entry");
-			else
-				logger.debug("Duplicated {} image entries", imageRows.size());
-		});
+		Action actionDuplicateImages = new Action("Duplicate image(s)", e -> promptToDuplicateSelectedImages());
 		
-		Action actionSetImageName = new Action("Rename image", e -> {
-			TreeItem<ProjectTreeRow> path = tree.getSelectionModel().getSelectedItem();
-			if (path == null)
-				return;
-			if (path.getValue().getType() == ProjectTreeRow.Type.IMAGE) {
-				if (setProjectEntryImageName(ProjectTreeRow.getEntry(path.getValue())) && project != null)
-					syncProject(project);
-			}
-		});
+		Action actionSetImageName = new Action("Rename image", e -> promptToRenameSelectedImage());
 		// Add a metadata value
-		Action actionAddMetadataValue = new Action("Add metadata", e -> {
-			Project<BufferedImage> project = getProject();
-			Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
-			if (project != null && !imageRows.isEmpty()) {
-				TextField tfMetadataKey = new TextField();
-				var suggestions = project.getImageList().stream()
-						.map(p -> p.getMetadataKeys())
-						.flatMap(Collection::stream)
-						.distinct()
-						.sorted()
-						.toList();
-				TextFields.bindAutoCompletion(tfMetadataKey, suggestions);
-				
-				TextField tfMetadataValue = new TextField();
-				Label labKey = new Label("New key");
-				Label labValue = new Label("New value");
-				labKey.setLabelFor(tfMetadataKey);
-				labValue.setLabelFor(tfMetadataValue);
-				tfMetadataKey.setTooltip(new Tooltip("Enter the name for the metadata entry"));
-				tfMetadataValue.setTooltip(new Tooltip("Enter the value for the metadata entry"));
-				
-				ProjectImageEntry<BufferedImage> entry = imageRows.size() == 1 ? ProjectTreeRow.getEntry(imageRows.iterator().next()) : null;
-				int nMetadataValues = entry == null ? 0 : entry.getMetadataKeys().size();
-				
-				GridPane pane = new GridPane();
-				pane.setVgap(5);
-				pane.setHgap(5);
-				pane.add(labKey, 0, 0);
-				pane.add(tfMetadataKey, 1, 0);
-				pane.add(labValue, 0, 1);
-				pane.add(tfMetadataValue, 1, 1);
-				String name = imageRows.size() + " images";
-				if (entry != null) {
-					name = entry.getImageName();
-					if (nMetadataValues > 0) {
-						Label labelCurrent = new Label("Current metadata");
-						TextArea textAreaCurrent = new TextArea();
-						textAreaCurrent.setEditable(false);
-	
-						String keyString = entry.getMetadataSummaryString();
-						if (keyString.isEmpty())
-							textAreaCurrent.setText("No metadata entries yet");
-						else
-							textAreaCurrent.setText(keyString);
-						textAreaCurrent.setPrefRowCount(3);
-						labelCurrent.setLabelFor(textAreaCurrent);
-	
-						pane.add(labelCurrent, 0, 2);
-						pane.add(textAreaCurrent, 1, 2);	
-					}
-				}
-				
-				Dialog<ButtonType> dialog = new Dialog<>();
-				dialog.setTitle("Metadata");
-				dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
-				dialog.getDialogPane().setHeaderText("Set metadata for " + name);
-				dialog.getDialogPane().setContent(pane);
-				Optional<ButtonType> result = dialog.showAndWait();
-				if (result.isPresent() && result.get() == ButtonType.OK) {
-					String key = tfMetadataKey.getText().trim();
-					String value = tfMetadataValue.getText();
-					if (key.isEmpty()) {
-						logger.warn("Attempted to set metadata value for {}, but key was empty!", name);
-					} else {
-						// Set metadata for all entries
-						for (var temp : imageRows)
-							ProjectTreeRow.getEntry(temp).putMetadataValue(key, value);
-						syncProject(project);
-						tree.refresh();
-					}
-				}
-							
-			} else {
-				Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
-			}
-		});
+		Action actionAddMetadataValue = new Action("Add metadata", e -> promptToAddMetadataToSelectedImages());
 		
 		// Edit the description for the image
-		Action actionEditDescription = new Action("Edit description", e -> {
-			Project<?> project = getProject();
-			ProjectImageEntry<?> entry = getSelectedEntry();
-			if (project != null && entry != null) {
-				if (showDescriptionEditor(entry)) {
-					descriptionText.set(entry.getDescription());
-					syncProject(project);						
-				}
-			} else {
-				Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
-			}
-		});
+		Action actionEditDescription = new Action("Edit description", e -> promptToEditSelectedImageDescription());
 		
 		// Mask the name of the images and shuffle the entry
 		Action actionMaskImageNames = ActionTools.createSelectableAction(PathPrefs.maskImageNamesProperty(), "Mask image names");
 		
 		// Refresh thumbnail according to current display settings
-		Action actionRefreshThumbnail = new Action("Refresh thumbnail", e -> {
-			TreeItem<ProjectTreeRow> path = tree.getSelectionModel().getSelectedItem();
-			if (path == null)
-				return;
-			if (path.getValue().getType() == ProjectTreeRow.Type.IMAGE) {
-				ProjectImageEntry<BufferedImage> entry =ProjectTreeRow.getEntry(path.getValue());
-				if (!isCurrentImage(entry)) {
-					logger.warn("Cannot refresh entry for image that is not open!");
-					return;
-				}
-				BufferedImage imgThumbnail = qupath.getViewer().getRGBThumbnail();
-				imgThumbnail = resizeForThumbnail(imgThumbnail);
-				try {
-					entry.setThumbnail(imgThumbnail);
-				} catch (IOException e1) {
-					logger.error("Error writing thumbnail", e1);
-				}
-				tree.refresh();
-			}
-		});
+		Action actionRefreshThumbnail = new Action("Refresh thumbnail", e -> promptToRefreshSelectedThumbnails());
 				
 		// Open the project directory using Explorer/Finder etc.
 		Action actionOpenProjectDirectory = createBrowsePathAction("Project...", () -> getProjectPath());
@@ -590,6 +389,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				miAddMetadata,
 				miEditDescription,
 				miMaskImages,
+				createThumbnailSizeMenu(),
 				miRefreshThumbnail,
 				separator,
 				menuSort,
@@ -600,6 +400,260 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		contextMenuShowing.bind(menu.showingProperty());
 		
 		return menu;
+	}
+
+	private Menu createThumbnailSizeMenu() {
+		Menu menu = new Menu("Thumbnail size");
+		ToggleGroup group = new ToggleGroup();
+		for (ProjectThumbnailSize size : ProjectThumbnailSize.values()) {
+			RadioMenuItem item = new RadioMenuItem(size.toString());
+			item.setOnAction(e -> thumbnailSize.set(size));
+			item.setUserData(size);
+			menu.getItems().add(item);
+			group.getToggles().add(item);
+		}
+		thumbnailSize.addListener((v, o, n) -> syncToggleGroupByUserData(group, n));
+		syncToggleGroupByUserData(group, thumbnailSize.get());
+		return menu;
+	}
+
+	private void syncToggleGroupByUserData(ToggleGroup group, Object userData) {
+		for (var toggle : group.getToggles()) {
+			if (Objects.equals(toggle.getUserData(), userData)) {
+				group.selectToggle(toggle);
+				return;
+			}
+		}
+	}
+
+
+	private void promptToEditSelectedImageDescription() {
+		Project<?> project = getProject();
+		ProjectImageEntry<?> entry = getSelectedEntry();
+		if (project != null && entry != null) {
+			if (showDescriptionEditor(entry)) {
+				descriptionText.set(entry.getDescription());
+				syncProject(project);
+			}
+		} else {
+			Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
+		}
+	}
+
+
+	private void promptToRemoveSelectedImages() {
+		Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
+		Collection<ProjectImageEntry<BufferedImage>> entries = ProjectTreeRow.getEntries(imageRows);
+
+		if (entries.isEmpty())
+			return;
+
+		// Don't allow us to remove any entries that are currently open (in any viewer)
+		for (var viewer : qupath.getAllViewers()) {
+			var imageData = viewer.getImageData();
+			var entry = imageData == null ? null : getProject().getEntry(imageData);
+			if (entry != null && entries.contains(entry)) {
+				Dialogs.showErrorMessage("Remove project entries", "Please close all images you want to remove!");
+				return;
+			}
+		}
+
+		if (entries.size() == 1) {
+			if (!Dialogs.showConfirmDialog("Remove project entry", "Remove " + entries.iterator().next().getImageName() + " from project?"))
+				return;
+		} else if (!Dialogs.showYesNoDialog("Remove project entries", String.format("Remove %d entries?", entries.size())))
+			return;
+
+		var result = Dialogs.showYesNoCancelDialog("Remove project entries",
+				"Delete all associated data?");
+		if (result == ButtonType.CANCEL)
+			return;
+
+		project.removeAllImages(entries, result == ButtonType.YES);
+		refreshTree(null);
+		syncProject(project);
+		if (tree != null) {
+			boolean isExpanded = tree.getRoot() != null && tree.getRoot().isExpanded();
+			tree.setRoot(model.getRoot());
+			tree.getRoot().setExpanded(isExpanded);
+		}
+	}
+
+
+	private void promptToRefreshSelectedThumbnails() {
+		TreeItem<ProjectTreeRow> path = tree.getSelectionModel().getSelectedItem();
+		if (path == null)
+			return;
+		if (path.getValue().getType() == ProjectTreeRow.Type.IMAGE) {
+			ProjectImageEntry<BufferedImage> entry = ProjectTreeRow.getEntry(path.getValue());
+			if (!isCurrentImage(entry)) {
+				logger.warn("Cannot refresh entry for image that is not open!");
+				return;
+			}
+			BufferedImage imgThumbnail = qupath.getViewer().getRGBThumbnail();
+			imgThumbnail = resizeForThumbnail(imgThumbnail);
+			try {
+				entry.setThumbnail(imgThumbnail);
+			} catch (IOException e1) {
+				logger.error("Error writing thumbnail", e1);
+			}
+			tree.refresh();
+		}
+	}
+
+
+	private void promptToDuplicateSelectedImages() {
+		Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
+		if (imageRows.isEmpty()) {
+			logger.debug("Nothing to duplicate - no entries selected");
+			return;
+		}
+
+		boolean singleImage = false;
+		String name = "";
+		String title = "Duplicate images";
+		String namePrompt = "Append to image name";
+		String nameHelp = "Specify text to append to the image name to distinguish duplicated images";
+		if (imageRows.size() == 1) {
+			title = "Duplicate image";
+			namePrompt = "Duplicate image name";
+			nameHelp = "Specify name for the duplicated image";
+			singleImage = true;
+			name = imageRows.iterator().next().getDisplayableString();
+			name = GeneralTools.generateDistinctName(
+					name,
+					project.getImageList().stream().map(p -> p.getImageName()).collect(Collectors.toSet()));
+		}
+		var params = new ParameterList()
+				.addStringParameter("name", namePrompt, name, nameHelp)
+				.addBooleanParameter("copyData", "Also duplicate data files", true, "Duplicate any associated data files along with the image");
+
+		if (!GuiTools.showParameterDialog(title, params))
+			return;
+
+		boolean copyData = params.getBooleanParameterValue("copyData");
+		name = params.getStringParameterValue("name");
+
+		// Ensure we have a single space and then the text to append, with extra whitespace removed
+		if (!singleImage && !name.isBlank())
+			name = " " + name.strip();
+
+		for (var imageRow : imageRows) {
+			try {
+				var newEntry = project.addDuplicate(ProjectTreeRow.getEntry(imageRow), copyData);
+				if (newEntry != null && !name.isBlank()) {
+					if (singleImage)
+						newEntry.setImageName(name);
+					else
+						newEntry.setImageName(newEntry.getImageName() + name);
+				}
+			} catch (Exception ex) {
+				Dialogs.showErrorNotification("Duplicating image", "Error duplicating " + ProjectTreeRow.getEntry(imageRow).getImageName());
+				logger.error(ex.getLocalizedMessage(), ex);
+			}
+		}
+		try {
+			project.syncChanges();
+		} catch (Exception ex) {
+			logger.error("Error synchronizing project changes: " + ex.getLocalizedMessage(), ex);
+		}
+		refreshProject();
+		if (imageRows.size() == 1)
+			logger.debug("Duplicated 1 image entry");
+		else
+			logger.debug("Duplicated {} image entries", imageRows.size());
+	}
+
+
+	private void promptToRenameSelectedImage() {
+		TreeItem<ProjectTreeRow> path = tree.getSelectionModel().getSelectedItem();
+		if (path == null)
+			return;
+		if (path.getValue().getType() == ProjectTreeRow.Type.IMAGE) {
+			if (setProjectEntryImageName(ProjectTreeRow.getEntry(path.getValue())) && project != null)
+				syncProject(project);
+		}
+	}
+
+
+	private void promptToAddMetadataToSelectedImages() {
+		Project<BufferedImage> project = getProject();
+		Collection<ImageRow> imageRows = getSelectedImageRowsRecursive();
+		if (project != null && !imageRows.isEmpty()) {
+			TextField tfMetadataKey = new TextField();
+			var suggestions = project.getImageList().stream()
+					.map(p -> p.getMetadataKeys())
+					.flatMap(Collection::stream)
+					.distinct()
+					.sorted()
+					.toList();
+			TextFields.bindAutoCompletion(tfMetadataKey, suggestions);
+
+			TextField tfMetadataValue = new TextField();
+			Label labKey = new Label("New key");
+			Label labValue = new Label("New value");
+			labKey.setLabelFor(tfMetadataKey);
+			labValue.setLabelFor(tfMetadataValue);
+			tfMetadataKey.setTooltip(new Tooltip("Enter the name for the metadata entry"));
+			tfMetadataValue.setTooltip(new Tooltip("Enter the value for the metadata entry"));
+
+			ProjectImageEntry<BufferedImage> entry = imageRows.size() == 1 ? ProjectTreeRow.getEntry(imageRows.iterator().next()) : null;
+			int nMetadataValues = entry == null ? 0 : entry.getMetadataKeys().size();
+
+			GridPane pane = new GridPane();
+			pane.setVgap(5);
+			pane.setHgap(5);
+			pane.add(labKey, 0, 0);
+			pane.add(tfMetadataKey, 1, 0);
+			pane.add(labValue, 0, 1);
+			pane.add(tfMetadataValue, 1, 1);
+			String name = imageRows.size() + " images";
+			if (entry != null) {
+				name = entry.getImageName();
+				if (nMetadataValues > 0) {
+					Label labelCurrent = new Label("Current metadata");
+					TextArea textAreaCurrent = new TextArea();
+					textAreaCurrent.setEditable(false);
+
+					String keyString = entry.getMetadataSummaryString();
+					if (keyString.isEmpty())
+						textAreaCurrent.setText("No metadata entries yet");
+					else
+						textAreaCurrent.setText(keyString);
+					textAreaCurrent.setPrefRowCount(3);
+					labelCurrent.setLabelFor(textAreaCurrent);
+
+					pane.add(labelCurrent, 0, 2);
+					pane.add(textAreaCurrent, 1, 2);
+				}
+			}
+
+			Dialog<ButtonType> dialog = new Dialog<>();
+			dialog.setTitle("Metadata");
+			dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+			dialog.getDialogPane().setHeaderText("Set metadata for " + name);
+			dialog.getDialogPane().setContent(pane);
+			Optional<ButtonType> result = dialog.showAndWait();
+			if (result.isPresent() && result.get() == ButtonType.OK) {
+				String key = tfMetadataKey.getText().trim();
+				String value = tfMetadataValue.getText();
+				if (key.isEmpty()) {
+					logger.warn("Attempted to set metadata value for {}, but key was empty!", name);
+				} else {
+					// Set metadata for all entries
+					for (var temp : imageRows)
+						ProjectTreeRow.getEntry(temp).putMetadataValue(key, value);
+					syncProject(project);
+					tree.refresh();
+				}
+			}
+
+			ImageRow selectedImageRow = getSelectedImageRow();
+			refreshTree(selectedImageRow);
+
+		} else {
+			Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
+		}
 	}
 
 
@@ -736,6 +790,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			return true;		
 		
 		this.project = project;
+		ProjectTreeRowCell.resetUriStatus();
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRoot());
 		tree.getRoot().setExpanded(true);
@@ -1111,12 +1166,17 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	}
 
 	private class ProjectImageTreeModel {
-		
-		private ProjectTreeRowItem root;
+
+		private static final String SORT_KEY = "_SORT_KEY";
+		private final ProjectTreeRowItem root;
 		private String metadataKey;
 		
 		private ProjectImageTreeModel(final Project<?> project) {
 			this.root = new ProjectTreeRowItem(new ProjectTreeRow.RootRow(project));
+
+			if (project != null) {
+				this.metadataKey = project.getMetadata().get(SORT_KEY);
+			}
 		}
 		
 		private String getMetadataKey() {
@@ -1129,6 +1189,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		 */
 		private void setMetadataKey(String metadataKey) {
 			this.metadataKey = metadataKey;
+
+			if (metadataKey == null) {
+				project.getMetadata().remove(SORT_KEY);
+			} else {
+				project.getMetadata().put(SORT_KEY, metadataKey);
+			}
 		}
 		
 		private ProjectTreeRowItem getRoot() {
@@ -1139,12 +1205,34 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	private class ProjectTreeRowCell extends TreeCell<ProjectTreeRow> {
 		
 		private Tooltip tooltip = new Tooltip();
-		private StackPane label = new StackPane();
-		private ImageView viewTooltip = new ImageView();
+
+		private Node missingGraphic;
+
+		private StackPane viewPane = new StackPane();
 		private Canvas viewCanvas = new Canvas();
+		private ImageView viewTooltip = new ImageView();
+
 		private ProjectTreeRow objectCell = null;
 		private BooleanProperty showTooltip = new SimpleBooleanProperty();
-		
+
+		private BooleanProperty urisMissing = new SimpleBooleanProperty(false);
+
+		/**
+		 * Cache whether or not URIs refer to missing files.
+		 * We want to be able to inform the user when files are missing, but we don't want to call Files.exists()
+		 * too often, so we retain the result.
+		 * This means that, if the file was deleted or moved later, the user will need to refresh the project to see
+		 * the change.
+		 */
+		private static Map<URI, UriUpdater.UriStatus> uriStatus = new ConcurrentHashMap<>();
+
+		/**
+		 * Reset the cache of URI statuses (called when a new project is opened).
+		 */
+		static void resetUriStatus() {
+			uriStatus.clear();
+		}
+
 		private DoubleBinding viewWidth = Bindings.createDoubleBinding(
 				() -> thumbnailSize.get().getWidth(),
 				thumbnailSize);
@@ -1157,12 +1245,23 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			viewTooltip.setFitHeight(250);
 			viewTooltip.setFitWidth(250);
 			viewTooltip.setPreserveRatio(true);
+			viewCanvas.getStyleClass().add("project-thumbnail");
 			viewCanvas.widthProperty().bind(viewWidth);
 			viewCanvas.heightProperty().bind(viewHeight);
-			viewCanvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-			label.getChildren().add(viewCanvas);
-			label.prefWidthProperty().bind(viewCanvas.widthProperty());
-			label.prefHeightProperty().bind(viewCanvas.heightProperty());
+			viewPane.getChildren().add(viewCanvas);
+			viewPane.prefWidthProperty().bind(viewCanvas.widthProperty());
+			viewPane.prefHeightProperty().bind(viewCanvas.heightProperty());
+			viewCanvas.opacityProperty().bind(
+					Bindings.createDoubleBinding(() -> urisMissing.get() ? 0.2 : 1.0, urisMissing));
+
+			missingGraphic = IconFactory.createNode(
+					15, 15, PathIcons.WARNING);
+			missingGraphic.getStyleClass().add("missing-uri");
+			Tooltip.install(missingGraphic, new Tooltip("File not found"));
+
+			viewPane.getChildren().add(missingGraphic);
+			missingGraphic.visibleProperty().bind(urisMissing);
+
 			// Avoid having the tooltip obscure any popup menu
 			tooltipProperty().bind(Bindings.createObjectBinding(() -> {
 				return showTooltip.get() && !contextMenuShowing.get() ? tooltip : null;
@@ -1179,92 +1278,125 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
                 return;
             }
 
+			getStyleClass().setAll("tree-cell");
+			urisMissing.set(false);
+
 			if (item.getType() == ProjectTreeRow.Type.ROOT) {
 				var children = getTreeItem().getChildren();
-				setText(item.getDisplayableString() + (children.size() > 0 ? " (" + children.size() + ")" : ""));
+				setText(item.getDisplayableString() + (!children.isEmpty() ? " (" + children.size() + ")" : ""));
 				setGraphic(null);
-				// TODO: Extract styles to external CSS
-				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
 				return;
 			} else if (item.getType() == ProjectTreeRow.Type.METADATA) {
 				var children = getTreeItem().getChildren();
 				// TODO: Try not to display count when grouping by ID
-				setText(item.getDisplayableString() + (children.size() > 0 ? " (" + children.size() + ")" : ""));
+				setText(item.getDisplayableString() + (!children.isEmpty() ? " (" + children.size() + ")" : ""));
 				setGraphic(null);
-				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
 				return;
 			}
 			
 			// IMAGE
 			ProjectImageEntry<BufferedImage> entry = item.getType() == ProjectTreeRow.Type.IMAGE ? ProjectTreeRow.getEntry(item) : null;
 			if (isCurrentImage(entry))
-				setStyle("-fx-font-weight: bold; -fx-font-family: arial");
-			else if (entry == null || entry.hasImageData())
-				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
-			else
-				setStyle("-fx-font-style: italic; -fx-font-family: arial");
-			
+				getStyleClass().add("current-image");
+			if (entry != null && !entry.hasImageData())
+				getStyleClass().add("no-saved-data");
+
+			// Check for URIs
+			if (entry != null && !PathPrefs.skipProjectUriChecksProperty().get()) {
+				try {
+					for (var uri : entry.getURIs()) {
+						if (uriStatus.computeIfAbsent(uri, ProjectTreeRowCell::checkUri) == UriUpdater.UriStatus.MISSING) {
+							urisMissing.set(true);
+							break;
+						}
+					}
+				} catch (IOException e) {
+					logger.error("Exception checking URIs: {}", e.getMessage(), e);
+				}
+			}
+
 			if (entry == null) {
-				setText(item.toString() + " (" + getTreeItem().getChildren().size() + ")");
+				setText(item + " (" + getTreeItem().getChildren().size() + ")");
 				tooltip.setText(item.toString());
                 showTooltip.set(true);
 				setGraphic(null);
 			} else {
-				setGraphic(null);
+				setGraphic(viewPane);
 				// Set whatever tooltip we have
 				tooltip.setGraphic(null);
-                showTooltip.set(true);
+				showTooltip.set(true);
 
 				setText(entry.getImageName());
-				tooltip.setText(entry.getSummary());
+				if (urisMissing.get())
+					tooltip.setText("Warning: At least one file is missing!\n\n" + entry.getSummary());
+				else
+					tooltip.setText(entry.getSummary());
 
-				try {
-					// Fetch the thumbnail or generate it if not present
-					BufferedImage img = entry.getThumbnail();
-					if (img != null) {
-						// If the cell contains the same object, no need to repaint the graphic
-						if (objectCell == item && getGraphic() != null)
-							return;
-						
-						Image image = SwingFXUtils.toFXImage(img, null);
-						viewTooltip.setImage(image);
-						tooltip.setGraphic(viewTooltip);
-						GuiTools.paintImage(viewCanvas, image);
-						objectCell = item;
-						if (getGraphic() == null)
-							setGraphic(label);
-					} else if (!serversFailed.contains(item)) {
-						executor.submit(() -> {
-							final ProjectTreeRow objectTemp = getItem();
-							final ProjectImageEntry<BufferedImage> entryTemp = ProjectTreeRow.getEntry(objectTemp);
-							try {
-								if (entryTemp != null && objectCell != objectTemp && entryTemp.getThumbnail() == null) {
-									try (ImageServer<BufferedImage> server = entryTemp.getServerBuilder().build()) {
-										entryTemp.setThumbnail(ProjectCommands.getThumbnailRGB(server));
-										objectCell = objectTemp;
-										tree.refresh();
-									} catch (Exception ex) {
-										logger.warn("Error opening ImageServer (thumbnail generation): " + ex.getLocalizedMessage(), ex);
-										Platform.runLater(() -> setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER)));
-										serversFailed.add(item);
+				if (thumbnailSize.get() == ProjectThumbnailSize.HIDDEN) {
+					viewTooltip.setImage(null);
+					viewCanvas.getGraphicsContext2D().clearRect(0, 0, viewCanvas.getWidth(), viewCanvas.getHeight());
+				} else {
+					try {
+						// Fetch the thumbnail or generate it if not present
+						BufferedImage img = entry.getThumbnail();
+						if (img != null) {
+							Image image = SwingFXUtils.toFXImage(img, null);
+							viewTooltip.setImage(image);
+							tooltip.setGraphic(viewTooltip);
+							GuiTools.paintImage(viewCanvas, image);
+							objectCell = item;
+							if (getGraphic() == null)
+								setGraphic(viewPane);
+						} else if (!serversFailed.contains(item)) {
+							tooltip.setGraphic(viewTooltip);
+							viewCanvas.getGraphicsContext2D().clearRect(0, 0, viewCanvas.getWidth(), viewCanvas.getHeight());
+							executor.submit(() -> {
+								final ProjectTreeRow objectTemp = getItem();
+								final ProjectImageEntry<BufferedImage> entryTemp = ProjectTreeRow.getEntry(objectTemp);
+								try {
+									if (entryTemp != null && objectCell != objectTemp && entryTemp.getThumbnail() == null) {
+										try (ImageServer<BufferedImage> server = entryTemp.getServerBuilder().build()) {
+											entryTemp.setThumbnail(ProjectCommands.getThumbnailRGB(server));
+											objectCell = objectTemp;
+											tree.refresh();
+										} catch (Exception ex) {
+											logger.warn("Error opening ImageServer (thumbnail generation): {}", ex.getLocalizedMessage(), ex);
+											Platform.runLater(() -> setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER)));
+											serversFailed.add(item);
+										}
 									}
+								} catch (IOException ex) {
+									logger.warn("Error getting thumbnail: {}", ex.getLocalizedMessage());
+									Platform.runLater(() -> setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER)));
+									serversFailed.add(item);
 								}
-							} catch (IOException ex) {
-								logger.warn("Error getting thumbnail: " + ex.getLocalizedMessage());
-								Platform.runLater(() -> setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER)));
-								serversFailed.add(item);
-							}
-						});
-					} else
+							});
+						} else
+							setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER));
+					} catch (Exception e) {
 						setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER));
-				} catch (Exception e) {
-					setGraphic(IconFactory.createNode(15, 15, PathIcons.INACTIVE_SERVER));
-					logger.warn("Unable to read thumbnail for {} ({})" + entry.getImageName(), e.getLocalizedMessage());
-					serversFailed.add(item);
+						logger.warn("Unable to read thumbnail for {} ({})", entry.getImageName(), e.getMessage());
+						serversFailed.add(item);
+					}
 				}
 			}
 		}
+
+
+		private static UriUpdater.UriStatus checkUri(URI uri) {
+			var path = GeneralTools.toPath(uri);
+			// In case the check is slow, we make it possible for the user to turn it off.
+			// See also https://github.com/qupath/qupath/pull/1298 for performance considerations.
+			// TODO: Can we check if this is a network drive, to skip the test?
+			if (path == null)
+				return UriUpdater.UriStatus.UNKNOWN;
+			else if (Files.notExists(path))
+				return UriUpdater.UriStatus.MISSING;
+			else
+				return UriUpdater.UriStatus.EXISTS;
+		}
 	}
+
 		
 	/**
 	 * TreeItem to help with the display of project objects.
@@ -1280,21 +1412,16 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		@Override
 		public boolean isLeaf() {
 			if (computed)
-				return super.getChildren().size() == 0;
-		
-			switch(getValue().getType()) {
-				case ROOT:
-					return project != null && project.getImageList().size() > 0 && !project.getImageList().stream()
-										.filter(entry -> predicateProperty.get().test(entry.getImageName()))
-										.findAny()
-										.isPresent();
-				case METADATA:
-					return false;
-				case IMAGE:
-					return true;
-				default:
-					throw new IllegalArgumentException("Could not understand the type of the object: " + getValue().getType());
-			}
+				return super.getChildren().isEmpty();
+
+            return switch (getValue().getType()) {
+                case ROOT -> project != null && !project.getImageList().isEmpty() && project.getImageList().stream()
+                        .noneMatch(entry -> predicateProperty.get().test(entry.getImageName()));
+                case METADATA -> false;
+                case IMAGE -> true;
+                default ->
+                        throw new IllegalArgumentException("Could not understand the type of the object: " + getValue().getType());
+            };
 			
 		}
 		
@@ -1364,15 +1491,20 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			return super.getChildren();
 		}
 	}
-	static enum ProjectThumbnailSize {
-		SMALL, MEDIUM, LARGE;
-		
+
+	enum ProjectThumbnailSize {
+		HIDDEN, SMALL, MEDIUM, LARGE;
+
+		private static int hiddenSize = 20;
+
 		private double defaultHeight = 40;
 		private double defaultWidth = 50;
 		
 		@Override
 		public String toString() {
 			switch(this) {
+			case HIDDEN:
+				return "Hidden";
 			case LARGE:
 				return "Large";
 			case MEDIUM:
@@ -1390,6 +1522,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				return defaultWidth * 3.0;
 			case MEDIUM:
 				return defaultWidth * 2.0;
+			case HIDDEN:
+				return hiddenSize;
 			case SMALL:
 			default:
 				return defaultWidth;
@@ -1402,6 +1536,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				return defaultHeight * 3.0;
 			case MEDIUM:
 				return defaultHeight * 2.0;
+			case HIDDEN:
+				return hiddenSize;
 			case SMALL:
 			default:
 				return defaultHeight;

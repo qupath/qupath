@@ -28,6 +28,7 @@ import java.awt.geom.Path2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.lang.ref.SoftReference;
 import java.util.List;
 import org.locationtech.jts.geom.Geometry;
 
@@ -54,7 +55,12 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	private Vertices vertices;
 	
 	private transient ClosedShapeStatistics stats = null;
-	
+
+	/**
+	 * Cache a soft reference to the geometry because calculating a valid
+	 * geometry can be a performance bottleneck (e.g. if there are self-intersections).
+	 */
+	private transient SoftReference<Geometry> cachedGeometry;
 
 	PolygonROI() {
 		super();
@@ -123,13 +129,18 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 //		setPoints(vertices.getPoints()); // TODO: Implement this more efficiency, if it remains...
 //		isAdjusting = false;
 //	}
-	
-	
+
+
 	@Override
 	public Geometry getGeometry() {
-		// This can be a performance bottleneck - consider caching in the future
-		// (at least for complex polygons)
-		return super.getGeometry();
+		// Cache a soft reference because converting polygons to
+		// (valid) geometries can be expensive
+		var geom = cachedGeometry == null ? null : cachedGeometry.get();
+		if (geom == null) {
+			geom = super.getGeometry();
+			cachedGeometry = new SoftReference<>(geom);
+		}
+		return geom.copy();
 	}
 	
 	/**
@@ -431,9 +442,6 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 		private Object readResolve() {
 			PolygonROI roi = new PolygonROI(x, y, ImagePlane.getPlaneWithChannel(c, z, t), false);
 			roi.stats = this.stats; // Doesn't matter if this is null...
-//			if (roi.stats == null) {
-//				System.err.println("Null count: " + (++nullCounter));
-//			}
 			return roi;
 		}
 		
