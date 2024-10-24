@@ -166,6 +166,16 @@ public class ScriptLanguageProvider {
 		}
 		return null;
 	}
+
+	/**
+	 * Install a new script language.
+	 * @param language the language to install
+	 * @return true if the language was installed, false otherwise (e.g. it was already installed)
+	 */
+	public static boolean installLanguage(ScriptLanguage language) {
+		getAvailableLanguages();
+		return availableLanguages.add(language);
+	}
 	
 	private static ScriptEngineManager createManager() {
 		Thread.currentThread().setContextClassLoader(getExtensionClassLoader());
