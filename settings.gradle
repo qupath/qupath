@@ -2,7 +2,7 @@ plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '0.7.0' // to download if needed
 }
 
-gradle.ext.qupathVersion = "0.6.0-rc3"
+gradle.ext.qupathVersion = "0.6.0-SNAPSHOT"
 
 rootProject.name = 'qupath'
 
@@ -43,8 +43,8 @@ dependencyResolutionManagement {
             library('training', 'io.github.qupath', 'qupath-extension-training').version('0.0.1-20241022.065038-2')
             library('py4j', 'io.github.qupath', 'qupath-extension-py4j').version('0.1.0-20241021.201937-1')
             // Include or exclude bundled extensions
-//            bundle('extensions', [])
-            bundle('extensions', ['djl', 'instanseg', 'training', 'py4j'])
+            bundle('extensions', [])
+//            bundle('extensions', ['djl', 'instanseg', 'training', 'py4j'])
         }
     }
 }
