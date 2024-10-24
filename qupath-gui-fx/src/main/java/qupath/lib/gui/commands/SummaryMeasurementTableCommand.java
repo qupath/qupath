@@ -87,6 +87,7 @@ import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramDisplay;
+import qupath.lib.gui.charts.ScatterPlotDisplay;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -160,6 +161,7 @@ public class SummaryMeasurementTableCommand {
 
 		SplitPane splitPane = new SplitPane();
 		HistogramDisplay histogramDisplay = new HistogramDisplay(model, true);
+		ScatterPlotDisplay scatterPlotDisplay = new ScatterPlotDisplay(model);
 
 		//		table.setTableMenuButtonVisible(true);
 		TableView<PathObject> table = new TableView<>();
@@ -223,7 +225,8 @@ public class SummaryMeasurementTableCommand {
 		boolean tmaCoreList = TMACoreObject.class.isAssignableFrom(type);
 		if (tmaCoreList)
 			histogramDisplay.setNumBins(10);			
-			
+
+
 		// Create numeric columns
 		TableColumn<PathObject, String> colObjectIDs = null;
 		for (String columnName : model.getAllNames()) {
@@ -269,6 +272,17 @@ public class SummaryMeasurementTableCommand {
 				splitPane.getItems().remove(histogramDisplay.getPane());
 		});
 		buttons.add(btnHistogram);
+
+		ToggleButton btnScatter = new ToggleButton("Show scatter plots");
+		btnScatter.selectedProperty().addListener((v, o, n) -> {
+			if (n) {
+				Pane paneScatter = scatterPlotDisplay.getPane();
+				splitPane.getItems().add(paneScatter);
+			} else if (scatterPlotDisplay != null) {
+				splitPane.getItems().remove(scatterPlotDisplay.getPane());
+			}
+		});
+		buttons.add(btnScatter);
 
 //		Button btnScatterplot = new Button("Show scatterplots");
 //		btnScatterplot.setOnAction(e -> {
