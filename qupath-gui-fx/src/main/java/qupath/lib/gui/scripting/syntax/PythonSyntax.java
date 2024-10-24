@@ -33,7 +33,7 @@ class PythonSyntax extends GeneralCodeSyntax {
 		
 	@Override
 	public Set<String> getLanguageNames() {
-		return Set.of("python", "jython");
+		return Set.of("python", "jython", "graalpy", "python py4j", "cpython");
 	}
 	
 	@Override
