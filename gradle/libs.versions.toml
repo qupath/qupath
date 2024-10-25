@@ -1,11 +1,11 @@
 [versions]
 
-bioformats      = "7.3.1"
+bioformats      = "8.0.0"
 bioimageIoSpec  = "0.1.0"
 omeZarrReader   = "0.5.2"
 blosc           = "1.21.5"
 
-commonmark      = "0.23.0"
+commonmark      = "0.24.0"
 commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.1.2"
