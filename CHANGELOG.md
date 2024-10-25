@@ -102,8 +102,8 @@ They may change or be removed in future versions.
   * `finalize()` is deprecated for removal; any class that relied on this should consider using `Cleaner`
 
 ### Dependency updates
-* Bio-Formats 7.3.1
-* Commonmark 0.23.0
+* Bio-Formats 8.0.0
+* Commonmark 0.24.0
 * DeepJavaLibrary 0.30.0
 * Groovy 4.0.22
 * Gson 2.11.0
