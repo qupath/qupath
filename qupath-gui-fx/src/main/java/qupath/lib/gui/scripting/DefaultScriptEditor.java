@@ -339,7 +339,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected Action runSelectedAction;
 	protected Action runProjectScriptAction;
 	protected Action runProjectScriptNoSaveAction;
-	
+
 	protected Action killRunningScriptAction;
 
 	protected Action insertMuAction;
@@ -643,6 +643,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 			listScripts.getSelectionModel().select(tab);
 		updateSelectedScript(true);
 	}
+
+
+	/**
+	 * Get a property representing the current selected ScriptTab.
+	 * @return
+	 */
+	protected ReadOnlyObjectProperty<ScriptTab> selectedScriptProperty() {
+		return selectedScript;
+	}
+
 	
 	private void addScript(final File file, final boolean doSelect) throws IOException {
 		// Try to select an existing tab, if possible
