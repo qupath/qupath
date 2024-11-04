@@ -89,7 +89,7 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 	
 	private ContextMenu contextMenu;
 
-	private boolean smartEditing;
+	private boolean smartEditing = true;
 	private ScriptSyntax syntax;
 	private ScriptLanguage language;
 	private ScriptStyler styler = ScriptStylerProvider.PLAIN;

@@ -73,6 +73,8 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	public RichScriptEditor(QuPathGUI qupath) {
 		super(qupath);
 		menu = new ContextMenu();
+		this.smartEditing.addListener((v, o, n) -> updateSmartEditing());
+		this.selectedScriptProperty().addListener((v, o, n) -> updateSmartEditing());
 		MenuTools.addMenuItems(menu.getItems(),
 				MenuTools.createMenu("Run...",
 						runScriptAction,
@@ -96,6 +98,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	protected ScriptEditorControl<? extends Region> getNewEditor() {
 		try {
 			var editor = CodeAreaControl.createCodeEditor();
+			editor.setSmartEditing(smartEditing.get());
 			editor.setLanguage(getCurrentLanguage());
 			var codeArea = editor.getRegion().getContent();
 			codeArea.setOnContextMenuRequested(e -> menu.show(codeArea.getScene().getWindow(), e.getScreenX(), e.getScreenY()));
@@ -105,6 +108,11 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			logger.error("Unable to create code area", e);
 			return super.getNewEditor();
 		}
+	}
+
+	private void updateSmartEditing() {
+		if (getCurrentEditorControl() instanceof CodeAreaControl control)
+			control.setSmartEditing(smartEditing.get());
 	}
 
 	static CodeAreaControl createLogConsole() {
