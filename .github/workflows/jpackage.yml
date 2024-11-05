@@ -47,7 +47,7 @@
     - name: Build with Gradle
       uses: gradle/gradle-build-action@v3
       with:
-        arguments: jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums -P toolchain=21
+        arguments: assembleJavadocs jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums -P toolchain=21
 
     - name: Make Linux tar.xz
       if: matrix.name == 'Linux'
