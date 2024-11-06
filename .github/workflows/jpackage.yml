@@ -41,13 +41,14 @@
         java-version: '21'
         distribution: 'temurin'
 
-    - name: Validate Gradle wrapper
-      uses: gradle/wrapper-validation-action@v2
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+
+    - name: Assemble javadocs
+      run: ./gradlew assembleJavadocs
 
     - name: Build with Gradle
-      uses: gradle/gradle-build-action@v3
-      with:
-        arguments: jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums -P toolchain=21
+      run: ./gradlew jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums -P toolchain=21
 
     - name: Make Linux tar.xz
       if: matrix.name == 'Linux'

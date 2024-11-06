@@ -400,7 +400,6 @@ tasks.register('jpackageFinalize') {
     // Identify outputs, which are used to create checksums
     inputs.files jpackage.outputs.files
     outputs.files(jpackage.outputs.files.asFileTree.matching {
-        // I think you can tell I'm not great with Gradle
         include {
             return it.file.parentFile.name == 'dist' &&
                     it.name.startsWith('QuPath') &&
