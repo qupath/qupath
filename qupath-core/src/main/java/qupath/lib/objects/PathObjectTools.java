@@ -1936,9 +1936,10 @@ public class PathObjectTools {
 			newObject = PathObjects.createDetectionObject(roiNew, pathObject.getPathClass());
 		} else
 			throw new IllegalArgumentException("Unsupported object type - cannot create similar object for " + pathObject);
-		// Retain name and color as well
+		// Retain name, color and locked status as well
 		newObject.setName(pathObject.getName());
 		newObject.setColor(pathObject.getColor());
+		newObject.setLocked(pathObject.isLocked());
 		return newObject;
 	}
 	
