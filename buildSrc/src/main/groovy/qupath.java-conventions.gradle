@@ -4,14 +4,14 @@
  */
 
 plugins {
-    id 'java'
+    id "java"
 }
 
 java {
-    def version = project.findProperty('toolchain')
+    def version = project.findProperty("toolchain")
     if (!version) {
         version = libs.versions.jdk.get()
-    } else if (version.strip() == 'skip')
+    } else if (version.strip() == "skip")
         version = null
     if (version != null) {
         logger.info("Setting toolchain to {}", version)
@@ -25,12 +25,12 @@ java {
 
 compileJava {
     // Include parameter names, so they are available in the script editor via reflection
-    options.compilerArgs << '-parameters'
+    options.compilerArgs << "-parameters"
     // Specify source should be UTF8
-    options.encoding = 'UTF-8'
+    options.encoding = "UTF-8"
 }
 
-// Avoid 'Entry .gitkeep is a duplicate but no duplicate handling strategy has been set.'
+// Avoid "Entry .gitkeep is a duplicate but no duplicate handling strategy has been set."
 // when using withSourcesJar()
 tasks.withType(org.gradle.jvm.tasks.Jar) {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
@@ -39,26 +39,26 @@ tasks.withType(org.gradle.jvm.tasks.Jar) {
 afterEvaluate {
 
     // Including the latest commit when building can help traceability - but requires git being available
-    // TODO: Don't compute this separately for separate libraries
+    // TODO: Don"t compute this separately for separate libraries
     ext {
         latestGitCommit = null
     }
-    def requestLatestCommit = project.findProperty('git-commit') == 'true'
+    def requestLatestCommit = project.findProperty("git-commit") == "true"
     if (requestLatestCommit) {
         try {
             def stdout = new ByteArrayOutputStream()
             def result = exec {
-                commandLine 'git', 'log', "--pretty=format:'%h'", "-n 1"
+                commandLine "git", "log", "--pretty=format:\"%h\"", "-n 1"
                 standardOutput = stdout
             }
             latestGitCommit = stdout.toString().trim()
-//            logger.info('Latest commit: {}', latestGitCommit)
+//            logger.info("Latest commit: {}", latestGitCommit)
         } catch (Exception e) {
-            logger.warn('Unable to get latest commit: ' + e.getLocalizedMessage())
-            latestGitCommit = 'Unknown (is Git installed?)'
+            logger.warn("Unable to get latest commit: " + e.getLocalizedMessage())
+            latestGitCommit = "Unknown (is Git installed?)"
         }
     } else {
-        logger.info("I won't try to get the last commit - consider running with '-Pgit-commit=true' if you want this next time (assuming Git is installed)")
+        logger.info("I won't try to get the last commit - consider running with \"-Pgit-commit=true\" if you want this next time (assuming Git is installed)")
     }
 
     jar {
@@ -70,8 +70,8 @@ afterEvaluate {
 					"QuPath-build-time"     : new Date().format("yyyy-MM-dd, HH:mm")
 			]
 			// Set the module name where we can
-			if (project.hasProperty('moduleName')) {
-				manifestAttributes['Automatic-Module-Name'] = "io.github." + project['moduleName']
+			if (project.hasProperty("moduleName")) {
+				manifestAttributes["Automatic-Module-Name"] = "io.github." + project["moduleName"]
 			}
 			
 			if (latestGitCommit != null)
@@ -88,17 +88,17 @@ afterEvaluate {
  * Use -PstrictJavadoc=true to fail on error with doclint (which is rather strict).
  */
 tasks.withType(Javadoc).each { javadocTask ->
-    if (!findProperty('strictJavadoc')) {
+    if (!findProperty("strictJavadoc")) {
         // This should be made more strict in the future
-        javadocTask.options.addStringOption('Xdoclint:none', '-quiet')
+        javadocTask.options.addStringOption("Xdoclint:none", "-quiet")
     }
-    javadocTask.options.encoding = 'UTF-8'
+    javadocTask.options.encoding = "UTF-8"
     javadocTask.options.tags = ["apiNote:a:API Note",
                     "implNote:a:Implementation Note",
                     "implSpec:a:Implementation Requirements"]
     javadocTask.options.links "https://docs.oracle.com/en/java/javase/${libs.versions.jdk.get()}/docs/api/"
     // Need to use the major version only with javafx
-    javadocTask.options.links "https://openjfx.io/javadoc/${libs.versions.javafx.get().split('\\.')[0]}/"
+    javadocTask.options.links "https://openjfx.io/javadoc/${libs.versions.javafx.get().split("\\.")[0]}/"
     javadocTask.options.links "https://javadoc.io/doc/org.bytedeco/javacpp/${libs.versions.javacpp.get()}/"
     javadocTask.options.links "https://javadoc.io/doc/org.bytedeco/opencv/${libs.versions.opencv.get()}/"
     javadocTask.options.links "https://javadoc.io/doc/com.google.code.gson/gson/${libs.versions.gson.get()}/"
@@ -122,8 +122,8 @@ tasks.withType(Javadoc).each { javadocTask ->
  */
 test {
     if ("32".equals(System.getProperty("sun.arch.data.model")))
-        maxHeapSize = '1G'
+        maxHeapSize = "1G"
     else
-        maxHeapSize = '2G'
+        maxHeapSize = "2G"
 }
 

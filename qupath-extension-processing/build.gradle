@@ -1,15 +1,15 @@
 plugins {
-  id 'qupath.extension-conventions'
-  id 'qupath.publishing-conventions'
-  id 'java-library'
+  id "qupath.extension-conventions"
+  id "qupath.publishing-conventions"
+  id "java-library"
 
   alias(libs.plugins.javafx)
 }
 
-ext.moduleName = 'qupath.extension.processing'
+ext.moduleName = "qupath.extension.processing"
 base {
-  archivesName = 'qupath-extension-processing'
-  description = 'QuPath extension to support processing (including many common commands).'
+  archivesName = "qupath-extension-processing"
+  description = "QuPath extension to support processing (including many common commands)."
 }
 
 dependencies {

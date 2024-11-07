@@ -1,6 +1,6 @@
 plugins {
-    id 'java'
-    id 'maven-publish'
+    id "java"
+    id "maven-publish"
 }
 
 publishing {
@@ -10,7 +10,7 @@ publishing {
             def releasesRepoUrl = uri("https://maven.scijava.org/content/repositories/releases")
             def snapshotsRepoUrl = uri("https://maven.scijava.org/content/repositories/snapshots")
             // Use gradle -Prelease publish
-            url = project.hasProperty('release') ? releasesRepoUrl : snapshotsRepoUrl
+            url = project.hasProperty("release") ? releasesRepoUrl : snapshotsRepoUrl
             credentials {
                 username = System.getenv("MAVEN_USER")
                 password = System.getenv("MAVEN_PASS")
@@ -20,14 +20,14 @@ publishing {
 
     publications {
         mavenJava(MavenPublication) {
-            groupId = 'io.github.qupath'
+            groupId = "io.github.qupath"
             from components.java
 
             pom {
                 licenses {
                     license {
-                        name = 'GNU General Public License, Version 3'
-                        url = 'https://www.gnu.org/licenses/gpl-3.0.txt'
+                        name = "GNU General Public License, Version 3"
+                        url = "https://www.gnu.org/licenses/gpl-3.0.txt"
                     }
                 }
             }

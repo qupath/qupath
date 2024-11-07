@@ -1,9 +1,9 @@
 plugins {
-    id 'qupath.java-conventions'
-    id 'jacoco'
-    id 'io.github.qupath.platform'
-    id 'org.bytedeco.gradle-javacpp-platform'
-//    id 'checkstyle'
+    id "qupath.java-conventions"
+    id "jacoco"
+    id "io.github.qupath.platform"
+    id "org.bytedeco.gradle-javacpp-platform"
+//    id "checkstyle"
 }
 
 repositories {
@@ -29,18 +29,18 @@ repositories {
 
     // Required for Bio-Formats
     maven {
-        name 'Unidata'
-        url 'https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases'
+        name "Unidata"
+        url "https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases"
     }
     maven {
-        name 'Open Microscopy'
-        url 'https://artifacts.openmicroscopy.org/artifactory/maven/'
+        name "Open Microscopy"
+        url "https://artifacts.openmicroscopy.org/artifactory/maven/"
     }
 
     // May be required for snapshot JavaCPP jars
     maven {
-        name 'Sonatype snapshots'
-        url 'https://oss.sonatype.org/content/repositories/snapshots'
+        name "Sonatype snapshots"
+        url "https://oss.sonatype.org/content/repositories/snapshots"
     }
 
     // Currently required for OpenSlide
@@ -58,15 +58,15 @@ project.version = gradle.ext.qupathVersion
  * Optionally use OpenCV with CUDA.
  * See https://github.com/bytedeco/javacpp-presets/tree/master/cuda for info (and licenses).
  */
-def useCudaRedist = project.hasProperty('cuda-redist')
-def useCuda = useCudaRedist || project.hasProperty('cuda')
+def useCudaRedist = project.hasProperty("cuda-redist")
+def useCuda = useCudaRedist || project.hasProperty("cuda")
 
 /*
  * Handle OS-specific decisions
  */
-String platform = properties['platform.shortName']
-if (properties['platform.name'] == null)
-    logger.warn('Unknown operating system!')
+String platform = properties["platform.shortName"]
+if (properties["platform.name"] == null)
+    logger.warn("Unknown operating system!")
 if ("32".equals(System.getProperty("sun.arch.data.model"))) {
     logger.warn("You appear to be using a 32-bit JDK - it is very possible some things won't work!")
     logger.warn("You may at least need to replace the OpenSlide dlls with 32-bit versions from https://openslide.org/download/")
@@ -76,7 +76,7 @@ if ("32".equals(System.getProperty("sun.arch.data.model"))) {
 /*
  * Preserve the version number
  */
-project.file('src/main/resources/VERSION').setText(gradle.ext.qupathVersion, 'UTF-8')
+project.file("src/main/resources/VERSION").setText(gradle.ext.qupathVersion, "UTF-8")
 
 
 configurations {
@@ -106,6 +106,6 @@ dependencies {
     implementation libs.bundles.logging
 }
 
-tasks.named('test') {
+tasks.named("test") {
     useJUnitPlatform()
 }

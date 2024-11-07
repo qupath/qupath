@@ -1,15 +1,15 @@
 plugins {
-  id 'qupath.common-conventions'
-  id 'qupath.publishing-conventions'
-  id 'java-library'
+  id "qupath.common-conventions"
+  id "qupath.publishing-conventions"
+  id "java-library"
 
   alias(libs.plugins.javafx)
 }
 
-ext.moduleName = 'qupath.gui.fx'
+ext.moduleName = "qupath.gui.fx"
 base {
-    archivesName = 'qupath-gui-fx'
-    description = 'Main QuPath user interface.'
+    archivesName = "qupath-gui-fx"
+    description = "Main QuPath user interface."
 }
 
 configurations {
@@ -17,8 +17,8 @@ configurations {
 }
 
 dependencies {
-  api project(':qupath-core')
-  api project(':qupath-core-processing')
+  api project(":qupath-core")
+  api project(":qupath-core-processing")
 
   implementation libs.qupath.fxtras // API for no
   api libs.controlsfx
@@ -48,5 +48,5 @@ javafx {
 	           "javafx.fxml",
 	           "javafx.web",
 	           "javafx.swing"]
-	configuration = 'api'
+	configuration = "api"
 }

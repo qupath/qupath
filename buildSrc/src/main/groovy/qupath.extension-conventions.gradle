@@ -3,11 +3,11 @@
  */
 
 plugins {
-    id 'qupath.common-conventions'
+    id "qupath.common-conventions"
 }
 
 dependencies {
-    implementation project(':qupath-core')
-    implementation project(':qupath-core-processing')
-    implementation project(':qupath-gui-fx')
+    implementation project(":qupath-core")
+    implementation project(":qupath-core-processing")
+    implementation project(":qupath-gui-fx")
 }

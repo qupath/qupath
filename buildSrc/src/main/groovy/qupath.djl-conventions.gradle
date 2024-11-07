@@ -3,23 +3,23 @@
  */
 
 plugins {
-    id 'qupath.djl-conventions'
+    id "qupath.djl-conventions"
 }
 
-def djlEnginesProp = project.findProperty('djl.engines') ?: "default"
+def djlEnginesProp = project.findProperty("djl.engines") ?: "default"
 djlEnginesProp = djlEnginesProp.strip().toLowerCase()
 def djlEngines = []
 if (djlEnginesProp == "default")
-	djlEngines = ['pytorch', 'tensorflow']
+	djlEngines = ["pytorch", "tensorflow"]
 else if (djlEnginesProp == "none")
 	djlEngines = []
 else
 	djlEngines = djlEnginesProp.split(",").collect(e -> e.toLowerCase().strip()).findAll(e -> !e.isBlank())
 	
-def djlApi = !djlEngines.isEmpty() || project.findProperty('djl.api')
-def djlZero = djlApi && project.findProperty('djl.zero')
+def djlApi = !djlEngines.isEmpty() || project.findProperty("djl.api")
+def djlZero = djlApi && project.findProperty("djl.zero")
 
-def djlZoosProp = project.findProperty('djl.zoos') ?: "all"
+def djlZoosProp = project.findProperty("djl.zoos") ?: "all"
 djlZoosProp = djlZoosProp.strip().toLowerCase()
 def djlZoos = []
 if (djlZoosProp == "all")
@@ -40,61 +40,61 @@ dependencies {
 		implementation "ai.djl:djl-zero:$djlVersion"
 	}
 
-    if ('pytorch' in djlEngines) {
+    if ("pytorch" in djlEngines) {
 	    implementation "ai.djl.pytorch:pytorch-engine:$djlVersion"
-	    if ('pytorch' in djlZoos)
+	    if ("pytorch" in djlZoos)
 		    implementation "ai.djl.pytorch:pytorch-model-zoo:$djlVersion"
 	}
 	
-	if ('mxnet' in djlEngines) {
+	if ("mxnet" in djlEngines) {
 	    implementation "ai.djl.mxnet:mxnet-engine:$djlVersion"
-	    if ('mxnet' in djlZoos)
+	    if ("mxnet" in djlZoos)
 		    implementation "ai.djl.mxnet:mxnet-model-zoo:$djlVersion"
 	}
 
-	if ('tensorflow' in djlEngines) {
+	if ("tensorflow" in djlEngines) {
 	    implementation "ai.djl.tensorflow:tensorflow-engine:$djlVersion"
-	    if ('tensorflow' in djlZoos)
+	    if ("tensorflow" in djlZoos)
 		    implementation "ai.djl.tensorflow:tensorflow-model-zoo:$djlVersion"
 	}
     
-	if ('onnx' in djlEngines || 'onnxruntime' in djlEngines) {
+	if ("onnx" in djlEngines || "onnxruntime" in djlEngines) {
 	    implementation "ai.djl.onnxruntime:onnxruntime-engine:$djlVersion"
 	    // No model zoo available
 	}
 
-	if ('paddlepaddle' in djlEngines) {
+	if ("paddlepaddle" in djlEngines) {
 	    implementation "ai.djl.paddlepaddle:paddlepaddle-engine:$djlVersion"
-	    if ('paddlepaddle' in djlZoos)
+	    if ("paddlepaddle" in djlZoos)
 		    implementation "ai.djl.paddlepaddle:paddlepaddle-model-zoo:$djlVersion"
 	}
 	
-	if ('onnx' in djlEngines || 'onnxruntime' in djlEngines) {
+	if ("onnx" in djlEngines || "onnxruntime" in djlEngines) {
 	    implementation "ai.djl.onnxruntime:onnxruntime-engine:$djlVersion"
 	    // No model zoo available
 	}
 	
-	if ('xgboost' in djlEngines) {
+	if ("xgboost" in djlEngines) {
 	    implementation "ai.djl.ml.xgboost:xgboost:$djlVersion"
 	    // No model zoo available
 	}
 	
-	if ('lightgbm' in djlEngines) {
+	if ("lightgbm" in djlEngines) {
 	    implementation "ai.djl.ml.lightgbm:lightgbm:$djlVersion"
 	    // No model zoo available
 	}
 	
-	if ('tensorrt' in djlEngines) {
+	if ("tensorrt" in djlEngines) {
 	    implementation "ai.djl.tensorrt:tensorrt:$djlVersion"
 	    // No model zoo available
 	}
 
-    if ('tflite' in djlEngines || 'tensorflowlite' in djlEngines) {
+    if ("tflite" in djlEngines || "tensorflowlite" in djlEngines) {
 	    implementation "ai.djl.tflite:tflite-engine:$djlVersion"
 	    // No model zoo available
 	}
 	
-	if ('dlr' in djlEngines || 'neodlr' in djlEngines) {
+	if ("dlr" in djlEngines || "neodlr" in djlEngines) {
 	    implementation "ai.djl.dlr:dlr-engine:$djlVersion"
 	    // No model zoo available
 	}

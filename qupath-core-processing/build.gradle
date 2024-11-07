@@ -1,13 +1,13 @@
 plugins {
-  id 'qupath.common-conventions'
-  id 'qupath.publishing-conventions'
-  id 'java-library'
+  id "qupath.common-conventions"
+  id "qupath.publishing-conventions"
+  id "java-library"
 }
 
-ext.moduleName = 'qupath.core.processing'
+ext.moduleName = "qupath.core.processing"
 base {
-  archivesName = 'qupath-core-processing'
-  description = 'Core QuPath module containing the main processing operations.'
+  archivesName = "qupath-core-processing"
+  description = "Core QuPath module containing the main processing operations."
 }
 
 configurations {
@@ -16,11 +16,11 @@ configurations {
 }
 
 dependencies {
-  api project(':qupath-core')
+  api project(":qupath-core")
   
   api libs.imagej
   api libs.bioimageio.spec
   
   implementation libs.commons.math
-  testImplementation project(':qupath-core').sourceSets.test.output
+  testImplementation project(":qupath-core").sourceSets.test.output
 }

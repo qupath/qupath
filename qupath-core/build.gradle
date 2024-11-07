@@ -1,13 +1,13 @@
 plugins {
-  id 'qupath.common-conventions'
-  id 'qupath.publishing-conventions'
-  id 'java-library'
+  id "qupath.common-conventions"
+  id "qupath.publishing-conventions"
+  id "java-library"
 }
 
-ext.moduleName = 'qupath.core'
+ext.moduleName = "qupath.core"
 base {
-  archivesName = 'qupath-core'
-  description = 'Core QuPath module containing the main classes and data structures.'
+  archivesName = "qupath-core"
+  description = "Core QuPath module containing the main classes and data structures."
 }
 
 configurations {
