@@ -39,7 +39,7 @@ tasks.withType(org.gradle.jvm.tasks.Jar) {
 afterEvaluate {
 
     // Including the latest commit when building can help traceability - but requires git being available
-    // TODO: Don"t compute this separately for separate libraries
+    // TODO: Don't compute this separately for separate libraries
     ext {
         latestGitCommit = null
     }

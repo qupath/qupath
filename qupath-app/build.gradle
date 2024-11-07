@@ -110,7 +110,7 @@ dependencies {
     implementation libs.picocli
 
     implementation(extraLibs.bundles.extensions) {
-        // We don"t want to bring in snapshot versions
+        // We don't want to bring in snapshot versions
         exclude group: "io.github.qupath"
     }
 }
@@ -236,7 +236,7 @@ distributions {
 }
 
 /**
- * Don"t create a zip - it"s slow, and generally unnecessary
+ * Don't create a zip - it"s slow, and generally unnecessary
  */
 distZip {
     enabled = false
