@@ -170,8 +170,11 @@ tasks.register<Copy>("assembleJavadocs") {
 
     into(layout.buildDirectory.dir("javadocs"))
 }
+tasks.distZip {
+    enabled = false
+}
 tasks.distTar {
-    dependsOn("assembleJavadocs")
+    enabled = false
 }
 tasks.installDist {
     dependsOn("assembleJavadocs")
