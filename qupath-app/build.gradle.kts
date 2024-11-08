@@ -11,6 +11,7 @@
  */
 
 import com.github.jk1.license.render.*
+import org.gradle.crypto.checksum.Checksum
 
 buildscript {
     repositories {
@@ -119,8 +120,6 @@ java {
 }
 
 
-// TODO: REINSTATE ASSEMBLEJAVADOCS
-println("REINSTATE ASSEMBLE JAVADOCS!")
 /**
  * Copies the Javadoc jars to a directory for access within QuPath
  */
@@ -143,8 +142,7 @@ tasks.register<Copy>("assembleJavadocs") {
                     .resolutionResult
                     .allDependencies
                     .filterIsInstance<ResolvedDependencyResult>()
-                    .map {
-                        it.selected.id }
+                    .map { it.selected.id }
             )
             .withArtifacts(JvmLibrary::class, SourcesArtifact::class, JavadocArtifact::class)
             .execute()
@@ -172,8 +170,12 @@ tasks.register<Copy>("assembleJavadocs") {
 
     into(layout.buildDirectory.dir("javadocs"))
 }
-//tasks.distTar.dependsOn("assembleJavadocs")
-//tasks.installDist.dependsOn("assembleJavadocs")
+tasks.distTar {
+    dependsOn("assembleJavadocs")
+}
+tasks.installDist {
+    dependsOn("assembleJavadocs")
+}
 
 /**
  * Create license report
@@ -183,7 +185,7 @@ licenseReport {
     renderers = arrayOf<ReportRenderer>(TextReportRenderer("THIRD-PARTY.txt"),
         InventoryHtmlReportRenderer("index.html", "Third party licenses", fileUnknown))
 
-    outputDir = rootProject.layout.buildDirectory.dir("reports/dependency-license").get().getAsFile().getAbsolutePath()
+    outputDir = rootProject.layout.buildDirectory.dir("reports/dependency-license").get().asFile.absolutePath
 
     // TODO: Try to remove this. It's needed (I think) due to the license plugin not supporting
     //       Gradle variants, as required by the JavaFX Gradle Plugin v0.1.0. Possibly-relevant links:
@@ -192,7 +194,9 @@ licenseReport {
     //       The JavaFX license is still included in QuPath, but unfortunately not in this report.
     excludeGroups = arrayOf("org.openjfx")
 }
-//tasks.startScripts.dependsOn("generateLicenseReport")
+tasks.startScripts {
+    dependsOn("generateLicenseReport")
+}
 
 
 /**
@@ -232,21 +236,12 @@ distributions {
             }
             // Copy javadocs
             into("lib/docs") {
-//                from(javadocJar)
                 from(project.layout.buildDirectory.dir("javadocs").get())
                 include("*.jar")
             }
         }
     }
 }
-
-/**
- * Don't create a zip - it"s slow, and generally unnecessary
- */
-//distZip {
-//    enabled = false
-//}
-
 
 /**
  * Create Java Runtime & call jpackage
@@ -277,10 +272,6 @@ runtime {
     ))
 
     val params = buildParameters()
-
-//    ext {
-//        preferredName = "QuPath"
-//    }
 
     for (installer in params.installerTypes) {
         if (installer != null)
@@ -336,21 +327,21 @@ tasks.register("jpackageFinalize") {
             if (requestedPackage?.lowercase() in setOf("installer", "pkg")) {
                 println("Creating pkg")
                 makeMacOSPkg(appFile)
-                // Ensure we haven"t accidentally changed the name
+                // Ensure we haven't accidentally changed the name
                 val file = File(appFile.getParentFile(), "QuPath-${qupathVersion}.pkg")
                 val correctName = getCorrectAppName(".pkg")
                 if (file.exists() && !file.name.equals(correctName)) {
                     file.renameTo(File(file.getParent(), correctName))
                 }
-                // Remove the .app as it"s no longer needed (and just takes up space)
-                println("Deleting " + appFile)
+                // Remove the .app as it's no longer needed (and just takes up space)
+                println("Deleting $appFile")
                 delete(appFile)
             }
         }
         // On windows, for the installer we should also zip up the image
         if (project.properties["platform.name"] == "windows") {
             val imageDir = File(outputDir, "/dist/${qupathAppName}")
-            var requestedPackage = findProperty("package") as String?
+            val requestedPackage = findProperty("package") as String?
             if (imageDir.isDirectory() && requestedPackage?.lowercase() in setOf("installer")) {
                 println("Zipping $imageDir")
                 // See https://docs.gradle.org/current/userguide/ant.html
@@ -376,21 +367,13 @@ tasks.register("jpackageFinalize") {
     })
 }
 
-//// We may need to fix the version on Mac
-//jpackage.configure {
-//    finalizedBy(jpackageFinalize)
-//}
-
-
 /**
  * Create SHA512 checksums of JPackage outputs
  */
-tasks.register<org.gradle.crypto.checksum.Checksum>("createChecksums") {
-    dependsOn(tasks["jpackage"])
-    val params = buildParameters()
+tasks.register<Checksum>("createChecksums") {
     inputFiles.setFrom(tasks["jpackageFinalize"].outputs)
-    outputDirectory.set(params.outputDir)
-    checksumAlgorithm.set(org.gradle.crypto.checksum.Checksum.Algorithm.SHA512)
+    outputDirectory.set(getDistOutputDir())
+    checksumAlgorithm.set(Checksum.Algorithm.SHA512)
     appendFileNameToChecksum.set(true)
 }
 
@@ -414,29 +397,31 @@ fun getCorrectAppName(ext: String): String {
     return "${baseName}${ext}"
 }
 
-// TODO: REINSTATE RENAMING!
-///**
-// * Try to resolve annoying macOS/Windows renaming with an invalid version
-// * (I realise this is very awkward...)
-// */
-//jpackage {
-//    doLast {
-//        val isLinux = project.properties["platform.name"] == "linux"
-//        for (dir in outputs?.getFiles()?.files) {
-//            val extensions = listOf(".app", ".dmg", ".pkg", ".exe", ".msi", ".deb", ".rpm")
-//            val packageFiles = dir.listFiles()
-//            for (f in packageFiles) {
-//                for (ext in extensions) {
-//                    if (!f.name.endsWith(ext))
-//                        continue
-//                    val correctName = getCorrectAppName(ext)
-//                    if (!f.name.equals(correctName))
-//                        f.renameTo(File(f.getParent(), correctName))
-//                }
-//            }
-//        }
-//    }
-//}
+/**
+ * Try to resolve annoying macOS/Windows renaming with an invalid version
+ * (I realise this is very awkward...)
+ */
+tasks.named("jpackage") {
+    doLast {
+        val extensions = listOf(".app", ".dmg", ".pkg", ".exe", ".msi", ".deb", ".rpm")
+        for (dir in outputs.files) {
+            val packageFiles = dir.listFiles()
+            for (f in packageFiles!!) {
+                for (ext in extensions) {
+                    if (!f.name.endsWith(ext))
+                        continue
+                    val correctName = getCorrectAppName(ext)
+                    if (!f.name.equals(correctName)) {
+                        println("Renaming to: $correctName")
+                        f.renameTo(File(f.getParent(), correctName))
+                    }
+                }
+            }
+        }
+    }
+
+    finalizedBy("jpackageFinalize")
+}
 
 /**
  * Encapsulate key parameters to pass to jpackage
@@ -455,7 +440,7 @@ class JPackageParams {
     var installerOptions = mutableListOf<String>()
 
     var resourceDir: File? = null
-    var outputDir: File? = null
+    var outputDir: File = getDistOutputDir()
 
     override fun toString(): String {
         return "JPackageParams{" +
@@ -483,13 +468,19 @@ fun getNonSnapshotVersion(): String {
 }
 
 /**
+ * Get the output directory for any distributions
+ */
+fun getDistOutputDir(): File {
+    return rootProject.layout.buildDirectory.dir("dist").get().asFile
+}
+
+/**
  * Build default parameters for jpackage, customizing these according to the current platform
  * @return
  */
 fun buildParameters(): JPackageParams {
     val params = JPackageParams()
     params.mainJar = project.tasks.jar.get().archiveFileName.get()
-    params.outputDir = rootProject.layout.buildDirectory.dir("dist").get().asFile
     params.imageName = qupathAppName // Will need to be removed for some platforms
     params.installerName = "QuPath"
     params.jvmArgs += buildDefaultJvmArgs()
@@ -504,7 +495,7 @@ fun buildParameters(): JPackageParams {
     else if (platform == "linux")
         configureJPackageLinux(params)
     else
-        logger.log(LogLevel.WARN, "Unknown platform ${platform} - may be unable to generate a package")
+        logger.log(LogLevel.WARN, "Unknown platform $platform - may be unable to generate a package")
 
     params.resourceDir = project.file("jpackage/${platform}")
 
@@ -526,10 +517,10 @@ fun buildParameters(): JPackageParams {
  */
 fun updatePackageType(params: JPackageParams, vararg defaultInstallers: String): Unit {
     // Define platform-specific jpackage configuration options
-    var requestedPackage = findProperty("package") as String?
+    val requestedPackage = findProperty("package") as String?
     val packageType = requestedPackage?.lowercase()
     if (packageType == null || setOf("image", "app-image").contains(packageType) || project.properties["platform.name"] == "macosx") {
-        // We can"t make installers directly on macOS - need to base them on an image
+        // We can't make installers directly on macOS - need to base them on an image
         params.skipInstaller = true
         params.installerTypes += null
         logger.info("No package type specified, using default ${packageType}")
@@ -561,7 +552,7 @@ fun configureJPackageWindows(params: JPackageParams): Unit {
         params.installerOptions += "QuPath"
     }
 
-    // Can"t have any -SNAPSHOT or similar added
+    // Can't have any -SNAPSHOT or similar added
     params.appVersion = stripVersionSuffix(params.appVersion)
 
 
@@ -593,7 +584,7 @@ fun configureJPackageMac(params: JPackageParams): Unit {
     // File associations supported on Mac
     setFileAssociations(params)
 
-    // Can"t have any -SNAPSHOT or similar added
+    // Can't have any -SNAPSHOT or similar added
     params.appVersion = stripVersionSuffix(params.appVersion)
 
     params.imageName = getCorrectAppName(".app")
@@ -601,9 +592,9 @@ fun configureJPackageMac(params: JPackageParams): Unit {
         params.imageName = params.imageName.substring(0, params.imageName.length - 4)
     params.installerName = getCorrectAppName(".pkg")
 
-    // Sadly, on a Mac we can"t have an appVersion that starts with 0
+    // Sadly, on a Mac we can't have an appVersion that starts with 0
     // See https://github.com/openjdk/jdk/blob/jdk-16+36/src/jdk.jpackage/macosx/classes/jdk/jpackage/internal/CFBundleVersion.java
-    if (params.appVersion != null && params.appVersion.startsWith("0")) {
+    if (params.appVersion.startsWith("0")) {
         params.appVersion = macOSDefaultVersion
     }
 }
@@ -622,7 +613,6 @@ fun configureJPackageLinux(params: JPackageParams): Unit {
 /**
  * Strip suffixes (by default any starting with "-SNAPSHOT", "-rc") from any version string
  * @param version
- * @param suffixes
  * @return
  */
 fun stripVersionSuffix(version: String): String {
@@ -642,9 +632,12 @@ fun stripVersionSuffix(version: String): String {
 fun setFileAssociations(params: JPackageParams): Unit {
     val associations = project.file("jpackage/associations")
         .listFiles()
-        .filter { it.isFile() && it.name.endsWith(".properties") }
-    for (file in associations)
-        params.installerOptions += listOf("--file-associations", file.getAbsolutePath())
+        ?.filter { it.isFile() && it.name.endsWith(".properties") }
+    if (associations != null) {
+        for (file in associations) {
+            params.installerOptions += listOf("--file-associations", file.absolutePath)
+        }
+    }
 }
 
 /**
@@ -653,15 +646,10 @@ fun setFileAssociations(params: JPackageParams): Unit {
  */
 fun getToolchainJavaVersion(): JavaVersion {
     try {
-        // Certainly feels like there should be a more direct way, but I couldn"t find it
-        val toolchain = project.getExtensions().getByType<JavaPluginExtension>().getToolchain()
-        val service = project.getExtensions().getByType<JavaToolchainService>()
-        val version = service.compilerFor(toolchain).get().getMetadata().getJvmVersion()
-        if (toolchain != null)
-            return JavaVersion.toVersion(toolchain.getLanguageVersion().get())
-        return JavaVersion.toVersion(version)
+        val toolchain = project.extensions.getByType<JavaPluginExtension>().toolchain
+        return JavaVersion.toVersion(toolchain.languageVersion.get())
     } catch (e: Exception) {
-        println("Unable to determine Java version from toolchain: ${e.getLocalizedMessage()}")
+        println("Unable to determine Java version from toolchain: ${e.message}")
         return JavaVersion.current()
     }
 }
@@ -690,19 +678,18 @@ fun buildDefaultJvmArgs(libraryPath: String? = null): List<String> {
 
 /**
  * Export all icons from the icon factory (useful for documentation).
- * This is here (and not in the gui-fx module) because it"s needed to load extensions.
+ * This is here (and not in the gui-fx module) because it's needed to load extensions.
  */
 tasks.register<JavaExec>("exportDocs") {
     description = "Export icons and command descriptions for documentation"
     group = "QuPath"
 
-    dependsOn("compileJava")
-    val docsDir = rootProject.layout.buildDirectory.dir("qupath-docs").get().getAsFile()
+    val docsDir = rootProject.layout.buildDirectory.dir("qupath-docs").get().asFile
     doFirst {
-        println("Making docs dir in ${docsDir.getAbsolutePath()}")
+        println("Making docs dir in ${docsDir.absolutePath}")
         docsDir.mkdirs()
     }
     classpath = sourceSets["main"].runtimeClasspath
     mainClass = "qupath.lib.gui.tools.DocGenerator"
-    args = listOf(docsDir.getAbsolutePath(), "--all")
+    args = listOf(docsDir.absolutePath, "--all")
 }
