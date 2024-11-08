@@ -34,7 +34,7 @@ gradlePlugin {
 
 dependencies {
     // Make Gradle plugin available to limit platform jars
-    // Couldn"t find a cleaner way to get the version from the catalog
+    // Couldn't find a cleaner way to get the version from the catalog
     implementation("org.bytedeco:gradle-javacpp:${libs.plugins.javacpp.get().version}")
     implementation(kotlin("stdlib-jdk8"))
 }
