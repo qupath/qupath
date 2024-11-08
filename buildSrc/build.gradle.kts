@@ -14,8 +14,9 @@
  */
 
 plugins {
-    id "groovy-gradle-plugin"
+    `groovy-gradle-plugin`
     alias(libs.plugins.javacpp)
+    kotlin("jvm")
 }
 
 repositories {
@@ -24,7 +25,7 @@ repositories {
 
 gradlePlugin {
     plugins {
-        simplePlugin {
+        create("simplePlugin") {
             id = "io.github.qupath.platform"
             implementationClass = "io.github.qupath.gradle.PlatformPlugin"
         }
@@ -34,5 +35,6 @@ gradlePlugin {
 dependencies {
     // Make Gradle plugin available to limit platform jars
     // Couldn"t find a cleaner way to get the version from the catalog
-    implementation "org.bytedeco:gradle-javacpp:${libs.plugins.javacpp.get().version}"
+    implementation("org.bytedeco:gradle-javacpp:${libs.plugins.javacpp.get().version}")
+    implementation(kotlin("stdlib-jdk8"))
 }

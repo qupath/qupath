@@ -198,7 +198,7 @@ tasks.startScripts.dependsOn("generateLicenseReport")
 distributions {
     main {
         contents {
-            // We need a DuplicatesStrategy if settings.gradle uses includeFlat for extra extensions
+            // We need a DuplicatesStrategy if settings.gradle.kts uses includeFlat for extra extensions
             // (which require QuPath as a dependency)
             duplicatesStrategy DuplicatesStrategy.EXCLUDE
             into("lib") {

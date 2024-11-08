@@ -10,8 +10,7 @@ tasks.register<Javadoc>("mergedJavadocs") {
     description = "Generate merged javadocs for all projects"
     group = "Documentation"
 
-    var dest = layout.buildDirectory.dir("docs-merged/javadoc").get().getAsFile()
-    println("DEST: " + dest)
+    val dest = layout.buildDirectory.dir("docs-merged/javadoc").get().getAsFile()
     setDestinationDir(dest)
     title = "QuPath $gradle.ext.qupathVersion"
 
