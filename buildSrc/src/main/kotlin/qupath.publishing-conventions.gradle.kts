@@ -1,16 +1,16 @@
 plugins {
-    id "java"
-    id "maven-publish"
+    id("java")
+    id("maven-publish")
 }
 
 publishing {
     repositories {
         maven {
             name = "SciJava"
-            def releasesRepoUrl = uri("https://maven.scijava.org/content/repositories/releases")
-            def snapshotsRepoUrl = uri("https://maven.scijava.org/content/repositories/snapshots")
+            val releasesRepoUrl = uri("https://maven.scijava.org/content/repositories/releases")
+            val snapshotsRepoUrl = uri("https://maven.scijava.org/content/repositories/snapshots")
             // Use gradle -Prelease publish
-            url = project.hasProperty("release") ? releasesRepoUrl : snapshotsRepoUrl
+            url = if (project.hasProperty("release")) releasesRepoUrl else snapshotsRepoUrl
             credentials {
                 username = System.getenv("MAVEN_USER")
                 password = System.getenv("MAVEN_PASS")
@@ -19,9 +19,9 @@ publishing {
     }
 
     publications {
-        mavenJava(MavenPublication) {
+        create<MavenPublication>("mavenJava") {
             groupId = "io.github.qupath"
-            from components.java
+            from(components["java"])
 
             pom {
                 licenses {
