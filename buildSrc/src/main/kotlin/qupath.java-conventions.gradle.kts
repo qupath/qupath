@@ -146,4 +146,3 @@ tasks.withType<Test> {
     else
         maxHeapSize = "2G"
 }
-

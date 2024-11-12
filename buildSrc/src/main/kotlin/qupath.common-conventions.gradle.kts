@@ -1,0 +1,115 @@
+import jdk.incubator.vector.VectorOperators.Test
+import org.gradle.accessors.dm.LibrariesForLibs
+import org.gradle.kotlin.dsl.the
+import java.nio.charset.StandardCharsets
+
+plugins {
+    id("qupath.java-conventions")
+    id("jacoco")
+    id("org.bytedeco.gradle-javacpp-platform")
+}
+
+// See https://discuss.gradle.org/t/how-to-apply-binary-plugin-from-convention-plugin/48778/2
+apply(plugin = "io.github.qupath.platform")
+
+val libs = the<LibrariesForLibs>()
+
+repositories {
+
+    if (findProperty("use-maven-local") == "true") {
+        logger.warn("Using Maven local")
+        mavenLocal()
+    }
+
+    mavenCentral()
+
+    // Required for scijava (including some QuPath jars)
+    maven {
+    	name = "SciJava"
+	    url = uri("https://maven.scijava.org/content/repositories/releases")
+	}
+
+    // May be required during development
+    maven {
+        name = "SciJava snapshots"
+        url = uri("https://maven.scijava.org/content/repositories/snapshots")
+    }
+
+    // Required for Bio-Formats
+    maven {
+        name = "Unidata"
+        url = uri("https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases")
+    }
+    maven {
+        name = "Open Microscopy"
+        url = uri("https://artifacts.openmicroscopy.org/artifactory/maven/")
+    }
+
+    // May be required for snapshot JavaCPP jars
+    maven {
+        name = "Sonatype snapshots"
+        url = uri("https://oss.sonatype.org/content/repositories/snapshots")
+    }
+
+}
+
+
+/*
+ * Some metadata for the manifest
+ */
+project.version = gradle.extra["qupathVersion"] as String
+
+/*
+ * Optionally use OpenCV with CUDA.
+ * See https://github.com/bytedeco/javacpp-presets/tree/master/cuda for info (and licenses).
+ */
+val useCudaRedist = project.hasProperty("cuda-redist")
+val useCuda = useCudaRedist || project.hasProperty("cuda")
+
+/*
+ * Handle OS-specific decisions
+ */
+val platform = properties["platform.shortName"] as String
+if (properties["platform.name"] == null)
+    logger.warn("Unknown operating system!")
+if ("32" == System.getProperty("sun.arch.data.model")) {
+    logger.warn("You appear to be using a 32-bit JDK - it is very possible some things won't work!")
+    logger.warn("You may at least need to replace the OpenSlide dlls with 32-bit versions from https://openslide.org/download/")
+}
+
+
+/*
+ * Preserve the version number
+ */
+project.file("src/main/resources/VERSION")
+    .writeText(gradle.extra["qupathVersion"] as String, StandardCharsets.UTF_8)
+
+
+//configurations {
+//    opencv
+//    guava
+//}
+
+val opencv by configurations.creating
+val guava by configurations.creating
+
+dependencies {
+
+    if (useCudaRedist) {
+        opencv(libs.bundles.opencv.cuda)
+    } else if (useCuda) {
+        opencv(libs.bundles.opencv.gpu)
+    } else
+        opencv(libs.bundles.opencv)
+
+    guava(libs.guava)
+
+    testImplementation(libs.junit)
+    testRuntimeOnly(libs.junit.platform)
+
+    implementation(libs.bundles.logging)
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
