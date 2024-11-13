@@ -11,7 +11,7 @@ base {
     description = "QuPath extension to support image reading using OpenSlide."
 }
 
-val nativesClassifier = properties["platform.classifier"].toString().replace("natives-", "")
+val nativesClassifier = properties["platform.classifier"]
 dependencies {
     implementation(project(":qupath-core"))
     implementation(project(":qupath-gui-fx"))

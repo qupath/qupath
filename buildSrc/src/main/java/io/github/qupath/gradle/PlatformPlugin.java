@@ -3,6 +3,8 @@ package io.github.qupath.gradle;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 
+import java.util.Locale;
+
 /**
  * Useful info about the current platform to help with building custom packages.
  */
@@ -13,7 +15,6 @@ public class PlatformPlugin implements Plugin<Project> {
         var platform = current();
         var extensions = project.getExtensions();
         extensions.add("platform.name", platform.getPlatformName());
-        extensions.add("platform.shortName", platform.getShortName());
         extensions.add("platform.classifier", platform.getClassifier());
         extensions.add("platform.iconExt", platform.getIconExtension());
         extensions.add("platform.installerExt", platform.getInstallerExtension());
@@ -28,32 +29,26 @@ public class PlatformPlugin implements Plugin<Project> {
      * rpm can be requested from the command line if supported by the platform.
      */
     public enum Platform {
-        WINDOWS("windows", "win", "natives-win32-x86_64", "ico", "msi"),
-        MAC("macosx", "mac", "natives-darwin-x86_64", "icns", "pkg"),
-        MAC_AARCH64("macosx", "mac", "natives-darwin-aarch64", "icns", "pkg"),
-        LINUX("linux", "linux", "natives-linux-x86_64", "png", "deb"),
-        UNKNOWN(null, null, null, null, null);
+        WINDOWS("windows", "win32-x86_64", "ico", "msi"),
+        MAC("macosx", "darwin-x86_64", "icns", "pkg"),
+        MAC_AARCH64("macosx", "darwin-aarch64", "icns", "pkg"),
+        LINUX("linux", "linux-x86_64", "png", "deb"),
+        UNKNOWN();
         
         private final String platformName;
-        private final String shortName;
         private final String iconExt;
         private final String classifier;
         private final String installerExtension;
-        
-        Platform(String platformName, String shortName, String classifier, String iconExt, String installerExtension) {
+
+        Platform() {
+            this(null, null, null, null);
+        }
+
+        Platform(String platformName, String classifier, String iconExt, String installerExtension) {
             this.platformName = platformName;
-            this.shortName = shortName;
             this.classifier = classifier;
             this.iconExt = iconExt;
             this.installerExtension = installerExtension;
-        }
-    
-        /**
-         * Short name representing the platform ("win", "mac", "linux").
-         * @return
-         */
-        public String getShortName() {
-            return shortName;
         }
     
         /**
@@ -102,7 +97,7 @@ public class PlatformPlugin implements Plugin<Project> {
      * @return
      */
     public static Platform current() {
-        var os = System.getProperty("os.name").toLowerCase();
+        var os = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
         if (os.contains("win"))
             return Platform.WINDOWS;
         else if (os.contains("nix") || os.contains("nux"))

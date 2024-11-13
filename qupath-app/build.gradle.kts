@@ -51,7 +51,6 @@ base {
 var macOSDefaultVersion = "1"
 var qupathVersion = gradle.extra["qupathVersion"] as String
 val qupathAppName = "QuPath-${qupathVersion}"
-extra["qupathAppName"] = qupathAppName
 
 // Required since moving to JavaFX Gradle Plugin v0.1.0
 javafx {

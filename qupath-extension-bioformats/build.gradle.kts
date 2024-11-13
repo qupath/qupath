@@ -20,7 +20,7 @@ if (versionOverride is String) {
 }
 
 val nativesClassifier = properties["platform.classifier"]
-if (nativesClassifier == "natives-darwin-aarch64") {
+if (nativesClassifier == "darwin-aarch64") {
 	println("WARNING! Bio-Formats does not fully support Apple Silicon (many .czi and some .ndpi images are known to fail)")
 }
 
@@ -28,7 +28,7 @@ if (nativesClassifier == "natives-darwin-aarch64") {
 dependencies {
 	// This can be used to include bioformats_package.jar - however it causes warnings with SLF4J
 //  implementation("ome:bioformats_package:${bioformatsVersion}") {
-//  	transitive = false
+//  	isTransitive = false
 //  }
 
   implementation(libs.qupath.fxtras)
@@ -46,8 +46,10 @@ dependencies {
     exclude(group="com.google.code.findbugs", module="jsr305")
     exclude(group="com.google.code.findbugs", module="annotations")
   }
-  implementation(group="ome", name="OMEZarrReader", version=libs.versions.omeZarrReader.get())
-  implementation("io.github.qupath:blosc:${libs.versions.blosc.get()}:${nativesClassifier.toString().replace("natives-", "")}")
+  implementation(libs.omeZarrReader) {
+      exclude(group="ome", module="formats-api") // Through bioformats_package
+  }
+  implementation("io.github.qupath:blosc:${libs.versions.blosc.get()}:${nativesClassifier}")
 
 //  testImplementation("ome:bioformats_package:${bioformatsVersion}")
   testImplementation("ome:bio-formats_plugins:${bioformatsVersion}")

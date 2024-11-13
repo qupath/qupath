@@ -82,6 +82,8 @@ logviewer-logback = { module = "io.github.qupath:logviewer-logging-logback",  ve
 
 javadocviewer = { module = "io.github.qupath:javadocviewer",    version.ref = "javadocviewer" }
 
+omeZarrReader = { module = "ome:OMEZarrReader",                 version.ref = "omeZarrReader" }
+
 picocli       = { module = "info.picocli:picocli",              version.ref = "picocli" }
 
 qupath-fxtras = { module = "io.github.qupath:qupath-fxtras",    version.ref = "qupath-fxtras" }

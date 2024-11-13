@@ -15,14 +15,14 @@ var djlEngines = listOf<String>()
 if (djlEnginesProp == "default")
 	djlEngines = listOf("pytorch", "tensorflow")
 else if (djlEnginesProp == "none")
-	djlEngines = listOf<String>()
+	djlEngines = listOf()
 else
 	djlEngines = djlEnginesProp
 		.split(",")
 		.map({e -> e.lowercase().trim()})
 		.filter({e -> e.isNotBlank()})
 	
-val djlApi = !djlEngines.isEmpty() || project.findProperty("djl.api") == "true"
+val djlApi = djlEngines.isNotEmpty() || project.findProperty("djl.api") == "true"
 val djlZero = djlApi && project.findProperty("djl.zero") == "true"
 
 var djlZoosProp = project.findProperty("djl.zoos") as String? ?: "all"
@@ -31,7 +31,7 @@ var djlZoos = listOf<String>()
 if (djlZoosProp == "all")
 	djlZoos = djlEngines
 else if (djlZoosProp == "none")
-	djlZoos = listOf<String>()
+	djlZoos = listOf()
 else
 	djlZoos = djlZoosProp.split(",")
 		.map({e -> e.lowercase().trim()})
