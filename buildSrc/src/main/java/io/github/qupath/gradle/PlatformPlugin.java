@@ -34,13 +34,13 @@ public class PlatformPlugin implements Plugin<Project> {
         LINUX("linux", "linux", "natives-linux-x86_64", "png", "deb"),
         UNKNOWN(null, null, null, null, null);
         
-        private String platformName;
-        private String shortName;
-        private String iconExt;
-        private String classifier;
-        private String installerExtension;
+        private final String platformName;
+        private final String shortName;
+        private final String iconExt;
+        private final String classifier;
+        private final String installerExtension;
         
-        private Platform(String platformName, String shortName, String classifier, String iconExt, String installerExtension) {
+        Platform(String platformName, String shortName, String classifier, String iconExt, String installerExtension) {
             this.platformName = platformName;
             this.shortName = shortName;
             this.classifier = classifier;
@@ -103,11 +103,11 @@ public class PlatformPlugin implements Plugin<Project> {
      */
     public static Platform current() {
         var os = System.getProperty("os.name").toLowerCase();
-        if (os.indexOf("win") >= 0)
+        if (os.contains("win"))
             return Platform.WINDOWS;
-        else if (os.indexOf("nix") >= 0 || os.indexOf("nux") >= 0)
+        else if (os.contains("nix") || os.contains("nux"))
             return Platform.LINUX;
-        else if (os.indexOf("mac") >= 0) {
+        else if (os.contains("mac")) {
         	if ("aarch64".equalsIgnoreCase(System.getProperty("os.arch")))
         		return Platform.MAC_AARCH64;
             return Platform.MAC;

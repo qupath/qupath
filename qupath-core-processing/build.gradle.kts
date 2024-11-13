@@ -26,5 +26,5 @@ dependencies {
   api(libs.bioimageio.spec)
   
   implementation(libs.commons.math)
-  testImplementation(project(":qupath-core").dependencyProject.sourceSets["test"].output)
+  testImplementation(project.project(":qupath-core").sourceSets["test"].output)
 }

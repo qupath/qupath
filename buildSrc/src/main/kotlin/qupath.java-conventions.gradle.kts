@@ -3,6 +3,8 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import org.gradle.accessors.dm.LibrariesForLibs
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
+import java.lang.ProcessBuilder.Redirect
+import java.util.stream.Collectors
 
 /**
  * Define jar manifests and the toolchain JDK.
@@ -29,7 +31,7 @@ java {
     withJavadocJar()
 }
 
-tasks.withType(JavaCompile::class) {
+tasks.withType<JavaCompile> {
     // Include parameter names, so they are available in the script editor via reflection
     options.compilerArgs = listOf("-parameters")
     // Specify source should be UTF8
@@ -38,7 +40,7 @@ tasks.withType(JavaCompile::class) {
 
 // Avoid "Entry .gitkeep is a duplicate but no duplicate handling strategy has been set."
 // when using withSourcesJar()
-tasks.withType<Jar>() {
+tasks.withType<Jar> {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
@@ -48,16 +50,13 @@ var latestGitCommit: String? = null
 
 afterEvaluate {
 
-    var requestLatestCommit = project.findProperty("git-commit") == "true"
+    val requestLatestCommit = project.findProperty("git-commit") == "true"
     if (requestLatestCommit) {
         try {
-            val stdout = ByteArrayOutputStream()
-            val result = exec {
-                commandLine = listOf("git", "log", "--pretty=format:\"%h\"", "-n 1")
-                standardOutput = stdout
-            }
-            latestGitCommit = stdout.toString().trim()
-//            logger.info("Latest commit: {}", latestGitCommit)
+            latestGitCommit = ProcessBuilder().command(
+                "git", "log", "--pretty=format:\"%h\"", "-n 1"
+            ).start().inputReader().readText().trim()
+            logger.info("Latest commit: {}", latestGitCommit)
         } catch (e: Exception) {
             logger.warn("Unable to get latest commit: {}", e.message)
             latestGitCommit = "Unknown (is Git installed?)"

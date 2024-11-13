@@ -1,11 +1,10 @@
-import jdk.incubator.vector.VectorOperators.Test
 import org.gradle.accessors.dm.LibrariesForLibs
 import org.gradle.kotlin.dsl.the
 import java.nio.charset.StandardCharsets
 
 plugins {
     id("qupath.java-conventions")
-    id("jacoco")
+    jacoco
     id("org.bytedeco.gradle-javacpp-platform")
 }
 
@@ -53,7 +52,6 @@ repositories {
 
 }
 
-
 /*
  * Some metadata for the manifest
  */
@@ -69,7 +67,6 @@ val useCuda = useCudaRedist || project.hasProperty("cuda")
 /*
  * Handle OS-specific decisions
  */
-val platform = properties["platform.shortName"] as String
 if (properties["platform.name"] == null)
     logger.warn("Unknown operating system!")
 if ("32" == System.getProperty("sun.arch.data.model")) {
@@ -83,12 +80,6 @@ if ("32" == System.getProperty("sun.arch.data.model")) {
  */
 project.file("src/main/resources/VERSION")
     .writeText(gradle.extra["qupathVersion"] as String, StandardCharsets.UTF_8)
-
-
-//configurations {
-//    opencv
-//    guava
-//}
 
 val opencv by configurations.creating
 val guava by configurations.creating
@@ -104,10 +95,10 @@ dependencies {
 
     guava(libs.guava)
 
+    implementation(libs.bundles.logging)
+
     testImplementation(libs.junit)
     testRuntimeOnly(libs.junit.platform)
-
-    implementation(libs.bundles.logging)
 }
 
 tasks.test {

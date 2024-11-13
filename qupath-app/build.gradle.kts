@@ -305,14 +305,16 @@ runtime {
  * @return
  */
 fun makeMacOSPkg(appFile: File): Unit {
-    exec {
-        workingDir = appFile.getParentFile()
-        commandLine = listOf("jpackage",
+    ProcessBuilder()
+        .directory(appFile.getParentFile())
+        .command(
+            "jpackage",
             "-n", "QuPath",
             "--app-image", appFile.getCanonicalPath(),
             "--type", "pkg",
             "--app-version", qupathVersion)
-    }
+        .start()
+        .waitFor()
 }
 
 /**
