@@ -9,6 +9,8 @@ import java.util.Locale;
  * Useful info about the current platform to help with building custom packages.
  */
 public class PlatformPlugin implements Plugin<Project> {
+
+    private static final Platform CURRENT = findPlatform();
     
     @Override
     public void apply(Project project) {
@@ -97,14 +99,18 @@ public class PlatformPlugin implements Plugin<Project> {
      * @return
      */
     public static Platform current() {
+        return CURRENT;
+    }
+
+    private static Platform findPlatform() {
         var os = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
         if (os.contains("win"))
             return Platform.WINDOWS;
         else if (os.contains("nix") || os.contains("nux"))
             return Platform.LINUX;
         else if (os.contains("mac")) {
-        	if ("aarch64".equalsIgnoreCase(System.getProperty("os.arch")))
-        		return Platform.MAC_AARCH64;
+            if ("aarch64".equalsIgnoreCase(System.getProperty("os.arch")))
+                return Platform.MAC_AARCH64;
             return Platform.MAC;
         } else
             return Platform.UNKNOWN;

@@ -36,6 +36,12 @@ gradlePlugin {
             implementationClass = "io.github.qupath.gradle.PlatformPlugin"
         }
     }
+    plugins {
+        create("commitIdPlugin") {
+            id = "qupath.git-commit-id"
+            implementationClass = "io.github.qupath.gradle.GitCommitPlugin"
+        }
+    }
 }
 
 dependencies {

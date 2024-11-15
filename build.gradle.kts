@@ -1,5 +1,6 @@
 plugins {
     id("qupath.java-conventions")
+    id("qupath.git-commit-id")
     `version-catalog`
     `maven-publish`
 }

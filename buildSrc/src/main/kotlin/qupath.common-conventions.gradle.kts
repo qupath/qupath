@@ -1,6 +1,6 @@
+import io.github.qupath.gradle.PlatformPlugin
 import org.gradle.accessors.dm.LibrariesForLibs
 import org.gradle.kotlin.dsl.the
-import java.nio.charset.StandardCharsets
 
 plugins {
     id("qupath.java-conventions")
@@ -15,7 +15,8 @@ val libs = the<LibrariesForLibs>()
 
 repositories {
 
-    if (findProperty("use-maven-local") == "true") {
+    val useLocal = providers.gradleProperty("use-maven-local")
+    if (useLocal.orNull == "true") {
         logger.warn("Using Maven local")
         mavenLocal()
     }
@@ -58,28 +59,21 @@ repositories {
 project.version = gradle.extra["qupathVersion"] as String
 
 /*
+ * Handle OS-specific decisions
+ */
+if (io.github.qupath.gradle.Utils.currentPlatform() == PlatformPlugin.Platform.UNKNOWN) {
+    throw GradleException("Unknown operating system - can't build QuPath, sorry!")
+}
+if ("32" == System.getProperty("sun.arch.data.model")) {
+    throw GradleException("Can't build QuPath using a 32-bit JDK - please use a 64-bit JDK instead")
+}
+
+/*
  * Optionally use OpenCV with CUDA.
  * See https://github.com/bytedeco/javacpp-presets/tree/master/cuda for info (and licenses).
  */
 val useCudaRedist = project.hasProperty("cuda-redist")
 val useCuda = useCudaRedist || project.hasProperty("cuda")
-
-/*
- * Handle OS-specific decisions
- */
-if (properties["platform.name"] == null)
-    logger.warn("Unknown operating system!")
-if ("32" == System.getProperty("sun.arch.data.model")) {
-    logger.warn("You appear to be using a 32-bit JDK - it is very possible some things won't work!")
-    logger.warn("You may at least need to replace the OpenSlide dlls with 32-bit versions from https://openslide.org/download/")
-}
-
-
-/*
- * Preserve the version number
- */
-project.file("src/main/resources/VERSION")
-    .writeText(gradle.extra["qupathVersion"] as String, StandardCharsets.UTF_8)
 
 val opencv by configurations.creating
 val guava by configurations.creating

@@ -1,10 +1,7 @@
-import java.io.ByteArrayOutputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import org.gradle.accessors.dm.LibrariesForLibs
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
-import java.lang.ProcessBuilder.Redirect
-import java.util.stream.Collectors
 
 /**
  * Define jar manifests and the toolchain JDK.
@@ -18,12 +15,10 @@ plugins {
 val libs = the<LibrariesForLibs>()
 
 java {
-    var version = project.findProperty("toolchain") as String?
-    if (version == null) {
-        version = libs.versions.jdk.get()
-    } else if (version.trim() == "skip")
-        version = null
-    if (version != null) {
+    val version = providers.gradleProperty("toolchain").getOrElse(libs.versions.jdk.get())
+    if (version.trim() == "skip") {
+        logger.info("Toolchain skipped!")
+    } else {
         logger.info("Setting toolchain to {}", version)
         toolchain.languageVersion = JavaLanguageVersion.of(version)
     }
@@ -44,46 +39,29 @@ tasks.withType<Jar> {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
-// Including the latest commit when building can help traceability - but requires git being available
-// TODO: Don't compute this separately for separate libraries
-var latestGitCommit: String? = null
-
 afterEvaluate {
-
-    val requestLatestCommit = project.findProperty("git-commit") == "true"
-    if (requestLatestCommit) {
-        try {
-            latestGitCommit = ProcessBuilder().command(
-                "git", "log", "--pretty=format:\"%h\"", "-n 1"
-            ).start().inputReader().readText().trim()
-            logger.info("Latest commit: {}", latestGitCommit)
-        } catch (e: Exception) {
-            logger.warn("Unable to get latest commit: {}", e.message)
-            latestGitCommit = "Unknown (is Git installed?)"
-        }
-    } else {
-        logger.info("I won't try to get the last commit - consider running with \"-Pgit-commit=true\" if you want this next time (assuming Git is installed)")
-    }
-
     tasks.withType<Jar> {
         // Important to set version so this can be queried within QuPath
-		manifest {
+        manifest {
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-			val manifestAttributes = mutableMapOf(
-					"Implementation-Vendor" to "QuPath developers",
-					"Implementation-Version" to project.version,
-					"QuPath-build-time" to formatter.format(LocalDateTime.now())
+            val manifestAttributes = mutableMapOf(
+                "Implementation-Vendor" to "QuPath developers",
+                "Implementation-Version" to project.version,
+                "QuPath-build-time" to formatter.format(LocalDateTime.now())
             )
-			// Set the module name where we can
-			if (project.hasProperty("moduleName")) {
-				manifestAttributes["Automatic-Module-Name"] = "io.github." + project.extra["moduleName"]
-			}
+            // Set the module name where we can
+            val moduleName = properties.getOrDefault("moduleName", null)
+            if (moduleName != null) {
+                manifestAttributes["Automatic-Module-Name"] = "io.github.$moduleName"
+            }
 
-			if (latestGitCommit != null)
-				manifestAttributes["QuPath-latest-commit"] = latestGitCommit
+            val gitCommit = properties.getOrDefault("git.commit", null)
+            if (gitCommit is String) {
+                manifestAttributes["QuPath-latest-commit"] = gitCommit
+            }
 
-			attributes(manifestAttributes)
-		}
+            attributes(manifestAttributes)
+        }
     }
 }
 
@@ -94,11 +72,13 @@ afterEvaluate {
  */
 tasks.withType<Javadoc> {
     options.encoding = "UTF-8"
+    val strictJavadoc = providers.gradleProperty("strictJavadoc")
+
     options {
         this as StandardJavadocDocletOptions
 
-        val strictJavadoc = findProperty("strictJavadoc")
-        if (strictJavadoc == null || strictJavadoc != "true") {
+        // Turn off strict javadocs by default - only enable them if specifically requested
+        if (strictJavadoc.getOrElse("false") != "true") {
             // This should be made more strict in the future
             addStringOption("Xdoclint:none", "-quiet")
         }
