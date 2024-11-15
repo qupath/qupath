@@ -102,7 +102,7 @@ They may change or be removed in future versions.
   * `finalize()` is deprecated for removal; any class that relied on this should consider using `Cleaner`
 
 ### Dependency updates
-* Bio-Formats 8.0.0
+* Bio-Formats 8.0.1
 * Commonmark 0.24.0
 * DeepJavaLibrary 0.30.0
 * Groovy 4.0.22
@@ -139,6 +139,7 @@ This is a *minor release* that aims to be fully compatible with v0.5.0, while fi
 * Exception when opening script if the last directory isn't available (https://github.com/qupath/qupath/issues/1441)
 * 'Show grayscale' sometimes show an extra channel when multiple viewers are used (https://github.com/qupath/qupath/issues/1468)
 * Displaying large numbers of thumbnails in a project is too slow (https://github.com/qupath/qupath/issues/1446)
+* Mini viewer isn't updated if the aspect ratio of its parent viewer is "portrait" rather than "landscape (https://github.com/qupath/qupath/issues/1697)
 
 ### Enhancement
 * Add keyboard shortcuts to tooltips (https://github.com/qupath/qupath/issues/1450)

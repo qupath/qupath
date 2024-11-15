@@ -296,7 +296,7 @@ public class IconFactory {
 									CELL_ONLY(IconSuppliers.icoMoon('\ue904')),
 									CENTROIDS_ONLY(IconSuppliers.icoMoon('\ue913')),
 
-									COG(IconSuppliers.icoMoon('\ue905')),
+									COG(IconSuppliers.fontAwesome(FontAwesome.Glyph.COG)),
 									CONTRAST(IconSuppliers.icoMoon('\ue906')),
 
 									DETECTIONS(IconSuppliers.icoMoon('\ue908', DETECTION_COLOR)),
