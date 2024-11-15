@@ -893,7 +893,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @return
 	 */
 	public Point2D getMousePosition() {
-		if (mouseX >= 0 && mouseX <= canvas.getWidth() && mouseY >= 0 && mouseY <= canvas.getWidth())
+		if (mouseX >= 0 && mouseX <= canvas.getWidth() && mouseY >= 0 && mouseY <= canvas.getHeight())
 			return new Point2D.Double(mouseX, mouseY);
 		return null;
 	}
