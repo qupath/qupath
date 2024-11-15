@@ -139,6 +139,7 @@ This is a *minor release* that aims to be fully compatible with v0.5.0, while fi
 * Exception when opening script if the last directory isn't available (https://github.com/qupath/qupath/issues/1441)
 * 'Show grayscale' sometimes show an extra channel when multiple viewers are used (https://github.com/qupath/qupath/issues/1468)
 * Displaying large numbers of thumbnails in a project is too slow (https://github.com/qupath/qupath/issues/1446)
+* Mini viewer isn't updated if the aspect ratio of its parent viewer is "portrait" rather than "landscape (https://github.com/qupath/qupath/issues/1697)
 
 ### Enhancement
 * Add keyboard shortcuts to tooltips (https://github.com/qupath/qupath/issues/1450)
