@@ -1,7 +1,6 @@
 plugins {
   id("qupath.extension-conventions")
   `java-library`
-
   alias(libs.plugins.javafx)
 }
 

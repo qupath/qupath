@@ -10,21 +10,14 @@ base {
   description = "Core QuPath module containing the main processing operations."
 }
 
-configurations {
-  api {
-    extendsFrom(opencv.get())
-  }
-  implementation {
-    extendsFrom(guava.get())
-  }
-}
-
 dependencies {
   api(project(":qupath-core"))
-  
+
+  api(libs.opencv)
   api(libs.imagej)
   api(libs.bioimageio.spec)
-  
+
+  implementation(libs.guava)
   implementation(libs.commons.math)
   testImplementation(project.project(":qupath-core").sourceSets["test"].output)
 }

@@ -25,7 +25,6 @@ jdk             = "21"
 javacpp         = "1.5.10"
 
 opencv          = "4.9.0-1.5.10"
-cuda            = "12.3-8.9-1.5.10"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
 javafx          = "23"
@@ -99,9 +98,6 @@ groovy-xml    = { module = "org.apache.groovy:groovy-xml",      version.ref = "g
 
 javacpp       = { module = "org.bytedeco:javacpp",              version.ref = "javacpp" }
 opencv        = { module = "org.bytedeco:opencv-platform",      version.ref = "opencv" }
-opencv-gpu    = { module = "org.bytedeco:opencv-platform-gpu",  version.ref = "opencv"}
-cuda          = { module = "org.bytedeco:cuda-platform",        version.ref = "cuda" }
-cuda-redist   = { module = "org.bytedeco:cuda-platform-redist", version.ref = "cuda" }
 
 ikonli-javafx    = { module = "org.kordamp.ikonli:ikonli-javafx",         version.ref = "ikonli" }
 ikonli-ionicons4 = { module = "org.kordamp.ikonli:ikonli-ionicons4-pack", version.ref = "ikonli" }
@@ -118,8 +114,6 @@ logging       = ["slf4j", "logback"]
 logviewer     = ["logviewer", "logviewer-console", "logviewer-rich", "logviewer-logback"]
 markdown      = ["commonmark", "commonmark-yaml"]
 opencv        = ["javacpp", "opencv"]
-opencv-gpu    = ["javacpp", "opencv-gpu", "cuda"]
-opencv-cuda   = ["javacpp", "opencv-gpu", "cuda", "cuda-redist"]
 yaml          = ["snakeyaml"]
 
 [plugins]

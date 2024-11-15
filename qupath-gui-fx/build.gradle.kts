@@ -12,18 +12,15 @@ base {
     description = "Main QuPath user interface."
 }
 
-configurations {
-  implementation {
-      extendsFrom(guava.get())
-  }
-}
-
 dependencies {
   api(project(":qupath-core"))
   api(project(":qupath-core-processing"))
 
-  implementation(libs.qupath.fxtras)
   api(libs.controlsfx)
+
+  implementation(libs.qupath.fxtras)
+
+  implementation(libs.guava)
 
   implementation(libs.snakeyaml)
   implementation(libs.picocli)

@@ -10,16 +10,11 @@ base {
   description = "Core QuPath module containing the main classes and data structures."
 }
 
-configurations {
-  implementation {
-    extendsFrom(guava.get())
-  }
-}
-
 dependencies {
   api(libs.gson)
   api(libs.jts)
-  
+
+  implementation(libs.guava)
   implementation(libs.commons.math)
   implementation(libs.picocli)
   implementation(libs.imagej)

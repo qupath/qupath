@@ -3,45 +3,60 @@ import org.gradle.kotlin.dsl.the
 
 /**
  * Conventions for using Deep Java Library with QuPath.
+ *
+ * This is used to add support for command line properties, e.g
+ * ./gradlew build -Pdjl.engines=pytorch,onnxruntime -Pdjl.zoos=onnxruntime
  */
 
 plugins {
 	id("qupath.java-conventions")
 }
 
-var djlEnginesProp = project.findProperty("djl.engines") as String? ?: "default"
-djlEnginesProp = djlEnginesProp.trim().lowercase()
-var djlEngines = listOf<String>()
-if (djlEnginesProp == "default")
-	djlEngines = listOf("pytorch", "tensorflow")
-else if (djlEnginesProp == "none")
-	djlEngines = listOf()
-else
-	djlEngines = djlEnginesProp
-		.split(",")
-		.map({e -> e.lowercase().trim()})
-		.filter({e -> e.isNotBlank()})
-	
-val djlApi = djlEngines.isNotEmpty() || project.findProperty("djl.api") == "true"
-val djlZero = djlApi && project.findProperty("djl.zero") == "true"
-
-var djlZoosProp = project.findProperty("djl.zoos") as String? ?: "all"
-djlZoosProp = djlZoosProp.trim().lowercase()
-var djlZoos = listOf<String>()
-if (djlZoosProp == "all")
-	djlZoos = djlEngines
-else if (djlZoosProp == "none")
-	djlZoos = listOf()
-else
-	djlZoos = djlZoosProp.split(",")
-		.map({e -> e.lowercase().trim()})
-		.filter({e -> e.isNotBlank()})
-
-
 val libs = the<LibrariesForLibs>()
 val djlVersion = libs.versions.deepJavaLibrary.get()
 
+/**
+ * Parse an engine string to determine which DJL engines we need
+ */
+fun getDjlEngines(engineString: String): List<String> {
+	return when (engineString.trim().lowercase()) {
+		"default" -> listOf("pytorch", "tensorflow")
+		"none" -> listOf()
+		else -> engineString
+			.split(",")
+			.map({e -> e.lowercase().trim()})
+			.filter({e -> e.isNotBlank()})
+	}
+}
+
+/**
+ * Parse an zoo string to determine which DJL Model Zoos we need
+ */
+fun getDjlZoos(zooString: String, engines: List<String>): List<String> {
+	return when (zooString.trim().lowercase()) {
+		"all" -> engines.toList()
+		"none" -> listOf()
+		else -> zooString
+			.split(",")
+			.map({e -> e.lowercase().trim()})
+			.filter({e -> e.isNotBlank()})
+	}
+}
+
+
 dependencies {
+	// Get a list of engines we want to include
+	var djlEngines = getDjlEngines(providers.gradleProperty("djl.engines").getOrElse("default"))
+
+	// Check whether djl.api is requested - or if we have any engines that require it
+	val djlApi = djlEngines.isNotEmpty() || project.findProperty("djl.api") == "true"
+
+	// Check whether djl.zero is requested - and we have the API to support it
+	val djlZero = djlApi && project.findProperty("djl.zero") == "true"
+
+	// Get a list of zoos we want to include
+	val djlZoos = getDjlZoos(providers.gradleProperty("djl.zoos").getOrElse("all"), djlEngines)
+
 	if (djlApi) {
 		implementation(libs.bundles.djl)
 	}

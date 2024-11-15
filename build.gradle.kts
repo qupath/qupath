@@ -1,8 +1,20 @@
+import io.github.qupath.gradle.PlatformPlugin
+
 plugins {
     id("qupath.java-conventions")
     id("qupath.git-commit-id")
     `version-catalog`
     `maven-publish`
+}
+
+/*
+ * Fail early if the operating system or JDK isn't compatible
+ */
+if (io.github.qupath.gradle.Utils.currentPlatform() == PlatformPlugin.Platform.UNKNOWN) {
+    throw GradleException("Unknown operating system - can't build QuPath, sorry!")
+}
+if ("32" == System.getProperty("sun.arch.data.model")) {
+    throw GradleException("Can't build QuPath using a 32-bit JDK - please use a 64-bit JDK instead")
 }
 
 // See https://discuss.gradle.org/t/best-approach-gradle-multi-module-project-generate-just-one-global-javadoc/18657
@@ -34,7 +46,7 @@ tasks.register<Javadoc>("mergedJavadocs") {
     )
 
     // Don"t fail on error, because this happened too often due to a javadoc link being temporarily down
-    setFailOnError(false)
+    isFailOnError = false
 }
 
 /*
