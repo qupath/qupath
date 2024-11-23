@@ -21,6 +21,9 @@ plugins {
 
 repositories {
     mavenCentral()
+    maven {
+        url = uri("https://plugins.gradle.org/m2/")
+    }
 }
 
 java {
@@ -52,4 +55,8 @@ dependencies {
 
     // See https://github.com/gradle/gradle/issues/15383#issuecomment-779893192 for rationale
     implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))
+
+    implementation("org.beryx:badass-runtime-plugin:1.13.1")
+    implementation("gradle.plugin.org.gradle.crypto:checksum:1.4.0")
+
 }

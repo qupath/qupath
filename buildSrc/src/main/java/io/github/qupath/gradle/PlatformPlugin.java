@@ -42,6 +42,7 @@ public class PlatformPlugin implements Plugin<Project> {
         private final String classifier;
         private final String installerExtension;
 
+
         Platform() {
             this(null, null, null, null);
         }
@@ -51,6 +52,30 @@ public class PlatformPlugin implements Plugin<Project> {
             this.classifier = classifier;
             this.iconExt = iconExt;
             this.installerExtension = installerExtension;
+        }
+
+        /**
+         * Query if the current platform is Windows.
+         * @return
+         */
+        public boolean isWindows() {
+            return this == WINDOWS;
+        }
+
+        /**
+         * Query if the current platform is Mac (may be Intel or Apple Silicon)
+         * @return
+         */
+        public boolean isMac() {
+            return this == MAC || this == MAC_AARCH64;
+        }
+
+        /**
+         * Query if the current platform is Linux.
+         * @return
+         */
+        public boolean isLinux() {
+            return this == LINUX;
         }
     
         /**
