@@ -29,6 +29,8 @@ val qupathVersion = gradle.extra["qupath.app.version"] as String
 val qupathAppName = gradle.extra["qupath.app.name"] as String
 val platform: PlatformPlugin.Platform = Utils.currentPlatform()
 
+// Requested package type (image, installer, all, pkg, dmg, msi, exe, deb, rpm...)
+val packageType = (gradle.extra["qupath.package"] as String).lowercase()
 
 /**
  * Create Java Runtime & call jpackage
@@ -106,6 +108,7 @@ class JPackageParams(val outputDir: File, val resourceDir: File? = null) {
         if (resourceDir != null)
             initIcon(resourceDir)
         initInstallTypes()
+        setFileAssociations() // For v0.5 this was only applied for macOS
         if (platform.isWindows) {
             configureWindows()
         } else if (platform.isMac) {
@@ -137,23 +140,25 @@ class JPackageParams(val outputDir: File, val resourceDir: File? = null) {
      * (although the jpackage default is to create all installers).
      */
     private fun initInstallTypes() {
-        // Define platform-specific jpackage configuration options
-        val requestedPackage = findProperty("package") as String?
-        val packageType = requestedPackage?.lowercase()
-        if (packageType == null || setOf("image", "app-image").contains(packageType) || platform.isMac) {
-            // We can't make installers directly on macOS - need to base them on an image
-            this.skipInstaller = true
-            this.installerTypes += null
-            logger.info("No package type specified, using default $packageType")
-        } else if (packageType == "all") {
-            this.skipInstaller = false
-            this.installerTypes += null
-        } else if (packageType == "installer") {
-            this.skipInstaller = false
-            this.installerTypes += platform.installerExtension
-        } else {
-            this.installerTypes += packageType
+        // If requesting "all", then we pass null to jpackage (since the default is to build all)
+        var requestedPackage = when(packageType) {
+            "all" -> null
+            "installer" -> platform.installerExtension
+            "image" -> "app-image"
+            else -> packageType
         }
+        // Check if we need to create an installer at all
+        if (requestedPackage == "app-image") {
+            // Skip the installer if we're only creating an image
+            skipInstaller = true
+        } else if (platform.isMac && requestedPackage == "pkg") {
+            // We can generate a pkg from an image - so don't need an installer
+            // (and the installer would cause mean we can't rename the .app as required)
+            skipInstaller = true
+            requestedPackage = "app-image"
+        }
+        // Specify the requested package
+        installerTypes += requestedPackage
     }
 
 
@@ -162,12 +167,16 @@ class JPackageParams(val outputDir: File, val resourceDir: File? = null) {
      */
     private fun configureWindows() {
         if (this.installerTypes.contains("msi")) {
-            this.installerOptions += "--win-menu"
-            this.installerOptions += "--win-dir-chooser"
-            this.installerOptions += "--win-shortcut"
-            this.installerOptions += "--win-per-user-install"
-            this.installerOptions += "--win-menu-group"
-            this.installerOptions += "QuPath"
+            this.installerOptions += listOf(
+                "--win-menu",
+                "--win-dir-chooser",
+                "--win-shortcut-prompt", // Previously used "--win-shortcut", but this should give a choice
+//                "--win-help-url", "https://qupath.readthedocs.io",
+                "--win-menu-group", "QuPath"
+            )
+            // Per-user install can be controlled in settings.gradle.kts
+            if (gradle.extra["qupath.package.per-user"] as String == "true")
+                this.installerOptions += "--win-per-user-install"
         }
 
         // Can't have any -SNAPSHOT or similar added
@@ -193,9 +202,6 @@ class JPackageParams(val outputDir: File, val resourceDir: File? = null) {
         this.installerOptions += listOf("--mac-package-name", "QuPath")
         // Need to include the version so that we can have multiple versions installed
         this.installerOptions += listOf("--mac-package-identifier", "QuPath-${qupathVersion}")
-
-        // File associations supported on Mac
-        setFileAssociations()
 
         // Can't have any -SNAPSHOT or similar added
         this.appVersion = stripVersionSuffix(this.appVersion)
@@ -272,8 +278,7 @@ val jpackageFinalize by tasks.registering {
         val appFile = File(outputDir, getCorrectAppName(".app"))
         if (appFile.exists()) {
             // We need to make the macOS pkg here to incorporate the changes
-            val requestedPackage = findProperty("package") as String?
-            if (requestedPackage?.lowercase() in setOf("installer", "pkg")) {
+            if (packageType in setOf("installer", "pkg")) {
                 println("Creating pkg")
                 makeMacOSPkg(appFile)
                 // Ensure we haven't accidentally changed the name
@@ -290,8 +295,7 @@ val jpackageFinalize by tasks.registering {
         // On windows, for the installer we should also zip up the image
         if (Utils.currentPlatform().isWindows) {
             val imageDir = File(outputDir, qupathAppName)
-            val requestedPackage = findProperty("package") as String?
-            if (imageDir.isDirectory() && requestedPackage?.lowercase() in setOf("installer")) {
+            if (imageDir.isDirectory() && packageType == "installer") {
                 println("Zipping $imageDir")
                 // See https://docs.gradle.org/current/userguide/ant.html
                 ant.withGroovyBuilder {
