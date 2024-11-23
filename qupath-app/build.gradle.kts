@@ -76,11 +76,10 @@ dependencies {
 application {
     mainClass = "qupath.QuPath"
 
-    var qupathVersion = gradle.extra["qupathVersion"] as String
-    val qupathAppName = "QuPath-${qupathVersion}"
+    val qupathAppName = gradle.extra["qupath.app.name"] as String
 
     applicationName = qupathAppName
-    applicationDefaultJvmArgs = buildDefaultJvmArgs()
+    applicationDefaultJvmArgs = listOf(gradle.extra["qupath.jvm.args"] as String)
 
     // Necessary when using ./gradlew run to support style manager to change themes
     applicationDefaultJvmArgs += "--add-opens"
@@ -236,22 +235,6 @@ distributions {
 }
 
 
-/**
- * Get default JVM arguments (e.g. to set memory, library path)
- * Java version not currently used.
- * @return
- */
-fun buildDefaultJvmArgs(): List<String> {
-    // Set up the main Java options
-    val javaOptions = ArrayList<String>()
-
-    // Default to using 50% available memory
-    javaOptions += "-XX:MaxRAMPercentage=50"
-
-    return javaOptions
-}
-
-
 
 
 /**
@@ -263,6 +246,7 @@ tasks.register<JavaExec>("exportDocs") {
     group = "QuPath"
 
     val docsDir = rootProject.layout.buildDirectory.dir("qupath-docs").get().asFile
+
     doFirst {
         println("Making docs dir in ${docsDir.absolutePath}")
         docsDir.mkdirs()

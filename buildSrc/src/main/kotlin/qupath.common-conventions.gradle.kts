@@ -56,7 +56,7 @@ repositories {
 /*
  * Some metadata for the manifest
  */
-project.version = gradle.extra["qupathVersion"] as String
+project.version = gradle.extra["qupath.app.version"] as String
 
 dependencies {
     implementation(libs.bundles.logging)

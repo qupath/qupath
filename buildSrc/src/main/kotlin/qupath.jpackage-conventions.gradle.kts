@@ -24,10 +24,10 @@ plugins {
  * These variables are used to help overcome this by specifying the defaults to use
  * up-front, so that a later action can rename any generated packages.
  */
-var macOSDefaultVersion = "1"
-var qupathVersion = gradle.extra["qupathVersion"] as String
-val qupathAppName = "QuPath-${qupathVersion}"
-var platform = Utils.currentPlatform()
+val macOSDefaultVersion = "1"
+val qupathVersion = gradle.extra["qupath.app.version"] as String
+val qupathAppName = gradle.extra["qupath.app.name"] as String
+val platform: PlatformPlugin.Platform = Utils.currentPlatform()
 
 
 /**
@@ -52,13 +52,16 @@ runtime {
 
         "jdk.zipfs",            // Needed for zip filesystem support
 
-        "java.net.http",        // Add HttpClient support (may be used by scripts)
+        "java.net.http",        // Add HttpClient support (might be used by scripts)
         "java.management",      // Useful to check memory usage
         "jdk.management.agent", // Enables VisualVM to connect and sample CPU use
         "jdk.jsobject",         // Needed to interact with WebView through JSObject
     ))
 
-    val params = buildParameters()
+    val params = JPackageParams(
+        getDistOutputDir(),
+        project.file("jpackage/${platform}"))
+
 
     for (installer in params.installerTypes) {
         if (installer != null)
@@ -68,7 +71,7 @@ runtime {
             mainJar = project.tasks.jar.get().archiveFileName.get()
             installerType = installer
 
-            jvmArgs = params.jvmArgs
+            jvmArgs.addAll(params.jvmArgs)
             imageName = params.imageName
             appVersion = params.appVersion
             resourceDir = params.resourceDir
@@ -87,11 +90,11 @@ runtime {
 /**
  * Encapsulate key parameters to pass to jpackage
  */
-class JPackageParams(appVersion: String, outputDir: File) {
+class JPackageParams(val outputDir: File, val resourceDir: File? = null) {
 
-    var jvmArgs = buildDefaultJvmArgs()
+    var jvmArgs = listOf(gradle.extra["qupath.jvm.args"] as String)
     var imageName = qupathAppName // Will need to be removed for some platforms
-    var appVersion: String = appVersion
+    var appVersion: String = qupathVersion.replace("-SNAPSHOT", "")
     var imageOptions = mutableListOf<String>()
 
     var installerTypes = mutableListOf<String?>()
@@ -99,10 +102,9 @@ class JPackageParams(appVersion: String, outputDir: File) {
     var installerName = "QuPath"
     var installerOptions = mutableListOf<String>()
 
-    var resourceDir: File? = null
-    var outputDir: File = outputDir
-
     init {
+        if (resourceDir != null)
+            initIcon(resourceDir)
         initInstallTypes()
         if (platform.isWindows) {
             configureWindows()
@@ -116,12 +118,25 @@ class JPackageParams(appVersion: String, outputDir: File) {
     }
 
     /**
+     * Search for an icon file in the resource directory
+     */
+    private fun initIcon(resourceDir: File) {
+        if (!resourceDir.isDirectory)
+            return
+        val iconExt = platform.iconExtension
+        val iconFile = File(resourceDir, "QuPath.${iconExt}")
+        if (iconFile.exists())
+            imageOptions += listOf("--icon", iconFile.absolutePath)
+        else
+            logger.warn("No icon file found at $iconFile")
+    }
+
+    /**
      * Update package type according to "package" parameter.
      * By default, we just create an image because that's faster
      * (although the jpackage default is to create all installers).
-     * @param params
      */
-    fun initInstallTypes(): Unit {
+    private fun initInstallTypes() {
         // Define platform-specific jpackage configuration options
         val requestedPackage = findProperty("package") as String?
         val packageType = requestedPackage?.lowercase()
@@ -129,7 +144,7 @@ class JPackageParams(appVersion: String, outputDir: File) {
             // We can't make installers directly on macOS - need to base them on an image
             this.skipInstaller = true
             this.installerTypes += null
-            logger.info("No package type specified, using default ${packageType}")
+            logger.info("No package type specified, using default $packageType")
         } else if (packageType == "all") {
             this.skipInstaller = false
             this.installerTypes += null
@@ -144,10 +159,8 @@ class JPackageParams(appVersion: String, outputDir: File) {
 
     /**
      * Custom configurations for Windows
-     * @param params
-     * @return
      */
-    fun configureWindows() {
+    private fun configureWindows() {
         if (this.installerTypes.contains("msi")) {
             this.installerOptions += "--win-menu"
             this.installerOptions += "--win-dir-chooser"
@@ -170,15 +183,13 @@ class JPackageParams(appVersion: String, outputDir: File) {
                     "java-options=-Dqupath.config=console " + javaOptions.joinToString(separator=" ")
                     + System.lineSeparator())
         this.imageOptions += "--add-launcher"
-        this.imageOptions += "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
+        this.imageOptions += "\"${consoleLauncherName}\"=\"${fileTemp.absolutePath}\""
     }
 
     /**
      * Custom configurations for macOS
-     * @param params
-     * @return
      */
-    fun configureMac() {
+    private fun configureMac() {
         this.installerOptions += listOf("--mac-package-name", "QuPath")
         // Need to include the version so that we can have multiple versions installed
         this.installerOptions += listOf("--mac-package-identifier", "QuPath-${qupathVersion}")
@@ -203,10 +214,8 @@ class JPackageParams(appVersion: String, outputDir: File) {
 
     /**
      * Custom configurations for Linux
-     * @param params
-     * @return
      */
-    fun configureLinux() {
+    private fun configureLinux() {
         // This has the same issues as on macOS with invalid .cfg file, requiring another name
         this.imageName = "QuPath"
     }
@@ -214,9 +223,8 @@ class JPackageParams(appVersion: String, outputDir: File) {
 
     /**
      * Set file associations according to contents of a .properties file
-     * @param params
      */
-    fun setFileAssociations(): Unit {
+    private fun setFileAssociations() {
         val associations = project.file("jpackage/associations")
             .listFiles()
             ?.filter { it.isFile() && it.name.endsWith(".properties") }
@@ -227,37 +235,23 @@ class JPackageParams(appVersion: String, outputDir: File) {
         }
     }
 
+    /**
+     * Strip suffixes (by default any starting with "-SNAPSHOT", "-rc") from any version string
+     * @param version the version to strip
+     * @return the stripped version (may be the same as the input)
+     */
+    private fun stripVersionSuffix(version: String): String {
+        var result = version
+        for (suffix in setOf("-SNAPSHOT", "-rc")) {
+            val lastDash = result.lastIndexOf(suffix)
+            if (lastDash > 0)
+                result = result.substring(0, lastDash)
+        }
+        return result
+    }
+
 }
 
-
-
-/**
- * Build default parameters for jpackage, customizing these according to the current platform
- * @return
- */
-fun buildParameters(): JPackageParams {
-    val params = JPackageParams(getNonSnapshotVersion(), getDistOutputDir())
-
-    params.resourceDir = project.file("jpackage/${platform}")
-
-    val iconExt = platform.iconExtension
-    val iconFile = project.file("jpackage/${platform}/QuPath.${iconExt}")
-    if (iconFile.exists())
-        params.imageOptions += listOf("--icon", iconFile.getAbsolutePath())
-    else
-        logger.warn("No icon file found at ${iconFile}")
-
-    return params
-}
-
-
-/**
- * Get the version, with any "SNAPSHOT" element removed
- * @return
- */
-fun getNonSnapshotVersion(): String {
-    return qupathVersion.replace("-SNAPSHOT", "")
-}
 
 /**
  * Get the output directory for any distributions
@@ -268,72 +262,14 @@ fun getDistOutputDir(): File {
 
 
 /**
- * Get default JVM arguments (e.g. to set memory, library path)
- * Java version not currently used.
- * @return
- */
-fun buildDefaultJvmArgs(): List<String> {
-    // Set up the main Java options
-    val javaOptions = ArrayList<String>()
-
-    // Default to using 50% available memory
-    javaOptions += "-XX:MaxRAMPercentage=50"
-
-    return javaOptions
-}
-
-
-/**
- * Try to resolve annoying macOS/Windows renaming with an invalid version
- * (I realise this is very awkward...)
- */
-tasks.named("jpackage") {
-    doLast {
-        val extensions = listOf(".app", ".dmg", ".pkg", ".exe", ".msi", ".deb", ".rpm")
-        for (dir in outputs.files) {
-            val packageFiles = dir.listFiles()
-            for (f in packageFiles!!) {
-                for (ext in extensions) {
-                    if (!f.name.endsWith(ext))
-                        continue
-                    val correctName = getCorrectAppName(ext)
-                    if (!f.name.equals(correctName)) {
-                        println("Renaming to: $correctName")
-                        f.renameTo(File(f.getParent(), correctName))
-                    }
-                }
-            }
-        }
-    }
-
-    finalizedBy("jpackageFinalize")
-}
-
-
-/**
- * Strip suffixes (by default any starting with "-SNAPSHOT", "-rc") from any version string
- * @param version
- * @return
- */
-fun stripVersionSuffix(version: String): String {
-    var result = version
-    for (suffix in setOf("-SNAPSHOT", "-rc")) {
-        val lastDash = result.lastIndexOf(suffix)
-        if (lastDash > 0)
-            result = result.substring(0, lastDash)
-    }
-    return result
-}
-
-/**
  * Postprocessing of jpackage outputs; this is needed to fix the macOS version
  * and assemble the outputs for the checksums.
  */
-tasks.register("jpackageFinalize") {
+val jpackageFinalize by tasks.registering {
     doLast {
-        val outputDir = rootProject.layout.buildDirectory.get().asFile
+        val outputDir = getDistOutputDir()
         // Loop for Mac things to do
-        val appFile = File(outputDir, "/dist/${getCorrectAppName(".app")}")
+        val appFile = File(outputDir, getCorrectAppName(".app"))
         if (appFile.exists()) {
             // We need to make the macOS pkg here to incorporate the changes
             val requestedPackage = findProperty("package") as String?
@@ -352,8 +288,8 @@ tasks.register("jpackageFinalize") {
             }
         }
         // On windows, for the installer we should also zip up the image
-        if (Utils.currentPlatform().isWindows()) {
-            val imageDir = File(outputDir, "/dist/${qupathAppName}")
+        if (Utils.currentPlatform().isWindows) {
+            val imageDir = File(outputDir, qupathAppName)
             val requestedPackage = findProperty("package") as String?
             if (imageDir.isDirectory() && requestedPackage?.lowercase() in setOf("installer")) {
                 println("Zipping $imageDir")
@@ -382,6 +318,32 @@ tasks.register("jpackageFinalize") {
 
 
 /**
+ * Try to resolve annoying macOS/Windows renaming with an invalid version
+ * (I realise this is very awkward...)
+ */
+tasks.named("jpackage") {
+    doLast {
+        val extensions = listOf(".app", ".dmg", ".pkg", ".exe", ".msi", ".deb", ".rpm")
+        for (dir in outputs.files) {
+            val packageFiles = dir.listFiles()
+            for (f in packageFiles!!) {
+                for (ext in extensions) {
+                    if (!f.name.endsWith(ext))
+                        continue
+                    val correctName = getCorrectAppName(ext)
+                    if (!f.name.equals(correctName)) {
+                        println("Renaming to: $correctName")
+                        f.renameTo(File(f.getParent(), correctName))
+                    }
+                }
+            }
+        }
+    }
+    finalizedBy(jpackageFinalize)
+}
+
+
+/**
  * Get the name we want to use for the app.
  * On macOS, we want to append the architecture to make it easier to install both
  * the x64 and ARM versions on the same machine.
@@ -406,10 +368,9 @@ fun getCorrectAppName(ext: String): String {
 /**
  * Build a .pkg for an existing .app on macOS.
  * This is a separate task because it needs to be run after the Info.plist has been updated.
- * @param appFile
- * @return
+ * @param appFile the .app file to package
  */
-fun makeMacOSPkg(appFile: File): Unit {
+fun makeMacOSPkg(appFile: File) {
     ProcessBuilder()
         .directory(appFile.getParentFile())
         .command(

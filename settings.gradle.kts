@@ -7,7 +7,16 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0" // to download if needed
 }
 
-gradle.extra["qupathVersion"] = "0.6.0-SNAPSHOT"
+// Define the current QuPath version
+var qupathVersion = "0.6.0-SNAPSHOT"
+
+// Store version & derived app name in extra properties for build scripts to use
+gradle.extra["qupath.app.version"] = qupathVersion
+gradle.extra["qupath.app.name"] = "QuPath-$qupathVersion"
+
+// Default is to use 50% of available RAM
+gradle.extra["qupath.jvm.args"] = providers.gradleProperty("qupath.jvm.args").getOrElse("-XX:MaxRAMPercentage=50")
+
 
 rootProject.name = "qupath"
 

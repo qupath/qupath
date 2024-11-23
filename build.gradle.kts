@@ -25,7 +25,7 @@ tasks.register<Javadoc>("mergedJavadocs") {
 
     val dest = layout.buildDirectory.dir("docs-merged/javadoc").get().asFile
     setDestinationDir(dest)
-    title = "QuPath ${gradle.extra["qupathVersion"]}"
+    title = "QuPath ${gradle.extra["qupath.app.version"]}"
 
     // Don't fail on error, because this happened too often due to a javadoc link being temporarily down
     isFailOnError = false
@@ -62,7 +62,7 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "io.github.qupath"
             artifactId = "qupath-catalog"
-            version = gradle.extra["qupathVersion"].toString()
+            version = gradle.extra["qupath.app.version"] as String
             from(components["versionCatalog"])
         }
     }
