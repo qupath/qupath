@@ -27,6 +27,7 @@ plugins {
 var macOSDefaultVersion = "1"
 var qupathVersion = gradle.extra["qupathVersion"] as String
 val qupathAppName = "QuPath-${qupathVersion}"
+var platform = Utils.currentPlatform()
 
 
 /**
@@ -64,14 +65,15 @@ runtime {
             println("Calling JPackage for \"${installer}\"")
 
         jpackage {
-            mainJar = params.mainJar
+            mainJar = project.tasks.jar.get().archiveFileName.get()
+            installerType = installer
+
             jvmArgs = params.jvmArgs
             imageName = params.imageName
             appVersion = params.appVersion
             resourceDir = params.resourceDir
             imageOptions = params.imageOptions
             skipInstaller = params.skipInstaller
-            installerType = installer
             installerOptions = params.installerOptions
             installerName = params.installerName
             imageOutputDir = params.outputDir
@@ -87,9 +89,8 @@ runtime {
  */
 class JPackageParams(appVersion: String, outputDir: File) {
 
-    var mainJar: String? = null
-    var jvmArgs = mutableListOf<String>()
-    var imageName = "QuPath"
+    var jvmArgs = buildDefaultJvmArgs()
+    var imageName = qupathAppName // Will need to be removed for some platforms
     var appVersion: String = appVersion
     var imageOptions = mutableListOf<String>()
 
@@ -101,22 +102,131 @@ class JPackageParams(appVersion: String, outputDir: File) {
     var resourceDir: File? = null
     var outputDir: File = outputDir
 
-
-    override fun toString(): String {
-        return "JPackageParams{" +
-                "mainJar=" + mainJar + "\"" +
-                ", jvmArgs=\"" + jvmArgs + "\"" +
-                ", imageName=\"" + imageName + "\"" +
-                ", appVersion=\"" + appVersion + "\"" +
-                ", imageOptions=" + imageOptions +
-                ", installerTypes=" + installerTypes +
-                ", skipInstaller=" + skipInstaller +
-                ", installerName=\"" + installerName + "\"" +
-                ", installerOptions=" + installerOptions +
-                ", resourceDir=" + resourceDir +
-                ", outputDir=" + outputDir +
-                "}"
+    init {
+        initInstallTypes()
+        if (platform.isWindows) {
+            configureWindows()
+        } else if (platform.isMac) {
+            configureMac()
+        } else if (platform.isLinux) {
+            configureLinux()
+        } else {
+            logger.warn("Unknown platform $platform - may be unable to generate a package")
+        }
     }
+
+    /**
+     * Update package type according to "package" parameter.
+     * By default, we just create an image because that's faster
+     * (although the jpackage default is to create all installers).
+     * @param params
+     */
+    fun initInstallTypes(): Unit {
+        // Define platform-specific jpackage configuration options
+        val requestedPackage = findProperty("package") as String?
+        val packageType = requestedPackage?.lowercase()
+        if (packageType == null || setOf("image", "app-image").contains(packageType) || platform.isMac) {
+            // We can't make installers directly on macOS - need to base them on an image
+            this.skipInstaller = true
+            this.installerTypes += null
+            logger.info("No package type specified, using default ${packageType}")
+        } else if (packageType == "all") {
+            this.skipInstaller = false
+            this.installerTypes += null
+        } else if (packageType == "installer") {
+            this.skipInstaller = false
+            this.installerTypes += platform.installerExtension
+        } else {
+            this.installerTypes += packageType
+        }
+    }
+
+
+    /**
+     * Custom configurations for Windows
+     * @param params
+     * @return
+     */
+    fun configureWindows() {
+        if (this.installerTypes.contains("msi")) {
+            this.installerOptions += "--win-menu"
+            this.installerOptions += "--win-dir-chooser"
+            this.installerOptions += "--win-shortcut"
+            this.installerOptions += "--win-per-user-install"
+            this.installerOptions += "--win-menu-group"
+            this.installerOptions += "QuPath"
+        }
+
+        // Can't have any -SNAPSHOT or similar added
+        this.appVersion = stripVersionSuffix(this.appVersion)
+
+        // Create a separate launcher with a console - this can help with debugging
+        val fileTemp = File.createTempFile("qupath-building", ".properties")
+        val consoleLauncherName = this.imageName + " (console)"
+        val javaOptions = this.jvmArgs
+        fileTemp.deleteOnExit()
+        fileTemp.writeText(
+            "win-console=true" + System.lineSeparator() +
+                    "java-options=-Dqupath.config=console " + javaOptions.joinToString(separator=" ")
+                    + System.lineSeparator())
+        this.imageOptions += "--add-launcher"
+        this.imageOptions += "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
+    }
+
+    /**
+     * Custom configurations for macOS
+     * @param params
+     * @return
+     */
+    fun configureMac() {
+        this.installerOptions += listOf("--mac-package-name", "QuPath")
+        // Need to include the version so that we can have multiple versions installed
+        this.installerOptions += listOf("--mac-package-identifier", "QuPath-${qupathVersion}")
+
+        // File associations supported on Mac
+        setFileAssociations()
+
+        // Can't have any -SNAPSHOT or similar added
+        this.appVersion = stripVersionSuffix(this.appVersion)
+
+        this.imageName = getCorrectAppName(".app")
+        if (this.imageName.endsWith(".app"))
+            this.imageName = this.imageName.substring(0, this.imageName.length - 4)
+        this.installerName = getCorrectAppName(".pkg")
+
+        // Sadly, on a Mac we can't have an appVersion that starts with 0
+        // See https://github.com/openjdk/jdk/blob/jdk-16+36/src/jdk.jpackage/macosx/classes/jdk/jpackage/internal/CFBundleVersion.java
+        if (this.appVersion.startsWith("0")) {
+            this.appVersion = macOSDefaultVersion
+        }
+    }
+
+    /**
+     * Custom configurations for Linux
+     * @param params
+     * @return
+     */
+    fun configureLinux() {
+        // This has the same issues as on macOS with invalid .cfg file, requiring another name
+        this.imageName = "QuPath"
+    }
+
+
+    /**
+     * Set file associations according to contents of a .properties file
+     * @param params
+     */
+    fun setFileAssociations(): Unit {
+        val associations = project.file("jpackage/associations")
+            .listFiles()
+            ?.filter { it.isFile() && it.name.endsWith(".properties") }
+        if (associations != null) {
+            for (file in associations) {
+                this.installerOptions += listOf("--file-associations", file.absolutePath)
+            }
+        }
+    }
+
 }
 
 
@@ -127,21 +237,6 @@ class JPackageParams(appVersion: String, outputDir: File) {
  */
 fun buildParameters(): JPackageParams {
     val params = JPackageParams(getNonSnapshotVersion(), getDistOutputDir())
-    params.mainJar = project.tasks.jar.get().archiveFileName.get()
-    params.imageName = qupathAppName // Will need to be removed for some platforms
-    params.installerName = "QuPath"
-    params.jvmArgs += buildDefaultJvmArgs()
-
-    // Configure according to the current platform
-    val platform = Utils.currentPlatform()
-    if (platform.isMac)
-        configureJPackageMac(params)
-    else if (platform.isWindows)
-        configureJPackageWindows(params)
-    else if (platform.isLinux)
-        configureJPackageLinux(params)
-    else
-        logger.log(LogLevel.WARN, "Unknown platform $platform - may be unable to generate a package")
 
     params.resourceDir = project.file("jpackage/${platform}")
 
@@ -150,111 +245,9 @@ fun buildParameters(): JPackageParams {
     if (iconFile.exists())
         params.imageOptions += listOf("--icon", iconFile.getAbsolutePath())
     else
-        logger.log(LogLevel.WARN, "No icon file found at ${iconFile}")
+        logger.warn("No icon file found at ${iconFile}")
 
     return params
-}
-
-/**
- * Update package type according to "package" parameter.
- * By default, we just create an image because that"s faster
- * (although the jpackage default is to create all installers).
- * @param params
- * @param defaultInstallers
- */
-fun updatePackageType(params: JPackageParams, vararg defaultInstallers: String): Unit {
-    // Define platform-specific jpackage configuration options
-    val requestedPackage = findProperty("package") as String?
-    val packageType = requestedPackage?.lowercase()
-    if (packageType == null || setOf("image", "app-image").contains(packageType) || project.properties["platform.name"] == "macosx") {
-        // We can't make installers directly on macOS - need to base them on an image
-        params.skipInstaller = true
-        params.installerTypes += null
-        logger.info("No package type specified, using default ${packageType}")
-    } else if (packageType == "all") {
-        params.skipInstaller = false
-        params.installerTypes += null
-    } else if (packageType == "installer") {
-        params.skipInstaller = false
-        params.installerTypes += defaultInstallers
-    } else {
-        params.installerTypes += packageType
-    }
-}
-
-/**
- * Custom configurations for Windows
- * @param params
- * @return
- */
-fun configureJPackageWindows(params: JPackageParams): Unit {
-    updatePackageType(params, properties["platform.installerExt"] as String)
-
-    if (params.installerTypes.contains("msi")) {
-        params.installerOptions += "--win-menu"
-        params.installerOptions += "--win-dir-chooser"
-        params.installerOptions += "--win-shortcut"
-        params.installerOptions += "--win-per-user-install"
-        params.installerOptions += "--win-menu-group"
-        params.installerOptions += "QuPath"
-    }
-
-    // Can't have any -SNAPSHOT or similar added
-    params.appVersion = stripVersionSuffix(params.appVersion)
-
-
-    // Create a separate launcher with a console - this can help with debugging
-    val fileTemp = File.createTempFile("qupath-building", ".properties")
-    val consoleLauncherName = params.imageName + " (console)"
-    val javaOptions = params.jvmArgs
-    fileTemp.deleteOnExit()
-    fileTemp.writeText(
-        "win-console=true" + System.lineSeparator() +
-                "java-options=-Dqupath.config=console " + javaOptions.joinToString(separator=" ")
-                + System.lineSeparator())
-    params.imageOptions += "--add-launcher"
-    params.imageOptions += "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
-}
-
-/**
- * Custom configurations for macOS
- * @param params
- * @return
- */
-fun configureJPackageMac(params: JPackageParams): Unit {
-    updatePackageType(params, properties["platform.installerExt"] as String)
-
-    params.installerOptions += listOf("--mac-package-name", "QuPath")
-    // Need to include the version so that we can have multiple versions installed
-    params.installerOptions += listOf("--mac-package-identifier", "QuPath-${qupathVersion}")
-
-    // File associations supported on Mac
-    setFileAssociations(params)
-
-    // Can't have any -SNAPSHOT or similar added
-    params.appVersion = stripVersionSuffix(params.appVersion)
-
-    params.imageName = getCorrectAppName(".app")
-    if (params.imageName.endsWith(".app"))
-        params.imageName = params.imageName.substring(0, params.imageName.length - 4)
-    params.installerName = getCorrectAppName(".pkg")
-
-    // Sadly, on a Mac we can't have an appVersion that starts with 0
-    // See https://github.com/openjdk/jdk/blob/jdk-16+36/src/jdk.jpackage/macosx/classes/jdk/jpackage/internal/CFBundleVersion.java
-    if (params.appVersion.startsWith("0")) {
-        params.appVersion = macOSDefaultVersion
-    }
-}
-
-/**
- * Custom configurations for Linux
- * @param params
- * @return
- */
-fun configureJPackageLinux(params: JPackageParams): Unit {
-    updatePackageType(params, properties["platform.installerExt"] as String)
-    // This has the same issues as on macOS with invalid .cfg file, requiring another name
-    params.imageName = "QuPath"
 }
 
 
@@ -331,23 +324,6 @@ fun stripVersionSuffix(version: String): String {
     }
     return result
 }
-
-/**
- * Set file associations according to contents of a .properties file
- * @param params
- */
-fun setFileAssociations(params: JPackageParams): Unit {
-    val associations = project.file("jpackage/associations")
-        .listFiles()
-        ?.filter { it.isFile() && it.name.endsWith(".properties") }
-    if (associations != null) {
-        for (file in associations) {
-            params.installerOptions += listOf("--file-associations", file.absolutePath)
-        }
-    }
-}
-
-
 
 /**
  * Postprocessing of jpackage outputs; this is needed to fix the macOS version
