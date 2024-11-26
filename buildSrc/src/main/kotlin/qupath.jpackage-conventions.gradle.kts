@@ -68,7 +68,7 @@ runtime {
     for (installer in params.installerTypes) {
 
         jpackage {
-            mainJar = project.tasks.jar.get().archiveFileName.get()
+//            mainJar = project(":qupath-app").tasks.jar.get().archiveFileName.get()
             installerType = installer
 
             jvmArgs.addAll(params.jvmArgs)
