@@ -17,8 +17,8 @@ public class GitCommitPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
-        var prop = project.getProviders().gradleProperty("git-commit");
-        if ("true".equalsIgnoreCase(prop.getOrElse("false"))) {
+        var prop = project.getGradle().getExtensions().getExtraProperties().get("qupath.package.git-commit");
+        if ("true".equals(prop)) {
             try {
                 String commit = getLatestGitCommit();
                 addCommitToProject(project, commit);
