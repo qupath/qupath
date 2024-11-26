@@ -3,17 +3,20 @@ package io.github.qupath.gradle;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 
+import java.util.Locale;
+
 /**
  * Useful info about the current platform to help with building custom packages.
  */
 public class PlatformPlugin implements Plugin<Project> {
+
+    private static final Platform CURRENT = findPlatform();
     
     @Override
     public void apply(Project project) {
         var platform = current();
         var extensions = project.getExtensions();
         extensions.add("platform.name", platform.getPlatformName());
-        extensions.add("platform.shortName", platform.getShortName());
         extensions.add("platform.classifier", platform.getClassifier());
         extensions.add("platform.iconExt", platform.getIconExtension());
         extensions.add("platform.installerExt", platform.getInstallerExtension());
@@ -28,32 +31,51 @@ public class PlatformPlugin implements Plugin<Project> {
      * rpm can be requested from the command line if supported by the platform.
      */
     public enum Platform {
-        WINDOWS("windows", "win", "natives-win32-x86_64", "ico", "msi"),
-        MAC("macosx", "mac", "natives-darwin-x86_64", "icns", "pkg"),
-        MAC_AARCH64("macosx", "mac", "natives-darwin-aarch64", "icns", "pkg"),
-        LINUX("linux", "linux", "natives-linux-x86_64", "png", "deb"),
-        UNKNOWN(null, null, null, null, null);
+        WINDOWS("windows", "win32-x86_64", "ico", "msi"),
+        MAC("macosx", "darwin-x86_64", "icns", "pkg"),
+        MAC_AARCH64("macosx", "darwin-aarch64", "icns", "pkg"),
+        LINUX("linux", "linux-x86_64", "png", "deb"),
+        UNKNOWN();
         
-        private String platformName;
-        private String shortName;
-        private String iconExt;
-        private String classifier;
-        private String installerExtension;
-        
-        private Platform(String platformName, String shortName, String classifier, String iconExt, String installerExtension) {
+        private final String platformName;
+        private final String iconExt;
+        private final String classifier;
+        private final String installerExtension;
+
+
+        Platform() {
+            this(null, null, null, null);
+        }
+
+        Platform(String platformName, String classifier, String iconExt, String installerExtension) {
             this.platformName = platformName;
-            this.shortName = shortName;
             this.classifier = classifier;
             this.iconExt = iconExt;
             this.installerExtension = installerExtension;
         }
-    
+
         /**
-         * Short name representing the platform ("win", "mac", "linux").
+         * Query if the current platform is Windows.
          * @return
          */
-        public String getShortName() {
-            return shortName;
+        public boolean isWindows() {
+            return this == WINDOWS;
+        }
+
+        /**
+         * Query if the current platform is Mac (may be Intel or Apple Silicon)
+         * @return
+         */
+        public boolean isMac() {
+            return this == MAC || this == MAC_AARCH64;
+        }
+
+        /**
+         * Query if the current platform is Linux.
+         * @return
+         */
+        public boolean isLinux() {
+            return this == LINUX;
         }
     
         /**
@@ -102,14 +124,18 @@ public class PlatformPlugin implements Plugin<Project> {
      * @return
      */
     public static Platform current() {
-        var os = System.getProperty("os.name").toLowerCase();
-        if (os.indexOf("win") >= 0)
+        return CURRENT;
+    }
+
+    private static Platform findPlatform() {
+        var os = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
+        if (os.contains("win"))
             return Platform.WINDOWS;
-        else if (os.indexOf("nix") >= 0 || os.indexOf("nux") >= 0)
+        else if (os.contains("nix") || os.contains("nux"))
             return Platform.LINUX;
-        else if (os.indexOf("mac") >= 0) {
-        	if ("aarch64".equalsIgnoreCase(System.getProperty("os.arch")))
-        		return Platform.MAC_AARCH64;
+        else if (os.contains("mac")) {
+            if ("aarch64".equalsIgnoreCase(System.getProperty("os.arch")))
+                return Platform.MAC_AARCH64;
             return Platform.MAC;
         } else
             return Platform.UNKNOWN;
