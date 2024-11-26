@@ -4,7 +4,6 @@
  */
 
 import org.gradle.accessors.dm.LibrariesForLibs
-import org.gradle.kotlin.dsl.the
 
 plugins {
     id("org.openjfx.javafxplugin")
@@ -15,7 +14,7 @@ val libs = the<LibrariesForLibs>()
 // Required since moving to JavaFX Gradle Plugin v0.1.0
 javafx {
     version = libs.versions.javafx.get()
-    modules(
+    modules = listOf(
         "javafx.base",
         "javafx.controls",
         "javafx.graphics",
@@ -24,4 +23,12 @@ javafx {
         "javafx.web",
         "javafx.swing"
     )
+}
+
+// javafxplugin 0.1.0 is not compatible with configuration cache
+// See https://github.com/openjfx/javafx-gradle-plugin/issues/136
+plugins.withId("application") {
+    tasks.named(ApplicationPlugin.TASK_RUN_NAME, JavaExec::class.java).configure {
+        notCompatibleWithConfigurationCache("JavaFX plugin does not support configuration cache")
+    }
 }
