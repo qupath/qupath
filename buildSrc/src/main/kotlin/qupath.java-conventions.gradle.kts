@@ -1,12 +1,12 @@
+/**
+ * Conventions for Java modules.
+ * This includes setting the toolchain JDK, creating sources and javadocs jars, and setting the manifest.
+ */
+
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import org.gradle.accessors.dm.LibrariesForLibs
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
-
-/**
- * Define jar manifests and the toolchain JDK.
- * This separates the JDK used to run Gradle from that used to build QuPath.
- */
 
 plugins {
     `java-library`

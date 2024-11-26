@@ -1,3 +1,7 @@
+/**
+ * Conventions for publishing modules to SciJava Maven.
+ */
+
 plugins {
     java
     `maven-publish`

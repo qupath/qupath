@@ -1,8 +1,8 @@
 plugins {
   id("qupath.extension-conventions")
   id("qupath.publishing-conventions")
+  id("qupath.javafx-conventions")
   `java-library`
-  alias(libs.plugins.javafx)
 }
 
 extra["moduleName"] = "qupath.extension.processing"

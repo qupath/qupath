@@ -1,13 +1,6 @@
 /**
  * Build QuPath application.
  * This involves creating a jpackage task.
- *
- * Important properties:
- *  -Pld-path=true - set LD_LIBRARY_PATH on Linux (for both "run" and distribution tasks).
- *                   This is needed to use QuPath"s own OpenSlide rather than system shared libraries.
- *  -Ppackage="installer" - request jpackage to create an installer rather than an image.
- *                           Other options include "all", "deb", "rpm", "exe", "msi", "pkg" and "dmg"
- *                           although not all are available on all platforms.
  */
 
 import com.github.jk1.license.render.*
@@ -24,8 +17,8 @@ plugins {
     id("qupath.common-conventions")
     id("qupath.djl-conventions")
     id("qupath.jpackage-conventions")
+    id("qupath.javafx-conventions")
     alias(libs.plugins.license.report)
-    alias(libs.plugins.javafx)
 }
 
 
@@ -34,22 +27,6 @@ base {
     archivesName = "qupath-app"
     description = "Main QuPath application."
 }
-
-
-// Required since moving to JavaFX Gradle Plugin v0.1.0
-javafx {
-    version = libs.versions.javafx.get()
-    modules(
-        "javafx.base",
-        "javafx.controls",
-        "javafx.graphics",
-        "javafx.media",
-        "javafx.fxml",
-        "javafx.web",
-        "javafx.swing"
-    )
-}
-
 
 /**
  * Determine which projects to include/exclude as dependencies
@@ -232,26 +209,4 @@ distributions {
             }
         }
     }
-}
-
-
-
-
-/**
- * Export all icons from the icon factory (useful for documentation).
- * This is here (and not in the gui-fx module) because it's needed to load extensions.
- */
-tasks.register<JavaExec>("exportDocs") {
-    description = "Export icons and command descriptions for documentation"
-    group = "QuPath"
-
-    val docsDir = rootProject.layout.buildDirectory.dir("qupath-docs").get().asFile
-
-    doFirst {
-        println("Making docs dir in ${docsDir.absolutePath}")
-        docsDir.mkdirs()
-    }
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass = "qupath.lib.gui.tools.DocGenerator"
-    args = listOf(docsDir.absolutePath, "--all")
 }

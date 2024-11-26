@@ -1,9 +1,8 @@
 plugins {
   id("qupath.common-conventions")
   id("qupath.publishing-conventions")
+  id("qupath.javafx-conventions")
   `java-library`
-
-  alias(libs.plugins.javafx)
 }
 
 extra["moduleName"] = "qupath.gui.fx"
@@ -36,16 +35,4 @@ dependencies {
   implementation(libs.bundles.logviewer)
 
   implementation(libs.javadocviewer)
-}
-
-javafx {
-	version = libs.versions.javafx.get()
-	modules = listOf("javafx.base",
-	           "javafx.controls",
-	           "javafx.graphics",
-	           "javafx.media",
-	           "javafx.fxml",
-	           "javafx.web",
-	           "javafx.swing")
-	configuration = "api"
 }

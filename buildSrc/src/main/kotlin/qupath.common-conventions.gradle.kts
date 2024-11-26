@@ -1,11 +1,15 @@
-import io.github.qupath.gradle.PlatformPlugin
+/**
+ * Conventions common to most (or all) modules.
+ * This includes qupath.java-conventions.
+ */
+
 import org.gradle.accessors.dm.LibrariesForLibs
 import org.gradle.kotlin.dsl.the
 
 plugins {
     id("qupath.java-conventions")
-    jacoco
     id("org.bytedeco.gradle-javacpp-platform")
+    jacoco
 }
 
 // See https://discuss.gradle.org/t/how-to-apply-binary-plugin-from-convention-plugin/48778/2

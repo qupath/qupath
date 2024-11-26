@@ -1,8 +1,8 @@
 plugins {
   // Don't need extension-conventions because we don't require access to the UI
   id("qupath.common-conventions")
+  id("qupath.javafx-conventions")
   `java-library`
-  alias(libs.plugins.javafx)
 }
 
 extra["moduleName"] = "qupath.extension.openslide"

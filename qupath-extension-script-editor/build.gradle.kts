@@ -1,7 +1,7 @@
 plugins {
   id("qupath.extension-conventions")
+  id("qupath.javafx-conventions")
   `java-library`
-  alias(libs.plugins.javafx)
 }
 
 extra["moduleName"] = "qupath.extension.scripteditor"

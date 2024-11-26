@@ -66,8 +66,6 @@ runtime {
 
 
     for (installer in params.installerTypes) {
-        if (installer != null)
-            println("Calling JPackage for \"${installer}\"")
 
         jpackage {
             mainJar = project.tasks.jar.get().archiveFileName.get()

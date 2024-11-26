@@ -58,5 +58,6 @@ dependencies {
 
     implementation("org.beryx:badass-runtime-plugin:1.13.1")
     implementation("gradle.plugin.org.gradle.crypto:checksum:1.4.0")
+    implementation("org.openjfx:javafx-plugin:0.1.0")
 
 }

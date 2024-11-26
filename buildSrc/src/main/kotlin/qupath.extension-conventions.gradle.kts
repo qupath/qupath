@@ -1,5 +1,6 @@
 /**
  * Conventions for QuPath extensions.
+ * This applies qupath.common-conventions and specifies the core dependencies.
  */
 
 plugins {

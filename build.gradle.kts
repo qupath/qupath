@@ -1,7 +1,8 @@
 import io.github.qupath.gradle.PlatformPlugin
 
 plugins {
-    id("qupath.java-conventions")
+    id("qupath.common-conventions")
+    id("qupath.javafx-conventions")
     id("qupath.git-commit-id")
     `version-catalog`
     `maven-publish`
@@ -15,20 +16,6 @@ if (io.github.qupath.gradle.Utils.currentPlatform() == PlatformPlugin.Platform.U
 }
 if ("32" == System.getProperty("sun.arch.data.model")) {
     throw GradleException("Can't build QuPath using a 32-bit JDK - please use a 64-bit JDK instead")
-}
-
-// See https://discuss.gradle.org/t/best-approach-gradle-multi-module-project-generate-just-one-global-javadoc/18657
-tasks.register<Javadoc>("mergedJavadocs") {
-    source = sourceSets.main.get().allJava
-    description = "Generate merged javadocs for all projects"
-    group = "Documentation"
-
-    val dest = layout.buildDirectory.dir("docs-merged/javadoc").get().asFile
-    setDestinationDir(dest)
-    title = "QuPath ${gradle.extra["qupath.app.version"]}"
-
-    // Don't fail on error, because this happened too often due to a javadoc link being temporarily down
-    isFailOnError = false
 }
 
 /*
@@ -67,4 +54,43 @@ publishing {
         }
     }
 
+}
+
+// See https://discuss.gradle.org/t/best-approach-gradle-multi-module-project-generate-just-one-global-javadoc/18657
+tasks.register<Javadoc>("mergedJavadocs") {
+    source = sourceSets.main.get().allJava
+    description = "Generate merged javadocs for all projects"
+    group = "Documentation"
+
+    val dest = layout.buildDirectory.dir("docs-merged/javadoc").get().asFile
+    setDestinationDir(dest)
+    title = "QuPath ${gradle.extra["qupath.app.version"]}"
+
+    // Don't fail on error - this happened too often due to a javadoc link being temporarily down
+    isFailOnError = false
+}
+
+
+/**
+ * Export all icons from the icon factory (useful for documentation).
+ * Note that this requires JavaFX to be available.
+ */
+tasks.register<JavaExec>("exportDocs") {
+    description = "Export icons and command descriptions for documentation"
+    group = "QuPath"
+
+    val docsDir = rootProject.layout.buildDirectory.dir("qupath-docs").get().asFile
+
+    // Note we need all subprojects to ensure icons & commands are also loaded from extensions
+    dependencies {
+        subprojects.forEach(::implementation)
+    }
+
+    doFirst {
+        println("Making docs dir in ${docsDir.absolutePath}")
+        docsDir.mkdirs()
+    }
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass = "qupath.lib.gui.tools.DocGenerator"
+    args = listOf(docsDir.absolutePath, "--all")
 }
