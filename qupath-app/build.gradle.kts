@@ -3,8 +3,6 @@
  * This involves creating a jpackage task.
  */
 
-import com.github.jk1.license.render.*
-
 buildscript {
     repositories {
         maven {
@@ -18,7 +16,7 @@ plugins {
     id("qupath.djl-conventions")
     id("qupath.jpackage-conventions")
     id("qupath.javafx-conventions")
-    alias(libs.plugins.license.report)
+    id("qupath.license-conventions")
 }
 
 
@@ -143,24 +141,6 @@ tasks.distTar {
 }
 tasks.installDist {
     dependsOn("assembleJavadocs")
-}
-
-/**
- * Create license report
- */
-licenseReport {
-    val fileUnknown = rootProject.file("unknown-license-details.txt")
-    renderers = arrayOf<ReportRenderer>(TextReportRenderer("THIRD-PARTY.txt"),
-        InventoryHtmlReportRenderer("index.html", "Third party licenses", fileUnknown))
-
-    outputDir = rootProject.layout.buildDirectory.dir("reports/dependency-license").get().asFile.absolutePath
-
-    // TODO: Try to remove this. It's needed (I think) due to the license plugin not supporting
-    //       Gradle variants, as required by the JavaFX Gradle Plugin v0.1.0. Possibly-relevant links:
-    //       - https://github.com/openjfx/javafx-gradle-plugin#variants
-    //       - https://github.com/jk1/Gradle-License-Report/issues/199
-    //       The JavaFX license is still included in QuPath, but unfortunately not in this report.
-    excludeGroups = arrayOf("org.openjfx")
 }
 tasks.startScripts {
     dependsOn("generateLicenseReport")
