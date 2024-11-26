@@ -1,22 +1,7 @@
-/**
- * Gradle script for building QuPath.
- * <p>
- * To create a complete build including associated license files, try the following:
- * <p>
- *     ./gradlew clean jpackage
- * <p>
- * or on Windows
- * <p>
- *     gradlew.bat clean jpackage
- * <p>
- * Gradle's toolchain options are used to overcome this: if you run gradlew with a different JDK,
- * gradle will use a different JDK for building QuPath itself (downloading it if necessary).
- */
-
 plugins {
     `groovy-gradle-plugin`
-    alias(libs.plugins.javacpp)
     `kotlin-dsl`
+    alias(libs.plugins.javacpp)
 }
 
 repositories {
@@ -48,17 +33,18 @@ gradlePlugin {
 }
 
 dependencies {
-    // Make Gradle plugin available to limit platform jars
-    // Couldn't find a cleaner way to get the version from the catalog
-    implementation("org.bytedeco:gradle-javacpp:${libs.plugins.javacpp.get().version}")
     implementation(kotlin("stdlib-jdk8"))
 
     // See https://github.com/gradle/gradle/issues/15383#issuecomment-779893192 for rationale
     implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))
 
-    implementation("org.beryx:badass-runtime-plugin:1.13.1")
-    implementation("gradle.plugin.org.gradle.crypto:checksum:1.4.0")
-    implementation("org.openjfx:javafx-plugin:0.1.0")
-    implementation("com.github.jk1:gradle-license-report:2.9")
+    // Make Gradle plugin available to limit platform jars
+    // Couldn't find a cleaner way to get the version from the catalog
+    implementation("org.bytedeco:gradle-javacpp:${libs.plugins.javacpp.get().version}")
+    // Other required Gradle plugins
+    implementation("org.beryx:badass-runtime-plugin:${libs.plugins.jpackage.get().version}")
+    implementation("gradle.plugin.org.gradle.crypto:checksum:${libs.plugins.checksum.get().version}")
+    implementation("org.openjfx:javafx-plugin:${libs.plugins.javafx.get().version}")
+    implementation("com.github.jk1:gradle-license-report:${libs.plugins.license.report.get().version}")
 
 }

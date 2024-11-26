@@ -3,14 +3,6 @@
  * This involves creating a jpackage task.
  */
 
-buildscript {
-    repositories {
-        maven {
-            url = uri("https://plugins.gradle.org/m2/")
-        }
-    }
-}
-
 plugins {
     id("qupath.common-conventions")
     id("qupath.djl-conventions")

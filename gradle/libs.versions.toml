@@ -121,7 +121,9 @@ yaml          = ["snakeyaml"]
 javacpp        = { id = "org.bytedeco.gradle-javacpp-platform",     version.ref = "javacpp" }
 # If javafx plugin causes trouble, see https://github.com/openjfx/javafx-gradle-plugin#migrating-from-0014-to-010
 javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.1.0" }
-#javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.0.14" }
+# For jpackage
 jpackage       = { id = "org.beryx.runtime",                        version = "1.13.1" } # Non-modular
-# jpackage       = { id = "org.beryx.jlink",                          version = "2.26.0" } # Modular
+# For license report (including 3rd party licenses)
 license-report = { id = "com.github.jk1.dependency-license-report", version = "2.9" }
+# For checksums when creating builds
+checksum       = { id = "org.gradle.crypto.checksum",               version = "1.4.0" }

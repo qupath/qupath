@@ -1,9 +1,10 @@
+import io.github.qupath.gradle.PlatformPlugin
+import io.github.qupath.gradle.Utils
+
 plugins {
   id("qupath.extension-conventions")
   id("qupath.publishing-conventions")
   id("qupath.javafx-conventions")
-  `java-library`
-
 }
 
 extra["moduleName"] = "qupath.extension.bioformats"
@@ -15,13 +16,18 @@ base {
 var bioformatsVersion = libs.versions.bioformats.get()
 val versionOverride = project.properties["bioformats-version"]
 if (versionOverride is String) {
-	println("Using specified Bio-Formats version ${versionOverride}")
+	println("Using specified Bio-Formats version $versionOverride")
 	bioformatsVersion = versionOverride
 }
 
-val nativesClassifier = properties["platform.classifier"]
-if (nativesClassifier == "darwin-aarch64") {
-	println("WARNING! Bio-Formats does not fully support Apple Silicon (many .czi and some .ndpi images are known to fail)")
+// Warn about Apple Silicon support
+val platform: PlatformPlugin.Platform = Utils.currentPlatform()
+if (platform == PlatformPlugin.Platform.MAC_AARCH64) {
+  tasks.compileJava {
+    doLast {
+      logger.warn("Bio-Formats does not fully support Apple Silicon (many .czi and some .ndpi images are known to fail)")
+    }
+  }
 }
 
 
@@ -49,7 +55,7 @@ dependencies {
   implementation(libs.omeZarrReader) {
       exclude(group="ome", module="formats-api") // Through bioformats_package
   }
-  implementation("io.github.qupath:blosc:${libs.versions.blosc.get()}:${nativesClassifier}")
+  implementation("io.github.qupath:blosc:${libs.versions.blosc.get()}:${platform.classifier}")
 
 //  testImplementation("ome:bioformats_package:${bioformatsVersion}")
   testImplementation("ome:bio-formats_plugins:${bioformatsVersion}")
