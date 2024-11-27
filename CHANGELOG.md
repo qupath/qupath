@@ -101,6 +101,11 @@ They may change or be removed in future versions.
 * `ImageServer.finalize()` is no longer overridden to call `close()` in case the caller forgets
   * `finalize()` is deprecated for removal; any class that relied on this should consider using `Cleaner`
 
+### Build changes
+* Use Kotlin instead of Groovy for QuPath's build scripts (https://github.com/qupath/qupath/pull/1696)
+  * Also refactor and simplify the build scripts
+  * Extension writers can use either Groovy or Kotlin - but may need to make some changes to their build scripts
+
 ### Dependency updates
 * Bio-Formats 8.0.1
 * Commonmark 0.24.0

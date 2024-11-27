@@ -4,8 +4,11 @@ pluginManagement {
     }
 }
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0" // to download if needed
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0" // to download JDK if needed
 }
+
+// Define project name
+rootProject.name = "qupath"
 
 // Define the current QuPath version
 var qupathVersion = "0.6.0-SNAPSHOT"
@@ -29,9 +32,6 @@ gradle.extra["qupath.package.git-commit"] = providers.gradleProperty("git-commit
 
 // Optionally include extra libraries/extensions
 val includeExtras = "true".equals(providers.gradleProperty("include-extras").getOrElse("false"), true)
-
-
-rootProject.name = "qupath"
 
 // Main application
 include("qupath-app")
@@ -76,4 +76,23 @@ dependencyResolutionManagement {
                 bundle("extensions", listOf())
         }
     }
+}
+
+// These lines make it possible to define directories within gradle.properties
+// to include in the build using either includeFlat or includeBuild.
+// This is useful when developing extensions, especially because gradle.properties
+// is not under version control.
+
+// Include flat directories for extensions
+findIncludes("qupath.include.flat").forEach(::includeFlat)
+
+// Include build directories
+findIncludes("qupath.include.build").forEach(::includeBuild)
+
+fun findIncludes(propName: String): List<String> {
+    return providers.gradleProperty(propName)
+        .getOrElse("")
+        .split(",", "\\\n", ";")
+        .map(String::trim)
+        .filter(String::isNotBlank)
 }
