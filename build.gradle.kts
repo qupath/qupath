@@ -135,6 +135,14 @@ dependencies {
     includedProjects.forEach {
         implementation(it)
     }
+
+    with (gradle.extra["qupath.included.dependencies"] as List<*>) {
+        forEach {
+            if (it != null)
+                implementation(it)
+        }
+    }
+
     implementation(libs.picocli)
 
     implementation(extraLibs.bundles.extensions) {
@@ -224,7 +232,6 @@ tasks.installDist {
 tasks.startScripts {
     dependsOn("generateLicenseReport")
 }
-
 
 /**
  * Copy key files into the distribution
