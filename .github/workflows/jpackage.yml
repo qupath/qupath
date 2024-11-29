@@ -4,12 +4,21 @@
  name: Build packages with jpackage
 
  on: 
-  - workflow_dispatch
-  - workflow_call
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The QuPath version that will be built
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: The QuPath version that will be built
+        required: true
+        type: string
 
  jobs:
    build:
-
     strategy:
       fail-fast: false
       matrix:
@@ -27,14 +36,6 @@
 
     - uses: actions/checkout@v4
 
-    - name: Get qupath version from gradle
-      shell: bash
-      run: |
-        # grep reads the version line, sed strips everything before =
-        # GITHUB_ENV means it's stored in ${{env.QUPATH_VERSION}} persistently
-        # not just for the current step...
-        echo "QUPATH_VERSION=$(grep 'qupathVersion = \".*\"' settings.gradle  | sed -e 's/.*= \"\(.*\)\"/\1/')" >> $GITHUB_ENV
-
     - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
@@ -48,30 +49,30 @@
       run: ./gradlew assembleJavadocs
 
     - name: Build with Gradle
-      run: ./gradlew jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums -P toolchain=21
+      run: ./gradlew jpackage -P git-commit=true -P package=installer -P qupathVersion=${{ inputs.version }} mergedJavadoc createChecksums -P toolchain=21
 
     - name: Make Linux tar.xz
       if: matrix.name == 'Linux'
       shell: bash
       run: |
-        tar -c -C build/dist/ QuPath | xz > build/dist/QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}.tar.xz
+        tar -c -C build/dist/ QuPath | xz > build/dist/QuPath-v${{ inputs.version }}-${{ matrix.name }}.tar.xz
         rm -r build/dist/QuPath/
 
     - name: Clean windows artifact
       if: matrix.name == 'Windows'
       shell: bash
       run: |
-        rm -r build/dist/QuPath-${{ env.QUPATH_VERSION }}
+        rm -r build/dist/QuPath-${{ inputs.version }}
 
     - uses: actions/upload-artifact@v4
       with:
-        name: QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}
+        name: QuPath-v${{ inputs.version }}-${{ matrix.name }}
         path: build/dist/QuPath*
         retention-days: 1
 
     - uses: actions/upload-artifact@v4
       if: matrix.name == 'Mac-arm64'
       with:
-        name: javadoc-QuPath-v${{ env.QUPATH_VERSION }}
+        name: javadoc-QuPath-v${{ inputs.version }}
         path: build/docs-merged/javadoc
         retention-days: 7

@@ -1,7 +1,13 @@
 
 name: Draft a GitHub release
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The QuPath version that will be built
+        required: true
+        type: string
 
 concurrency: release-${{ github.ref }}
 permissions:
@@ -11,6 +17,8 @@ jobs:
   jpackage:
     name: Run JPackage
     uses: ./.github/workflows/jpackage.yml
+    with:
+      version: ${{ inputs.version }}
 
   release:
     needs: jpackage
@@ -20,14 +28,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get qupath version from gradle
-        shell: bash
-        run: |
-          # grep reads the version line, sed strips everything before =
-          # GITHUB_ENV means it's stored in env.QUPATH_VERSION persistently
-          # not just for the current step...                
-          echo "QUPATH_VERSION=$(grep 'qupathVersion = \".*\"' settings.gradle  | sed -e 's/.*= "\(.*\)"/\1/')" >> $GITHUB_ENV
-
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
@@ -36,19 +36,19 @@ jobs:
       - name: Wrangle files
         shell: bash
         run: |
-          mv QuPath-${{ env.QUPATH_VERSION }}.msi QuPath-v${{ env.QUPATH_VERSION }}-Windows.msi
-          mv QuPath-${{ env.QUPATH_VERSION }}.zip QuPath-v${{ env.QUPATH_VERSION }}-Windows.zip
-          mv QuPath-${{ env.QUPATH_VERSION }}-x64.pkg QuPath-v${{ env.QUPATH_VERSION }}-Mac-x64.pkg
-          mv QuPath-${{ env.QUPATH_VERSION }}-arm64.pkg QuPath-v${{ env.QUPATH_VERSION }}-Mac-arm64.pkg
+          mv QuPath-${{ inputs.version }}.msi QuPath-v${{ inputs.version }}-Windows.msi
+          mv QuPath-${{ inputs.version }}.zip QuPath-v${{ inputs.version }}-Windows.zip
+          mv QuPath-${{ inputs.version }}-x64.pkg QuPath-v${{ inputs.version }}-Mac-x64.pkg
+          mv QuPath-${{ inputs.version }}-arm64.pkg QuPath-v${{ inputs.version }}-Mac-arm64.pkg
 
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create --draft v${{ env.QUPATH_VERSION }} -t ${{ github.sha }} --title v${{ env.QUPATH_VERSION }} \
-              QuPath-v${{ env.QUPATH_VERSION }}-Windows.msi \
-              QuPath-v${{ env.QUPATH_VERSION }}-Windows.zip \
-              QuPath-v${{ env.QUPATH_VERSION }}-Mac-x64.pkg \
-              QuPath-v${{ env.QUPATH_VERSION }}-Mac-arm64.pkg \
-              QuPath-v${{ env.QUPATH_VERSION }}-Linux.tar.xz
+          gh release create --draft v${{ inputs.version }} -t ${{ github.sha }} --title v${{ inputs.version }} \
+              QuPath-v${{ inputs.version }}-Windows.msi \
+              QuPath-v${{ inputs.version }}-Windows.zip \
+              QuPath-v${{ inputs.version }}-Mac-x64.pkg \
+              QuPath-v${{ inputs.version }}-Mac-arm64.pkg \
+              QuPath-v${{ inputs.version }}-Linux.tar.xz
 
