@@ -11,7 +11,10 @@ plugins {
 rootProject.name = "qupath"
 
 // Define the current QuPath version
-var qupathVersion = "0.6.0-SNAPSHOT"
+val qupathVersion = "0.6.0-SNAPSHOT"
+
+// Define the group to use for artifacts
+val qupathGroup = "io.github.qupath"
 
 // Store version & derived app name in extra properties for build scripts to use
 gradle.extra["qupath.app.version"] = qupathVersion
@@ -60,15 +63,25 @@ dependencyResolutionManagement {
                 println("Overriding JavaFX version to request $javafxOverride")
                 version("javafx", javafxOverride)
             }
+
+            // Add QuPath jars to the version catalog
+            // This is important when developing extensions & using includeFlat, because then the catalog is used
+            // directly, rather than accessed from Maven.
+            version("qupath", qupathVersion)
+            library("qupath.gui.fx", qupathGroup, project(":qupath-gui-fx").name).versionRef("qupath")
+            library("qupath.core", qupathGroup, project(":qupath-core").name).versionRef("qupath")
+            library("qupath.core.processing", qupathGroup, project(":qupath-core-processing").name).versionRef("qupath")
+            bundle("qupath", listOf("qupath.gui.fx", "qupath.core", "qupath.core.processing"))
+
         }
 
         // Extra version catalog for bundled extensions
         // This can be useful to make custom QuPath builds with specific versions of extensions
         create("extraLibs") {
-            library("djl", "io.github.qupath", "qupath-extension-djl").version("0.4.0-20240911.172830-2")
-            library("instanseg", "io.github.qupath", "qupath-extension-instanseg").version("0.0.1-20241020.174720-4")
-            library("training", "io.github.qupath", "qupath-extension-training").version("0.0.1-20241022.065038-2")
-            library("py4j", "io.github.qupath", "qupath-extension-py4j").version("0.1.0-20241021.201937-1")
+            library("djl", qupathGroup, "qupath-extension-djl").version("0.4.0-20240911.172830-2")
+            library("instanseg", qupathGroup, "qupath-extension-instanseg").version("0.0.1-20241020.174720-4")
+            library("training", qupathGroup, "qupath-extension-training").version("0.0.1-20241022.065038-2")
+            library("py4j", qupathGroup, "qupath-extension-py4j").version("0.1.0-20241021.201937-1")
             // Include or exclude bundled extensions
             if (includeExtras)
                 bundle("extensions", listOf("djl", "instanseg", "training", "py4j"))
@@ -88,6 +101,10 @@ findIncludes("qupath.include.flat").forEach(::includeFlat)
 
 // Include build directories
 findIncludes("qupath.include.build").forEach(::includeBuild)
+
+// Find projects that should be included - these may be added as dependencies through build.gradle.kts
+gradle.extra["qupath.included.dependencies"] = findIncludes("qupath.include.dependencies")
+
 
 fun findIncludes(propName: String): List<String> {
     return providers.gradleProperty(propName)

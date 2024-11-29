@@ -40,3 +40,4 @@ hs_err*.log
 *~.nib
 *thumbs.db
 bin/
+.kotlin
