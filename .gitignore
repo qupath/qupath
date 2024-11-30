@@ -6,6 +6,9 @@ deploy/
 target/
 log/
 
+# Config
+include-extra.txt
+
 # IntelliJ
 .idea/
 *.iml
