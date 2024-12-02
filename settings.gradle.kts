@@ -11,14 +11,13 @@ plugins {
 rootProject.name = "qupath"
 
 // Define the current QuPath version
-val qupathVersion = "0.6.0-SNAPSHOT"
+val qupathVersion = file("./VERSION").readText().trim()
 
 // Define the group to use for artifacts
 val qupathGroup = "io.github.qupath"
 
 // Store version & derived app name in extra properties for build scripts to use
 gradle.extra["qupath.app.version"] = qupathVersion
-gradle.extra["qupathVersion"] = qupathVersion // TODO: Remove later; included now for compatibility with some extensions in development
 gradle.extra["qupath.app.name"] = "QuPath-$qupathVersion"
 
 // Default is to use 50% of available RAM
@@ -102,14 +101,69 @@ findIncludes("qupath.include.flat").forEach(::includeFlat)
 // Include build directories
 findIncludes("qupath.include.build").forEach(::includeBuild)
 
-// Find projects that should be included - these may be added as dependencies through build.gradle.kts
-gradle.extra["qupath.included.dependencies"] = findIncludes("qupath.include.dependencies")
+// Check for extensions.txt
+gradle.extra["qupath.included.dependencies"] = emptyList<String>()
+with (file("include-extra.txt")) {
+    if (exists())
+        handleExtensionConfig(this)
+}
 
-
+/**
+ * Parse a delimited property string for a list of directories or projects.
+ */
 fun findIncludes(propName: String): List<String> {
     return providers.gradleProperty(propName)
         .getOrElse("")
         .split(",", "\\\n", ";")
         .map(String::trim)
         .filter(String::isNotBlank)
+}
+
+/**
+ * Support for specifying additional builds and dependencies to include in a text file.
+ *
+ * This is useful when developing extensions.
+ * The file should be named 'include-extra.txt' and have the format
+ *
+ * [includeBuild]
+ * /path/to/build
+ *
+ * [dependencies]
+ * # Optional comments
+ * group:name:version
+ * group2:name2:version2
+ *
+ * where version can be omitted if the project is part of an included build.
+ */
+fun handleExtensionConfig(file: File) {
+    if (!file.isFile)
+        return
+    val lines = file.readLines()
+        .map { it.substringBefore("#") }
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .toList()
+
+    val searchNothing = 0
+    val searchIncludeBuild = 1
+    val searchIncludeFlat = 2
+    val searchDependencies = 3
+    var search = searchNothing
+    val dependenciesToAdd = ArrayList<String>()
+    for (line in lines) {
+        when (line) {
+            "[includeBuild]" -> search = searchIncludeBuild
+            "[includeFlat]" -> search = searchIncludeFlat
+            "[dependencies]" -> search = searchDependencies
+            else -> {
+                when (search) {
+                    searchIncludeBuild -> includeBuild(line)
+                    searchIncludeFlat -> includeFlat(line)
+                    searchDependencies -> dependenciesToAdd.add(line)
+                }
+            }
+        }
+    }
+    // Store for use in the build script
+    gradle.extra["qupath.included.dependencies"] = dependenciesToAdd
 }
