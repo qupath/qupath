@@ -1171,7 +1171,7 @@ public class QP {
 	 * @see #getCurrentHierarchy
 	 * @deprecated For naming consistency; use #removeAllObjects instead.
 	 */
-	@Deprecated(since="0.6.0", forRemoval=true)
+	@Deprecated(since="0.6.0")
 	public static void clearAllObjects() {
 		removeAllObjects();
 	}
@@ -1199,7 +1199,7 @@ public class QP {
 	 * @see qupath.lib.objects.hierarchy.PathObjectHierarchy#getObjects
 	 * @deprecated For naming consistency; use #removeAllObjects instead.
 	 */
-	@Deprecated(since="0.6.0", forRemoval=true)
+	@Deprecated(since="0.6.0")
 	public static void clearAllObjects(final Class<? extends PathObject> cls) {
 		removeAllObjects(cls);
 	}
@@ -1236,7 +1236,7 @@ public class QP {
 	 * @see #clearAllObjects
 	 * @deprecated For naming consistency; use #removeAnnotations instead.
 	 */
-	@Deprecated(since="0.6.0", forRemoval = true)
+	@Deprecated(since="0.6.0")
 	public static void clearAnnotations() {
 		removeAnnotations();
 	}
@@ -1258,7 +1258,7 @@ public class QP {
 	 * @see #clearAllObjects
 	 * @deprecated For naming consistency; use #removeDetections instead.
 	 */
-	@Deprecated(since="0.6.0", forRemoval = true)
+	@Deprecated(since="0.6.0")
 	public static void clearDetections() {
 		removeDetections();
 	}
@@ -1279,7 +1279,7 @@ public class QP {
 	 * @see #getCurrentHierarchy
 	 * @deprecated For naming consistency; use #removeTMAGrid instead.
 	 */
-	@Deprecated(since="0.6.0", forRemoval = true)
+	@Deprecated(since="0.6.0")
 	public static void clearTMAGrid() {
 		removeTMAGrid();
 	}
@@ -2364,7 +2364,7 @@ public class QP {
 	 * Clear selected objects, but keep child (descendant) objects.
 	 * @deprecated For consistency in naming; use #removeSelectedObjects instead.
 	 */
-	@Deprecated(since="0.6.0", forRemoval = true)
+	@Deprecated(since="0.6.0")
 	public static void clearSelectedObjects() {
 		removeSelectedObjects();
 	}
@@ -2382,7 +2382,7 @@ public class QP {
 	 * @param keepChildren Whether to retain or remove child objects in the hierarchy.
 	 * @deprecated For consistency in naming; use #removeSelectedObjects instead.
 	 */
-	@Deprecated(since="0.6.0", forRemoval = true)
+	@Deprecated(since="0.6.0")
 	public static void clearSelectedObjects(boolean keepChildren) {
 		removeSelectedObjects(keepChildren);
 	}
