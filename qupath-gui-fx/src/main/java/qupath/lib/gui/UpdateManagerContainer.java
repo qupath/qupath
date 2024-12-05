@@ -4,7 +4,6 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
@@ -17,9 +16,9 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 /**
- * A window displaying a list of available updates.
+ * A container displaying a list of available updates.
  */
-class UpdateManagerWindow extends VBox {
+class UpdateManagerContainer extends VBox {
 
     @FXML
     private TableView<UpdateEntry> updateEntries;
@@ -29,8 +28,6 @@ class UpdateManagerWindow extends VBox {
     private TableColumn<UpdateEntry, String> currentVersionColumn;
     @FXML
     private TableColumn<UpdateEntry, String> newVersionColumn;
-    @FXML
-    private Label updateTypeLabel;
     @FXML
     private ComboBox<PathPrefs.AutoUpdateType> updateType;
 
@@ -47,14 +44,14 @@ class UpdateManagerWindow extends VBox {
     public record UpdateEntry(String name, String currentVersion, String newVersion, Runnable onClick, String onClickDescription) {}
 
     /**
-     * Create the window.
+     * Create the container.
      *
      * @param updateEntries the update entries to display
      * @throws IOException if an error occurs while loading the FXML file describing this window
      */
-    public UpdateManagerWindow(List<UpdateEntry> updateEntries) throws IOException {
+    public UpdateManagerContainer(List<UpdateEntry> updateEntries) throws IOException {
         FXMLLoader loader = new FXMLLoader(
-                UpdateManagerWindow.class.getResource("update-manager-window.fxml"),
+                UpdateManagerContainer.class.getResource("update-manager-container.fxml"),
                 ResourceBundle.getBundle("qupath/lib/gui/localization/qupath-gui-strings")
         );
         loader.setRoot(this);
@@ -111,6 +108,5 @@ class UpdateManagerWindow extends VBox {
     private void setUpdateType() {
         updateType.getItems().setAll(PathPrefs.AutoUpdateType.values());
         updateType.getSelectionModel().select(PathPrefs.autoUpdateCheckProperty().get());
-        updateTypeLabel.setLabelFor(updateType); // TODO: put in FXML
     }
 }

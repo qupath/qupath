@@ -123,7 +123,7 @@ class UpdateManager {
 	private synchronized void doUpdateCheck(AutoUpdateType updateCheckType, boolean avoidPrompting) {
 		lastUpdateCheck.set(System.currentTimeMillis());
 
-		List<UpdateManagerWindow.UpdateEntry> updateEntries = Stream.concat(
+		List<UpdateManagerContainer.UpdateEntry> updateEntries = Stream.concat(
                 getQuPathUpdate(updateCheckType).stream(),
 				getExtensionUpdates(updateCheckType).stream()
 		).toList();
@@ -137,9 +137,9 @@ class UpdateManager {
 			return;
 		}
 
-		UpdateManagerWindow updateManagerWindow;
+		UpdateManagerContainer updateManagerContainer;
         try {
-			updateManagerWindow = new UpdateManagerWindow(updateEntries);
+			updateManagerContainer = new UpdateManagerContainer(updateEntries);
         } catch (IOException e) {
 			logger.error("Cannot create update manager window", e);
 			if (!avoidPrompting) {
@@ -155,17 +155,17 @@ class UpdateManager {
 				.buttons(ButtonType.OK)
 				.title("Update check")
 				.headerText("Updates are available!\nDouble-click an entry to open the update, if available.")
-				.content(updateManagerWindow)
+				.content(updateManagerContainer)
 				.resizable()
 				.showAndWait()
 				.orElse(ButtonType.CANCEL) == ButtonType.OK;
 
-		if (result && updateManagerWindow.getSelectedUpdateType() != null) {
-			PathPrefs.autoUpdateCheckProperty().set(updateManagerWindow.getSelectedUpdateType());
+		if (result && updateManagerContainer.getSelectedUpdateType() != null) {
+			PathPrefs.autoUpdateCheckProperty().set(updateManagerContainer.getSelectedUpdateType());
 		}
 	}
 
-	private Optional<UpdateManagerWindow.UpdateEntry> getQuPathUpdate(AutoUpdateType updateCheckType) {
+	private Optional<UpdateManagerContainer.UpdateEntry> getQuPathUpdate(AutoUpdateType updateCheckType) {
 		Version qupathVersion = QuPathGUI.getVersion();
 		if (qupathVersion != null && qupathVersion != Version.UNKNOWN &&
 				List.of(AutoUpdateType.QUPATH_ONLY, AutoUpdateType.QUPATH_AND_EXTENSIONS).contains(updateCheckType)
@@ -179,7 +179,7 @@ class UpdateManager {
 				if (latestRelease != null && latestRelease.getVersion() != Version.UNKNOWN && qupathVersion.compareTo(latestRelease.getVersion()) < 0) {
 					logger.info("Found newer release for {} ({} -> {})", gitHubProject.getName(), qupathVersion, latestRelease.getVersion());
 
-					return Optional.of(new UpdateManagerWindow.UpdateEntry(
+					return Optional.of(new UpdateManagerContainer.UpdateEntry(
                             gitHubProject.getName(),
                             qupathVersion.toString(),
                             latestRelease.getVersion().toString(),
@@ -201,11 +201,11 @@ class UpdateManager {
 		return Optional.empty();
 	}
 
-	private List<UpdateManagerWindow.UpdateEntry> getExtensionUpdates(AutoUpdateType updateCheckType) {
+	private List<UpdateManagerContainer.UpdateEntry> getExtensionUpdates(AutoUpdateType updateCheckType) {
 		if (List.of(AutoUpdateType.QUPATH_AND_EXTENSIONS, AutoUpdateType.EXTENSIONS_ONLY).contains(updateCheckType)) {
 			try {
 				return qupath.getExtensionIndexManager().getAvailableUpdates().get().stream()
-						.map(extensionUpdate -> new UpdateManagerWindow.UpdateEntry(
+						.map(extensionUpdate -> new UpdateManagerContainer.UpdateEntry(
 								extensionUpdate.extensionName(),
 								extensionUpdate.currentVersion(),
 								extensionUpdate.newVersion(),
