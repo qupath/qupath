@@ -1033,7 +1033,7 @@ public class QP {
 	}
 	
 	/**
-	 * Clear the selected objects for the current {@code PathObjectHierarchy}.
+	 * Unselect the selected objects for the current {@code PathObjectHierarchy}.
 	 */
 	public static void resetSelection() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
@@ -1177,7 +1177,7 @@ public class QP {
 	}
 
 	/**
-	 * Remove all the objects in the current {@code PathObjectHierarchy}, and clear the selection.
+	 * Remove all the objects in the current {@code PathObjectHierarchy}, and reset the selection.
 	 *
 	 * @see #getCurrentHierarchy
 	 */
@@ -1245,10 +1245,10 @@ public class QP {
 	 * Remove all the annotation objects from the current {@code PathObjectHierarchy}.
 	 *
 	 * @see #getCurrentHierarchy
-	 * @see #clearAllObjects
+	 * @see #removeAllObjects
 	 */
 	public static void removeAnnotations() {
-		clearAllObjects(PathAnnotationObject.class);
+		removeAllObjects(PathAnnotationObject.class);
 	}
 	
 	/**
@@ -1267,10 +1267,10 @@ public class QP {
 	 * Remove all the detection objects from the current {@code PathObjectHierarchy}.
 	 *
 	 * @see #getCurrentHierarchy
-	 * @see #clearAllObjects
+	 * @see #removeAllObjects
 	 */
 	public static void removeDetections() {
-		clearAllObjects(PathDetectionObject.class);
+		removeAllObjects(PathDetectionObject.class);
 	 }
 
 	/**
@@ -2369,6 +2369,9 @@ public class QP {
 		removeSelectedObjects();
 	}
 
+	/**
+	 * Remove selected objects, but keep child (descendant) objects.
+	 */
 	public static void removeSelectedObjects() {
 		removeSelectedObjects(true);
 	}
@@ -2944,7 +2947,7 @@ public class QP {
 	}
 	
 	/**
-	 * Clear the selection for the current hierarchy, so that no objects of any kind are selected.
+	 * Reset the selection for the current hierarchy, so that no objects of any kind are selected.
 	 * 
 	 */
 	public static void deselectAll() {
@@ -2954,7 +2957,7 @@ public class QP {
 	}
 	
 	/**
-	 * Clear the selection, so that no objects of any kind are selected.
+	 * Reset the selection, so that no objects of any kind are selected.
 	 * 
 	 * @param hierarchy
 	 */
@@ -3028,7 +3031,7 @@ public class QP {
 	/**
 	 * Remove measurements from objects of a specific class for the current image data.
 	 * @param cls The type of object.
-	 * @param measurementNames The measurement names to clear.
+	 * @param measurementNames The measurement names to remove.
 	 */
 	public static void removeMeasurements(final Class<? extends PathObject> cls, final String... measurementNames) {
 		removeMeasurements(getCurrentHierarchy(), cls, measurementNames);
@@ -3038,7 +3041,7 @@ public class QP {
 	 * Remove measurements from objects of a specific class for the specified hierarchy.
 	 * @param hierarchy The relevant hierarchy.
 	 * @param cls The type of object.
-	 * @param measurementNames The measurement names to clear.
+	 * @param measurementNames The measurement names to remove.
 	 */
 	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls, final String... measurementNames) {
 		if (hierarchy == null)
@@ -3072,7 +3075,7 @@ public class QP {
 	/**
 	 * Remove the measurements from specified objects within a hierarchy.
 	 * @param hierarchy used to fire a hierarchy update, if specified (may be null if no update should be fired)
-	 * @param pathObjects collection of objects that should have their measurement lists cleared
+	 * @param pathObjects collection of objects that should have their measurements removed.
 	 */
 	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final PathObject... pathObjects) {
 		removeMeasurements(hierarchy, Arrays.asList(pathObjects));
@@ -3092,7 +3095,7 @@ public class QP {
 	/**
 	 * Remove the measurements from specified objects within a hierarchy.
 	 * @param hierarchy used to fire a hierarchy update, if specified (can be null if no update should be fired)
-	 * @param pathObjects collection of objects that should have their measurement lists cleared
+	 * @param pathObjects collection of objects that should have their measurements removed.
 	 */
 	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final Collection<PathObject> pathObjects) {
 		for (PathObject pathObject : pathObjects) {
