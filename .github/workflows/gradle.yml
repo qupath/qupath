@@ -1,13 +1,16 @@
 # This workflow will build a Java project with Gradle
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-gradle
 
- name: Java CI with Gradle
+name: Java CI with Gradle
 
- on: [pull_request]
-
- jobs:
-   build:
-
+on:
+  push:
+    branches:
+      - main     
+  pull_request:
+  
+jobs:
+  build:
     strategy:
       matrix:
         platform: [ubuntu-latest, macos-latest, windows-latest]
