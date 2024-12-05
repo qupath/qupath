@@ -31,7 +31,7 @@ val qupathVersion = rootProject.version.toString()
 /**
  * Set the group
  */
-base {
+allprojects {
     group = "io.github.qupath"
 }
 
