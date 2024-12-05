@@ -264,23 +264,23 @@ class MeasurementManager {
 		String script;
 		var hierarchy = imageData.getHierarchy();
 		if (cls == PathAnnotationObject.class) {
-			script = "clearAnnotationMeasurements()";
-			QP.clearAnnotationMeasurements(hierarchy);
+			script = "removeAnnotationMeasurements()";
+			QP.removeAnnotationMeasurements(hierarchy);
 		} else if (cls == PathCellObject.class) {
-			script = "clearCellMeasurements()";
-			QP.clearCellMeasurements(hierarchy);
+			script = "removeCellMeasurements()";
+			QP.removeCellMeasurements(hierarchy);
 		} else if (cls == PathTileObject.class) {
-			script = "clearTileMeasurements()";
-			QP.clearTileMeasurements(hierarchy);
+			script = "removeTileMeasurements()";
+			QP.removeTileMeasurements(hierarchy);
 		} else if (cls == PathRootObject.class) {
-			script = "clearRootMeasurements()";
-			QP.clearRootMeasurements(hierarchy);
+			script = "removeRootMeasurements()";
+			QP.removeRootMeasurements(hierarchy);
 		} else if (cls == TMACoreObject.class) {
-			script = "clearTMACoreMeasurements()";
-			QP.clearTMACoreMeasurements(hierarchy);
+			script = "removeTMACoreMeasurements()";
+			QP.removeTMACoreMeasurements(hierarchy);
 		} else {
-			script = "clearMeasurements(" + cls.getName() + ")";
-			QP.clearMeasurements(hierarchy, cls);
+			script = "removeMeasurements(" + cls.getName() + ")";
+			QP.removeMeasurements(hierarchy, cls);
 		}
 	
 		// Keep for scripting

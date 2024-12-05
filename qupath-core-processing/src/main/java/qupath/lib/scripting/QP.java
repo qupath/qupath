@@ -1167,10 +1167,21 @@ public class QP {
 	
 	/**
 	 * Remove all the objects in the current {@code PathObjectHierarchy}, and clear the selection.
-	 * 
+	 *
+	 * @see #getCurrentHierarchy
+	 * @deprecated For naming consistency; use #removeAllObjects instead.
+	 */
+	@Deprecated(since="0.6.0", forRemoval=true)
+	public static void clearAllObjects() {
+		removeAllObjects();
+	}
+
+	/**
+	 * Remove all the objects in the current {@code PathObjectHierarchy}, and clear the selection.
+	 *
 	 * @see #getCurrentHierarchy
 	 */
-	public static void clearAllObjects() {
+	public static void removeAllObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
@@ -1183,11 +1194,26 @@ public class QP {
 	 * 
 	 * @param cls the class, e.g. {@code PathAnnotationObject.class}, {@code PathDetectionObject.class}, or
 	 * 			  {@code null} if all objects should be removed.
-	 * 
+	 *
+	 * @see #getCurrentHierarchy
+	 * @see qupath.lib.objects.hierarchy.PathObjectHierarchy#getObjects
+	 * @deprecated For naming consistency; use #removeAllObjects instead.
+	 */
+	@Deprecated(since="0.6.0", forRemoval=true)
+	public static void clearAllObjects(final Class<? extends PathObject> cls) {
+		removeAllObjects(cls);
+	}
+
+	/**
+	 * Remove all the objects of a specified Java class.
+	 *
+	 * @param cls the class, e.g. {@code PathAnnotationObject.class}, {@code PathDetectionObject.class}, or
+	 * 			  {@code null} if all objects should be removed.
+	 *
 	 * @see #getCurrentHierarchy
 	 * @see qupath.lib.objects.hierarchy.PathObjectHierarchy#getObjects
 	 */
-	public static void clearAllObjects(final Class<? extends PathObject> cls) {
+	public static void removeAllObjects(final Class<? extends PathObject> cls) {
 		if (cls == null) {
 			clearAllObjects();
 			return;
@@ -1208,8 +1234,20 @@ public class QP {
 	 * 
 	 * @see #getCurrentHierarchy
 	 * @see #clearAllObjects
+	 * @deprecated For naming consistency; use #removeAnnotations instead.
 	 */
+	@Deprecated(since="0.6.0", forRemoval = true)
 	public static void clearAnnotations() {
+		removeAnnotations();
+	}
+
+	/**
+	 * Remove all the annotation objects from the current {@code PathObjectHierarchy}.
+	 *
+	 * @see #getCurrentHierarchy
+	 * @see #clearAllObjects
+	 */
+	public static void removeAnnotations() {
 		clearAllObjects(PathAnnotationObject.class);
 	}
 	
@@ -1218,17 +1256,40 @@ public class QP {
 	 * 
 	 * @see #getCurrentHierarchy
 	 * @see #clearAllObjects
+	 * @deprecated For naming consistency; use #removeDetections instead.
 	 */
+	@Deprecated(since="0.6.0", forRemoval = true)
 	public static void clearDetections() {
-		clearAllObjects(PathDetectionObject.class);
+		removeDetections();
 	}
-	
+
+	/**
+	 * Remove all the detection objects from the current {@code PathObjectHierarchy}.
+	 *
+	 * @see #getCurrentHierarchy
+	 * @see #clearAllObjects
+	 */
+	public static void removeDetections() {
+		clearAllObjects(PathDetectionObject.class);
+	 }
+
 	/**
 	 * Remove the TMA grid from the current {@code PathObjectHierarchy}.
 	 * 
 	 * @see #getCurrentHierarchy
+	 * @deprecated For naming consistency; use #removeTMAGrid instead.
 	 */
+	@Deprecated(since="0.6.0", forRemoval = true)
 	public static void clearTMAGrid() {
+		removeTMAGrid();
+	}
+
+	/**
+	 * Remove the TMA grid from the current {@code PathObjectHierarchy}.
+	 *
+	 * @see #getCurrentHierarchy
+	 */
+	public static void removeTMAGrid() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
@@ -2301,18 +2362,34 @@ public class QP {
 	
 	/**
 	 * Clear selected objects, but keep child (descendant) objects.
+	 * @deprecated For consistency in naming; use #removeSelectedObjects instead.
 	 */
+	@Deprecated(since="0.6.0", forRemoval = true)
 	public static void clearSelectedObjects() {
-		clearSelectedObjects(true);
+		removeSelectedObjects();
 	}
-	
-	
+
+	public static void removeSelectedObjects() {
+		removeSelectedObjects(true);
+	}
+
 	/**
 	 * Delete the selected objects from the current hierarchy, optionally keeping their child (descendant) objects.
 	 * 
-	 * @param keepChildren
+	 * @param keepChildren Whether to retain or remove child objects in the hierarchy.
+	 * @deprecated For consistency in naming; use #removeSelectedObjects instead.
 	 */
+	@Deprecated(since="0.6.0", forRemoval = true)
 	public static void clearSelectedObjects(boolean keepChildren) {
+		removeSelectedObjects(keepChildren);
+	}
+
+	/**
+	 * Delete the selected objects from the current hierarchy, optionally keeping their child (descendant) objects.
+	 *
+	 * @param keepChildren Whether to retain or remove child objects in the hierarchy.
+	 */
+	public static void removeSelectedObjects(boolean keepChildren) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
@@ -2937,7 +3014,7 @@ public class QP {
 	 * Note that only one instance of any PathClass can exist at any time, therefore any existing 
 	 * PathClass with the same description will always be returned instead of creating a new one.
 	 * In this case, the color attribute of the existing PathClass will not be changed.
-	 * Therefore the color only has an effect when a new PathClass is created.
+	 * Therefore, the color only has an effect when a new PathClass is created.
 	 * 
 	 * @param baseClass
 	 * @param name
@@ -2950,8 +3027,8 @@ public class QP {
 
 	/**
 	 * Remove measurements from objects of a specific class for the current image data.
-	 * @param cls
-	 * @param measurementNames
+	 * @param cls The type of object.
+	 * @param measurementNames The measurement names to clear.
 	 */
 	public static void removeMeasurements(final Class<? extends PathObject> cls, final String... measurementNames) {
 		removeMeasurements(getCurrentHierarchy(), cls, measurementNames);
@@ -2959,9 +3036,9 @@ public class QP {
 
 	/**
 	 * Remove measurements from objects of a specific class for the specified hierarchy.
-	 * @param hierarchy
-	 * @param cls
-	 * @param measurementNames
+	 * @param hierarchy The relevant hierarchy.
+	 * @param cls The type of object.
+	 * @param measurementNames The measurement names to clear.
 	 */
 	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls, final String... measurementNames) {
 		if (hierarchy == null)
@@ -2985,17 +3062,39 @@ public class QP {
 	 * Clear the measurement lists for specified objects within a hierarchy.
 	 * @param hierarchy used to fire a hierarchy update, if specified (may be null if no update should be fired)
 	 * @param pathObjects collection of objects that should have their measurement lists cleared
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearMeasurements(final PathObjectHierarchy hierarchy, final PathObject... pathObjects) {
-		clearMeasurements(hierarchy, Arrays.asList(pathObjects));
+		removeMeasurements(hierarchy, pathObjects);
+	}
+
+	/**
+	 * Remove the measurements from specified objects within a hierarchy.
+	 * @param hierarchy used to fire a hierarchy update, if specified (may be null if no update should be fired)
+	 * @param pathObjects collection of objects that should have their measurement lists cleared
+	 */
+	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final PathObject... pathObjects) {
+		removeMeasurements(hierarchy, Arrays.asList(pathObjects));
 	}
 	
 	/**
 	 * Clear the measurement lists for specified objects within a hierarchy.
 	 * @param hierarchy used to fire a hierarchy update, if specified (may be null if no update should be fired)
 	 * @param pathObjects collection of objects that should have their measurement lists cleared
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearMeasurements(final PathObjectHierarchy hierarchy, final Collection<PathObject> pathObjects) {
+		removeMeasurements(hierarchy, pathObjects);
+	}
+
+	/**
+	 * Remove the measurements from specified objects within a hierarchy.
+	 * @param hierarchy used to fire a hierarchy update, if specified (can be null if no update should be fired)
+	 * @param pathObjects collection of objects that should have their measurement lists cleared
+	 */
+	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final Collection<PathObject> pathObjects) {
 		for (PathObject pathObject : pathObjects) {
 			// Remove all measurements
 			pathObject.getMeasurementList().clear();
@@ -3004,141 +3103,286 @@ public class QP {
 		if (hierarchy != null)
 			hierarchy.fireObjectMeasurementsChangedEvent(null, pathObjects);
 	}
-	
+
+
 	/**
 	 * Clear the measurement lists for all annotations in a hierarchy.
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearAnnotationMeasurements(PathObjectHierarchy hierarchy) {
 		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getAnnotationObjects());
+			removeMeasurements(hierarchy, hierarchy.getAnnotationObjects());
+	}
+
+	/**
+	 * Remove the measurements from all annotations in a hierarchy.
+	 * @param hierarchy The relevant hierarchy.
+	 */
+	public static void removeAnnotationMeasurements(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			removeMeasurements(hierarchy, hierarchy.getAnnotationObjects());
 	}
 	
 	/**
 	 * Clear the measurement lists for all annotations in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeAnnotationMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearAnnotationMeasurements() {
-		clearAnnotationMeasurements(getCurrentHierarchy());
+		removeAnnotationMeasurements();
+	}
+
+	/**
+	 * Remove the measurements from all annotations in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeAnnotationMeasurements instead.
+	 */
+	public static void removeAnnotationMeasurements() {
+		removeAnnotationMeasurements(getCurrentHierarchy());
 	}
 	
 	/**
 	 * Clear the measurement lists for all detections in a hierarchy (including sub-classes of detections).
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
+	 * @deprecated For consistency in naming; use #removeDetectionMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearDetectionMeasurements(PathObjectHierarchy hierarchy) {
+		removeDetectionMeasurements(hierarchy);
+	}
+
+	/**
+	 * Remove the measurements from all detections in a hierarchy (including sub-classes of detections).
+	 * @param hierarchy The relevant hierarchy.
+	 */
+	public static void removeDetectionMeasurements(PathObjectHierarchy hierarchy) {
 		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getDetectionObjects());
+			removeMeasurements(hierarchy, hierarchy.getDetectionObjects());
 	}
 	
 	/**
 	 * Clear the measurement lists for all detections in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeDetectionMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearDetectionMeasurements() {
-		clearDetectionMeasurements(getCurrentHierarchy());
+		removeDetectionMeasurements();
+	}
+
+	/**
+	 * Remove the measurements from all detections in the current hierarchy.
+	 */
+	public static void removeDetectionMeasurements() {
+		removeDetectionMeasurements(getCurrentHierarchy());
 	}
 	
 	/**
 	 * Clear the measurement lists for all TMA core objects in a hierarchy.
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
+	 * @deprecated For consistency in naming; use #removeTMACoreMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearTMACoreMeasurements(PathObjectHierarchy hierarchy) {
+		removeTMACoreMeasurements(hierarchy);
+	}
+
+	/**
+	 * Remove the measurements from all TMA core objects in a hierarchy.
+	 * @param hierarchy The relevant hierarchy.
+	 */
+	public static void removeTMACoreMeasurements(PathObjectHierarchy hierarchy) {
 		if (hierarchy != null)
-			clearMeasurements(hierarchy, TMACoreObject.class);
+			removeMeasurements(hierarchy, TMACoreObject.class);
 	}
 	
 	/**
 	 * Clear the measurement lists for all TMA core objects in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeTMACoreMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearTMACoreMeasurements() {
-		clearTMACoreMeasurements(getCurrentHierarchy());
+		removeTMACoreMeasurements();
+	}
+
+	/**
+	 * Remove the measurements from all TMA core objects in the current hierarchy.
+	 */
+	public static void removeTMACoreMeasurements() {
+		removeTMACoreMeasurements(getCurrentHierarchy());
 	}
 	
 	/**
 	 * Clear the measurement lists for objects of a specific class in a hierarchy (subclasses are not included!).
-	 * @param hierarchy
-	 * @param cls 
+	 * @param hierarchy The relevant hierarchy.
+	 * @param cls The type of object.
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearMeasurements(PathObjectHierarchy hierarchy, Class<? extends PathObject> cls) {
-		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getObjects(null, null).stream().filter(p -> p.getClass().equals(cls)).toArray(PathObject[]::new));
+		removeMeasurements(hierarchy, cls);
 	}
-	
+
+	/**
+	 * Remove the measurements from objects of a specific class in a hierarchy (subclasses are not included!).
+	 * @param hierarchy The relevant hierarchy.
+	 * @param cls The type of object.
+	 */
+	public static void removeMeasurements(PathObjectHierarchy hierarchy, Class<? extends PathObject> cls) {
+		if (hierarchy != null)
+			removeMeasurements(hierarchy, hierarchy.getObjects(null, null).stream().filter(p -> p.getClass().equals(cls)).toArray(PathObject[]::new));
+	}
+
+
 	/**
 	 * Clear the measurement lists for objects of a specific class in the current hierarchy (subclasses are not included!).
-	 * @param cls 
+	 * @param cls The type of object.
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearMeasurements(Class<? extends PathObject> cls) {
-		clearMeasurements(getCurrentHierarchy(), cls);
+		removeMeasurements(cls);
+	}
+
+	/**
+	 * Remove the measurements from objects of a specific class in the current hierarchy (subclasses are not included!).
+	 * @param cls The type of object.
+	 */
+	public static void removeMeasurements(Class<? extends PathObject> cls) {
+		removeMeasurements(getCurrentHierarchy(), cls);
 	}
 	
 	/**
 	 * Clear the measurement lists for all detections in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearMeasurements() {
-		clearDetectionMeasurements(getCurrentHierarchy());
+		removeMeasurements();
+	}
+
+	/**
+	 * Remove the measurements from all detections in the current hierarchy.
+	 */
+	public static void removeMeasurements() {
+		removeDetectionMeasurements(getCurrentHierarchy());
 	}
 	
 	/**
 	 * Clear the measurement lists for all cells in a hierarchy.
-	 * @param hierarchy
+	 * @deprecated For consistency in naming; use #removeCellMeasurements instead.
+	 * @param hierarchy The relevant hierarchy
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearCellMeasurements(PathObjectHierarchy hierarchy) {
-		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getCellObjects());
+		removeCellMeasurements(hierarchy);
 	}
-	
+
+	/**
+	 * Remove the measurements from all cells in a hierarchy.
+	 * @param hierarchy The relevant hierarchy
+	 */
+	public static void removeCellMeasurements(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			removeMeasurements(hierarchy, hierarchy.getCellObjects());
+	}
+
 	/**
 	 * Clear the measurement lists for all cells in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeCellMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearCellMeasurements() {
-		clearCellMeasurements(getCurrentHierarchy());
+		removeCellMeasurements();
+	}
+
+	/**
+	 * Remove the measurements from all cells in the current hierarchy.
+	 */
+	public static void removeCellMeasurements() {
+		removeCellMeasurements(getCurrentHierarchy());
 	}
 	
+	/**
+	 * Remove the measurements from all tiles in a hierarchy.
+	 * @param hierarchy The relevant hierarchy.
+	 */
+	public static void removeTileMeasurements(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			removeMeasurements(hierarchy, hierarchy.getTileObjects());
+	}
+
 	/**
 	 * Clear the measurement lists for all tiles in a hierarchy.
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
+	 * @deprecated For consistency in naming; use #removeTileMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearTileMeasurements(PathObjectHierarchy hierarchy) {
-		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getTileObjects());
+		removeTileMeasurements(hierarchy);
 	}
-	
+
+
 	/**
-	 * Clear the measurement lists for all tiles in the current hierarchy.
+	 * Clear the measurements lists for all tiles in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeTileMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearTileMeasurements() {
-		clearTileMeasurements(getCurrentHierarchy());
+		removeTileMeasurements();
 	}
+
+	/**
+	 * Remove the measurements from all tiles in the current hierarchy.
+	 */
+	public static void removeTileMeasurements() {
+		removeTileMeasurements(getCurrentHierarchy());
+	}
+
 	
 	/**
 	 * Clear the measurement lists for the root object.
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
+	 * @deprecated For consistency in naming; use #removeRootMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearRootMeasurements(PathObjectHierarchy hierarchy) {
+		removeRootMeasurements(hierarchy);
+	}
+
+	/**
+	 * Remove the measurements from the root object.
+	 * @param hierarchy The relevant hierarchy.
+	 */
+	public static void removeRootMeasurements(PathObjectHierarchy hierarchy) {
 		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getRootObject());
+			removeMeasurements(hierarchy, hierarchy.getRootObject());
 	}
 	
 	/**
-	 * Clear the measurement lists for the root object.
+	 * Clear the measurement lists for the root object of the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeRootMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearRootMeasurements() {
-		clearRootMeasurements(getCurrentHierarchy());
+		removeRootMeasurements();
 	}
-	
-	
-	
-	
+
+	/**
+	 * Remove measurements from the root object of the current hierarchy.
+	 */
+	public static void removeRootMeasurements() {
+		removeRootMeasurements(getCurrentHierarchy());
+	}
+
 	
 	/**
 	 * Get a base class - which is either a valid PathClass which is *not* an intensity class, or else null.
-	 * 
 	 * This will be null if {@code pathObject.getPathClass() == null}.
-	 * 
 	 * Otherwise, it will be {@code pathObject.getPathClass().getBaseClass()} assuming the result isn't an intensity class - or null otherwise.
 	 * 
-	 * @param pathObject
-	 * @return
+	 * @param pathObject The relevant PathObject.
+	 * @return The base class of the PathObject.
 	 */
 	public static PathClass getBasePathClass(final PathObject pathObject) {
 		PathClass baseClass = pathObject.getPathClass();
@@ -3153,12 +3397,11 @@ public class QP {
 
 	
 	/**
-	 * Get the first ancestor class of pathObject.getPathClass() that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).
-	 * 
+	 * Get the first ancestor class of pathObject.getPathClass() that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).*
 	 * This will return null if pathClass is null, or if no non-intensity classes are found.
 	 * 
-	 * @param pathObject
-	 * @return
+	 * @param pathObject The relevant PathObject.
+	 * @return The first non-intensity ancestor class.
 	 */
 	public static PathClass getNonIntensityAncestorPathClass(final PathObject pathObject) {
 		return PathClassTools.getNonIntensityAncestorClass(pathObject.getPathClass());
@@ -3168,7 +3411,7 @@ public class QP {
 	/**
 	 * Set the intensity classifications for the specified objects.
 	 * 
-	 * @param pathObjects
+	 * @param pathObjects The specified objects.
 	 * @param measurementName measurement to threshold
 	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
 	 */
@@ -3179,7 +3422,7 @@ public class QP {
 	/**
 	 * Set intensity classifications for all selected (detection) objects in the specified hierarchy.
 	 * 
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
 	 * @param measurementName measurement to threshold
 	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
 	 */
