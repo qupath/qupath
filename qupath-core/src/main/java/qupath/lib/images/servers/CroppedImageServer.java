@@ -36,7 +36,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
+public class CroppedImageServer extends SpatiallyTransformingImageServer<BufferedImage> {
 	
 	private ImageServerMetadata metadata;
 	
@@ -54,21 +54,22 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 		var levelBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(region.getWidth(), region.getHeight());
 		boolean fullServer = server.getWidth() == region.getWidth() && server.getHeight() == region.getHeight();
 		int i = 0;
+		ImageServerMetadata embeddedMetadata = super.getMetadata();
 		do {
-			var originalLevel = server.getMetadata().getLevel(i);
+			var originalLevel = embeddedMetadata.getLevel(i);
 			if (fullServer)
 				levelBuilder.addLevel(originalLevel);
 			else
 				levelBuilder.addLevelByDownsample(originalLevel.getDownsample());
 			i++;
 		} while (i < server.nResolutions() && 
-				region.getWidth() >= server.getMetadata().getPreferredTileWidth() && 
-				region.getHeight() >= server.getMetadata().getPreferredTileHeight());
+				region.getWidth() >= embeddedMetadata.getPreferredTileWidth() &&
+				region.getHeight() >= embeddedMetadata.getPreferredTileHeight());
 		
-		metadata = new ImageServerMetadata.Builder(server.getMetadata())
+		metadata = new ImageServerMetadata.Builder(embeddedMetadata)
 				.width(region.getWidth())
 				.height(region.getHeight())
-				.name(String.format("%s (%d, %d, %d, %d)", server.getMetadata().getName(), region.getX(), region.getY(), region.getWidth(), region.getHeight()))
+				.name(String.format("%s (%d, %d, %d, %d)", embeddedMetadata.getName(), region.getX(), region.getY(), region.getWidth(), region.getHeight()))
 				.levels(levelBuilder.build())
 				.build();
 	}

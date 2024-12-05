@@ -37,7 +37,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
+public class RotatedImageServer extends SpatiallyTransformingImageServer<BufferedImage> {
 	
 	/**
 	 * Enum for rotations in increments of 90 degrees.
@@ -97,16 +97,16 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		switch (rotation) {
 		case ROTATE_270:
 		case ROTATE_90:
-			metadata = getQuarterRotatedMetadata(server.getOriginalMetadata());
+			metadata = getQuarterRotatedMetadata(super.getOriginalMetadata());
 			break;
 		case ROTATE_180:
-			metadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
+			metadata = new ImageServerMetadata.Builder(super.getOriginalMetadata())
 //						.path(getPath())
 						.build();
 			break;
 		case ROTATE_NONE:
 		default:
-			metadata = server.getOriginalMetadata().duplicate();
+			metadata = super.getOriginalMetadata().duplicate();
 		}
 	}
 	

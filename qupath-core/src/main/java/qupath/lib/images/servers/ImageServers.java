@@ -60,6 +60,7 @@ import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageServerBuilder.AbstractServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.AbstractSpaciallyTransformedServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.images.servers.ImageServerProvider.UriImageSupportComparator;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
@@ -497,9 +498,7 @@ public class ImageServers {
 		
 	}
 	
-	
-	
-	static class CroppedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+	static class CroppedImageServerBuilder extends AbstractSpaciallyTransformedServerBuilder<BufferedImage> {
 		
 		private ServerBuilder<BufferedImage> builder;
 		private ImageRegion region;
@@ -530,7 +529,7 @@ public class ImageServers {
 		
 	}
 
-	static class SlicedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+	static class SlicedImageServerBuilder extends AbstractSpaciallyTransformedServerBuilder<BufferedImage> {
 
 		private final ServerBuilder<BufferedImage> builder;
 		private final int zStart;
@@ -592,7 +591,7 @@ public class ImageServers {
 
 	}
 	
-	static class AffineTransformImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+	static class AffineTransformImageServerBuilder extends AbstractSpaciallyTransformedServerBuilder<BufferedImage> {
 		
 		private ServerBuilder<BufferedImage> builder;
 		private AffineTransform transform;
@@ -630,6 +629,37 @@ public class ImageServers {
 			return new AffineTransformImageServerBuilder(getMetadata().orElse(null), newBuilder, transform);
 		}
 		
+	}
+
+	static class RotatedImageServerBuilder extends AbstractSpaciallyTransformedServerBuilder<BufferedImage> {
+
+		private ServerBuilder<BufferedImage> builder;
+		private Rotation rotation;
+
+		RotatedImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, Rotation rotation) {
+			super(metadata);
+			this.builder = builder;
+			this.rotation = rotation;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new RotatedImageServer(builder.build(), rotation);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder)
+				return this;
+			return new RotatedImageServerBuilder(getMetadata().orElse(null), newBuilder, rotation);
+		}
+
 	}
 	
 	static class ConcatChannelsImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
@@ -747,37 +777,6 @@ public class ImageServers {
 			return new ColorDeconvolutionServerBuilder(getMetadata().orElse(null), newBuilder, stains, channels);
 		}
 		
-	}
-
-	static class RotatedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
-	
-		private ServerBuilder<BufferedImage> builder;
-		private Rotation rotation;
-	
-		RotatedImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, Rotation rotation) {
-			super(metadata);
-			this.builder = builder;
-			this.rotation = rotation;
-		}
-	
-		@Override
-		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
-			return new RotatedImageServer(builder.build(), rotation);
-		}
-		
-		@Override
-		public Collection<URI> getURIs() {
-			return builder.getURIs();
-		}
-
-		@Override
-		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
-			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
-			if (newBuilder == builder)
-				return this;
-			return new RotatedImageServerBuilder(getMetadata().orElse(null), newBuilder, rotation);
-		}
-	
 	}
 
 	static class NormalizedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {

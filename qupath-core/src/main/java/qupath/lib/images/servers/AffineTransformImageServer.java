@@ -46,7 +46,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class AffineTransformImageServer extends TransformingImageServer<BufferedImage> {
+public class AffineTransformImageServer extends SpatiallyTransformingImageServer<BufferedImage> {
 	
 	private static Logger logger = LoggerFactory.getLogger(AffineTransformImageServer.class);
 	
@@ -83,23 +83,24 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 		var levelBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(region.getWidth(), region.getHeight());
 		boolean fullServer = server.getWidth() == region.getWidth() && server.getHeight() == region.getHeight();
 		int i = 0;
+		ImageServerMetadata embeddedMetadata = super.getMetadata();
 		do {
-			var originalLevel = server.getMetadata().getLevel(i);
+			var originalLevel = embeddedMetadata.getLevel(i);
 			if (fullServer)
 				levelBuilder.addLevel(originalLevel);
 			else
 				levelBuilder.addLevelByDownsample(originalLevel.getDownsample());
 			i++;
 		} while (i < server.nResolutions() && 
-				region.getWidth() >= server.getMetadata().getPreferredTileWidth() && 
-				region.getHeight() >= server.getMetadata().getPreferredTileHeight());
+				region.getWidth() >= embeddedMetadata.getPreferredTileWidth() &&
+				region.getHeight() >= embeddedMetadata.getPreferredTileHeight());
 		
 		// TODO: Apply AffineTransform to pixel sizes! Perhaps create a Shape or point and transform that?
-		var builder = new ImageServerMetadata.Builder(server.getMetadata())
+		var builder = new ImageServerMetadata.Builder(embeddedMetadata)
 //				.path(server.getPath() + ": Affine " + transform.toString())
 				.width(region.getWidth())
 				.height(region.getHeight())
-				.name(String.format("%s (%s)", server.getMetadata().getName(), transform.toString()))
+				.name(String.format("%s (%s)", embeddedMetadata.getName(), transform.toString()))
 				.levels(levelBuilder.build());
 		
 		// TODO: Handle pixel sizes in units other than microns
@@ -109,7 +110,7 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 				logger.debug("Pixel calibration updated to {}", calUpdated);
 			builder.pixelSizeMicrons(calUpdated.getPixelWidthMicrons(), calUpdated.getPixelHeightMicrons());
 		}
-				
+
 		metadata = builder.build();
 	}
 	

@@ -12,7 +12,7 @@ import java.util.stream.Stream;
  * ImageServer that treats a particular set of z-slices and timepoints of another ImageServer
  * as a full image.
  */
-public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
+public class SlicedImageServer extends SpatiallyTransformingImageServer<BufferedImage> {
 
     private final int zStart;
     private final int zEnd;
@@ -61,14 +61,15 @@ public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
         checkOrder(this.tStart, this.tEnd, "timepoint");
         checkStep(this.tStep);
 
-        metadata = new ImageServerMetadata.Builder(inputServer.getMetadata())
+        ImageServerMetadata embeddedMetadata = super.getMetadata();
+        metadata = new ImageServerMetadata.Builder(embeddedMetadata)
                 .sizeZ((this.zEnd - this.zStart + this.zStep - 1) / this.zStep)
                 .sizeT((this.tEnd - this.tStart + this.tStep - 1) / this.tStep)
-                .zSpacingMicrons(inputServer.getMetadata().getZSpacingMicrons() * this.zStep)
+                .zSpacingMicrons(embeddedMetadata.getZSpacingMicrons() * this.zStep)
                 .timepoints(
-                        inputServer.getMetadata().getPixelCalibration().getTimeUnit(),
+                        embeddedMetadata.getPixelCalibration().getTimeUnit(),
                         Stream.iterate(this.tStart, t -> t < this.tEnd, t -> t + this.tStep)
-                                .mapToDouble(i -> inputServer.getMetadata().getPixelCalibration().getTimepoint(i))
+                                .mapToDouble(i -> embeddedMetadata.getPixelCalibration().getTimepoint(i))
                                 .toArray()
                 )
                 .build();
