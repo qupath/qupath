@@ -196,6 +196,23 @@ public interface ImageServerBuilder<T> {
 		}
 		
 	}
+
+	abstract class AbstractSpaciallyTransformedServerBuilder<T> extends AbstractServerBuilder<T> {
+
+		AbstractSpaciallyTransformedServerBuilder(ImageServerMetadata metadata) {
+			super(metadata);
+		}
+
+		@Override
+		public Optional<ImageServerMetadata> getMetadata() {
+			return super.getMetadata()
+					.map(m ->
+							new ImageServerMetadata.Builder(m)
+									.spatiallyTransformed(true)
+									.build()
+					);
+		}
+	}
 	
 	
 	/**
