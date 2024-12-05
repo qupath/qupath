@@ -20,13 +20,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get qupath version from gradle
+      - name: Set QuPath version
         shell: bash
         run: |
-          # grep reads the version line, sed strips everything before =
-          # GITHUB_ENV means it's stored in env.QUPATH_VERSION persistently
-          # not just for the current step...                
-          echo "QUPATH_VERSION=$(grep 'qupathVersion = \".*\"' settings.gradle  | sed -e 's/.*= "\(.*\)"/\1/')" >> $GITHUB_ENV
+          echo "QUPATH_VERSION=$(cat VERSION)" >> $GITHUB_ENV
 
       - uses: actions/download-artifact@v4
         with:
