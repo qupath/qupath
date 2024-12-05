@@ -39,6 +39,8 @@ logviewer       = "0.2.0"
 
 javadocviewer   = "0.1.1"
 
+extensionmanager= "1.0.0-SNAPSHOT"
+
 openslide       = "4.0.0.3"
 
 picocli         = "4.7.6"
@@ -80,6 +82,8 @@ logviewer-rich    = { module = "io.github.qupath:logviewer-ui-richtextfx",  vers
 logviewer-logback = { module = "io.github.qupath:logviewer-logging-logback",  version.ref = "logviewer" }
 
 javadocviewer = { module = "io.github.qupath:javadocviewer",    version.ref = "javadocviewer" }
+
+extensionmanager = { module = "io.github.qupath:extensionmanager",    version.ref = "extensionmanager" }
 
 omeZarrReader = { module = "ome:OMEZarrReader",                 version.ref = "omeZarrReader" }
 

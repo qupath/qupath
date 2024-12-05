@@ -35,4 +35,6 @@ dependencies {
   implementation(libs.bundles.logviewer)
 
   implementation(libs.javadocviewer)
+
+  implementation(libs.extensionmanager)
 }

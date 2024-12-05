@@ -51,13 +51,14 @@ import javafx.scene.control.Dialog;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
+import qupath.ext.extensionmanager.gui.ExtensionManager;
 import qupath.lib.common.GeneralTools;
 
 import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.ExtensionControlPane;
 import qupath.lib.gui.FileCopier;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.UserDirectoryManager;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.InteractiveObjectImporter;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.localization.QuPathResources;
@@ -292,11 +293,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     }
     
     void handleURLDrop(final QuPathViewer viewer, final String url) throws IOException, URISyntaxException, InterruptedException {
-		// if it's a GitHub URL, it's probably not an image. See if it's an extension
-		if (GITHUB_BASE_PATTERN.matcher(url).matches()) {
-			ExtensionControlPane.handleGitHubURL(url);
-			return;
-		}
     	try {
     		qupath.openImage(viewer, url, false, false);
     	} catch (IOException e) {
@@ -332,7 +328,11 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 
 		// If we only have jar files, treat them as extensions
 		if (nJars == list.size()) {
-			qupath.getExtensionManager().promptToCopyFilesToExtensionsDirectory(list);
+			ExtensionManager.promptToCopyFilesToExtensionDirectory(
+					list,
+					qupath.getExtensionIndexManager().getExtensionDirectoryPath(),
+					() -> Commands.requestUserDirectory(true)
+			);
 			return;
 		}
 		

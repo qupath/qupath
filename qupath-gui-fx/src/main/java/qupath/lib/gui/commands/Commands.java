@@ -62,9 +62,7 @@ import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
-import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.actions.ActionTools;
@@ -635,7 +633,7 @@ public class Commands {
 	 * @param qupath the QuPath instance
 	 */
 	public static void showScriptInterpreter(QuPathGUI qupath) {
-		var scriptInterpreter = new ScriptInterpreter(qupath, ExtensionClassLoader.getInstance());
+		var scriptInterpreter = new ScriptInterpreter(qupath, qupath.getExtensionIndexManager().getClassLoader());
 		scriptInterpreter.getStage().initOwner(qupath.getStage());
 		scriptInterpreter.getStage().show();
 	}

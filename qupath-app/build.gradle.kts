@@ -18,6 +18,8 @@ base {
 dependencies {
     implementation(project(":qupath-gui-fx"))
     implementation(libs.picocli)
+
+    implementation(libs.extensionmanager)
 }
 
 /**

@@ -24,38 +24,25 @@
 
 package qupath.lib.gui;
 
-import java.net.ConnectException;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
 
 import javafx.beans.property.LongProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.property.SimpleStringProperty;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
-import javafx.scene.control.TableView;
-import javafx.scene.control.Tooltip;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
 import qupath.lib.common.Version;
 import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.extensions.GitHubProject;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.extensions.UpdateChecker;
 import qupath.lib.gui.extensions.GitHubProject.GitHubRepo;
-import qupath.lib.gui.extensions.UpdateChecker.ReleaseVersion;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.utils.GridPaneUtils;
-
 
 /**
  * Class to handle the interactive user interface side of update checking.
@@ -67,183 +54,31 @@ import qupath.fx.utils.GridPaneUtils;
 class UpdateManager {
 	
 	private static final Logger logger = LoggerFactory.getLogger(UpdateManager.class);
-
-	private static LongProperty lastUpdateCheck = PathPrefs.createPersistentPreference("lastUpdateCheck", -1L);
-
-	private QuPathGUI qupath;
+	private static final int HOURS_BETWEEN_AUTO_UPDATES = 12;
+	private static final LongProperty lastUpdateCheck = PathPrefs.createPersistentPreference("lastUpdateCheck", -1L);
+	private final QuPathGUI qupath;
 	
 	private UpdateManager(QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
-	
-	static UpdateManager create(QuPathGUI qupath) {
+
+	/**
+	 * Create an instance of the update manager.
+	 *
+	 * @param qupath the QuPath GUI instance to use when updating
+	 * @return a new instance of the update manager
+	 */
+	public static UpdateManager create(QuPathGUI qupath) {
 		return new UpdateManager(qupath);
 	}
-	
+
 	/**
-	 * Do an update check.
-	 * @param isAutoCheck if true, avoid prompting the user unless an update is available. If false, the update has been explicitly 
-	 *                    requested and so the user should be notified of the outcome, regardless of whether an update is found.
-	 * @param updateCheckType
+	 * Request an update of what is indicated by {@link PathPrefs#autoUpdateCheckProperty()}
+	 * in a background thread.
+	 * If an update was run in the past 12 hours (in this Java instance or another), calling this
+	 * function will not perform the update check.
 	 */
-	synchronized void doUpdateCheck(AutoUpdateType updateCheckType, boolean isAutoCheck) {
-
-		String title = "Update check";
-
-		// Get a map of all the projects we can potentially check
-		Map<GitHubRepo, Version> projects = new LinkedHashMap<>();
-		Map<GitHubRepo, ReleaseVersion> projectUpdates = new LinkedHashMap<>();
-		
-		// Start with the main app
-		var qupathVersion = QuPathGUI.getVersion();
-		if (qupathVersion != null && qupathVersion != Version.UNKNOWN) {
-			if (updateCheckType == AutoUpdateType.QUPATH_ONLY || updateCheckType == AutoUpdateType.QUPATH_AND_EXTENSIONS)
-				projects.put(GitHubRepo.create("QuPath", "qupath", "qupath"), qupathVersion);
-		}
-		
-		// Work through extensions
-		if (updateCheckType == AutoUpdateType.QUPATH_AND_EXTENSIONS || updateCheckType == AutoUpdateType.EXTENSIONS_ONLY) {
-			var extensionManager = qupath.getExtensionManager();
-			for (var ext : extensionManager.getLoadedExtensions().values()) {
-				var v = ext.getVersion();
-				if (!(ext instanceof GitHubProject)) {
-					// This also applies to built-in QuPath extensions
-					logger.debug("Can't check for updates for {} (not a project with its own GitHub repo)", ext.getName());
-				} else if (v != null && v != Version.UNKNOWN) {
-					var project = (GitHubProject)ext;
-					projects.put(project.getRepository(), v);
-				} else {
-					logger.warn("Can't check for updates for {} - unknown version", ext.getName());
-				}
-			}
-		}
-
-		// Report if there is nothing to update
-		if (projects.isEmpty()) {
-			if (isAutoCheck) {
-				logger.warn("Cannot check for updates for this installation");
-			} else {
-				Dialogs.showMessageDialog(title, "Sorry, no update check is available for this installation");
-			}
-			return;
-		}
-		
-		// Check for any updates
-		int connectErrorCount = 0;
-		for (var entry : projects.entrySet()) {
-			var project = entry.getKey();
-			var version = entry.getValue();
-			try {
-				logger.info("Update check for {}", project.getUrlString());
-				var release = UpdateChecker.checkForUpdate(project);
-				if (release != null && release.getVersion() != Version.UNKNOWN && version.compareTo(release.getVersion()) < 0) {
-					logger.info("Found newer release for {} ({} -> {})", project.getName(), version, release.getVersion());
-					projectUpdates.put(project, release);
-				} else if (release != null) {
-					logger.info("No newer release for {} (current {} vs upstream {})", project.getName(), version, release.getVersion());
-				}
-			} catch (Exception e) {
-				if (e instanceof ConnectException)
-					connectErrorCount++;
-				logger.warn("Update check failed for {}", project);
-				logger.debug(e.getLocalizedMessage(), e);
-			}
-		}
-		lastUpdateCheck.set(System.currentTimeMillis());
-		
-		// If we couldn't determine the version, tell the user only if this isn't the automatic check
-		if (projectUpdates.isEmpty()) {
-			if (!isAutoCheck) {
-				if (connectErrorCount == projects.size())
-					Dialogs.showErrorMessage(title, "Unable to check for updates - please check your internet connection");
-				else
-					Dialogs.showMessageDialog(title, "No updates found!");
-			}
-			return;
-		}
-		
-		// Create a table showing the updates available
-		var table = new TableView<GitHubRepo>();
-		table.getItems().setAll(projectUpdates.keySet());
-		
-		var colRepo = new TableColumn<GitHubRepo, String>("Name");
-		colRepo.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().getName()));
-		
-		var colCurrent = new TableColumn<GitHubRepo, String>("Current version");
-		colCurrent.setCellValueFactory(r -> new SimpleStringProperty(projects.get(r.getValue()).toString()));
-
-		var colNew = new TableColumn<GitHubRepo, String>("New version");
-		colNew.setCellValueFactory(r -> new SimpleStringProperty(projectUpdates.get(r.getValue()).getVersion().toString()));
-		
-		table.setRowFactory(r -> {
-			var row = new TableRow<GitHubRepo>();
-			row.itemProperty().addListener((v, o, n) -> {
-				if (n == null) {
-					row.setTooltip(null);
-					row.setOnMouseClicked(null);
-				} else {
-					var release = projectUpdates.get(n);
-					var uri = release.getUri();
-					if (uri == null) {
-						row.setTooltip(new Tooltip("No URL available, sorry!"));
-						row.setOnMouseClicked(null);
-					} else {
-						row.setTooltip(new Tooltip(uri.toString()));
-						row.setOnMouseClicked(e -> {
-							if (e.getClickCount() > 1) {
-								GuiTools.browseURI(uri);
-							}
-						});
-					}
-				}
-			});
-			return row;
-		});
-		
-		table.getColumns().setAll(Arrays.asList(colRepo, colCurrent, colNew));
-		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-		table.setPrefHeight(200);
-		table.setPrefWidth(500);
-		
-		
-		var comboUpdates = new ComboBox<AutoUpdateType>();
-		comboUpdates.getItems().setAll(AutoUpdateType.values());
-		comboUpdates.getSelectionModel().select(PathPrefs.autoUpdateCheckProperty().get());
-		var labelUpdates = new Label("Check for updates on startup:");
-		labelUpdates.setLabelFor(comboUpdates);
-		labelUpdates.setAlignment(Pos.CENTER_RIGHT);
-		
-		var paneUpdates = new GridPane();
-		paneUpdates.add(labelUpdates, 0, 0);
-		paneUpdates.add(comboUpdates, 1, 0);
-		paneUpdates.setHgap(5);
-		GridPaneUtils.setToExpandGridPaneWidth(comboUpdates);
-		paneUpdates.setPadding(new Insets(5, 0, 0, 0));
-		
-		var pane = new BorderPane(table);
-		pane.setBottom(paneUpdates);
-		
-		var result = new Dialogs.Builder()
-				.buttons(ButtonType.OK)
-				.title(title)
-				.headerText("Updates are available!\nDouble-click an entry to open the webpage, if available.")
-				.content(pane)
-				.resizable()
-				.showAndWait()
-				.orElse(ButtonType.CANCEL) == ButtonType.OK;
-		
-		if (result) {
-			PathPrefs.autoUpdateCheckProperty().set(comboUpdates.getSelectionModel().getSelectedItem());
-		}
-	}
-	
-	
-	
-	/**
-	 * Check for any updates.
-	 */
-	void runAutomaticUpdateCheck() {
-		// For automated checks, respect the user preferences for QuPath, extensions or neither
+	public void runAutomaticUpdateCheck() {
 		AutoUpdateType checkType = PathPrefs.autoUpdateCheckProperty().get();
 		boolean doAutoUpdateCheck = checkType != null && checkType != AutoUpdateType.NONE;
 		if (!doAutoUpdateCheck) {
@@ -251,28 +86,138 @@ class UpdateManager {
 			return;
 		}
 
-		// Don't run auto-update check again if we already checked within the last hour
 		long currentTime = System.currentTimeMillis();
 		long lastUpdateCheckMillis = lastUpdateCheck.get();
 		double diffHours = (double)(currentTime - lastUpdateCheckMillis) / (60L * 60L * 1000L);
-		if (diffHours < 12) {
-			logger.debug("Skipping update check (I already checked recently)");
+		if (diffHours < HOURS_BETWEEN_AUTO_UPDATES) {
+			logger.debug(
+					"Skipping update check because it was already checked recently (less than {} hours ago)",
+					HOURS_BETWEEN_AUTO_UPDATES
+			);
 			return;
 		}
+
 		runUpdateCheckInBackground(checkType, true);
 	}
-	
-	
-	void runManualUpdateCheck() {
+
+	/**
+	 * Request an update check of QuPath and the installed extensions, to be done in a background thread.
+	 * This will perform the check regardless of {@link PathPrefs#autoUpdateCheckProperty()}.
+	 */
+	public void runManualUpdateCheck() {
 		logger.debug("Manually requested update check - will search for QuPath and extensions");
-		AutoUpdateType checkType = AutoUpdateType.QUPATH_AND_EXTENSIONS;
-		runUpdateCheckInBackground(checkType, false);
-	}
-	
-		
-	private void runUpdateCheckInBackground(AutoUpdateType checkType, boolean isAutoCheck) {
-		// Run the check in a background thread
-		qupath.getThreadPoolManager().submitShortTask(() -> doUpdateCheck(checkType, isAutoCheck));
+		runUpdateCheckInBackground(AutoUpdateType.QUPATH_AND_EXTENSIONS, false);
 	}
 
+	private void runUpdateCheckInBackground(AutoUpdateType checkType, boolean isAutoCheck) {
+		qupath.getThreadPoolManager().submitShortTask(() -> doUpdateCheck(checkType, isAutoCheck));
+	}
+	
+	/**
+	 * Do an update check.
+	 *
+	 * @param updateCheckType what to update
+	 * @param avoidPrompting if true, avoid prompting the user unless an update is available. If false, the user
+	 *                       will be notified of the outcome, regardless of whether an update is found
+	 */
+	private synchronized void doUpdateCheck(AutoUpdateType updateCheckType, boolean avoidPrompting) {
+		lastUpdateCheck.set(System.currentTimeMillis());
+
+		List<UpdateManagerWindow.UpdateEntry> updateEntries = Stream.concat(
+                getQuPathUpdate(updateCheckType).stream(),
+				getExtensionUpdates(updateCheckType).stream()
+		).toList();
+
+		if (updateEntries.isEmpty()) {
+			if (avoidPrompting) {
+				logger.info("No updates found");
+			} else {
+				Dialogs.showMessageDialog("Update check", "No updates found!");
+			}
+			return;
+		}
+
+		UpdateManagerWindow updateManagerWindow;
+        try {
+			updateManagerWindow = new UpdateManagerWindow(updateEntries);
+        } catch (IOException e) {
+			logger.error("Cannot create update manager window", e);
+			if (!avoidPrompting) {
+				Dialogs.showErrorMessage(
+						"Update check",
+						"Cannot create update manager window"
+				);
+			}
+			return;
+        }
+
+		boolean result = new Dialogs.Builder()
+				.buttons(ButtonType.OK)
+				.title("Update check")
+				.headerText("Updates are available!\nDouble-click an entry to open the update, if available.")
+				.content(updateManagerWindow)
+				.resizable()
+				.showAndWait()
+				.orElse(ButtonType.CANCEL) == ButtonType.OK;
+
+		if (result && updateManagerWindow.getSelectedUpdateType() != null) {
+			PathPrefs.autoUpdateCheckProperty().set(updateManagerWindow.getSelectedUpdateType());
+		}
+	}
+
+	private Optional<UpdateManagerWindow.UpdateEntry> getQuPathUpdate(AutoUpdateType updateCheckType) {
+		Version qupathVersion = QuPathGUI.getVersion();
+		if (qupathVersion != null && qupathVersion != Version.UNKNOWN &&
+				List.of(AutoUpdateType.QUPATH_ONLY, AutoUpdateType.QUPATH_AND_EXTENSIONS).contains(updateCheckType)
+		) {
+			GitHubRepo gitHubProject = GitHubRepo.create("QuPath", "qupath", "qupath");
+			logger.debug("Update check for {}", gitHubProject.getUrlString());
+
+			try {
+				UpdateChecker.ReleaseVersion latestRelease = UpdateChecker.checkForUpdate(gitHubProject);
+
+				if (latestRelease != null && latestRelease.getVersion() != Version.UNKNOWN && qupathVersion.compareTo(latestRelease.getVersion()) < 0) {
+					logger.info("Found newer release for {} ({} -> {})", gitHubProject.getName(), qupathVersion, latestRelease.getVersion());
+
+					return Optional.of(new UpdateManagerWindow.UpdateEntry(
+                            gitHubProject.getName(),
+                            qupathVersion.toString(),
+                            latestRelease.getVersion().toString(),
+                            latestRelease.getUri() == null ?
+                                    () -> {} :
+                                    () -> GuiTools.browseURI(latestRelease.getUri()),
+                            latestRelease.getUri() == null ?
+                                    "No available URL" :
+                                    latestRelease.getUri().toString()
+                    ));
+				} else if (latestRelease != null) {
+					logger.info("No newer release for {} (current {} vs upstream {})", gitHubProject.getName(), qupathVersion, latestRelease.getVersion());
+				}
+			} catch (Exception e) {
+				logger.warn("Update check failed for {}", gitHubProject, e);
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	private List<UpdateManagerWindow.UpdateEntry> getExtensionUpdates(AutoUpdateType updateCheckType) {
+		if (List.of(AutoUpdateType.QUPATH_AND_EXTENSIONS, AutoUpdateType.EXTENSIONS_ONLY).contains(updateCheckType)) {
+			try {
+				return qupath.getExtensionIndexManager().getAvailableUpdates().get().stream()
+						.map(extensionUpdate -> new UpdateManagerWindow.UpdateEntry(
+								extensionUpdate.extensionName(),
+								extensionUpdate.currentVersion(),
+								extensionUpdate.newVersion(),
+								() -> Commands.showInstalledExtensions(qupath),
+								"Open extension manager"
+						))
+						.toList();
+			} catch (InterruptedException | ExecutionException e) {
+				logger.warn("Cannot check updates on extensions", e);
+			}
+		}
+
+		return List.of();
+	}
 }
