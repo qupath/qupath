@@ -95,6 +95,9 @@ dependencyResolutionManagement {
 // This is useful when developing extensions, especially because gradle.properties
 // is not under version control.
 
+// Make subprojects of the main build available for substitution
+includeBuild(".")
+
 // Include flat directories for extensions
 findIncludes("qupath.include.flat").forEach(::includeFlat)
 
