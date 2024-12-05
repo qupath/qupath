@@ -19,10 +19,13 @@ public abstract class SpatiallyTransformingImageServer<T> extends TransformingIm
         super(server);
     }
 
+    protected abstract ImageServerMetadata updateMetadata(ImageServerMetadata embeddedMetadata);
+
     @Override
     public ImageServerMetadata getOriginalMetadata() {
-        return new ImageServerMetadata.Builder(getWrappedServer().getOriginalMetadata())
+        ImageServerMetadata embeddedMetadata =  new ImageServerMetadata.Builder(getWrappedServer().getOriginalMetadata())
                 .spatiallyTransformed(true)
                 .build();
+        return updateMetadata(embeddedMetadata);
     }
 }

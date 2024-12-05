@@ -82,7 +82,6 @@ public class RotatedImageServer extends SpatiallyTransformingImageServer<Buffere
 		
 	}
 	
-	private ImageServerMetadata metadata;
 	private Rotation rotation;
 	
 	/**
@@ -93,21 +92,6 @@ public class RotatedImageServer extends SpatiallyTransformingImageServer<Buffere
 	public RotatedImageServer(final ImageServer<BufferedImage> server, final Rotation rotation) {
 		super(server);
 		this.rotation = rotation;
-		
-		switch (rotation) {
-		case ROTATE_270:
-		case ROTATE_90:
-			metadata = getQuarterRotatedMetadata(super.getOriginalMetadata());
-			break;
-		case ROTATE_180:
-			metadata = new ImageServerMetadata.Builder(super.getOriginalMetadata())
-//						.path(getPath())
-						.build();
-			break;
-		case ROTATE_NONE:
-		default:
-			metadata = super.getOriginalMetadata().duplicate();
-		}
 	}
 	
 	/**
@@ -288,10 +272,21 @@ public class RotatedImageServer extends SpatiallyTransformingImageServer<Buffere
 			return request;
 		}
 	}
-	
+
 	@Override
-	public ImageServerMetadata getOriginalMetadata() {
-		return metadata;
+	protected ImageServerMetadata updateMetadata(ImageServerMetadata embeddedMetadata) {
+		switch (this.rotation) {
+			case ROTATE_270:
+			case ROTATE_90:
+				return getQuarterRotatedMetadata(embeddedMetadata);
+			case ROTATE_180:
+				return new ImageServerMetadata.Builder(embeddedMetadata)
+//						.path(getPath())
+						.build();
+			case ROTATE_NONE:
+			default:
+				return embeddedMetadata.duplicate();
+		}
 	}
 	
 	@Override

@@ -38,8 +38,6 @@ import qupath.lib.regions.RegionRequest;
  */
 public class CroppedImageServer extends SpatiallyTransformingImageServer<BufferedImage> {
 	
-	private ImageServerMetadata metadata;
-	
 	private ImageRegion region;
 
 	/**
@@ -50,28 +48,6 @@ public class CroppedImageServer extends SpatiallyTransformingImageServer<Buffere
 	public CroppedImageServer(final ImageServer<BufferedImage> server, ImageRegion region) {
 		super(server);
 		this.region = region;
-		
-		var levelBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(region.getWidth(), region.getHeight());
-		boolean fullServer = server.getWidth() == region.getWidth() && server.getHeight() == region.getHeight();
-		int i = 0;
-		ImageServerMetadata embeddedMetadata = super.getMetadata();
-		do {
-			var originalLevel = embeddedMetadata.getLevel(i);
-			if (fullServer)
-				levelBuilder.addLevel(originalLevel);
-			else
-				levelBuilder.addLevelByDownsample(originalLevel.getDownsample());
-			i++;
-		} while (i < server.nResolutions() && 
-				region.getWidth() >= embeddedMetadata.getPreferredTileWidth() &&
-				region.getHeight() >= embeddedMetadata.getPreferredTileHeight());
-		
-		metadata = new ImageServerMetadata.Builder(embeddedMetadata)
-				.width(region.getWidth())
-				.height(region.getHeight())
-				.name(String.format("%s (%d, %d, %d, %d)", embeddedMetadata.getName(), region.getX(), region.getY(), region.getWidth(), region.getHeight()))
-				.levels(levelBuilder.build())
-				.build();
 	}
 	
 	@Override
@@ -100,12 +76,31 @@ public class CroppedImageServer extends SpatiallyTransformingImageServer<Buffere
 	public ImageRegion getCropRegion() {
 		return region;
 	}
-	
+
 	@Override
-	public ImageServerMetadata getOriginalMetadata() {
-		return metadata;
+	protected ImageServerMetadata updateMetadata(ImageServerMetadata embeddedMetadata) {
+		var levelBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(region.getWidth(), region.getHeight());
+		ImageServer<BufferedImage> server = getWrappedServer();
+		boolean fullServer = server.getWidth() == region.getWidth() && server.getHeight() == region.getHeight();
+		int i = 0;
+		do {
+			var originalLevel = embeddedMetadata.getLevel(i);
+			if (fullServer)
+				levelBuilder.addLevel(originalLevel);
+			else
+				levelBuilder.addLevelByDownsample(originalLevel.getDownsample());
+			i++;
+		} while (i < server.nResolutions() &&
+				region.getWidth() >= embeddedMetadata.getPreferredTileWidth() &&
+				region.getHeight() >= embeddedMetadata.getPreferredTileHeight());
+
+		return new ImageServerMetadata.Builder(embeddedMetadata)
+				.width(region.getWidth())
+				.height(region.getHeight())
+				.name(String.format("%s (%d, %d, %d, %d)", embeddedMetadata.getName(), region.getX(), region.getY(), region.getWidth(), region.getHeight()))
+				.levels(levelBuilder.build())
+				.build();
 	}
-	
 	
 	@Override
 	public String getServerType() {
