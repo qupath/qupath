@@ -35,6 +35,7 @@ public class PlatformPlugin implements Plugin<Project> {
         MAC("macosx", "darwin-x86_64", "icns", "pkg"),
         MAC_AARCH64("macosx", "darwin-aarch64", "icns", "pkg"),
         LINUX("linux", "linux-x86_64", "png", "deb"),
+        LINUX_AARCH64("linux-arm64", "linux-arm64", "png", "deb"),
         UNKNOWN();
         
         private final String platformName;
@@ -131,9 +132,11 @@ public class PlatformPlugin implements Plugin<Project> {
         var os = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
         if (os.contains("win"))
             return Platform.WINDOWS;
-        else if (os.contains("nix") || os.contains("nux"))
+        else if (os.contains("nix") || os.contains("nux")) {
+            if ("aarch64".equalsIgnoreCase(System.getProperty("os.arch")))
+                return Platform.LINUX_AARCH64;
             return Platform.LINUX;
-        else if (os.contains("mac")) {
+        } else if (os.contains("mac")) {
             if ("aarch64".equalsIgnoreCase(System.getProperty("os.arch")))
                 return Platform.MAC_AARCH64;
             return Platform.MAC;
