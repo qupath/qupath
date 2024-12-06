@@ -25,7 +25,7 @@ package qupath.lib.gui.scripting.languages;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.gui.ExtensionClassLoader;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 import javax.script.ScriptEngine;
@@ -106,8 +106,8 @@ public class ScriptLanguageProvider {
 	}
 	
 	
-	private static ExtensionClassLoader getExtensionClassLoader() {
-		return ExtensionClassLoader.getInstance();
+	private static ClassLoader getExtensionClassLoader() {
+		return QuPathGUI.getInstance().getExtensionIndexManager().getClassLoader();
 	}
 	
 	
