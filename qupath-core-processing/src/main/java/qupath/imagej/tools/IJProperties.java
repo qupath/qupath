@@ -33,7 +33,7 @@ public class IJProperties {
     public static final String IMAGE_TYPE = "qupath.image.type";
 
     /**
-     * Key for an {@link ImagePlus} property storing either {@code "light"}  or {@core "dark} depending upon
+     * Key for an {@link ImagePlus} property storing either {@code "light"}  or {@code "dark} depending upon
      * whether an image is known to be brightfield of fluorescence respectively.
      */
     public static final String IMAGE_BACKGROUND = "qupath.image.background";

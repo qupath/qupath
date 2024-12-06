@@ -7,7 +7,8 @@ target/
 log/
 
 # Config
-include-extra.txt
+include-extra*
+include-extra.*
 
 # IntelliJ
 .idea/
