@@ -107,9 +107,11 @@ findIncludes("qupath.include.build").forEach(::includeBuild)
 // Check for include-extras file
 gradle.extra["qupath.included.dependencies"] = emptyList<String>()
 val includeExtrasFile = findIncludeExtras()
-with (includeExtrasFile!!) {
-    if (exists())
-        handleExtensionConfig(this)
+if (includeExtrasFile != null) {
+    with (includeExtrasFile) {
+        if (exists())
+            handleExtensionConfig(this)
+    }
 }
 
 /**
