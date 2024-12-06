@@ -16,7 +16,7 @@
         include:
           - platform: ubuntu-latest
             name: Linux
-          - platform: macos-12 # x64
+          - platform: macos-13 # x64
             name: Mac-x64
           - platform: macos-14 # aarch64
             name: Mac-arm64
