@@ -79,6 +79,7 @@ They may change or be removed in future versions.
 * Timepoint data is rarely available (or correct) (https://github.com/qupath/qupath/issues/1628)
 * Some commands cannot be run from 'Command List' (https://github.com/qupath/qupath/issues/1647)
 * ROIs with small pieces could look very 'pointy' when viewed at low resolution (https://github.com/qupath/qupath/pull/1681)
+* Create training image does not work properly for z-stacks / time series (https://github.com/qupath/qupath/issues/1701)
 
 ### API changes
 * New `Map<String, String> getMetadata()` method added to `PathObject`, `Project` and `ProjectImageEntry` (https://github.com/qupath/qupath/pull/1587)
