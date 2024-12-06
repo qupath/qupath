@@ -89,8 +89,8 @@ class ShowInstalledExtensionsCommand {
 			logger.error("Unable to open extension control pane", e);
 
 			Dialogs.showErrorMessage(
-					QuPathResources.getString("ExtensionControlPane"),
-					QuPathResources.getString("ExtensionControlPane.unableToOpen")
+					QuPathResources.getString("ShowInstalledExtensionsCommand.extensionManager"),
+					QuPathResources.getString("ShowInstalledExtensionsCommand.unableToOpen")
 			);
 		}
 		return dialog;

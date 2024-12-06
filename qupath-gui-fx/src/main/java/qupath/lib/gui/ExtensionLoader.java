@@ -7,12 +7,14 @@ import qupath.ext.extensionmanager.core.ExtensionIndexManager;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.common.Version;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -81,13 +83,19 @@ class ExtensionLoader {
             );
 
             if (showNotifications) {
-                Dialogs.showInfoNotification("Extension loaded",  extension.getName());
+                Dialogs.showInfoNotification(
+                        QuPathResources.getString("ExtensionLoader.extensionLoaded"),
+                        extension.getName()
+                );
             }
         } catch (Exception | LinkageError e) {
             logger.error("Error loading extension {}", extension, e);
 
             if (showNotifications) {
-                Dialogs.showErrorNotification("Extension error", String.format("Unable to load %s", extension.getName()));
+                Dialogs.showErrorNotification(
+                        QuPathResources.getString("ExtensionLoader.extensionError"),
+                        MessageFormat.format(QuPathResources.getString("ExtensionLoader.unableToLoad"), extension.getName())
+                );
             }
 
             Version qupathVersion = QuPathGUI.getVersion();
@@ -147,7 +155,10 @@ class ExtensionLoader {
                     .toList();
 
             for (String builderName : newServerBuildersNames) {
-                Dialogs.showInfoNotification("Image server loaded", builderName);
+                Dialogs.showInfoNotification(
+                        QuPathResources.getString("ExtensionLoader.imageServerLoaded"),
+                        builderName
+                );
             }
         }
     }

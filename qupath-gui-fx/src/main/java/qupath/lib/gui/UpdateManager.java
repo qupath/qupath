@@ -40,6 +40,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.extensions.UpdateChecker;
 import qupath.lib.gui.extensions.GitHubProject.GitHubRepo;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.tools.GuiTools;
@@ -132,7 +133,10 @@ class UpdateManager {
 			if (avoidPrompting) {
 				logger.info("No updates found");
 			} else {
-				Dialogs.showMessageDialog("Update check", "No updates found!");
+				Dialogs.showMessageDialog(
+						QuPathResources.getString("UpdateManager.updateCheck"),
+						QuPathResources.getString("UpdateManager.noUpdatesFound")
+				);
 			}
 			return;
 		}
@@ -144,8 +148,8 @@ class UpdateManager {
 			logger.error("Cannot create update manager window", e);
 			if (!avoidPrompting) {
 				Dialogs.showErrorMessage(
-						"Update check",
-						"Cannot create update manager window"
+						QuPathResources.getString("UpdateManager.updateCheck"),
+						QuPathResources.getString("UpdateManager.cannotCreateUpdateWindow")
 				);
 			}
 			return;
@@ -153,8 +157,8 @@ class UpdateManager {
 
 		boolean result = new Dialogs.Builder()
 				.buttons(ButtonType.OK)
-				.title("Update check")
-				.headerText("Updates are available!\nDouble-click an entry to open the update, if available.")
+				.title(QuPathResources.getString("UpdateManager.updateCheck"))
+				.headerText(QuPathResources.getString("UpdateManager.updatesAvailable"))
 				.content(updateManagerContainer)
 				.resizable()
 				.showAndWait()
@@ -187,7 +191,7 @@ class UpdateManager {
                                     () -> {} :
                                     () -> GuiTools.browseURI(latestRelease.getUri()),
                             latestRelease.getUri() == null ?
-                                    "No available URL" :
+                                    QuPathResources.getString("UpdateManager.noAvailableUrl") :
                                     latestRelease.getUri().toString()
                     ));
 				} else if (latestRelease != null) {
@@ -210,7 +214,7 @@ class UpdateManager {
 								extensionUpdate.currentVersion(),
 								extensionUpdate.newVersion(),
 								() -> Commands.showInstalledExtensions(qupath),
-								"Open extension manager"
+								QuPathResources.getString("UpdateManager.openExtensionManager")
 						))
 						.toList();
 			} catch (InterruptedException | ExecutionException e) {
