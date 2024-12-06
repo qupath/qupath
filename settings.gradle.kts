@@ -4,7 +4,7 @@ pluginManagement {
     }
 }
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0" // to download JDK if needed
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0" // to download JDK if needed
 }
 
 // Define project name
@@ -104,11 +104,28 @@ findIncludes("qupath.include.flat").forEach(::includeFlat)
 // Include build directories
 findIncludes("qupath.include.build").forEach(::includeBuild)
 
-// Check for extensions.txt
+// Check for include-extras file
 gradle.extra["qupath.included.dependencies"] = emptyList<String>()
-with (file("include-extra.txt")) {
-    if (exists())
-        handleExtensionConfig(this)
+val includeExtrasFile = findIncludeExtras()
+if (includeExtrasFile != null) {
+    with (includeExtrasFile) {
+        if (exists())
+            handleExtensionConfig(this)
+    }
+}
+
+/**
+ * Find a file called 'include-extra' (extension doesn't matter, shortest file name is preferred)
+ */
+fun findIncludeExtras(): File? {
+   val possibleFiles = rootDir.listFiles()
+       ?.filter { f -> f.name == "include-extra" || f.name.startsWith("include-extra.")}
+       ?.sortedBy { f -> f.name.length }
+    if (possibleFiles != null) {
+        return if (possibleFiles.isEmpty()) null else possibleFiles.get(0)
+    } else {
+        return null
+    }
 }
 
 /**
@@ -126,7 +143,7 @@ fun findIncludes(propName: String): List<String> {
  * Support for specifying additional builds and dependencies to include in a text file.
  *
  * This is useful when developing extensions.
- * The file should be named 'include-extra.txt' and have the format
+ * The file should be named 'include-extra.properties' and have the format
  *
  * [includeBuild]
  * /path/to/build

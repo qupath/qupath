@@ -626,7 +626,6 @@ public class Charts {
 		
 		/**
 		 * Plot two measurements against one another for the specified objects.
-		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param pathObjects the objects to plot
 		 * @param xMeasurement the measurement to extract from each object's measurement list for the x location
 		 * @param yMeasurement the measurement to extract from each object's measurement list for the y location
@@ -646,7 +645,7 @@ public class Charts {
 		 * Plot values extracted from objects within a specified collection.
 		 * @param name 
 		 * @param <T> 
-		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param collection the objects to plot
 		 * @param xFun function capable of extracting a numeric value for the x location from each object in the collection
 		 * @param yFun function capable of extracting a numeric value for the y location from each object in the collection
@@ -661,8 +660,7 @@ public class Charts {
 
 		/**
 		 * Create a scatterplot using collections of numeric values.
-		 * @param name 
-		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x
 		 * @param y
 		 * @return this builder
@@ -675,8 +673,7 @@ public class Charts {
 		
 		/**
 		 * Create a scatterplot using arrays of numeric values.
-		 * @param name 
-		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
 		 * @return this builder
@@ -687,9 +684,8 @@ public class Charts {
 		
 		/**
 		 * Create a scatterplot using collections of numeric values, with an associated custom object.
-		 * @param name 
-		 * @param <T> 
-		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param <T>
+		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
 		 * @param extra array of values to associate with each data point; should be the same length as x and y
@@ -701,9 +697,8 @@ public class Charts {
 		
 		/**
 		 * Create a scatterplot using collections of numeric values, with an associated custom object.
-		 * @param name 
-		 * @param <T> 
-		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param <T>
+		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
 		 * @param extra list of values to associate with each data point; should be the same length as x and y
@@ -722,8 +717,7 @@ public class Charts {
 		
 		/**
 		 * Create a scatterplot from existing data plots.
-		 * @param name 
-		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param data the data points to plot
 		 * @return this builder
 		 */
@@ -917,9 +911,8 @@ public class Charts {
 
 		/**
 		 * Plot values extracted from objects within a specified collection.
-		 * @param name
 		 * @param <T>
-		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param collection the objects to plot
 		 * @param xFun function capable of extracting a numeric value for the x location from each object in the collection
 		 * @return this builder
@@ -943,8 +936,7 @@ public class Charts {
 
 		/**
 		 * Create a bar chart using collections of numeric values.
-		 * @param name
-		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param x
 		 * @param y
 		 * @return this builder
@@ -957,8 +949,7 @@ public class Charts {
 
 		/**
 		 * Create a bar chart using a map of String values and associated numeric values.
-		 * @param name
-		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param data a map of String values to associated numeric values
 		 * @return this builder
 		 */
@@ -971,8 +962,7 @@ public class Charts {
 
 		/**
 		 * Create a bar chart using arrays of String values and associated numeric values.
-		 * @param name
-		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
 		 * @return this builder
@@ -983,9 +973,8 @@ public class Charts {
 
 		/**
 		 * Create a bar chart using collections String values and associated numeric values, with an associated custom object.
-		 * @param name
 		 * @param <T>
-		 * @name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
 		 * @param extra array of values to associate with each data point; should be the same length as x and y
@@ -997,9 +986,8 @@ public class Charts {
 
 		/**
 		 * Create a bar chart using collections of String values and associated numeric values, with an associated custom object.
-		 * @param name
 		 * @param <T>
-		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
 		 * @param extra list of values to associate with each data point; should be the same length as x and y
@@ -1018,8 +1006,7 @@ public class Charts {
 
 		/**
 		 * Create a bar chart from existing data plots.
-		 * @param name
-		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param data the data points to plot
 		 * @return this builder
 		 */
@@ -1066,7 +1053,6 @@ public class Charts {
 
 		/**
 		 * Plot two measurements against one another for the specified objects.
-		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param pathObjects the objects to plot
 		 * @return this builder
 		 */

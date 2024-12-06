@@ -15,7 +15,13 @@ plugins {
 val libs = the<LibrariesForLibs>()
 
 java {
-    val version = providers.gradleProperty("toolchain").getOrElse(libs.versions.jdk.get())
+    // Query version from gradle property, system property and then catalog
+    val version = providers.gradleProperty("toolchain")
+        .getOrElse(
+            System.getProperty("toolchain",
+                libs.versions.jdk.get()
+            )
+        )
     if (version.trim() == "skip") {
         logger.info("Toolchain skipped!")
     } else {
