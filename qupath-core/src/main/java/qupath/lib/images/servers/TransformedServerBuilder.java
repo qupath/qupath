@@ -299,7 +299,7 @@ public class TransformedServerBuilder {
 	 * Normalize the image using the provided normalizer.
 	 * @param normalizer
 	 * @return
-	 * @ImplNote To use this method to create an image that can be added to a project, the normalizers must be JSON-serializable
+	 * @implNote To use this method to create an image that can be added to a project, the normalizers must be JSON-serializable
 	 *           and registered under {@link ImageServers#getNormalizerFactory()}.
 	 * @since v0.6.0
 	 */
