@@ -76,7 +76,7 @@ public class PlatformPlugin implements Plugin<Project> {
          * @return
          */
         public boolean isLinux() {
-            return this == LINUX;
+            return this == LINUX || this == LINUX_AARCH64;
         }
     
         /**

@@ -55,7 +55,13 @@ dependencies {
   implementation(libs.omeZarrReader) {
       exclude(group="ome", module="formats-api") // Through bioformats_package
   }
-  implementation("io.github.qupath:blosc:${libs.versions.blosc.get()}:${platform.classifier}")
+
+  // TODO: Don't have linux aarch64 support yet
+  if (platform == PlatformPlugin.Platform.LINUX_AARCH64) {
+    println("c-blosc native library not yet provided for linux-arm64")
+  } else {
+    implementation("io.github.qupath:blosc:${libs.versions.blosc.get()}:${platform.classifier}")
+  }
 
 //  testImplementation("ome:bioformats_package:${bioformatsVersion}")
   testImplementation("ome:bio-formats_plugins:${bioformatsVersion}")
