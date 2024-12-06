@@ -97,7 +97,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 	@Override
 	protected void addRunnableTasks(final ImageData<T> imageData, final PathObject parentObject, List<Runnable> tasks) {
 		ParameterList params = getParameterList(imageData);
-		if (params.getBooleanParameterValue("clearAnnotations") || params.getBooleanParameterValue("removeAnnotations")) {
+		if (params.getBooleanParameterValue("clearAnnotations")) {
 			PathObjectHierarchy hierarchy = imageData.getHierarchy();
 			Collection<PathObject> annotations = PathObjectTools.getDescendantObjects(parentObject, null, PathAnnotationObject.class);
 			hierarchy.removeObjects(annotations, true);
@@ -128,7 +128,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 			
 			params.addChoiceParameter("pathClass", "Choose class", defaultChoice, choices, "Choose PathClass to create annotations from")
 					.addBooleanParameter("deleteTiles", "Delete existing child objects", false, "Delete the tiles that were used for creating annotations - further training will not be possible after these are deleted")
-					.addBooleanParameter("removeAnnotations", "Remove existing annotations", true, "Remove all existing annotations (often a good idea if they were used to train a classifier, but are no longer needed)")
+					.addBooleanParameter("clearAnnotations", "Remove existing annotations", true, "Remove all existing annotations (often a good idea if they were used to train a classifier, but are no longer needed)")
 					.addBooleanParameter("splitAnnotations", "Split new annotations", false, "Split newly-created annotations into distinct regions (rather than have one large, possibly-discontinuous object)");
 	//				.addDoubleParameter("simplify", "Simplify shapes", 0);
 		}
