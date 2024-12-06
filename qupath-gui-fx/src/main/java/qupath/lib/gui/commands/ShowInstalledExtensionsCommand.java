@@ -82,7 +82,6 @@ class ShowInstalledExtensionsCommand {
 			);
 
 			FXUtils.addCloseWindowShortcuts(dialog);
-			FXUtils.retainWindowPosition(dialog);
 			dialog.initOwner(qupath.getStage());
 			dialog.initModality(Modality.APPLICATION_MODAL);
 			dialog.show();
