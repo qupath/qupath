@@ -200,7 +200,7 @@ abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHand
 		
 		// If we are in selection mode, try to get objects to select
 		if (PathPrefs.selectionModeStatus().get()) {
-			var pathClass = PathPrefs.autoSetAnnotationClassProperty().get();
+			var pathClass = e.isAltDown() ? null : PathPrefs.autoSetAnnotationClassProperty().get();
 			Collection<PathObject> toSelect;
 			if (currentROI.isArea()) {
 				toSelect = hierarchy.getAllObjectsForROI(currentROI);
@@ -224,8 +224,8 @@ abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHand
 				var reclassified = toSelect.stream()
 						.filter(p -> p.getPathClass() != pathClass)
 						.map(p -> new Reclassifier(p, pathClass, retainIntensityClass))
-						.filter(r -> r.apply())
-						.map(r -> r.getPathObject())
+						.filter(Reclassifier::apply)
+						.map(Reclassifier::getPathObject)
 						.toList();
 				if (!reclassified.isEmpty()) {
 					hierarchy.fireObjectClassificationsChangedEvent(this, reclassified);
@@ -237,7 +237,10 @@ abstract class AbstractPathROIToolEventHandler extends AbstractPathToolEventHand
 			//					viewer.getHierarchy().fireHierarchyChangedEvent(this);
 			if (toSelect.isEmpty())
 				viewer.setSelectedObject(null);
-			else if (e.isShiftDown()) {
+			else if (e.isAltDown()) {
+				hierarchy.getSelectionModel().deselectObject(pathObject);
+				hierarchy.getSelectionModel().deselectObjects(toSelect);
+			} else if (e.isShiftDown()) {
 				hierarchy.getSelectionModel().deselectObject(pathObject);
 				hierarchy.getSelectionModel().selectObjects(toSelect);
 			} else

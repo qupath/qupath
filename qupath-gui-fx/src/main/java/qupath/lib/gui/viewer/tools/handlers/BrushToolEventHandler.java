@@ -219,8 +219,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 			} else if (!PathPrefs.selectionModeStatus().get()) {
 					List<PathObject> listSelectable = ToolUtils.getSelectableObjectList(viewer, p.getX(), p.getY());
 					PathObject objectSelectable = null;
-					for (int i = 0; i < listSelectable.size(); i++) {
-						PathObject temp = listSelectable.get(i);
+					for (PathObject temp : listSelectable) {
 						if (temp.isEditable() && temp instanceof PathAnnotationObject && temp.hasROI() && temp.getROI().isArea()) { //temp.getROI() instanceof AreaROI) {
 							objectSelectable = temp;
 							break;
@@ -300,12 +299,10 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		}
 
 		ROI currentROI = pathObject.getROI();
-		if (!(currentROI instanceof ROI))
+		if (currentROI == null)
 			return;
-		
-		ROI shapeROI = currentROI;
-		
-		PathObject pathObjectUpdated = getUpdatedObject(e, shapeROI, pathObject, -1);
+
+        PathObject pathObjectUpdated = getUpdatedObject(e, currentROI, pathObject, -1);
 
 		if (pathObject != pathObjectUpdated) {
 			viewer.setSelectedObject(pathObjectUpdated, PathPrefs.selectionModeStatus().get());
@@ -319,7 +316,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		PenInputManager manager = QuPathPenManager.getPenManager();
 		if (manager.isEraser())
 			return true;
-		return e == null ? false : e.isAltDown();
+		return e != null && (e.isAltDown() && !PathPrefs.selectionModeStatus().get());
 	}
 	
 	
@@ -385,7 +382,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 				try {
 					shapeNew = VWSimplifier.simplify(shapeNew, 0.1);
 				} catch (Exception e2) {
-					logger.error("Error simplifying ROI: " + e2.getLocalizedMessage(), e2);
+                    logger.error("Error simplifying ROI: {}", e2.getMessage(), e2);
 				}
 			}
 			
