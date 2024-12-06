@@ -1269,14 +1269,14 @@ public class Commands {
 		// Handle clearing TMA grid
 		if (TMACoreObject.class.equals(cls)) {
 			if (hierarchy.getTMAGrid() != null) {
-				if (Dialogs.showYesNoDialog("Delete objects", "Clear TMA grid?")) {
+				if (Dialogs.showYesNoDialog("Delete objects", "Remove TMA grid?")) {
 					hierarchy.setTMAGrid(null);
 					
 					PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
 					if (selected instanceof TMACoreObject)
 						hierarchy.getSelectionModel().setSelectedObject(null);
 
-					imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Clear TMA Grid", "clearTMAGrid();"));
+					imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Remove TMA Grid", "removeTMAGrid();"));
 				}
 				return;
 			}
@@ -1300,11 +1300,11 @@ public class Commands {
 				hierarchy.getSelectionModel().setSelectedObject(null);
 			
 			if (cls == PathDetectionObject.class)
-				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Clear detections", "clearDetections();"));
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Remove detections", "removeDetections();"));
 			else if (cls == PathAnnotationObject.class)
-				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Clear annotations", "clearAnnotations();"));
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Remove annotations", "removeAnnotations();"));
 			else if (cls == TMACoreObject.class)
-				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Clear TMA grid", "clearTMAGrid();"));
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Remove TMA grid", "removeTMAGrid();"));
 			else
 				logger.warn("Cannot clear all objects for class {}", cls);
 		}

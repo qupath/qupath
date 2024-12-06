@@ -1345,8 +1345,8 @@ public class ViewerManager implements QuPathViewerListener {
 
 		
 		
-		MenuItem miClearSelectedObjects = new MenuItem(QuPathResources.getString("General.deleteObjects"));
-		miClearSelectedObjects.setOnAction(e -> {
+		MenuItem miRemoveSelectedObjects = new MenuItem(QuPathResources.getString("General.deleteObjects"));
+		miRemoveSelectedObjects.setOnAction(e -> {
 			PathObjectHierarchy hierarchy = viewer.getHierarchy();
 			if (hierarchy == null)
 				return;
@@ -1383,14 +1383,14 @@ public class ViewerManager implements QuPathViewerListener {
 			
 			// Add clear objects option if we have more than one non-TMA object
 			if (imageData == null || imageData.getHierarchy().getSelectionModel().noSelection() || imageData.getHierarchy().getSelectionModel().getSelectedObject() instanceof TMACoreObject)
-				miClearSelectedObjects.setVisible(false);
+				miRemoveSelectedObjects.setVisible(false);
 			else {
 				if (imageData.getHierarchy().getSelectionModel().singleSelection()) {
-					miClearSelectedObjects.setText(QuPathResources.getString("General.deleteObject"));
-					miClearSelectedObjects.setVisible(true);
+					miRemoveSelectedObjects.setText(QuPathResources.getString("General.deleteObject"));
+					miRemoveSelectedObjects.setVisible(true);
 				} else {
-					miClearSelectedObjects.setText(QuPathResources.getString("General.deleteObjects"));
-					miClearSelectedObjects.setVisible(true);					
+					miRemoveSelectedObjects.setText(QuPathResources.getString("General.deleteObjects"));
+					miRemoveSelectedObjects.setVisible(true);
 				}
 			}
 			
@@ -1420,7 +1420,7 @@ public class ViewerManager implements QuPathViewerListener {
 		});
 
 		popup.getItems().addAll(
-				miClearSelectedObjects,
+				miRemoveSelectedObjects,
 				menuTMA,
 				menuSetClass,
 				menuAnnotations,
