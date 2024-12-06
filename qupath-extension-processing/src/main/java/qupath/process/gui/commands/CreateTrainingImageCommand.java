@@ -42,6 +42,7 @@ import qupath.lib.images.servers.CroppedImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.SparseImageServer;
+import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -212,8 +213,24 @@ public class CreateTrainingImageCommand {
 							}
 						}
 					}
-					var croppedServer = new CroppedImageServer(server, region);
-					
+
+					var croppedServerBuilder = new TransformedServerBuilder(server)
+							.crop(region);
+
+					boolean cropZ = !doZ && server.nZSlices() > 1;
+					boolean cropT = !doT && server.nTimepoints() > 1;
+					if (cropZ && cropT) {
+						croppedServerBuilder.slice(region.getZ(), region.getZ()+1, region.getT(), region.getT()+1);
+					} else if (cropZ) {
+						croppedServerBuilder.slice(region.getZ(), region.getZ()+1, 0, server.nTimepoints());
+					} else if (cropT) {
+						croppedServerBuilder.slice(0, server.nZSlices(), region.getT(), region.getT()+1);
+					} else {
+						logger.warn("Crop nothing!");
+					}
+
+					var croppedServer = croppedServerBuilder.build();
+
 					int[] zArray = doZ ? IntStream.range(0, croppedServer.nZSlices()).toArray() : new int[] {0};
 					int[] tArray = doT ? IntStream.range(0, croppedServer.nTimepoints()).toArray() : new int[] {0};
 					
