@@ -89,8 +89,6 @@ class ExtensionLoader {
                 );
             }
         } catch (Exception | LinkageError e) {
-            logger.error("Error loading extension {}", extension, e);
-
             if (showNotifications) {
                 Dialogs.showErrorNotification(
                         QuPathResources.getString("ExtensionLoader.extensionError"),
@@ -98,68 +96,84 @@ class ExtensionLoader {
                 );
             }
 
-            Version qupathVersion = QuPathGUI.getVersion();
-            Version compatibleQuPathVersion = extension.getQuPathVersion();
-            if (!Objects.equals(qupathVersion, compatibleQuPathVersion)) {
-                if (compatibleQuPathVersion == null || Version.UNKNOWN.equals(compatibleQuPathVersion)) {
-                    logger.warn("QuPath version for which the '{}' was written is unknown!", extension.getName());
-                } else if (compatibleQuPathVersion.getMajor() == qupathVersion.getMajor() &&
-                        compatibleQuPathVersion.getMinor() == qupathVersion.getMinor()
-                ) {
-                    logger.warn(
-                            "'{}' reports that it is compatible with QuPath {}; the current QuPath version is {}",
-                            extension.getName(),
-                            compatibleQuPathVersion,
-                            qupathVersion
-                    );
-                } else {
-                    logger.warn(
-                            "'{}' was written for QuPath {} but current version is {}",
-                            extension.getName(),
-                            compatibleQuPathVersion,
-                            qupathVersion
-                    );
-                }
-            }
-
-            try {
-                logger.warn(
-                        "It is recommended that you delete {} and restart QuPath",
-                        URLDecoder.decode(
-                                extension.getClass().getProtectionDomain().getCodeSource().getLocation().toExternalForm(),
-                                StandardCharsets.UTF_8
-                        )
-                );
-            } catch (Exception e2) {
-                logger.debug("Error finding code source {}", e2.getLocalizedMessage(), e2);
-            }
-
+            logger.error(
+                    "Error loading extension {}:\n{}{}",
+                    extension.getName(),
+                    getCompatibilityErrorMessage(extension),
+                    getDeleteExtensionMessage(extension),
+                    e
+            );
             quPathGUI.getCommonActions().SHOW_LOG.handle(null);
         }
     }
 
     private void loadServerBuilders(boolean showNotifications) {
-        List<ImageServerBuilder<?>> previousServerBuilders = ImageServerProvider.getInstalledImageServerBuilders();
+        List<String> previousServerBuilderNames = ImageServerProvider.getInstalledImageServerBuilders()
+                .stream()
+                .map(ImageServerBuilder::getName)
+                .toList();
         ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
 
-        if (showNotifications) {
-            List<String> previousServerBuilderNames = previousServerBuilders
-                    .stream()
-                    .map(ImageServerBuilder::getName)
-                    .toList();
+        List<String> newServerBuildersNames = ImageServerProvider.getInstalledImageServerBuilders()
+                .stream()
+                .map(ImageServerBuilder::getName)
+                .filter(name -> !previousServerBuilderNames.contains(name))
+                .toList();
+        if (!newServerBuildersNames.isEmpty()) {
+            logger.info("Loaded image servers {}", newServerBuildersNames);
 
-            List<String> newServerBuildersNames = ImageServerProvider.getInstalledImageServerBuilders()
-                    .stream()
-                    .map(ImageServerBuilder::getName)
-                    .filter(name -> !previousServerBuilderNames.contains(name))
-                    .toList();
+            if (showNotifications) {
+                for (String builderName : newServerBuildersNames) {
+                    Dialogs.showInfoNotification(
+                            QuPathResources.getString("ExtensionLoader.imageServerLoaded"),
+                            builderName
+                    );
+                }
+            }
+        }
+    }
 
-            for (String builderName : newServerBuildersNames) {
-                Dialogs.showInfoNotification(
-                        QuPathResources.getString("ExtensionLoader.imageServerLoaded"),
-                        builderName
+    private static String getCompatibilityErrorMessage(QuPathExtension extension) {
+        Version qupathVersion = QuPathGUI.getVersion();
+        Version compatibleQuPathVersion = extension.getQuPathVersion();
+
+        if (!Objects.equals(qupathVersion, compatibleQuPathVersion)) {
+            return "";
+        } else {
+            if (compatibleQuPathVersion == null || Version.UNKNOWN.equals(compatibleQuPathVersion)) {
+                return String.format("QuPath version for which the '%s' was written is unknown!", extension.getName());
+            } else if (compatibleQuPathVersion.getMajor() == qupathVersion.getMajor() &&
+                    compatibleQuPathVersion.getMinor() == qupathVersion.getMinor()
+            ) {
+                return String.format(
+                        "'%s' reports that it is compatible with QuPath %s; the current QuPath version is %s.",
+                        extension.getName(),
+                        compatibleQuPathVersion,
+                        qupathVersion
+                );
+            } else {
+                return String.format(
+                        "'%s' was written for QuPath %s but current version is %s.",
+                        extension.getName(),
+                        compatibleQuPathVersion,
+                        qupathVersion
                 );
             }
+        }
+    }
+
+    private static String getDeleteExtensionMessage(QuPathExtension extension) {
+        try {
+            return String.format(
+                    "It is recommended that you delete %s and restart QuPath.",
+                    URLDecoder.decode(
+                            extension.getClass().getProtectionDomain().getCodeSource().getLocation().toExternalForm(),
+                            StandardCharsets.UTF_8
+                    )
+            );
+        } catch (Exception e) {
+            logger.debug("Error finding code source {}", e.getLocalizedMessage(), e);
+            return "";
         }
     }
 }

@@ -81,8 +81,7 @@ class UpdateManager {
 	 */
 	public void runAutomaticUpdateCheck() {
 		AutoUpdateType checkType = PathPrefs.autoUpdateCheckProperty().get();
-		boolean doAutoUpdateCheck = checkType != null && checkType != AutoUpdateType.NONE;
-		if (!doAutoUpdateCheck) {
+		if (checkType == null || checkType == AutoUpdateType.NONE) {
 			logger.debug("No update check because of user preference ({})", checkType);
 			return;
 		}
@@ -92,13 +91,15 @@ class UpdateManager {
 		double diffHours = (double)(currentTime - lastUpdateCheckMillis) / (60L * 60L * 1000L);
 		if (diffHours < HOURS_BETWEEN_AUTO_UPDATES) {
 			logger.debug(
-					"Skipping update check because it was already checked recently (less than {} hours ago)",
+					"Skipping update check because it was already checked recently ({} hours ago, which is less than {} hours ago)",
+					diffHours,
 					HOURS_BETWEEN_AUTO_UPDATES
 			);
 			return;
 		}
 
-		runUpdateCheckInBackground(checkType, true);
+		logger.debug("Automatic update check started - will search for {}", checkType);
+		runUpdateCheckInBackground(checkType, false);
 	}
 
 	/**
@@ -106,22 +107,22 @@ class UpdateManager {
 	 * This will perform the check regardless of {@link PathPrefs#autoUpdateCheckProperty()}.
 	 */
 	public void runManualUpdateCheck() {
-		logger.debug("Manually requested update check - will search for QuPath and extensions");
-		runUpdateCheckInBackground(AutoUpdateType.QUPATH_AND_EXTENSIONS, false);
+		logger.debug("Manual update check started - will search for QuPath and extensions");
+		runUpdateCheckInBackground(AutoUpdateType.QUPATH_AND_EXTENSIONS, true);
 	}
 
-	private void runUpdateCheckInBackground(AutoUpdateType checkType, boolean isAutoCheck) {
-		qupath.getThreadPoolManager().submitShortTask(() -> doUpdateCheck(checkType, isAutoCheck));
+	private void runUpdateCheckInBackground(AutoUpdateType checkType, boolean showDialogs) {
+		qupath.getThreadPoolManager().submitShortTask(() -> doUpdateCheck(checkType, showDialogs));
 	}
 	
 	/**
 	 * Do an update check.
 	 *
 	 * @param updateCheckType what to update
-	 * @param avoidPrompting if true, avoid prompting the user unless an update is available. If false, the user
-	 *                       will be notified of the outcome, regardless of whether an update is found
+	 * @param showDialogs whether to show dialogs. If an update is found, a dialog with an
+	 *                    {@link UpdateManagerContainer} will be shown no matter this parameter
 	 */
-	private synchronized void doUpdateCheck(AutoUpdateType updateCheckType, boolean avoidPrompting) {
+	private synchronized void doUpdateCheck(AutoUpdateType updateCheckType, boolean showDialogs) {
 		lastUpdateCheck.set(System.currentTimeMillis());
 
 		List<UpdateManagerContainer.UpdateEntry> updateEntries = Stream.concat(
@@ -130,15 +131,14 @@ class UpdateManager {
 		).toList();
 
 		if (updateEntries.isEmpty()) {
-			if (avoidPrompting) {
-				logger.info("No updates found");
-			} else {
-				Dialogs.showMessageDialog(
-						QuPathResources.getString("UpdateManager.updateCheck"),
-						QuPathResources.getString("UpdateManager.noUpdatesFound")
-				);
-			}
-			return;
+			logger.info("No updates found");
+            if (showDialogs) {
+                Dialogs.showMessageDialog(
+                        QuPathResources.getString("UpdateManager.updateCheck"),
+                        QuPathResources.getString("UpdateManager.noUpdatesFound")
+                );
+            }
+            return;
 		}
 
 		UpdateManagerContainer updateManagerContainer;
@@ -146,7 +146,7 @@ class UpdateManager {
 			updateManagerContainer = new UpdateManagerContainer(updateEntries);
         } catch (IOException e) {
 			logger.error("Cannot create update manager window", e);
-			if (!avoidPrompting) {
+			if (showDialogs) {
 				Dialogs.showErrorMessage(
 						QuPathResources.getString("UpdateManager.updateCheck"),
 						QuPathResources.getString("UpdateManager.cannotCreateUpdateWindow")
