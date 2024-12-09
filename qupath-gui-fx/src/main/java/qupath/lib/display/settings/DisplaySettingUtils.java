@@ -25,10 +25,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonSyntaxException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.ColorTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.io.GsonTools;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ResourceManager;
@@ -100,7 +103,8 @@ public class DisplaySettingUtils {
         }
         display.setUseInvertedBackground(settings.invertBackground());
         var available = new ArrayList<>(display.availableChannels());
-        var selected = new HashSet<>(display.selectedChannels());
+        // Maintain a list of colors in case we need to update the image metadata
+        var directChannels = new ArrayList<ImageChannel>();
         for (var channel : available) {
             var channelSettings = settings.getChannels().stream()
                     .filter(s -> s.getName().equals(channel.getName()))
@@ -109,18 +113,27 @@ public class DisplaySettingUtils {
             if (channelSettings == null) {
                 continue;
             }
-            if (channelSettings.isShowing()) {
-                selected.add(channel);
-            } else {
-                selected.remove(channel);
-            }
             var color = channelSettings.getColor();
-            if (color != null && channel instanceof DirectServerChannelInfo info)
+            if (color != null && channel instanceof DirectServerChannelInfo info) {
                 info.setLUTColor(color.getRed(), color.getGreen(), color.getBlue());
+                directChannels.add(ImageChannel.getInstance(channel.getName(),
+                        ColorTools.packRGB(color.getRed(), color.getGreen(), color.getBlue())));
+            }
             display.setMinMaxDisplay(channel, channelSettings.getMinDisplay(), channelSettings.getMaxDisplay());
             display.setChannelSelected(channel, channelSettings.isShowing());
         }
         display.setUseInvertedBackground(settings.invertBackground());
+        // Set image metadata if channel colors have changed
+        // See https://github.com/qupath/qupath/issues/1726
+        var imageData = display.getImageData();
+        var server = imageData == null ? null : imageData.getServer();
+        if (server != null && server.nChannels() == directChannels.size() && !directChannels.equals(server.getMetadata().getChannels())) {
+            server.setMetadata(
+                    new ImageServerMetadata.Builder(server.getMetadata())
+                            .channels(directChannels)
+                            .build()
+            );
+        }
         return true;
     }
 
