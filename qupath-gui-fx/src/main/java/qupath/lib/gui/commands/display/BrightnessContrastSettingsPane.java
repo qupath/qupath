@@ -332,6 +332,10 @@ public class BrightnessContrastSettingsPane extends GridPane {
         }
 
         private void updateTextAndStyle() {
+            if (!Platform.isFxApplicationThread()) {
+                Platform.runLater(this::updateTextAndStyle);
+                return;
+            }
             var item = getItem();
             if (item == null) {
                 setText(null);
