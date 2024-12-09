@@ -18,11 +18,7 @@ val platform = Utils.currentPlatform()
 dependencies {
     implementation(project(":qupath-core"))
     implementation(project(":qupath-gui-fx"))
-    if (platform == PlatformPlugin.Platform.LINUX_AARCH64) {
-        println("OpenSlide native libraries not yet available for linux-arm64")
-    } else {
-        implementation("io.github.qupath:openslide:${libs.versions.openslide.get()}:${platform.classifier}")
-    }
+    implementation("io.github.qupath:openslide:${libs.versions.openslide.get()}:${platform.classifier}")
     implementation(libs.jna)
     implementation(libs.qupath.fxtras)
 }
