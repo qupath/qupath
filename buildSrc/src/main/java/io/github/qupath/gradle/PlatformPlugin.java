@@ -35,7 +35,7 @@ public class PlatformPlugin implements Plugin<Project> {
         MAC("macosx", "darwin-x86_64", "icns", "pkg"),
         MAC_AARCH64("macosx", "darwin-aarch64", "icns", "pkg"),
         LINUX("linux", "linux-x86_64", "png", "deb"),
-        LINUX_AARCH64("linux-arm64", "linux-aarch64", "png", "deb"),
+        LINUX_AARCH64("linux", "linux-aarch64", "png", "deb"),
         UNKNOWN();
         
         private final String platformName;
