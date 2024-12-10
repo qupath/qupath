@@ -3,7 +3,7 @@
 bioformats      = "8.0.1"
 bioimageIoSpec  = "0.1.0"
 omeZarrReader   = "0.5.2"
-blosc           = "v1.21.6-SNAPSHOT"
+blosc           = "1.21.6"
 
 commonmark      = "0.24.0"
 commonsMath3    = "3.6.1"
@@ -39,7 +39,7 @@ logviewer       = "0.2.0"
 
 javadocviewer   = "0.1.1"
 
-openslide       = "4.0.0.6-SNAPSHOT"
+openslide       = "4.0.0.6"
 
 picocli         = "4.7.6"
 qupath-fxtras   = "0.1.5"
