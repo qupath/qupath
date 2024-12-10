@@ -47,6 +47,8 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParseResult;
 import qupath.ext.extensionmanager.core.ExtensionIndexManager;
+import qupath.ext.extensionmanager.core.savedentities.Registry;
+import qupath.ext.extensionmanager.core.savedentities.SavedIndex;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.BuildInfo;
@@ -336,7 +338,12 @@ class ScriptCommand implements Runnable {
 				UserDirectoryManager.getInstance().extensionsDirectoryProperty(),
 				QuPath.class.getClassLoader(),
 				String.format("v%s", BuildInfo.getInstance().getVersion().toString()),
-				null
+				new Registry(List.of(new SavedIndex(
+						"QuPath index",
+						"Extensions maintained by the QuPath team",
+						URI.create("https://github.com/qupath/qupath-index"),
+						URI.create("https://raw.githubusercontent.com/qupath/qupath-index/refs/heads/main/index.json")
+				)))
 		)){
 			if (projectPath != null && !projectPath.toLowerCase().endsWith(ProjectIO.getProjectExtension()))
 				throw new IOException("Project file must end with '.qpproj'");

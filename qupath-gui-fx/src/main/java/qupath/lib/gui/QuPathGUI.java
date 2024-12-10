@@ -103,6 +103,8 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import qupath.ext.extensionmanager.core.ExtensionIndexManager;
+import qupath.ext.extensionmanager.core.savedentities.Registry;
+import qupath.ext.extensionmanager.core.savedentities.SavedIndex;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
@@ -346,7 +348,12 @@ public class QuPathGUI {
 				UserDirectoryManager.getInstance().extensionsDirectoryProperty(),
 				QuPathGUI.class.getClassLoader(),
 				String.format("v%s", BuildInfo.getInstance().getVersion().toString()),
-				null
+				new Registry(List.of(new SavedIndex(
+						"QuPath index",
+						"Extensions maintained by the QuPath team",
+						URI.create("https://github.com/qupath/qupath-index"),
+						URI.create("https://raw.githubusercontent.com/qupath/qupath-index/refs/heads/main/index.json")
+				)))
 		);
 		ExtensionLoader.loadFromManager(extensionIndexManager, this);
 
