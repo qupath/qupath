@@ -3,7 +3,7 @@
 bioformats      = "8.0.1"
 bioimageIoSpec  = "0.1.0"
 omeZarrReader   = "0.5.2"
-blosc           = "1.21.6"
+blosc           = "1.21.6+01"
 
 commonmark      = "0.24.0"
 commonsMath3    = "3.6.1"
