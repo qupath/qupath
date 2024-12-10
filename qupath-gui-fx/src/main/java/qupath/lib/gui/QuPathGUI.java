@@ -352,7 +352,8 @@ public class QuPathGUI {
 						"QuPath index",
 						"Extensions maintained by the QuPath team",
 						URI.create("https://github.com/qupath/qupath-index"),
-						URI.create("https://raw.githubusercontent.com/qupath/qupath-index/refs/heads/main/index.json")
+						URI.create("https://raw.githubusercontent.com/qupath/qupath-index/refs/heads/main/index.json"),
+						false
 				)))
 		);
 		ExtensionLoader.loadFromManager(extensionIndexManager, this);
