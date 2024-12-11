@@ -292,5 +292,5 @@ distributions {
  * Check if we should build with Fiji dependencies
  */
 fun buildWithFiji(): Boolean {
-    return providers.gradleProperty("fiji").orNull != "true"
+    return providers.gradleProperty("fiji").orNull == "true"
 }

@@ -5,8 +5,6 @@ plugins {
 
 dependencies {
 
-    implementation("org.jogamp.gluegen:gluegen-rt:2.5.0:natives-macosx-universal")
-    implementation("org.jogamp.jogl:jogl-all:2.5.0:natives-macosx-universal")
     implementation("sc.fiji:fiji:2.16.0")
     {
         exclude(group = "org.jogamp.gluegen")
@@ -14,6 +12,9 @@ dependencies {
         exclude(group = "org.bytedeco", module = "ffmpeg")
         exclude(module = "jai-core")
     }
+
+    implementation("org.jogamp.gluegen:gluegen-rt:2.5.0:natives-macosx-universal")
+    implementation("org.jogamp.jogl:jogl-all:2.5.0:natives-macosx-universal")
 
 }
 
