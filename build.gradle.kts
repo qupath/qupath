@@ -24,6 +24,13 @@ if ("32" == System.getProperty("sun.arch.data.model")) {
 }
 
 /*
+ * Apply plugin to build with Fiji dependencies, if needed
+ */
+if (buildWithFiji()) {
+    apply(plugin="qupath.fiji-conventions")
+}
+
+/*
  * Get the current QuPath version
  */
 val qupathVersion = rootProject.version.toString()
@@ -129,8 +136,11 @@ tasks.register<JavaExec>("exportDocs") {
 val excludedProjects = listOf(project)
 val includedProjects = rootProject.subprojects.filter { !excludedProjects.contains(it) }
 
-
 dependencies {
+
+    // Include Groovy scripting
+    if (!buildWithFiji())
+        runtimeOnly(libs.bundles.groovy3)
 
     includedProjects.forEach {
         implementation(it)
@@ -157,7 +167,7 @@ application {
     val qupathAppName = gradle.extra["qupath.app.name"] as String
 
     applicationName = qupathAppName
-    applicationDefaultJvmArgs = listOf(gradle.extra["qupath.jvm.args"] as String)
+    applicationDefaultJvmArgs += listOf(gradle.extra["qupath.jvm.args"] as String)
 
     // Necessary when using ./gradlew run to support style manager to change themes
     applicationDefaultJvmArgs += "--add-opens"
@@ -167,6 +177,7 @@ application {
     // See https://github.com/controlsfx/controlsfx/issues/1505
     applicationDefaultJvmArgs += "--add-opens"
     applicationDefaultJvmArgs += "javafx.base/com.sun.javafx.event=ALL-UNNAMED"
+
 }
 
 
@@ -275,4 +286,11 @@ distributions {
             }
         }
     }
+}
+
+/**
+ * Check if we should build with Fiji dependencies
+ */
+fun buildWithFiji(): Boolean {
+    return providers.gradleProperty("fiji").orNull != "true"
 }

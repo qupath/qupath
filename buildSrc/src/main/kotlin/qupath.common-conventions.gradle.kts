@@ -30,7 +30,7 @@ repositories {
     // Required for scijava (including some QuPath jars)
     maven {
     	name = "SciJava"
-	    url = uri("https://maven.scijava.org/content/repositories/releases")
+	    url = uri("https://maven.scijava.org/content/groups/public/")
 	}
 
     // May be required during development

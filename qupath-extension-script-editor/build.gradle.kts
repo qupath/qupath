@@ -13,7 +13,6 @@ base {
 
 dependencies {
   implementation(libs.qupath.fxtras)
-  implementation(libs.bundles.groovy)
   implementation(libs.bundles.markdown)
   implementation(libs.richtextfx)
   implementation(libs.snakeyaml)

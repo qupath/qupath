@@ -182,6 +182,9 @@ public class IJExtension implements QuPathExtension {
 		var ij = IJ.getInstance();
 		if (ij != null) {
 			ensurePluginsInstalled(ij);
+			// These lines may be needed if we are requesting ImageJ from Fiji
+			ij.exitWhenQuitting(false);
+			ij.resize();
 			return ij;
 		}
 		
@@ -256,7 +259,7 @@ public class IJExtension implements QuPathExtension {
 		
 		// Make sure we have QuPath's custom plugins installed
 		ensurePluginsInstalled(ijTemp);
-		
+
 		return ijTemp;
 	}
 

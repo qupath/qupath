@@ -86,7 +86,11 @@ import qupath.lib.scripting.languages.ScriptLanguage;
 public class QuPath {
 	
 	private static final Logger logger = LoggerFactory.getLogger(QuPath.class);
-	
+
+	static {
+		initializeSciJava();
+	}
+
 	@Parameters(arity = "0..1", description = {"Path to image or project to open"}, hidden = true)
 	private String path;
 
@@ -204,10 +208,23 @@ public class QuPath {
 				logger.warn("Calling System.exit with exit code {}", exitCode);
 			System.exit(exitCode);
 		}
-	
-		return;
 	}
-	
+
+	/**
+	 * Create SciJava context if available - this is needed if running with Fiji.
+	 * See https://forum.image.sc/t/embedding-fiji-inside-qupath/105065/18
+	 */
+	private static void initializeSciJava() {
+		try {
+			var cls = Class.forName("org.scijava.Context");
+			cls.getDeclaredConstructor().newInstance();
+			logger.info("SciJava context initialized!");
+		} catch (ClassNotFoundException e) {
+			logger.debug("SciJava Context not found");
+		} catch (Exception e) {
+			logger.warn("Exception trying to create SciJava Context: {}", e.getMessage(), e);
+		}
+	}
 	
 	private static void initializeProperties() {
 		initializeDJL();
