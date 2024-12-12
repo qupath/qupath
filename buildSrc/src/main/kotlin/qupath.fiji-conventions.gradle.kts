@@ -7,10 +7,14 @@ plugins {
     application
 }
 
+
 /**
  * Check if we should build with Fiji dependencies
+ * Can use -Pfiji=true or even just -Pfiji
  */
-val buildWithFiji: Boolean by project.extra { providers.gradleProperty("fiji").orNull == "true" }
+var buildWithFiji: Boolean by project.extra {
+    providers.gradleProperty("fiji").getOrElse("false").trim().lowercase() != "false"
+}
 
 if (buildWithFiji) {
 
