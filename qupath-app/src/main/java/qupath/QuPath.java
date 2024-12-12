@@ -193,13 +193,13 @@ public class QuPath {
 			if (qupath.quiet)
 				CLIArgs.add("--quiet=true");
 		
-			if (qupath.project != null && !qupath.project.equals("") && qupath.project.endsWith(ProjectIO.getProjectExtension()))
+			if (qupath.project != null && !qupath.project.isEmpty() && qupath.project.endsWith(ProjectIO.getProjectExtension()))
 				CLIArgs.add("--project=" + getEncodedPath(qupath.project));
 		
-			if (qupath.image != null && !qupath.image.equals(""))
+			if (qupath.image != null && !qupath.image.isEmpty())
 				CLIArgs.add("--image=" + getEncodedPath(qupath.image));
 			
-			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(new String[CLIArgs.size()]));
+			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(String[]::new));
 			
 		} else {
 			// Parse and execute subcommand with args
