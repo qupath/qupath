@@ -1,6 +1,6 @@
 package qupath.lib.gui;
 
-import javafx.collections.ListChangeListener;
+import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.extensionmanager.core.ExtensionIndexManager;
@@ -13,7 +13,6 @@ import qupath.lib.images.servers.ImageServerProvider;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.HashSet;
 import java.util.List;
@@ -28,23 +27,16 @@ import java.util.Set;
 class ExtensionLoader {
 
     private static final Logger logger = LoggerFactory.getLogger(ExtensionLoader.class);
-    private final Set<QuPathExtension> loadedExtensions = new HashSet<>();
-    private final ServiceLoader<QuPathExtension> extensionLoader;
+    private final Set<Class<? extends QuPathExtension>> loadedExtensions = new HashSet<>();
     private final ClassLoader extensionClassLoader;
     private final QuPathGUI quPathGUI;
 
     private ExtensionLoader(ExtensionIndexManager extensionIndexManager, QuPathGUI quPathGUI) {
-        this.extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionIndexManager.getClassLoader());
         this.extensionClassLoader = extensionIndexManager.getClassLoader();
         this.quPathGUI = quPathGUI;
 
         loadExtensions(false);
-        extensionIndexManager.getIndexedManagedInstalledJars().addListener((ListChangeListener<? super Path>) change ->
-                loadExtensions(true)
-        );
-        extensionIndexManager.getManuallyInstalledJars().addListener((ListChangeListener<? super Path>) change ->
-                loadExtensions(true)
-        );
+        extensionIndexManager.addOnJarLoadedRunnable(() -> loadExtensions(true));
     }
 
     /**
@@ -59,11 +51,11 @@ class ExtensionLoader {
     }
 
     private synchronized void loadExtensions(boolean showNotifications) {
-        for (QuPathExtension extension : extensionLoader) {
-            if (!loadedExtensions.contains(extension)) {
-                loadedExtensions.add(extension);
+        for (QuPathExtension extension : ServiceLoader.load(QuPathExtension.class, extensionClassLoader)) {
+            if (!loadedExtensions.contains(extension.getClass())) {
+                loadedExtensions.add(extension.getClass());
 
-                loadExtension(extension, showNotifications);
+                Platform.runLater(() -> loadExtension(extension, showNotifications));
             }
         }
 
