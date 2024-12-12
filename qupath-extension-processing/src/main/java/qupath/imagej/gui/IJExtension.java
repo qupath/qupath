@@ -129,7 +129,7 @@ public class IJExtension implements QuPathExtension {
 	private static StringProperty imageJPath = null;
 
 	// Handle quitting ImageJ quietly, without prompts to save images
-	private static ImageJQuitCommandListener quitCommandListener;
+	private static final ImageJQuitCommandListener quitCommandListener = new ImageJQuitCommandListener(IJ.getInstance() != null);
 
 	/**
 	 * It is necessary to block MenuBars created with AWT on macOS, otherwise shortcuts
@@ -182,9 +182,7 @@ public class IJExtension implements QuPathExtension {
 		var ij = IJ.getInstance();
 		if (ij != null) {
 			ensurePluginsInstalled(ij);
-			// These lines may be needed if we are requesting ImageJ from Fiji
-			ij.exitWhenQuitting(false);
-			ij.resize();
+			ensureImageJInitialized(ij);
 			return ij;
 		}
 		
@@ -239,21 +237,7 @@ public class IJExtension implements QuPathExtension {
 			// ImageJ doesn't necessarily behave well when it is closed but windows are left open -
 			// so here ensure that all remaining displayed images are closed
 			final ImageJ ij = ijTemp;
-			ij.exitWhenQuitting(false);
-			if (quitCommandListener == null) {
-				quitCommandListener = new ImageJQuitCommandListener();
-				Executer.addCommandListener(quitCommandListener);
-			}
-
-			// Attempt to block the AWT menu bar when ImageJ is not in focus.
-			// Also try to work around a macOS issue where ImageJ's menubar and QuPath's don't work nicely together,
-			// by ensuring that any system menubar request by QuPath is (temporarily) overridden.
-			if (blockAwtMenuBars)
-				menuBarBlocker.startBlocking();
-			if (ij.isShowing()) {
-				Platform.runLater(() -> SystemMenuBar.setOverrideSystemMenuBar(true));
-			}
-
+			ensureImageJInitialized(ij);
 			logger.debug("Created ImageJ instance: {}", ijTemp);
 		}
 		
@@ -261,6 +245,25 @@ public class IJExtension implements QuPathExtension {
 		ensurePluginsInstalled(ijTemp);
 
 		return ijTemp;
+	}
+
+
+	private static void ensureImageJInitialized(ImageJ ij) {
+		// These lines may be needed if we are requesting ImageJ from Fiji
+		ij.exitWhenQuitting(false);
+		Executer.removeCommandListener(quitCommandListener);
+		Executer.addCommandListener(quitCommandListener);
+
+		// Attempt to block the AWT menu bar when ImageJ is not in focus.
+		// Also try to work around a macOS issue where ImageJ's menubar and QuPath's don't work nicely together,
+		// by ensuring that any system menubar request by QuPath is (temporarily) overridden.
+		if (blockAwtMenuBars)
+			menuBarBlocker.startBlocking();
+		if (ij.isShowing()) {
+			Platform.runLater(() -> SystemMenuBar.setOverrideSystemMenuBar(true));
+		}
+
+		ij.resize();
 	}
 
 
