@@ -50,6 +50,9 @@ if (buildWithFiji) {
             applicationDefaultJvmArgs += toOpen
         }
 
+        // Can't use system menubar at all - need to be make sure it is unavailable
+        applicationDefaultJvmArgs += "-Dqupath.enableSystemMenuBar=false"
+
     }
 
 }

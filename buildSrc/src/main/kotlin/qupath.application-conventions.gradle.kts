@@ -25,4 +25,5 @@ application {
     // See https://github.com/controlsfx/controlsfx/issues/1505
     applicationDefaultJvmArgs += "--add-opens"
     applicationDefaultJvmArgs += "javafx.base/com.sun.javafx.event=ALL-UNNAMED"
+
 }
