@@ -184,22 +184,28 @@ public class ScriptLanguageProvider {
 			boolean builtIn = false;
 			for (ScriptLanguage l : getAvailableScriptLanguages()) {
 				if (factory.getNames().contains(l.getName().toLowerCase())) {
-					manager.registerEngineName(l.toString(), factory);
 
-					logger.trace("-------------------------------");
-					logger.trace(factory.getLanguageName());
-					logger.trace(factory.getLanguageVersion());
-					logger.trace(factory.getEngineName());
-					logger.trace(factory.getEngineVersion());
-					logger.trace("Names: {}", factory.getNames());
-					logger.trace("MIME types: {}", factory.getMimeTypes().toString());
-					logger.trace("Extensions: {}", factory.getExtensions().toString());
+					try {
+						logger.trace("-------------------------------");
+						logger.trace(factory.getLanguageName());
+						logger.trace(factory.getLanguageVersion());
+						logger.trace(factory.getEngineName());
+						logger.trace(factory.getEngineVersion());
+						logger.trace("Names: {}", factory.getNames());
+						logger.trace("MIME types: {}", factory.getMimeTypes().toString());
+						logger.trace("Extensions: {}", factory.getExtensions().toString());
 
-					logger.trace(factory.getMethodCallSyntax("QuPath", "runPlugin", "imageData", "\"{ key : value }\""));
-					logger.trace(factory.getOutputStatement("This is my output"));
+						logger.trace(factory.getMethodCallSyntax("QuPath", "runPlugin", "imageData", "\"{ key : value }\""));
+						logger.trace(factory.getOutputStatement("This is my output"));
 
-					builtIn = true;
-					break;
+						manager.registerEngineName(l.toString(), factory);
+
+						builtIn = true;
+						break;
+					} catch (Exception e) {
+						logger.warn("Exception registering script language: {}", e.getMessage(), e);
+					}
+
 				}
 			}
 			

@@ -90,6 +90,8 @@ dependencyResolutionManagement {
 
         create("sciJava") {
             from("org.scijava:pom-scijava:40.0.0")
+            // Override scripting-groovy version for compatibility with Groovy 4 (and anything after 3.0.4)
+            version("scijava.scriptingGroovy", "1.0.0")
         }
 
     }

@@ -142,8 +142,7 @@ val includedProjects = rootProject.subprojects.filter { !excludedProjects.contai
 dependencies {
 
     // Include Groovy scripting
-    if (!buildWithFiji)
-        runtimeOnly(libs.bundles.groovy3)
+    runtimeOnly(libs.bundles.groovy)
 
     includedProjects.forEach {
         implementation(it)
@@ -295,6 +294,10 @@ if (buildWithFiji) {
         implementation(sciJava.org.jogamp.gluegen.gluegenRt)
         implementation(sciJava.org.jogamp.jogl.joglAll)
         implementation(sciJava.org.bytedeco.ffmpeg)
+
+        // Requires to ensure we use Groovy 4.x
+        implementation(sciJava.scijava.scriptingGroovy)
+
         implementation("org.bytedeco:ffmpeg-platform:${sciJava.org.bytedeco.ffmpeg.get().version}")
 
         val classifier = getJogampClassifier()

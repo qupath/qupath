@@ -13,7 +13,6 @@ controlsFX      = "11.1.2"
 deepJavaLibrary = "0.30.0"
 
 groovy          = "4.0.22"
-groovy3         = "3.0.23"
 gson            = "2.11.0"
 guava           = "33.3.1-jre"
 
@@ -97,10 +96,6 @@ groovy-core   = { module = "org.apache.groovy:groovy",          version.ref = "g
 groovy-jsr223 = { module = "org.apache.groovy:groovy-jsr223",   version.ref = "groovy" }
 groovy-xml    = { module = "org.apache.groovy:groovy-xml",      version.ref = "groovy" }
 
-groovy3-core   = { module = "org.codehaus.groovy:groovy",          version.ref = "groovy3" }
-groovy3-jsr223 = { module = "org.codehaus.groovy:groovy-jsr223",   version.ref = "groovy3" }
-groovy3-xml    = { module = "org.codehaus.groovy:groovy-xml",      version.ref = "groovy3" }
-
 javacpp       = { module = "org.bytedeco:javacpp",              version.ref = "javacpp" }
 opencv        = { module = "org.bytedeco:opencv-platform",      version.ref = "opencv" }
 
@@ -114,7 +109,6 @@ junit-platform   = { module = "org.junit.platform:junit-platform-launcher" }
 [bundles]
 djl           = ["deepJavaLibrary", "deepJavaLibrary-zoo"]
 groovy        = ["groovy-core", "groovy-jsr223", "groovy-xml"]
-groovy3        = ["groovy3-core", "groovy3-jsr223", "groovy3-xml"]
 ikonli        = ["ikonli-javafx", "ikonli-ionicons4"]
 logging       = ["slf4j", "logback"]
 logviewer     = ["logviewer", "logviewer-console", "logviewer-rich", "logviewer-logback"]
