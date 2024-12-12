@@ -33,6 +33,7 @@ import ij.gui.Overlay;
 import ij.gui.Roi;
 import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
+import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
 import javafx.scene.Scene;
 import javafx.scene.control.Menu;
@@ -476,6 +477,9 @@ public class IJExtension implements QuPathExtension {
 		@Deprecated
 		public final Action actionCellMembraneDetection;
 
+		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
+		@ActionConfig("Action.ImageJ.showImageJ")
+		public final Action actionShowImageJ = createShowImageJAction();
 		
 		@ActionIcon(PathIcons.EXTRACT_REGION)
 		@ActionMenu(value = {"Menu.Extensions", "ImageJ>"})
@@ -544,6 +548,16 @@ public class IJExtension implements QuPathExtension {
 			
 			var importRoisCommand = new ImportRoisCommand(qupath);
 			actionImportROIs = qupath.createImageDataAction(imageData -> importRoisCommand.run());
+		}
+
+		private Action createShowImageJAction() {
+			return new Action(this::showImageJ);
+		}
+
+		private void showImageJ(ActionEvent event) {
+			var ij = getImageJInstance();
+			if (ij != null)
+				ij.setVisible(true);
 		}
 		
 		private Action createPluginAction(Class<? extends PathPlugin> pluginClass) {
@@ -701,6 +715,7 @@ public class IJExtension implements QuPathExtension {
 			btnImageJ.setTooltip(new Tooltip("ImageJ commands"));
 			MenuTools.addMenuItems(
 					btnImageJ.getItems(),
+					commands.actionShowImageJ,
 					commands.actionExtractRegion,
 					commands.actionSnapshot,
 					null,
