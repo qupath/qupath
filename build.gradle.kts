@@ -302,9 +302,9 @@ if (buildWithFiji) {
 
         val classifier = getJogampClassifier()
         if (classifier != null) {
-            implementation("org.jogamp.gluegen:gluegen-rt:${sciJava.org.jogamp.gluegen.gluegenRt.get().version}:natives-macosx-universal")
-            implementation("org.jogamp.jogl:jogl-all:${sciJava.org.jogamp.jogl.joglAll.get().version}:natives-macosx-universal")
-            implementation("org.jogamp.joal:joal:${sciJava.org.jogamp.joal.joal.get().version}:natives-macosx-universal")
+            implementation("org.jogamp.gluegen:gluegen-rt:${sciJava.org.jogamp.gluegen.gluegenRt.get().version}:$classifier")
+            implementation("org.jogamp.jogl:jogl-all:${sciJava.org.jogamp.jogl.joglAll.get().version}:$classifier")
+            implementation("org.jogamp.joal:joal:${sciJava.org.jogamp.joal.joal.get().version}:$classifier")
         } else {
             logger.warn("Native libraries not found for jogamp")
         }
