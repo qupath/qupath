@@ -68,7 +68,6 @@ runtime {
     for (installer in params.installerTypes) {
 
         jpackage {
-//            mainJar = project(":qupath-app").tasks.jar.get().archiveFileName.get()
             installerType = installer
 
             jvmArgs.addAll(params.jvmArgs)
@@ -92,7 +91,7 @@ runtime {
  */
 class JPackageParams(val outputDir: File, val resourceDir: File? = null) {
 
-    var jvmArgs = listOf(gradle.extra["qupath.jvm.args"] as String)
+    var jvmArgs = application.applicationDefaultJvmArgs
     var imageName = qupathAppName // Will need to be removed for some platforms
     var appVersion: String = qupathVersion.replace("-SNAPSHOT", "")
     var imageOptions = mutableListOf<String>()

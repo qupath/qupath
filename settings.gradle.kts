@@ -87,7 +87,17 @@ dependencyResolutionManagement {
             else
                 bundle("extensions", listOf())
         }
+
+        create("sciJava") {
+            from("org.scijava:pom-scijava:40.0.0")
+        }
+
     }
+
+    repositories {
+        maven("https://maven.scijava.org/content/groups/public/")
+    }
+
 }
 
 // These lines make it possible to define directories within gradle.properties

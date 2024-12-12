@@ -57,6 +57,7 @@ import javax.imageio.ImageIO;
 import javax.script.ScriptException;
 import javax.swing.SwingUtilities;
 
+import ij.IJ;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
 import javafx.scene.control.*;
@@ -1068,6 +1069,13 @@ public class QuPathGUI {
 		if (isStandalone()) {
 			logger.info("Calling Platform.exit();");
 			Platform.exit();
+			// This is required when quitting from Fiji (at least on macOS)
+			var ij = IJ.getInstance();
+			if (ij != null) {
+				logger.debug("Quitting from ImageJ");
+				ij.exitWhenQuitting(true);
+				ij.quit();
+			}
 			// Something of an extreme option... :/
 			// Shouldn't be needed if we shut down everything properly, but here as a backup just in case 
 			// (e.g. if ImageJ is running and this blocks exit)
