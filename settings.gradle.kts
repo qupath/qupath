@@ -16,9 +16,9 @@ val qupathVersion = file("./VERSION").readText().trim()
 // Define the group to use for artifacts
 val qupathGroup = "io.github.qupath"
 
-// Store version & derived app name in extra properties for build scripts to use
+// Store version & base app name in extra properties for build scripts to use
 gradle.extra["qupath.app.version"] = qupathVersion
-gradle.extra["qupath.app.name"] = "QuPath-$qupathVersion"
+gradle.extra["qupath.app.name"] = "QuPath"
 
 // Default is to use 50% of available RAM
 gradle.extra["qupath.jvm.args"] = providers.gradleProperty("qupath.jvm.args").getOrElse("-XX:MaxRAMPercentage=50")

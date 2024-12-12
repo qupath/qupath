@@ -26,7 +26,8 @@ plugins {
  */
 val macOSDefaultVersion = "1"
 val qupathVersion = gradle.extra["qupath.app.version"] as String
-val qupathAppName = gradle.extra["qupath.app.name"] as String
+val qupathBaseName = gradle.extra["qupath.app.name"] as String
+val qupathAppName = "$qupathBaseName-$qupathVersion"
 val platform: PlatformPlugin.Platform = Utils.currentPlatform()
 
 // Requested package type (image, installer, all, pkg, dmg, msi, exe, deb, rpm...)
@@ -124,7 +125,7 @@ class JPackageParams(val outputDir: File, val resourceDir: File? = null) {
         if (!resourceDir.isDirectory)
             return
         val iconExt = platform.iconExtension
-        val iconFile = File(resourceDir, "QuPath.${iconExt}")
+        val iconFile = File(resourceDir, "$qupathBaseName.$iconExt")
         if (iconFile.exists())
             imageOptions += listOf("--icon", iconFile.absolutePath)
         else

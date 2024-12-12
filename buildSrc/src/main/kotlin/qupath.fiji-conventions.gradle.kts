@@ -14,7 +14,13 @@ val buildWithFiji: Boolean by project.extra { providers.gradleProperty("fiji").o
 
 if (buildWithFiji) {
 
+    val appName = "QuPath-Fiji"
+    gradle.extra["qupath.app.name"] = "QuPath-Fiji"
+
     application {
+
+        println("Building QuPath with Fiji dependencies: $appName")
+        applicationName = appName
 
         for (toOpen in setOf(
             // Fiji
