@@ -9,12 +9,6 @@ repositories {
     gradlePluginPortal()
 }
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(libs.versions.jdk.get())
-    }
-}
-
 gradlePlugin {
     plugins {
         create("simplePlugin") {
@@ -44,5 +38,4 @@ dependencies {
     implementation("gradle.plugin.org.gradle.crypto:checksum:${libs.plugins.checksum.get().version}")
     implementation("org.openjfx:javafx-plugin:${libs.plugins.javafx.get().version}")
     implementation("com.github.jk1:gradle-license-report:${libs.plugins.license.report.get().version}")
-
 }

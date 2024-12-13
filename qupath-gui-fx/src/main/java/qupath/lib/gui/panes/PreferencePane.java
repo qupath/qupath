@@ -210,6 +210,10 @@ public class PreferencePane {
 		@BooleanPref(value = "Prefs.Appearance.badges")
 		public final BooleanProperty badges = PathPrefs.showToolBarBadgesProperty();
 
+		@Pref(value = "Prefs.Appearance.systemMenubar", type = SystemMenuBar.SystemMenuBarOption.class)
+		public final ObjectProperty<SystemMenuBar.SystemMenuBarOption> systemMenubar = SystemMenuBar.supportsSystemMenubar() ?
+				SystemMenuBar.systemMenubarProperty() : null;
+
 		public final ObservableList<StyleOption> getStyles() {
 			return QuPathStyleManager.availableStylesProperty();
 		}
@@ -229,9 +233,6 @@ public class PreferencePane {
 		@Pref(value = "Prefs.General.checkForUpdates", type = AutoUpdateType.class)
 		public final ObjectProperty<AutoUpdateType> autoUpdate = PathPrefs.autoUpdateCheckProperty();
 
-		@Pref(value = "Prefs.General.systemMenubar", type = SystemMenuBar.SystemMenuBarOption.class)
-		public final ObjectProperty<SystemMenuBar.SystemMenuBarOption> systemMenubar = SystemMenuBar.systemMenubarProperty();
-		
 		@DoublePref("Prefs.General.maxMemory")
 		public final DoubleProperty maxMemoryGB = PathPrefs.hasJavaPreferences() ? createMaxMemoryProperty() : null;
 

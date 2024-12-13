@@ -16,9 +16,9 @@ val qupathVersion = file("./VERSION").readText().trim()
 // Define the group to use for artifacts
 val qupathGroup = "io.github.qupath"
 
-// Store version & derived app name in extra properties for build scripts to use
+// Store version & base app name in extra properties for build scripts to use
 gradle.extra["qupath.app.version"] = qupathVersion
-gradle.extra["qupath.app.name"] = "QuPath-$qupathVersion"
+gradle.extra["qupath.app.name"] = "QuPath"
 
 // Default is to use 50% of available RAM
 gradle.extra["qupath.jvm.args"] = providers.gradleProperty("qupath.jvm.args").getOrElse("-XX:MaxRAMPercentage=50")
@@ -87,7 +87,19 @@ dependencyResolutionManagement {
             else
                 bundle("extensions", listOf())
         }
+
+        create("sciJava") {
+            from("org.scijava:pom-scijava:40.0.0")
+            // Override scripting-groovy version for compatibility with Groovy 4 (and anything after 3.0.4)
+            version("scijava.scriptingGroovy", "1.0.0")
+        }
+
     }
+
+    repositories {
+        maven("https://maven.scijava.org/content/groups/public/")
+    }
+
 }
 
 // These lines make it possible to define directories within gradle.properties

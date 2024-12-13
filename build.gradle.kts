@@ -1,4 +1,5 @@
 import io.github.qupath.gradle.PlatformPlugin
+import org.apache.tools.ant.taskdefs.condition.Os
 
 plugins {
     id("qupath.common-conventions")
@@ -6,6 +7,10 @@ plugins {
     id("qupath.git-commit-id")
 
     id("qupath.djl-conventions")
+    id("qupath.application-conventions")
+
+    id("qupath.fiji-conventions")
+
     id("qupath.jpackage-conventions")
     id("qupath.license-conventions")
 
@@ -22,6 +27,11 @@ if (io.github.qupath.gradle.Utils.currentPlatform() == PlatformPlugin.Platform.U
 if ("32" == System.getProperty("sun.arch.data.model")) {
     throw GradleException("Can't build QuPath using a 32-bit JDK - please use a 64-bit JDK instead")
 }
+
+/*
+ * Set by Fiji conventions plugin
+ */
+val buildWithFiji: Boolean by project.extra
 
 /*
  * Get the current QuPath version
@@ -129,8 +139,10 @@ tasks.register<JavaExec>("exportDocs") {
 val excludedProjects = listOf(project)
 val includedProjects = rootProject.subprojects.filter { !excludedProjects.contains(it) }
 
-
 dependencies {
+
+    // Include Groovy scripting
+    runtimeOnly(libs.bundles.groovy)
 
     includedProjects.forEach {
         implementation(it)
@@ -151,23 +163,6 @@ dependencies {
     }
 }
 
-application {
-    mainClass = "qupath.QuPath"
-
-    val qupathAppName = gradle.extra["qupath.app.name"] as String
-
-    applicationName = qupathAppName
-    applicationDefaultJvmArgs = listOf(gradle.extra["qupath.jvm.args"] as String)
-
-    // Necessary when using ./gradlew run to support style manager to change themes
-    applicationDefaultJvmArgs += "--add-opens"
-    applicationDefaultJvmArgs += "javafx.graphics/com.sun.javafx.css=ALL-UNNAMED"
-
-    // Necessary when using ./gradlew run to support project metadata autocomplete
-    // See https://github.com/controlsfx/controlsfx/issues/1505
-    applicationDefaultJvmArgs += "--add-opens"
-    applicationDefaultJvmArgs += "javafx.base/com.sun.javafx.event=ALL-UNNAMED"
-}
 
 
 /**
@@ -275,4 +270,66 @@ distributions {
             }
         }
     }
+}
+
+
+
+/*
+ * Custom behavior when we want to build with all Fiji dependencies
+ */
+if (buildWithFiji) {
+
+    apply(plugin="qupath.fiji-conventions")
+
+    // Set dependencies here (rather than in plugin) so we can use the SciJava version catalog
+    dependencies {
+        implementation(sciJava.bundles.fiji)
+        {
+            // Excluded because gradle doesn't support maven profiles fully - so need to get them some other way
+            exclude(group = "org.jogamp.gluegen")
+            exclude(group = "org.jogamp.jogl")
+            exclude(group = "org.jogamp.joal")
+            exclude(group = "org.bytedeco", module = "ffmpeg")
+        }
+        implementation(sciJava.org.jogamp.gluegen.gluegenRt)
+        implementation(sciJava.org.jogamp.jogl.joglAll)
+        implementation(sciJava.org.bytedeco.ffmpeg)
+
+        // Requires to ensure we use Groovy 4.x
+        implementation(sciJava.scijava.scriptingGroovy)
+
+        implementation("org.bytedeco:ffmpeg-platform:${sciJava.org.bytedeco.ffmpeg.get().version}")
+
+        val classifier = getJogampClassifier()
+        if (classifier != null) {
+            implementation("org.jogamp.gluegen:gluegen-rt:${sciJava.org.jogamp.gluegen.gluegenRt.get().version}:$classifier")
+            implementation("org.jogamp.jogl:jogl-all:${sciJava.org.jogamp.jogl.joglAll.get().version}:$classifier")
+            implementation("org.jogamp.joal:joal:${sciJava.org.jogamp.joal.joal.get().version}:$classifier")
+        } else {
+            logger.warn("Native libraries not found for jogamp")
+        }
+    }
+
+    // Required for SciJava Context
+    runtime {
+        modules.add("java.instrument")
+    }
+
+}
+
+fun getJogampClassifier(): String? {
+    if (Os.isFamily(Os.FAMILY_MAC)) {
+        return "natives-macosx-universal"
+    }
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        return "natives-windows-amd64"
+    }
+    if (Os.isFamily(Os.FAMILY_UNIX)) {
+        return if (Os.isArch("arm64")) {
+            "natives-linux-aarch64"
+        } else {
+            "natives-linux-amd64"
+        }
+    }
+    return null
 }

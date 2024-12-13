@@ -38,7 +38,11 @@ import java.util.Set;
  */
 class ImageJQuitCommandListener implements CommandListener {
 
-    ImageJQuitCommandListener() {}
+    private final boolean blockQuit;
+
+    ImageJQuitCommandListener(boolean blockQuit) {
+        this.blockQuit = blockQuit;
+    }
 
     @Override
     public String commandExecuting(String command) {
@@ -48,6 +52,10 @@ class ImageJQuitCommandListener implements CommandListener {
                     return null;
             }
             closeWindowsQuietly();
+            // If we don't want to quit entirely (e.g. we have a single Fiji instance),
+            // return null to block the command
+            if (blockQuit)
+                return null;
         }
         return command;
     }

@@ -86,7 +86,11 @@ import qupath.lib.scripting.languages.ScriptLanguage;
 public class QuPath {
 	
 	private static final Logger logger = LoggerFactory.getLogger(QuPath.class);
-	
+
+	static {
+		initializeSciJava();
+	}
+
 	@Parameters(arity = "0..1", description = {"Path to image or project to open"}, hidden = true)
 	private String path;
 
@@ -189,13 +193,13 @@ public class QuPath {
 			if (qupath.quiet)
 				CLIArgs.add("--quiet=true");
 		
-			if (qupath.project != null && !qupath.project.equals("") && qupath.project.endsWith(ProjectIO.getProjectExtension()))
+			if (qupath.project != null && !qupath.project.isEmpty() && qupath.project.endsWith(ProjectIO.getProjectExtension()))
 				CLIArgs.add("--project=" + getEncodedPath(qupath.project));
 		
-			if (qupath.image != null && !qupath.image.equals(""))
+			if (qupath.image != null && !qupath.image.isEmpty())
 				CLIArgs.add("--image=" + getEncodedPath(qupath.image));
 			
-			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(new String[CLIArgs.size()]));
+			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(String[]::new));
 			
 		} else {
 			// Parse and execute subcommand with args
@@ -204,10 +208,23 @@ public class QuPath {
 				logger.warn("Calling System.exit with exit code {}", exitCode);
 			System.exit(exitCode);
 		}
-	
-		return;
 	}
-	
+
+	/**
+	 * Create SciJava context if available - this is needed if running with Fiji.
+	 * See https://forum.image.sc/t/embedding-fiji-inside-qupath/105065/18
+	 */
+	private static void initializeSciJava() {
+		try {
+			var cls = Class.forName("org.scijava.Context");
+			cls.getDeclaredConstructor().newInstance();
+			logger.info("SciJava context initialized!");
+		} catch (ClassNotFoundException e) {
+			logger.debug("SciJava Context not found");
+		} catch (Exception e) {
+			logger.warn("Exception trying to create SciJava Context: {}", e.getMessage(), e);
+		}
+	}
 	
 	private static void initializeProperties() {
 		initializeDJL();

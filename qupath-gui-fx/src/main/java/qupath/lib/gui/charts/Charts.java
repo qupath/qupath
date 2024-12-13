@@ -643,8 +643,7 @@ public class Charts {
 		
 		/**
 		 * Plot values extracted from objects within a specified collection.
-		 * @param name 
-		 * @param <T> 
+		 * @param <T>
 		 * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param collection the objects to plot
 		 * @param xFun function capable of extracting a numeric value for the x location from each object in the collection
