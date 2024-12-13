@@ -41,7 +41,7 @@ javadocviewer   = "0.1.1"
 
 extensionmanager= "1.0.0-SNAPSHOT"
 
-openslide       = "4.0.0.3"
+openslide       = "4.0.0.6"
 
 picocli         = "4.7.6"
 qupath-fxtras   = "0.1.5"
