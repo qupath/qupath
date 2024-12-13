@@ -17,6 +17,7 @@ import java.text.MessageFormat;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
 
@@ -51,12 +52,16 @@ class ExtensionLoader {
     }
 
     private synchronized void loadExtensions(boolean showNotifications) {
-        for (QuPathExtension extension : ServiceLoader.load(QuPathExtension.class, extensionClassLoader)) {
-            if (!loadedExtensions.contains(extension.getClass())) {
-                loadedExtensions.add(extension.getClass());
+        try {
+            for (QuPathExtension extension : ServiceLoader.load(QuPathExtension.class, extensionClassLoader)) {
+                if (!loadedExtensions.contains(extension.getClass())) {
+                    loadedExtensions.add(extension.getClass());
 
-                Platform.runLater(() -> loadExtension(extension, showNotifications));
+                    Platform.runLater(() -> loadExtension(extension, showNotifications));
+                }
             }
+        } catch (ServiceConfigurationError e) {
+            logger.error("Error while loading extension", e);
         }
 
         loadServerBuilders(showNotifications);
