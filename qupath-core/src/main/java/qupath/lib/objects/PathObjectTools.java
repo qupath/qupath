@@ -26,6 +26,7 @@ package qupath.lib.objects;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -1285,7 +1286,10 @@ public class PathObjectTools {
 			if (roi == null || !roi.isArea() || pathObject.isTMACore()) {
 				continue;
 			}
-			map.put(pathObject, splitObjectBySubtraction(pathObject, lines));
+			var linesOnSamePlane = Arrays.stream(lines)
+					.filter(line -> roi.getZ() == line.getZ() && roi.getT() == line.getT())
+					.toArray(ROI[]::new);
+			map.put(pathObject, splitObjectBySubtraction(pathObject, linesOnSamePlane));
 		}
 		return map;
 	}
