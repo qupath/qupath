@@ -544,7 +544,8 @@ public class Commands {
 			return false;
 		}
 		QP.resetTMAMetadata(imageData.getHierarchy(), true);
-		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Reset TMA metadata", "resetTMAMetadata(true);"));		
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep("Reset TMA metadata", "resetTMAMetadata(true)"));
 		return true;
 	}
 	
@@ -1232,7 +1233,8 @@ public class Commands {
 		QP.selectObjectsByPathClass(hierarchy, pathClasses);
 		var s = Arrays.stream(pathClasses)
 				.map(p -> p == null || p == PathClass.NULL_CLASS ? "null" : "\"" + p.toString() + "\"").collect(Collectors.joining(", "));
-		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Select objects by classification",
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep("Select objects by classification",
 				"selectObjectsByClassification(" + s + ");"));
 		return true;
 	}
@@ -1261,7 +1263,9 @@ public class Commands {
 			if (Dialogs.showYesNoDialog("Delete objects", message)) {
 				hierarchy.clearAll();
 				hierarchy.getSelectionModel().setSelectedObject(null);
-				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Clear all objects", "clearAllObjects();"));
+				imageData.getHistoryWorkflow().addStep(
+						new DefaultScriptableWorkflowStep("Delete all objects",
+								"removeAllObjects()"));
 			}
 			return;
 		}
@@ -1276,7 +1280,9 @@ public class Commands {
 					if (selected instanceof TMACoreObject)
 						hierarchy.getSelectionModel().setSelectedObject(null);
 
-					imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Remove TMA Grid", "removeTMAGrid();"));
+					imageData.getHistoryWorkflow().addStep(
+							new DefaultScriptableWorkflowStep("Remove TMA Grid",
+									"removeTMAGrid()"));
 				}
 				return;
 			}
@@ -1300,13 +1306,16 @@ public class Commands {
 				hierarchy.getSelectionModel().setSelectedObject(null);
 			
 			if (cls == PathDetectionObject.class)
-				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Remove detections", "removeDetections();"));
+				imageData.getHistoryWorkflow().addStep(
+						new DefaultScriptableWorkflowStep("Delete detections", "removeDetections()"));
 			else if (cls == PathAnnotationObject.class)
-				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Remove annotations", "removeAnnotations();"));
+				imageData.getHistoryWorkflow().addStep(
+						new DefaultScriptableWorkflowStep("Delete annotations", "removeAnnotations()"));
 			else if (cls == TMACoreObject.class)
-				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Remove TMA grid", "removeTMAGrid();"));
+				imageData.getHistoryWorkflow().addStep(
+						new DefaultScriptableWorkflowStep("Delete TMA grid", "removeTMAGrid()"));
 			else
-				logger.warn("Cannot clear all objects for class {}", cls);
+				logger.warn("Cannot remove all objects for class {}", cls);
 		}
 	}
 	
@@ -1899,7 +1908,7 @@ public class Commands {
 		imageData.getHierarchy().getSelectionModel().clearSelection();
 		
 		// Log the appropriate command
-		String method = "resetSelection();";
+		String method = "resetSelection()";
 		
 		WorkflowStep newStep = new DefaultScriptableWorkflowStep("Reset selection", method);
 		WorkflowStep lastStep = imageData.getHistoryWorkflow().getLastStep();

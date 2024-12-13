@@ -284,7 +284,7 @@ class MeasurementManager {
 		}
 	
 		// Keep for scripting
-		WorkflowStep step = new DefaultScriptableWorkflowStep("Clear all measurements", script);
+		WorkflowStep step = new DefaultScriptableWorkflowStep("Delete all measurements", script);
 		imageData.getHistoryWorkflow().addStep(step);
 
 		// Update
@@ -318,7 +318,7 @@ class MeasurementManager {
 
 		// Keep for scripting
 		WorkflowStep step = new DefaultScriptableWorkflowStep("Remove measurements",
-				String.format("removeMeasurements(%s, %s);", cls.getName(), removeString)
+				String.format("removeMeasurements(%s, %s)", cls.getName(), removeString)
 				);
 		imageData.getHistoryWorkflow().addStep(step);
 
