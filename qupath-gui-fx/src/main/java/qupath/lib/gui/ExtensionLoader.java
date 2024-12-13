@@ -60,11 +60,11 @@ class ExtensionLoader {
                     Platform.runLater(() -> loadExtension(extension, showNotifications));
                 }
             }
-        } catch (ServiceConfigurationError e) {
-            logger.error("Error while loading extension", e);
-        }
 
-        loadServerBuilders(showNotifications);
+            loadServerBuilders(showNotifications);
+        } catch (ServiceConfigurationError e) {
+            logger.debug("Error while loading extension", e);
+        }
     }
 
     private void loadExtension(QuPathExtension extension, boolean showNotifications) {
