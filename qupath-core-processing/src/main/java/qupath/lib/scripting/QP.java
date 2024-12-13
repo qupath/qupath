@@ -2484,7 +2484,7 @@ public class QP {
 	/**
 	 * Delete the selected objects from the current hierarchy, including all the child and descendant objects.
 	 */
-	private static void removeSelectedObjectsAndDescendants() {
+	public static void removeSelectedObjectsAndDescendants() {
 		removeSelectedObjects(false);
 	}
 
