@@ -1079,7 +1079,7 @@ public class QP {
 	 * 
 	 * @param pathObjects
 	 */
-	public static void addObjects(PathObject[] pathObjects) {
+	public static void addObjects(PathObject... pathObjects) {
 		addObjects(Arrays.asList(pathObjects));
 	}
 	
@@ -1104,12 +1104,34 @@ public class QP {
 	 * 
 	 * @param pathObject
 	 * @param keepChildren
+	 * @deprecated
 	 */
+	@Deprecated(since="0.6.0")
 	public static void removeObject(PathObject pathObject, boolean keepChildren) {
-		PathObjectHierarchy hierarchy = getCurrentHierarchy();
-		if (hierarchy == null)
-			return;
-		hierarchy.removeObject(pathObject, keepChildren);
+		LogTools.warnOnce(logger, "removeObject(PathObject, boolean) is deprecated - " +
+				"use removeObject(PathObject) or removeObjectAndDescendants(PathObject) instead");
+		if (keepChildren)
+			removeObject(pathObject);
+		else
+			removeObjectAndDescendants(pathObject);
+	}
+
+	/**
+	 * Remove the specified object from the current {@code PathObjectHierarchy}, keeping any descendant objects.
+	 * @param pathObject
+	 * @since v0.6.0
+	 */
+	public static void removeObject(PathObject pathObject) {
+		removeObjectsImpl(Collections.singleton(pathObject), true);
+	}
+
+	/**
+	 * Remove the specified object and any descendant objects from the current {@code PathObjectHierarchy}.
+	 * @param pathObject
+	 * @since v0.6.0
+	 */
+	public static void removeObjectAndDescendants(PathObject pathObject) {
+		removeObjectsImpl(Collections.singleton(pathObject), false);
 	}
 	
 	/**
@@ -1118,9 +1140,16 @@ public class QP {
 	 * 
 	 * @param pathObjects
 	 * @param keepChildren
+	 * @deprecated Use {@link #removeObjects(PathObject[])} or {@link #removeObjectsAndDescendants(PathObject[])} instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void removeObjects(PathObject[] pathObjects, boolean keepChildren) {
-		removeObjects(Arrays.asList(pathObjects), keepChildren);
+		LogTools.warnOnce(logger, "removeObjects(PathObject[], boolean) is deprecated - " +
+				"use removeObjects(PathObject[]) or removeObjectsAndDescendants(PathObject[]) instead");
+		if (keepChildren)
+			removeObjects(pathObjects);
+		else
+			removeObjectsAndDescendants(pathObjects);
 	}
 	
 	/**
@@ -1140,15 +1169,58 @@ public class QP {
 	/**
 	 * Remove the specified collection of objects from the current {@code PathObjectHierarchy}, 
 	 * optionally keeping or removing descendant objects.
-	 * 
 	 * @param pathObjects
 	 * @param keepChildren
+	 * @deprecated Use {@link #removeObjects(Collection)} or {@link #removeObjectsAndDescendants(Collection)} instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void removeObjects(Collection<? extends PathObject> pathObjects, boolean keepChildren) {
+		removeObjectsImpl(pathObjects, keepChildren);
+	}
+
+	private static void removeObjectsImpl(Collection<? extends PathObject> pathObjects, boolean keepChildren) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
 		hierarchy.removeObjects(pathObjects, keepChildren);
+	}
+
+	/**
+	 * Remove the specified array of objects from the current {@code PathObjectHierarchy}.
+	 * Descendant objects are kept.
+	 * @param pathObjects the objects to remove
+	 * @since v0.6.0
+	 */
+	public static void removeObjects(PathObject... pathObjects) {
+		removeObjects(Arrays.asList(pathObjects));
+	}
+
+	/**
+	 * Remove the specified array of objects from the current {@code PathObjectHierarchy}, and all their descendants.
+	 * @param pathObjects the objects to remove
+	 * @since v0.6.0
+	 */
+	public static void removeObjectsAndDescendants(PathObject... pathObjects) {
+		removeObjectsAndDescendants(Arrays.asList(pathObjects));
+	}
+
+	/**
+	 * Remove the specified collection of objects from the current {@code PathObjectHierarchy}.
+	 * Descendant objects are kept.
+	 * @param pathObjects the objects to remove
+	 * @since v0.6.0
+	 */
+	public static void removeObjects(Collection<? extends PathObject> pathObjects) {
+		removeObjectsImpl(pathObjects, true);
+	}
+
+	/**
+	 * Remove the specified collection of objects from the current {@code PathObjectHierarchy}, and all their descendants.
+	 * @param pathObjects the objects to remove
+	 * @since v0.6.0
+	 */
+	public static void removeObjectsAndDescendants(Collection<? extends PathObject> pathObjects) {
+		removeObjectsImpl(pathObjects, false);
 	}
 	
 	
@@ -1709,7 +1781,21 @@ public class QP {
 	}
 
 	/**
-	 * Get all objects in the current hierarchy, including the root object.
+	 * Get all objects in the current hierarchy, excluding the root object (which represents the entire image).
+	 *
+	 * @return
+	 *
+	 * @see #getCurrentHierarchy
+	 * @see #getAllObjects()
+	 * @see #getAllObjects(boolean)
+	 * @since v0.6.0
+	 */
+	public static Collection<PathObject> getAllObjectsWithoutRoot() {
+		return getAllObjects(false);
+	}
+
+	/**
+	 * Get all objects in the current hierarchy, including the root object (which represents the entire image).
 	 * 
 	 * @return
 	 * 
@@ -2390,16 +2476,20 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearSelectedObjects(boolean keepChildren) {
-		LogTools.warnOnce(logger, "clearSelectedObjects(boolean) has been deprecated - use removeSelectedObjects() instead");
+		LogTools.warnOnce(logger, "clearSelectedObjects(boolean) has been deprecated - " +
+				"use removeSelectedObjects() or removeSelectedObjectsAndDescendants() instead");
 		removeSelectedObjects(keepChildren);
 	}
 
 	/**
-	 * Delete the selected objects from the current hierarchy, optionally keeping their child (descendant) objects.
-	 *
-	 * @param keepChildren Whether to retain or remove child objects in the hierarchy.
+	 * Delete the selected objects from the current hierarchy, including all the child and descendant objects.
 	 */
-	public static void removeSelectedObjects(boolean keepChildren) {
+	private static void removeSelectedObjectsAndDescendants() {
+		removeSelectedObjects(false);
+	}
+
+
+	private static void removeSelectedObjects(boolean keepChildren) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
@@ -3206,7 +3296,6 @@ public class QP {
 	public static void removeTMACoreMeasurements(PathObjectHierarchy hierarchy) {
 		if (hierarchy != null)
 			removeMeasurements(hierarchy, TMACoreObject.class);
-		getCurrentImageData().getHistoryWorkflow().isEmpty()
 	}
 	
 	/**
