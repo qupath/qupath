@@ -167,7 +167,7 @@ public class CreateCompositeClassifierCommand implements Runnable {
 	static WorkflowStep createObjectClassifierStep(List<String> classifierNames) {
 		String names = classifierNames.stream().map(n -> "\"" + n + "\"").collect(Collectors.joining(", "));
 		return new DefaultScriptableWorkflowStep("Run object classifier",
-						"runObjectClassifier(" + names + ");"
+						"runObjectClassifier(" + names + ")"
 						);
 	}
 

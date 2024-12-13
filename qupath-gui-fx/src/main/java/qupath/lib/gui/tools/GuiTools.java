@@ -676,13 +676,17 @@ public class GuiTools {
 			
 			hierarchy.removeObjects(selected, keepChildren);
 			hierarchy.getSelectionModel().clearSelection();
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Delete selected objects", "clearSelectedObjects(" + keepChildren + ");"));
-			if (keepChildren)
-				logger.info(selected.size() + " object(s) deleted");
-			else
-				logger.info(selected.size() + " object(s) deleted with descendants");
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Delete selected objects", "clearSelectedObjects();"));
-			logger.info(selected.size() + " object(s) deleted");
+			if (keepChildren) {
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+						"Delete selected objects",
+						"removeSelectedObjects()"));
+				logger.info("{} object(s) deleted", selected.size());
+			} else {
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+						"Delete selected objects and descendants",
+						"removeSelectedObjectsAndDescendants()"));
+				logger.info("{} object(s) deleted with descendants", selected.size());
+			}
 			return true;
 		} else
 			return false;
