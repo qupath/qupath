@@ -3,7 +3,7 @@ package qupath.lib.gui;
 import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.extensionmanager.core.ExtensionIndexManager;
+import qupath.ext.extensionmanager.core.ExtensionCatalogManager;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.common.Version;
 import qupath.lib.gui.extensions.QuPathExtension;
@@ -23,7 +23,7 @@ import java.util.Set;
 
 /**
  * A class that install QuPath extensions (see {@link QuPathExtension#installExtension(QuPathGUI)})
- * from JARs detected by an extension index manager.
+ * from JARs detected by an extension catalog manager.
  */
 class ExtensionLoader {
 
@@ -32,23 +32,23 @@ class ExtensionLoader {
     private final ClassLoader extensionClassLoader;
     private final QuPathGUI quPathGUI;
 
-    private ExtensionLoader(ExtensionIndexManager extensionIndexManager, QuPathGUI quPathGUI) {
-        this.extensionClassLoader = extensionIndexManager.getClassLoader();
+    private ExtensionLoader(ExtensionCatalogManager extensionCatalogManager, QuPathGUI quPathGUI) {
+        this.extensionClassLoader = extensionCatalogManager.getClassLoader();
         this.quPathGUI = quPathGUI;
 
         loadExtensions(false);
-        extensionIndexManager.addOnJarLoadedRunnable(() -> loadExtensions(true));
+        extensionCatalogManager.addOnJarLoadedRunnable(() -> loadExtensions(true));
     }
 
     /**
-     * Install QuPath extensions loaded by the provided extension index manager to the provided
+     * Install QuPath extensions loaded by the provided extension catalog manager to the provided
      * QuPathGUI.
      *
-     * @param extensionIndexManager the extension index manager that contains the JARs to load
+     * @param extensionCatalogManager the extension catalog manager that contains the JARs to load
      * @param quPathGUI the QuPathGUI to install the extensions to
      */
-    public static void loadFromManager(ExtensionIndexManager extensionIndexManager, QuPathGUI quPathGUI) {
-        new ExtensionLoader(extensionIndexManager, quPathGUI);
+    public static void loadFromManager(ExtensionCatalogManager extensionCatalogManager, QuPathGUI quPathGUI) {
+        new ExtensionLoader(extensionCatalogManager, quPathGUI);
     }
 
     private synchronized void loadExtensions(boolean showNotifications) {

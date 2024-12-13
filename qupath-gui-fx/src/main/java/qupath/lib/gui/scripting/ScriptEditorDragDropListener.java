@@ -66,7 +66,7 @@ class ScriptEditorDragDropListener implements EventHandler<DragEvent> {
 			if (!jars.isEmpty())
 				ExtensionManager.promptToCopyFilesToExtensionDirectory(
 						list,
-						qupath.getExtensionIndexManager().getExtensionDirectoryPath(),
+						qupath.getExtensionCatalogManager().getExtensionDirectoryPath(),
 						() -> Commands.requestUserDirectory(true)
 				);
 			

@@ -208,7 +208,7 @@ class UpdateManager {
 	private List<UpdateManagerContainer.UpdateEntry> getExtensionUpdates(AutoUpdateType updateCheckType) {
 		if (List.of(AutoUpdateType.QUPATH_AND_EXTENSIONS, AutoUpdateType.EXTENSIONS_ONLY).contains(updateCheckType)) {
 			try {
-				return qupath.getExtensionIndexManager().getAvailableUpdates().get().stream()
+				return qupath.getExtensionCatalogManager().getAvailableUpdates().get().stream()
 						.map(extensionUpdate -> new UpdateManagerContainer.UpdateEntry(
 								extensionUpdate.extensionName(),
 								extensionUpdate.currentVersion(),

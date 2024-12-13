@@ -102,9 +102,9 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import qupath.ext.extensionmanager.core.ExtensionIndexManager;
+import qupath.ext.extensionmanager.core.ExtensionCatalogManager;
 import qupath.ext.extensionmanager.core.savedentities.Registry;
-import qupath.ext.extensionmanager.core.savedentities.SavedIndex;
+import qupath.ext.extensionmanager.core.savedentities.SavedCatalog;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
@@ -202,7 +202,7 @@ public class QuPathGUI {
 	private ViewerManager viewerManager;
 	private PathClassManager pathClassManager;
 	private UpdateManager updateManager;
-	private final ExtensionIndexManager extensionIndexManager;
+	private final ExtensionCatalogManager extensionCatalogManager;
 
 	private QuPathMainPaneManager mainPaneManager;
 	private UndoRedoManager undoRedoManager;
@@ -344,19 +344,19 @@ public class QuPathGUI {
 		// Install extensions
 		timeit.checkpoint("Adding extensions");
 		new QP(); // Ensure initialized
-		extensionIndexManager = new ExtensionIndexManager(
+		extensionCatalogManager = new ExtensionCatalogManager(
 				UserDirectoryManager.getInstance().extensionsDirectoryProperty(),
 				QuPathGUI.class.getClassLoader(),
 				String.format("v%s", BuildInfo.getInstance().getVersion().toString()),
-				new Registry(List.of(new SavedIndex(
-						"QuPath index",
+				new Registry(List.of(new SavedCatalog(
+						"QuPath catalog",
 						"Extensions maintained by the QuPath team",
-						URI.create("https://github.com/qupath/qupath-index"),
-						URI.create("https://raw.githubusercontent.com/qupath/qupath-index/refs/heads/main/index.json"),
+						URI.create("https://github.com/qupath/qupath-catalog"),
+						URI.create("https://raw.githubusercontent.com/qupath/qupath-catalog/refs/heads/main/catalog.json"),
 						false
 				)))
 		);
-		ExtensionLoader.loadFromManager(extensionIndexManager, this);
+		ExtensionLoader.loadFromManager(extensionCatalogManager, this);
 
         // Add scripts menu (delayed to here, since it takes a bit longer)
 		timeit.checkpoint("Adding script menus");
@@ -1196,11 +1196,11 @@ public class QuPathGUI {
 	}
 
 	/**
-	 * @return the {@link ExtensionIndexManager} that manage indexes and extensions of this
+	 * @return the {@link ExtensionCatalogManager} that manage catalogs and extensions of this
 	 * QuPath GUI
 	 */
-	public ExtensionIndexManager getExtensionIndexManager() {
-		return extensionIndexManager;
+	public ExtensionCatalogManager getExtensionCatalogManager() {
+		return extensionCatalogManager;
 	}
 	
 	/**

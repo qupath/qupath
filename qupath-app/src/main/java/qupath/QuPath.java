@@ -46,9 +46,9 @@ import picocli.CommandLine.IVersionProvider;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParseResult;
-import qupath.ext.extensionmanager.core.ExtensionIndexManager;
+import qupath.ext.extensionmanager.core.ExtensionCatalogManager;
 import qupath.ext.extensionmanager.core.savedentities.Registry;
-import qupath.ext.extensionmanager.core.savedentities.SavedIndex;
+import qupath.ext.extensionmanager.core.savedentities.SavedCatalog;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.BuildInfo;
@@ -334,15 +334,15 @@ class ScriptCommand implements Runnable {
 		
 	@Override
 	public void run() {
-		try (ExtensionIndexManager extensionIndexManager = new ExtensionIndexManager(
+		try (ExtensionCatalogManager extensionCatalogManager = new ExtensionCatalogManager(
 				UserDirectoryManager.getInstance().extensionsDirectoryProperty(),
 				QuPath.class.getClassLoader(),
 				String.format("v%s", BuildInfo.getInstance().getVersion().toString()),
-				new Registry(List.of(new SavedIndex(
-						"QuPath index",
+				new Registry(List.of(new SavedCatalog(
+						"QuPath catalog",
 						"Extensions maintained by the QuPath team",
-						URI.create("https://github.com/qupath/qupath-index"),
-						URI.create("https://raw.githubusercontent.com/qupath/qupath-index/refs/heads/main/index.json"),
+						URI.create("https://github.com/qupath/qupath-catalog"),
+						URI.create("https://raw.githubusercontent.com/qupath/qupath-catalog/refs/heads/main/catalog.json"),
 						false
 				)))
 		)){
@@ -359,8 +359,8 @@ class ScriptCommand implements Runnable {
 			createTileCache();
 
 			// Load image server builders from extensions
-			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionIndexManager.getClassLoader()));
-			Thread.currentThread().setContextClassLoader(extensionIndexManager.getClassLoader());
+			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionCatalogManager.getClassLoader()));
+			Thread.currentThread().setContextClassLoader(extensionCatalogManager.getClassLoader());
 			
 			// Unfortunately necessary to force initialization (including GsonTools registration of some classes)
 			QP.getCoreClasses();
