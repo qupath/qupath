@@ -1173,6 +1173,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearAllObjects() {
+		LogTools.warnOnce(logger, "clearAllObjects() has been deprecated - use removeAllObjects() instead");
 		removeAllObjects();
 	}
 
@@ -1201,6 +1202,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearAllObjects(final Class<? extends PathObject> cls) {
+		LogTools.warnOnce(logger, "clearAllObjects(Class) has been deprecated - use removeAllObjects(Class) instead");
 		removeAllObjects(cls);
 	}
 
@@ -1238,6 +1240,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearAnnotations() {
+		LogTools.warnOnce(logger, "clearAnnotations() has been deprecated - use removeAnnotations() instead");
 		removeAnnotations();
 	}
 
@@ -1260,6 +1263,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearDetections() {
+		LogTools.warnOnce(logger, "clearDetections() has been deprecated - use removeDetections() instead");
 		removeDetections();
 	}
 
@@ -1281,6 +1285,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearTMAGrid() {
+		LogTools.warnOnce(logger, "clearTMAGrid() has been deprecated - use removeTMAGrid() instead");
 		removeTMAGrid();
 	}
 
@@ -2366,6 +2371,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearSelectedObjects() {
+		LogTools.warnOnce(logger, "clearSelectedObjects() has been deprecated - use removeSelectedObjects() instead");
 		removeSelectedObjects();
 	}
 
@@ -2384,6 +2390,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearSelectedObjects(boolean keepChildren) {
+		LogTools.warnOnce(logger, "clearSelectedObjects(boolean) has been deprecated - use removeSelectedObjects() instead");
 		removeSelectedObjects(keepChildren);
 	}
 
@@ -2732,75 +2739,72 @@ public class QP {
 	@Deprecated
 	private static Predicate<PathObject> parsePredicate(final String command) throws NoSuchElementException {
 		String s = command.trim();
-		if (s.length() == 0)
+		if (s.isEmpty())
 			throw new NoSuchElementException("No command provided!");
-		Scanner scanner = new Scanner(s);
 
-		try {
-			Map<String, Predicate<Integer>> mapComparison = new HashMap<>();
-			mapComparison.put(">=", v -> v >= 0);
-			mapComparison.put("<=", v -> v <= 0);
-			mapComparison.put(">", v -> v > 0);
-			mapComparison.put("<", v -> v < 0);
-			mapComparison.put("=", v -> v == 0);
-			mapComparison.put("==", v -> v == 0);
-			mapComparison.put("!=", v -> v != 0);
-			mapComparison.put("~=", v -> v != 0);
+        try (Scanner scanner = new Scanner(s)) {
+            Map<String, Predicate<Integer>> mapComparison = new HashMap<>();
+            mapComparison.put(">=", v -> v >= 0);
+            mapComparison.put("<=", v -> v <= 0);
+            mapComparison.put(">", v -> v > 0);
+            mapComparison.put("<", v -> v < 0);
+            mapComparison.put("=", v -> v == 0);
+            mapComparison.put("==", v -> v == 0);
+            mapComparison.put("!=", v -> v != 0);
+            mapComparison.put("~=", v -> v != 0);
 
-			Predicate<PathObject> predicate = null;
-			Pattern comparePattern = Pattern.compile(">=|<=|==|!=|~=|=|>|<");
-			Pattern combinePattern = Pattern.compile("and|AND|or|OR");
-			Pattern notPattern = Pattern.compile("not|NOT");
-			while (scanner.hasNext()) {
-				String combine = null;
-				scanner.reset();
-				if (predicate != null) {
-					if (scanner.hasNext(combinePattern))
-						combine = scanner.next(combinePattern).trim().toUpperCase();
-					else
-						throw new NoSuchElementException("Missing combiner (AND, OR) between comparisons!");
-				}
+            Predicate<PathObject> predicate = null;
+            Pattern comparePattern = Pattern.compile(">=|<=|==|!=|~=|=|>|<");
+            Pattern combinePattern = Pattern.compile("and|AND|or|OR");
+            Pattern notPattern = Pattern.compile("not|NOT");
+            while (scanner.hasNext()) {
+                String combine = null;
+                scanner.reset();
+                if (predicate != null) {
+                    if (scanner.hasNext(combinePattern))
+                        combine = scanner.next(combinePattern).trim().toUpperCase();
+                    else
+                        throw new NoSuchElementException("Missing combiner (AND, OR) between comparisons!");
+                }
 
-				boolean negate = false;
-				if (scanner.hasNext(notPattern)) {
-					negate = true;
-					scanner.next(notPattern);
-				}
+                boolean negate = false;
+                if (scanner.hasNext(notPattern)) {
+                    negate = true;
+                    scanner.next(notPattern);
+                }
 
-				scanner.useDelimiter(comparePattern);
-				String measurement = scanner.next().trim();
-				scanner.reset();
-				if (!scanner.hasNext(comparePattern))
-					throw new NoSuchElementException("Missing comparison operator (<, >, <=, >=, ==) for measurement \"" + measurement + "\"");
-				String comparison = scanner.next(comparePattern).trim();
-				
-				if (!scanner.hasNextDouble())
-					throw new NoSuchElementException("Missing comparison value after \"" + measurement + " " + comparison + "\"");
-				double value = scanner.nextDouble();
+                scanner.useDelimiter(comparePattern);
+                String measurement = scanner.next().trim();
+                scanner.reset();
+                if (!scanner.hasNext(comparePattern))
+                    throw new NoSuchElementException("Missing comparison operator (<, >, <=, >=, ==) for measurement \"" + measurement + "\"");
+                String comparison = scanner.next(comparePattern).trim();
 
-				Predicate<PathObject> predicateNew = p -> {
-					double v = p.getMeasurementList().get(measurement);
-					return !Double.isNaN(v) && mapComparison.get(comparison).test(Double.compare(p.getMeasurementList().get(measurement), value));
-				};
-				if (negate)
-					predicateNew = predicateNew.negate();
+                if (!scanner.hasNextDouble())
+                    throw new NoSuchElementException("Missing comparison value after \"" + measurement + " " + comparison + "\"");
+                double value = scanner.nextDouble();
 
-				if (predicate == null) {
-					predicate = predicateNew;
-				} else {
-					if ("AND".equals(combine))
-						predicate = predicate.and(predicateNew);
-					else if ("OR".equals(combine))
-						predicate = predicate.or(predicateNew);
-					else
-						throw new NoSuchElementException("Unrecognised combination of predicates: " + combine);
-				}
-			}
+                Predicate<PathObject> predicateNew = p -> {
+                    double v = p.getMeasurementList().get(measurement);
+                    return !Double.isNaN(v) && mapComparison.get(comparison).test(Double.compare(p.getMeasurementList().get(measurement), value));
+                };
+                if (negate)
+                    predicateNew = predicateNew.negate();
 
-			return predicate;
-		} finally {
-			scanner.close();
-		}
+                if (predicate == null) {
+                    predicate = predicateNew;
+                } else {
+                    if ("AND".equals(combine))
+                        predicate = predicate.and(predicateNew);
+                    else if ("OR".equals(combine))
+                        predicate = predicate.or(predicateNew);
+                    else
+                        throw new NoSuchElementException("Unrecognised combination of predicates: " + combine);
+                }
+            }
+
+            return predicate;
+        }
 	}
 
 	/**
@@ -3069,6 +3073,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearMeasurements(final PathObjectHierarchy hierarchy, final PathObject... pathObjects) {
+		LogTools.warnOnce(logger, "clearMeasurements(PathObjectHierarchy, PathObject...) has been deprecated - use removeMeasurements(PathObjectHierarchy, PathObject...) instead");
 		removeMeasurements(hierarchy, pathObjects);
 	}
 
@@ -3088,7 +3093,8 @@ public class QP {
 	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
 	@Deprecated(since="0.6.0")
-	public static void clearMeasurements(final PathObjectHierarchy hierarchy, final Collection<PathObject> pathObjects) {
+	public static void clearMeasurements(final PathObjectHierarchy hierarchy, final Collection<? extends PathObject> pathObjects) {
+		LogTools.warnOnce(logger, "clearMeasurements(PathObjectHierarchy, Collection<PathObject>) has been deprecated - use removeMeasurements(PathObjectHierarchy, Collection<PathObject>) instead");
 		removeMeasurements(hierarchy, pathObjects);
 	}
 
@@ -3097,7 +3103,7 @@ public class QP {
 	 * @param hierarchy used to fire a hierarchy update, if specified (can be null if no update should be fired)
 	 * @param pathObjects collection of objects that should have their measurements removed.
 	 */
-	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final Collection<PathObject> pathObjects) {
+	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final Collection<? extends PathObject> pathObjects) {
 		for (PathObject pathObject : pathObjects) {
 			// Remove all measurements
 			pathObject.getMeasurementList().clear();
@@ -3115,8 +3121,8 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearAnnotationMeasurements(PathObjectHierarchy hierarchy) {
-		if (hierarchy != null)
-			removeMeasurements(hierarchy, hierarchy.getAnnotationObjects());
+		LogTools.warnOnce(logger, "clearAnnotationMeasurements(PathObjectHierarchy) has been deprecated - use removeAnnotationMeasurements(PathObjectHierarchy) instead");
+		removeAnnotationMeasurements(hierarchy);
 	}
 
 	/**
@@ -3134,12 +3140,12 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearAnnotationMeasurements() {
+		LogTools.warnOnce(logger, "clearAnnotationMeasurements() has been deprecated - use removeAnnotationMeasurements() instead");
 		removeAnnotationMeasurements();
 	}
 
 	/**
 	 * Remove the measurements from all annotations in the current hierarchy.
-	 * @deprecated For consistency in naming; use #removeAnnotationMeasurements instead.
 	 */
 	public static void removeAnnotationMeasurements() {
 		removeAnnotationMeasurements(getCurrentHierarchy());
@@ -3152,6 +3158,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearDetectionMeasurements(PathObjectHierarchy hierarchy) {
+		LogTools.warnOnce(logger, "clearDetectionMeasurements(PathObjectHierarchy) has been deprecated - use removeDetectionMeasurements(PathObjectHierarchy) instead");
 		removeDetectionMeasurements(hierarchy);
 	}
 
@@ -3170,6 +3177,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearDetectionMeasurements() {
+		LogTools.warnOnce(logger, "clearDetectionMeasurements() has been deprecated - use removeDetectionMeasurements() instead");
 		removeDetectionMeasurements();
 	}
 
@@ -3187,6 +3195,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearTMACoreMeasurements(PathObjectHierarchy hierarchy) {
+		LogTools.warnOnce(logger, "clearTMACoreMeasurements(PathObjectHierarchy) has been deprecated - use removeTMACoreMeasurements(PathObjectHierarchy) instead");
 		removeTMACoreMeasurements(hierarchy);
 	}
 
@@ -3197,6 +3206,7 @@ public class QP {
 	public static void removeTMACoreMeasurements(PathObjectHierarchy hierarchy) {
 		if (hierarchy != null)
 			removeMeasurements(hierarchy, TMACoreObject.class);
+		getCurrentImageData().getHistoryWorkflow().isEmpty()
 	}
 	
 	/**
@@ -3205,6 +3215,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearTMACoreMeasurements() {
+		LogTools.warnOnce(logger, "clearTMACoreMeasurements() has been deprecated - use removeTMACoreMeasurements() instead");
 		removeTMACoreMeasurements();
 	}
 
@@ -3223,6 +3234,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearMeasurements(PathObjectHierarchy hierarchy, Class<? extends PathObject> cls) {
+		LogTools.warnOnce(logger, "clearMeasurements(PathObjectHierarchy, Class) has been deprecated - use removeMeasurements(PathObjectHierarchy, Class) instead");
 		removeMeasurements(hierarchy, cls);
 	}
 
@@ -3244,6 +3256,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearMeasurements(Class<? extends PathObject> cls) {
+		LogTools.warnOnce(logger, "clearMeasurements(Class) has been deprecated - use removeMeasurements(Class) instead");
 		removeMeasurements(cls);
 	}
 
@@ -3261,6 +3274,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearMeasurements() {
+		LogTools.warnOnce(logger, "clearMeasurements() has been deprecated - use removeMeasurements() instead");
 		removeMeasurements();
 	}
 
@@ -3278,6 +3292,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearCellMeasurements(PathObjectHierarchy hierarchy) {
+		LogTools.warnOnce(logger, "clearCellMeasurements(PathObjectHierarchy) has been deprecated - use removeCellMeasurements(PathObjectHierarchy) instead");
 		removeCellMeasurements(hierarchy);
 	}
 
@@ -3296,6 +3311,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearCellMeasurements() {
+		LogTools.warnOnce(logger, "clearCellMeasurements() has been deprecated - use removeCellMeasurements() instead");
 		removeCellMeasurements();
 	}
 
@@ -3322,6 +3338,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearTileMeasurements(PathObjectHierarchy hierarchy) {
+		LogTools.warnOnce(logger, "clearTileMeasurements(PathObjectHierarchy) has been deprecated - use removeTileMeasurements(PathObjectHierarchy) instead");
 		removeTileMeasurements(hierarchy);
 	}
 
@@ -3332,6 +3349,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearTileMeasurements() {
+		LogTools.warnOnce(logger, "clearTileMeasurements() has been deprecated - use removeTileMeasurements() instead");
 		removeTileMeasurements();
 	}
 
@@ -3350,6 +3368,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearRootMeasurements(PathObjectHierarchy hierarchy) {
+		LogTools.warnOnce(logger, "clearRootMeasurements(PathObjectHierarchy) has been deprecated - use removeRootMeasurements(PathObjectHierarchy) instead");
 		removeRootMeasurements(hierarchy);
 	}
 
@@ -3368,6 +3387,7 @@ public class QP {
 	 */
 	@Deprecated(since="0.6.0")
 	public static void clearRootMeasurements() {
+		LogTools.warnOnce(logger, "clearRootMeasurements() has been deprecated - use removeRootMeasurements() instead");
 		removeRootMeasurements();
 	}
 
@@ -3493,8 +3513,9 @@ public class QP {
 	}
 	
 	/**
-	 * 
-	 * @param hierarchy
+	 * Set the intensity classifications for cells in the specified hierarchy.
+	 *
+	 * @param hierarchy the hierarchy containing cells
 	 * @param measurementName measurement to threshold
 	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
 	 */
