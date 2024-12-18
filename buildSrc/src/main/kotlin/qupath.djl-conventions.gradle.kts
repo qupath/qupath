@@ -1,3 +1,5 @@
+import io.github.qupath.gradle.PlatformPlugin
+import io.github.qupath.gradle.Utils
 import org.gradle.accessors.dm.LibrariesForLibs
 import org.gradle.kotlin.dsl.the
 
@@ -13,7 +15,19 @@ plugins {
 }
 
 val libs = the<LibrariesForLibs>()
-var djlVersion = libs.versions.deepJavaLibrary.get()
+val djlVersion = libs.versions.deepJavaLibrary.get()
+
+if (Utils.currentPlatform() == PlatformPlugin.Platform.MAC) {
+	val args = mutableListOf<String>()
+	when (val currentArgs = gradle.extra.properties.getOrDefault("qupath.jvm.args", listOf<String>())) {
+		is String -> args.add(currentArgs)
+		is List<*> -> args.addAll(currentArgs.filterIsInstance<String>())
+	}
+	val version = "2.2.2"
+	println("Setting PyTorch version to $version for compatibility with Mac x64")
+	args.add("-DPYTORCH_VERSION=$version")
+	gradle.extra["qupath.jvm.args"] = args
+}
 
 /**
  * Parse an engine string to determine which DJL engines we need
@@ -46,7 +60,7 @@ fun getDjlZoos(zooString: String, engines: List<String>): List<String> {
 
 dependencies {
 	// Get a list of engines we want to include
-	var djlEngines = getDjlEngines(providers.gradleProperty("djl.engines").getOrElse("default"))
+	val djlEngines = getDjlEngines(providers.gradleProperty("djl.engines").getOrElse("default"))
 
 	// Check whether djl.api is requested - or if we have any engines that require it
 	val djlApi = djlEngines.isNotEmpty() || project.findProperty("djl.api") == "true"

@@ -15,7 +15,7 @@ application {
     val qupathAppName = gradle.extra["qupath.app.name"] as String
 
     applicationName = qupathAppName
-    applicationDefaultJvmArgs += listOf(gradle.extra["qupath.jvm.args"] as String)
+    applicationDefaultJvmArgs += getDefaultJvmArgs()
 
     // Necessary when using ./gradlew run to support style manager to change themes
     applicationDefaultJvmArgs += "--add-opens"
@@ -26,4 +26,13 @@ application {
     applicationDefaultJvmArgs += "--add-opens"
     applicationDefaultJvmArgs += "javafx.base/com.sun.javafx.event=ALL-UNNAMED"
 
+}
+
+fun getDefaultJvmArgs(): List<String> {
+    val args = gradle.extra.properties.getOrDefault("qupath.jvm.args", null)
+    return when {
+        (args is String) -> listOf(args)
+        (args is List<*>) -> args.filterIsInstance<String>()
+        else -> emptyList()
+    }
 }

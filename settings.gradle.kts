@@ -23,7 +23,9 @@ gradle.extra["qupath.app.version"] = qupathVersion
 gradle.extra["qupath.app.name"] = "QuPath"
 
 // Default is to use 50% of available RAM
-gradle.extra["qupath.jvm.args"] = providers.gradleProperty("qupath.jvm.args").getOrElse("-XX:MaxRAMPercentage=50")
+gradle.extra["qupath.jvm.args"] = listOf(
+    providers.gradleProperty("qupath.jvm.args")
+        .getOrElse("-XX:MaxRAMPercentage=50"))
 
 // By default, create an image with jpackage (not an installer, which is slower)
 gradle.extra["qupath.package"] = providers.gradleProperty("package").getOrElse("image")
@@ -59,16 +61,16 @@ include("qupath-extension-bioformats")
 dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
-            val javafxOverride = System.getProperties().getOrDefault("javafx-version", null)
+            val javafxOverride = System.getProperties().getOrDefault("javafx.version", null)
             if (javafxOverride is String) {
                 println("Overriding JavaFX version to request $javafxOverride")
                 version("javafx", javafxOverride)
             }
 
-            if (Os.isFamily(Os.FAMILY_MAC) && Os.isArch("x86_64")) {
-                val compatibleVersion = "0.28.0!!"
-                logger.warn("Setting DeepJavaLibrary version to $compatibleVersion for compatibility with Mac x64.")
-                version("deepJavaLibrary", compatibleVersion)
+            val djlOverride = System.getProperties().getOrDefault("djl.version", null)
+            if (djlOverride is String) {
+                println("Overriding DeepJavaLibrary version to request $djlOverride")
+                version("deepJavaLibrary", djlOverride)
             }
 
             // Add QuPath jars to the version catalog
