@@ -16,18 +16,7 @@ plugins {
 
 val libs = the<LibrariesForLibs>()
 val djlVersion = libs.versions.deepJavaLibrary.get()
-
-if (Utils.currentPlatform() == PlatformPlugin.Platform.MAC) {
-	val args = mutableListOf<String>()
-	when (val currentArgs = gradle.extra.properties.getOrDefault("qupath.jvm.args", listOf<String>())) {
-		is String -> args.add(currentArgs)
-		is List<*> -> args.addAll(currentArgs.filterIsInstance<String>())
-	}
-	val version = "2.2.2"
-	println("Setting PyTorch version to $version for compatibility with Mac x64")
-	args.add("-DPYTORCH_VERSION=$version")
-	gradle.extra["qupath.jvm.args"] = args
-}
+val isIntelMac = Utils.currentPlatform() == PlatformPlugin.Platform.MAC_INTEL
 
 /**
  * Parse an engine string to determine which DJL engines we need
@@ -79,7 +68,12 @@ dependencies {
 	}
 
     if ("pytorch" in djlEngines) {
-	    implementation("ai.djl.pytorch:pytorch-engine:$djlVersion")
+		var ptVersion = djlVersion
+		if (isIntelMac && !ptVersion.contains("!!")) {
+			logger.warn("Setting PyTorch engine to $ptVersion for compatibility with Mac x86_64")
+			ptVersion = "0.28.0!!"
+		}
+	    implementation("ai.djl.pytorch:pytorch-engine:$ptVersion")
 	    if ("pytorch" in djlZoos)
 		    implementation("ai.djl.pytorch:pytorch-model-zoo:$djlVersion")
 	}
