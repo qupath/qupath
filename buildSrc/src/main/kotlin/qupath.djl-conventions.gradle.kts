@@ -13,7 +13,7 @@ plugins {
 }
 
 val libs = the<LibrariesForLibs>()
-val djlVersion = libs.versions.deepJavaLibrary.get()
+var djlVersion = libs.versions.deepJavaLibrary.get()
 
 /**
  * Parse an engine string to determine which DJL engines we need
@@ -24,13 +24,13 @@ fun getDjlEngines(engineString: String): List<String> {
 		"none" -> listOf()
 		else -> engineString
 			.split(",")
-			.map({e -> e.lowercase().trim()})
-			.filter({e -> e.isNotBlank()})
+			.map { e -> e.lowercase().trim() }
+			.filter { e -> e.isNotBlank() }
 	}
 }
 
 /**
- * Parse an zoo string to determine which DJL Model Zoos we need
+ * Parse a zoo string to determine which DJL Model Zoos we need
  */
 fun getDjlZoos(zooString: String, engines: List<String>): List<String> {
 	return when (zooString.trim().lowercase()) {

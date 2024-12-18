@@ -1,3 +1,5 @@
+import org.apache.tools.ant.taskdefs.condition.Os
+
 pluginManagement {
     plugins {
         kotlin("jvm") version "2.0.21"
@@ -61,6 +63,12 @@ dependencyResolutionManagement {
             if (javafxOverride is String) {
                 println("Overriding JavaFX version to request $javafxOverride")
                 version("javafx", javafxOverride)
+            }
+
+            if (Os.isFamily(Os.FAMILY_MAC) && Os.isArch("x86_64")) {
+                val compatibleVersion = "0.28.0!!"
+                logger.warn("Setting DeepJavaLibrary version to $compatibleVersion for compatibility with Mac x64.")
+                version("deepJavaLibrary", compatibleVersion)
             }
 
             // Add QuPath jars to the version catalog
