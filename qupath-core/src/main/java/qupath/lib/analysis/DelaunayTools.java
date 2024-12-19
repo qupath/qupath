@@ -149,7 +149,12 @@ public class DelaunayTools {
 			for (int i = 0; i < n ; i++) {
 				var c = coords[i];
 				p2.makePrecise(c);
-				if (i == 0 || c.distance(lastCoordinate) > minDistance) {
+				// Three rules:
+				// 1. Always add the first coordinate
+				// 2. Add 'intermediate' coordinates if they are sufficiently far from the last that was added
+				// 3. Add the last coordinate if it is sufficiently far from the first, and from the last added
+				if (i == 0 || (c.distance(lastCoordinate) > minDistance &&
+						(i < n-1 || c.distance(coords[0]) > minDistance))) {
 					output.add(c);
 					lastCoordinate = c;
 				}
@@ -409,7 +414,7 @@ public class DelaunayTools {
 			for (var c : coordsTemp) {
 				var previous = coords.put(c, pathObject);
 				if (previous != null)
-					logger.warn("Previous coordinate: " + previous);
+                    logger.warn("Previous coordinate: {}", previous);
 			}
 		}
 		
@@ -423,6 +428,9 @@ public class DelaunayTools {
 		var envelope = DelaunayTriangulationBuilder.envelope(coords);
 		var subdiv = new QuadEdgeSubdivision(envelope, tolerance);
 		var triangulator = new IncrementalDelaunayTriangulator(subdiv);
+		// We need to turn this off to use Voronoi faces - otherwise we often get invalid polygons at boundaries
+		triangulator.forceConvex(false);
+
 		subdiv.setLocator(getDefaultLocator(subdiv));
 		var edgeSet = new HashSet<QuadEdge>();
 		for (var coord : prepareCoordinates(coords)) {
@@ -906,8 +914,8 @@ public class DelaunayTools {
 					logger.warn("Missing object for coordinate {}", coord);
 					continue;
 				}
-				// Occasionally happens when a polygon is especially thin
-				// (at least with a fixed point precision model)
+				// Occasionally happens when a polygon is especially thin (at least with a fixed point precision model) -
+				// but this has been mostly addressed by setting IncrementalDelanayTriangulator.forceConvex(false)
 				// We don't have a fix now, but we could one day...
 				if (!polygon.isValid()) {
 					invalidPolygons.add(polygon);
@@ -936,11 +944,11 @@ public class DelaunayTools {
 					geometry = geometry.buffer(0.0);
 					geometry = precisionReducer.reduce(geometry);
 				} catch (Exception e) {
-					logger.debug("Error doing fast geometry combine for Voronoi faces: " + e.getLocalizedMessage(), e);
+                    logger.debug("Error doing fast geometry combine for Voronoi faces: {}", e.getMessage(), e);
 					try {
 						geometry = GeometryTools.union(list);
 					} catch (Exception e2) {
-						logger.debug("Error doing fallback geometry combine for Voronoi faces: " + e2.getLocalizedMessage(), e2);
+                        logger.debug("Error doing fallback geometry combine for Voronoi faces: {}", e2.getMessage(), e2);
 					}
 				}
 //				// If there were invalid pieces, we could try to fix this
@@ -950,7 +958,10 @@ public class DelaunayTools {
 				map.put(pathObject, geometry);
 			}
 			if (!invalidPolygons.isEmpty()) {
-				logger.warn("Number of invalid polygons found in Voronoi diagram: {}/{}", invalidPolygons.size(), polygons.size());
+				// Invalid polygons can happen quite a bit for dense computations - so only warn if we have a *lot*,
+				// otherwise just log at debug level
+				String message = "Number of invalid polygons found in Voronoi diagram: {}/{}";
+				logger.warn(message, invalidPolygons.size(), polygons.size());
 			}
 			return map;
 		}
@@ -966,8 +977,7 @@ public class DelaunayTools {
 
 			@SuppressWarnings("unchecked")
 			var polygons = (List<Polygon>)subdivision.getVoronoiCellPolygons(GeometryTools.getDefaultFactory());
-//			var polygons = (List<Polygon>)subdivision.getVoronoiCellPolygons(new GeometryFactory());
-			
+
 			var map = new HashMap<PathObject, Geometry>();
 			var mapToMerge = new HashMap<PathObject, List<Geometry>>();
 			
@@ -1003,11 +1013,11 @@ public class DelaunayTools {
 				try {
 					geometry = GeometryCombiner.combine(list).buffer(0.0);
 				} catch (Exception e) {
-					logger.debug("Error doing fast geometry combine for Voronoi faces: " + e.getLocalizedMessage(), e);
+                    logger.debug("Error doing fast geometry combine for Voronoi faces: {}", e.getMessage(), e);
 					try {
 						geometry = GeometryTools.union(list);
 					} catch (Exception e2) {
-						logger.debug("Error doing fallback geometry combine for Voronoi faces: " + e2.getLocalizedMessage(), e2);
+                        logger.debug("Error doing fallback geometry combine for Voronoi faces: {}", e2.getMessage(), e2);
 					}
 				}
 				map.put(pathObject, geometry);

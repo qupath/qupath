@@ -211,7 +211,7 @@ public class CellTools {
 	private static List<PathObject> detectionsToCellsSubtree(STRtree tree, List<?> list, Map<PathObject, Geometry> cellBoundaryMap, Map<PathObject, Envelope> envelopes) {
 		if (list.isEmpty())
 			return Collections.emptyList();
-		var first = list.get(0);
+		var first = list.getFirst();
 		
 		boolean doParallel = true;
 
@@ -271,9 +271,9 @@ public class CellTools {
 				} catch (Exception e) {
 					if (face.getArea() > bounds.getArea()) {
 						geomCell = bounds;
-						logger.warn("Error computing intersection between cell boundary and Voronoi face - will use bounds result: " + e.getLocalizedMessage(), e);
+                        logger.warn("Error computing intersection between cell boundary and Voronoi face - will use bounds result: {}", e.getMessage(), e);
 					} else {
-						logger.warn("Error computing intersection between cell boundary and Voronoi face - will use Voronoi result: " + e.getLocalizedMessage(), e);
+                        logger.warn("Error computing intersection between cell boundary and Voronoi face - will use Voronoi result: {}", e.getMessage(), e);
 					}
 				}
 				var roiNucleus = PathObjectTools.getROI(detection, true);
