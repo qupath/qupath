@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<fx:root spacing="5.0" type="VBox" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+    <TableView fx:id="updateEntries" prefHeight="200.0" prefWidth="500.0">
+        <placeholder>
+            <Label text="%UpdateManagerContainer.noUpdatesAvailable" />
+        </placeholder>
+      <columns>
+          <TableColumn fx:id="nameColumn" prefWidth="75.0" text="%UpdateManagerContainer.name" />
+          <TableColumn fx:id="currentVersionColumn" prefWidth="75.0" text="%UpdateManagerContainer.currentVersion" />
+          <TableColumn fx:id="newVersionColumn" prefWidth="75.0" text="%UpdateManagerContainer.newVersion" />
+      </columns>
+        <columnResizePolicy>
+          <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+        </columnResizePolicy>
+    </TableView>
+    <HBox alignment="CENTER_RIGHT" spacing="5.0">
+        <Label alignment="TOP_LEFT" text="%UpdateManagerContainer.checkForUpdates" />
+        <ComboBox fx:id="updateType" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
+    </HBox>
+</fx:root>
