@@ -10,7 +10,7 @@ commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.1.2"
 
-deepJavaLibrary = "0.30.0"
+deepJavaLibrary = "0.31.0"
 
 groovy          = "4.0.22"
 gson            = "2.11.0"

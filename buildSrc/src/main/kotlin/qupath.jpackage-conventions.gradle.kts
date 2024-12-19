@@ -63,7 +63,7 @@ runtime {
 
     val params = JPackageParams(
         getDistOutputDir(),
-        project.file("jpackage/${platform}"))
+        project.file("jpackage/${platform.platformName}"))
 
 
     for (installer in params.installerTypes) {

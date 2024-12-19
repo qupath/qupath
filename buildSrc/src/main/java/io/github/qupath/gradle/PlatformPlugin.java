@@ -32,7 +32,7 @@ public class PlatformPlugin implements Plugin<Project> {
      */
     public enum Platform {
         WINDOWS("windows", "win32-x86_64", "ico", "msi"),
-        MAC("macosx", "darwin-x86_64", "icns", "pkg"),
+        MAC_INTEL("macosx", "darwin-x86_64", "icns", "pkg"),
         MAC_AARCH64("macosx", "darwin-aarch64", "icns", "pkg"),
         LINUX("linux", "linux-x86_64", "png", "deb"),
         LINUX_AARCH64("linux", "linux-aarch64", "png", "deb"),
@@ -68,7 +68,7 @@ public class PlatformPlugin implements Plugin<Project> {
          * @return
          */
         public boolean isMac() {
-            return this == MAC || this == MAC_AARCH64;
+            return this == MAC_INTEL || this == MAC_AARCH64;
         }
 
         /**
@@ -115,7 +115,7 @@ public class PlatformPlugin implements Plugin<Project> {
         
         @Override
         public String toString() {
-            return getPlatformName();
+            return getPlatformName() + " (" + getClassifier() + ")";
         }
         
     }
@@ -139,7 +139,7 @@ public class PlatformPlugin implements Plugin<Project> {
         } else if (os.contains("mac")) {
             if ("aarch64".equalsIgnoreCase(System.getProperty("os.arch")))
                 return Platform.MAC_AARCH64;
-            return Platform.MAC;
+            return Platform.MAC_INTEL;
         } else
             return Platform.UNKNOWN;
     }
