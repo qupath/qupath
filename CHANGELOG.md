@@ -114,10 +114,11 @@ They may change or be removed in future versions.
 * Bio-Formats 8.0.1
 * Commonmark 0.24.0
 * DeepJavaLibrary 0.31.0
-* Groovy 4.0.22
+* Groovy 4.0.24
 * Gson 2.11.0
-* Guava 33.3.1-jre
+* Guava 33.4.0-jre
 * ImageJ 1.54k
+* JavaCPP 1.5.11
 * JavaFX 23
 * Java Topology Suite 1.20.0
 * JFreeSVG 5.0.6
@@ -125,9 +126,9 @@ They may change or be removed in future versions.
 * JUnit 5.11.0
 * Logback 1.5.8
 * Picocli 4.7.6
-* OpenCV 4.9.0
+* OpenCV 4.10.0
 * OpenJDK 21
-* RichTextFX 0.11.3
+* RichTextFX 0.11.4
 * slf4j 2.0.16
 * snakeyaml 2.3
 

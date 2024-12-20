@@ -12,9 +12,9 @@ controlsFX      = "11.1.2"
 
 deepJavaLibrary = "0.31.0"
 
-groovy          = "4.0.22"
+groovy          = "4.0.24"
 gson            = "2.11.0"
-guava           = "33.3.1-jre"
+guava           = "33.4.0-jre"
 
 ikonli          = "12.3.1"
 imagej          = "1.54k"
@@ -24,7 +24,7 @@ jdk             = "21"
 
 javacpp         = "1.5.10"
 
-opencv          = "4.9.0-1.5.10"
+opencv          = "4.10.0-1.5.11"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
 javafx          = "23"
@@ -44,7 +44,7 @@ openslide       = "4.0.0.6"
 picocli         = "4.7.6"
 qupath-fxtras   = "0.1.5"
 
-richtextfx      = "0.11.3"
+richtextfx      = "0.11.4"
 
 slf4j           = "2.0.16"
 snakeyaml       = "2.3"
