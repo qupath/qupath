@@ -5,6 +5,7 @@
 plugins {
     id("qupath.common-conventions")
     id("qupath.javafx-conventions")
+    id("qupath.publishing-conventions")
 }
 
 

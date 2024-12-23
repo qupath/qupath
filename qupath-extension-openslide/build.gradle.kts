@@ -5,6 +5,7 @@ plugins {
   // Don't need extension-conventions because we don't require access to the UI
   id("qupath.common-conventions")
   id("qupath.javafx-conventions")
+  id("qupath.publishing-conventions")
   `java-library`
 }
 
