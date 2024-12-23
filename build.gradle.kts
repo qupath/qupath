@@ -46,17 +46,35 @@ allprojects {
 }
 
 /*
- * Get version catalog
+ * Specify the version catalog for publishing - including the current projects.
  */
 catalog {
     versionCatalog {
         from(files("./gradle/libs.versions.toml"))
+
+        val qupathGroup = group.toString()
+
         // Include version for the current jars in the version catalog, as they will be useful in extensions
         version("qupath", qupathVersion)
-        library("qupath.gui.fx", group.toString(), project(":qupath-gui-fx").name).versionRef("qupath")
-        library("qupath.core", group.toString(), project(":qupath-core").name).versionRef("qupath")
-        library("qupath.core.processing", group.toString(), project(":qupath-core-processing").name).versionRef("qupath")
+        library("qupath.gui.fx", qupathGroup, project(":qupath-gui-fx").name).versionRef("qupath")
+        library("qupath.core", qupathGroup, project(":qupath-core").name).versionRef("qupath")
+        library("qupath.core.processing", qupathGroup, project(":qupath-core-processing").name).versionRef("qupath")
+
+        // Launcher
+        library("qupath.app", qupathGroup, project(":qupath-app").name).versionRef("qupath")
+
+        // Bundled extensions
+        library("qupath.ext.bioformats", qupathGroup, project(":qupath-extension-bioformats").name).versionRef("qupath")
+        library("qupath.ext.openslide", qupathGroup, project(":qupath-extension-openslide").name).versionRef("qupath")
+        library("qupath.ext.script.editor", qupathGroup, project(":qupath-extension-script-editor").name).versionRef("qupath")
+        library("qupath.ext.svg", qupathGroup, project(":qupath-extension-svg").name).versionRef("qupath")
+
+        // All core dependencies
         bundle("qupath", listOf("qupath.gui.fx", "qupath.core", "qupath.core.processing"))
+
+        // Everything
+        bundle("qupath.all", listOf("qupath.gui.fx", "qupath.core", "qupath.core.processing",
+            "qupath.app", "qupath.ext.bioformats", "qupath.ext.openslide", "qupath.ext.script.editor", "qupath.ext.svg"))
     }
 }
 
