@@ -33,6 +33,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -836,10 +837,12 @@ public class DelaunayTools {
 		private synchronized NeighborMap calculateAllNeighbors() {
 			
 			logger.debug("Calculating all neighbors for {} objects", size());
-			
+
+			// Sort the edges; note that we shouldn't use a parallel stream here, because this can cause
+			// get stuck if the common fork join pool is already in use & awaiting the results of this calculation
 			@SuppressWarnings("unchecked")
 			var edges = (List<QuadEdge>)subdivision.getEdges()
-					.parallelStream()
+					.stream()
 					.sorted(Comparator.comparingDouble(QuadEdge::getLength))
 					.toList();
 
