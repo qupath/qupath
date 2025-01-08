@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -31,6 +31,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Pane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +61,7 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableRow;
-import javafx.util.Callback;
+import qupath.fx.controls.PredicateTextField;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -78,13 +88,29 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	@SuppressWarnings("unused")
 	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
 	private ImageData<?> imageData;
-	
+
+	private BorderPane pane;
 	private TableView<String> tableMeasurements;
 	
 	private ObservableMeasurementTableData tableModel = new ObservableMeasurementTableData();
 	
 	private boolean delayedUpdate = false;
-	
+
+	private PredicateTextField<String> filter;
+
+	/**
+	 * Property to indicate whether the table is currently visible.
+	 * If it isn't, it doesn't need to be updated.
+	 */
+	private BooleanProperty isShowing = new SimpleBooleanProperty(false);
+
+	private ObservableList<String> allKeys = FXCollections.observableArrayList();
+	private FilteredList<String> filteredKeys = new FilteredList<>(allKeys);
+
+	private BooleanProperty useRegex = new SimpleBooleanProperty(false);
+	private BooleanProperty ignoreCase = new SimpleBooleanProperty(true);
+	private StringProperty filterText = new SimpleStringProperty("");
+
 	/**
 	 * Constructor.
 	 * @param imageDataProperty the {@link ImageData} associated with this table
@@ -93,59 +119,77 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		this.imageDataProperty = imageDataProperty;
 		imageDataProperty.addListener(this);
 	}
-	
-	
-	@SuppressWarnings("unchecked")
-	private TableView<String> createMeasurementTable() {
-		TableView<String> tableMeasurements = new TableView<>();
-		tableMeasurements.getItems().setAll(tableModel.getAllNames());
-		
-		TableColumn<String, String> col1 = new TableColumn<>("Key");
-		col1.setCellValueFactory(new Callback<>() {
-            @Override
-            public ObservableValue<String> call(CellDataFeatures<String, String> p) {
-                return new SimpleStringProperty(p.getValue());
-            }
-        });
-		TableColumn<String, String> col2 = new TableColumn<>("Value");
-		col2.setCellValueFactory(new Callback<>() {
-            @Override
-            public ObservableValue<String> call(CellDataFeatures<String, String> p) {
-                return new SimpleStringProperty(getSelectedObjectMeasurementValue(p.getValue()));
-            }
-        });
-		tableMeasurements.getColumns().addAll(col1, col2);
-		tableMeasurements.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-		tableMeasurements.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		tableMeasurements.setRowFactory(e -> {
-		    final TableRow<String> row = new TableRow<>();
-		    final ContextMenu menu = new ContextMenu();
-		    final MenuItem copyItem = new MenuItem("Copy");
-		    menu.getItems().add(copyItem);
-		    copyItem.setOnAction(ev -> copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems()));
-		    
-		    // Only display context menu for non-empty rows
-		    row.contextMenuProperty().bind(
-		    	Bindings.when(row.emptyProperty())
-		    	.then((ContextMenu) null)
-		    	.otherwise(menu)
-		    );
-		    
-		    return row;
-		});
-		tableMeasurements.setOnKeyPressed(e -> {
-	        if (new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN).match(e))
-	        	copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems());
-	        e.consume();
-	    });
-		
+
+
+	private void ensureInitialized() {
+		if (pane != null)
+			return;
+		tableMeasurements = createMeasurementTable();
+
+		filter = createFilter();
+		filteredKeys.predicateProperty().bind(filter.predicateProperty());
+
+		pane = new BorderPane();
+		pane.setCenter(tableMeasurements);
+		pane.setBottom(filter);
+
 		// Ensure we are up-to-date if visibility status changes
-		tableMeasurements.visibleProperty().addListener((v, o, n) -> {
+		isShowing.bind(tableMeasurements.visibleProperty().and(pane.visibleProperty()));
+		isShowing.addListener((v, o, n) -> {
 			if (n && delayedUpdate)
 				updateTableModel();
 		});
+	}
+
+	private ObservableValue<String> tableKeyColumnValueFactory(CellDataFeatures<String, String> p) {
+		return new SimpleStringProperty(p.getValue());
+	}
+
+	private ObservableValue<String> tableValueColumnValueFactory(CellDataFeatures<String, String> p) {
+		return new SimpleStringProperty(getSelectedObjectMeasurementValue(p.getValue()));
+	}
+
+
+	@SuppressWarnings("unchecked")
+	private TableView<String> createMeasurementTable() {
+		TableView<String> tableMeasurements = new TableView<>();
+		allKeys.setAll(tableModel.getAllNames());
+		tableMeasurements.setItems(filteredKeys);
+
+		TableColumn<String, String> col1 = new TableColumn<>("Key");
+		col1.setCellValueFactory(this::tableKeyColumnValueFactory);
+		TableColumn<String, String> col2 = new TableColumn<>("Value");
+		col2.setCellValueFactory(this::tableValueColumnValueFactory);
+		tableMeasurements.getColumns().addAll(col1, col2);
+		tableMeasurements.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+		tableMeasurements.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		tableMeasurements.setRowFactory(this::createTableRow);
+		tableMeasurements.setOnKeyPressed(this::handleTableKeyPress);
 
 		return tableMeasurements;
+	}
+
+	private void handleTableKeyPress(KeyEvent e) {
+		if (new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN).match(e))
+			copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems());
+		e.consume();
+	}
+
+	private TableRow<String> createTableRow(TableView<String> table) {
+		final TableRow<String> row = new TableRow<>();
+		final ContextMenu menu = new ContextMenu();
+		final MenuItem copyItem = new MenuItem("Copy");
+		menu.getItems().add(copyItem);
+		copyItem.setOnAction(ev -> copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems()));
+
+		// Only display context menu for non-empty rows
+		row.contextMenuProperty().bind(
+				Bindings.when(row.emptyProperty())
+						.then((ContextMenu) null)
+						.otherwise(menu)
+		);
+
+		return row;
 	}
 	
 	private void copyMeasurementsToClipboard(List<String> selectedMeasurements) {
@@ -181,38 +225,79 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 			return null;
 		return tableModel.getStringValue(selected, name, nDecimalPlaces);
 	}
-	
+
+	private PredicateTextField<String> createFilter() {
+		var filter = new PredicateTextField<String>();
+		filter.useRegexProperty().bindBidirectional(useRegex);
+		filter.textProperty().bindBidirectional(filterText);
+		filter.ignoreCaseProperty().bindBidirectional(ignoreCase);
+		filter.promptTextProperty().bind(
+				Bindings.createStringBinding(() -> {
+					if (useRegex.get())
+						return "Filter measurements by regular expression";
+					else
+						return "Filter measurements by key";
+				}, useRegex)
+		);
+		filter.setSpacing(5.0);
+		var tooltip = new Tooltip("Enter text to find specific measurements by key");
+		Tooltip.install(filter, tooltip);
+		return filter;
+	}
+
 	/**
 	 * Get the {@link TableView}.
+	 * Generally, it is better to use {@link #getPane()} instead, to get the component that should be added
+	 * to the scene graph.
 	 * @return
 	 */
 	public TableView<String> getTable() {
-		if (tableMeasurements == null)
-			tableMeasurements = createMeasurementTable();
+		ensureInitialized();
 		return tableMeasurements;
 	}
-	
+
+	/**
+	 * Get the {@link javafx.scene.layout.Pane} containing the table and a filter field.
+	 * Introduced in v0.6.0 instead of {@link #getTable()} to allow for more flexible layout, and incorporate
+	 * a filter field.
+	 * @return
+	 * @since v0.6.0
+	 */
+	public Pane getPane() {
+		ensureInitialized();
+		return pane;
+	}
+
+	/**
+	 * Get the predict text field that is used to filter measurements.
+	 * @return
+	 */
+	public PredicateTextField<String> getPredicateTextField() {
+		return filter;
+	}
+
+
 	private void updateTableModel() {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> updateTableModel());
+			Platform.runLater(this::updateTableModel);
 			return;
 		}
 		
-		if (!tableMeasurements.isVisible()) {
+		if (!isShowing.get()) {
 			
 			logger.debug("Measurement table update skipped (not visible)");
 			
 			tableModel.setImageData(null, Collections.emptyList());
 
 			// Don't want to do expensive calculations for a table that isn't visible
-			tableMeasurements.getItems().clear();
+			allKeys.clear();
 			delayedUpdate = true; 
 		} else {
 			
 			logger.debug("Measurement table update requested");
 			
 			tableModel.setImageData(this.imageData, getSelectedObjectList());
-			tableMeasurements.getItems().setAll(tableModel.getAllNames());
+			allKeys.setAll(tableModel.getAllNames());
 			
 			tableMeasurements.refresh();
 			delayedUpdate = false;
@@ -256,5 +341,6 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	public void propertyChange(PropertyChangeEvent evt) {
 		updateTableModel();
 	}
-	
+
+
 }
