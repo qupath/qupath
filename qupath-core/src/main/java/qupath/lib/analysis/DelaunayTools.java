@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -836,10 +836,12 @@ public class DelaunayTools {
 		private synchronized NeighborMap calculateAllNeighbors() {
 			
 			logger.debug("Calculating all neighbors for {} objects", size());
-			
+
+			// Sort the edges; note that we shouldn't use a parallel stream here, because this can cause
+			// get stuck if the common fork join pool is already in use & awaiting the results of this calculation
 			@SuppressWarnings("unchecked")
 			var edges = (List<QuadEdge>)subdivision.getEdges()
-					.parallelStream()
+					.stream()
 					.sorted(Comparator.comparingDouble(QuadEdge::getLength))
 					.toList();
 
