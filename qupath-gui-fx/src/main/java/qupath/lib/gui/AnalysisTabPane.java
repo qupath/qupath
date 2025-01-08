@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -68,7 +68,7 @@ class AnalysisTabPane {
 	private AnnotationPane annotationPane;
 	private PathObjectHierarchyView hierarchyPane;
 	private WorkflowCommandLogView workflowLogView;
-	
+
 	private TabPane tabPane = new TabPane();
 	
 	AnalysisTabPane(QuPathGUI qupath) {
@@ -220,9 +220,11 @@ class AnalysisTabPane {
 	 */
 	private TabPane createMeasurementsAndDescriptionsPane(ObservableBooleanValue visible) {
 		var tabpaneObjectsShared = new TabPane();
+
 		var objectMeasurementsTable = new SelectedMeasurementTableView(qupath.imageDataProperty());
+
 		tabpaneObjectsShared.setSide(Side.BOTTOM);
-		var tabSharedTable = createTab(titleMeasurements, objectMeasurementsTable.getTable());
+		var tabSharedTable = createTab(titleMeasurements, objectMeasurementsTable.getPane());
 		tabpaneObjectsShared.getTabs().add(tabSharedTable);
 		var descriptionPane = ObjectDescriptionPane.createPane(qupath.imageDataProperty(), true);
 		var tabSharedDescription = createTab(titleDescription, descriptionPane);
@@ -230,7 +232,7 @@ class AnalysisTabPane {
 		tabpaneObjectsShared.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		
 		if (visible != null) {
-			objectMeasurementsTable.getTable().visibleProperty().bind(visible);
+			objectMeasurementsTable.getPane().visibleProperty().bind(visible);
 			descriptionPane.visibleProperty().bind(visible);
 		}
 		return tabpaneObjectsShared;
