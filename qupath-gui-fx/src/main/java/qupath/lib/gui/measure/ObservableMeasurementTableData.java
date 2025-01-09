@@ -37,6 +37,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -948,6 +949,21 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				this.pathClass = pathClass;
 				this.baseClassification = baseClassification;
 			}
+
+			@Override
+			public String getHelpText() {
+				if (baseClassification) {
+					if (pathClass == null || pathClass == PathClass.NULL_CLASS)
+						return "Number of detection objects with no BASE classification";
+					else
+						return "Number of detection objects with the BASE classification '" + pathClass + "' (including all sub-classifications)";
+				} else {
+					if (pathClass == null || pathClass == PathClass.NULL_CLASS)
+						return "Number of detection objects with no classification";
+					else
+						return "Number of detection objects with the exact classification '" + pathClass + "'";
+				}
+			}
 			
 			@Override
 			public String getName() {
@@ -1009,6 +1025,24 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			
 			PositivePercentageMeasurementBuilder(final PathClass... parentClasses) {
 				this.parentClasses = parentClasses;
+			}
+
+			@Override
+			public String getHelpText() {
+				if (parentClasses.length == 0 || parentClasses[0] == null || parentClasses[0] == PathClass.NULL_CLASS) {
+					return "Number of detection classified as 'Positive' / ('Positive' + 'Negative') * 100%";
+				} else {
+					String pc;
+					if (parentClasses.length == 1) {
+						pc = parentClasses[0].toString();
+					} else {
+						pc = "(" + Arrays.stream(parentClasses)
+								.map(p -> p == null ? "<Unclassified>" : p.toString())
+								.collect(Collectors.joining("|")) + ")";
+					}
+					return "Number of detection classified as '" + pc + ": Positive' / ('"
+							+ pc + ": Positive' + '" + pc + ": Negative') * 100%";
+				}
 			}
 			
 			@Override
@@ -1158,12 +1192,14 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	}
 	
 	
-	static interface MeasurementBuilder<T> {
+	interface MeasurementBuilder<T> {
 		
-		public String getName();
+		String getName();
 		
-		public Binding<T> createMeasurement(final PathObject pathObject);
-		
+		Binding<T> createMeasurement(final PathObject pathObject);
+
+		String getHelpText();
+
 	}
 	
 	
@@ -1210,6 +1246,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		@Override
 		public String getName() {
 			return "Name";
+		}
+
+		@Override
+		public String getHelpText() {
+			return "Name of the object (may be empty)";
 		}
 
 		@Override
@@ -1402,6 +1443,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		public String getName() {
 			return "Image";
 		}
+
+		@Override
+		public String getHelpText() {
+			return "Name for the current image";
+		}
 		
 		@Override
 		public String getMeasurementValue(PathObject pathObject) {
@@ -1425,6 +1471,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		@Override
 		public String getName() {
 			return "Parent";
+		}
+
+		@Override
+		public String getHelpText() {
+			return "Displayed name the parent of the selected object in the object hierarchy";
 		}
 		
 		@Override
@@ -1513,6 +1564,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		public String getName() {
 			return "Z-slice";
 		}
+
+		@Override
+		public String getHelpText() {
+			return "Index of z-slice (0-based)";
+		}
 		
 		@Override
 		public Binding<Number> createMeasurement(final PathObject pathObject) {
@@ -1535,6 +1591,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		@Override
 		public String getName() {
 			return "Timepoint";
+		}
+
+		@Override
+		public String getHelpText() {
+			return "Index of timepoint (0-based)";
 		}
 		
 		@Override
@@ -1925,6 +1986,19 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	@Override
 	public String getStringValue(PathObject pathObject, String column) {
 		return getStringValue(pathObject, column, -1);
+	}
+
+	/**
+	 * Get help text for a measurement if available, or null if no help text is found.
+	 * @param column
+	 * @return
+	 */
+	public String getHelpText(String column) {
+		MeasurementBuilder<?> builder = builderMap.get(column);
+		if (builder != null)
+			return builder.getHelpText();
+		else
+			return "The measurement '" + column + "' from the object's measurement list, or NaN if the measurement is not found";
 	}
 
 	@Override
