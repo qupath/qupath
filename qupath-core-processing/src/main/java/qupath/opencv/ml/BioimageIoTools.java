@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
@@ -61,7 +62,6 @@ import qupath.opencv.dnn.DnnShape;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
 
-
 /**
  * Helper class for working with Bioimage Model Zoo model specs, and attempting to 
  * replicating the processing within QuPath.
@@ -87,8 +87,8 @@ public class BioimageIoTools {
 	 * <p>
 	 * In some instances, the processing steps requires by the spec might not currently be 
 	 * supported by QuPath - see {@link #transformToOp(Processing)} for more information.
-	 * @param spec
-	 * @return
+	 * @param spec The model spec
+	 * @return A (hopefully closely) corresponding model
 	 */
 	public static DnnModel buildDnnModel(BioimageIoModel spec) {
 		// Try to find compatible weights
@@ -212,7 +212,7 @@ public class BioimageIoTools {
 	 * be modified and updated according to user requirements.
 	 * @param model the model spec to initialize the parameters
 	 * @param inputOps optional additional preprocessing ops to apply, before any in the model spec are added
-	 * @return
+	 * @return A parameters object.
 	 */
 	public static PatchClassifierParams buildPatchClassifierParams(BioimageIoModel model, ImageOp... inputOps) {
 		return buildPatchClassifierParams(model, -1, -1, inputOps);
@@ -226,7 +226,7 @@ public class BioimageIoTools {
 	 * @param preferredTileWidth preferred tile width, or -1 to automatically determine this; the width will be updated based on the spec
 	 * @param preferredTileHeight preferred tile height, or -1 to automatically determine this; the height will be updated based on the spec
 	 * @param inputOps optional additional preprocessing ops to apply, before any in the model spec are added
-	 * @return
+	 * @return A parameters object.
 	 */
 	public static PatchClassifierParams buildPatchClassifierParams(BioimageIoModel modelSpec, int preferredTileWidth, int preferredTileHeight, ImageOp...inputOps) {
 
@@ -238,8 +238,8 @@ public class BioimageIoTools {
 		if (outputs.size() != 1)
 			throw new UnsupportedOperationException("Only single outputs currently supported! Model requires " + outputs.size());
 
-		var input = inputs.get(0);
-		var output = outputs.get(0);
+		var input = inputs.getFirst();
+		var output = outputs.getFirst();
 		
 		// Get dimensions and padding
 		String axes = BioimageIoSpec.getAxesString(input.getAxes());
@@ -275,7 +275,7 @@ public class BioimageIoTools {
 				outputShape[i] = (int)Math.round(inputShape[i] * outputShapeScale[i] + outputShapeOffset[i]);
 			}
 		}
-		int nChannelsOut = (int)outputShape[indChannels];
+		int nChannelsOut = outputShape[indChannels];
 
 		// Determine padding
 		// TODO: Consider halo for input?!
@@ -287,9 +287,7 @@ public class BioimageIoTools {
 		}
 		
 		List<ImageOp> preprocessing = new ArrayList<>();
-		for (var op : inputOps) {
-			preprocessing.add(op);
-		}
+        Collections.addAll(preprocessing, inputOps);
 		preprocessing.add(ImageOps.Core.ensureType(PixelType.FLOAT32)); // Expected by bioimage.io
 		if (input.getPreprocessing() != null) {
 			for (var transform : input.getPreprocessing()) {
@@ -356,8 +354,8 @@ public class BioimageIoTools {
 	 * This method will make an attempt to return a suitable op, but it may 
 	 * not be able to incorporate all steps.
 	 * 
-	 * @param transforms
-	 * @return
+	 * @param transforms The transformations in bioimageio model format
+	 * @return Corresponding image operations.
 	 */
 	public static ImageOp transformsToOp(Collection<? extends Processing> transforms) {
 		List<ImageOp> ops = new ArrayList<>();
@@ -367,7 +365,7 @@ public class BioimageIoTools {
 			if (op != null)
 				ops.add(op);
 		}
-		return ops.size() == 1 ? ops.get(0) : ImageOps.Core.sequential(ops);
+		return ops.size() == 1 ? ops.getFirst() : ImageOps.Core.sequential(ops);
 	}
 	
 	
@@ -383,42 +381,37 @@ public class BioimageIoTools {
 	 * <p>
 	 * This method will make an attempt to return a suitable op, but may 
 	 * return null if no such op is available.
-	 * 
-	 * @param transform
-	 * @return
+	 *
+	 * @param transform The transformation in bioimageio model format
+	 * @return a corresponding image operation.
 	 */
 	public static ImageOp transformToOp(Processing transform) {
 		
-		if (transform instanceof Binarize) {
-			var binarize = (Binarize)transform;
-			return ImageOps.Threshold.threshold(binarize.getThreshold());
+		if (transform instanceof Binarize binarize) {
+            return ImageOps.Threshold.threshold(binarize.getThreshold());
 		}
 		
-		if (transform instanceof Clip) {
-			var clip = (Clip)transform;
-			return ImageOps.Core.clip(clip.getMin(), clip.getMax());
+		if (transform instanceof Clip clip) {
+            return ImageOps.Core.clip(clip.getMin(), clip.getMax());
 		}
 		
-		if (transform instanceof ScaleLinear) {
-			var scale = (ScaleLinear)transform;
-			// TODO: Consider axes
+		if (transform instanceof ScaleLinear scale) {
+            // TODO: Consider axes
 			return ImageOps.Core.sequential(
 					ImageOps.Core.multiply(scale.getGain()),
 					ImageOps.Core.add(scale.getOffset())					
 					);
 		}
 
-		if (transform instanceof ScaleMeanVariance) {
+		if (transform instanceof ScaleMeanVariance scale) {
 			// TODO: Figure out if possible to somehow support ScaleMeanVariance
-			var scale = (ScaleMeanVariance)transform;
-			logger.warn("Unsupported transform {} - cannot access reference tensor {}", transform, scale.getReferenceTensor());
+            logger.warn("Unsupported transform {} - cannot access reference tensor {}", transform, scale.getReferenceTensor());
 			return null;
 //			var mode = warnIfUnsupportedMode(transform.getName(), scale.getMode(), List.of(ProcessingMode.PER_SAMPLE));
 		}
 
-		if (transform instanceof ScaleRange) {
-			var scale = (ScaleRange)transform;
-			var mode = warnIfUnsupportedMode(transform.getName(), scale.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE));
+		if (transform instanceof ScaleRange scale) {
+            var mode = warnIfUnsupportedMode(transform.getName(), scale.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE));
 			assert mode == Processing.ProcessingMode.PER_SAMPLE; // TODO: Consider how to support per dataset
 			String axes = BioimageIoSpec.getAxesString(scale.getAxes());
 			boolean perChannel = false;
@@ -433,9 +426,8 @@ public class BioimageIoTools {
 			return ImageOps.Normalize.sigmoid();
 		}
 		
-		if (transform instanceof ZeroMeanUnitVariance) {
-			var zeroMeanUnitVariance = (ZeroMeanUnitVariance)transform;
-			var mode = warnIfUnsupportedMode(transform.getName(), zeroMeanUnitVariance.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE, Processing.ProcessingMode.FIXED));
+		if (transform instanceof ZeroMeanUnitVariance zeroMeanUnitVariance) {
+            var mode = warnIfUnsupportedMode(transform.getName(), zeroMeanUnitVariance.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE, Processing.ProcessingMode.FIXED));
 			if (mode == Processing.ProcessingMode.PER_SAMPLE) {
 				String axes = BioimageIoSpec.getAxesString(zeroMeanUnitVariance.getAxes());
 				boolean perChannel = false;
@@ -482,8 +474,8 @@ public class BioimageIoTools {
 	
 	private static Processing.ProcessingMode warnIfUnsupportedMode(String transformName, Processing.ProcessingMode mode, List<Processing.ProcessingMode> allowed) {
 		if (mode == null || mode == Processing.ProcessingMode.PER_DATASET) {
-			logger.warn("Unsupported mode {} for {}, will be switched to {}", mode, transformName, allowed.get(0));
-			return allowed.get(0);
+			logger.warn("Unsupported mode {} for {}, will be switched to {}", mode, transformName, allowed.getFirst());
+			return allowed.getFirst();
 		}
 		return mode;
 	}
