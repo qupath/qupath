@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import javafx.beans.value.ObservableValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,21 +75,21 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * The name used for the Object ID column
 	 */
 	public static final String NAME_OBJECT_ID = "Object ID";
-	
-	private ImageData<?> imageData;
-	
-	private ObservableList<PathObject> list = FXCollections.observableArrayList();
-	private FilteredList<PathObject> filterList = new FilteredList<>(list);
 
-	private ObservableList<String> metadataList = FXCollections.observableArrayList();
-	private ObservableList<String> measurementList = FXCollections.observableArrayList();
-	private ObservableList<String> fullList = FXCollections.observableArrayList();
-	
-	private DerivedMeasurementManager manager;
-	private Map<String, MeasurementBuilder<?>> builderMap = new LinkedHashMap<>();
-	
 	private static final String KEY_PIXEL_LAYER = "PIXEL_LAYER";
+
+	private ImageData<?> imageData;
+	private DerivedMeasurementManager manager;
+
+	private final ObservableList<PathObject> list = FXCollections.observableArrayList();
+	private final FilteredList<PathObject> filterList = new FilteredList<>(list);
+
+	private final ObservableList<String> metadataList = FXCollections.observableArrayList();
+	private final ObservableList<String> measurementList = FXCollections.observableArrayList();
+	private final ObservableList<String> fullList = FXCollections.observableArrayList();
 	
+	private final Map<String, MeasurementBuilder<?>> builderMap = new LinkedHashMap<>();
+
 	/**
 	 * Set the {@link ImageData} and a collection of objects to measure.
 	 * @param imageData the {@link ImageData}, required to determine many dynamic measurements
@@ -133,11 +134,6 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		if (layer instanceof ImageServer)
 			return (ImageServer<BufferedImage>)layer;
 		return null;
-	}
-	
-	
-	private ImageData<?> getImageData() {
-		return imageData;
 	}
 	
 	/**
@@ -258,7 +254,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			}
 			
 			// Here, we allow TMA cores to act like annotations
-			manager = new DerivedMeasurementManager(getImageData(), containsAnnotations || containsTMACores);
+			manager = new DerivedMeasurementManager(imageData, containsAnnotations || containsTMACores);
 			for (MeasurementBuilder<?> builder2 : manager.getMeasurementBuilders()) {
 				builderMap.put(builder2.getName(), builder2);
 				features.add(builder2.getName());
@@ -370,8 +366,9 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @return
 	 */
 	@Deprecated
-	public Binding<Number> createNumericMeasurement(final PathObject pathObject, final String column) {
+	public ObservableValue<Number> createNumericMeasurement(final PathObject pathObject, final String column) {
 		MeasurementBuilder<?> builder = builderMap.get(column);
+		// If we have no builder, default to using the object's measurement list
 		if (builder == null)
 			return new ObservableMeasurement(pathObject, column);
 		else if (builder instanceof AbstractNumericMeasurementBuilder numericMeasurementBuilder)
@@ -392,7 +389,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @return
 	 */
 	@Deprecated
-	public Binding<String> createStringMeasurement(final PathObject pathObject, final String column) {
+	public ObservableValue<String> createStringMeasurement(final PathObject pathObject, final String column) {
 		MeasurementBuilder<?> builder = builderMap.get(column);
 		if (builder instanceof AbstractStringMeasurementBuilder stringMeasurementBuilder)
 			return stringMeasurementBuilder.createMeasurement(pathObject);
@@ -446,8 +443,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				return Double.NaN;
 			
 			MeasurementBuilder<?> builder = builderMap.get(column);
-			if (builder instanceof AbstractNumericMeasurementBuilder)
-				return ((AbstractNumericMeasurementBuilder)builder).createMeasurement(pathObject).getValue().doubleValue();
+			if (builder instanceof AbstractNumericMeasurementBuilder numericMeasurementBuilder)
+				return numericMeasurementBuilder.createMeasurement(pathObject).getValue().doubleValue();
 			else
 				return Double.NaN;
 		}

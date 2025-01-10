@@ -23,7 +23,7 @@ abstract class AbstractNumericMeasurementBuilder implements MeasurementBuilder<N
         if (Double.isNaN(val))
             return "NaN";
         if (decimalPlaces == 0)
-            return Integer.toString((int) (val + 0.5));
+            return Long.toString(Math.round(val));
         int dp = decimalPlaces;
         // Format in some sensible way
         if (decimalPlaces < 0) {

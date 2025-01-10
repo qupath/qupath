@@ -1,6 +1,7 @@
 package qupath.lib.gui.measure;
 
 import javafx.beans.binding.Binding;
+import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import qupath.lib.objects.PathObject;
 
