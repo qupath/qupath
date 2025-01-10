@@ -1,7 +1,5 @@
 package qupath.lib.gui.measure;
 
-import javafx.beans.binding.Binding;
-import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.IntegerBinding;
 import javafx.beans.value.ObservableDoubleValue;
@@ -310,7 +308,7 @@ class DerivedMeasurementManager {
     }
 
 
-    private class ClassCountMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class ClassCountMeasurementBuilder implements NumericMeasurementBuilder {
 
         private PathClass pathClass;
         private boolean baseClassification;
@@ -351,8 +349,8 @@ class DerivedMeasurementManager {
         }
 
         @Override
-        public Binding<Number> createMeasurement(final PathObject pathObject) {
-            return new ClassCountMeasurement(pathObject, pathClass, baseClassification);
+        public Number getValue(final PathObject pathObject) {
+            return new ClassCountMeasurement(pathObject, pathClass, baseClassification).getValue();
         }
 
         @Override
@@ -363,7 +361,7 @@ class DerivedMeasurementManager {
     }
 
 
-    private class ClassDensityMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class ClassDensityMeasurementBuilder implements NumericMeasurementBuilder {
 
         private PathClass pathClass;
 
@@ -386,11 +384,11 @@ class DerivedMeasurementManager {
         }
 
         @Override
-        public Binding<Number> createMeasurement(final PathObject pathObject) {
+        public Number getValue(final PathObject pathObject) {
             // Only return density measurements for annotations
             if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.nChildObjects() == 1))
-                return new ClassDensityMeasurementPerMM(pathObject, pathClass);
-            return Bindings.createDoubleBinding(() -> Double.NaN);
+                return new ClassDensityMeasurementPerMM(pathObject, pathClass).getValue();
+            return Double.NaN;
         }
 
         @Override
@@ -401,7 +399,7 @@ class DerivedMeasurementManager {
     }
 
 
-    private class PositivePercentageMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class PositivePercentageMeasurementBuilder implements NumericMeasurementBuilder {
 
         private PathClass[] parentClasses;
 
@@ -426,8 +424,8 @@ class DerivedMeasurementManager {
         }
 
         @Override
-        public Binding<Number> createMeasurement(final PathObject pathObject) {
-            return new PositivePercentage(pathObject, parentClasses);
+        public Number getValue(final PathObject pathObject) {
+            return new PositivePercentage(pathObject, parentClasses).getValue();
         }
 
     }
@@ -487,7 +485,7 @@ class DerivedMeasurementManager {
     }
 
 
-    private class HScoreMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class HScoreMeasurementBuilder implements NumericMeasurementBuilder {
 
         private PathClass[] pathClasses;
 
@@ -511,14 +509,14 @@ class DerivedMeasurementManager {
         }
 
         @Override
-        public Binding<Number> createMeasurement(final PathObject pathObject) {
-            return new HScore(pathObject, pathClasses);
+        public Number getValue(final PathObject pathObject) {
+            return new HScore(pathObject, pathClasses).getValue();
         }
 
     }
 
 
-    private class AllredIntensityMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class AllredIntensityMeasurementBuilder implements NumericMeasurementBuilder {
 
         private PathClass[] pathClasses;
 
@@ -550,13 +548,13 @@ class DerivedMeasurementManager {
         }
 
         @Override
-        public Binding<Number> createMeasurement(final PathObject pathObject) {
-            return new AllredIntensityScore(pathObject, PathPrefs.allredMinPercentagePositiveProperty(), pathClasses);
+        public Number getValue(final PathObject pathObject) {
+            return new AllredIntensityScore(pathObject, PathPrefs.allredMinPercentagePositiveProperty(), pathClasses).getValue();
         }
 
     }
 
-    private class AllredProportionMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class AllredProportionMeasurementBuilder implements NumericMeasurementBuilder {
 
         private PathClass[] pathClasses;
 
@@ -589,13 +587,13 @@ class DerivedMeasurementManager {
         }
 
         @Override
-        public Binding<Number> createMeasurement(final PathObject pathObject) {
-            return new AllredProportionScore(pathObject, PathPrefs.allredMinPercentagePositiveProperty(), pathClasses);
+        public Number getValue(final PathObject pathObject) {
+            return new AllredProportionScore(pathObject, PathPrefs.allredMinPercentagePositiveProperty(), pathClasses).getValue();
         }
 
     }
 
-    private class AllredMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class AllredMeasurementBuilder implements NumericMeasurementBuilder {
 
         private PathClass[] pathClasses;
 
@@ -620,8 +618,8 @@ class DerivedMeasurementManager {
         }
 
         @Override
-        public Binding<Number> createMeasurement(final PathObject pathObject) {
-            return new AllredScore(pathObject, PathPrefs.allredMinPercentagePositiveProperty(), pathClasses);
+        public Number getValue(final PathObject pathObject) {
+            return new AllredScore(pathObject, PathPrefs.allredMinPercentagePositiveProperty(), pathClasses).getValue();
         }
 
     }

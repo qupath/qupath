@@ -2,7 +2,7 @@ package qupath.lib.gui.measure;
 
 import qupath.lib.objects.PathObject;
 
-class ObjectNameMeasurementBuilder extends AbstractStringMeasurementBuilder {
+class ObjectNameMeasurementBuilder implements StringMeasurementBuilder {
 
     @Override
     public String getName() {
@@ -15,7 +15,7 @@ class ObjectNameMeasurementBuilder extends AbstractStringMeasurementBuilder {
     }
 
     @Override
-    protected String getMeasurementValue(PathObject pathObject) {
+    public String getValue(PathObject pathObject) {
         if (pathObject == null)
             return null;
         // v0.5.0 change - previously used pathObject.getDisplayedName(),

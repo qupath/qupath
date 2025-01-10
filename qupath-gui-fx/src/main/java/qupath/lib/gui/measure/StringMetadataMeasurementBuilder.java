@@ -2,7 +2,7 @@ package qupath.lib.gui.measure;
 
 import qupath.lib.objects.PathObject;
 
-class StringMetadataMeasurementBuilder extends AbstractStringMeasurementBuilder {
+class StringMetadataMeasurementBuilder implements StringMeasurementBuilder {
 
     private final String name;
 
@@ -21,7 +21,7 @@ class StringMetadataMeasurementBuilder extends AbstractStringMeasurementBuilder 
     }
 
     @Override
-    public String getMeasurementValue(PathObject pathObject) {
+    public String getValue(PathObject pathObject) {
         if (pathObject != null) {
             return pathObject.getMetadata().getOrDefault(name, null);
         }

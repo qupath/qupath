@@ -3,7 +3,7 @@ package qupath.lib.gui.measure;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 
-class MissingTMACoreMeasurementBuilder extends AbstractStringMeasurementBuilder {
+class MissingTMACoreMeasurementBuilder implements StringMeasurementBuilder {
 
     @Override
     public String getName() {
@@ -16,7 +16,7 @@ class MissingTMACoreMeasurementBuilder extends AbstractStringMeasurementBuilder 
     }
 
     @Override
-    protected String getMeasurementValue(PathObject pathObject) {
+    public String getValue(PathObject pathObject) {
         if (pathObject instanceof TMACoreObject)
             return ((TMACoreObject) pathObject).isMissing() ? "True" : "False";
         return null;

@@ -1,7 +1,5 @@
 package qupath.lib.gui.measure;
 
-import javafx.beans.binding.Binding;
-import javafx.beans.binding.DoubleBinding;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -24,19 +22,13 @@ class PerimeterMeasurementBuilder extends ROIMeasurementBuilder {
     }
 
     @Override
-    public Binding<Number> createMeasurement(final PathObject pathObject) {
-        return new DoubleBinding() {
-            @Override
-            protected double computeValue() {
-                ROI roi = pathObject.getROI();
-                if (roi == null || !roi.isArea())
-                    return Double.NaN;
-                if (hasPixelSizeMicrons())
-                    return roi.getScaledLength(pixelWidthMicrons(), pixelHeightMicrons());
-                return roi.getLength();
-            }
-
-        };
+    public Number getValue(final PathObject pathObject) {
+        ROI roi = pathObject.getROI();
+        if (roi == null || !roi.isArea())
+            return Double.NaN;
+        if (hasPixelSizeMicrons())
+            return roi.getScaledLength(pixelWidthMicrons(), pixelHeightMicrons());
+        return roi.getLength();
     }
 
 }

@@ -2,7 +2,7 @@ package qupath.lib.gui.measure;
 
 import qupath.lib.images.ImageData;
 
-abstract class ROIMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+abstract class ROIMeasurementBuilder implements NumericMeasurementBuilder {
 
     private final ImageData<?> imageData;
 
@@ -10,17 +10,29 @@ abstract class ROIMeasurementBuilder extends AbstractNumericMeasurementBuilder {
         this.imageData = imageData;
     }
 
-    boolean hasPixelSizeMicrons() {
+    /**
+     * Query if the pixel width and height are available in microns.
+     * @return
+     */
+    protected boolean hasPixelSizeMicrons() {
         return imageData != null && imageData.getServerMetadata().getPixelCalibration().hasPixelSizeMicrons();
     }
 
-    double pixelWidthMicrons() {
+    /**
+     * Get the pixel width in microns, or NaN if this is unavailable.
+     * @return
+     */
+    protected double pixelWidthMicrons() {
         if (hasPixelSizeMicrons())
             return imageData.getServerMetadata().getPixelCalibration().getPixelWidthMicrons();
         return Double.NaN;
     }
 
-    double pixelHeightMicrons() {
+    /**
+     * Get the pixel height in microns, or NaN if this is unavailable.
+     * @return
+     */
+    protected double pixelHeightMicrons() {
         if (hasPixelSizeMicrons())
             return imageData.getServerMetadata().getPixelCalibration().getPixelHeightMicrons();
         return Double.NaN;

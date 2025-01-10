@@ -6,7 +6,7 @@ import qupath.lib.objects.TMACoreObject;
 /**
  * Get the displayed name of the first TMACoreObject that is an ancestor of the supplied object.
  */
-class TMACoreNameMeasurementBuilder extends AbstractStringMeasurementBuilder {
+class TMACoreNameMeasurementBuilder implements StringMeasurementBuilder {
 
     @Override
     public String getHelpText() {
@@ -27,7 +27,7 @@ class TMACoreNameMeasurementBuilder extends AbstractStringMeasurementBuilder {
     }
 
     @Override
-    public String getMeasurementValue(PathObject pathObject) {
+    public String getValue(PathObject pathObject) {
         TMACoreObject core = getAncestorTMACore(pathObject);
         if (core == null)
             return null;

@@ -1,6 +1,5 @@
 package qupath.lib.gui.measure;
 
-import javafx.beans.binding.Binding;
 import javafx.beans.binding.IntegerBinding;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -9,7 +8,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 import java.util.Collection;
 
-class ObjectTypeCountMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+class ObjectTypeCountMeasurementBuilder implements NumericMeasurementBuilder {
 
     private final ImageData<?> imageData;
     private final Class<? extends PathObject> cls;
@@ -30,8 +29,8 @@ class ObjectTypeCountMeasurementBuilder extends AbstractNumericMeasurementBuilde
     }
 
     @Override
-    public Binding<Number> createMeasurement(final PathObject pathObject) {
-        return new ObjectTypeCountMeasurement(imageData.getHierarchy(), pathObject, cls);
+    public Number getValue(final PathObject pathObject) {
+        return new ObjectTypeCountMeasurement(imageData.getHierarchy(), pathObject, cls).getValue();
     }
 
     @Override

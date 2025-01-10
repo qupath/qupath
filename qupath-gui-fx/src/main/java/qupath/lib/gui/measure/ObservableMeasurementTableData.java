@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.value.ObservableValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -370,8 +371,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		// If we have no builder, default to using the object's measurement list
 		if (builder == null)
 			return new ObservableMeasurement(pathObject, column);
-		else if (builder instanceof AbstractNumericMeasurementBuilder numericMeasurementBuilder)
-			return numericMeasurementBuilder.createMeasurement(pathObject);
+		else if (builder instanceof NumericMeasurementBuilder numericMeasurementBuilder)
+			return Bindings.createObjectBinding(() -> numericMeasurementBuilder.getValue(pathObject));
 		else
 			throw new IllegalArgumentException(column + " does not represent a numeric measurement!");
 	}
@@ -390,8 +391,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	@Deprecated
 	public ObservableValue<String> createStringMeasurement(final PathObject pathObject, final String column) {
 		MeasurementBuilder<?> builder = builderMap.get(column);
-		if (builder instanceof AbstractStringMeasurementBuilder stringMeasurementBuilder)
-			return stringMeasurementBuilder.createMeasurement(pathObject);
+		if (builder instanceof StringMeasurementBuilder stringMeasurementBuilder)
+			return Bindings.createStringBinding(() -> stringMeasurementBuilder.getValue(pathObject));
 		else
 			throw new IllegalArgumentException(column + " does not represent a String measurement!");
 	}
@@ -402,7 +403,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @return true if the measurement returns a String (only), false otherwise
 	 */
 	public boolean isStringMeasurement(final String name) {
-		return builderMap.get(name) instanceof AbstractStringMeasurementBuilder;
+		return builderMap.get(name) instanceof StringMeasurementBuilder;
 	}
 	
 	/**
@@ -442,8 +443,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				return Double.NaN;
 			
 			MeasurementBuilder<?> builder = builderMap.get(column);
-			if (builder instanceof AbstractNumericMeasurementBuilder numericMeasurementBuilder)
-				return numericMeasurementBuilder.createMeasurement(pathObject).getValue().doubleValue();
+			if (builder instanceof NumericMeasurementBuilder numericMeasurementBuilder)
+				return numericMeasurementBuilder.getValue(pathObject).doubleValue();
 			else
 				return Double.NaN;
 		}
@@ -490,10 +491,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	@Override
 	public String getStringValue(PathObject pathObject, String column, int decimalPlaces) {
 		MeasurementBuilder<?> builder = builderMap.get(column);
-		if (builder instanceof AbstractStringMeasurementBuilder stringMeasurementBuilder) {
-			return stringMeasurementBuilder.getMeasurementValue(pathObject);
+		if (builder instanceof StringMeasurementBuilder stringMeasurementBuilder) {
+			return stringMeasurementBuilder.getValue(pathObject);
 		}
-		else if (builder instanceof AbstractNumericMeasurementBuilder numericMeasurementBuilder)
+		else if (builder instanceof NumericMeasurementBuilder numericMeasurementBuilder)
 			return numericMeasurementBuilder.getStringValue(pathObject, decimalPlaces);
 		
 		if (pathObject == null) {

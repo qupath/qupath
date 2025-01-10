@@ -5,7 +5,7 @@ import qupath.lib.objects.PathObject;
 /**
  * Get the displayed name of the parent of this object.
  */
-class ParentNameMeasurementBuilder extends AbstractStringMeasurementBuilder {
+class ParentNameMeasurementBuilder implements StringMeasurementBuilder {
 
     @Override
     public String getName() {
@@ -18,7 +18,7 @@ class ParentNameMeasurementBuilder extends AbstractStringMeasurementBuilder {
     }
 
     @Override
-    public String getMeasurementValue(PathObject pathObject) {
+    public String getValue(PathObject pathObject) {
         PathObject parent = pathObject == null ? null : pathObject.getParent();
         if (parent == null)
             return null;

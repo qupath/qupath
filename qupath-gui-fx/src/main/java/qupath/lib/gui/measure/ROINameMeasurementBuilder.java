@@ -2,7 +2,7 @@ package qupath.lib.gui.measure;
 
 import qupath.lib.objects.PathObject;
 
-class ROINameMeasurementBuilder extends AbstractStringMeasurementBuilder {
+class ROINameMeasurementBuilder implements StringMeasurementBuilder {
 
     @Override
     public String getName() {
@@ -15,7 +15,7 @@ class ROINameMeasurementBuilder extends AbstractStringMeasurementBuilder {
     }
 
     @Override
-    protected String getMeasurementValue(PathObject pathObject) {
+    public String getValue(PathObject pathObject) {
         return pathObject.hasROI() ? pathObject.getROI().getRoiName() : null;
     }
 

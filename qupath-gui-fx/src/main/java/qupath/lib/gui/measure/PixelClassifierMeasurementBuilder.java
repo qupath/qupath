@@ -1,11 +1,9 @@
 package qupath.lib.gui.measure;
 
-import javafx.beans.binding.Binding;
-import javafx.beans.binding.Bindings;
 import qupath.lib.objects.PathObject;
 import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
 
-class PixelClassifierMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+class PixelClassifierMeasurementBuilder implements NumericMeasurementBuilder {
 
     private PixelClassificationMeasurementManager manager;
     private String name;
@@ -26,9 +24,9 @@ class PixelClassifierMeasurementBuilder extends AbstractNumericMeasurementBuilde
     }
 
     @Override
-    public Binding<Number> createMeasurement(PathObject pathObject) {
+    public Number getValue(PathObject pathObject) {
         // Return only measurements that can be generated rapidly from cached tiles
-        return Bindings.createObjectBinding(() -> manager.getMeasurementValue(pathObject, name, true));
+        return manager.getCachedMeasurementValue(pathObject, name);
     }
 
 }

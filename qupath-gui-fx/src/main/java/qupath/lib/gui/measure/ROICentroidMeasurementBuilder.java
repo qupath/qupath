@@ -1,7 +1,5 @@
 package qupath.lib.gui.measure;
 
-import javafx.beans.binding.Binding;
-import javafx.beans.binding.DoubleBinding;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -28,29 +26,25 @@ class ROICentroidMeasurementBuilder extends ROIMeasurementBuilder {
         return String.format("Centroid %s %s", type, hasPixelSizeMicrons() ? GeneralTools.micrometerSymbol() : "px");
     }
 
-    public double getCentroid(ROI roi) {
+    private Double getCentroid(ROI roi) {
         if (roi == null || type == null)
-            return Double.NaN;
+            return null;
         if (hasPixelSizeMicrons()) {
-            return type == CentroidType.X
-                    ? roi.getCentroidX() * pixelWidthMicrons()
-                    : roi.getCentroidY() * pixelHeightMicrons();
+            return switch (type) {
+                case X -> roi.getCentroidX() * pixelWidthMicrons();
+                case Y -> roi.getCentroidY() * pixelHeightMicrons();
+            };
         } else {
-            return type == CentroidType.X
-                    ? roi.getCentroidX()
-                    : roi.getCentroidY();
+            return switch (type) {
+                case X -> roi.getCentroidX();
+                case Y -> roi.getCentroidY();
+            };
         }
     }
 
     @Override
-    public Binding<Number> createMeasurement(PathObject pathObject) {
-        return new DoubleBinding() {
-            @Override
-            protected double computeValue() {
-                return getCentroid(pathObject.getROI());
-            }
-
-        };
+    public Number getValue(PathObject pathObject) {
+        return getCentroid(pathObject.getROI());
     }
 
 }

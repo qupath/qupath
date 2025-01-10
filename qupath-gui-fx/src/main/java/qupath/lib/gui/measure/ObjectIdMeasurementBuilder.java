@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.objects.PathObject;
 
-class ObjectIdMeasurementBuilder extends AbstractStringMeasurementBuilder {
+class ObjectIdMeasurementBuilder implements StringMeasurementBuilder {
 
     private static final Logger logger = LoggerFactory.getLogger(ObjectIdMeasurementBuilder.class);
 
@@ -19,7 +19,7 @@ class ObjectIdMeasurementBuilder extends AbstractStringMeasurementBuilder {
     }
 
     @Override
-    protected String getMeasurementValue(PathObject pathObject) {
+    public String getValue(PathObject pathObject) {
         var id = pathObject.getID(); // Shouldn't be null!
         if (id == null) {
             logger.warn("ID null for {}", pathObject);

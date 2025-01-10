@@ -7,7 +7,7 @@ import qupath.lib.objects.PathObjectTools;
 /**
  * Get the displayed name of the parent of this object.
  */
-class ImageNameMeasurementBuilder extends AbstractStringMeasurementBuilder {
+class ImageNameMeasurementBuilder implements StringMeasurementBuilder {
 
     private final ImageData<?> imageData;
 
@@ -26,7 +26,7 @@ class ImageNameMeasurementBuilder extends AbstractStringMeasurementBuilder {
     }
 
     @Override
-    public String getMeasurementValue(PathObject pathObject) {
+    public String getValue(PathObject pathObject) {
         if (imageData == null)
             return null;
         var hierarchy = imageData.getHierarchy();
