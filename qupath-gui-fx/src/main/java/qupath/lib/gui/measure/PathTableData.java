@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -48,7 +48,7 @@ public interface PathTableData<T> {
 	 * 
 	 * @return
 	 */
-	public List<String> getAllNames();
+	List<String> getAllNames();
 
 	/**
 	 * Get a string representation of the value.
@@ -59,7 +59,7 @@ public interface PathTableData<T> {
 	 * @param name
 	 * @return
 	 */
-	public String getStringValue(final T item, final String name);
+	String getStringValue(final T item, final String name);
 
 	/**
 	 * Get a string value, converting to a fixed number of decimal places if the column is numeric.
@@ -69,13 +69,13 @@ public interface PathTableData<T> {
 	 * @param decimalPlaces
 	 * @return
 	 */
-	public String getStringValue(final T item, final String name, final int decimalPlaces);
+	String getStringValue(final T item, final String name, final int decimalPlaces);
 
 	/**
 	 * Get the names of all numeric measurements.
 	 * @return
 	 */
-	public List<String> getMeasurementNames();
+	List<String> getMeasurementNames();
 
 	/**
 	 * Get the numeric value from an object for the specific measurement.
@@ -83,7 +83,7 @@ public interface PathTableData<T> {
 	 * @param column
 	 * @return
 	 */
-	public double getNumericValue(final T pathObject, final String column);
+	double getNumericValue(final T pathObject, final String column);
 
 	/**
 	 * Get all double values for all items.
@@ -91,14 +91,14 @@ public interface PathTableData<T> {
 	 * @param column
 	 * @return
 	 */
-	public double[] getDoubleValues(final String column);
+	double[] getDoubleValues(final String column);
 	
 	/**
 	 * Get internal list of the items used to provide measurements.
 	 * 
 	 * @return
 	 */
-	public List<T> getItems();
+	List<T> getItems();
 
 	
 }
