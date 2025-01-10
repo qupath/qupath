@@ -4,7 +4,7 @@ import qupath.lib.objects.PathObject;
 
 class StringMetadataMeasurementBuilder extends AbstractStringMeasurementBuilder {
 
-    private String name;
+    private final String name;
 
     StringMetadataMeasurementBuilder(final String name) {
         this.name = name;

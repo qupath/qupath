@@ -9,7 +9,7 @@ import qupath.lib.objects.PathObjectTools;
  */
 class ImageNameMeasurementBuilder extends AbstractStringMeasurementBuilder {
 
-    private ImageData<?> imageData;
+    private final ImageData<?> imageData;
 
     ImageNameMeasurementBuilder(final ImageData<?> imageData) {
         this.imageData = imageData;

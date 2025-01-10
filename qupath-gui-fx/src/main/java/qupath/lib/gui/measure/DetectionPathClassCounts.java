@@ -18,7 +18,7 @@ import java.util.function.Predicate;
  */
 class DetectionPathClassCounts {
 
-    private Map<PathClass, Integer> counts = new HashMap<>();
+    private final Map<PathClass, Integer> counts = new HashMap<>();
 
     /**
      * Create a structure to count detections inside a specified parent.
@@ -40,16 +40,12 @@ class DetectionPathClassCounts {
             PathClass pathClass = child.getPathClass();
 //				if (pathClass == null)
 //					continue;
-            Integer count = counts.get(pathClass);
-            if (count == null)
-                counts.put(pathClass, Integer.valueOf(1));
-            else
-                counts.put(pathClass, Integer.valueOf(count.intValue() + 1));
+            counts.merge(pathClass, 1, Integer::sum);
         }
     }
 
     public int getDirectCount(final PathClass pathClass) {
-        return counts.getOrDefault(pathClass, Integer.valueOf(0));
+        return counts.getOrDefault(pathClass, 0);
     }
 
     public int getCountForAncestor(final Predicate<PathClass> predicate, final PathClass ancestor) {
@@ -76,23 +72,23 @@ class DetectionPathClassCounts {
     }
 
     public int getOnePlus(final PathClass... ancestors) {
-        return getCountForAncestor(pathClass -> PathClassTools.isOnePlus(pathClass), ancestors);
+        return getCountForAncestor(PathClassTools::isOnePlus, ancestors);
     }
 
     public int getTwoPlus(final PathClass... ancestors) {
-        return getCountForAncestor(pathClass -> PathClassTools.isTwoPlus(pathClass), ancestors);
+        return getCountForAncestor(PathClassTools::isTwoPlus, ancestors);
     }
 
     public int getThreePlus(final PathClass... ancestors) {
-        return getCountForAncestor(pathClass -> PathClassTools.isThreePlus(pathClass), ancestors);
+        return getCountForAncestor(PathClassTools::isThreePlus, ancestors);
     }
 
     public int getNegative(final PathClass... ancestors) {
-        return getCountForAncestor(pathClass -> PathClassTools.isNegativeClass(pathClass), ancestors);
+        return getCountForAncestor(PathClassTools::isNegativeClass, ancestors);
     }
 
     public int getPositive(final PathClass... ancestors) {
-        return getCountForAncestor(pathClass -> PathClassTools.isPositiveOrGradedIntensityClass(pathClass), ancestors);
+        return getCountForAncestor(PathClassTools::isPositiveOrGradedIntensityClass, ancestors);
     }
 
     public double getHScore(final PathClass... ancestors) {

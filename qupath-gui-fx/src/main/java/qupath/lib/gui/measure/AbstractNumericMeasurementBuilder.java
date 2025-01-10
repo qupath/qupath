@@ -5,8 +5,8 @@ import qupath.lib.objects.PathObject;
 
 abstract class AbstractNumericMeasurementBuilder implements MeasurementBuilder<Number> {
 
-    public double computeValue(final PathObject pathObject) {
-        // TODO: Flip this around!  Create binding from value, not value from binding...
+    private double computeValue(final PathObject pathObject) {
+        // TODO: Flip this around! Create binding from value, not value from binding...
         try {
             var val = createMeasurement(pathObject).getValue();
             if (val == null)
@@ -20,6 +20,10 @@ abstract class AbstractNumericMeasurementBuilder implements MeasurementBuilder<N
 
     public String getStringValue(final PathObject pathObject, final int decimalPlaces) {
         double val = computeValue(pathObject);
+        return formatNumber(val, decimalPlaces);
+    }
+
+    private static String formatNumber(double val, int decimalPlaces) {
         if (Double.isNaN(val))
             return "NaN";
         if (decimalPlaces == 0)

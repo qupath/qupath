@@ -52,7 +52,7 @@ public interface PathTableData<T> {
 
 	/**
 	 * Get a string representation of the value.
-	 * 
+	 * <p>
 	 * For this method, numbers should be formatted according to the {@link Locale}.
 	 * 
 	 * @param item

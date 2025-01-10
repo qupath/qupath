@@ -4,7 +4,7 @@ import qupath.lib.images.ImageData;
 
 abstract class ROIMeasurementBuilder extends AbstractNumericMeasurementBuilder {
 
-    private ImageData<?> imageData;
+    private final ImageData<?> imageData;
 
     ROIMeasurementBuilder(final ImageData<?> imageData) {
         this.imageData = imageData;
