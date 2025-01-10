@@ -36,12 +36,11 @@ class DerivedMeasurementManager {
 
     private final ImageData<?> imageData;
 
-    private boolean valid = false;
-
     private final List<MeasurementBuilder<?>> builders = new ArrayList<>();
 
-    // Map to store cached counts, will be reset when the hierarchy changes (in any way)
-    private final Map<PathObject, DetectionPathClassCounts> map = new WeakHashMap<>();
+    // Map to store cached counts; this should be reset when the hierarchy changes (in any way) with a call to
+    // clearMap()
+    private final Map<PathObject, DetectionPathClassCounts> map = Collections.synchronizedMap(new WeakHashMap<>());
 
     private final boolean containsAnnotations;
 
@@ -55,7 +54,7 @@ class DerivedMeasurementManager {
         map.clear();
     }
 
-    void updateAvailableMeasurements() {
+    private void updateAvailableMeasurements() {
         map.clear();
         builders.clear();
         if (imageData == null || imageData.getHierarchy() == null)
@@ -126,18 +125,17 @@ class DerivedMeasurementManager {
                 }
             }
         }
-
-        valid = true;
     }
 
     List<MeasurementBuilder<?>> getMeasurementBuilders() {
-        if (!valid)
-            updateAvailableMeasurements();
         return builders;
     }
 
+    private DetectionPathClassCounts getDetectionPathClassCounts(PathObject pathObject) {
+        return map.computeIfAbsent(pathObject, p -> new DetectionPathClassCounts(imageData.getHierarchy(), p));
+    }
 
-    class ClassCountMeasurement extends IntegerBinding {
+    private class ClassCountMeasurement extends IntegerBinding {
 
         private PathObject pathObject;
         private PathClass pathClass;
@@ -151,11 +149,7 @@ class DerivedMeasurementManager {
 
         @Override
         protected int computeValue() {
-            DetectionPathClassCounts counts = map.get(pathObject);
-            if (counts == null) {
-                counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
-                map.put(pathObject, counts);
-            }
+            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
             if (baseClassification)
                 return counts.getCountForAncestor(pathClass);
             else
@@ -165,7 +159,7 @@ class DerivedMeasurementManager {
     }
 
 
-    class ClassDensityMeasurementPerMM extends DoubleBinding {
+    private class ClassDensityMeasurementPerMM extends DoubleBinding {
 
         private PathObject pathObject;
         private PathClass pathClass;
@@ -191,11 +185,8 @@ class DerivedMeasurementManager {
             if (pathObjectTemp == null || !(pathObjectTemp.isAnnotation() || pathObjectTemp.isRootObject()))
                 return Double.NaN;
 
-            DetectionPathClassCounts counts = map.get(pathObjectTemp);
-            if (counts == null) {
-                counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObjectTemp);
-                map.put(pathObject, counts);
-            }
+            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
+
             int n = counts.getCountForAncestor(pathClass);
             ROI roi = pathObjectTemp.getROI();
             // For the root, we can measure density only for 2D images of a single time-point
@@ -219,7 +210,7 @@ class DerivedMeasurementManager {
     }
 
 
-    class HScore extends DoubleBinding {
+    private class HScore extends DoubleBinding {
 
         private PathObject pathObject;
         private PathClass[] pathClasses;
@@ -231,18 +222,14 @@ class DerivedMeasurementManager {
 
         @Override
         protected double computeValue() {
-            DetectionPathClassCounts counts = map.get(pathObject);
-            if (counts == null) {
-                counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
-                map.put(pathObject, counts);
-            }
+            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
             return counts.getHScore(pathClasses);
         }
 
     }
 
 
-    class AllredIntensityScore extends DoubleBinding {
+    private class AllredIntensityScore extends DoubleBinding {
 
         private PathObject pathObject;
         private PathClass[] pathClasses;
@@ -256,18 +243,14 @@ class DerivedMeasurementManager {
 
         @Override
         protected double computeValue() {
-            DetectionPathClassCounts counts = map.get(pathObject);
-            if (counts == null) {
-                counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
-                map.put(pathObject, counts);
-            }
+            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
             return counts.getAllredIntensity(minPositivePercentage.doubleValue() / 100, pathClasses);
         }
 
     }
 
 
-    class AllredProportionScore extends DoubleBinding {
+    private class AllredProportionScore extends DoubleBinding {
 
         private PathObject pathObject;
         private PathClass[] pathClasses;
@@ -281,17 +264,13 @@ class DerivedMeasurementManager {
 
         @Override
         protected double computeValue() {
-            DetectionPathClassCounts counts = map.get(pathObject);
-            if (counts == null) {
-                counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
-                map.put(pathObject, counts);
-            }
+            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
             return counts.getAllredProportion(minPositivePercentage.doubleValue() / 100, pathClasses);
         }
 
     }
 
-    class AllredScore extends DoubleBinding {
+    private class AllredScore extends DoubleBinding {
 
         private PathObject pathObject;
         private PathClass[] pathClasses;
@@ -305,18 +284,14 @@ class DerivedMeasurementManager {
 
         @Override
         protected double computeValue() {
-            DetectionPathClassCounts counts = map.get(pathObject);
-            if (counts == null) {
-                counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
-                map.put(pathObject, counts);
-            }
+            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
             return counts.getAllredScore(minPositivePercentage.doubleValue() / 100, pathClasses);
         }
 
     }
 
 
-    class PositivePercentage extends DoubleBinding {
+    private class PositivePercentage extends DoubleBinding {
 
         private PathObject pathObject;
         private PathClass[] pathClasses;
@@ -328,18 +303,14 @@ class DerivedMeasurementManager {
 
         @Override
         protected double computeValue() {
-            DetectionPathClassCounts counts = map.get(pathObject);
-            if (counts == null) {
-                counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
-                map.put(pathObject, counts);
-            }
+            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
             return counts.getPositivePercentage(pathClasses);
         }
 
     }
 
 
-    class ClassCountMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class ClassCountMeasurementBuilder extends AbstractNumericMeasurementBuilder {
 
         private PathClass pathClass;
         private boolean baseClassification;
@@ -392,7 +363,7 @@ class DerivedMeasurementManager {
     }
 
 
-    class ClassDensityMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class ClassDensityMeasurementBuilder extends AbstractNumericMeasurementBuilder {
 
         private PathClass pathClass;
 
@@ -430,7 +401,7 @@ class DerivedMeasurementManager {
     }
 
 
-    class PositivePercentageMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class PositivePercentageMeasurementBuilder extends AbstractNumericMeasurementBuilder {
 
         private PathClass[] parentClasses;
 
@@ -496,7 +467,7 @@ class DerivedMeasurementManager {
      * @param parentClasses
      * @return
      */
-    static String getNameForClasses(final String measurementName, final PathClass... parentClasses) {
+    private static String getNameForClasses(final String measurementName, final PathClass... parentClasses) {
         if (parentClasses == null || parentClasses.length == 0)
             return measurementName;
         if (parentClasses.length == 1) {
@@ -516,7 +487,7 @@ class DerivedMeasurementManager {
     }
 
 
-    class HScoreMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class HScoreMeasurementBuilder extends AbstractNumericMeasurementBuilder {
 
         private PathClass[] pathClasses;
 
@@ -547,7 +518,7 @@ class DerivedMeasurementManager {
     }
 
 
-    class AllredIntensityMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class AllredIntensityMeasurementBuilder extends AbstractNumericMeasurementBuilder {
 
         private PathClass[] pathClasses;
 
@@ -585,7 +556,7 @@ class DerivedMeasurementManager {
 
     }
 
-    class AllredProportionMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class AllredProportionMeasurementBuilder extends AbstractNumericMeasurementBuilder {
 
         private PathClass[] pathClasses;
 
@@ -624,7 +595,7 @@ class DerivedMeasurementManager {
 
     }
 
-    class AllredMeasurementBuilder extends AbstractNumericMeasurementBuilder {
+    private class AllredMeasurementBuilder extends AbstractNumericMeasurementBuilder {
 
         private PathClass[] pathClasses;
 
@@ -654,6 +625,5 @@ class DerivedMeasurementManager {
         }
 
     }
-
 
 }

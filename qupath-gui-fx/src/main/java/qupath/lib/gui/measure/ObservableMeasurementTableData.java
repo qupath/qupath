@@ -38,7 +38,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
-import javafx.beans.binding.Binding;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.ReadOnlyListWrapper;
 import javafx.collections.FXCollections;
