@@ -36,6 +36,7 @@ import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.bioimageio.spec.BioimageIoSpec;
 import qupath.bioimageio.spec.BioimageIoSpec.Processing.Binarize;
 import qupath.bioimageio.spec.BioimageIoSpec.BioimageIoModel;
 import qupath.bioimageio.spec.BioimageIoSpec.Processing.Clip;
@@ -59,6 +60,7 @@ import qupath.opencv.dnn.DnnModels;
 import qupath.opencv.dnn.DnnShape;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
+
 
 /**
  * Helper class for working with Bioimage Model Zoo model specs, and attempting to 
@@ -155,7 +157,7 @@ public class BioimageIoTools {
 					// *Conceivably* we could support these via some as-yet-unwritten extension... but we probably don't
 					break;
 				}
-				String axes = spec.getInputs().get(0).getAxes();
+				String axes = BioimageIoSpec.getAxesString(spec.getInputs().getFirst().getAxes());
 				var inputShapeMap = spec.getInputs().stream().collect(Collectors.toMap(i -> i.getName(), i -> getShape(i)));
 				var inputShape = inputShapeMap.size() == 1 ? inputShapeMap.values().iterator().next() : null; // Need a single input, otherwise can't be used for output
 				var outputShapeMap = spec.getOutputs().stream().collect(Collectors.toMap(o -> o.getName(), o -> getShape(o, inputShape)));
@@ -240,7 +242,7 @@ public class BioimageIoTools {
 		var output = outputs.get(0);
 		
 		// Get dimensions and padding
-		var axes = input.getAxes();
+		String axes = BioimageIoSpec.getAxesString(input.getAxes());
 		int indChannels = axes.indexOf("c");
 		int indX = axes.indexOf("x");
 		int indY = axes.indexOf("y");
@@ -418,7 +420,7 @@ public class BioimageIoTools {
 			var scale = (ScaleRange)transform;
 			var mode = warnIfUnsupportedMode(transform.getName(), scale.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE));
 			assert mode == Processing.ProcessingMode.PER_SAMPLE; // TODO: Consider how to support per dataset
-			var axes = scale.getAxes();
+			String axes = BioimageIoSpec.getAxesString(scale.getAxes());
 			boolean perChannel = false;
 			if (axes != null)
 				perChannel = !axes.contains("c");
@@ -435,7 +437,7 @@ public class BioimageIoTools {
 			var zeroMeanUnitVariance = (ZeroMeanUnitVariance)transform;
 			var mode = warnIfUnsupportedMode(transform.getName(), zeroMeanUnitVariance.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE, Processing.ProcessingMode.FIXED));
 			if (mode == Processing.ProcessingMode.PER_SAMPLE) {
-				var axes = zeroMeanUnitVariance.getAxes();
+				String axes = BioimageIoSpec.getAxesString(zeroMeanUnitVariance.getAxes());
 				boolean perChannel = false;
 				if (axes != null) {
 					perChannel = !axes.contains("c");
