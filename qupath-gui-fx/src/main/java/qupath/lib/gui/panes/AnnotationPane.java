@@ -435,7 +435,7 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 	static Comparator<PathObject> annotationListComparator = Comparator.nullsFirst(Comparator
 				.comparingInt((PathObject p) -> p.hasROI() ? p.getROI().getT() : -1)
 				.thenComparingInt(p -> p.hasROI() ? p.getROI().getZ() : -1)
-				.thenComparing(p -> p.toString())
+				.thenComparing(PathObject::toString)
 				.thenComparingDouble(p -> p.hasROI() ? p.getROI().getBoundsY(): -1)
 				.thenComparingDouble(p -> p.hasROI() ? p.getROI().getBoundsX(): -1)
 				.thenComparing(p -> p.getID().toString())

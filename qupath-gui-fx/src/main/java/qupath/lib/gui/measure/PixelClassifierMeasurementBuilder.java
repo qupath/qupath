@@ -15,7 +15,7 @@ class PixelClassifierMeasurementBuilder implements NumericMeasurementBuilder {
 
     @Override
     public String getName() {
-        return name;
+        return "(Live)" + name;
     }
 
     @Override

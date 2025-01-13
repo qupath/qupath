@@ -17,8 +17,8 @@ class MissingTMACoreMeasurementBuilder implements StringMeasurementBuilder {
 
     @Override
     public String getValue(PathObject pathObject) {
-        if (pathObject instanceof TMACoreObject)
-            return ((TMACoreObject) pathObject).isMissing() ? "True" : "False";
+        if (pathObject instanceof TMACoreObject core)
+            return core.isMissing() ? "True" : "False";
         return null;
     }
 

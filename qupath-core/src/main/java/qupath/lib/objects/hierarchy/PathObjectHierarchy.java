@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -75,7 +75,6 @@ import qupath.lib.roi.interfaces.ROI;
  * ensure that you have a properly-constructed hierarchy with the same data within it.
  * 
  * @author Pete Bankhead
- *
  */
 public final class PathObjectHierarchy implements Serializable {
 
@@ -95,6 +94,8 @@ public final class PathObjectHierarchy implements Serializable {
 
 	// A map to store subdivisions, useful for finding neighbors
 	private transient SubdivisionManager subdivisionManager = new SubdivisionManager();
+
+	private transient long lastEventTimestamp;
 
 	/**
 	 * Default constructor, creates an empty hierarchy.
@@ -849,7 +850,7 @@ public final class PathObjectHierarchy implements Serializable {
 		if (pathObjects.isEmpty() || !roi.isArea() || roi.isEmpty())
 			return Collections.emptyList();
 		
-		var locator = tileCache.getLocator(roi, false);
+		var locator = tileCache.getLocator(roi);
 		var preparedGeometry = tileCache.getPreparedGeometry(tileCache.getGeometry(roi));
 		// Note: JTS 1.17.0 does not support parallel requests, see https://github.com/locationtech/jts/issues/571
 		// A change in getLocator() overcomes this - but watch out for future problems
@@ -1127,6 +1128,7 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	synchronized void fireEvent(PathObjectHierarchyEvent event) {
 		synchronized(listeners) {
+			lastEventTimestamp = event.getTimestamp();
 			if (!event.isChanging()) {
 				if (event.isStructureChangeEvent()) {
 					var changed = event.getChangedObjects();
@@ -1141,8 +1143,32 @@ public final class PathObjectHierarchy implements Serializable {
 				}
 			}
 
-			for (PathObjectHierarchyListener listener : listeners)
+			for (PathObjectHierarchyListener listener : listeners) {
 				listener.hierarchyChanged(event);
+			}
+		}
+	}
+
+	/**
+	 * Get the timestamp of the last event that was fired.
+	 * <p>
+	 * Note that the format of the timestamp is undefined (e.g. it could be milliseconds or nanoseconds),
+	 * but higher values indicate a later timestamp.
+	 * <p>
+	 * Also, the value is updated <i>before</i>> listeners have been notified.
+	 * This is so that the updated value is available if required by a listener.
+	 * <p>
+	 * The purpose of this method is to support lazy evaluation within functions that depend upon the hierarchy,
+	 * but where adding and removing a listener would require too much overhead.
+	 * Use of the timestamp makes it possible to cache the result of expensive computations, and return the cached
+	 * values for as long as the timestamp is unchanged.
+	 *
+	 * @return a timestamp
+	 * @since v0.6.0
+	 */
+	public long getLastEventTimestamp() {
+		synchronized (listeners) {
+			return lastEventTimestamp;
 		}
 	}
 

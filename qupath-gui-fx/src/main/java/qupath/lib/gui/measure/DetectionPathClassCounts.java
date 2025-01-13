@@ -27,7 +27,6 @@ class DetectionPathClassCounts {
      * @param parentObject the parent object.
      */
     DetectionPathClassCounts(final PathObjectHierarchy hierarchy, final PathObject parentObject) {
-//			for (PathObject child : PathObjectTools.getFlattenedObjectList(parentObject, null, true)) {
         Collection<PathObject> pathObjects;
         if (parentObject.isRootObject())
             pathObjects = hierarchy.getDetectionObjects();
@@ -38,8 +37,6 @@ class DetectionPathClassCounts {
             if (child == parentObject || !child.isDetection())
                 continue;
             PathClass pathClass = child.getPathClass();
-//				if (pathClass == null)
-//					continue;
             counts.merge(pathClass, 1, Integer::sum);
         }
     }
