@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javafx.beans.value.ObservableValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +71,6 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TableView.TableViewSelectionModel;
-import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -156,7 +156,7 @@ public class SummaryMeasurementTableCommand {
 		final PathObjectHierarchy hierarchy = imageData.getHierarchy();
 
 		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-		model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
+		model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
 
 		SplitPane splitPane = new SplitPane();
 		HistogramDisplay histogramDisplay = new HistogramDisplay(model, true);
@@ -230,7 +230,7 @@ public class SummaryMeasurementTableCommand {
 			// Add column
 			if (model.isStringMeasurement(columnName)) {
 				TableColumn<PathObject, String> col = new TableColumn<>(columnName);
-				col.setCellValueFactory(column -> model.createStringMeasurement(column.getValue(), column.getTableColumn().getText()));
+				col.setCellValueFactory(column -> createStringMeasurement(model, column.getValue(), column.getTableColumn().getText()));
 				col.setCellFactory(column -> new BasicTableCell<>());
 				if (ObservableMeasurementTableData.NAME_OBJECT_ID.equals(columnName)) {
 					colObjectIDs = col;
@@ -239,7 +239,7 @@ public class SummaryMeasurementTableCommand {
 				}
 			} else {
 				TableColumn<PathObject, Number> col = new TableColumn<>(columnName);
-				col.setCellValueFactory(column -> model.createNumericMeasurement(column.getValue(), column.getTableColumn().getText()));
+				col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
 				col.setCellFactory(column -> new NumericTableCell<>(histogramDisplay));
 				table.getColumns().add(col);			
 			}
@@ -419,13 +419,16 @@ public class SummaryMeasurementTableCommand {
 				}
 				if (imageData != null)
 					displayedName.set(ServerTools.getDisplayableImageName(imageData.getServer()));
+
+				// TODO: Consider if this can be optimized to avoid rebuilding the full table so often
+				long startTime = System.currentTimeMillis();
 				if (event.isStructureChangeEvent())
 					model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
-				else
-					model.refreshEntries();
+
+				long endTime = System.currentTimeMillis();
+				System.err.println("Duration: " + (endTime - startTime));
 				table.refresh();
-				if (histogramDisplay != null)
-					histogramDisplay.refreshHistogram();
+                histogramDisplay.refreshHistogram();
 			}
 			
 		};
@@ -435,11 +438,13 @@ public class SummaryMeasurementTableCommand {
 
 		frame.setOnShowing(e -> {
 			hierarchy.addListener(listener);
-			viewer.addViewerListener(tableViewerListener);
+			if (viewer != null)
+				viewer.addViewerListener(tableViewerListener);
 		});
 		frame.setOnHiding(e -> {
 			hierarchy.removeListener(listener);
-			viewer.removeViewerListener(tableViewerListener);
+			if (viewer != null)
+				viewer.removeViewerListener(tableViewerListener);
 		});
 
 		Scene scene = new Scene(pane, 600, 500);
@@ -453,12 +458,7 @@ public class SummaryMeasurementTableCommand {
 		menu.setOnShowing(e -> {
 			Set<PathClass> representedClasses = model.getBackingListEntries().stream().map(p -> p.getPathClass() == null ? null : p.getPathClass().getBaseClass()).collect(Collectors.toCollection(() -> new HashSet<>()));
 			representedClasses.remove(null);
-			if (representedClasses.isEmpty()) {
-				menuLimitClasses.setVisible(false);
-			}
-			else {
-				menuLimitClasses.setVisible(true);
-			}
+            menuLimitClasses.setVisible(!representedClasses.isEmpty());
 			menuLimitClasses.getItems().clear();
 			List<PathClass> sortedClasses = new ArrayList<>(representedClasses);
 			Collections.sort(sortedClasses);
@@ -483,6 +483,35 @@ public class SummaryMeasurementTableCommand {
 			table.setContextMenu(menu);
 		}
 
+	}
+
+
+	/**
+	 * Create a specific numeric measurement.
+	 * <p>
+	 * Warning! This binding is not guaranteed to update its value automatically upon changes to the
+	 * underlying object or data.
+	 *
+	 * @param pathObject
+	 * @param column
+	 * @return
+	 */
+	private ObservableValue<Number> createNumericMeasurement(final ObservableMeasurementTableData model, final PathObject pathObject, final String column) {
+		return Bindings.createDoubleBinding(() -> model.getNumericValue(pathObject, column));
+	}
+
+	/**
+	 * Create a specific String measurement.
+	 * <p>
+	 * Warning! This binding is not guaranteed to update its value automatically upon changes to the
+	 * underlying object or data.
+	 *
+	 * @param pathObject
+	 * @param column
+	 * @return
+	 */
+	private ObservableValue<String> createStringMeasurement(final ObservableMeasurementTableData model, final PathObject pathObject, final String column) {
+		return Bindings.createStringBinding(() -> model.getStringValue(pathObject, column));
 	}
 
 	

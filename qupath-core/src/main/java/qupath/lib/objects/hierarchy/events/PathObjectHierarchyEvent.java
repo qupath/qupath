@@ -42,7 +42,7 @@ public class PathObjectHierarchyEvent {
 	/**
 	 * Enum representing different ways in which the hierarchy may have been updated.
 	 */
-	public static enum HierarchyEventType {
+	public enum HierarchyEventType {
 		/**
 		 * An object has been added
 		 */
@@ -81,6 +81,7 @@ public class PathObjectHierarchyEvent {
 	private HierarchyEventType type;
 	private List<PathObject> pathObjects;
 	private boolean isChanging;
+	private long timestamp;
 
 	PathObjectHierarchyEvent(final Object source, final PathObjectHierarchy hierarchy, final HierarchyEventType type, final PathObject parentObject, final List<PathObject> pathObjects, final boolean isChanging) {
 		this.source = source;
@@ -89,6 +90,18 @@ public class PathObjectHierarchyEvent {
 		this.parentObject = parentObject;
 		this.pathObjects = Collections.unmodifiableList(pathObjects);
 		this.isChanging = isChanging;
+		this.timestamp = System.currentTimeMillis();
+	}
+
+	/**
+	 * Get a timestamp for when this event was created.
+	 * <p>
+	 * Note that the format of the timestamp is undefined (e.g. it could be milliseconds or nanoseconds),
+	 * but higher values indicate a later timestamp.
+	 * @return
+	 */
+	public long getTimestamp() {
+		return timestamp;
 	}
 	
 	@Override
@@ -232,33 +245,5 @@ public class PathObjectHierarchyEvent {
 			return parentObject;
 		return null;
 	}
-	
-	
-	
-//	/**
-//	 * Returns true if none of the changed objects are within the hierarchy.
-//	 * @return
-//	 */
-//	public boolean changedObjectsWithinHierarchy() {
-//		for (PathObject temp : getChangedObjects())
-//			if (temp.getParent() != null)
-//				return false;
-//		return true;
-//	}
-	
-	
-//	/**
-//	 * Returns true if the base object of the event is the root of the hierarchy.
-//	 * @return
-//	 */
-//	public boolean isBaseRootObject() {
-//		return pathObjectBase == hierarchy.getRootObject();
-//	}
-
-//	public boolean singleObjectChanged() {
-//		return !areDescendantObjectsChanged() && (pathObjects == null || pathObjects.isEmpty())
-////		return type == HierarchyEventType.OBJECT_CHANGE && !areDescendantObjectsChanged() && !(pathObjectBase instanceof PathRootObject) &&
-////				(pathObjects == null || pathObjects.isEmpty() || pathObjects.equals(Collections.singletonList(pathObjectBase)));
-//	}
 
 }

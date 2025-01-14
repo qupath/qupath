@@ -3,6 +3,8 @@ package qupath.lib.gui.measure;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.IntegerBinding;
 import javafx.beans.value.ObservableDoubleValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
@@ -32,6 +34,8 @@ import java.util.stream.Collectors;
  */
 class DerivedMeasurementManager {
 
+    private static final Logger logger = LoggerFactory.getLogger(DerivedMeasurementManager.class);
+
     private final ImageData<?> imageData;
 
     private final List<MeasurementBuilder<?>> builders = new ArrayList<>();
@@ -40,11 +44,11 @@ class DerivedMeasurementManager {
     // clearMap()
     private final Map<PathObject, DetectionPathClassCounts> map = Collections.synchronizedMap(new WeakHashMap<>());
 
-    private final boolean containsAnnotations;
+    private final boolean includeDensityMeasurements;
 
-    DerivedMeasurementManager(final ImageData<?> imageData, final boolean containsAnnotations) {
+    DerivedMeasurementManager(final ImageData<?> imageData, final boolean includeDensityMeasurements) {
         this.imageData = imageData;
-        this.containsAnnotations = containsAnnotations;
+        this.includeDensityMeasurements = includeDensityMeasurements;
         updateAvailableMeasurements();
     }
 
@@ -116,10 +120,10 @@ class DerivedMeasurementManager {
         // Add density measurements
         // These are only added if we have a (non-derived) positive class
         // Additionally, these are only non-NaN if we have an annotation, or a TMA core containing a single annotation
-        if (containsAnnotations) {
+        if (includeDensityMeasurements) {
             for (PathClass pathClass : pathClassList) {
                 if (PathClassTools.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass) {
-                    builders.add(new ClassDensityMeasurementBuilder(pathClass));
+                    builders.add(new ClassDensityMeasurementBuilder(imageData, pathClass));
                 }
             }
         }
@@ -129,7 +133,16 @@ class DerivedMeasurementManager {
         return builders;
     }
 
-    private DetectionPathClassCounts getDetectionPathClassCounts(PathObject pathObject) {
+    private long lastTimestamp;
+
+    private synchronized DetectionPathClassCounts getDetectionPathClassCounts(PathObject pathObject) {
+        var hierarchy = imageData.getHierarchy();
+        var actualTimestamp = hierarchy.getLastEventTimestamp();
+        if (actualTimestamp > lastTimestamp) {
+            logger.debug("Clearing cached measurements");
+            map.clear();
+            lastTimestamp = actualTimestamp;
+        }
         return map.computeIfAbsent(pathObject, p -> new DetectionPathClassCounts(imageData.getHierarchy(), p));
     }
 
@@ -159,10 +172,12 @@ class DerivedMeasurementManager {
 
     private class ClassDensityMeasurementPerMM extends DoubleBinding {
 
-        private PathObject pathObject;
-        private PathClass pathClass;
+        private final ImageData<?> imageData;
+        private final PathObject pathObject;
+        private final PathClass pathClass;
 
-        public ClassDensityMeasurementPerMM(final PathObject pathObject, final PathClass pathClass) {
+        public ClassDensityMeasurementPerMM(final ImageData<?> imageData, final PathObject pathObject, final PathClass pathClass) {
+            this.imageData = imageData;
             this.pathObject = pathObject;
             this.pathClass = pathClass;
         }
@@ -183,6 +198,7 @@ class DerivedMeasurementManager {
             if (pathObjectTemp == null || !(pathObjectTemp.isAnnotation() || pathObjectTemp.isRootObject()))
                 return Double.NaN;
 
+            // This method call is the reason the class can't be static
             DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
 
             int n = counts.getCountForAncestor(pathClass);
@@ -363,9 +379,11 @@ class DerivedMeasurementManager {
 
     private class ClassDensityMeasurementBuilder implements NumericMeasurementBuilder {
 
-        private PathClass pathClass;
+        private final ImageData<?> imageData;
+        private final PathClass pathClass;
 
-        ClassDensityMeasurementBuilder(final PathClass pathClass) {
+        ClassDensityMeasurementBuilder(final ImageData<?> imageData, final PathClass pathClass) {
+            this.imageData = imageData;
             this.pathClass = pathClass;
         }
 
@@ -387,7 +405,7 @@ class DerivedMeasurementManager {
         public Number getValue(final PathObject pathObject) {
             // Only return density measurements for annotations
             if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.nChildObjects() == 1))
-                return new ClassDensityMeasurementPerMM(pathObject, pathClass).getValue();
+                return new ClassDensityMeasurementPerMM(imageData, pathObject, pathClass).getValue();
             return Double.NaN;
         }
 

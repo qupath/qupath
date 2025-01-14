@@ -38,6 +38,18 @@ interface MeasurementBuilder<T> {
     }
 
     /**
+     * Get a default string representation of an object measurement.
+     * If the value is numeric, it is converted to a string using the default number of decimal places.
+     * @param pathObject the object to measure
+     * @return
+     * @see #getStringValue(PathObject, int)
+     * @see #getValue(PathObject)
+     */
+    default String getStringValue(final PathObject pathObject) {
+        return getStringValue(pathObject, -1);
+    }
+
+    /**
      * Optional help text that explained the measurement.
      * This may be displayed in a tooltip.
      * @return the help text, or null if no help text is available
