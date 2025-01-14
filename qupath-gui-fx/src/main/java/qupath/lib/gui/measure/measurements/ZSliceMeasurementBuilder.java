@@ -1,26 +1,26 @@
-package qupath.lib.gui.measure;
+package qupath.lib.gui.measure.measurements;
 
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.interfaces.ROI;
 
-class NumPointsMeasurementBuilder implements NumericMeasurementBuilder {
+class ZSliceMeasurementBuilder implements NumericMeasurementBuilder {
 
     @Override
     public String getName() {
-        return "Num points";
+        return "Z-slice";
     }
 
     @Override
     public String getHelpText() {
-        return "The number of points in a (multi)point ROI";
+        return "Index of z-slice (0-based)";
     }
 
     @Override
     public Number getValue(final PathObject pathObject) {
         ROI roi = pathObject.getROI();
-        if (roi == null || !roi.isPoint())
-            return Double.NaN;
-        return roi.getNumPoints();
+        if (roi == null)
+            return null;
+        return roi.getZ();
     }
 
 }

@@ -1,7 +1,8 @@
-package qupath.lib.gui.measure;
+package qupath.lib.gui.measure.measurements;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.objects.PathObject;
 
 class ObjectIdMeasurementBuilder implements StringMeasurementBuilder {

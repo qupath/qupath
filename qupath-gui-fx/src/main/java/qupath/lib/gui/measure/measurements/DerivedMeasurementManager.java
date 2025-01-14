@@ -1,4 +1,4 @@
-package qupath.lib.gui.measure;
+package qupath.lib.gui.measure.measurements;
 
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.IntegerBinding;

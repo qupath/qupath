@@ -1,9 +1,11 @@
-package qupath.lib.gui.measure;
+package qupath.lib.gui.measure.measurements;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
+
+import java.util.List;
 
 /**
  * Helper class to create or access different {@link MeasurementBuilder} instances.
@@ -132,5 +134,15 @@ public class DefaultMeasurements {
         return new PixelClassifierMeasurementBuilder(manager, name);
     }
 
+
+    public static StringMeasurementBuilder createMetadataMeasurement(String name) {
+        return new StringMetadataMeasurementBuilder(name);
+    }
+
+
+    public static List<MeasurementBuilder<?>> getClassifiedDetectionCountMeasurements(ImageData<?> imageData, boolean includeDensity) {
+        var manager = new DerivedMeasurementManager(imageData, includeDensity);
+        return manager.getMeasurementBuilders();
+    }
 
 }

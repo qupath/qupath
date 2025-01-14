@@ -1,34 +1,34 @@
-package qupath.lib.gui.measure;
+package qupath.lib.gui.measure.measurements;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.interfaces.ROI;
 
-class LineLengthMeasurementBuilder extends ROIMeasurementBuilder {
+class AreaMeasurementBuilder extends ROIMeasurementBuilder {
 
-    LineLengthMeasurementBuilder(final ImageData<?> imageData) {
+    AreaMeasurementBuilder(final ImageData<?> imageData) {
         super(imageData);
     }
 
     @Override
     public String getHelpText() {
-        return "Length of the selected object's line ROI";
+        return "Area of the selected object's ROI";
     }
 
     @Override
     public String getName() {
-        return hasPixelSizeMicrons() ? "Length " + GeneralTools.micrometerSymbol() : "Length px";
+        return hasPixelSizeMicrons() ? "Area " + GeneralTools.micrometerSymbol() + "^2" : "Area px^2";
     }
 
     @Override
     public Number getValue(final PathObject pathObject) {
         ROI roi = pathObject.getROI();
-        if (roi == null || !roi.isLine())
+        if (roi == null || !roi.isArea())
             return Double.NaN;
         if (hasPixelSizeMicrons())
-            return roi.getScaledLength(pixelWidthMicrons(), pixelHeightMicrons());
-        return roi.getLength();
+            return roi.getScaledArea(pixelWidthMicrons(), pixelHeightMicrons());
+        return roi.getArea();
     }
 
 }

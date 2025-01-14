@@ -44,6 +44,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.measure.measurements.DefaultMeasurements;
+import qupath.lib.gui.measure.measurements.MeasurementBuilder;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -75,7 +77,6 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	private static final String KEY_PIXEL_LAYER = "PIXEL_LAYER";
 
 	private ImageData<?> imageData;
-	private DerivedMeasurementManager manager;
 
 	private final ObservableList<PathObject> list = FXCollections.observableArrayList();
 	private final FilteredList<PathObject> filterList = new FilteredList<>(list);
@@ -249,7 +250,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	private static synchronized List<? extends MeasurementBuilder<?>> createMetadataMeasurements(PathObjectListWrapper wrapper) {
 		return wrapper.getMetadataNames()
 				.stream()
-				.map(StringMetadataMeasurementBuilder::new)
+				.map(DefaultMeasurements::createMetadataMeasurement)
 				.toList();
 	}
 
@@ -269,9 +270,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			
 			// Here, we allow TMA cores to act like annotations
 			boolean includeDensity = wrapper.containsAnnotations() || wrapper.containsTMACores();
-			var manager = new DerivedMeasurementManager(wrapper.getImageData(), includeDensity);
-            measurements.addAll(manager.getMeasurementBuilders());
-			
+            measurements.addAll(DefaultMeasurements.getClassifiedDetectionCountMeasurements(wrapper.getImageData(), includeDensity));
 		}
 		
 		// If we have an annotation, add shape features

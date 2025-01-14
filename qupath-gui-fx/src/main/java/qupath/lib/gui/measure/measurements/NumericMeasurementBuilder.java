@@ -1,4 +1,4 @@
-package qupath.lib.gui.measure;
+package qupath.lib.gui.measure.measurements;
 
 public interface NumericMeasurementBuilder extends MeasurementBuilder<Number> {
 

@@ -1,4 +1,4 @@
-package qupath.lib.gui.measure;
+package qupath.lib.gui.measure.measurements;
 
 import qupath.lib.objects.PathObject;
 
