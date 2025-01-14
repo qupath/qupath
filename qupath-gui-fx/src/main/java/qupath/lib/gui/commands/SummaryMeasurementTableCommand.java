@@ -228,7 +228,7 @@ public class SummaryMeasurementTableCommand {
 		TableColumn<PathObject, String> colObjectIDs = null;
 		for (String columnName : model.getAllNames()) {
 			// Add column
-			if (model.isStringMeasurement(columnName)) {
+			if (!model.isNumericMeasurement(columnName)) {
 				TableColumn<PathObject, String> col = new TableColumn<>(columnName);
 				col.setCellValueFactory(column -> createStringMeasurement(model, column.getValue(), column.getTableColumn().getText()));
 				col.setCellFactory(column -> new BasicTableCell<>());
@@ -417,16 +417,12 @@ public class SummaryMeasurementTableCommand {
 					Platform.runLater(() -> hierarchyChanged(event));
 					return;
 				}
-				if (imageData != null)
-					displayedName.set(ServerTools.getDisplayableImageName(imageData.getServer()));
+                displayedName.set(ServerTools.getDisplayableImageName(imageData.getServer()));
 
 				// TODO: Consider if this can be optimized to avoid rebuilding the full table so often
-				long startTime = System.currentTimeMillis();
 				if (event.isStructureChangeEvent())
 					model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
 
-				long endTime = System.currentTimeMillis();
-				System.err.println("Duration: " + (endTime - startTime));
 				table.refresh();
                 histogramDisplay.refreshHistogram();
 			}

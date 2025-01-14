@@ -21,8 +21,8 @@ class TMACoreNameMeasurementBuilder implements StringMeasurementBuilder {
     private TMACoreObject getAncestorTMACore(PathObject pathObject) {
         if (pathObject == null)
             return null;
-        if (pathObject instanceof TMACoreObject)
-            return (TMACoreObject) pathObject;
+        if (pathObject instanceof TMACoreObject core)
+            return core;
         return getAncestorTMACore(pathObject.getParent());
     }
 

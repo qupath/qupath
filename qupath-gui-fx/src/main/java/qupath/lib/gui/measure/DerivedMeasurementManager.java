@@ -40,8 +40,8 @@ class DerivedMeasurementManager {
 
     private final List<MeasurementBuilder<?>> builders = new ArrayList<>();
 
-    // Map to store cached counts; this should be reset when the hierarchy changes (in any way) with a call to
-    // clearMap()
+    // Map to store cached counts; this should be reset when the hierarchy changes - since v0.6.0 this happens
+    // automatically using the hierarchy's last event timestamp
     private final Map<PathObject, DetectionPathClassCounts> map = Collections.synchronizedMap(new WeakHashMap<>());
 
     private final boolean includeDensityMeasurements;
@@ -50,10 +50,6 @@ class DerivedMeasurementManager {
         this.imageData = imageData;
         this.includeDensityMeasurements = includeDensityMeasurements;
         updateAvailableMeasurements();
-    }
-
-    void clearMap() {
-        map.clear();
     }
 
     private void updateAvailableMeasurements() {

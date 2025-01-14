@@ -7,13 +7,43 @@ import qupath.lib.objects.PathObject;
  * Interface that can generate a 'lazy' measurement for a {@link PathObject}.
  * @param <T>
  */
-interface MeasurementBuilder<T> {
+public interface MeasurementBuilder<T> {
 
     /**
      * The name of the measurement.
      * @return the name of the measurement
      */
     String getName();
+
+    /**
+     * Get the generic type of the measurement.
+     * @return
+     */
+    Class<T> getMeasurementType();
+
+    /**
+     * Check whether the value returned by this measurement is an instance of {@link Number}.
+     * @return
+     */
+    default boolean isNumericMeasurement() {
+        return Number.class.isAssignableFrom(getMeasurementType());
+    }
+
+    /**
+     * Check whether the value returned by this measurement is an instance of {@link String}.
+     * @return
+     */
+    default boolean isStringMeasurement() {
+        return String.class.isAssignableFrom(getMeasurementType());
+    }
+
+    /**
+     * Check whether the value returned by this measurement is an instance of {@link Boolean}.
+     * @return
+     */
+    default boolean isBooleanMeasurement() {
+        return Boolean.class.isAssignableFrom(getMeasurementType());
+    }
 
     /**
      * Create a binding that represents a lazily-computed measurement for the provided objects.

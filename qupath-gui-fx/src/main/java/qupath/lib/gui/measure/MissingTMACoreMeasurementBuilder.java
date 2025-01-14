@@ -3,11 +3,16 @@ package qupath.lib.gui.measure;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 
-class MissingTMACoreMeasurementBuilder implements StringMeasurementBuilder {
+class MissingTMACoreMeasurementBuilder implements MeasurementBuilder<Boolean> {
 
     @Override
     public String getName() {
         return "Missing core";
+    }
+
+    @Override
+    public Class<Boolean> getMeasurementType() {
+        return Boolean.class;
     }
 
     @Override
@@ -16,10 +21,13 @@ class MissingTMACoreMeasurementBuilder implements StringMeasurementBuilder {
     }
 
     @Override
-    public String getValue(PathObject pathObject) {
+    public Boolean getValue(PathObject pathObject) {
         if (pathObject instanceof TMACoreObject core)
-            return core.isMissing() ? "True" : "False";
+            return core.isMissing();
         return null;
     }
+
+
+
 
 }

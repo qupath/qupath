@@ -35,19 +35,15 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import javafx.beans.binding.Bindings;
-import javafx.beans.value.ObservableValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
-import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.ReadOnlyListWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.measure.ROICentroidMeasurementBuilder.CentroidType;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -145,7 +141,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		// Add the image name
 		if (!PathPrefs.maskImageNamesProperty().get())
-			builderMap.put("Image", new ImageNameMeasurementBuilder(imageData));
+			builderMap.put("Image", DefaultMeasurements.createImageNameMeasurement(imageData));
 
 		var wrapper = new PathObjectListWrapper(imageData, list);
 
@@ -204,48 +200,48 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		// Include object ID if we have anything other than root objects
 		if (!wrapper.containsRootOnly())
-			measurements.add(new ObjectIdMeasurementBuilder());
+			measurements.add(DefaultMeasurements.OBJECT_ID);
 
 		// Include the object type
-		measurements.add(new ObjectTypeMeasurementBuilder());
+		measurements.add(DefaultMeasurements.OBJECT_TYPE);
 
 		// Include the object displayed name
-		measurements.add(new ObjectNameMeasurementBuilder());
+		measurements.add(DefaultMeasurements.OBJECT_NAME);
 
 		// Include the classification
 		if (!wrapper.containsRootOnly()) {
-			measurements.add(new PathClassMeasurementBuilder());
+			measurements.add(DefaultMeasurements.CLASSIFICATION);
 			// Get the name of the containing TMA core if we have anything other than cores
 			if (imageData != null && imageData.getHierarchy().getTMAGrid() != null) {
-				measurements.add(new TMACoreNameMeasurementBuilder());
+				measurements.add(DefaultMeasurements.TMA_CORE_NAME);
 			}
 			// Get the name of the first parent object
-			measurements.add(new ParentNameMeasurementBuilder());
+			measurements.add(DefaultMeasurements.PARENT_DISPLAYED_NAME);
 		}
 
 		// Include the TMA missing status, if appropriate
 		if (wrapper.containsTMACores()) {
-			measurements.add(new MissingTMACoreMeasurementBuilder());
+			measurements.add(DefaultMeasurements.TMA_CORE_MISSING);
 		}
 
 		if (wrapper.containsAnnotationsOrDetections()) {
-			measurements.add(new ROINameMeasurementBuilder());
+			measurements.add(DefaultMeasurements.ROI_TYPE);
 		}
 
 		// Add centroids
 		if (!wrapper.containsRootOnly()) {
-			measurements.add(new ROICentroidMeasurementBuilder(imageData, CentroidType.X));
-			measurements.add(new ROICentroidMeasurementBuilder(imageData, CentroidType.Y));
+			measurements.add(DefaultMeasurements.createROICentroidX(imageData));
+			measurements.add(DefaultMeasurements.createROICentroidY(imageData));
 		}
 
 		// New v0.4.0: include z and time indices
 		var serverMetadata = imageData == null ? null : imageData.getServerMetadata();
 		if (wrapper.containsMultiZ() || (wrapper.containsROIs() && serverMetadata != null && serverMetadata.getSizeZ() > 1)) {
-			measurements.add(new ZSliceMeasurementBuilder());
+			measurements.add(DefaultMeasurements.ROI_Z_SLICE);
 		}
 
 		if (wrapper.containsMultiT() || (wrapper.containsROIs() && serverMetadata != null && serverMetadata.getSizeT() > 1)) {
-			measurements.add(new TimepointMeasurementBuilder());
+			measurements.add(DefaultMeasurements.ROI_TIMEPOINT);
 		}
 		return measurements;
 	}
@@ -267,7 +263,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			var imageData = wrapper.getImageData();
 			boolean detectionsAnywhere = imageData == null ? wrapper.containsDetections() : !imageData.getHierarchy().getDetectionObjects().isEmpty();
 			if (detectionsAnywhere) {
-				var builder = new ObjectTypeCountMeasurementBuilder(wrapper.getImageData(), PathDetectionObject.class);
+				var builder = DefaultMeasurements.createDetectionCountMeasurement(wrapper.getImageData());
 				measurements.add(builder);
 			}
 			
@@ -288,16 +284,16 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 					.toList();
 			// Add point count, if we have any points
 			if (annotationRois.stream().anyMatch(ROI::isPoint)) {
-				measurements.add(new NumPointsMeasurementBuilder());
+				measurements.add(DefaultMeasurements.ROI_NUM_POINTS);
 			}
 			// Add area & perimeter measurements, if we have any areas
 			if (annotationRois.stream().anyMatch(ROI::isArea)) {
-				measurements.add(new AreaMeasurementBuilder(wrapper.getImageData()));
-				measurements.add(new PerimeterMeasurementBuilder(wrapper.getImageData()));
+				measurements.add(DefaultMeasurements.createROIAreaMeasurement(wrapper.getImageData()));
+				measurements.add(DefaultMeasurements.createROIPerimeterMeasurement(wrapper.getImageData()));
 			}
 			// Add line length measurements, if we have any lines
 			if (annotationRois.stream().anyMatch(ROI::isLine)) {
-				measurements.add(new LineLengthMeasurementBuilder(wrapper.getImageData()));
+				measurements.add(DefaultMeasurements.createROILengthMeasurement(wrapper.getImageData()));
 			}
 		}
 		
@@ -307,7 +303,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				if (pixelClassifier.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION || pixelClassifier.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.PROBABILITY) {
 					var pixelManager = new PixelClassificationMeasurementManager(pixelClassifier);
 					for (String name : pixelManager.getMeasurementNames()) {
-						measurements.add(new PixelClassifierMeasurementBuilder(pixelManager, name));
+						measurements.add(DefaultMeasurements.createLivePixelClassificationMeasurement(pixelManager, name));
 					}
 				}
 			}
@@ -466,7 +462,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @return true if the measurement returns a String (only), false otherwise
 	 */
 	public boolean isStringMeasurement(final String name) {
-		return builderMap.get(name) instanceof StringMeasurementBuilder;
+		var measurement = builderMap.getOrDefault(name, null);
+		return measurement != null && measurement.isStringMeasurement();
 	}
 	
 	/**
@@ -475,7 +472,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @return true if the measurement returns a number, false otherwise
 	 */
 	public boolean isNumericMeasurement(final String name) {
-		return !isStringMeasurement(name);
+		var measurement = builderMap.getOrDefault(name, null);
+		// TODO: For now, we allow null because we default to requesting from the measurement list -
+		//       but this behavior is likely to change
+		return measurement == null || measurement.isNumericMeasurement();
 	}
 	
 	
@@ -502,12 +502,15 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	public double getNumericValue(final PathObject pathObject, final String column) {
 		if (builderMap.containsKey(column)) {
 			// Don't derive a measurement for a core marked as missing
-			if (pathObject instanceof TMACoreObject && ((TMACoreObject)pathObject).isMissing())
-				return Double.NaN;
+			if (pathObject instanceof TMACoreObject core) {
+				if (core.isMissing())
+					return Double.NaN;
+			}
 			
 			MeasurementBuilder<?> builder = builderMap.get(column);
-			if (builder instanceof NumericMeasurementBuilder numericMeasurementBuilder)
-				return numericMeasurementBuilder.getValue(pathObject).doubleValue();
+			var val = builder.getValue(pathObject);
+			if (val instanceof Number num)
+				return num.doubleValue();
 			else
 				return Double.NaN;
 		}
@@ -554,11 +557,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	@Override
 	public String getStringValue(PathObject pathObject, String column, int decimalPlaces) {
 		MeasurementBuilder<?> builder = builderMap.get(column);
-		if (builder instanceof StringMeasurementBuilder stringMeasurementBuilder) {
-			return stringMeasurementBuilder.getValue(pathObject);
-		}
-		else if (builder instanceof NumericMeasurementBuilder numericMeasurementBuilder)
-			return numericMeasurementBuilder.getStringValue(pathObject, decimalPlaces);
+		if (builder != null)
+			return builder.getStringValue(pathObject, decimalPlaces);
 		
 		if (pathObject == null) {
 			logger.warn("Requested measurement {} for null object! Returned empty String.", column);
@@ -576,24 +576,6 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 */
 	public ReadOnlyListWrapper<String> getMetadataNames() {
 		return new ReadOnlyListWrapper<>(metadataList);
-	}
-
-
-	static class ObservableMeasurement extends DoubleBinding {
-
-		private PathObject pathObject;
-		private String measurementName;
-
-		public ObservableMeasurement(final PathObject pathObject, final String measurementName) {
-			this.pathObject = pathObject;
-			this.measurementName = measurementName;
-		}
-
-		@Override
-		protected double computeValue() {
-			return pathObject.getMeasurementList().get(measurementName);
-		}
-
 	}
 
 }

@@ -1,5 +1,10 @@
 package qupath.lib.gui.measure;
 
-interface StringMeasurementBuilder extends MeasurementBuilder<String> {
+public interface StringMeasurementBuilder extends MeasurementBuilder<String> {
+
+    @Override
+    default Class<String> getMeasurementType() {
+        return String.class;
+    }
 
 }
