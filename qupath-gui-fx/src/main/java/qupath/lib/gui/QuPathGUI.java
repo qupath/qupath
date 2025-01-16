@@ -358,7 +358,7 @@ public class QuPathGUI {
 		);
 		ExtensionLoader.loadFromManager(extensionCatalogManager, this);
 
-        // Add scripts menu (delayed to here, since it takes a bit longer)
+                // Add scripts menu (delayed to here, since it takes a bit longer)
 		timeit.checkpoint("Adding script menus");
 		
 		// Menus should now be complete - try binding visibility
