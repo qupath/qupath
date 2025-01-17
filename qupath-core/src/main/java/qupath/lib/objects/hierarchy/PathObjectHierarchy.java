@@ -26,7 +26,6 @@ package qupath.lib.objects.hierarchy;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -38,6 +37,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -95,7 +95,7 @@ public final class PathObjectHierarchy implements Serializable {
 	// A map to store subdivisions, useful for finding neighbors
 	private transient SubdivisionManager subdivisionManager = new SubdivisionManager();
 
-	private transient long lastEventTimestamp;
+	private transient AtomicLong eventCount = new AtomicLong();
 
 	/**
 	 * Default constructor, creates an empty hierarchy.
@@ -1128,7 +1128,7 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	synchronized void fireEvent(PathObjectHierarchyEvent event) {
 		synchronized(listeners) {
-			lastEventTimestamp = event.getTimestamp();
+			eventCount.incrementAndGet();
 			if (!event.isChanging()) {
 				if (event.isStructureChangeEvent()) {
 					var changed = event.getChangedObjects();
@@ -1150,25 +1150,24 @@ public final class PathObjectHierarchy implements Serializable {
 	}
 
 	/**
-	 * Get the timestamp of the last event that was fired.
+	 * Get the number of events that were fired.
 	 * <p>
-	 * Note that the format of the timestamp is undefined (e.g. it could be milliseconds or nanoseconds),
-	 * but higher values indicate a later timestamp.
-	 * <p>
-	 * Also, the value is updated <i>before</i>> listeners have been notified.
-	 * This is so that the updated value is available if required by a listener.
-	 * <p>
+	 * Important notes:
+	 * <ul>
+	 *     <li>This is a transient property (not stored in the data file)</li>
+	 *    <li>The value is incremented <i>before</i>> listeners have been notified (so that a listener may query it)</li>
+	 * </ul>
 	 * The purpose of this method is to support lazy evaluation within functions that depend upon the hierarchy,
 	 * but where adding and removing a listener would require too much overhead.
-	 * Use of the timestamp makes it possible to cache the result of expensive computations, and return the cached
-	 * values for as long as the timestamp is unchanged.
+	 * Use of the event count makes it possible to cache the result of expensive computations, and return the cached
+	 * values for as long as the count is unchanged.
 	 *
 	 * @return a timestamp
 	 * @since v0.6.0
 	 */
-	public long getLastEventTimestamp() {
+	public long getEventCount() {
 		synchronized (listeners) {
-			return lastEventTimestamp;
+			return eventCount.get();
 		}
 	}
 

@@ -90,20 +90,8 @@ public class PathObjectHierarchyEvent {
 		this.parentObject = parentObject;
 		this.pathObjects = Collections.unmodifiableList(pathObjects);
 		this.isChanging = isChanging;
-		this.timestamp = System.currentTimeMillis();
 	}
 
-	/**
-	 * Get a timestamp for when this event was created.
-	 * <p>
-	 * Note that the format of the timestamp is undefined (e.g. it could be milliseconds or nanoseconds),
-	 * but higher values indicate a later timestamp.
-	 * @return
-	 */
-	public long getTimestamp() {
-		return timestamp;
-	}
-	
 	@Override
 	public String toString() {
 		return "Hierarchy change event: Source=" + source + ", Type="+type + ", Parent="+parentObject;

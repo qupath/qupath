@@ -133,7 +133,7 @@ class DerivedMeasurementManager {
 
     private synchronized DetectionPathClassCounts getDetectionPathClassCounts(PathObject pathObject) {
         var hierarchy = imageData.getHierarchy();
-        var actualTimestamp = hierarchy.getLastEventTimestamp();
+        var actualTimestamp = hierarchy.getEventCount();
         if (actualTimestamp > lastTimestamp) {
             logger.debug("Clearing cached measurements");
             map.clear();
