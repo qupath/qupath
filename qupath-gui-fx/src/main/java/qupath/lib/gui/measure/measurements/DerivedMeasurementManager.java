@@ -1,8 +1,5 @@
 package qupath.lib.gui.measure.measurements;
 
-import javafx.beans.binding.DoubleBinding;
-import javafx.beans.binding.IntegerBinding;
-import javafx.beans.value.ObservableDoubleValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -142,182 +139,58 @@ class DerivedMeasurementManager {
         return map.computeIfAbsent(pathObject, p -> new DetectionPathClassCounts(imageData.getHierarchy(), p));
     }
 
-    private class ClassCountMeasurement extends IntegerBinding {
-
-        private PathObject pathObject;
-        private PathClass pathClass;
-        private boolean baseClassification;
-
-        public ClassCountMeasurement(final PathObject pathObject, final PathClass pathClass, final boolean baseClassification) {
-            this.pathObject = pathObject;
-            this.pathClass = pathClass;
-            this.baseClassification = baseClassification;
-        }
-
-        @Override
-        protected int computeValue() {
-            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
-            if (baseClassification)
-                return counts.getCountForAncestor(pathClass);
-            else
-                return counts.getDirectCount(pathClass);
-        }
-
-    }
 
 
-    private class ClassDensityMeasurementPerMM extends DoubleBinding {
-
-        private final ImageData<?> imageData;
-        private final PathObject pathObject;
-        private final PathClass pathClass;
-
-        public ClassDensityMeasurementPerMM(final ImageData<?> imageData, final PathObject pathObject, final PathClass pathClass) {
-            this.imageData = imageData;
-            this.pathObject = pathObject;
-            this.pathClass = pathClass;
-        }
-
-        @Override
-        protected double computeValue() {
-            // If we have a TMA core, look for a single annotation inside
-            // If we don't have that, we can't return counts since it's ambiguous where the
-            // area should be coming from
-            PathObject pathObjectTemp = pathObject;
-            if (pathObject instanceof TMACoreObject) {
-                var children = pathObject.getChildObjectsAsArray();
-                if (children.length != 1)
-                    return Double.NaN;
-                pathObjectTemp = children[0];
-            }
-            // We need an annotation to get a meaningful area
-            if (pathObjectTemp == null || !(pathObjectTemp.isAnnotation() || pathObjectTemp.isRootObject()))
+    private static double computeDensityPerMM(final ImageData<?> imageData, final DetectionPathClassCounts counts,
+                                              final PathObject pathObject, final PathClass pathClass) {
+        // If we have a TMA core, look for a single annotation inside
+        // If we don't have that, we can't return counts since it's ambiguous where the
+        // area should be coming from
+        PathObject pathObjectTemp = pathObject;
+        if (pathObject instanceof TMACoreObject) {
+            var children = pathObject.getChildObjectsAsArray();
+            if (children.length != 1)
                 return Double.NaN;
-
-            // This method call is the reason the class can't be static
-            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
-
-            int n = counts.getCountForAncestor(pathClass);
-            ROI roi = pathObjectTemp.getROI();
-            // For the root, we can measure density only for 2D images of a single time-point
-            var serverMetadata = imageData.getServerMetadata();
-            if (pathObjectTemp.isRootObject() && serverMetadata.getSizeZ() == 1 && serverMetadata.getSizeT() == 1)
-                roi = ROIs.createRectangleROI(0, 0, serverMetadata.getWidth(), serverMetadata.getHeight(), ImagePlane.getDefaultPlane());
-
-            if (roi != null && roi.isArea()) {
-                double pixelWidth = 1;
-                double pixelHeight = 1;
-                PixelCalibration cal = serverMetadata == null ? null : serverMetadata.getPixelCalibration();
-                if (cal != null && cal.hasPixelSizeMicrons()) {
-                    pixelWidth = cal.getPixelWidthMicrons() / 1000;
-                    pixelHeight = cal.getPixelHeightMicrons() / 1000;
-                }
-                return n / roi.getScaledArea(pixelWidth, pixelHeight);
-            }
+            pathObjectTemp = children[0];
+        }
+        // We need an annotation to get a meaningful area
+        if (pathObjectTemp == null || !(pathObjectTemp.isAnnotation() || pathObjectTemp.isRootObject()))
             return Double.NaN;
-        }
 
+        int n = counts.getCountForAncestor(pathClass);
+        ROI roi = pathObjectTemp.getROI();
+        // For the root, we can measure density only for 2D images of a single time-point
+        var serverMetadata = imageData.getServerMetadata();
+        if (pathObjectTemp.isRootObject() && serverMetadata.getSizeZ() == 1 && serverMetadata.getSizeT() == 1)
+            roi = ROIs.createRectangleROI(0, 0, serverMetadata.getWidth(), serverMetadata.getHeight(), ImagePlane.getDefaultPlane());
+
+        if (roi != null && roi.isArea()) {
+            double pixelWidth = 1;
+            double pixelHeight = 1;
+            PixelCalibration cal = serverMetadata == null ? null : serverMetadata.getPixelCalibration();
+            if (cal != null && cal.hasPixelSizeMicrons()) {
+                pixelWidth = cal.getPixelWidthMicrons() / 1000;
+                pixelHeight = cal.getPixelHeightMicrons() / 1000;
+            }
+            return n / roi.getScaledArea(pixelWidth, pixelHeight);
+        }
+        return Double.NaN;
     }
 
 
-    private class HScore extends DoubleBinding {
 
-        private PathObject pathObject;
-        private PathClass[] pathClasses;
-
-        public HScore(final PathObject pathObject, final PathClass... pathClasses) {
-            this.pathObject = pathObject;
-            this.pathClasses = pathClasses;
-        }
-
-        @Override
-        protected double computeValue() {
-            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
-            return counts.getHScore(pathClasses);
-        }
-
+    private static double computeAllredIntensity(DetectionPathClassCounts counts, double minPositivePercentage, PathClass... pathClasses) {
+        return counts.getAllredIntensity(minPositivePercentage / 100, pathClasses);
     }
 
-
-    private class AllredIntensityScore extends DoubleBinding {
-
-        private PathObject pathObject;
-        private PathClass[] pathClasses;
-        private ObservableDoubleValue minPositivePercentage;
-
-        public AllredIntensityScore(final PathObject pathObject, final ObservableDoubleValue minPositivePercentage, final PathClass... pathClasses) {
-            this.pathObject = pathObject;
-            this.pathClasses = pathClasses;
-            this.minPositivePercentage = minPositivePercentage;
-        }
-
-        @Override
-        protected double computeValue() {
-            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
-            return counts.getAllredIntensity(minPositivePercentage.doubleValue() / 100, pathClasses);
-        }
-
+    private static  double computeAllredProportion(DetectionPathClassCounts counts, double minPositivePercentage, PathClass... pathClasses) {
+        return counts.getAllredProportion(minPositivePercentage / 100, pathClasses);
     }
 
-
-    private class AllredProportionScore extends DoubleBinding {
-
-        private PathObject pathObject;
-        private PathClass[] pathClasses;
-        private ObservableDoubleValue minPositivePercentage;
-
-        public AllredProportionScore(final PathObject pathObject, final ObservableDoubleValue minPositivePercentage, final PathClass... pathClasses) {
-            this.pathObject = pathObject;
-            this.pathClasses = pathClasses;
-            this.minPositivePercentage = minPositivePercentage;
-        }
-
-        @Override
-        protected double computeValue() {
-            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
-            return counts.getAllredProportion(minPositivePercentage.doubleValue() / 100, pathClasses);
-        }
-
+    private static double computeAllredScore(DetectionPathClassCounts counts, double minPositivePercentage, PathClass... pathClasses) {
+        return counts.getAllredScore(minPositivePercentage / 100, pathClasses);
     }
 
-    private class AllredScore extends DoubleBinding {
-
-        private PathObject pathObject;
-        private PathClass[] pathClasses;
-        private ObservableDoubleValue minPositivePercentage;
-
-        public AllredScore(final PathObject pathObject, final ObservableDoubleValue minPositivePercentage, final PathClass... pathClasses) {
-            this.pathObject = pathObject;
-            this.pathClasses = pathClasses;
-            this.minPositivePercentage = minPositivePercentage;
-        }
-
-        @Override
-        protected double computeValue() {
-            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
-            return counts.getAllredScore(minPositivePercentage.doubleValue() / 100, pathClasses);
-        }
-
-    }
-
-
-    private class PositivePercentage extends DoubleBinding {
-
-        private PathObject pathObject;
-        private PathClass[] pathClasses;
-
-        public PositivePercentage(final PathObject pathObject, final PathClass... pathClasses) {
-            this.pathObject = pathObject;
-            this.pathClasses = pathClasses;
-        }
-
-        @Override
-        protected double computeValue() {
-            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
-            return counts.getPositivePercentage(pathClasses);
-        }
-
-    }
 
 
     private class ClassCountMeasurementBuilder implements NumericMeasurementBuilder {
@@ -362,7 +235,11 @@ class DerivedMeasurementManager {
 
         @Override
         public Number getValue(final PathObject pathObject) {
-            return new ClassCountMeasurement(pathObject, pathClass, baseClassification).getValue();
+            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
+            if (baseClassification)
+                return counts.getCountForAncestor(pathClass);
+            else
+                return counts.getDirectCount(pathClass);
         }
 
         @Override
@@ -400,8 +277,10 @@ class DerivedMeasurementManager {
         @Override
         public Number getValue(final PathObject pathObject) {
             // Only return density measurements for annotations
-            if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.nChildObjects() == 1))
-                return new ClassDensityMeasurementPerMM(imageData, pathObject, pathClass).getValue();
+            if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.nChildObjects() == 1)) {
+                var counts = getDetectionPathClassCounts(pathObject);
+                return computeDensityPerMM(imageData, counts, pathObject, pathClass);
+            }
             return Double.NaN;
         }
 
@@ -439,7 +318,8 @@ class DerivedMeasurementManager {
 
         @Override
         public Number getValue(final PathObject pathObject) {
-            return new PositivePercentage(pathObject, parentClasses).getValue();
+            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
+            return counts.getPositivePercentage(parentClasses);
         }
 
     }
@@ -524,7 +404,8 @@ class DerivedMeasurementManager {
 
         @Override
         public Number getValue(final PathObject pathObject) {
-            return new HScore(pathObject, pathClasses).getValue();
+            var counts = getDetectionPathClassCounts(pathObject);
+            return counts.getHScore(pathClasses);
         }
 
     }
@@ -563,7 +444,8 @@ class DerivedMeasurementManager {
 
         @Override
         public Number getValue(final PathObject pathObject) {
-            return new AllredIntensityScore(pathObject, PathPrefs.allredMinPercentagePositiveProperty(), pathClasses).getValue();
+            var counts = getDetectionPathClassCounts(pathObject);
+            return computeAllredIntensity(counts, PathPrefs.allredMinPercentagePositiveProperty().getValue(), pathClasses);
         }
 
     }
@@ -602,7 +484,8 @@ class DerivedMeasurementManager {
 
         @Override
         public Number getValue(final PathObject pathObject) {
-            return new AllredProportionScore(pathObject, PathPrefs.allredMinPercentagePositiveProperty(), pathClasses).getValue();
+            var counts = getDetectionPathClassCounts(pathObject);
+            return computeAllredProportion(counts, PathPrefs.allredMinPercentagePositiveProperty().getValue(), pathClasses);
         }
 
     }
@@ -633,7 +516,8 @@ class DerivedMeasurementManager {
 
         @Override
         public Number getValue(final PathObject pathObject) {
-            return new AllredScore(pathObject, PathPrefs.allredMinPercentagePositiveProperty(), pathClasses).getValue();
+            var counts = getDetectionPathClassCounts(pathObject);
+            return computeAllredScore(counts, PathPrefs.allredMinPercentagePositiveProperty().getValue(), pathClasses);
         }
 
     }
