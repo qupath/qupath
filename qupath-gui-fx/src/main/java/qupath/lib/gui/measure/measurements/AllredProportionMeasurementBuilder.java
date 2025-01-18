@@ -1,6 +1,5 @@
 package qupath.lib.gui.measure.measurements;
 
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 
@@ -24,7 +23,7 @@ class AllredProportionMeasurementBuilder extends AbstractAllredMeasurementBuilde
     @Override
     public String getHelpText() {
         var pcString = getParentClassificationsString(pathClasses);
-        double minPercentage = PathPrefs.allredMinPercentagePositiveProperty().get();
+        double minPercentage = getMinPositivePercentage();
         String minRequires = minPercentage == 0 ? "" : "\nSet to 0 if less than " + minPercentage + "% cells positive";
         if (pcString.isEmpty()) {
             return "Allred proportion score calculated from Negative, 1+, 2+ and 3+ classified detections (range 0-5)" + minRequires;

@@ -1,7 +1,6 @@
 package qupath.lib.gui.measure.measurements;
 
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 
 import java.util.function.Function;

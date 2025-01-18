@@ -2,7 +2,6 @@ package qupath.lib.gui.measure.measurements;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.objects.PathObject;
 
 class ObjectIdMeasurementBuilder implements StringMeasurementBuilder {
@@ -11,7 +10,7 @@ class ObjectIdMeasurementBuilder implements StringMeasurementBuilder {
 
     @Override
     public String getName() {
-        return ObservableMeasurementTableData.NAME_OBJECT_ID;
+        return "Object ID";
     }
 
     @Override

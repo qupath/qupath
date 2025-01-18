@@ -76,7 +76,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	/**
 	 * The name used for the Object ID column
 	 */
-	public static final String NAME_OBJECT_ID = "Object ID";
+	public static final String NAME_OBJECT_ID = DefaultMeasurements.OBJECT_ID.getName();
 
 	private static final String KEY_PIXEL_LAYER = "PIXEL_LAYER";
 

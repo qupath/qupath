@@ -1,6 +1,5 @@
 package qupath.lib.gui.measure.measurements;
 
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 
@@ -35,7 +34,7 @@ class AllredIntensityMeasurementBuilder extends AbstractAllredMeasurementBuilder
 
     @Override
     public String getName() {
-        double minPercentage = PathPrefs.allredMinPercentagePositiveProperty().get();
+        double minPercentage = getMinPositivePercentage();
         String name;
         if (minPercentage > 0)
             name = String.format("Allred intensity (min %.1f%%)", minPercentage);
