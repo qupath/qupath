@@ -3,15 +3,26 @@ package qupath.lib.gui.measure.measurements;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
 
-import java.util.List;
+import java.util.Collections;
+import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Helper class to create or access different {@link MeasurementBuilder} instances.
  * These can be used to extract (possibly dynamic) measurements from objects.
  */
 public class DefaultMeasurements {
+
+    private static final Map<ImageData<?>, DetectionClassificationCounter> countsMap = Collections.synchronizedMap(new WeakHashMap<>());
+
+    private static Function<PathObject, DetectionPathClassCounts> getCountsFunction(ImageData<?> imageData) {
+        return countsMap.computeIfAbsent(imageData, data -> new DetectionClassificationCounter(data.getHierarchy()));
+    }
 
     /**
      * Measurement to extract a string representation of an object's classification.
@@ -140,8 +151,56 @@ public class DefaultMeasurements {
     }
 
 
-    public static List<MeasurementBuilder<?>> getClassifiedDetectionCountMeasurements(ImageData<?> imageData, boolean includeDensity) {
-        return DerivedMeasurementManager.createMeasurements(imageData, includeDensity);
+    public static NumericMeasurementBuilder createHScoreMeasurement(
+            ImageData<?> imageData,
+            PathClass... pathClasses) {
+        return new HScoreMeasurementBuilder(getCountsFunction(imageData), pathClasses);
     }
+
+    public static NumericMeasurementBuilder createPositivePercentageMeasurement(
+            ImageData<?> imageData,
+            PathClass... pathClasses) {
+        return new PositivePercentageMeasurementBuilder(getCountsFunction(imageData), pathClasses);
+    }
+
+    public static NumericMeasurementBuilder createDetectionClassDensityMeasurement(
+            ImageData<?> imageData,
+            PathClass pathClass) {
+        return new ClassDensityMeasurementBuilder(getCountsFunction(imageData), imageData, pathClass);
+    }
+
+    public static NumericMeasurementBuilder createBaseClassCountsMeasurement(
+            ImageData<?> imageData,
+            PathClass pathClass) {
+        return new ClassCountMeasurementBuilder(getCountsFunction(imageData), pathClass, true);
+    }
+
+    public static NumericMeasurementBuilder createExactClassCountsMeasurement(
+            ImageData<?> imageData,
+            PathClass pathClass) {
+        return new ClassCountMeasurementBuilder(getCountsFunction(imageData), pathClass, false);
+    }
+
+    public static NumericMeasurementBuilder createAllredIntensityMeasurement(
+            ImageData<?> imageData,
+            Supplier<Double> allredMinPercentage,
+            PathClass... pathClasses) {
+        return new AllredIntensityMeasurementBuilder(getCountsFunction(imageData), allredMinPercentage, pathClasses);
+    }
+
+    public static NumericMeasurementBuilder createAllredProportionMeasurement(
+            ImageData<?> imageData,
+            Supplier<Double> allredMinPercentage,
+            PathClass... pathClasses) {
+        return new AllredProportionMeasurementBuilder(getCountsFunction(imageData), allredMinPercentage, pathClasses);
+    }
+
+    public static NumericMeasurementBuilder createAllredMeasurement(
+            ImageData<?> imageData,
+            Supplier<Double> allredMinPercentage,
+            PathClass... pathClasses) {
+        return new AllredMeasurementBuilder(getCountsFunction(imageData), allredMinPercentage, pathClasses);
+    }
+
 
 }
