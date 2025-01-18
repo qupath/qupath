@@ -141,8 +141,7 @@ public class DefaultMeasurements {
 
 
     public static List<MeasurementBuilder<?>> getClassifiedDetectionCountMeasurements(ImageData<?> imageData, boolean includeDensity) {
-        var manager = new DerivedMeasurementManager(imageData, includeDensity);
-        return manager.getMeasurementBuilders();
+        return DerivedMeasurementManager.createMeasurements(imageData, includeDensity);
     }
 
 }

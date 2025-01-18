@@ -11,6 +11,7 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -21,8 +22,10 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -33,29 +36,15 @@ class DerivedMeasurementManager {
 
     private static final Logger logger = LoggerFactory.getLogger(DerivedMeasurementManager.class);
 
-    private final ImageData<?> imageData;
 
-    private final List<MeasurementBuilder<?>> builders = new ArrayList<>();
-
-    // Map to store cached counts; this should be reset when the hierarchy changes - since v0.6.0 this happens
-    // automatically using the hierarchy's last event timestamp
-    private final Map<PathObject, DetectionPathClassCounts> map = Collections.synchronizedMap(new WeakHashMap<>());
-
-    private final boolean includeDensityMeasurements;
-
-    DerivedMeasurementManager(final ImageData<?> imageData, final boolean includeDensityMeasurements) {
-        this.imageData = imageData;
-        this.includeDensityMeasurements = includeDensityMeasurements;
-        updateAvailableMeasurements();
-    }
-
-    private void updateAvailableMeasurements() {
-        map.clear();
-        builders.clear();
+    static List<MeasurementBuilder<?>> createMeasurements(ImageData<?> imageData, boolean includeDensityMeasurements) {
+        List<MeasurementBuilder<?>> builders = new ArrayList<>();
         if (imageData == null || imageData.getHierarchy() == null)
-            return;
+            return builders;
 
         Set<PathClass> pathClasses = PathObjectTools.getRepresentedPathClasses(imageData.getHierarchy(), PathDetectionObject.class);
+
+        Function<PathObject, DetectionPathClassCounts> countsFunction = new DetectionClassificationCounter(imageData.getHierarchy());
 
         pathClasses.remove(null);
         pathClasses.remove(PathClass.NULL_CLASS);
@@ -77,7 +66,7 @@ class DerivedMeasurementManager {
             pathClassList.remove(PathClass.NULL_CLASS);
             Collections.sort(pathClassList);
             for (PathClass pathClass : pathClassList) {
-                builders.add(new ClassCountMeasurementBuilder(pathClass, true));
+                builders.add(new ClassCountMeasurementBuilder(countsFunction, pathClass, true));
             }
         }
 
@@ -85,29 +74,29 @@ class DerivedMeasurementManager {
         List<PathClass> pathClassList = new ArrayList<>(pathClasses);
         Collections.sort(pathClassList);
         for (PathClass pathClass : pathClassList) {
-            builders.add(new ClassCountMeasurementBuilder(pathClass, false));
+            builders.add(new ClassCountMeasurementBuilder(countsFunction, pathClass, false));
         }
 
         // We can compute positive percentages if we have anything in ParentPositiveNegativeClasses
         for (PathClass pathClass : parentPositiveNegativeClasses) {
-            builders.add(new PositivePercentageMeasurementBuilder(pathClass));
+            builders.add(new PositivePercentageMeasurementBuilder(countsFunction, pathClass));
         }
         if (parentPositiveNegativeClasses.size() > 1)
-            builders.add(new PositivePercentageMeasurementBuilder(parentPositiveNegativeClasses.toArray(new PathClass[0])));
+            builders.add(new PositivePercentageMeasurementBuilder(countsFunction, parentPositiveNegativeClasses.toArray(new PathClass[0])));
 
         // We can compute H-scores and Allred scores if we have anything in ParentIntensityClasses
         for (PathClass pathClass : parentIntensityClasses) {
-            builders.add(new HScoreMeasurementBuilder(pathClass));
-            builders.add(new AllredProportionMeasurementBuilder(pathClass));
-            builders.add(new AllredIntensityMeasurementBuilder(pathClass));
-            builders.add(new AllredMeasurementBuilder(pathClass));
+            builders.add(new HScoreMeasurementBuilder(countsFunction, pathClass));
+            builders.add(new AllredProportionMeasurementBuilder(countsFunction, pathClass));
+            builders.add(new AllredIntensityMeasurementBuilder(countsFunction, pathClass));
+            builders.add(new AllredMeasurementBuilder(countsFunction, pathClass));
         }
         if (parentIntensityClasses.size() > 1) {
             PathClass[] parentIntensityClassesArray = parentIntensityClasses.toArray(PathClass[]::new);
-            builders.add(new HScoreMeasurementBuilder(parentIntensityClassesArray));
-            builders.add(new AllredProportionMeasurementBuilder(parentIntensityClassesArray));
-            builders.add(new AllredIntensityMeasurementBuilder(parentIntensityClassesArray));
-            builders.add(new AllredMeasurementBuilder(parentIntensityClassesArray));
+            builders.add(new HScoreMeasurementBuilder(countsFunction, parentIntensityClassesArray));
+            builders.add(new AllredProportionMeasurementBuilder(countsFunction, parentIntensityClassesArray));
+            builders.add(new AllredIntensityMeasurementBuilder(countsFunction, parentIntensityClassesArray));
+            builders.add(new AllredMeasurementBuilder(countsFunction, parentIntensityClassesArray));
         }
 
         // Add density measurements
@@ -116,27 +105,40 @@ class DerivedMeasurementManager {
         if (includeDensityMeasurements) {
             for (PathClass pathClass : pathClassList) {
                 if (PathClassTools.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass) {
-                    builders.add(new ClassDensityMeasurementBuilder(imageData, pathClass));
+                    builders.add(new ClassDensityMeasurementBuilder(countsFunction, imageData, pathClass));
                 }
             }
         }
-    }
-
-    List<MeasurementBuilder<?>> getMeasurementBuilders() {
         return builders;
     }
 
-    private long lastTimestamp;
 
-    private synchronized DetectionPathClassCounts getDetectionPathClassCounts(PathObject pathObject) {
-        var hierarchy = imageData.getHierarchy();
-        var actualTimestamp = hierarchy.getEventCount();
-        if (actualTimestamp > lastTimestamp) {
-            logger.debug("Clearing cached measurements");
-            map.clear();
-            lastTimestamp = actualTimestamp;
+
+    private static class DetectionClassificationCounter implements Function<PathObject, DetectionPathClassCounts> {
+
+        private final PathObjectHierarchy hierarchy;
+
+        // Map to store cached counts; this should be reset when the hierarchy changes - since v0.6.0 this happens
+        // automatically using the hierarchy's last event timestamp
+        private final Map<PathObject, DetectionPathClassCounts> map = Collections.synchronizedMap(new WeakHashMap<>());
+        private long lastHierarchyEventCount;
+
+        private DetectionClassificationCounter(PathObjectHierarchy hierarchy) {
+            Objects.requireNonNull(hierarchy, "Hierarchy must not be null!");
+            this.hierarchy = hierarchy;
         }
-        return map.computeIfAbsent(pathObject, p -> new DetectionPathClassCounts(imageData.getHierarchy(), p));
+
+        @Override
+        public DetectionPathClassCounts apply(PathObject pathObject) {
+            var actualTimestamp = hierarchy.getEventCount();
+            if (actualTimestamp > lastHierarchyEventCount) {
+                logger.debug("Clearing cached measurements");
+                map.clear();
+                lastHierarchyEventCount = actualTimestamp;
+            }
+            return map.computeIfAbsent(pathObject, p -> new DetectionPathClassCounts(hierarchy, p));
+        }
+
     }
 
 
@@ -191,138 +193,6 @@ class DerivedMeasurementManager {
         return counts.getAllredScore(minPositivePercentage / 100, pathClasses);
     }
 
-
-
-    private class ClassCountMeasurementBuilder implements NumericMeasurementBuilder {
-
-        private PathClass pathClass;
-        private boolean baseClassification;
-
-        /**
-         * Count objects with specific classifications.
-         *
-         * @param pathClass
-         * @param baseClassification if {@code true}, also count objects with classifications derived from the specified classification,
-         *                           if {@code false} count objects with <i>only</i> the exact classification given.
-         */
-        ClassCountMeasurementBuilder(final PathClass pathClass, final boolean baseClassification) {
-            this.pathClass = pathClass;
-            this.baseClassification = baseClassification;
-        }
-
-        @Override
-        public String getHelpText() {
-            if (baseClassification) {
-                if (pathClass == null || pathClass == PathClass.NULL_CLASS)
-                    return "Number of detection objects with no base classification";
-                else
-                    return "Number of detection objects with the base classification '" + pathClass + "' (including all sub-classifications)";
-            } else {
-                if (pathClass == null || pathClass == PathClass.NULL_CLASS)
-                    return "Number of detection objects with no classification";
-                else
-                    return "Number of detection objects with the exact classification '" + pathClass + "'";
-            }
-        }
-
-        @Override
-        public String getName() {
-            if (baseClassification)
-                return "Num " + pathClass.toString() + " (base)";
-            else
-                return "Num " + pathClass.toString();
-        }
-
-        @Override
-        public Number getValue(final PathObject pathObject) {
-            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
-            if (baseClassification)
-                return counts.getCountForAncestor(pathClass);
-            else
-                return counts.getDirectCount(pathClass);
-        }
-
-        @Override
-        public String toString() {
-            return getName();
-        }
-
-    }
-
-
-    private class ClassDensityMeasurementBuilder implements NumericMeasurementBuilder {
-
-        private final ImageData<?> imageData;
-        private final PathClass pathClass;
-
-        ClassDensityMeasurementBuilder(final ImageData<?> imageData, final PathClass pathClass) {
-            this.imageData = imageData;
-            this.pathClass = pathClass;
-        }
-
-        @Override
-        public String getHelpText() {
-            return "Density of detections with classification '" + pathClass + "' inside the selected objects";
-        }
-
-        @Override
-        public String getName() {
-            if (imageData != null && imageData.getServerMetadata().getPixelCalibration().hasPixelSizeMicrons())
-                return String.format("Num %s per mm^2", pathClass.toString());
-//					return String.format("Num %s per %s^2", pathClass.toString(), GeneralTools.micrometerSymbol());
-            else
-                return String.format("Num %s per px^2", pathClass.toString());
-        }
-
-        @Override
-        public Number getValue(final PathObject pathObject) {
-            // Only return density measurements for annotations
-            if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.nChildObjects() == 1)) {
-                var counts = getDetectionPathClassCounts(pathObject);
-                return computeDensityPerMM(imageData, counts, pathObject, pathClass);
-            }
-            return Double.NaN;
-        }
-
-        @Override
-        public String toString() {
-            return getName();
-        }
-
-    }
-
-
-    private class PositivePercentageMeasurementBuilder implements NumericMeasurementBuilder {
-
-        private PathClass[] parentClasses;
-
-        PositivePercentageMeasurementBuilder(final PathClass... parentClasses) {
-            this.parentClasses = parentClasses;
-        }
-
-        @Override
-        public String getHelpText() {
-            var pcString = getParentClassificationsString(parentClasses);
-            if (pcString.isEmpty()) {
-                return "Number of detection classified as 'Positive' / ('Positive' + 'Negative') * 100%";
-            } else {
-                return "Number of detection classified as '" + pcString + ": Positive' / ('"
-                        + pcString + ": Positive' + '" + pcString + ": Negative') * 100%";
-            }
-        }
-
-        @Override
-        public String getName() {
-            return getNameForClasses("Positive %", parentClasses);
-        }
-
-        @Override
-        public Number getValue(final PathObject pathObject) {
-            DetectionPathClassCounts counts = getDetectionPathClassCounts(pathObject);
-            return counts.getPositivePercentage(parentClasses);
-        }
-
-    }
 
     /**
      * Get a string representation that can be used to refer to zero or more parent (base) classifications.
@@ -379,11 +249,154 @@ class DerivedMeasurementManager {
     }
 
 
-    private class HScoreMeasurementBuilder implements NumericMeasurementBuilder {
+    private static class ClassCountMeasurementBuilder implements NumericMeasurementBuilder {
 
-        private PathClass[] pathClasses;
+        private final Function<PathObject, DetectionPathClassCounts> countsFunction;
+        private final PathClass pathClass;
+        private final boolean baseClassification;
 
-        HScoreMeasurementBuilder(final PathClass... pathClasses) {
+        /**
+         * Count objects with specific classifications.
+         *
+         * @param countsFunction a function to create counts for the objects; this can return cached values for performance
+         * @param pathClass the classification of detections to count
+         * @param baseClassification if {@code true}, also count objects with classifications derived from the specified classification,
+         *                           if {@code false} count objects with <i>only</i> the exact classification given.
+         */
+        ClassCountMeasurementBuilder(Function<PathObject, DetectionPathClassCounts> countsFunction,
+                                     PathClass pathClass, boolean baseClassification) {
+            this.pathClass = pathClass;
+            this.baseClassification = baseClassification;
+            this.countsFunction = countsFunction;
+        }
+
+        @Override
+        public String getHelpText() {
+            if (baseClassification) {
+                if (pathClass == null || pathClass == PathClass.NULL_CLASS)
+                    return "Number of detection objects with no base classification";
+                else
+                    return "Number of detection objects with the base classification '" + pathClass + "' (including all sub-classifications)";
+            } else {
+                if (pathClass == null || pathClass == PathClass.NULL_CLASS)
+                    return "Number of detection objects with no classification";
+                else
+                    return "Number of detection objects with the exact classification '" + pathClass + "'";
+            }
+        }
+
+        @Override
+        public String getName() {
+            if (baseClassification)
+                return "Num " + pathClass.toString() + " (base)";
+            else
+                return "Num " + pathClass.toString();
+        }
+
+        @Override
+        public Number getValue(final PathObject pathObject) {
+            DetectionPathClassCounts counts = countsFunction.apply(pathObject);
+            if (baseClassification)
+                return counts.getCountForAncestor(pathClass);
+            else
+                return counts.getDirectCount(pathClass);
+        }
+
+        @Override
+        public String toString() {
+            return getName();
+        }
+
+    }
+
+
+    private static class ClassDensityMeasurementBuilder implements NumericMeasurementBuilder {
+
+        private final Function<PathObject, DetectionPathClassCounts> countsFunction;
+        private final ImageData<?> imageData;
+        private final PathClass pathClass;
+
+        ClassDensityMeasurementBuilder(Function<PathObject, DetectionPathClassCounts> countsFunction,
+                                       ImageData<?> imageData, PathClass pathClass) {
+            this.countsFunction = countsFunction;
+            this.imageData = imageData;
+            this.pathClass = pathClass;
+        }
+
+        @Override
+        public String getHelpText() {
+            return "Density of detections with classification '" + pathClass + "' inside the selected objects";
+        }
+
+        @Override
+        public String getName() {
+            if (imageData != null && imageData.getServerMetadata().getPixelCalibration().hasPixelSizeMicrons())
+                return String.format("Num %s per mm^2", pathClass.toString());
+            else
+                return String.format("Num %s per px^2", pathClass.toString());
+        }
+
+        @Override
+        public Number getValue(final PathObject pathObject) {
+            // Only return density measurements for annotations
+            if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.nChildObjects() == 1)) {
+                var counts = countsFunction.apply(pathObject);
+                return computeDensityPerMM(imageData, counts, pathObject, pathClass);
+            }
+            return Double.NaN;
+        }
+
+        @Override
+        public String toString() {
+            return getName();
+        }
+
+    }
+
+
+    private static class PositivePercentageMeasurementBuilder implements NumericMeasurementBuilder {
+
+        private final Function<PathObject, DetectionPathClassCounts> countsFunction;
+        private PathClass[] parentClasses;
+
+        PositivePercentageMeasurementBuilder(Function<PathObject, DetectionPathClassCounts> countsFunction,
+                                             PathClass... parentClasses) {
+            this.countsFunction = countsFunction;
+            this.parentClasses = parentClasses;
+        }
+
+        @Override
+        public String getHelpText() {
+            var pcString = getParentClassificationsString(parentClasses);
+            if (pcString.isEmpty()) {
+                return "Number of detection classified as 'Positive' / ('Positive' + 'Negative') * 100%";
+            } else {
+                return "Number of detection classified as '" + pcString + ": Positive' / ('"
+                        + pcString + ": Positive' + '" + pcString + ": Negative') * 100%";
+            }
+        }
+
+        @Override
+        public String getName() {
+            return getNameForClasses("Positive %", parentClasses);
+        }
+
+        @Override
+        public Number getValue(final PathObject pathObject) {
+            DetectionPathClassCounts counts = countsFunction.apply(pathObject);
+            return counts.getPositivePercentage(parentClasses);
+        }
+
+    }
+
+
+    private static class HScoreMeasurementBuilder implements NumericMeasurementBuilder {
+
+        private final Function<PathObject, DetectionPathClassCounts> countsFunction;
+        private final PathClass[] pathClasses;
+
+        HScoreMeasurementBuilder(Function<PathObject, DetectionPathClassCounts> countsFunction, PathClass... pathClasses) {
+            this.countsFunction = countsFunction;
             this.pathClasses = pathClasses;
         }
 
@@ -404,18 +417,21 @@ class DerivedMeasurementManager {
 
         @Override
         public Number getValue(final PathObject pathObject) {
-            var counts = getDetectionPathClassCounts(pathObject);
+            var counts = countsFunction.apply(pathObject);
             return counts.getHScore(pathClasses);
         }
 
     }
 
 
-    private class AllredIntensityMeasurementBuilder implements NumericMeasurementBuilder {
+    private static class AllredIntensityMeasurementBuilder implements NumericMeasurementBuilder {
 
-        private PathClass[] pathClasses;
+        private final Function<PathObject, DetectionPathClassCounts> countsFunction;
+        private final PathClass[] pathClasses;
 
-        AllredIntensityMeasurementBuilder(final PathClass... pathClasses) {
+        AllredIntensityMeasurementBuilder(Function<PathObject, DetectionPathClassCounts> countsFunction,
+                                          PathClass... pathClasses) {
+            this.countsFunction = countsFunction;
             this.pathClasses = pathClasses;
         }
 
@@ -444,17 +460,20 @@ class DerivedMeasurementManager {
 
         @Override
         public Number getValue(final PathObject pathObject) {
-            var counts = getDetectionPathClassCounts(pathObject);
+            var counts = countsFunction.apply(pathObject);
             return computeAllredIntensity(counts, PathPrefs.allredMinPercentagePositiveProperty().getValue(), pathClasses);
         }
 
     }
 
-    private class AllredProportionMeasurementBuilder implements NumericMeasurementBuilder {
+    private static class AllredProportionMeasurementBuilder implements NumericMeasurementBuilder {
 
-        private PathClass[] pathClasses;
+        private final Function<PathObject, DetectionPathClassCounts> countsFunction;
+        private final PathClass[] pathClasses;
 
-        AllredProportionMeasurementBuilder(final PathClass... pathClasses) {
+        AllredProportionMeasurementBuilder(Function<PathObject, DetectionPathClassCounts> countsFunction,
+                                           PathClass... pathClasses) {
+            this.countsFunction = countsFunction;
             this.pathClasses = pathClasses;
         }
 
@@ -484,17 +503,20 @@ class DerivedMeasurementManager {
 
         @Override
         public Number getValue(final PathObject pathObject) {
-            var counts = getDetectionPathClassCounts(pathObject);
+            var counts = countsFunction.apply(pathObject);
             return computeAllredProportion(counts, PathPrefs.allredMinPercentagePositiveProperty().getValue(), pathClasses);
         }
 
     }
 
-    private class AllredMeasurementBuilder implements NumericMeasurementBuilder {
+    private static class AllredMeasurementBuilder implements NumericMeasurementBuilder {
 
-        private PathClass[] pathClasses;
+        private final Function<PathObject, DetectionPathClassCounts> countsFunction;
+        private final PathClass[] pathClasses;
 
-        AllredMeasurementBuilder(final PathClass... pathClasses) {
+        AllredMeasurementBuilder(Function<PathObject, DetectionPathClassCounts> countsFunction,
+                                 PathClass... pathClasses) {
+            this.countsFunction = countsFunction;
             this.pathClasses = pathClasses;
         }
 
@@ -516,7 +538,7 @@ class DerivedMeasurementManager {
 
         @Override
         public Number getValue(final PathObject pathObject) {
-            var counts = getDetectionPathClassCounts(pathObject);
+            var counts = countsFunction.apply(pathObject);
             return computeAllredScore(counts, PathPrefs.allredMinPercentagePositiveProperty().getValue(), pathClasses);
         }
 
