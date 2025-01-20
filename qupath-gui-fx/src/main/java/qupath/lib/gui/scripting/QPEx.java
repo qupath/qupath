@@ -782,8 +782,7 @@ public class QPEx extends QP {
 	public static void simplifyAnnotations(Collection<PathAnnotationObject> pathObjects, double altitudeThreshold) {
 		for (var po: pathObjects) {
 			var pathROI = po.getROI();
-			if (pathROI instanceof PolygonROI) {
-				PolygonROI polygonROI = (PolygonROI)pathROI;
+			if (pathROI instanceof PolygonROI polygonROI) {
 				pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
 			} else {
 				pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
