@@ -525,8 +525,8 @@ public class Commands {
 	
 	/**
 	 * Show a simple dialog for viewing (and optionally removing) detection measurements.
-	 * @param qupath
-	 * @param imageData
+	 * @param qupath the qupath GUI
+	 * @param imageData the image data
 	 */
 	public static void showDetectionMeasurementManager(QuPathGUI qupath, ImageData<?> imageData) {
 		MeasurementManager.showDetectionMeasurementManager(qupath, imageData);
@@ -535,7 +535,7 @@ public class Commands {
 	
 	/**
 	 * Reset TMA metadata, if available.
-	 * @param imageData
+	 * @param imageData the image data
 	 * @return true if changes were made, false otherwise
 	 */
 	public static boolean resetTMAMetadata(ImageData<?> imageData) {
@@ -566,7 +566,7 @@ public class Commands {
 	 * A reference to the dialog can be retained, so that if the command is called again 
 	 * either the original dialog is shown and/or brought to the front.
 	 * @param supplier supplier function to generate the dialog on demand
-	 * @param name 
+	 * @param name the command name (for the Action)
 	 * @return the action
 	 */
 	public static Action createSingleStageAction(Supplier<Stage> supplier, String name) {
@@ -763,7 +763,7 @@ public class Commands {
 	 * Create a zoom in/out command action.
 	 * @param qupath QuPath instance
 	 * @param zoomAmount relative amount to zoom in (positive) or out (negative). Suggested value is +/-10.
-	 * @return
+	 * @return an action
 	 */
 	public static Action createZoomCommand(QuPathGUI qupath, int zoomAmount) {
 		var command = new ZoomCommand(qupath.viewerProperty(), zoomAmount);
@@ -773,8 +773,8 @@ public class Commands {
 	
 	/**
 	 * Create a stage to prompt the user to specify an annotation to add.
-	 * @param qupath
-	 * @return 
+	 * @param qupath the qupath GUI
+	 * @return a stage
 	 */
 	public static Stage createSpecifyAnnotationDialog(QuPathGUI qupath) {
 		SpecifyAnnotationCommand pane = new SpecifyAnnotationCommand(qupath);
@@ -794,8 +794,8 @@ public class Commands {
 	
 	/**
 	 * Create a stage to display object descriptions.
-	 * @param qupath
-	 * @return 
+	 * @param qupath the qupath GUI
+	 * @return a stage
 	 */
 	public static Stage createObjectDescriptionsDialog(QuPathGUI qupath) {
 		return ObjectDescriptionPane.createWindow(qupath);
@@ -804,10 +804,10 @@ public class Commands {
 	
 	/**
 	 * Prompt to save the specified {@link ImageData}.
-	 * @param qupath
-	 * @param imageData
-	 * @param overwriteExisting
-	 * @return
+	 * @param qupath the QuPath GUI
+	 * @param imageData the image data
+	 * @param overwriteExisting whether to overwrite existing image data
+	 * @return whether the save succeeded
 	 */
 	public static boolean promptToSaveImageData(QuPathGUI qupath, ImageData<BufferedImage> imageData, boolean overwriteExisting) {
 		if (imageData == null) {
@@ -941,35 +941,9 @@ public class Commands {
 		return false;
 	}
 	
-//	/**
-//	 * Merge the points ROIs of different objects to create a single object containing all points with a specific {@link PathClass}.
-//	 * @param imageData the image data containing points to merge
-//	 * @param selectedOnly if true, use only classes found within the currently selected objects
-//	 */
-//	public static void mergePointsForClasses(ImageData<?> imageData, boolean selectedOnly) {
-//		var hierarchy = imageData == null ? null : imageData.getHierarchy();
-//		if (hierarchy == null) {
-//			Dialogs.showNoImageError("Merge points");
-//			return;
-//		}
-//		if (selectedOnly) {
-//			PathObjectTools.mergePointsForSelectedObjectClasses(hierarchy);
-//			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
-//					"Merge points for selected classifications",
-//					"mergePointsForSelectedObjectClasses();"
-//					));
-//		} else {
-//			PathObjectTools.mergePointsForAllClasses(hierarchy);
-//			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
-//					"Merge points for all classifications",
-//					"mergePointsForAllClasses();"
-//					));
-//		}
-//	}
-	
 	/**
 	 * Merge the currently-selected annotations for an image, replacing them with a single new annotation.
-	 * @param imageData
+	 * @param imageData the image data
 	 */
 	public static void mergeSelectedAnnotations(ImageData<?> imageData) {
 		if (imageData == null)
@@ -984,7 +958,7 @@ public class Commands {
 	
 	/**
 	 * Duplicate the selected annotations.
-	 * @param imageData
+	 * @param imageData the image data
 	 */
 	public static void duplicateSelectedAnnotations(ImageData<?> imageData) {
 		if (imageData == null) {
@@ -1021,7 +995,7 @@ public class Commands {
 
 	/**
 	 * Make an inverse annotation for the selected objects, storing the command in the history workflow.
-	 * @param imageData
+	 * @param imageData the image data
 	 * @see QP#makeInverseAnnotation(ImageData)
 	 */
 	public static void makeInverseAnnotation(ImageData<?> imageData) {
@@ -1036,24 +1010,12 @@ public class Commands {
 	
 	/**
 	 * Show a dialog to track the viewed region of an image.
-	 * @param qupath
+	 * @param qupath the QuPath GUI
 	 */
 	public static void showViewTracker(QuPathGUI qupath) {
 		new ViewTrackerControlPane(qupath).run();
 	}
 
-	
-	
-//	/**
-//	 * Combine the selected annotations for the image open in the specified viewer.
-//	 * @param viewer viewer containing the image data
-//	 * @param op the {@link CombineOp} operation to apply
-//	 * @return true if changes were made, false otherwise
-//	 */
-//	public static boolean combineSelectedAnnotations(QuPathViewer viewer, RoiTools.CombineOp op) {
-//		var hierarchy = viewer == null ? null : viewer.getImageData();
-//		return combineSelectedAnnotations(hierarchy, op);
-//	}
 	
 	/**
 	 * Combine the selected annotations for the specified hierarchy.
@@ -1084,9 +1046,9 @@ public class Commands {
 	 * <p>
 	 * The selected object should itself be an annotation.
 	 * 
-	 * @param hierarchy
-	 * @param pathObjects
-	 * @param op
+	 * @param hierarchy the hierarchy
+	 * @param pathObjects the objects
+	 * @param op how to combine RIOs
 	 * @return true if any changes were made, false otherwise
 	 */
 	static boolean combineAnnotations(PathObjectHierarchy hierarchy, List<PathObject> pathObjects, RoiTools.CombineOp op) {
@@ -1102,7 +1064,6 @@ public class Commands {
 			return false;
 		}
 		var plane = pathObject.getROI().getImagePlane();
-//		pathObjects.removeIf(p -> !RoiTools.isShapeROI(p.getROI())); // Remove any null or point ROIs, TODO: Consider supporting points
 		pathObjects.removeIf(p -> !p.hasROI() || !p.getROI().getImagePlane().equals(plane)); // Remove any null or point ROIs, TODO: Consider supporting points
 		if (pathObjects.isEmpty()) {
 			logger.warn("Cannot combine annotations - only one suitable annotation found");
@@ -1148,8 +1109,8 @@ public class Commands {
 	
 	/**
 	 * Prompt to select objects according to their classifications.
-	 * @param qupath
-	 * @param imageData
+	 * @param qupath the QuPath GUI
+	 * @param imageData the image data
 	 */
 	public static void promptToSelectObjectsByClassification(QuPathGUI qupath, ImageData<?> imageData) {
 		if (imageData == null)
@@ -1163,14 +1124,14 @@ public class Commands {
 	
 	/**
 	 * Prompt to edit the name/color of a class.
-	 * @param pathClass
-	 * @return
+	 * @param pathClass the path class
+	 * @return whether the edit succeeds.
 	 */
 	public static boolean promptToEditClass(final PathClass pathClass) {
 		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
 			return false;
 
-		boolean defaultColor = pathClass == null;
+		boolean defaultColor = pathClass == null; // todo: this can never be true, so this method contains redundant code
 
 		BorderPane panel = new BorderPane();
 
@@ -1242,8 +1203,8 @@ public class Commands {
 	
 	/**
 	 * Prompt to delete objects of a specified type, or all objects.
-	 * @param imageData
-	 * @param cls
+	 * @param imageData the image data
+	 * @param cls the type of object (if null, all)
 	 */
 	public static void promptToDeleteObjects(ImageData<?> imageData, Class<? extends PathObject> cls) {
 		if (imageData == null)
@@ -1339,8 +1300,8 @@ public class Commands {
 	
 	/**
 	 * Set the downsample factor for the specified viewer.
-	 * @param viewer
-	 * @param downsample
+	 * @param viewer the QuPath viewer
+	 * @param downsample the new downsample
 	 */
 	public static void setViewerDownsample(QuPathViewer viewer, double downsample) {
 		if (viewer != null)
@@ -1350,7 +1311,7 @@ public class Commands {
 	
 	/**
 	 * Close the current project open in the {@link QuPathGUI}.
-	 * @param qupath
+	 * @param qupath The QuPath GUI
 	 */
 	public static void closeProject(QuPathGUI qupath) {
 		qupath.setProject(null);
@@ -1535,7 +1496,7 @@ public class Commands {
 	
 	/**
 	 * Request the current user directory, optionally prompting the user to request a directory if none is available.
-	 * @param promptIfMissing 
+	 * @param promptIfMissing whether to prompt the user if the directory is not set yet
 	 * @return the user directory, or null if none exists and the user did not create one
 	 */
 	public static File requestUserDirectory(boolean promptIfMissing) {
@@ -1595,8 +1556,8 @@ public class Commands {
 	
 	/**
 	 * Reload the specified image data from a previously saved version,if available.
-	 * @param qupath
-	 * @param imageData
+	 * @param qupath the QuPath GUI
+	 * @param imageData the image data
 	 */
 	public static void reloadImageData(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
 		if (imageData == null) {
@@ -1694,12 +1655,7 @@ public class Commands {
 		btnApply.disableProperty().bind(qupath.imageDataProperty().isNull());
 		
 		btnApply.setOnAction(e -> requestShapeFeatures(qupath.getImageData(), listView.getCheckModel().getCheckedItems()));
-		
 		dialog.show();
-		
-//		var result = dialog.showAndWait();
-//		if (result.orElse(ButtonType.CANCEL) == ButtonType.APPLY)
-//			requestShapeFeatures(qupath.getImageData(), listView.getSelectionModel().getSelectedItems());
 	}
 		
 		
@@ -1767,6 +1723,12 @@ public class Commands {
 		
 		boolean	deleteDetections = button == ButtonType.YES;
 		PathObjectTools.convertToPoints(hierarchy, pathObjects, preferNucleus, deleteDetections);
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep("Convert detections to points",
+						String.format("PathObjectTools.convertToPoints(imageData.getHierarchy(), imageData.getHierarchy().getDetectionObjects(), %b, %b)",
+								preferNucleus, deleteDetections)
+				)
+		);
 	}
 
 
@@ -1815,11 +1777,16 @@ public class Commands {
 		long endTime = System.currentTimeMillis();
 		logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
 		hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep("Simplify annotations",
+						String.format("simplifyAnnotations(getSelectedObjects(), %f", altitudeThreshold)
+				)
+		);
 	}
 	
 	/**
 	 * Select all the objects on the current plane of the viewer.
-	 * @param viewer
+	 * @param viewer the QuPath GUI
 	 */
 	public static void selectObjectsOnCurrentPlane(QuPathViewer viewer) {
 		if (viewer == null)
@@ -1842,7 +1809,7 @@ public class Commands {
 	/**
 	 * Select all objects (excluding the root object) in the imageData.
 	 * 
-	 * @param imageData
+	 * @param imageData the image data
 	 */
 	public static void selectAllObjects(final ImageData<?> imageData) {
 		// Select all objects
@@ -1859,8 +1826,8 @@ public class Commands {
 	/**
 	 * Select objects that are instances of a specified class, logging an appropriate method in the workflow.
 	 * 
-	 * @param imageData
-	 * @param cls
+	 * @param imageData the image data
+	 * @param cls the type of object
 	 */
 	public static void selectObjectsByClass(final ImageData<?> imageData, final Class<? extends PathObject> cls) {
 		if (cls == TMACoreObject.class)
@@ -1896,7 +1863,7 @@ public class Commands {
 
 	/**
 	 * Reset the selection for an image.
-	 * @param imageData
+	 * @param imageData the image data
 	 */
 	public static void resetSelection(final ImageData<?> imageData) {
 		if (imageData == null) {
@@ -1923,8 +1890,8 @@ public class Commands {
 	/**
 	 * Select objects that are instances of a specified class, logging an appropriate method in the workflow.
 	 * 
-	 * @param imageData
-	 * @param cls
+	 * @param imageData the image data
+	 * @param cls the type of object
 	 */
 	public static void resetClassifications(final ImageData<?> imageData, final Class<? extends PathObject> cls) {
 		if (imageData == null) {
@@ -1972,8 +1939,8 @@ public class Commands {
 	
 	/**
 	 * Show the QuPath script editor with a script corresponding to the command history of a specified image.
-	 * @param qupath
-	 * @param imageData
+	 * @param qupath the QuPath GUI
+	 * @param imageData the image data
 	 */
 	public static void showWorkflowScript(QuPathGUI qupath, ImageData<?> imageData) {
 		if (imageData == null) {
@@ -1986,7 +1953,7 @@ public class Commands {
 	
 	/**
 	 * Show the script editor, or bring the window to the front if it is already open.
-	 * @param qupath
+	 * @param qupath the QuPath GUI
 	 */
 	public static void showScriptEditor(QuPathGUI qupath) {
 		var scriptEditor = qupath.getScriptEditor();
@@ -2003,8 +1970,8 @@ public class Commands {
 
 	/**
 	 * Create a dialog to monitor memory usage.
-	 * @param qupath
-	 * @return
+	 * @param qupath the QuPath GUI
+	 * @return the dialog stage
 	 */
 	public static Stage createMemoryMonitorDialog(QuPathGUI qupath) {
 		return new MemoryMonitorDialog(qupath).getStage();
@@ -2034,7 +2001,7 @@ public class Commands {
 	
 	/**
 	 * Refresh object IDs to ensure uniqueness.
-	 * @param imageData
+	 * @param imageData the image data
 	 * @param duplicatesOnly only refresh IDs that are duplicates of other IDs
 	 */
 	public static void refreshObjectIDs(ImageData<?> imageData, boolean duplicatesOnly) {
@@ -2055,8 +2022,8 @@ public class Commands {
 	
 	/**
 	 * Show a dialog to import object(s) from a file.
-	 * @param qupath
-	 * @param imageData
+	 * @param qupath the qupath GUI
+	 * @param imageData the image data
 	 */
 	public static void runObjectImport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
 		InteractiveObjectImporter.promptToImportObjectsFromFile(imageData, null);
@@ -2064,7 +2031,7 @@ public class Commands {
 	
 	/**
 	 * Attempt to copy selected objects to the system clipboard, if available
-	 * @param imageData
+	 * @param imageData the image data
 	 */
 	public static void copySelectedObjectsToClipboard(ImageData<BufferedImage> imageData) {
 		var selected = imageData == null ? null : imageData.getHierarchy().getSelectionModel().getSelectedObjects();
@@ -2074,7 +2041,7 @@ public class Commands {
 	
 	/**
 	 * Attempt to annotation objects to the system clipboard, if available
-	 * @param imageData
+	 * @param imageData the image data
 	 */
 	public static void copyAnnotationsToClipboard(ImageData<BufferedImage> imageData) {
 		var annotations = imageData == null ? null : imageData.getHierarchy().getAnnotationObjects();
@@ -2130,7 +2097,7 @@ public class Commands {
 	/**
 	 * Attempt to paste objects from the system clipboard to the current image, if available; 
 	 * otherwise, check for text on the clipboard and paste it into a new script editor tab
-	 * @param qupath
+	 * @param qupath the qupath GUI
 	 * @param addToCurrentPlane if true, add the objects to the plane currently visible in the viewer 
 	 *                          (and don't show any text if objects can't be found)
 	 */
@@ -2163,8 +2130,8 @@ public class Commands {
 
 	/**
 	 * Show a dialog to export object(s) to a GeoJSON file.
-	 * @param qupath
-	 * @param imageData
+	 * @param qupath the QuPath GUI
+	 * @param imageData the image data
 	 */
 	public static void runGeoJsonObjectExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
 		try {
