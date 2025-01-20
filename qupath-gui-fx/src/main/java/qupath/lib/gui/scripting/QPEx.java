@@ -788,7 +788,7 @@ public class QPEx extends QP {
 			} else {
 				pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
 			}
-			((PathAnnotationObject)po).setROI(pathROI);
+			po.setROI(pathROI);
 		}
 	}
 	
