@@ -40,8 +40,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.measurements.dynamic.DefaultMeasurements;
-import qupath.lib.measurements.dynamic.MeasurementBuilder;
+import qupath.lib.lazy.objects.PathObjectLazyValues;
+import qupath.lib.lazy.interfaces.LazyValue;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -63,7 +63,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	/**
 	 * The name used for the Object ID column
 	 */
-	public static final String NAME_OBJECT_ID = DefaultMeasurements.OBJECT_ID.getName();
+	public static final String NAME_OBJECT_ID = PathObjectLazyValues.OBJECT_ID.getName();
 
 	private static final String KEY_PIXEL_LAYER = "PIXEL_LAYER";
 
@@ -76,7 +76,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	private final ObservableList<String> metadataList = FXCollections.observableArrayList();
 	private final ObservableList<String> measurementList = FXCollections.observableArrayList();
 
-	private final Map<String, MeasurementBuilder<?>> builderMap = new LinkedHashMap<>();
+	private final Map<String, LazyValue<?>> builderMap = new LinkedHashMap<>();
 
 	/**
 	 * Set the {@link ImageData} and a collection of objects to measure.
@@ -133,22 +133,22 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		// Add the image name
 		if (!PathPrefs.maskImageNamesProperty().get())
-			builderMap.put("Image", DefaultMeasurements.createImageNameMeasurement(imageData));
+			builderMap.put("Image", PathObjectLazyValues.createImageNameMeasurement(imageData));
 
 		var wrapper = PathObjectListWrapper.create(imageData, list);
 
-		List<ObjectMeasurementListBuilder> listBuilders = List.of(
-				new BasicDynamicMeasurementListBuilder(),
-				new ExtractMetadataMeasurementListBuilder(),
-				new DynamicNumericMeasurementListBuilder(),
-				new ExtractNumericMeasurementListBuilder()
+		List<PathObjectLazyValueBuilder> listBuilders = List.of(
+				new BasicValueBuilder(),
+				new MetadataValueBuilder(),
+				new NumericValueBuilder(),
+				new MeasurementListValueBuilder()
 		);
 
 		List<String> metadataNames = new ArrayList<>();
 		List<String> featureNames = new ArrayList<>();
 		List<String> allNames = new ArrayList<>();
 		for (var builder : listBuilders) {
-			for (var measurement : builder.getMeasurements(wrapper)) {
+			for (var measurement : builder.getValues(wrapper)) {
 				String name = measurement.getName();
 				if (builderMap.containsKey(name)) {
 					logger.warn("Duplicate measurement {} - entries will be dropped", name);
@@ -156,7 +156,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 					builderMap.put(measurement.getName(), measurement);
 					// Before v0.6.0, we used a different approach & avoided adding ROI z/t/centroid
 					// values here
-					if (measurement.isNumericMeasurement())
+					if (measurement.isNumeric())
 						featureNames.add(name);
 					else
 						metadataNames.add(name);
@@ -193,7 +193,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 */
 	public boolean isStringMeasurement(final String name) {
 		var measurement = builderMap.getOrDefault(name, null);
-		return measurement != null && measurement.isStringMeasurement();
+		return measurement != null && measurement.isString();
 	}
 	
 	/**
@@ -205,7 +205,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		var measurement = builderMap.getOrDefault(name, null);
 		// TODO: For now, we allow null because we default to requesting from the measurement list -
 		//       but this behavior is likely to change
-		return measurement == null || measurement.isNumericMeasurement();
+		return measurement == null || measurement.isNumeric();
 	}
 	
 	
@@ -237,7 +237,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 					return Double.NaN;
 			}
 			
-			MeasurementBuilder<?> builder = builderMap.get(column);
+			LazyValue<?> builder = builderMap.get(column);
 			var val = builder.getValue(pathObject);
 			if (val instanceof Number num)
 				return num.doubleValue();
@@ -277,7 +277,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @return
 	 */
 	public String getHelpText(String column) {
-		MeasurementBuilder<?> builder = builderMap.get(column);
+		LazyValue<?> builder = builderMap.get(column);
 		if (builder != null)
 			return builder.getHelpText();
 		else
@@ -286,7 +286,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 	@Override
 	public String getStringValue(PathObject pathObject, String column, int decimalPlaces) {
-		MeasurementBuilder<?> builder = builderMap.get(column);
+		LazyValue<?> builder = builderMap.get(column);
 		if (builder != null)
 			return builder.getStringValue(pathObject, decimalPlaces);
 		

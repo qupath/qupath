@@ -1,0 +1,66 @@
+package qupath.lib.gui.measure;
+
+import qupath.lib.lazy.objects.PathObjectLazyValues;
+import qupath.lib.lazy.interfaces.LazyValue;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class BasicValueBuilder implements PathObjectLazyValueBuilder {
+
+    @Override
+    public List<LazyValue<?>> getValues(PathObjectListWrapper wrapper) {
+
+        List<LazyValue<?>> measurements = new ArrayList<>();
+
+        var imageData = wrapper.getImageData();
+
+        // Include object ID if we have anything other than root objects
+        if (!wrapper.containsRootOnly())
+            measurements.add(PathObjectLazyValues.OBJECT_ID);
+
+        // Include the object type
+        measurements.add(PathObjectLazyValues.OBJECT_TYPE);
+
+        // Include the object displayed name
+        measurements.add(PathObjectLazyValues.OBJECT_NAME);
+
+        // Include the classification
+        if (!wrapper.containsRootOnly()) {
+            measurements.add(PathObjectLazyValues.CLASSIFICATION);
+            // Get the name of the containing TMA core if we have anything other than cores
+            if (imageData != null && imageData.getHierarchy().getTMAGrid() != null) {
+                measurements.add(PathObjectLazyValues.TMA_CORE_NAME);
+            }
+            // Get the name of the first parent object
+            measurements.add(PathObjectLazyValues.PARENT_DISPLAYED_NAME);
+        }
+
+        // Include the TMA missing status, if appropriate
+        if (wrapper.containsTMACores()) {
+            measurements.add(PathObjectLazyValues.TMA_CORE_MISSING);
+        }
+
+        if (wrapper.containsAnnotationsOrDetections()) {
+            measurements.add(PathObjectLazyValues.ROI_TYPE);
+        }
+
+        // Add centroids
+        if (!wrapper.containsRootOnly()) {
+            measurements.add(PathObjectLazyValues.createROICentroidX(imageData));
+            measurements.add(PathObjectLazyValues.createROICentroidY(imageData));
+        }
+
+        // New v0.4.0: include z and time indices
+        var serverMetadata = imageData == null ? null : imageData.getServerMetadata();
+        if (wrapper.containsMultiZ() || (wrapper.containsROIs() && serverMetadata != null && serverMetadata.getSizeZ() > 1)) {
+            measurements.add(PathObjectLazyValues.ROI_Z_SLICE);
+        }
+
+        if (wrapper.containsMultiT() || (wrapper.containsROIs() && serverMetadata != null && serverMetadata.getSizeT() > 1)) {
+            measurements.add(PathObjectLazyValues.ROI_TIMEPOINT);
+        }
+        return measurements;
+    }
+
+}
