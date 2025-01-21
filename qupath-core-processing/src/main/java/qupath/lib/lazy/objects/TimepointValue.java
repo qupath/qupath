@@ -4,7 +4,7 @@ import qupath.lib.lazy.interfaces.LazyNumericValue;
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.interfaces.ROI;
 
-class TimepointValue implements LazyNumericValue {
+class TimepointValue implements LazyNumericValue<PathObject> {
 
     @Override
     public String getName() {

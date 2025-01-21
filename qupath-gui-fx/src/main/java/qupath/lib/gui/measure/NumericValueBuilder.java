@@ -23,8 +23,8 @@ import java.util.function.Supplier;
 public class NumericValueBuilder implements PathObjectLazyValueBuilder {
 
     @Override
-    public List<LazyValue<?>> getValues(PathObjectListWrapper wrapper) {
-        List<LazyValue<?>> measurements = new ArrayList<>();
+    public List<LazyValue<PathObject, ?>> getValues(PathObjectListWrapper wrapper) {
+        List<LazyValue<PathObject, ?>> measurements = new ArrayList<>();
 
         // Add derived measurements if we don't have only detections
         if (wrapper.containsRoot() || wrapper.containsAnnotationsTmaCores()) {
@@ -77,9 +77,9 @@ public class NumericValueBuilder implements PathObjectLazyValueBuilder {
     }
 
 
-    private List<LazyValue<?>> getDetectionCountsMeasurements(PathObjectListWrapper wrapper) {
+    private List<LazyValue<PathObject, ?>> getDetectionCountsMeasurements(PathObjectListWrapper wrapper) {
         var imageData = wrapper.getImageData();
-        List<LazyValue<?>> builders = new ArrayList<>();
+        List<LazyValue<PathObject, ?>> builders = new ArrayList<>();
         if (imageData == null || imageData.getHierarchy() == null)
             return builders;
 

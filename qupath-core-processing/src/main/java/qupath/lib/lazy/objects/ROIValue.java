@@ -2,8 +2,9 @@ package qupath.lib.lazy.objects;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.lazy.interfaces.LazyNumericValue;
+import qupath.lib.objects.PathObject;
 
-abstract class ROIValue implements LazyNumericValue {
+abstract class ROIValue implements LazyNumericValue<PathObject> {
 
     private final ImageData<?> imageData;
 

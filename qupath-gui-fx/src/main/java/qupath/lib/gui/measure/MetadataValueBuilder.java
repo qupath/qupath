@@ -2,6 +2,7 @@ package qupath.lib.gui.measure;
 
 import qupath.lib.lazy.objects.PathObjectLazyValues;
 import qupath.lib.lazy.interfaces.LazyValue;
+import qupath.lib.objects.PathObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,8 +14,8 @@ import java.util.List;
 public class MetadataValueBuilder implements PathObjectLazyValueBuilder {
 
     @Override
-    public List<LazyValue<?>> getValues(PathObjectListWrapper wrapper) {
-        var list = new ArrayList<LazyValue<?>>();
+    public List<LazyValue<PathObject, ?>> getValues(PathObjectListWrapper wrapper) {
+        var list = new ArrayList<LazyValue<PathObject, ?>>();
         wrapper.getMetadataNames()
                 .stream()
                 .map(PathObjectLazyValues::createMetadataMeasurement)

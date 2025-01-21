@@ -7,7 +7,7 @@ import qupath.lib.objects.TMACoreObject;
 /**
  * Get the displayed name of the first TMACoreObject that is an ancestor of the supplied object.
  */
-class TMACoreNameValue implements LazyStringValue {
+class TMACoreNameValue implements LazyStringValue<PathObject> {
 
     @Override
     public String getHelpText() {

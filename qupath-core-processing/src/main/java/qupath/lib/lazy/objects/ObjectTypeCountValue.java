@@ -7,7 +7,7 @@ import qupath.lib.objects.PathObjectTools;
 
 import java.util.Collection;
 
-class ObjectTypeCountValue implements LazyNumericValue {
+class ObjectTypeCountValue implements LazyNumericValue<PathObject> {
 
     private final ImageData<?> imageData;
     private final Class<? extends PathObject> cls;

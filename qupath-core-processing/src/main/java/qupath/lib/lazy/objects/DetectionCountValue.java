@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 /**
  * Abstract base class for measurements that can be derived from a {@link DetectionPathClassCounts} object.
  */
-abstract class DetectionCountValue implements LazyNumericValue {
+abstract class DetectionCountValue implements LazyNumericValue<PathObject> {
 
     private final Function<PathObject, DetectionPathClassCounts> countsFunction;
 

@@ -2,6 +2,7 @@ package qupath.lib.gui.measure;
 
 import qupath.lib.lazy.objects.PathObjectLazyValues;
 import qupath.lib.lazy.interfaces.LazyValue;
+import qupath.lib.objects.PathObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,9 +10,9 @@ import java.util.List;
 public class BasicValueBuilder implements PathObjectLazyValueBuilder {
 
     @Override
-    public List<LazyValue<?>> getValues(PathObjectListWrapper wrapper) {
+    public List<LazyValue<PathObject, ?>> getValues(PathObjectListWrapper wrapper) {
 
-        List<LazyValue<?>> measurements = new ArrayList<>();
+        List<LazyValue<PathObject, ?>> measurements = new ArrayList<>();
 
         var imageData = wrapper.getImageData();
 

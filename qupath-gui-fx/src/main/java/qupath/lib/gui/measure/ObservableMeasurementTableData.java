@@ -76,7 +76,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	private final ObservableList<String> metadataList = FXCollections.observableArrayList();
 	private final ObservableList<String> measurementList = FXCollections.observableArrayList();
 
-	private final Map<String, LazyValue<?>> builderMap = new LinkedHashMap<>();
+	private final Map<String, LazyValue<PathObject, ?>> builderMap = new LinkedHashMap<>();
 
 	/**
 	 * Set the {@link ImageData} and a collection of objects to measure.
@@ -237,7 +237,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 					return Double.NaN;
 			}
 			
-			LazyValue<?> builder = builderMap.get(column);
+			LazyValue<PathObject, ?> builder = builderMap.get(column);
 			var val = builder.getValue(pathObject);
 			if (val instanceof Number num)
 				return num.doubleValue();
@@ -277,7 +277,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @return
 	 */
 	public String getHelpText(String column) {
-		LazyValue<?> builder = builderMap.get(column);
+		LazyValue<PathObject, ?> builder = builderMap.get(column);
 		if (builder != null)
 			return builder.getHelpText();
 		else
@@ -286,7 +286,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 	@Override
 	public String getStringValue(PathObject pathObject, String column, int decimalPlaces) {
-		LazyValue<?> builder = builderMap.get(column);
+		LazyValue<PathObject, ?> builder = builderMap.get(column);
 		if (builder != null)
 			return builder.getStringValue(pathObject, decimalPlaces);
 		

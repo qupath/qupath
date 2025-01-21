@@ -1,6 +1,6 @@
 package qupath.lib.lazy.interfaces;
 
-public interface LazyStringValue extends LazyValue<String> {
+public interface LazyStringValue<S> extends LazyValue<S, String> {
 
     @Override
     default Class<String> getMeasurementType() {

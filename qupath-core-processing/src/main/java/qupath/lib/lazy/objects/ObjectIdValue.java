@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.lazy.interfaces.LazyStringValue;
 import qupath.lib.objects.PathObject;
 
-class ObjectIdValue implements LazyStringValue {
+class ObjectIdValue implements LazyStringValue<PathObject> {
 
     private static final Logger logger = LoggerFactory.getLogger(ObjectIdValue.class);
 

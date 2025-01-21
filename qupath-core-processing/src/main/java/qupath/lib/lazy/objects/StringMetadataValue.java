@@ -3,7 +3,7 @@ package qupath.lib.lazy.objects;
 import qupath.lib.lazy.interfaces.LazyStringValue;
 import qupath.lib.objects.PathObject;
 
-class StringMetadataValue implements LazyStringValue {
+class StringMetadataValue implements LazyStringValue<PathObject> {
 
     private final String name;
 

@@ -8,7 +8,7 @@ import qupath.lib.objects.PathObjectTools;
 /**
  * Get the displayed name of the parent of this object.
  */
-class ImageNameValue implements LazyStringValue {
+class ImageNameValue implements LazyStringValue<PathObject> {
 
     private final ImageData<?> imageData;
 

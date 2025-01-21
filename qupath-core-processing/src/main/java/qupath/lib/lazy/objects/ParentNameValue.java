@@ -6,7 +6,7 @@ import qupath.lib.objects.PathObject;
 /**
  * Get the displayed name of the parent of this object.
  */
-class ParentNameValue implements LazyStringValue {
+class ParentNameValue implements LazyStringValue<PathObject> {
 
     @Override
     public String getName() {

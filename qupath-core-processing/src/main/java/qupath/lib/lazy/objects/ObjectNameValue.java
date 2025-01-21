@@ -3,7 +3,7 @@ package qupath.lib.lazy.objects;
 import qupath.lib.lazy.interfaces.LazyStringValue;
 import qupath.lib.objects.PathObject;
 
-class ObjectNameValue implements LazyStringValue {
+class ObjectNameValue implements LazyStringValue<PathObject> {
 
     @Override
     public String getName() {

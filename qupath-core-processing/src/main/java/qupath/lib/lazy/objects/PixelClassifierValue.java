@@ -4,7 +4,7 @@ import qupath.lib.lazy.interfaces.LazyNumericValue;
 import qupath.lib.objects.PathObject;
 import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
 
-class PixelClassifierValue implements LazyNumericValue {
+class PixelClassifierValue implements LazyNumericValue<PathObject> {
 
     private PixelClassificationMeasurementManager manager;
     private String name;

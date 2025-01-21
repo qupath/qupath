@@ -5,9 +5,9 @@ import qupath.lib.objects.PathObject;
 
 /**
  * Interface that can generate a 'lazy' measurement for a {@link PathObject}.
- * @param <T>
+ * @param <S, T>
  */
-public interface LazyValue<T> {
+public interface LazyValue<S, T> {
 
     /**
      * The name of the measurement.
@@ -47,19 +47,19 @@ public interface LazyValue<T> {
 
     /**
      * Create a binding that represents a lazily-computed measurement for the provided objects.
-     * @param pathObject the object that should be measured
+     * @param input the object that should be measured
      * @return a binding that can return the measurement value
      */
-    T getValue(final PathObject pathObject);
+    T getValue(final S input);
 
     /**
      * Get a default string representation of an object measurement.
-     * @param pathObject the object to measure
+     * @param input the object to measure
      * @param decimalPlaces number of decimal places; if &lt; 0 then this will be calculated automatically
      * @return
      */
-    default String getStringValue(final PathObject pathObject, final int decimalPlaces) {
-        var val = getValue(pathObject);
+    default String getStringValue(final S input, final int decimalPlaces) {
+        var val = getValue(input);
         return switch (val) {
             case null -> null;
             case Number num -> formatNumber(num.doubleValue(), decimalPlaces);
@@ -70,13 +70,13 @@ public interface LazyValue<T> {
     /**
      * Get a default string representation of an object measurement.
      * If the value is numeric, it is converted to a string using the default number of decimal places.
-     * @param pathObject the object to measure
+     * @param input the object to measure
      * @return
-     * @see #getStringValue(PathObject, int)
-     * @see #getValue(PathObject)
+     * @see #getStringValue(S, int)
+     * @see #getValue(S)
      */
-    default String getStringValue(final PathObject pathObject) {
-        return getStringValue(pathObject, -1);
+    default String getStringValue(final S input) {
+        return getStringValue(input, -1);
     }
 
     /**

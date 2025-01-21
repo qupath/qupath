@@ -6,7 +6,7 @@ import qupath.lib.objects.PathObject;
 /**
  * Value extracted from an object's measurement list.
  */
-public class MeasurementListValue implements LazyNumericValue {
+public class MeasurementListValue implements LazyNumericValue<PathObject> {
 
     private final String name;
 

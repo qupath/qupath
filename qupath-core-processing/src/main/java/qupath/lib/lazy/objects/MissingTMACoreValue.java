@@ -4,7 +4,7 @@ import qupath.lib.lazy.interfaces.LazyBooleanValue;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 
-class MissingTMACoreValue implements LazyBooleanValue {
+class MissingTMACoreValue implements LazyBooleanValue<PathObject> {
 
     @Override
     public String getName() {

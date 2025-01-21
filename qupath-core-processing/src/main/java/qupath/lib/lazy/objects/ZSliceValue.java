@@ -4,7 +4,7 @@ import qupath.lib.lazy.interfaces.LazyNumericValue;
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.interfaces.ROI;
 
-class ZSliceValue implements LazyNumericValue {
+class ZSliceValue implements LazyNumericValue<PathObject> {
 
     @Override
     public String getName() {
