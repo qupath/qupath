@@ -1,16 +1,16 @@
 package qupath.lib.gui.measure;
 
-import qupath.lib.lazy.objects.PathObjectLazyValues;
 import qupath.lib.lazy.interfaces.LazyValue;
+import qupath.lib.lazy.objects.PathObjectLazyValues;
 import qupath.lib.objects.PathObject;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class BasicValueBuilder implements PathObjectLazyValueBuilder {
+class ObjectPropertyValueFactory implements PathObjectValueFactory {
 
     @Override
-    public List<LazyValue<PathObject, ?>> getValues(PathObjectListWrapper wrapper) {
+    public List<LazyValue<PathObject, ?>> createValues(PathObjectListWrapper wrapper) {
 
         List<LazyValue<PathObject, ?>> measurements = new ArrayList<>();
 
@@ -42,25 +42,6 @@ public class BasicValueBuilder implements PathObjectLazyValueBuilder {
             measurements.add(PathObjectLazyValues.TMA_CORE_MISSING);
         }
 
-        if (wrapper.containsAnnotationsOrDetections()) {
-            measurements.add(PathObjectLazyValues.ROI_TYPE);
-        }
-
-        // Add centroids
-        if (!wrapper.containsRootOnly()) {
-            measurements.add(PathObjectLazyValues.createROICentroidX(imageData));
-            measurements.add(PathObjectLazyValues.createROICentroidY(imageData));
-        }
-
-        // New v0.4.0: include z and time indices
-        var serverMetadata = imageData == null ? null : imageData.getServerMetadata();
-        if (wrapper.containsMultiZ() || (wrapper.containsROIs() && serverMetadata != null && serverMetadata.getSizeZ() > 1)) {
-            measurements.add(PathObjectLazyValues.ROI_Z_SLICE);
-        }
-
-        if (wrapper.containsMultiT() || (wrapper.containsROIs() && serverMetadata != null && serverMetadata.getSizeT() > 1)) {
-            measurements.add(PathObjectLazyValues.ROI_TIMEPOINT);
-        }
         return measurements;
     }
 

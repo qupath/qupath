@@ -35,34 +35,76 @@ public class PathObjectListWrapper {
     private final boolean containsMultiT;
     private final boolean containsROIs;
 
+    /**
+     * Create a warpper containing the specified objects.
+     * @param imageData
+     * @param pathObjects
+     * @return
+     */
     public static PathObjectListWrapper create(ImageData<?> imageData, Collection<? extends PathObject> pathObjects) {
         return new PathObjectListWrapper(imageData, pathObjects);
     }
 
+    /**
+     * Create a wrapper that includes all objects selected by the specified predicate.
+     * @param imageData
+     * @param predicate
+     * @return
+     */
     public static PathObjectListWrapper create(ImageData<?> imageData, Predicate<PathObject> predicate) {
         return create(imageData, imageData.getHierarchy().getAllObjects(true).stream().filter(predicate).toList());
     }
 
+    /**
+     * Create a wrapper including only the root object.
+     * @param imageData
+     * @return
+     */
     public static PathObjectListWrapper forRoot(ImageData<?> imageData) {
         return create(imageData, List.of(imageData.getHierarchy().getRootObject()));
     }
 
+    /**
+     * Create a wrapper including all annotations.
+     * @param imageData
+     * @return
+     */
     public static PathObjectListWrapper forAnnotations(ImageData<?> imageData) {
         return create(imageData, imageData.getHierarchy().getAnnotationObjects());
     }
 
+    /**
+     * Create a wrapper including all detections.
+     * @param imageData
+     * @return
+     */
     public static PathObjectListWrapper forDetections(ImageData<?> imageData) {
         return create(imageData, imageData.getHierarchy().getDetectionObjects());
     }
 
+    /**
+     * Create a wrapper containing all cells.
+     * @param imageData
+     * @return
+     */
     public static PathObjectListWrapper forCells(ImageData<?> imageData) {
         return create(imageData, imageData.getHierarchy().getCellObjects());
     }
 
+    /**
+     * Create a wrapper containing all tile objects.
+     * @param imageData
+     * @return
+     */
     public static PathObjectListWrapper forTiles(ImageData<?> imageData) {
         return create(imageData, imageData.getHierarchy().getTileObjects());
     }
 
+    /**
+     * Create a wrapper containing all TMA cores.
+     * @param imageData
+     * @return
+     */
     public static PathObjectListWrapper forTmaCores(ImageData<?> imageData) {
         var grid = imageData.getHierarchy().getTMAGrid();
         return create(imageData, grid == null ? Collections.emptyList() : grid.getTMACoreList());

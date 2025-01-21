@@ -1,13 +1,69 @@
 package qupath.lib.lazy.interfaces;
 
 import qupath.lib.common.GeneralTools;
-import qupath.lib.objects.PathObject;
+
+import java.util.function.Function;
 
 /**
- * Interface that can generate a 'lazy' measurement for a {@link PathObject}.
- * @param <S, T>
+ * Interface that can generate a 'lazy' value from an object.
+ * <p>
+ * Values can have any type, but are generally expected to be {@link Boolean}, {@link Number} or {@link String}.
+ *
+ * @param <S> type of the input object used to determine the value
+ * @param <T> type of the output value
  */
 public interface LazyValue<S, T> {
+
+    /**
+     * Create a {@link LazyValue} with specified name and help text.
+     * @param name name
+     * @param helpText help text or description
+     * @param fun function to calculate the value
+     * @param valueType return type of the function
+     * @return a new lazy value
+     * @param <S> input type
+     * @param <T> value type
+     */
+    static <S, T> LazyValue<S, T> create(String name, String helpText, Function<S, T> fun, Class<T> valueType) {
+        return new DefaultLazyValue<>(name, helpText, fun, valueType);
+    }
+
+    /**
+     * Create a {@link LazyNumericValue} with specified name and help text.
+     * @param name name
+     * @param helpText help text or description
+     * @param fun function to calculate the value
+     * @return a new lazy value
+     * @param <S> input type
+     */
+    static <S> LazyNumericValue<S> createNumeric(String name, String helpText, Function<S, Number> fun) {
+        return new DefaultNumericLazyValue<>(name, helpText, fun);
+    }
+
+    /**
+     * Create a {@link LazyStringValue} with specified name and help text.
+     * @param name name
+     * @param helpText help text or description
+     * @param fun function to calculate the value
+     * @return a new lazy value
+     * @param <S> input type
+     */
+    static <S> LazyStringValue<S> createString(String name, String helpText, Function<S, String> fun) {
+        return new DefaultStringLazyValue<>(name, helpText, fun);
+    }
+
+    /**
+     * Create a {@link LazyBooleanValue} with specified name and help text.
+     * @param name name
+     * @param helpText help text or description
+     * @param fun function to calculate the value
+     * @return a new lazy value
+     * @param <S> input type
+     */
+    static <S> LazyBooleanValue<S> createBoolean(String name, String helpText, Function<S, Boolean> fun) {
+        return new DefaultBooleanLazyValue<>(name, helpText, fun);
+    }
+
 
     /**
      * The name of the measurement.

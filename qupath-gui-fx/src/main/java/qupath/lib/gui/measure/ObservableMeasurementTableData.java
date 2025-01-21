@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
+import javafx.collections.ListChangeListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,6 +78,35 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	private final ObservableList<String> measurementList = FXCollections.observableArrayList();
 
 	private final Map<String, LazyValue<PathObject, ?>> builderMap = new LinkedHashMap<>();
+
+	private PathObjectValueFactory factory;
+
+	private static final ObservableList<PathObjectValueFactory> extraFactories = FXCollections.observableArrayList();
+
+	public ObservableMeasurementTableData() {
+		extraFactories.addListener(
+				(ListChangeListener.Change<? extends PathObjectValueFactory> c) -> updateMeasurementList());
+	}
+
+	/**
+	 * Add a custom value factory.
+	 * This can append different custom measurements to the table.
+	 * @param factory
+	 * @see #removeFactory(PathObjectValueFactory)
+	 */
+	static void addFactory(PathObjectValueFactory factory) {
+		extraFactories.add(factory);
+	}
+
+	/**
+	 * Remove a custom value factory.
+	 * @param factory
+	 * @return true if a factory was removed, false if it had not previously been added
+	 * @see #addFactory(PathObjectValueFactory)
+	 */
+	static boolean removeFactory(PathObjectValueFactory factory) {
+		return extraFactories.remove(factory);
+	}
 
 	/**
 	 * Set the {@link ImageData} and a collection of objects to measure.
@@ -131,37 +161,41 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	public synchronized void updateMeasurementList() {
 		builderMap.clear();
 
-		// Add the image name
-		if (!PathPrefs.maskImageNamesProperty().get())
-			builderMap.put("Image", PathObjectLazyValues.createImageNameMeasurement(imageData));
+		// We *might* have a factory set already (but we probably don't)
+		PathObjectValueFactory factory = this.factory;
+
+		if (factory == null) {
+			// Create the default factory, adding any extras that are requested
+			factory = new DefaultPathObjectValueFactoryBuilder()
+					.includeImage(!PathPrefs.maskImageNamesProperty().get())
+					.append(extraFactories)
+					.build();
+		} else if (!extraFactories.isEmpty()) {
+			// Join any extra factories with the one we have set
+			var allFactories = new ArrayList<>(extraFactories);
+			allFactories.addFirst(factory);
+			factory = PathObjectValueFactory.join(allFactories);
+		}
 
 		var wrapper = PathObjectListWrapper.create(imageData, list);
-
-		List<PathObjectLazyValueBuilder> listBuilders = List.of(
-				new BasicValueBuilder(),
-				new MetadataValueBuilder(),
-				new NumericValueBuilder(),
-				new MeasurementListValueBuilder()
-		);
 
 		List<String> metadataNames = new ArrayList<>();
 		List<String> featureNames = new ArrayList<>();
 		List<String> allNames = new ArrayList<>();
-		for (var builder : listBuilders) {
-			for (var measurement : builder.getValues(wrapper)) {
-				String name = measurement.getName();
-				if (builderMap.containsKey(name)) {
-					logger.warn("Duplicate measurement {} - entries will be dropped", name);
-				} else {
-					builderMap.put(measurement.getName(), measurement);
-					// Before v0.6.0, we used a different approach & avoided adding ROI z/t/centroid
-					// values here
-					if (measurement.isNumeric())
-						featureNames.add(name);
-					else
-						metadataNames.add(name);
-					allNames.add(name);
-				}
+
+		for (var measurement : factory.createValues(wrapper)) {
+			String name = measurement.getName();
+			if (builderMap.containsKey(name)) {
+				logger.warn("Duplicate measurement {} - entries will be dropped", name);
+			} else {
+				builderMap.put(measurement.getName(), measurement);
+				// Before v0.6.0, we used a different approach & avoided adding ROI z/t/centroid
+				// values here
+				if (measurement.isNumeric())
+					featureNames.add(name);
+				else
+					metadataNames.add(name);
+				allNames.add(name);
 			}
 		}
 

@@ -11,10 +11,10 @@ import java.util.List;
  * Measurements that only extract metadata from objects.
  * @return
  */
-public class MetadataValueBuilder implements PathObjectLazyValueBuilder {
+public class MetadataValueFactory implements PathObjectValueFactory {
 
     @Override
-    public List<LazyValue<PathObject, ?>> getValues(PathObjectListWrapper wrapper) {
+    public List<LazyValue<PathObject, ?>> createValues(PathObjectListWrapper wrapper) {
         var list = new ArrayList<LazyValue<PathObject, ?>>();
         wrapper.getMetadataNames()
                 .stream()

@@ -1,7 +1,6 @@
 package qupath.lib.gui.measure;
 
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.lazy.objects.PathObjectLazyValues;
 import qupath.lib.lazy.interfaces.LazyValue;
 import qupath.lib.objects.PathDetectionObject;
@@ -9,21 +8,29 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
-import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 
-public class NumericValueBuilder implements PathObjectLazyValueBuilder {
+class ObjectCountValueFactory implements PathObjectValueFactory {
+
+    // TODO: Switch to fixed double value
+    private final Supplier<Double> allredMinPercentage;
+
+    ObjectCountValueFactory(Supplier<Double> allredMinPercentagePositive) {
+        this.allredMinPercentage = allredMinPercentagePositive;
+    }
+
+    ObjectCountValueFactory() {
+        this(PathPrefs.allredMinPercentagePositiveProperty()::get);
+    }
 
     @Override
-    public List<LazyValue<PathObject, ?>> getValues(PathObjectListWrapper wrapper) {
+    public List<LazyValue<PathObject, ?>> createValues(PathObjectListWrapper wrapper) {
         List<LazyValue<PathObject, ?>> measurements = new ArrayList<>();
 
         // Add derived measurements if we don't have only detections
@@ -36,41 +43,6 @@ public class NumericValueBuilder implements PathObjectLazyValueBuilder {
             }
 
             measurements.addAll(getDetectionCountsMeasurements(wrapper));
-        }
-
-        // If we have an annotation, add shape features
-        if (wrapper.containsAnnotations()) {
-            // Find all non-null annotation measurements
-            var annotationRois = wrapper.getPathObjects().stream()
-                    .filter(PathObject::isAnnotation)
-                    .map(PathObject::getROI)
-                    .filter(Objects::nonNull)
-                    .toList();
-            // Add point count, if we have any points
-            if (annotationRois.stream().anyMatch(ROI::isPoint)) {
-                measurements.add(PathObjectLazyValues.ROI_NUM_POINTS);
-            }
-            // Add area & perimeter measurements, if we have any areas
-            if (annotationRois.stream().anyMatch(ROI::isArea)) {
-                measurements.add(PathObjectLazyValues.createROIAreaMeasurement(wrapper.getImageData()));
-                measurements.add(PathObjectLazyValues.createROIPerimeterMeasurement(wrapper.getImageData()));
-            }
-            // Add line length measurements, if we have any lines
-            if (annotationRois.stream().anyMatch(ROI::isLine)) {
-                measurements.add(PathObjectLazyValues.createROILengthMeasurement(wrapper.getImageData()));
-            }
-        }
-
-        if (wrapper.containsAnnotations() || wrapper.containsTMACores() || wrapper.containsRoot()) {
-            var pixelClassifier = ObservableMeasurementTableData.getPixelLayer(wrapper.getImageData());
-            if (pixelClassifier != null) {
-                if (pixelClassifier.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION || pixelClassifier.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.PROBABILITY) {
-                    var pixelManager = new PixelClassificationMeasurementManager(pixelClassifier);
-                    for (String name : pixelManager.getMeasurementNames()) {
-                        measurements.add(PathObjectLazyValues.createLivePixelClassificationMeasurement(pixelManager, name));
-                    }
-                }
-            }
         }
 
         return measurements;
@@ -124,7 +96,6 @@ public class NumericValueBuilder implements PathObjectLazyValueBuilder {
             builders.add(PathObjectLazyValues.createPositivePercentageMeasurement(imageData, parentPositiveNegativeClasses.toArray(new PathClass[0])));
 
         // We can compute H-scores and Allred scores if we have anything in ParentIntensityClasses
-        Supplier<Double> allredMinPercentage = PathPrefs.allredMinPercentagePositiveProperty()::get;
         for (PathClass pathClass : parentIntensityClasses) {
             builders.add(PathObjectLazyValues.createHScoreMeasurement(imageData, pathClass));
             builders.add(PathObjectLazyValues.createAllredProportionMeasurement(imageData, allredMinPercentage, pathClass));
