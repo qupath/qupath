@@ -37,19 +37,12 @@ import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.bioimageio.spec.BioimageIoSpec;
-import qupath.bioimageio.spec.BioimageIoSpec.Processing.Binarize;
-import qupath.bioimageio.spec.BioimageIoSpec.BioimageIoModel;
-import qupath.bioimageio.spec.BioimageIoSpec.Processing.Clip;
-import qupath.bioimageio.spec.BioimageIoSpec.InputTensor;
-import qupath.bioimageio.spec.BioimageIoSpec.OutputTensor;
-import qupath.bioimageio.spec.BioimageIoSpec.Processing;
-import qupath.bioimageio.spec.BioimageIoSpec.WeightsEntry;
-import qupath.bioimageio.spec.BioimageIoSpec.Processing.ScaleLinear;
-import qupath.bioimageio.spec.BioimageIoSpec.Processing.ScaleMeanVariance;
-import qupath.bioimageio.spec.BioimageIoSpec.Processing.ScaleRange;
-import qupath.bioimageio.spec.BioimageIoSpec.Processing.Sigmoid;
-import qupath.bioimageio.spec.BioimageIoSpec.Processing.ZeroMeanUnitVariance;
+import qupath.bioimageio.spec.Model;
+import qupath.bioimageio.spec.Weights;
+import qupath.bioimageio.spec.tensor.InputTensor;
+import qupath.bioimageio.spec.tensor.OutputTensor;
+import qupath.bioimageio.spec.tensor.Processing;
+import qupath.bioimageio.spec.tensor.axes.Axis;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelType;
@@ -90,7 +83,7 @@ public class BioimageIoTools {
 	 * @param spec The model spec
 	 * @return A (hopefully closely) corresponding model
 	 */
-	public static DnnModel buildDnnModel(BioimageIoModel spec) {
+	public static DnnModel buildDnnModel(Model spec) {
 		// Try to find compatible weights
 		DnnModel dnn = null;
 		
@@ -99,12 +92,12 @@ public class BioimageIoTools {
 		// Deep Java Library, although *conceivably* we could have some extension 
 		// that supports weights beyond what DJL currently handles
 		for (var key : Arrays.asList(
-				WeightsEntry.TORCHSCRIPT, // Should work on all platforms
-				WeightsEntry.TENSORFLOW_SAVED_MODEL_BUNDLE, // Should work on most platforms (not Apple Silicon)
-				WeightsEntry.ONNX, // Should work... if installed (usually isn't)
-				WeightsEntry.TENSORFLOW_JS, // Probably won't work
-				WeightsEntry.PYTORCH_STATE_DICT,
-				WeightsEntry.KERAS_HDF5)) {
+				Weights.WeightsEntry.TORCHSCRIPT, // Should work on all platforms
+				Weights.WeightsEntry.TENSORFLOW_SAVED_MODEL_BUNDLE, // Should work on most platforms (not Apple Silicon)
+				Weights.WeightsEntry.ONNX, // Should work... if installed (usually isn't)
+				Weights.WeightsEntry.TENSORFLOW_JS, // Probably won't work
+				Weights.WeightsEntry.PYTORCH_STATE_DICT,
+				Weights.WeightsEntry.KERAS_HDF5)) {
 			try {
 				var weights = spec.getWeights(key);
 				if (weights == null)
@@ -157,7 +150,7 @@ public class BioimageIoTools {
 					// *Conceivably* we could support these via some as-yet-unwritten extension... but we probably don't
 					break;
 				}
-				String axes = BioimageIoSpec.getAxesString(spec.getInputs().getFirst().getAxes());
+				String axes = Axis.getAxesString(spec.getInputs().getFirst().getAxes());
 				var inputShapeMap = spec.getInputs().stream().collect(Collectors.toMap(i -> i.getName(), i -> getShape(i)));
 				var inputShape = inputShapeMap.size() == 1 ? inputShapeMap.values().iterator().next() : null; // Need a single input, otherwise can't be used for output
 				var outputShapeMap = spec.getOutputs().stream().collect(Collectors.toMap(o -> o.getName(), o -> getShape(o, inputShape)));
@@ -214,7 +207,7 @@ public class BioimageIoTools {
 	 * @param inputOps optional additional preprocessing ops to apply, before any in the model spec are added
 	 * @return A parameters object.
 	 */
-	public static PatchClassifierParams buildPatchClassifierParams(BioimageIoModel model, ImageOp... inputOps) {
+	public static PatchClassifierParams buildPatchClassifierParams(Model model, ImageOp... inputOps) {
 		return buildPatchClassifierParams(model, -1, -1, inputOps);
 	}
 	
@@ -228,7 +221,7 @@ public class BioimageIoTools {
 	 * @param inputOps optional additional preprocessing ops to apply, before any in the model spec are added
 	 * @return A parameters object.
 	 */
-	public static PatchClassifierParams buildPatchClassifierParams(BioimageIoModel modelSpec, int preferredTileWidth, int preferredTileHeight, ImageOp...inputOps) {
+	public static PatchClassifierParams buildPatchClassifierParams(Model modelSpec, int preferredTileWidth, int preferredTileHeight, ImageOp...inputOps) {
 
 		var inputs = modelSpec.getInputs();
 		if (inputs.size() != 1)
@@ -242,7 +235,7 @@ public class BioimageIoTools {
 		var output = outputs.getFirst();
 		
 		// Get dimensions and padding
-		String axes = BioimageIoSpec.getAxesString(input.getAxes());
+		String axes = Axis.getAxesString(input.getAxes());
 		int indChannels = axes.indexOf("c");
 		int indX = axes.indexOf("x");
 		int indY = axes.indexOf("y");
@@ -387,15 +380,15 @@ public class BioimageIoTools {
 	 */
 	public static ImageOp transformToOp(Processing transform) {
 		
-		if (transform instanceof Binarize binarize) {
+		if (transform instanceof Processing.Binarize binarize) {
             return ImageOps.Threshold.threshold(binarize.getThreshold());
 		}
 		
-		if (transform instanceof Clip clip) {
+		if (transform instanceof Processing.Clip clip) {
             return ImageOps.Core.clip(clip.getMin(), clip.getMax());
 		}
 		
-		if (transform instanceof ScaleLinear scale) {
+		if (transform instanceof Processing.ScaleLinear scale) {
             // TODO: Consider axes
 			return ImageOps.Core.sequential(
 					ImageOps.Core.multiply(scale.getGain()),
@@ -403,17 +396,17 @@ public class BioimageIoTools {
 					);
 		}
 
-		if (transform instanceof ScaleMeanVariance scale) {
+		if (transform instanceof Processing.ScaleMeanVariance scale) {
 			// TODO: Figure out if possible to somehow support ScaleMeanVariance
             logger.warn("Unsupported transform {} - cannot access reference tensor {}", transform, scale.getReferenceTensor());
 			return null;
 //			var mode = warnIfUnsupportedMode(transform.getName(), scale.getMode(), List.of(ProcessingMode.PER_SAMPLE));
 		}
 
-		if (transform instanceof ScaleRange scale) {
+		if (transform instanceof Processing.ScaleRange scale) {
             var mode = warnIfUnsupportedMode(transform.getName(), scale.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE));
 			assert mode == Processing.ProcessingMode.PER_SAMPLE; // TODO: Consider how to support per dataset
-			String axes = BioimageIoSpec.getAxesString(scale.getAxes());
+			String axes = Axis.getAxesString(scale.getAxes());
 			boolean perChannel = false;
 			if (axes != null)
 				perChannel = !axes.contains("c");
@@ -422,14 +415,14 @@ public class BioimageIoTools {
 			return ImageOps.Normalize.percentile(scale.getMinPercentile(), scale.getMaxPercentile(), perChannel, scale.getEps());
 		}
 
-		if (transform instanceof Sigmoid) {
+		if (transform instanceof Processing.Sigmoid) {
 			return ImageOps.Normalize.sigmoid();
 		}
 		
-		if (transform instanceof ZeroMeanUnitVariance zeroMeanUnitVariance) {
+		if (transform instanceof Processing.ZeroMeanUnitVariance zeroMeanUnitVariance) {
             var mode = warnIfUnsupportedMode(transform.getName(), zeroMeanUnitVariance.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE, Processing.ProcessingMode.FIXED));
 			if (mode == Processing.ProcessingMode.PER_SAMPLE) {
-				String axes = BioimageIoSpec.getAxesString(zeroMeanUnitVariance.getAxes());
+				String axes = Axis.getAxesString(zeroMeanUnitVariance.getAxes());
 				boolean perChannel = false;
 				if (axes != null) {
 					perChannel = !axes.contains("c");
