@@ -91,8 +91,6 @@ import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.TaskRunnerUtils;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PolygonROI;
-import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.scripting.QP;
 
 /**
@@ -771,24 +769,6 @@ public class QPEx extends QP {
 		}
 	}
 
-	/**
-	 * Simplify a set of pathObjects to a given threshold.
-	 * <p>
-	 *     See {@link ShapeSimplifier#simplifyPolygon(PolygonROI, double)} )} for details.
-	 * </p>
-	 * @param pathObjects the path objects
-	 * @param altitudeThreshold altitude value for simplification
-	 */
-	public static void simplifyAnnotations(Collection<PathAnnotationObject> pathObjects, double altitudeThreshold) {
-		for (var po: pathObjects) {
-			var pathROI = po.getROI();
-			if (pathROI instanceof PolygonROI polygonROI) {
-				pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
-			} else {
-				pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
-			}
-			po.setROI(pathROI);
-		}
-	}
+
 	
 }

@@ -37,7 +37,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * Helper methods for simplifying shapes, such removing polygon points while retaining the a similar overall 
+ * Helper methods for simplifying shapes, such removing polygon points while retaining a similar overall
  * shape at a coarser level.
  * <p>
  * This can help manage storage and performance requirements when working with large numbers of ROIs,
