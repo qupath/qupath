@@ -26,15 +26,10 @@ package qupath.lib.gui.measure;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,16 +45,8 @@ import qupath.lib.measurements.dynamic.MeasurementBuilder;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassTools;
-import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
 
 /**
  * A table data model to supply observable measurements of PathObjects.
@@ -85,10 +72,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	private final ObservableList<PathObject> list = FXCollections.observableArrayList();
 	private final FilteredList<PathObject> filterList = new FilteredList<>(list);
 
+	private final ObservableList<String> fullList = FXCollections.observableArrayList();
 	private final ObservableList<String> metadataList = FXCollections.observableArrayList();
 	private final ObservableList<String> measurementList = FXCollections.observableArrayList();
-	private final ObservableList<String> fullList = FXCollections.observableArrayList();
-	
+
 	private final Map<String, MeasurementBuilder<?>> builderMap = new LinkedHashMap<>();
 
 	/**
@@ -148,34 +135,35 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		if (!PathPrefs.maskImageNamesProperty().get())
 			builderMap.put("Image", DefaultMeasurements.createImageNameMeasurement(imageData));
 
-		var wrapper = new PathObjectListWrapper(imageData, list);
+		var wrapper = PathObjectListWrapper.create(imageData, list);
 
-		for (var builder : createDynamicMeasurements(wrapper)) {
-			builderMap.put(builder.getName(), builder);
-		}
+		List<ObjectMeasurementListBuilder> listBuilders = List.of(
+				new BasicDynamicMeasurementListBuilder(),
+				new ExtractMetadataMeasurementListBuilder(),
+				new DynamicNumericMeasurementListBuilder(),
+				new ExtractNumericMeasurementListBuilder()
+		);
 
-		for (var builder : createMetadataMeasurements(wrapper)) {
-			String name = builder.getName();;
-			if (!builderMap.containsKey(name)) {
-				builderMap.put(name, builder);
-			}
-		}
-
-		// Names for all general/string measurements
-		List<String> metadataNames = new ArrayList<>(builderMap.keySet());
-
+		List<String> metadataNames = new ArrayList<>();
 		List<String> featureNames = new ArrayList<>();
-		for (var builder : createFeatureMeasurements(wrapper)) {
-			var name = builder.getName();
-			if (!builderMap.containsKey(name)) {
-				builderMap.put(name, builder);
-				featureNames.add(name);
+		List<String> allNames = new ArrayList<>();
+		for (var builder : listBuilders) {
+			for (var measurement : builder.getMeasurements(wrapper)) {
+				String name = measurement.getName();
+				if (builderMap.containsKey(name)) {
+					logger.warn("Duplicate measurement {} - entries will be dropped", name);
+				} else {
+					builderMap.put(measurement.getName(), measurement);
+					// Before v0.6.0, we used a different approach & avoided adding ROI z/t/centroid
+					// values here
+					if (measurement.isNumericMeasurement())
+						featureNames.add(name);
+					else
+						metadataNames.add(name);
+					allNames.add(name);
+				}
 			}
 		}
-
-		// Add all names from measurement list
-		featureNames.addAll(wrapper.getFeatureNames());
-
 
 		// Update all the lists, if necessary
 		boolean changes = false;
@@ -185,344 +173,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		if (!featureNames.equals(measurementList))
 			changes = measurementList.setAll(featureNames);
 		if (changes) {
-			if (metadataList.isEmpty())
-				fullList.setAll(measurementList);
-			else {
-				fullList.setAll(metadataList);
-				fullList.addAll(measurementList);
-			}
+			fullList.setAll(allNames);
 		}
-	}
-
-
-	private static List<MeasurementBuilder<?>> createDynamicMeasurements(PathObjectListWrapper wrapper) {
-
-		List<MeasurementBuilder<?>> measurements = new ArrayList<>();
-
-		// Check if we have any annotations / TMA cores
-
-		var imageData = wrapper.getImageData();
-
-		// Include object ID if we have anything other than root objects
-		if (!wrapper.containsRootOnly())
-			measurements.add(DefaultMeasurements.OBJECT_ID);
-
-		// Include the object type
-		measurements.add(DefaultMeasurements.OBJECT_TYPE);
-
-		// Include the object displayed name
-		measurements.add(DefaultMeasurements.OBJECT_NAME);
-
-		// Include the classification
-		if (!wrapper.containsRootOnly()) {
-			measurements.add(DefaultMeasurements.CLASSIFICATION);
-			// Get the name of the containing TMA core if we have anything other than cores
-			if (imageData != null && imageData.getHierarchy().getTMAGrid() != null) {
-				measurements.add(DefaultMeasurements.TMA_CORE_NAME);
-			}
-			// Get the name of the first parent object
-			measurements.add(DefaultMeasurements.PARENT_DISPLAYED_NAME);
-		}
-
-		// Include the TMA missing status, if appropriate
-		if (wrapper.containsTMACores()) {
-			measurements.add(DefaultMeasurements.TMA_CORE_MISSING);
-		}
-
-		if (wrapper.containsAnnotationsOrDetections()) {
-			measurements.add(DefaultMeasurements.ROI_TYPE);
-		}
-
-		// Add centroids
-		if (!wrapper.containsRootOnly()) {
-			measurements.add(DefaultMeasurements.createROICentroidX(imageData));
-			measurements.add(DefaultMeasurements.createROICentroidY(imageData));
-		}
-
-		// New v0.4.0: include z and time indices
-		var serverMetadata = imageData == null ? null : imageData.getServerMetadata();
-		if (wrapper.containsMultiZ() || (wrapper.containsROIs() && serverMetadata != null && serverMetadata.getSizeZ() > 1)) {
-			measurements.add(DefaultMeasurements.ROI_Z_SLICE);
-		}
-
-		if (wrapper.containsMultiT() || (wrapper.containsROIs() && serverMetadata != null && serverMetadata.getSizeT() > 1)) {
-			measurements.add(DefaultMeasurements.ROI_TIMEPOINT);
-		}
-		return measurements;
-	}
-
-	private static synchronized List<? extends MeasurementBuilder<?>> createMetadataMeasurements(PathObjectListWrapper wrapper) {
-		return wrapper.getMetadataNames()
-				.stream()
-				.map(DefaultMeasurements::createMetadataMeasurement)
-				.toList();
-	}
-
-	private static synchronized List<MeasurementBuilder<?>> createFeatureMeasurements(PathObjectListWrapper wrapper) {
-
-		List<MeasurementBuilder<?>> measurements = new ArrayList<>();
-		
-		// Add derived measurements if we don't have only detections
-		if (wrapper.containsRoot() || wrapper.containsAnnotationsTmaCores()) {
-
-			var imageData = wrapper.getImageData();
-			boolean detectionsAnywhere = imageData == null ? wrapper.containsDetections() : !imageData.getHierarchy().getDetectionObjects().isEmpty();
-			if (detectionsAnywhere) {
-				var builder = DefaultMeasurements.createDetectionCountMeasurement(wrapper.getImageData());
-				measurements.add(builder);
-			}
-			
-			// Here, we allow TMA cores to act like annotations
-			boolean includeDensity = wrapper.containsAnnotations() || wrapper.containsTMACores();
-			measurements.addAll(getDetectionCountsMeasurements(wrapper.getImageData(), includeDensity));
-		}
-		
-		// If we have an annotation, add shape features
-		if (wrapper.containsAnnotations()) {
-			// Find all non-null annotation measurements
-			var annotationRois = wrapper.getPathObjects().stream()
-					.filter(PathObject::isAnnotation)
-					.map(PathObject::getROI)
-					.filter(Objects::nonNull)
-					.toList();
-			// Add point count, if we have any points
-			if (annotationRois.stream().anyMatch(ROI::isPoint)) {
-				measurements.add(DefaultMeasurements.ROI_NUM_POINTS);
-			}
-			// Add area & perimeter measurements, if we have any areas
-			if (annotationRois.stream().anyMatch(ROI::isArea)) {
-				measurements.add(DefaultMeasurements.createROIAreaMeasurement(wrapper.getImageData()));
-				measurements.add(DefaultMeasurements.createROIPerimeterMeasurement(wrapper.getImageData()));
-			}
-			// Add line length measurements, if we have any lines
-			if (annotationRois.stream().anyMatch(ROI::isLine)) {
-				measurements.add(DefaultMeasurements.createROILengthMeasurement(wrapper.getImageData()));
-			}
-		}
-		
-		if (wrapper.containsAnnotations() || wrapper.containsTMACores() || wrapper.containsRoot()) {
-			var pixelClassifier = getPixelLayer(wrapper.getImageData());
-			if (pixelClassifier != null) {
-				if (pixelClassifier.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION || pixelClassifier.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.PROBABILITY) {
-					var pixelManager = new PixelClassificationMeasurementManager(pixelClassifier);
-					for (String name : pixelManager.getMeasurementNames()) {
-						measurements.add(DefaultMeasurements.createLivePixelClassificationMeasurement(pixelManager, name));
-					}
-				}
-			}
-		}
-
-		return measurements;
-	}
-
-
-
-	private static List<MeasurementBuilder<?>> getDetectionCountsMeasurements(ImageData<?> imageData, boolean includeDensityMeasurements) {
-		List<MeasurementBuilder<?>> builders = new ArrayList<>();
-		if (imageData == null || imageData.getHierarchy() == null)
-			return builders;
-
-		Set<PathClass> pathClasses = PathObjectTools.getRepresentedPathClasses(imageData.getHierarchy(), PathDetectionObject.class);
-
-		pathClasses.remove(null);
-		pathClasses.remove(PathClass.NULL_CLASS);
-
-		Set<PathClass> parentIntensityClasses = new LinkedHashSet<>();
-		Set<PathClass> parentPositiveNegativeClasses = new LinkedHashSet<>();
-		for (PathClass pathClass : pathClasses) {
-			if (PathClassTools.isGradedIntensityClass(pathClass)) {
-				parentIntensityClasses.add(pathClass.getParentClass());
-				parentPositiveNegativeClasses.add(pathClass.getParentClass());
-			} else if (PathClassTools.isPositiveClass(pathClass) || PathClassTools.isNegativeClass(pathClass))
-				parentPositiveNegativeClasses.add(pathClass.getParentClass());
-		}
-
-		// Store intensity parent classes, if required
-		if (!parentPositiveNegativeClasses.isEmpty()) {
-			List<PathClass> pathClassList = new ArrayList<>(parentPositiveNegativeClasses);
-			pathClassList.remove(null);
-			pathClassList.remove(PathClass.NULL_CLASS);
-			Collections.sort(pathClassList);
-			for (PathClass pathClass : pathClassList) {
-				builders.add(DefaultMeasurements.createBaseClassCountsMeasurement(imageData, pathClass));
-			}
-		}
-
-		// We can compute counts for any PathClass that is represented
-		List<PathClass> pathClassList = new ArrayList<>(pathClasses);
-		Collections.sort(pathClassList);
-		for (PathClass pathClass : pathClassList) {
-			builders.add(DefaultMeasurements.createExactClassCountsMeasurement(imageData, pathClass));
-		}
-
-		// We can compute positive percentages if we have anything in ParentPositiveNegativeClasses
-		for (PathClass pathClass : parentPositiveNegativeClasses) {
-			builders.add(DefaultMeasurements.createPositivePercentageMeasurement(imageData, pathClass));
-		}
-		if (parentPositiveNegativeClasses.size() > 1)
-			builders.add(DefaultMeasurements.createPositivePercentageMeasurement(imageData, parentPositiveNegativeClasses.toArray(new PathClass[0])));
-
-		// We can compute H-scores and Allred scores if we have anything in ParentIntensityClasses
-		Supplier<Double> allredMinPercentage = PathPrefs.allredMinPercentagePositiveProperty()::get;
-		for (PathClass pathClass : parentIntensityClasses) {
-			builders.add(DefaultMeasurements.createHScoreMeasurement(imageData, pathClass));
-			builders.add(DefaultMeasurements.createAllredProportionMeasurement(imageData, allredMinPercentage, pathClass));
-			builders.add(DefaultMeasurements.createAllredIntensityMeasurement(imageData, allredMinPercentage, pathClass));
-			builders.add(DefaultMeasurements.createAllredMeasurement(imageData, allredMinPercentage, pathClass));
-		}
-		if (parentIntensityClasses.size() > 1) {
-			PathClass[] parentIntensityClassesArray = parentIntensityClasses.toArray(PathClass[]::new);
-			builders.add(DefaultMeasurements.createHScoreMeasurement(imageData, parentIntensityClassesArray));
-			builders.add(DefaultMeasurements.createAllredProportionMeasurement(imageData,allredMinPercentage,  parentIntensityClassesArray));
-			builders.add(DefaultMeasurements.createAllredIntensityMeasurement(imageData, allredMinPercentage, parentIntensityClassesArray));
-			builders.add(DefaultMeasurements.createAllredMeasurement(imageData, allredMinPercentage, parentIntensityClassesArray));
-		}
-
-		// Add density measurements
-		// These are only added if we have a (non-derived) positive class
-		// Additionally, these are only non-NaN if we have an annotation, or a TMA core containing a single annotation
-		if (includeDensityMeasurements) {
-			for (PathClass pathClass : pathClassList) {
-				if (PathClassTools.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass) {
-					builders.add(DefaultMeasurements.createDetectionClassDensityMeasurement(imageData, pathClass));
-				}
-			}
-		}
-		return builders;
-	}
-
-
-	/**
-	 * Helper class to wrap a collection of PathObjects that should be measured.
-	 * <p>
-	 * This provides an unmodifiable list of the objects, and performs a single pass through the objects to
-	 * determine key information that is useful for determining which measurements to show.
-	 */
-	private static class PathObjectListWrapper {
-
-		private final ImageData<?> imageData;
-		private final List<PathObject> pathObjects;
-		private final Set<String> featureNames;
-		private final Set<String> metadataNames;
-
-		private final boolean containsDetections;
-		private final boolean containsAnnotations;
-		private final boolean containsTMACores;
-		private final boolean containsRoot;
-		private final boolean containsMultiZ;
-		private final boolean containsMultiT;
-		private final boolean containsROIs;
-
-		private PathObjectListWrapper(ImageData<?> imageData, Collection<? extends PathObject> pathObjects) {
-			this.imageData = imageData;
-			this.pathObjects = List.copyOf(pathObjects);
-
-			boolean containsDetections = false;
-			boolean containsAnnotations = false;
-			boolean containsTMACores = false;
-			boolean containsRoot = false;
-			boolean containsMultiZ = false;
-			boolean containsMultiT = false;
-			boolean containsROIs = false;
-			var featureNames = new LinkedHashSet<String>();
-			var metadataNames = new LinkedHashSet<String>();
-			List<PathObject> pathObjectListCopy = new ArrayList<>(pathObjects);
-			for (PathObject temp : pathObjectListCopy) {
-				// Add feature names from the measurement list
-				featureNames.addAll(temp.getMeasurementList().getNames());
-				// Add metadata names
-				metadataNames.addAll(temp.getMetadata().keySet());
-				// Update info for ROIs and types
-				if (temp.hasROI())
-					containsROIs = true;
-				if (temp instanceof PathAnnotationObject) {
-					containsAnnotations = true;
-				} else if (temp instanceof TMACoreObject) {
-					containsTMACores = true;
-				} else if (temp instanceof PathDetectionObject) {
-					containsDetections = true;
-				} else if (temp.isRootObject())
-					containsRoot = true;
-				var roi = temp.getROI();
-				if (roi != null) {
-					if (roi.getZ() > 0)
-						containsMultiZ = true;
-					if (roi.getT() > 0)
-						containsMultiT = true;
-				}
-			}
-
-			this.containsDetections = containsDetections;
-			this.containsAnnotations = containsAnnotations;
-			this.containsTMACores = containsTMACores;
-			this.containsROIs = containsROIs;
-			this.containsRoot = containsRoot;
-			this.containsMultiT = containsMultiT;
-			this.containsMultiZ = containsMultiZ;
-
-			this.featureNames = Collections.unmodifiableSequencedSet(featureNames);
-			// Metadata keys starting with _ shouldn't be displayed to the user
-			metadataNames.removeIf(m -> m.startsWith("_"));
-			this.metadataNames = Collections.unmodifiableSequencedSet(metadataNames);
-		}
-
-		ImageData<?> getImageData() {
-			return imageData;
-		}
-
-		List<PathObject> getPathObjects() {
-			return pathObjects;
-		}
-
-		Set<String> getFeatureNames() {
-			return featureNames;
-		}
-
-		Set<String> getMetadataNames() {
-			return metadataNames;
-		}
-
-		boolean containsDetections() {
-			return containsDetections;
-		}
-
-		boolean containsAnnotations() {
-			return containsAnnotations;
-		}
-
-		boolean containsAnnotationsOrDetections() {
-			return containsAnnotations || containsDetections;
-		}
-
-		boolean containsAnnotationsTmaCores() {
-			return containsAnnotations || containsTMACores;
-		}
-
-		boolean containsRootOnly() {
-			return containsRoot && !containsAnnotations && !containsDetections && !containsTMACores &&
-					pathObjects.stream().allMatch(PathObject::isRootObject);
-		}
-
-		boolean containsTMACores() {
-			return containsTMACores;
-		}
-
-		boolean containsROIs() {
-			return containsROIs;
-		}
-
-		boolean containsRoot() {
-			return containsRoot;
-		}
-
-		boolean containsMultiT() {
-			return containsMultiT;
-		}
-
-		boolean containsMultiZ() {
-			return containsMultiZ;
-		}
-
 	}
 
 

@@ -22,7 +22,7 @@ class StringMetadataMeasurementBuilder implements StringMeasurementBuilder {
 
     @Override
     public String getValue(PathObject pathObject) {
-        if (pathObject != null) {
+        if (pathObject != null && pathObject.hasMetadata()) {
             return pathObject.getMetadata().getOrDefault(name, null);
         }
         return null;

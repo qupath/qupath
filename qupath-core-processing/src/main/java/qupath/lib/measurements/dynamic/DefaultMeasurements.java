@@ -150,6 +150,10 @@ public class DefaultMeasurements {
         return new StringMetadataMeasurementBuilder(name);
     }
 
+    public static NumericMeasurementBuilder createMeasurementListMeasurement(String name) {
+        return new ExtractMeasurementListBuilder(name);
+    }
+
 
     public static NumericMeasurementBuilder createHScoreMeasurement(
             ImageData<?> imageData,
