@@ -1725,8 +1725,7 @@ public class Commands {
 		PathObjectTools.convertToPoints(hierarchy, pathObjects, preferNucleus, deleteDetections);
 		imageData.getHistoryWorkflow().addStep(
 				new DefaultScriptableWorkflowStep("Convert detections to points",
-						String.format("PathObjectTools.convertToPoints(imageData.getHierarchy(), imageData.getHierarchy().getDetectionObjects(), %b, %b)",
-								preferNucleus, deleteDetections)
+						String.format("PathObjectTools.convertToPoints(getCurrentHierarchy(), getDetectionObjects(), %b, %b)", preferNucleus, deleteDetections)
 				)
 		);
 	}
