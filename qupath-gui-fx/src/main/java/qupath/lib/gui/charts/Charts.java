@@ -559,6 +559,7 @@ public class Charts {
 		
 		private Integer DEFAULT_MAX_DATAPOINTS = 10_000;
 		private Integer maxDatapoints;
+		private Random rnd = new Random();
 
 		private ScatterChartBuilder() {}
 		
@@ -597,7 +598,17 @@ public class Charts {
 		protected String getDefaultWindowTitle() {
 			return "Scatter Chart";
 		}
-		
+
+		/**
+		 * Set the random number generator.
+		 * @param rnd A random number generator
+		 * @return A modified builder.
+		 */
+		public ScatterChartBuilder random(Random rnd) {
+			this.rnd = rnd;
+			return this;
+		}
+
 		/**
 		 * Plot centroids for the specified objects using a fixed pixel calibration.
 		 * @param pathObjects the objects to plot
@@ -640,10 +651,11 @@ public class Charts {
 					(PathObject p) -> p.getMeasurementList().get(xMeasurement),
 					(PathObject p) -> p.getMeasurementList().get(yMeasurement));
 		}
-		
+
+
 		/**
 		 * Plot values extracted from objects within a specified collection.
-		 * @param <T>
+		 * @param <T> The type of input for X and Y.
 		 * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param collection the objects to plot
 		 * @param xFun function capable of extracting a numeric value for the x location from each object in the collection
@@ -660,14 +672,14 @@ public class Charts {
 		/**
 		 * Create a scatterplot using collections of numeric values.
 		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
-		 * @param x
-		 * @param y
+		 * @param x The x variable
+		 * @param y The y variable
 		 * @return this builder
 		 */
 		public ScatterChartBuilder series(String name, Collection<? extends Number> x, Collection<? extends Number> y) {
 			return series(name,
-					x.stream().mapToDouble(xx -> xx.doubleValue()).toArray(),
-					y.stream().mapToDouble(yy -> yy.doubleValue()).toArray());
+					x.stream().mapToDouble(Number::doubleValue).toArray(),
+					y.stream().mapToDouble(Number::doubleValue).toArray());
 		}
 		
 		/**
@@ -683,7 +695,7 @@ public class Charts {
 		
 		/**
 		 * Create a scatterplot using collections of numeric values, with an associated custom object.
-		 * @param <T>
+		 * @param <T> The type of custom object.
 		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
@@ -696,7 +708,7 @@ public class Charts {
 		
 		/**
 		 * Create a scatterplot using collections of numeric values, with an associated custom object.
-		 * @param <T>
+		 * @param <T> The type of custom object.
 		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
@@ -721,15 +733,11 @@ public class Charts {
 		 * @return this builder
 		 */
 		public ScatterChartBuilder series(String name, Collection<Data<Number, Number>> data) {
-			int n;
-			if (maxDatapoints == null) {
-				n = DEFAULT_MAX_DATAPOINTS;
-			} else
-				n = maxDatapoints.intValue();
+			int n = maxDatapoints == null ? DEFAULT_MAX_DATAPOINTS : maxDatapoints;
 			if (data.size() > n) {
 				logger.warn("Subsampling {} data points to {}", data.size(), n);
 				var list = new ArrayList<>(data);
-				Collections.shuffle(list);
+				Collections.shuffle(list, rnd);
 				data = list.subList(0, n);
 			}
 			if (data instanceof ObservableList)

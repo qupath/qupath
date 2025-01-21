@@ -34,18 +34,15 @@ import javafx.beans.property.Property;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.util.Callback;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.HistogramChart.HistogramData;
@@ -67,17 +64,17 @@ public class HistogramDisplay implements ParameterChangeListener {
 	static final Logger logger = LoggerFactory.getLogger(HistogramDisplay.class);
 
 	private PathTableData<?> model;
-	private BorderPane pane = new BorderPane();
+	private final BorderPane pane = new BorderPane();
 
-	private ComboBox<String> comboName = new ComboBox<>();
-	private HistogramChart histogramChart = new HistogramChart();
-	private ParameterPanelFX panelParams;
+	private final ComboBox<String> comboName = new ComboBox<>();
+	private final HistogramChart histogramChart = new HistogramChart();
+	private final ParameterPanelFX panelParams;
 
 	private int currentBins;
 	private double[] currentValues;
 	private String currentColumn = null;
 
-	private ParameterList params = new ParameterList()
+	private final ParameterList paramsHistogram = new ParameterList()
 			.addChoiceParameter("countsTransform", "Counts",
 					HistogramChart.CountsTransformMode.RAW, Arrays.asList(HistogramChart.CountsTransformMode.values()),
 					"Normalize counts (probability distribution)")
@@ -85,7 +82,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 			.addBooleanParameter("drawGrid", "Draw grid", true, "Draw grid")
 			.addBooleanParameter("drawAxes", "Draw axes", true, "Draw axes")
 			.addBooleanParameter("animate", "Animate changes", false, "Animate changes");
-	private TableView<Property<Number>> table = new TableView<>();
+	private final TableView<Property<Number>> table = new TableView<>();
 
 	/**
 	 * Constructor.
@@ -114,19 +111,9 @@ public class HistogramDisplay implements ParameterChangeListener {
 
 		
 		TableColumn<Property<Number>, String> colName = new TableColumn<>("Measurement");
-		colName.setCellValueFactory(new Callback<>() {
-            @Override
-            public ObservableValue<String> call(CellDataFeatures<Property<Number>, String> p) {
-                return new SimpleStringProperty(p.getValue().getName());
-            }
-        });
+		colName.setCellValueFactory(p -> new SimpleStringProperty(p.getValue().getName()));
 		TableColumn<Property<Number>, Number> colValue = new TableColumn<>("Value");
-		colValue.setCellValueFactory(new Callback<>() {
-            @Override
-            public ObservableValue<Number> call(CellDataFeatures<Property<Number>, Number> p) {
-                return p.getValue();
-            }
-        });
+		colValue.setCellValueFactory(p -> p.getValue());
 		colValue.setCellFactory(column -> {
 			return new TableCell<>() {
                 @Override
@@ -146,9 +133,11 @@ public class HistogramDisplay implements ParameterChangeListener {
 		});
 		table.getColumns().add(colName);
 		table.getColumns().add(colValue);
-		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 		table.maxHeightProperty().bind(table.prefHeightProperty());
-
+		table.setPrefHeight(180);
+		table.setMinWidth(100);
+		table.setStyle("-fx-font-size: 0.8em");
 
 		BorderPane panelMain = new BorderPane();
 		panelMain.setCenter(histogramChart);
@@ -156,19 +145,15 @@ public class HistogramDisplay implements ParameterChangeListener {
 		comboName.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			setHistogram(model, n);
 		});
+		histogramChart.setShowTickLabels(paramsHistogram.getBooleanParameterValue("drawAxes"));
 
-		histogramChart.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
 
-
-		panelParams = new ParameterPanelFX(params);
+		panelParams = new ParameterPanelFX(paramsHistogram);
 		panelParams.addParameterChangeListener(this);
 		panelParams.getPane().setPadding(new Insets(20, 5, 5, 5));
 		panelParams.getPane().setMinWidth(Pane.USE_PREF_SIZE);
 		updateTable(null);
 
-		table.setPrefHeight(180);
-		table.setMinWidth(100);
-		table.setStyle("-fx-font-size: 0.8em");
 //		var panelSouth = PaneTools.createColumnGrid(panelParams.getPane(), table);
 		
 		GridPane panelSouth = new GridPane();
@@ -207,24 +192,28 @@ public class HistogramDisplay implements ParameterChangeListener {
 	 * Set the number of bins for the histogram.
 	 * @param nBins the number of bins to use
 	 */
-	public void setNumBins(final int nBins) {
+	public void setNumBins(int nBins) {
+		if (nBins > 1e5) {
+			logger.warn("nBins set to strange value {}; resetting to 32.", nBins);
+			nBins = 32;
+		}
 		if (panelParams != null)
 			panelParams.setNumericParameterValue("nBins", nBins);
 		else
-			((IntParameter)params.getParameters().get("nBins")).setValue(nBins);
+			((IntParameter) paramsHistogram.getParameters().get("nBins")).setValue(nBins);
 	}
 
 	/**
 	 * Get the requested number of bins used for the histogram.
-	 * @return
+	 * @return The number of bins
 	 */
 	public int getNumBins() {
-		return params.getIntParameterValue("nBins");
+		return paramsHistogram.getIntParameterValue("nBins");
 	}
 
 	/**
 	 * Get the pane containing the histogram and associated UI components, for addition to a scene.
-	 * @return
+	 * @return The pane
 	 */
 	public Pane getPane() {
 		return pane;
@@ -233,7 +222,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 	void setHistogram(final PathTableData<?> model, final String columnName) {
 		if (model != null && model.getMeasurementNames().contains(columnName)) {
 			double[] values = model.getDoubleValues(columnName);
-			int nBins = params.getIntParameterValue("nBins");
+			int nBins = paramsHistogram.getIntParameterValue("nBins");
 			if (nBins < 2)
 				nBins = 2;
 			else if (nBins > 1000)
@@ -250,7 +239,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 //			histogram.setNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
 
 			HistogramData histogramData = HistogramChart.createHistogramData(histogram, (Integer)null);
-			updateCountsTransform(histogramChart, params);
+			updateCountsTransform(histogramChart, paramsHistogram);
 			histogramChart.getHistogramData().setAll(histogramData);
 
 
@@ -265,7 +254,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 			histogramChart.getXAxis().setTickLabelsVisible(true);
 			histogramChart.getXAxis().setTickMarkVisible(true);
 
-			histogramChart.setAnimated(params.getBooleanParameterValue("animate"));
+			histogramChart.setAnimated(paramsHistogram.getBooleanParameterValue("animate"));
 
 			updateTable(histogram);
 
@@ -316,14 +305,14 @@ public class HistogramDisplay implements ParameterChangeListener {
 		if ("countsTransform".equals(key)) {
 			updateCountsTransform(histogramChart, parameterList);
 		} else if ("drawGrid".equals(key)) {
-			histogramChart.setHorizontalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
-			histogramChart.setVerticalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
+			histogramChart.setHorizontalGridLinesVisible(paramsHistogram.getBooleanParameterValue("drawGrid"));
+			histogramChart.setVerticalGridLinesVisible(paramsHistogram.getBooleanParameterValue("drawGrid"));
 		} else if ("drawAxes".equals(key)) {
-			histogramChart.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
+			histogramChart.setShowTickLabels(paramsHistogram.getBooleanParameterValue("drawAxes"));
 		} else if ("nBins".equals(key)) {
 			setHistogram(model, comboName.getSelectionModel().getSelectedItem());
 		} else if ("animate".equals(key)) {
-			histogramChart.setAnimated(params.getBooleanParameterValue("animate"));
+			histogramChart.setAnimated(paramsHistogram.getBooleanParameterValue("animate"));
 		}
 	}
 
@@ -341,7 +330,6 @@ public class HistogramDisplay implements ParameterChangeListener {
 			table.getItems().setAll(stats);
 			return;
 		}
-
 		List<Property<Number>> stats = new ArrayList<>();
 		stats.add(new SimpleLongProperty(null, "Count", histogram.nValues()));
 		stats.add(new SimpleLongProperty(null, "Missing", histogram.nMissingValues()));
@@ -351,6 +339,5 @@ public class HistogramDisplay implements ParameterChangeListener {
 		stats.add(new SimpleDoubleProperty(null, "Max", histogram.getMaxValue()));
 		table.getItems().setAll(stats);
 	}
-
 
 }
