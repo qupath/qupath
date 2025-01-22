@@ -103,6 +103,9 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import qupath.ext.extensionmanager.core.ExtensionCatalogManager;
+import qupath.ext.extensionmanager.core.savedentities.Registry;
+import qupath.ext.extensionmanager.core.savedentities.SavedCatalog;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
@@ -200,7 +203,7 @@ public class QuPathGUI {
 	private ViewerManager viewerManager;
 	private PathClassManager pathClassManager;
 	private UpdateManager updateManager;
-	private ExtensionManager extensionManager;
+	private final ExtensionCatalogManager extensionCatalogManager;
 
 	private QuPathMainPaneManager mainPaneManager;
 	private UndoRedoManager undoRedoManager;
@@ -272,7 +275,6 @@ public class QuPathGUI {
 		viewerManager = ViewerManager.create(this);
 		pathClassManager = PathClassManager.create();
 		updateManager = UpdateManager.create(this);
-		extensionManager = ExtensionManager.create(this);
 		dragAndDrop = new DragDropImportListener(this);
 		noImageData = imageDataProperty().isNull();
 		titleBinding = createTitleBinding();
@@ -343,15 +345,27 @@ public class QuPathGUI {
 		// Install extensions
 		timeit.checkpoint("Adding extensions");
 		new QP(); // Ensure initialized
-		extensionManager.refreshExtensions(false);
-		
-		// Add scripts menu (delayed to here, since it takes a bit longer)
+		extensionCatalogManager = new ExtensionCatalogManager(
+				UserDirectoryManager.getInstance().extensionsDirectoryProperty(),
+				QuPathGUI.class.getClassLoader(),
+				String.format("v%s", BuildInfo.getInstance().getVersion().toString()),
+				new Registry(List.of(new SavedCatalog(
+						"QuPath catalog",
+						"Extensions maintained by the QuPath team",
+						URI.create("https://github.com/qupath/qupath-catalog"),
+						URI.create("https://raw.githubusercontent.com/qupath/qupath-catalog/refs/heads/main/catalog.json"),
+						false
+				)))
+		);
+		ExtensionLoader.loadFromManager(extensionCatalogManager, this);
+
+                // Add scripts menu (delayed to here, since it takes a bit longer)
 		timeit.checkpoint("Adding script menus");
 		
 		// Menus should now be complete - try binding visibility
 		timeit.checkpoint("Updating menu item visibility");
 		menuVisibilityManager = MenuItemVisibilityManager.createMenubarVisibilityManager(menuBar);
-		menuVisibilityManager.ignorePredicateProperty().bind(menusInitializing.or(extensionManager.refreshingExtensions()));
+		menuVisibilityManager.ignorePredicateProperty().bind(menusInitializing);
 		
 		// Populating the scripting menu is slower, so delay it until now
 		populateScriptingMenu(getMenu(QuPathResources.getString("Menu.Automate"), false));
@@ -1188,16 +1202,14 @@ public class QuPathGUI {
 	public SharedThreadPoolManager getThreadPoolManager() {
 		return threadPoolManager;
 	}
-	
-	
+
 	/**
-	 * Get an {@link ExtensionManager} to facilitating working with extensions.
-	 * @return
+	 * @return the {@link ExtensionCatalogManager} that manage catalogs and extensions of this
+	 * QuPath GUI
 	 */
-	public ExtensionManager getExtensionManager() {
-		return extensionManager;
+	public ExtensionCatalogManager getExtensionCatalogManager() {
+		return extensionCatalogManager;
 	}
-	
 	
 	/**
 	 * Get the viewer manager, which gives access to all the viewers available within this QuPath instance.
