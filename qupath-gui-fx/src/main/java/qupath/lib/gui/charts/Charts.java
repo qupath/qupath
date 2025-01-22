@@ -564,14 +564,14 @@ public class Charts {
 		private ScatterChartBuilder() {}
 		
 		/**
-		 * Choose the maximum number of supported datapoints.
+		 * Choose the maximum number of supported datapoints per series.
 		 * Scattercharts are rather 'heavyweight', and including many thousands of datapoints can cause 
 		 * severe performance issues due to high processing and memory requirements.
 		 * <p>
 		 * By default, datapoints will be randomly subsampled to a 'manageable number' where necessary, 
 		 * which can be customized with this setting.
 		 * 
-		 * @param max the maximum number of data points to show
+		 * @param max the maximum number of data points to show per series
 		 * @return this builder
 		 * 
 		 * @see #unlimitedDatapoints()
