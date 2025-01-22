@@ -14,6 +14,9 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
 
+/**
+ * A wrapper around {@link ScatterPlotChart} for displaying data about PathObject measurements.
+ */
 public class ScatterPlotDisplay implements ParameterChangeListener {
 
     private final PathTableData<PathObject> model;
@@ -21,15 +24,19 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
     private final ComboBox<String> comboNameY = new ComboBox<>();
     private final BorderPane pane = new BorderPane();
     private final ParameterList paramsScatter = new ParameterList()
-            .addIntParameter("nPoints", "Max number of points", 10000, null, "Maximum number of points to be drawn (>=1)")
+            .addIntParameter("nPoints", "Max number of points", 10000, null,  "Maximum number of points to be drawn (>=1)")
             .addIntParameter("randomSeed", "Random seed", 42, null, "Random seed for point subsampling")
-            .addBooleanParameter("drawGrid", "Draw grid", true, "Draw grid")
-            .addBooleanParameter("drawAxes", "Draw axes", true, "Draw axes")
-            .addDoubleParameter("pointOpacity", "Point opacity", 1)
+            .addBooleanParameter("drawGrid", "Draw grid", true, "Whether to draw gridlines on the plot")
+            .addBooleanParameter("drawAxes", "Draw axes", true, "Whether to draw axis ticks on the plot")
+            .addDoubleParameter("pointOpacity", "Point opacity", 1, null, "The opacity of points displayed on the plot.")
             .addDoubleParameter("pointSize", "Point size", 4);
     private final ScatterPlotChart scatter;
 
 
+    /**
+     * Create a scatter plot from a table of PathObject measurements.
+     * @param model The table containing measurements
+     */
     public ScatterPlotDisplay(PathTableData<PathObject> model) {
         this.model = model;
         comboNameX.getItems().setAll(model.getMeasurementNames());
@@ -122,6 +129,9 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
         }
     }
 
+    /**
+     * Refresh the scatter plot, in case the underlying data has been updated.
+     */
     public void refreshScatterPlot() {
         scatter.setDataFromMeasurements(model.getItems(), comboNameX.getValue(), comboNameY.getValue());
     }

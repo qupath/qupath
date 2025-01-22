@@ -7,8 +7,8 @@ target/
 log/
 
 # Config
-include-extra*
-include-extra.*
+include-extra.properties
+include-extra.properties
 
 # IntelliJ
 .idea/

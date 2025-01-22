@@ -29,6 +29,9 @@ import java.util.List;
 import java.util.Random;
 import java.util.function.Function;
 
+/**
+ * A scatter plot wrapping the JavaFX chart {@link ScatterChart} to add functionality like
+ */
 public class ScatterPlotChart extends ScatterChart<Number, Number> {
     private final IntegerProperty rngSeed = new SimpleIntegerProperty(42);
     private final DoubleProperty pointOpacity = new SimpleDoubleProperty(1);
@@ -42,27 +45,10 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
     private final ObservableList<Series<Number, Number>> series = FXCollections.observableArrayList(); // the data that are plotted
     private final QuPathViewer viewer;
 
-
-    public void setMaxPoints(int maxPoints) {
-        this.maxPoints.set(maxPoints);
-    }
-    public void setDrawGrid(boolean drawGrid) {
-        this.drawGrid.set(drawGrid);
-    }
-    public void setDrawAxes(boolean drawAxes) {
-        this.drawAxes.set(drawAxes);
-    }
-    public void setRNG(int rngSeed) {
-        this.rngSeed.set(rngSeed);
-    }
-    public void setPointOpacity(double pointOpacity) {
-        this.pointOpacity.set(pointOpacity);
-    }
-    public void setPointSize(double pointSize) {
-        this.pointSize.set(pointSize);
-    }
-
-
+    /**
+     * Create an interactive scatter plot using the current viewer
+     * @param viewer The QuPath viewer.
+     */
     public ScatterPlotChart(QuPathViewer viewer) {
         super(new NumberAxis(), new NumberAxis());
         this.viewer = viewer;
@@ -77,6 +63,9 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
             getYAxis().setTickLabelsVisible(newV);
         });
         maxPoints.addListener((obs, oldV, newV) -> {
+            if (newV.intValue() < 0) {
+                maxPoints.set(0);
+            }
             resampleAndUpdate();
         });
         xLabel.addListener((obs, oldV, newV) -> {
@@ -99,20 +88,87 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
         resampleAndUpdate();
     }
 
-    public void resampleAndUpdate() {
+    /**
+     * Set the maximum number of points that the plot will display.
+     * Subsampling will be used to ensure only this number of points or fewer are displayed.
+     * @param maxPoints The maximum number of elements
+     */
+    public void setMaxPoints(int maxPoints) {
+        this.maxPoints.set(maxPoints);
+    }
+
+    /**
+     * Set whether gridlines are drawn on the plot.
+     * @param drawGrid Whether gridlines are drawn on the plot.
+     */
+    public void setDrawGrid(boolean drawGrid) {
+        this.drawGrid.set(drawGrid);
+    }
+
+    /**
+     * Set whether gridlines are drawn on the plot.
+     * @param drawAxes Whether axis ticks are drawn on the plot.
+     */
+    public void setDrawAxes(boolean drawAxes) {
+        this.drawAxes.set(drawAxes);
+    }
+
+    /**
+     * Set the RNG seed for subsampling
+     * @param rngSeed The random number generator seed
+     */
+    public void setRNG(int rngSeed) {
+        this.rngSeed.set(rngSeed);
+    }
+
+    /**
+     * Set point opacity
+     * @param pointOpacity the point opacity
+     */
+    public void setPointOpacity(double pointOpacity) {
+        this.pointOpacity.set(pointOpacity);
+    }
+
+    /**
+     * Set point size
+     * @param pointSize the point size
+     */
+    public void setPointSize(double pointSize) {
+        this.pointSize.set(pointSize);
+    }
+
+    /**
+     * Set the X axis title.
+     * @param value The axis label
+     */
+    public void xLabel(String value) {
+        this.xLabel.set(value);
+    }
+
+    /**
+     * Set the Y axis title
+     * @param value The axis label
+     */
+    public void yLabel(String value) {
+        this.yLabel.set(value);
+    }
+
+    private void resampleAndUpdate() {
         Collections.shuffle(data, new Random(rngSeed.get()));
         series.getFirst().getData().clear();
         series.getFirst().getData().setAll(data.subList(0, Math.min(maxPoints.get(), data.size())));
         updateChart();
     }
 
-    public void setDataFromMeasurements(Collection<PathObject> pathObjects, String xMeas, String yMeas) {
+    void setDataFromMeasurements(Collection<PathObject> pathObjects, String xMeas, String yMeas) {
         xLabel(xMeas);
         yLabel(yMeas);
         this.data.clear();
         this.data.addAll(measurements(pathObjects, xMeas, yMeas).getData());
         resampleAndUpdate();
     }
+
+
 
     /**
      * Create a data series from two measurements for the specified objects.
@@ -121,7 +177,7 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
      * @param yMeasurement the measurement to extract from each object's measurement list for the y location
      * @return a series of data
      */
-    private Series<Number, Number> measurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement) {
+    private static Series<Number, Number> measurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement) {
         return series(
                 null,
                 pathObjects,
@@ -214,16 +270,33 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
      * @param data the data points to plot
      * @return a series of data
      */
-    public static Series<Number, Number> series(String name, Collection<Data<Number, Number>> data) {
+    private static Series<Number, Number> series(String name, Collection<Data<Number, Number>> data) {
         return new XYChart.Series<>(name, FXCollections.observableArrayList(data));
     }
 
-    public void xLabel(String value) {
-        this.xLabel.set(value);
-    }
-
-    public void yLabel(String value) {
-        this.yLabel.set(value);
+    /**
+     *
+     * Try to select an object if possible (e.g. because a user clicked on it).
+     * @param pathObject the object to select
+     * @param addToSelection if true, add to an existing selection; if false, reset any current selection
+     * @param centerObject if true, try to center it in a viewer (if possible)
+     */
+    private static void tryToSelect(PathObject pathObject, ImageData<?> imageData, QuPathViewer viewer, boolean addToSelection, boolean centerObject) {
+        PathObjectHierarchy hierarchy = null;
+        if (imageData != null)
+            hierarchy = imageData.getHierarchy();
+        else if (viewer != null)
+            hierarchy = viewer.getHierarchy();
+        if (hierarchy == null)
+            return;
+        if (addToSelection)
+            hierarchy.getSelectionModel().selectObjects(Collections.singletonList(pathObject));
+        else
+            hierarchy.getSelectionModel().setSelectedObject(pathObject);
+        if (centerObject && viewer != null) {
+            var roi = pathObject.getROI();
+            viewer.setCenterPixelLocation(roi.getCentroidX(), roi.getCentroidY());
+        }
     }
 
     protected void updateChart() {
@@ -259,29 +332,6 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
         requestChartLayout(); // this ensure CSS resizing is actually applied...
     }
 
-    /**
-     *
-     * Try to select an object if possible (e.g. because a user clicked on it).
-     * @param pathObject the object to select
-     * @param addToSelection if true, add to an existing selection; if false, reset any current selection
-     * @param centerObject if true, try to center it in a viewer (if possible)
-     */
-    private static void tryToSelect(PathObject pathObject, ImageData<?> imageData, QuPathViewer viewer, boolean addToSelection, boolean centerObject) {
-        PathObjectHierarchy hierarchy = null;
-        if (imageData != null)
-            hierarchy = imageData.getHierarchy();
-        else if (viewer != null)
-            hierarchy = viewer.getHierarchy();
-        if (hierarchy == null)
-            return;
-        if (addToSelection)
-            hierarchy.getSelectionModel().selectObjects(Collections.singletonList(pathObject));
-        else
-            hierarchy.getSelectionModel().setSelectedObject(pathObject);
-        if (centerObject && viewer != null) {
-            var roi = pathObject.getROI();
-            viewer.setCenterPixelLocation(roi.getCentroidX(), roi.getCentroidY());
-        }
-    }
+
 
 }
