@@ -14,6 +14,8 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.ScatterChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.input.MouseEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -30,9 +32,11 @@ import java.util.Random;
 import java.util.function.Function;
 
 /**
- * A scatter plot wrapping the JavaFX chart {@link ScatterChart} to add functionality like
+ * A scatter plot wrapping the JavaFX chart {@link ScatterChart} to add functionality like changing point size/opacity, selecting PathObjects in a QuPath viewer.
  */
 public class ScatterPlotChart extends ScatterChart<Number, Number> {
+
+    private static final Logger logger = LoggerFactory.getLogger(ScatterPlotChart.class);
     private final IntegerProperty rngSeed = new SimpleIntegerProperty(42);
     private final DoubleProperty pointOpacity = new SimpleDoubleProperty(1);
     private final DoubleProperty pointSize = new SimpleDoubleProperty(5);
@@ -160,144 +164,15 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
         updateChart();
     }
 
-    void setDataFromMeasurements(Collection<PathObject> pathObjects, String xMeas, String yMeas) {
-        xLabel(xMeas);
-        yLabel(yMeas);
+    void setDataFromMeasurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement) {
+        xLabel(xMeasurement);
+        yLabel(yMeasurement);
         this.data.clear();
-        this.data.addAll(measurements(pathObjects, xMeas, yMeas).getData());
+        this.data.addAll(Charts.ScatterChartBuilder.createSeriesFromMeasurements(pathObjects, xMeasurement, yMeasurement).getData());
         resampleAndUpdate();
     }
 
 
-
-    /**
-     * Create a data series from two measurements for the specified objects.
-     * @param pathObjects the objects to plot
-     * @param xMeasurement the measurement to extract from each object's measurement list for the x location
-     * @param yMeasurement the measurement to extract from each object's measurement list for the y location
-     * @return a series of data
-     */
-    private static Series<Number, Number> measurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement) {
-        return series(
-                null,
-                pathObjects,
-                (PathObject p) -> p.getMeasurementList().get(xMeasurement),
-                (PathObject p) -> p.getMeasurementList().get(yMeasurement));
-    }
-
-
-    /**
-     * Create a data series extracted from objects within a specified collection.
-     *
-     * @param <T>        The type of input for X and Y.
-     * @param name       the name of the data series (useful if multiple series will be plotted, otherwise may be null)
-     * @param collection the objects to plot
-     * @param xFun       function capable of extracting a numeric value for the x location from each object in the collection
-     * @param yFun       function capable of extracting a numeric value for the y location from each object in the collection
-     * @return a series of data
-     */
-    private static <T> Series<Number, Number> series(String name, Collection<? extends T> collection, Function<T, Number> xFun, Function<T, Number> yFun) {
-        return series(name,
-                collection.stream()
-                        .map(p -> new XYChart.Data<>(xFun.apply(p), yFun.apply(p), p))
-                        .toList());
-    }
-
-    /**
-     * Create a series using collections of numeric values.
-     *
-     * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
-     * @param x    The x variable
-     * @param y    The y variable
-     * @return a series of data
-     */
-    private static Series<Number, Number> series(String name, Collection<? extends Number> x, Collection<? extends Number> y) {
-        return series(name,
-                x.stream().mapToDouble(Number::doubleValue).toArray(),
-                y.stream().mapToDouble(Number::doubleValue).toArray());
-    }
-
-    /**
-     * Create a scatterplot using arrays of numeric values.
-     *
-     * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
-     * @param x    x-values
-     * @param y    y-values
-     * @return a series of data
-     */
-    private static Series<Number, Number> series(String name, double[] x, double[] y) {
-        return series(name, x, y, (List<?>)null);
-    }
-
-    /**
-     * Create a series of data using collections of numeric values, with an associated custom object.
-     *
-     * @param <T>   The type of custom object.
-     * @param name  the name of the data series (useful if multiple series will be plotted, otherwise may be null)
-     * @param x     x-values
-     * @param y     y-values
-     * @param extra array of values to associate with each data point; should be the same length as x and y
-     * @return a series of data
-     */
-    private static <T> Series<Number, Number> series(String name, double[] x, double[] y, T[] extra) {
-        return series(name, x, y, extra == null ? null : Arrays.asList(extra));
-    }
-
-    /**
-     * Create a scatterplot using collections of numeric values, with an associated custom object.
-     *
-     * @param <T>   The type of custom object.
-     * @param name  the name of the data series (useful if multiple series will be plotted, otherwise may be null)
-     * @param x     x-values
-     * @param y     y-values
-     * @param extra list of values to associate with each data point; should be the same length as x and y
-     * @return a series of data
-     */
-    private static <T> Series<Number, Number> series(String name, double[] x, double[] y, List<T> extra) {
-        List<Data<Number, Number>> data = new ArrayList<>();
-        for (int i = 0; i < x.length; i++) {
-            if (extra != null && i < extra.size())
-                data.add(new Data<>(x[i], y[i], extra.get(i)));
-            else
-                data.add(new Data<>(x[i], y[i]));
-        }
-        return series(name, data);
-    }
-
-    /**
-     * Create a series of data from existing data sets.
-     * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
-     * @param data the data points to plot
-     * @return a series of data
-     */
-    private static Series<Number, Number> series(String name, Collection<Data<Number, Number>> data) {
-        return new XYChart.Series<>(name, FXCollections.observableArrayList(data));
-    }
-
-    /**
-     *
-     * Try to select an object if possible (e.g. because a user clicked on it).
-     * @param pathObject the object to select
-     * @param addToSelection if true, add to an existing selection; if false, reset any current selection
-     * @param centerObject if true, try to center it in a viewer (if possible)
-     */
-    private static void tryToSelect(PathObject pathObject, ImageData<?> imageData, QuPathViewer viewer, boolean addToSelection, boolean centerObject) {
-        PathObjectHierarchy hierarchy = null;
-        if (imageData != null)
-            hierarchy = imageData.getHierarchy();
-        else if (viewer != null)
-            hierarchy = viewer.getHierarchy();
-        if (hierarchy == null)
-            return;
-        if (addToSelection)
-            hierarchy.getSelectionModel().selectObjects(Collections.singletonList(pathObject));
-        else
-            hierarchy.getSelectionModel().setSelectedObject(pathObject);
-        if (centerObject && viewer != null) {
-            var roi = pathObject.getROI();
-            viewer.setCenterPixelLocation(roi.getCentroidX(), roi.getCentroidY());
-        }
-    }
 
     protected void updateChart() {
         setLegendVisible(false);
@@ -319,7 +194,7 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
                     node.setStyle(style);
                     node.addEventHandler(MouseEvent.ANY, e -> {
                         if (e.getEventType() == MouseEvent.MOUSE_CLICKED)
-                            tryToSelect((PathObject)extra, viewer.getImageData(), viewer, e.isShiftDown(), e.getClickCount() == 2);
+                            Charts.ScatterChartBuilder.tryToSelect((PathObject)extra, viewer, viewer.getImageData(), e.isShiftDown(), e.getClickCount() == 2);
                         else if (e.getEventType() == MouseEvent.MOUSE_ENTERED)
                             node.setStyle(style + ";"
                                     + "-fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 4, 0, 1, 1);");

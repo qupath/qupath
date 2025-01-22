@@ -28,8 +28,8 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
             .addIntParameter("randomSeed", "Random seed", 42, null, "Random seed for point subsampling")
             .addBooleanParameter("drawGrid", "Draw grid", true, "Whether to draw gridlines on the plot")
             .addBooleanParameter("drawAxes", "Draw axes", true, "Whether to draw axis ticks on the plot")
-            .addDoubleParameter("pointOpacity", "Point opacity", 1, null, "The opacity of points displayed on the plot.")
-            .addDoubleParameter("pointSize", "Point size", 4);
+            .addDoubleParameter("pointOpacity", "Point opacity", 1, null, 0, 1, "The opacity of points displayed on the plot.")
+            .addIntParameter("pointSize", "Point size", 4, "px", 1, 10, "The point size in pixels");
     private final ScatterPlotChart scatter;
 
 
@@ -124,7 +124,7 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
             case "drawAxes" -> scatter.setDrawAxes(paramsScatter.getBooleanParameterValue("drawAxes"));
             case "nPoints" -> scatter.setMaxPoints(paramsScatter.getIntParameterValue("nPoints"));
             case "pointOpacity" -> scatter.setPointOpacity(paramsScatter.getDoubleParameterValue("pointOpacity"));
-            case "pointSize" -> scatter.setPointSize(paramsScatter.getDoubleParameterValue("pointSize"));
+            case "pointSize" -> scatter.setPointSize(paramsScatter.getIntParameterValue("pointSize"));
             case "randomSeed" -> scatter.setRNG(paramsScatter.getIntParameterValue("randomSeed"));
         }
     }

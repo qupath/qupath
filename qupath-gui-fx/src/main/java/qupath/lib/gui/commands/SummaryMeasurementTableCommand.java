@@ -38,6 +38,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -159,8 +161,18 @@ public class SummaryMeasurementTableCommand {
 		model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
 
 		SplitPane splitPane = new SplitPane();
+		TabPane plotTabs = new TabPane();
 		HistogramDisplay histogramDisplay = new HistogramDisplay(model, true);
 		ScatterPlotDisplay scatterPlotDisplay = new ScatterPlotDisplay(model);
+
+		Tab tabHistogram = new Tab();
+		tabHistogram.setContent(histogramDisplay.getPane());
+		plotTabs.getTabs().add(tabHistogram);
+		tabHistogram.setText("Histogram");
+		Tab tabScatter = new Tab();
+		tabScatter.setContent(scatterPlotDisplay.getPane());
+		plotTabs.getTabs().add(tabScatter);
+		tabScatter.setText("Scatter plot");
 
 		//		table.setTableMenuButtonVisible(true);
 		TableView<PathObject> table = new TableView<>();
@@ -262,26 +274,15 @@ public class SummaryMeasurementTableCommand {
 		// Add buttons at the bottom
 		List<ButtonBase> buttons = new ArrayList<>();
 		
-		ToggleButton btnHistogram = new ToggleButton("Show histograms");
-		btnHistogram.selectedProperty().addListener((v, o, n) -> {
+		ToggleButton btnPlots = new ToggleButton("Show plots");
+		btnPlots.selectedProperty().addListener((v, o, n) -> {
 			if (n) {
-				Pane paneHistograms = histogramDisplay.getPane();
-				splitPane.getItems().add(paneHistograms);
-			} else if (histogramDisplay != null)
-				splitPane.getItems().remove(histogramDisplay.getPane());
-		});
-		buttons.add(btnHistogram);
-
-		ToggleButton btnScatter = new ToggleButton("Show scatter plots");
-		btnScatter.selectedProperty().addListener((v, o, n) -> {
-			if (n) {
-				Pane paneScatter = scatterPlotDisplay.getPane();
-				splitPane.getItems().add(paneScatter);
-			} else if (scatterPlotDisplay != null) {
-				splitPane.getItems().remove(scatterPlotDisplay.getPane());
+				splitPane.getItems().add(plotTabs);
+			} else {
+				splitPane.getItems().remove(plotTabs);
 			}
 		});
-		buttons.add(btnScatter);
+		buttons.add(btnPlots);
 
 //		Button btnScatterplot = new Button("Show scatterplots");
 //		btnScatterplot.setOnAction(e -> {

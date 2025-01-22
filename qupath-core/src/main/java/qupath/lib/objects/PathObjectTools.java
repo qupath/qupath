@@ -2178,5 +2178,6 @@ public class PathObjectTools {
 	public static void setIntensityClassifications(final Collection<? extends PathObject> pathObjects, final String measurementName, final double... thresholds) {
 		pathObjects.stream().forEach(p -> setIntensityClassification(p, measurementName, thresholds));
 	}
-	
+
+
 }
