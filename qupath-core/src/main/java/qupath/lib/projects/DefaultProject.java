@@ -52,6 +52,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
+import javax.swing.SwingUtilities;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -325,8 +326,8 @@ class DefaultProject implements Project<BufferedImage> {
 	public void removeImage(final ProjectImageEntry<?> entry, boolean removeAllData) {
 		boolean couldRemove = images.remove(entry);
 		// Need to make sure we only delete data if it's really inside this project!
-		if (couldRemove && removeAllData && entry instanceof DefaultProjectImageEntry) {
-			((DefaultProjectImageEntry)entry).moveDataToTrash();
+		if (couldRemove && removeAllData && entry instanceof DefaultProjectImageEntry defaultEntry) {
+			defaultEntry.moveDataToTrash();
 		}
 	}
 
@@ -847,17 +848,25 @@ class DefaultProject implements Project<BufferedImage> {
 			cachedThumbnail = null;
 		}
 		
-		synchronized boolean moveDataToTrash() {
+		synchronized void moveDataToTrash() {
 			Path path = getEntryPath();
 			if (!Files.exists(path))
-				return true;
+				return;
 			if (Desktop.isDesktopSupported()) {
 				var desktop = Desktop.getDesktop();
-				if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH))
-					return desktop.moveToTrash(path.toFile());
+				if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH)) {
+					// See https://github.com/qupath/qupath/issues/1738
+					// It's not clear if this will help, but Desktop sometimes cares about the event dispatch thread
+					if (SwingUtilities.isEventDispatchThread()) {
+						if (desktop.moveToTrash(path.toFile()))
+							return;
+					} else {
+						SwingUtilities.invokeLater(this::moveDataToTrash);
+						return;
+					}
+				}
 			}
 			logger.warn("Unable to move {} to trash - please delete manually if required", path);
-			return false;
 		}
 		
 	}

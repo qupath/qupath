@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -68,6 +68,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.io.CharStreams;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
+import javax.swing.SwingUtilities;
 
 /**
  * Collection of generally useful static methods.
@@ -767,10 +769,29 @@ public final class GeneralTools {
 	public static boolean deleteFile(File fileToDelete, boolean preferTrash) {
 		if (preferTrash && Desktop.isDesktopSupported()) {
 			var desktop = Desktop.getDesktop();
-			if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH) && desktop.moveToTrash(fileToDelete))
+			if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH) && moveToTrash(desktop, fileToDelete))
 				return true;
 		}
 		return fileToDelete.delete();
+	}
+
+	private static boolean moveToTrash(Desktop desktop, File fileToDelete) {
+		if (SwingUtilities.isEventDispatchThread() || !GeneralTools.isWindows()) {
+			// It seems safe to call move to trash from any thread on macOS and Linux
+			// We can't use the EDT on macOS because of https://bugs.openjdk.org/browse/JDK-8087465
+			return desktop.moveToTrash(fileToDelete);
+		} else {
+			// EXCEPTION_ACCESS_VIOLATION associated with moveToTrash reported on Windows 11.
+			// https://github.com/qupath/qupath/issues/1738
+			// Could not be replicated (but we didn't have Windows 11...); taking a guess that this might help.
+			try {
+ 				SwingUtilities.invokeAndWait(() -> moveToTrash(desktop, fileToDelete));
+			} catch (Exception e) {
+				logger.error("Exception moving file to trash: {}", e.getMessage(), e);
+				return false;
+			}
+			return !fileToDelete.exists();
+		}
 	}
 
 
