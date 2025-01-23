@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import javafx.beans.value.ObservableValue;
+import javafx.scene.control.Tooltip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -121,7 +122,7 @@ public class SummaryMeasurementTableCommand {
 
 	private static final BooleanProperty useRegexColumnFilter = PathPrefs.createPersistentPreference("summaryMeasurementTableUseRegexColumnFilter", false);
 
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 	
 	private BooleanProperty showThumbnailsProperty ;
 
@@ -228,10 +229,11 @@ public class SummaryMeasurementTableCommand {
 		TableColumn<PathObject, String> colObjectIDs = null;
 		for (String columnName : model.getAllNames()) {
 			// Add column
+			var tooltipText = model.getHelpText(columnName);
 			if (!model.isNumericMeasurement(columnName)) {
 				TableColumn<PathObject, String> col = new TableColumn<>(columnName);
 				col.setCellValueFactory(column -> createStringMeasurement(model, column.getValue(), column.getTableColumn().getText()));
-				col.setCellFactory(column -> new BasicTableCell<>());
+				col.setCellFactory(column -> new BasicTableCell<>(tooltipText));
 				if (ObservableMeasurementTableData.NAME_OBJECT_ID.equals(columnName)) {
 					colObjectIDs = col;
 				} else {
@@ -240,7 +242,7 @@ public class SummaryMeasurementTableCommand {
 			} else {
 				TableColumn<PathObject, Number> col = new TableColumn<>(columnName);
 				col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
-				col.setCellFactory(column -> new NumericTableCell<>(histogramDisplay));
+				col.setCellFactory(column -> new NumericTableCell<>(tooltipText, histogramDisplay));
 				table.getColumns().add(col);			
 			}
 		}
@@ -524,8 +526,10 @@ public class SummaryMeasurementTableCommand {
 
 	static class BasicTableCell<S, T> extends TableCell<S, T> {
 
-		public BasicTableCell() {
+		public BasicTableCell(String tooltipText) {
 			setAlignment(Pos.CENTER);
+			if (tooltipText != null && !tooltipText.isEmpty())
+				setTooltip(new Tooltip(tooltipText));
 		}
 
 		@Override
@@ -545,10 +549,12 @@ public class SummaryMeasurementTableCommand {
 
 	static class NumericTableCell<T> extends TableCell<T, Number> {
 
-		private HistogramDisplay histogramDisplay;
+		private final HistogramDisplay histogramDisplay;
 
-		public NumericTableCell(final HistogramDisplay histogramDisplay) {
+		public NumericTableCell(String tooltipText, HistogramDisplay histogramDisplay) {
 			this.histogramDisplay = histogramDisplay;
+			if (tooltipText != null && !tooltipText.isEmpty())
+				setTooltip(new Tooltip(tooltipText));
 		}
 
 
@@ -593,7 +599,7 @@ public class SummaryMeasurementTableCommand {
 
 	class TableViewerListener implements QuPathViewerListener {
 
-		private TableView<PathObject> table;
+		private final TableView<PathObject> table;
 		private QuPathViewer viewer;
 
 		TableViewerListener(final QuPathViewer viewer, final TableView<PathObject> table) {
@@ -613,25 +619,11 @@ public class SummaryMeasurementTableCommand {
 
 		@Override
 		public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {
-//			if (this.viewer != null || table.getSelectionModel().getSelectedItem() == pathObjectSelected || !table.getItems().contains(pathObjectSelected))
-//				return;
-			
 			if (!Platform.isFxApplicationThread()) {
 				Platform.runLater(() -> selectedObjectChanged(viewer, pathObjectSelected));
 				return;
 			}
 			synchronizeTableToSelectionModel(viewer.getHierarchy(), table);
-
-//			Platform.runLater(() -> {
-//				if (pathObjectSelected == null)
-//					table.getSelectionModel().clearSelection();
-//				else {
-//					table.getSelectionModel().select(pathObjectSelected);
-//					// Scroll to the object if it is present in the table
-//					//					if (table.getSelectionModel().getSelectedItem() == pathObjectSelected)
-//					table.scrollTo(pathObjectSelected);
-//				}
-//			});
 		}
 
 		@Override
@@ -642,11 +634,6 @@ public class SummaryMeasurementTableCommand {
 
 	}
 
-
-
-	//	public static String getTableString(final JTable table, final String delim) {
-	//		return getTableModelString(table.getModel(), delim);
-	//	}
 
 	/**
 	 * Get a list of Strings representing table data.
