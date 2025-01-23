@@ -32,7 +32,6 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
             .addIntParameter("pointSize", "Point size", 4, "px", 1, 10, "The point size in pixels");
     private final ScatterPlotChart scatter;
 
-
     /**
      * Create a scatter plot from a table of PathObject measurements.
      * @param model The table containing measurements
@@ -90,12 +89,10 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
         panelMain.setMinSize(200, 200);
         panelMain.setPrefSize(400, 300);
 
-
         ParameterPanelFX panelParams = new ParameterPanelFX(paramsScatter);
         panelParams.addParameterChangeListener(this);
         panelParams.getPane().setPadding(new Insets(20, 5, 5, 5));
         panelParams.getPane().setMinWidth(Pane.USE_PREF_SIZE);
-
 
         GridPane panelSouth = new GridPane();
         panelSouth.add(panelParams.getPane(), 0, 0);
