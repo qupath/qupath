@@ -21,7 +21,7 @@ public class MeasurementListValue implements LazyNumericValue<PathObject> {
 
     @Override
     public String getHelpText() {
-        return "A value stored within the selected object's measurement list";
+        return "'" + name + "' value from the object's measurement list";
     }
 
     @Override

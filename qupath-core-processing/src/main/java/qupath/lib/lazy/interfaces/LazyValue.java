@@ -66,8 +66,9 @@ public interface LazyValue<S, T> {
 
 
     /**
-     * The name of the measurement.
-     * @return the name of the measurement
+     * The name of the value.
+     * When showing a measurement table, this would be the column header.
+     * @return the name of the value
      */
     String getName();
 
@@ -102,9 +103,9 @@ public interface LazyValue<S, T> {
     }
 
     /**
-     * Create a binding that represents a lazily-computed measurement for the provided objects.
-     * @param input the object that should be measured
-     * @return a binding that can return the measurement value
+     * Calculate a value from the input.
+     * @param input the input that should be measured
+     * @return the output value
      */
     T getValue(final S input);
 
@@ -136,7 +137,7 @@ public interface LazyValue<S, T> {
     }
 
     /**
-     * Optional help text that explained the measurement.
+     * Optional help text that explained the value.
      * This may be displayed in a tooltip.
      * @return the help text, or null if no help text is available
      */

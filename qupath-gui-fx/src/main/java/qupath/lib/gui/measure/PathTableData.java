@@ -80,18 +80,18 @@ public interface PathTableData<T> {
 	/**
 	 * Get the numeric value from an item for the specific measurement.
 	 * @param item
-	 * @param column
+	 * @param name
 	 * @return
 	 */
-	double getNumericValue(final T item, final String column);
+	double getNumericValue(final T item, final String name);
 
 	/**
 	 * Get all double values for all items.
 	 * 
-	 * @param column
+	 * @param name
 	 * @return
 	 */
-	double[] getDoubleValues(final String column);
+	double[] getDoubleValues(final String name);
 	
 	/**
 	 * Get internal list of the items used to provide measurements.
