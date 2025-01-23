@@ -460,7 +460,7 @@ public class SummaryMeasurementTableCommand {
 			viewer.removeViewerListener(tableViewerListener);
 		});
 
-		Scene scene = new Scene(pane, 600, 500);
+		Scene scene = new Scene(pane, 800, 500);
 		frame.setScene(scene);
 		frame.show();
 		

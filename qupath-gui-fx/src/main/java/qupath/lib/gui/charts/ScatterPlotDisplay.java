@@ -88,7 +88,7 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
         comboNameX.prefWidthProperty().bind(pane.widthProperty());
         comboNameY.prefWidthProperty().bind(pane.widthProperty());
         panelMain.setMinSize(200, 200);
-        panelMain.setPrefSize(600, 400);
+        panelMain.setPrefSize(400, 300);
 
 
         ParameterPanelFX panelParams = new ParameterPanelFX(paramsScatter);
