@@ -44,7 +44,9 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -79,7 +81,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
-import qupath.lib.gui.tools.MenuTools;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -151,15 +152,22 @@ class PathClassPane {
 			}
 		});
 
-		ContextMenu menuClasses = createClassesMenu();
-		listClasses.setContextMenu(menuClasses);
+		ContextMenu popup = createSelectedMenu();
+		listClasses.setContextMenu(popup);
 		
 		// Add the class list
 		BorderPane paneClasses = new BorderPane();
 		paneClasses.setCenter(listClasses);
 
+		Action addNewAction = new Action("Add...", e -> promptToAddClass());
+		addNewAction.setLongText("Add a new class to the list");
+
+		Action removeSelected = new Action("Remove", e -> promptToRemoveSelectedClasses());
+		removeSelected.disabledProperty().bind(Bindings.isEmpty(listClasses.getSelectionModel().getSelectedItems().filtered(p -> p != PathClass.NULL_CLASS)));
+		removeSelected.setLongText("Remove the selected classes from the list (this does not change or remove objects)");
+
 		Action setSelectedObjectClassAction = new Action("Set selected", e -> promptToSetClass());
-		setSelectedObjectClassAction.setLongText("Set the class of the currently-selected annotation(s)");
+		setSelectedObjectClassAction.setLongText("Set the class of the currently-selected objects");
 
 		Action autoClassifyAnnotationsAction = new Action("Auto set");
 		autoClassifyAnnotationsAction.setLongText("Automatically set all new annotations to the selected class");
@@ -167,30 +175,47 @@ class PathClassPane {
 		
 		doAutoSetPathClass.addListener((e, f, g) -> updateAutoSetPathClassProperty());
 
+		Button btnAdd = ActionUtils.createButton(addNewAction);
+		Button btnRemove = ActionUtils.createButton(removeSelected);
+
 		Button btnSetClass = ActionUtils.createButton(setSelectedObjectClassAction);
 		ToggleButton btnAutoClass = ActionUtils.createToggleButton(autoClassifyAnnotationsAction);
-		
-		// Create a button to show context menu (makes it more obvious to the user that it exists)
-		Button btnMore = GuiTools.createMoreButton(menuClasses, Side.RIGHT);
+
+		// Context menu button to populate classification list
+		Button btnMoreClasses = GuiTools.createMoreButton(createClassesMenu(), Side.RIGHT);
+
+		// Context menu button to work with selected objects & classifications
+		Button btnMoreObjects = GuiTools.createMoreButton(createSelectedMenu(), Side.RIGHT);
+
 		GridPane paneClassButtons = new GridPane();
-		paneClassButtons.add(btnSetClass, 0, 0);
-		paneClassButtons.add(btnAutoClass, 1, 0);
-		paneClassButtons.add(btnMore, 2, 0);
-		GridPane.setHgrow(btnSetClass, Priority.ALWAYS);
-		GridPane.setHgrow(btnAutoClass, Priority.ALWAYS);
+		var col1 = new ColumnConstraints();
+		var col2 = new ColumnConstraints();
+		col1.setPercentWidth(50.0);
+		col2.setPercentWidth(50.0);
+		paneClassButtons.getColumnConstraints().setAll(col1, col2);
+
+		var paneMore = new VBox(btnMoreClasses, btnMoreObjects);
+
+		paneClassButtons.add(btnAdd, 0, 0);
+		paneClassButtons.add(btnRemove, 1, 0);
+
+		paneClassButtons.add(btnSetClass, 0, 1);
+		paneClassButtons.add(btnAutoClass, 1, 1);
 
 		var filter = new PredicateTextField<PathClass>();
-		filter.setPromptText("Filter classifications");
+		filter.setPromptText("Filter classes");
 		filter.setIgnoreCase(true);
 		filter.setUseRegex(true);
-		Tooltip.install(filter, new Tooltip("Type to filter classifications in list"));
+		Tooltip.install(filter, new Tooltip("Type to filter classes in list"));
 
 		filteredList.predicateProperty().bind(filter.predicateProperty());
 
-		var paneBottom = GridPaneUtils.createRowGrid(filter, paneClassButtons);
-		
-		GridPaneUtils.setMaxWidth(Double.MAX_VALUE,
-				btnSetClass, btnAutoClass, filter);
+		var paneBottom = new BorderPane(paneClassButtons);
+		paneBottom.setTop(filter);
+		paneBottom.setRight(paneMore);
+
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, btnAdd, btnRemove, btnSetClass, btnAutoClass);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, btnAdd, btnRemove, btnSetClass, btnAutoClass, filter);
 		
 		paneClasses.setBottom(paneBottom);
 		return paneClasses;
@@ -262,15 +287,7 @@ class PathClassPane {
 		}
 	}
 	
-	
-	private Action createAddClassAction() {
-		return new Action("Add class", e -> promptToAddClass());
-	}
 
-	private Action createRemoveSelectedClassesAction() {
-		return new Action("Remove class", e -> promptToRemoveSelectedClasses());
-	}
-	
 	private Action createResetToDefaultClassesAction() {
 		return new Action("Reset to default classes", e -> promptToResetClasses());
 	}
@@ -292,15 +309,9 @@ class PathClassPane {
 	private ContextMenu createClassesMenu() {
 		ContextMenu menu = new ContextMenu();
 		
-		Action actionAddClass = createAddClassAction();
-		Action actionRemoveClass = createRemoveSelectedClassesAction();
 		Action actionResetClasses = createResetToDefaultClassesAction();
 		Action actionImportClasses = createImportClassesFromProjectAction();
 
-		actionRemoveClass.disabledProperty().bind(createRemoveClassDisabledBinding());
-		
-		MenuItem miRemoveClass = ActionUtils.createMenuItem(actionRemoveClass);
-		MenuItem miAddClass = ActionUtils.createMenuItem(actionAddClass);
 		MenuItem miResetAllClasses = ActionUtils.createMenuItem(actionResetClasses);
 
 		MenuItem miPopulateFromImage = new MenuItem("All classes (including sub-classes)");
@@ -314,26 +325,6 @@ class PathClassPane {
 		Menu menuPopulate = new Menu("Populate from existing objects");
 		menuPopulate.getItems().addAll(
 				miPopulateFromImage, miPopulateFromImageBase);
-
-		MenuItem miSelectObjects = new MenuItem("Select objects by classification");
-		miSelectObjects.disableProperty().bind(Bindings.createBooleanBinding(
-				() -> {
-					var item = listClasses.getSelectionModel().getSelectedItem();
-					return item == null;
-				},
-				listClasses.getSelectionModel().selectedItemProperty()));
-		
-		miSelectObjects.setOnAction(e -> {
-			var imageData = qupath.getImageData();
-			if (imageData == null)
-				return;
-			Commands.selectObjectsByClassification(imageData, getSelectedPathClasses().toArray(PathClass[]::new));
-		});		
-
-		MenuItem miSetHidden = new MenuItem("Hide classes in viewer");
-		miSetHidden.setOnAction(e -> setSelectedClassesVisibility(false));
-		MenuItem miSetVisible = new MenuItem("Show classes in viewer");
-		miSetVisible.setOnAction(e -> setSelectedClassesVisibility(true));
 		
 		menu.setOnShowing(e -> {
 			var hierarchy = getHierarchy();
@@ -341,33 +332,61 @@ class PathClassPane {
 			miPopulateFromImage.setDisable(hierarchy == null);
 			miPopulateFromImageBase.setDisable(hierarchy == null);
 			miPopulateFromChannels.setDisable(qupath.getImageData() == null);
-			var selected = getSelectedPathClasses();
-			boolean hasClasses = !selected.isEmpty();
-			miSetVisible.setDisable(!hasClasses);
-			miSetHidden.setDisable(!hasClasses);
 		});
 		
 		MenuItem miImportFromProject = ActionUtils.createMenuItem(actionImportClasses);
 		
 		menu.getItems().addAll(
-				MenuTools.createMenu("Add/Remove...", 
-						miAddClass,
-						miRemoveClass
-						),
 				menuPopulate,
 				miPopulateFromChannels,
 				miResetAllClasses,
-				miImportFromProject,
-				new SeparatorMenuItem(),
-				MenuTools.createMenu("Show/Hide...", 
-						miSetVisible,
-						miSetHidden
-						),
-				miSelectObjects);
+				miImportFromProject
+		);
 		
 		return menu;
 	}
-	
+
+
+	private ContextMenu createSelectedMenu() {
+		ContextMenu menu = new ContextMenu();
+
+		MenuItem miSetHidden = new MenuItem("Hide objects with selected classes");
+		miSetHidden.setOnAction(e -> setSelectedClassesVisibility(false));
+		MenuItem miSetVisible = new MenuItem("Show objects with selected classes");
+		miSetVisible.setOnAction(e -> setSelectedClassesVisibility(true));
+
+		MenuItem miSelectObjects = new MenuItem("Select objects by classification");
+		miSelectObjects.disableProperty().bind(Bindings.createBooleanBinding(
+				() -> {
+					var item = listClasses.getSelectionModel().getSelectedItem();
+					return item == null && getHierarchy() != null;
+				},
+				listClasses.getSelectionModel().selectedItemProperty(),
+				qupath.imageDataProperty()));
+
+		miSelectObjects.setOnAction(e -> {
+			var imageData = qupath.getImageData();
+			if (imageData == null)
+				return;
+			Commands.selectObjectsByClassification(imageData, getSelectedPathClasses().toArray(PathClass[]::new));
+		});
+
+		menu.setOnShowing(e -> {
+			var selected = getSelectedPathClasses();
+			boolean hasClasses = !selected.isEmpty();
+			miSetVisible.setDisable(!hasClasses);
+			miSetHidden.setDisable(!hasClasses);
+		});
+
+		menu.getItems().addAll(
+				miSetVisible,
+				miSetHidden,
+				new SeparatorMenuItem(),
+				miSelectObjects);
+
+		return menu;
+	}
+
 	
 	
 	/**
@@ -808,7 +827,7 @@ class PathClassPane {
 			String text = getText(value);
 			if (isHidden(value)) {
 				label.setStyle(STYLE_HIDDEN);
-				if (!overlayOptions.hiddenClassesProperty().contains(value)) {
+				if (value != PathClass.NULL_CLASS && !overlayOptions.hiddenClassesProperty().contains(value)) {
 					pane.setRight(iconUnavailable);
 				} else {
 					pane.setRight(iconHidden);
