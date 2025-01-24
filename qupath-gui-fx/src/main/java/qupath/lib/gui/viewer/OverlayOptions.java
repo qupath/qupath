@@ -38,7 +38,6 @@ import javafx.collections.ObservableSet;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MeasurementMapper;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassTools;
 
 import java.util.Arrays;
 
@@ -524,12 +523,39 @@ public class OverlayOptions {
 	public boolean isPathClassHidden(final PathClass pathClass) {
 		if (hiddenClasses.isEmpty())
 			return false;
+
 		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
 			return hiddenClasses.contains(null) || hiddenClasses.contains(PathClass.NULL_CLASS);
-		return hiddenClasses.contains(pathClass) || 
-				((PathClassTools.isPositiveOrGradedIntensityClass(pathClass) || PathClassTools.isNegativeClass(pathClass)) &&
-						pathClass.isDerivedClass() && isPathClassHidden(pathClass.getParentClass()));
+
+		if (hiddenClasses.contains(pathClass))
+			return true;
+
+		boolean hideExactClassificationsOnly = false;
+		if (hideExactClassificationsOnly)
+			return false;
+		else
+			return isPathClassHiddenByParts(pathClass);
 	}
+
+	/**
+	 * Check if a classification matches all the parts of any hidden classification.
+	 * This is a 'generous' criterion, e.g. hiding "CD3" will hide "CD3", "CD3: CD8", "CD8: CD3"...
+	 * @param pathClass
+	 * @return
+	 */
+	private boolean isPathClassHiddenByParts(PathClass pathClass) {
+		var set = pathClass.toSet();
+		for (var hidden : hiddenClasses) {
+			if (hidden != null && hidden != PathClass.NULL_CLASS) {
+				if (pathClass.isDerivedClass() || hidden.isDerivedClass()) {
+					if (set.containsAll(hidden.toSet()))
+						return true;
+				}
+			}
+		}
+		return false;
+	}
+
 
 	/**
 	 * Request that objects with a particular PathClass not be displayed.

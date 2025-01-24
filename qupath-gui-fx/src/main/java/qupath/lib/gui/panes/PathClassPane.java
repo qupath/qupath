@@ -24,12 +24,11 @@ package qupath.lib.gui.panes;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -39,12 +38,13 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -57,8 +57,6 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
 import javafx.geometry.Side;
 import javafx.scene.input.Clipboard;
@@ -129,8 +127,8 @@ class PathClassPane {
 
 		var filteredList = availablePathClasses.filtered(p -> true);
 		listClasses.setItems(filteredList);
-		listClasses.setTooltip(new Tooltip("Available classifications (right-click to add or remove).\n" +
-				"Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info."));
+//		listClasses.setTooltip(new Tooltip("Available classifications (right-click to add or remove).\n" +
+//				"Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info."));
 		
 		listClasses.getSelectionModel().selectedItemProperty()
 				.addListener((v, o, n) -> updateAutoSetPathClassProperty());
@@ -390,7 +388,7 @@ class PathClassPane {
 	private void toggleSelectedClassesVisibility() {
 		OverlayOptions overlayOptions = getOverlayOptions();
 		for (var pathClass : getSelectedPathClasses()) {
-			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
+			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.hiddenClassesProperty().contains(pathClass));
 		}
 		listClasses.refresh();
 	}
@@ -669,24 +667,41 @@ class PathClassPane {
 		private final QuPathGUI qupath;
 		private final OverlayOptions overlayOptions;
 
+		// Tooltip for the main label (but not the visibility part)
+		private final Tooltip tooltip = new Tooltip("Available classifications (right-click to add or remove).\n" +
+				"Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info.");
+
 		private final BorderPane pane = new BorderPane();
 		private final Label label = new Label();
 
 		private final int size = 10;
 		private final Rectangle rectangle = new Rectangle(size, size);
 
-		private final Node iconShowing = IconFactory.createNode(FontAwesome.Glyph.EYE);
-		private final Node iconHidden = IconFactory.createNode(FontAwesome.Glyph.EYE_SLASH);
+		private final Node iconShowing = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE));
+		private final Node iconHidden = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE_SLASH));
+		private final Node iconUnavailable = new StackPane(IconFactory.createNode(FontAwesome.Glyph.TIMES));
+
+		private static final String STYLE_HIDDEN = "-fx-font-family:arial; -fx-font-style:italic;";
+		private static final String STYLE_SHOWING = "-fx-font-family:arial; -fx-font-style:normal;";
 
 		PathClassListCell(QuPathGUI qupath) {
 			this.qupath = qupath;
 			this.overlayOptions = qupath == null ? null : qupath.getOverlayOptions();
 			label.setMaxWidth(Double.MAX_VALUE);
+			label.setMinWidth(20);
 			label.setGraphic(rectangle);
-			pane.setCenter(label);
+			label.setTooltip(tooltip);
+			label.setTextOverrun(OverrunStyle.ELLIPSIS);
+
+			var sp = new StackPane(label);
+			sp.setPrefWidth(1.0);
+			sp.setMinHeight(0.0);
+			StackPane.setAlignment(label, Pos.CENTER_LEFT);
+			pane.setCenter(sp);
 
 			configureHiddenIcon();
 			configureShowingIcon();
+			configureUnavailableIcon();
 		}
 
 		private void configureHiddenIcon() {
@@ -711,11 +726,23 @@ class PathClassPane {
 			}
 		}
 
+		private void configureUnavailableIcon() {
+			iconUnavailable.styleProperty().bind(Bindings.createStringBinding(() -> {
+				return iconUnavailable.hoverProperty().get() ? "-fx-opacity: 0.8;" : "-fx-opacity: 0.4;";
+			}, iconUnavailable.hoverProperty()));
+
+			if (overlayOptions != null) {
+				Tooltip.install(iconUnavailable,
+						new Tooltip("Derived classification is hidden because a related classification is already hidden"));
+				iconUnavailable.setOnMouseClicked(this::handleToggleVisibility);
+			}
+		}
+
 		private void handleToggleVisibility(MouseEvent e) {
 			var pathClass = getItem();
 			var options = overlayOptions;
 			if (pathClass != null && options != null) {
-				options.setPathClassHidden(pathClass, !options.isPathClassHidden(pathClass));
+				options.setPathClassHidden(pathClass, !options.hiddenClassesProperty().contains(pathClass));
 				getListView().refresh();
 			}
 		}
@@ -779,20 +806,19 @@ class PathClassPane {
 			}
 			rectangle.setFill(getColor(value));
 			String text = getText(value);
-			String style;
 			if (isHidden(value)) {
-				style = "-fx-font-family:arial; -fx-font-style:italic;";
-				pane.setRight(iconHidden);
-//				text += " (hidden)";
+				label.setStyle(STYLE_HIDDEN);
+				if (!overlayOptions.hiddenClassesProperty().contains(value)) {
+					pane.setRight(iconUnavailable);
+				} else {
+					pane.setRight(iconHidden);
+				}
 			} else {
-				style = "-fx-font-family:arial; -fx-font-style:normal;";
+				label.setStyle(STYLE_SHOWING);
 				pane.setRight(iconShowing);
 			}
 			label.setText(text);
-			label.setStyle(style);
-
 			setGraphic(pane);
-
 		}
 
 	}

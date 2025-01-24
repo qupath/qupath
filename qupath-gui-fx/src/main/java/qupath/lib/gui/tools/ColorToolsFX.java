@@ -61,8 +61,8 @@ public class ColorToolsFX {
 	 */
 	public static final Color TRANSLUCENT_WHITE_FX = Color.rgb(255, 255, 255, 0.5);
 
-	private static Map<Integer, Color> colorMap = new HashMap<>();
-	private static Map<Integer, Color> colorMapWithAlpha = new HashMap<>();
+	private static final Map<Integer, Color> colorMap = new HashMap<>();
+	private static final Map<Integer, Color> colorMapWithAlpha = new HashMap<>();
 	
 	private static final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
     private static final Lock r = rwl.readLock();

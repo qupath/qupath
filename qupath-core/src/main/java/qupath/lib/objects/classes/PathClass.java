@@ -176,12 +176,12 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	/**
 	 * Cache the set representation
 	 */
-	private transient Set<String> set;
+	private transient volatile Set<String> set;
 	
 	/**
 	 * Cache the list representation
 	 */
-	private transient List<String> list;
+	private transient volatile List<String> list;
 
 	private PathClass(UUID mySecret) {
 		if (!Objects.equals(secret, mySecret))
