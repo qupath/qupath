@@ -131,7 +131,7 @@ public class TestObservableMeasurementTableData {
 			for (int i = 0; i < 10; i++)
 				parent.addChildObject(PathObjects.createDetectionObject(smallROI, tumorClass));
 			hierarchy.fireHierarchyChangedEvent(this);
-			model.refreshEntries();
+
 	//		model.setImageData(imageData, Collections.singletonList(parent));
 			assertEquals(100, model.getNumericValue(parent, "Num Stroma (base)"), EPSILON);
 			assertEquals(50, model.getNumericValue(parent, "Num Stroma: Negative"), EPSILON);
@@ -148,7 +148,7 @@ public class TestObservableMeasurementTableData {
 			// Add a new parent that completely contains the current object, and confirm complete scores agree
 			PathObject parentNew = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 2000, 2000, ImagePlane.getDefaultPlane()));
 			hierarchy.addObject(parentNew);
-			model.refreshEntries();
+
 			assertEquals(135, model.getNumericValue(parent, "Stroma + Tumor: H-score"), EPSILON);
 			assertEquals(135, model.getNumericValue(parentNew, "Stroma + Tumor: H-score"), EPSILON);
 			
@@ -158,11 +158,11 @@ public class TestObservableMeasurementTableData {
 			for (int i = 0; i < 100; i++)
 				parentAllred.addChildObject(PathObjects.createDetectionObject(newROI, PathClass.getNegative(tumorClass)));
 			hierarchy.addObject(parentAllred);
-			model.refreshEntries();
+
 			assertEquals(0, model.getNumericValue(parentAllred, "Tumor: Allred score"), EPSILON);
 			parentAllred.addChildObject(PathObjects.createDetectionObject(newROI, PathClass.getThreePlus(tumorClass)));
 			hierarchy.fireHierarchyChangedEvent(parentAllred);
-			model.refreshEntries();
+
 			assertEquals(4, model.getNumericValue(parentAllred, "Tumor: Allred score"), EPSILON);
 		
 		}

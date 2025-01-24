@@ -706,15 +706,10 @@ public class PixelClassificationMeasurementManager {
 	 * @return
 	 */
 	public static double getProbabilityThreshold(WritableRaster raster) {
-		switch (raster.getTransferType()) {
-			case DataBuffer.TYPE_SHORT:
-			case DataBuffer.TYPE_USHORT:
-			case DataBuffer.TYPE_INT:
-			case DataBuffer.TYPE_BYTE: return 127.5;
-			case DataBuffer.TYPE_FLOAT:
-			case DataBuffer.TYPE_DOUBLE:
-			default: return 0.5;
-		}
+        return switch (raster.getTransferType()) {
+            case DataBuffer.TYPE_SHORT, DataBuffer.TYPE_USHORT, DataBuffer.TYPE_INT, DataBuffer.TYPE_BYTE -> 127.5;
+            default -> 0.5;
+        };
 	}
 
 	private synchronized MeasurementList updateMeasurements(Map<Integer, PathClass> classificationLabels, long[] counts, double pixelArea, String pixelAreaUnits) {
