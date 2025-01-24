@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -28,10 +28,20 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.Tooltip;
+import javafx.scene.paint.Color;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
@@ -57,6 +67,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.shape.Rectangle;
+import qupath.fx.controls.PredicateTextField;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.Commands;
@@ -71,6 +82,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -87,19 +99,17 @@ class PathClassPane {
 	private static final KeyCombination copyCombo = new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN);
 	private static final KeyCombination pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCodeCombination.SHORTCUT_DOWN);
 	
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 	
-	private ObservableList<PathClass> availablePathClasses;
+	private final ObservableList<PathClass> availablePathClasses;
 	
-	private Pane pane;
+	private final Pane pane;
 	private ListView<PathClass> listClasses;
-	
-	private StringProperty filterText = new SimpleStringProperty("");
-	
+
 	/**
 	 * If set, request that new annotations have their classification set automatically
 	 */
-	private BooleanProperty doAutoSetPathClass = new SimpleBooleanProperty(false);
+	private final BooleanProperty doAutoSetPathClass = new SimpleBooleanProperty(false);
 	
 	PathClassPane(QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -108,25 +118,16 @@ class PathClassPane {
 	}
 
 	
-	private Predicate<PathClass> createPathClassListFilter(String filterText) {
-		if (filterText == null || filterText.isBlank())
-			return p -> true;
-		String text2 = filterText.toLowerCase();
-		return (PathClass p) -> {
-			return p == null || p == PathClass.NULL_CLASS ||
-					p.toString().toLowerCase().contains(text2);
-		};
-	}
-	
 	private Pane createClassPane() {
 		listClasses = new ListView<>();
-		
-		var filteredList = availablePathClasses.filtered(createPathClassListFilter(null));
+
+		var filteredList = availablePathClasses.filtered(p -> true);
 		listClasses.setItems(filteredList);
 		listClasses.setTooltip(new Tooltip("Available classifications (right-click to add or remove).\n" +
 				"Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info."));
 		
-		listClasses.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateAutoSetPathClassProperty());
+		listClasses.getSelectionModel().selectedItemProperty()
+				.addListener((v, o, n) -> updateAutoSetPathClassProperty());
 		
 		listClasses.setCellFactory(v -> new PathClassListCell(qupath));
 
@@ -173,16 +174,19 @@ class PathClassPane {
 		paneClassButtons.add(btnMore, 2, 0);
 		GridPane.setHgrow(btnSetClass, Priority.ALWAYS);
 		GridPane.setHgrow(btnAutoClass, Priority.ALWAYS);
-		
-		var tfFilter = new TextField();
-		tfFilter.setTooltip(new Tooltip("Type to filter classifications in list"));
-		tfFilter.setPromptText("Filter classifications in list");
-		filterText.bind(tfFilter.textProperty());
-		filterText.addListener((v, o, n) -> filteredList.setPredicate(createPathClassListFilter(n)));
-		var paneBottom = GridPaneUtils.createRowGrid(tfFilter, paneClassButtons);
+
+		var filter = new PredicateTextField<PathClass>();
+		filter.setPromptText("Filter classifications");
+		filter.setIgnoreCase(true);
+		filter.setUseRegex(true);
+		Tooltip.install(filter, new Tooltip("Type to filter classifications in list"));
+
+		filteredList.predicateProperty().bind(filter.predicateProperty());
+
+		var paneBottom = GridPaneUtils.createRowGrid(filter, paneClassButtons);
 		
 		GridPaneUtils.setMaxWidth(Double.MAX_VALUE,
-				btnSetClass, btnAutoClass, tfFilter);
+				btnSetClass, btnAutoClass, filter);
 		
 		paneClasses.setBottom(paneBottom);
 		return paneClasses;
@@ -239,7 +243,8 @@ class PathClassPane {
 		} else if (copyCombo.match(e)) {
 			// Copy the list if needed
 			String s = listClasses.getSelectionModel().getSelectedItems()
-					.stream().map(p -> p.toString()).collect(Collectors.joining(System.lineSeparator()));
+					.stream().map(PathClass::toString)
+					.collect(Collectors.joining(System.lineSeparator()));
 			if (!s.isBlank()) {
 				Clipboard.getSystemClipboard().setContent(
 						Map.of(DataFormat.PLAIN_TEXT, s));
@@ -366,7 +371,7 @@ class PathClassPane {
 	 */
 	public void refresh() {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> refresh());
+			Platform.runLater(this::refresh);
 			return;
 		}
 		listClasses.refresh();
@@ -444,7 +449,7 @@ class PathClassPane {
 			newClasses.removeAll(availablePathClasses);
 			return availablePathClasses.addAll(newClasses);
 		} else if (btn == ButtonType.NO) {
-			newClasses.add(0, PathClass.NULL_CLASS);
+			newClasses.addFirst(PathClass.NULL_CLASS);
 			return availablePathClasses.setAll(newClasses);
 		} else
 			return false;
@@ -460,18 +465,18 @@ class PathClassPane {
 		var hierarchy = getHierarchy();
 		if (hierarchy == null)
 			return false;
-		
-		Set<PathClass> representedClasses = hierarchy.getFlattenedObjectList(null).stream()
-				.filter(p -> !p.isRootObject())
-				.map(p -> p.getPathClass())
-				.filter(p -> p != null && p != PathClass.NULL_CLASS)
-				.map(p -> baseClassesOnly ? p.getBaseClass() : p)
-				.collect(Collectors.toSet());
-		
-		List<PathClass> newClasses = new ArrayList<>(representedClasses);
-		Collections.sort(newClasses);
-		
-		if (newClasses.isEmpty()) {
+
+        List<PathClass> newClasses = hierarchy.getFlattenedObjectList(null)
+                .stream()
+                .filter(p -> !p.isRootObject())
+                .map(PathObject::getPathClass)
+                .filter(p -> p != null && p != PathClass.NULL_CLASS)
+                .map(p -> baseClassesOnly ? p.getBaseClass() : p)
+				.distinct()
+				.sorted()
+				.collect(Collectors.toCollection(ArrayList::new));
+
+        if (newClasses.isEmpty()) {
 			Dialogs.showErrorMessage("Set available classes", "No classifications found in current image!");
 			return false;
 		}
@@ -492,7 +497,7 @@ class PathClassPane {
 			newClasses.removeAll(availablePathClasses);
 			return availablePathClasses.addAll(newClasses);
 		} else if (btn == ButtonType.NO) {
-			newClasses.add(0, PathClass.NULL_CLASS);
+			newClasses.addFirst(PathClass.NULL_CLASS);
 			return availablePathClasses.setAll(newClasses);
 		} else
 			return false;
@@ -556,7 +561,7 @@ class PathClassPane {
 		if (availablePathClasses.contains(pathClass)) {
 			Dialogs.showErrorMessage("Add class", "Class '" + input + "' already exists!");
 			return false;
-		} else if (input.toLowerCase().equals("null")) {
+		} else if (input.equalsIgnoreCase("null")) {
 			Dialogs.showErrorMessage("Add class", "Cannot add a 'null' class, try another name!");
 			return false;
 		}
@@ -620,7 +625,7 @@ class PathClassPane {
 			return false;
 		String message;
 		if (pathClasses.size() == 1)
-			message = "Remove '" + pathClasses.get(0).toString() + "' from class list?";
+			message = "Remove '" + pathClasses.getFirst().toString() + "' from class list?";
 		else
 			message = "Remove " + pathClasses.size() + " classes from list?";
 		if (Dialogs.showConfirmDialog("Remove classes", message))
@@ -650,68 +655,90 @@ class PathClassPane {
 	
 	
 	/**
-	 * Extract annotations from a hierarchy with a specific classification.
-	 * @param hierarchy
-	 * @param pathClass
-	 * @return
-	 */
-	private static List<PathObject> getAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
-		if (hierarchy == null)
-			return Collections.emptyList();
-		List<PathObject> annotations = new ArrayList<>();
-		for (PathObject pathObject : hierarchy.getAnnotationObjects()) {
-			if (pathClass.equals(pathObject.getPathClass()))
-				annotations.add(pathObject);
-		}
-		return annotations;
-	}
-	
-	
-	/**
-	 * A {@link ListCell} for displaying {@linkplain PathClass PathClasses}, including annotation counts 
+	 * A {@link javafx.scene.control.ListCell} for displaying {@linkplain PathClass PathClasses}, including annotation counts
 	 * for the classes if available.
 	 */
 	private static class PathClassListCell extends ListCell<PathClass> {
 		
-		private QuPathGUI qupath;
-		
+		private final QuPathGUI qupath;
+		private final OverlayOptions overlayOptions;
+
+		private final int size = 10;
+		private final Rectangle rectangle = new Rectangle(size, size);
+
 		PathClassListCell(QuPathGUI qupath) {
 			this.qupath = qupath;
+			this.overlayOptions = qupath == null ? null : qupath.getOverlayOptions();
+		}
+
+		private QuPathViewer getViewer() {
+			return qupath == null ? null : qupath.getViewer();
+		}
+
+		private PathObjectHierarchy getHierarchy() {
+			var viewer = getViewer();
+			return viewer == null ? null : viewer.getHierarchy();
+		}
+
+		private boolean isHidden(PathClass pathClass) {
+			return overlayOptions != null && overlayOptions.isPathClassHidden(pathClass);
+		}
+
+		private long getAnnotationCount(PathClass pathClass) {
+			var hierarchy = getHierarchy();
+			if (hierarchy != null) {
+				try {
+					return hierarchy.getAnnotationObjects()
+							.stream()
+							.filter(p -> pathClass.equals(p.getPathClass()))
+							.count();
+				} catch (Exception e) {
+					logger.debug("Exception while counting objects for class", e);
+				}
+			}
+			return -1;
+		}
+
+		private String getText(PathClass pathClass) {
+			if (pathClass.getBaseClass() == pathClass && pathClass.getName() == null) {
+				return "None";
+			} else {
+				long n = getAnnotationCount(pathClass);
+				if (n > 0)
+					return pathClass + " (" + n + ")";
+				else
+					return pathClass.toString();
+			}
+		}
+
+		private Color getColor(PathClass pathClass) {
+			var rgb = pathClass.getColor();
+			if (rgb == null || PathClassTools.isNullClass(pathClass)) {
+				return Color.TRANSPARENT;
+			} else {
+				return ColorToolsFX.getPathClassColor(pathClass);
+			}
 		}
 
 		@Override
 		protected void updateItem(PathClass value, boolean empty) {
 			super.updateItem(value, empty);
-			QuPathViewer viewer = qupath == null ? null : qupath.getViewer();
-			PathObjectHierarchy hierarchy = viewer == null ? null : viewer.getHierarchy();
-			int size = 10;
 			if (value == null || empty) {
 				setText(null);
 				setGraphic(null);
-			} else if (value.getBaseClass() == value && value.getName() == null) {
-				setText("None");
-				setGraphic(new Rectangle(size, size, ColorToolsFX.getCachedColor(0, 0, 0, 0)));
-			} else {
-				int n = 0; 
-				if (hierarchy != null) {
-					try {
-						n = getAnnotationsForClass(hierarchy, value).size();
-					} catch (Exception e) {
-						logger.debug("Exception while counting objects for class", e);
-					}
-				}
-				if (n == 0)
-					setText(value.toString());
-				else
-					setText(value.toString() + " (" + n + ")");
-				setGraphic(new Rectangle(size, size, ColorToolsFX.getPathClassColor(value)));
+				return;
 			}
-			if (!empty && viewer != null && viewer.getOverlayOptions().isPathClassHidden(value)) {
+			rectangle.setFill(getColor(value));
+			setGraphic(rectangle);
+			setText(getText(value));
+
+			if (isHidden(value)) {
 				setStyle("-fx-font-family:arial; -fx-font-style:italic;");		
 				setText(getText() + " (hidden)");
 			} else
 				setStyle("-fx-font-family:arial; -fx-font-style:normal;");
 		}
+
 	}
 	
 }
