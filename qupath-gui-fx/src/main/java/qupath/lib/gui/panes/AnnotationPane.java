@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -27,7 +27,6 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -72,6 +71,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
+import qupath.lib.regions.ImagePlane;
 
 
 /**
@@ -407,11 +407,23 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		if (disableUpdates.get())
 			return;
 
-		// Create a sorted list of annotations
-		List<PathObject> newList = new ArrayList<>(hierarchy.getObjects(new HashSet<>(), PathAnnotationObject.class));
-		Collections.sort(newList, annotationListComparator);
-				
 		pathClassPane.getListView().refresh();
+
+		// Create a sorted list of annotations
+		// (Could use a treeset to sort as we insert, but doesn't seem to be faster)
+		var annotationSet = hierarchy.getObjects(new HashSet<>(), PathAnnotationObject.class);
+		// This code tries to stop early if the hierarchy is changed, to avoid sluggishness when dragging an annotation
+		// in an image with very large numbers of annotations
+		if (event.isChanging() &&
+				annotationSet.size() == listAnnotations.getItems().size() &&
+				annotationSet.containsAll(listAnnotations.getItems())) {
+			return;
+		}
+		// If we're done changing, make sure we have sorted the annotations - this operation can be expensive
+		// if we have a very large number of annotations
+		List<PathObject> newList = new ArrayList<>(annotationSet);
+		newList.sort(annotationListComparator);
+
 		// If the lists are the same, we just need to refresh the appearance (because e.g. classifications or measurements now differ)
 		// For some reason, 'equals' alone wasn't behaving nicely (perhaps due to ordering?)... so try a more manual test instead
 		if (newList.equals(listAnnotations.getItems())) {
@@ -430,16 +442,34 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		listAnnotations.getItems().setAll(newList);
 		suppressSelectionChanges = lastChanging;
 	}
-	
-	
+
 	static Comparator<PathObject> annotationListComparator = Comparator.nullsFirst(Comparator
-				.comparingInt((PathObject p) -> p.hasROI() ? p.getROI().getT() : -1)
-				.thenComparingInt(p -> p.hasROI() ? p.getROI().getZ() : -1)
-				.thenComparing(p -> p.toString())
-				.thenComparingDouble(p -> p.hasROI() ? p.getROI().getBoundsY(): -1)
-				.thenComparingDouble(p -> p.hasROI() ? p.getROI().getBoundsX(): -1)
-				.thenComparing(p -> p.getID().toString())
+				.comparing(AnnotationPane::getImagePlane)
+				.thenComparing(AnnotationPane::getClassificationString) // Since v0.6.0 - previously 'toString()' but this was slow!
+				.thenComparingDouble(AnnotationPane::getBoundsY)
+				.thenComparingDouble(AnnotationPane::getBoundsX)
+				.thenComparing(PathObject::getID)
 				);
-	
+
+	private static double getBoundsX(PathObject pathObject) {
+		var roi = pathObject == null ? null : pathObject.getROI();
+		return roi == null ? -1 : roi.getBoundsX();
+	}
+
+	private static double getBoundsY(PathObject pathObject) {
+		var roi = pathObject == null ? null : pathObject.getROI();
+		return roi == null ? -1 : roi.getBoundsY();
+	}
+
+	private static ImagePlane getImagePlane(PathObject pathObject) {
+		var roi = pathObject == null ? null : pathObject.getROI();
+		return roi == null ? ImagePlane.getDefaultPlane() : roi.getImagePlane();
+	}
+
+	private static String getClassificationString(PathObject pathObject) {
+		var c = pathObject == null ? null : pathObject.getClassification();
+		return c == null ? "" : c;
+	}
+
 	
 }

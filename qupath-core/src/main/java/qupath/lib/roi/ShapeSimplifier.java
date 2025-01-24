@@ -76,7 +76,7 @@ public class ShapeSimplifier {
 		int n = points.size();
 		
 		// Populate the priority queue
-		PriorityQueue<PointWithArea> queue = new PriorityQueue<>();
+		PriorityQueue<PointWithArea> queue = new PriorityQueue<>(points.size()+8);
 		
 		Point2 pPrevious = points.getLast();
 		Point2 pCurrent = points.getFirst();

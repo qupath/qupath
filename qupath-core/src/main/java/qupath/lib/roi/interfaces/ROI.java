@@ -29,6 +29,7 @@ import java.util.List;
 import org.locationtech.jts.geom.Geometry;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.ImagePlane;
 
 /**
@@ -48,7 +49,7 @@ public interface ROI {
 	 * 
 	 * @return
 	 */
-	public abstract String getRoiName();
+	String getRoiName();
 
 	/**
 	 * Get channel index, or -1 if the ROI relates to all available channels.
@@ -56,7 +57,7 @@ public interface ROI {
 	 * (This is not currently used, but may be in the future)
 	 * @return
 	 */
-	public abstract int getC();
+	int getC();
 
 	/**
 	 * Get time point index.
@@ -64,7 +65,7 @@ public interface ROI {
 	 * Default is 0 if the image it relates to is not a time series.
 	 * @return
 	 */
-	public abstract int getT();
+	int getT();
 
 	/**
 	 * Get z-stack slice index.
@@ -72,55 +73,55 @@ public interface ROI {
 	 * Default is 0 if the image it relates to is not a z-stack.
 	 * @return
 	 */
-	public abstract int getZ();
+	int getZ();
 
 	/**
 	 * Get the ImagePlane, which contains the values for c, z and t in a single object.
 	 * @return 
 	 */
-	public ImagePlane getImagePlane();
+	ImagePlane getImagePlane();
 	
 	/**
 	 * Returns the x coordinate for the ROI centroid.
 	 * 
 	 * @return
 	 */
-	public abstract double getCentroidX();
+	double getCentroidX();
 
 	/**
 	 * Returns the y coordinate for the ROI centroid.
 	 * 
 	 * @return
 	 */
-	public abstract double getCentroidY();
+	double getCentroidY();
 
 	/**
 	 * Returns the x coordinate for the top left of the ROI bounding box.
 	 * 
 	 * @return
 	 */
-	public abstract double getBoundsX();
+	double getBoundsX();
 
 	/**
 	 * Returns the y coordinate for the top left of the ROI bounding box.
 	 * 
 	 * @return
 	 */
-	public abstract double getBoundsY();
+	double getBoundsY();
 
 	/**
 	 * Returns the width of the ROI bounding box.
 	 * 
 	 * @return
 	 */
-	public abstract double getBoundsWidth();
+	double getBoundsWidth();
 
 	/**
 	 * Returns the height of the ROI bounding box.
 	 * 
 	 * @return
 	 */
-	public abstract double getBoundsHeight();
+	double getBoundsHeight();
 	
 	/**
 	 * Get a list of points representing the vertices of the ROI.
@@ -129,20 +130,20 @@ public interface ROI {
 	 * the expected output for a ROI that contains holes or disconnected regions is (currently) undefined.
 	 * @return
 	 */
-	public abstract List<Point2> getAllPoints();
+	List<Point2> getAllPoints();
 
 	/**
 	 * Get the number of points, as would be returned by {@link #getAllPoints()}.
 	 * @return
 	 */
-	public abstract int getNumPoints();
+	int getNumPoints();
 		
 	/**
 	 * Returns true if the ROI bounds have zero width and height.
 	 * 
 	 * @return
 	 */
-	public abstract boolean isEmpty();
+	 boolean isEmpty();
 
 	/**
 	 * Create a duplicate of the ROI.
@@ -152,7 +153,7 @@ public interface ROI {
 	 * @return
 	 */
 	@Deprecated
-	public abstract ROI duplicate();
+    ROI duplicate();
 	
 	/**
 	 * Returns a java.awt.Shape representing this ROI, if possible.
@@ -162,7 +163,7 @@ public interface ROI {
 	 * 
 	 * @return
 	 */
-	public Shape getShape();
+    Shape getShape();
 
 	
 	/**
@@ -170,12 +171,12 @@ public interface ROI {
 	 * 
 	 * @return
 	 */
-	public Geometry getGeometry();
+    Geometry getGeometry();
 	
 	/**
 	 * Enum representing the major different types of ROI.
 	 */
-	public enum RoiType {
+    enum RoiType {
 		/**
 		 * ROI represents a closed area (possibly with holes).
 		 */
@@ -194,28 +195,28 @@ public interface ROI {
 	 * Get the RoiType, used to distinguish between points, lines and areas.
 	 * @return
 	 */
-	public RoiType getRoiType();
+    RoiType getRoiType();
 	
 	/**
 	 * Returns true if this ROI consists of line segments and does not enclose an area.
 	 * 
 	 * @return
 	 */
-	public boolean isLine();
+    boolean isLine();
 	
 	/**
 	 * Returns true if this ROI encloses an area.
 	 * 
 	 * @return
 	 */
-	public boolean isArea();
+    boolean isArea();
 	
 	/**
 	 * Returns true if this ROI represents distinct (unconnected) points.
 	 * 
 	 * @return
 	 */
-	public boolean isPoint();
+    boolean isPoint();
 	
 	/**
 	 * Create a translated version of this ROI. The original ROI is unchanged.
@@ -223,7 +224,7 @@ public interface ROI {
 	 * @param dy vertical translation
 	 * @return
 	 */
-	public ROI translate(double dx, double dy);
+    ROI translate(double dx, double dy);
 	
 	/**
 	 * Create a scaled version of this ROI. Coordinates are multiplied by the given 
@@ -235,7 +236,7 @@ public interface ROI {
 	 * @return
 	 * @see #scale(double, double)
 	 */
-	public ROI scale(double scaleX, double scaleY, double originX, double originY);
+    ROI scale(double scaleX, double scaleY, double originX, double originY);
 	
 	/**
 	 * Create a scaled version of this ROI. Coordinates are multiplied by the given 
@@ -245,7 +246,7 @@ public interface ROI {
 	 * @return
 	 * @see #scale(double, double, double, double)
 	 */
-	public default ROI scale(double scaleX, double scaleY) {
+	default ROI scale(double scaleX, double scaleY) {
 		return scale(scaleX, scaleY, 0, 0);
 	}
 	
@@ -254,7 +255,7 @@ public interface ROI {
 	 * @return
 	 * @see #getScaledArea(double, double)
 	 */
-	public double getArea();
+    double getArea();
 	
 	/**
 	 * Get scaled area of the ROI, for use with calibrated pixel sizes.
@@ -263,8 +264,22 @@ public interface ROI {
 	 * @return
 	 * @see #getArea()
 	 */
-	public double getScaledArea(double pixelWidth, double pixelHeight);
-	
+    double getScaledArea(double pixelWidth, double pixelHeight);
+
+	/**
+	 * Get the scaled area, using the pixel width and height from a calibration object.
+	 * Note that the units are not defined; it is a convenience method equivalent to
+	 * <code>
+	 *     getScaledArea(cal.getPixelWidth().doubleValue(), cal.getPixelHeight().doubleValue())
+	 * </code>
+	 * For more control, use {@link #getScaledArea(double, double)}
+	 * @param cal
+	 * @return
+	 */
+	default double getScaledArea(PixelCalibration cal) {
+		return getScaledArea(cal.getPixelWidth().doubleValue(), cal.getPixelHeight().doubleValue());
+	}
+
 	/**
 	 * Get ROI length.
 	 * This is defined as
@@ -276,7 +291,7 @@ public interface ROI {
 	 * @return
 	 * @see #getScaledLength(double, double)
 	 */
-	public double getLength();
+	double getLength();
 	
 	/**
 	 * Get the scaled length, for use with calibrated pixel sizes.
@@ -285,22 +300,35 @@ public interface ROI {
 	 * @return
 	 * @see #getLength()
 	 */
-	public double getScaledLength(double pixelWidth, double pixelHeight);
-	
+	double getScaledLength(double pixelWidth, double pixelHeight);
+
+	/**
+	 * Get the scaled length, using the pixel width and height from a calibration object.
+	 * Note that the units are not defined; it is a convenience method equivalent to
+	 * <code>
+	 *     getScaledLength(cal.getPixelWidth().doubleValue(), cal.getPixelHeight().doubleValue())
+	 * </code>
+	 * For more control, use {@link #getScaledLength(double, double)}
+	 * @param cal
+	 * @return
+	 */
+	default double getScaledLength(PixelCalibration cal) {
+		return getScaledLength(cal.getPixelWidth().doubleValue(), cal.getPixelHeight().doubleValue());
+	}
 	
 	/**
 	 * Get a ROI representing the convex hull of this ROI.
 	 * This should be the smallest convex shape that contains all the ROI points.
 	 * @return
 	 */
-	public ROI getConvexHull();
+	ROI getConvexHull();
 	
 	/**
 	 * Calculate the solidity, defined as ROI area / convex hull area.
 	 * Returns Double.NaN if the ROI does not represent an area.
 	 * @return
 	 */
-	public double getSolidity();
+	double getSolidity();
 	
 	/**
 	 * Test is the ROI contains specified x, y coordinates.
@@ -310,7 +338,7 @@ public interface ROI {
 	 * @param y
 	 * @return
 	 */
-	public boolean contains(double x, double y);
+	boolean contains(double x, double y);
 	
 	/**
 	 * Create a new ROI defining the same region on a different {@link ImagePlane}.
@@ -318,15 +346,7 @@ public interface ROI {
 	 * @param plane the new plane to use
 	 * @return
 	 */
-	public ROI updatePlane(ImagePlane plane);
-	
-//	public double getMaxDiameter();
-//	
-//	public double getMinDiameter();
-//	
-//	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight);
-//	
-//	public double getScaledMinDiameter(double pixelWidth, double pixelHeight);
+	ROI updatePlane(ImagePlane plane);
 	
 
 }
