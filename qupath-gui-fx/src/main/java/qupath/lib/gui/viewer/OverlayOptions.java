@@ -527,7 +527,8 @@ public class OverlayOptions {
 		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
 			return hiddenClasses.contains(null) || hiddenClasses.contains(PathClass.NULL_CLASS);
 		return hiddenClasses.contains(pathClass) || 
-				((PathClassTools.isPositiveOrGradedIntensityClass(pathClass) || PathClassTools.isNegativeClass(pathClass)) && pathClass.isDerivedClass() && isPathClassHidden(pathClass.getParentClass()));
+				((PathClassTools.isPositiveOrGradedIntensityClass(pathClass) || PathClassTools.isNegativeClass(pathClass)) &&
+						pathClass.isDerivedClass() && isPathClassHidden(pathClass.getParentClass()));
 	}
 
 	/**

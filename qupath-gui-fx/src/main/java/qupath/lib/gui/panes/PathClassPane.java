@@ -30,9 +30,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
@@ -41,9 +43,12 @@ import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
+import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +80,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -663,12 +669,55 @@ class PathClassPane {
 		private final QuPathGUI qupath;
 		private final OverlayOptions overlayOptions;
 
+		private final BorderPane pane = new BorderPane();
+		private final Label label = new Label();
+
 		private final int size = 10;
 		private final Rectangle rectangle = new Rectangle(size, size);
+
+		private final Node iconShowing = IconFactory.createNode(FontAwesome.Glyph.EYE);
+		private final Node iconHidden = IconFactory.createNode(FontAwesome.Glyph.EYE_SLASH);
 
 		PathClassListCell(QuPathGUI qupath) {
 			this.qupath = qupath;
 			this.overlayOptions = qupath == null ? null : qupath.getOverlayOptions();
+			label.setMaxWidth(Double.MAX_VALUE);
+			label.setGraphic(rectangle);
+			pane.setCenter(label);
+
+			configureHiddenIcon();
+			configureShowingIcon();
+		}
+
+		private void configureHiddenIcon() {
+			iconHidden.styleProperty().bind(Bindings.createStringBinding(() -> {
+				return iconHidden.hoverProperty().get() ? "-fx-opacity: 0.8;" : "-fx-opacity: 0.4;";
+			}, iconHidden.hoverProperty()));
+
+			if (overlayOptions != null) {
+				Tooltip.install(iconHidden, new Tooltip("Classification hidden - click to toggle visibility"));
+				iconHidden.setOnMouseClicked(this::handleToggleVisibility);
+			}
+		}
+
+		private void configureShowingIcon() {
+			iconShowing.styleProperty().bind(Bindings.createStringBinding(() -> {
+				return iconShowing.hoverProperty().get() ? "-fx-opacity: 0.8;" : "-fx-opacity: 0.1;";
+			}, iconShowing.hoverProperty()));
+
+			if (overlayOptions != null) {
+				Tooltip.install(iconShowing, new Tooltip("Classification showing - click to toggle visibility"));
+				iconShowing.setOnMouseClicked(this::handleToggleVisibility);
+			}
+		}
+
+		private void handleToggleVisibility(MouseEvent e) {
+			var pathClass = getItem();
+			var options = overlayOptions;
+			if (pathClass != null && options != null) {
+				options.setPathClassHidden(pathClass, !options.isPathClassHidden(pathClass));
+				getListView().refresh();
+			}
 		}
 
 		private QuPathViewer getViewer() {
@@ -729,14 +778,21 @@ class PathClassPane {
 				return;
 			}
 			rectangle.setFill(getColor(value));
-			setGraphic(rectangle);
-			setText(getText(value));
-
+			String text = getText(value);
+			String style;
 			if (isHidden(value)) {
-				setStyle("-fx-font-family:arial; -fx-font-style:italic;");		
-				setText(getText() + " (hidden)");
-			} else
-				setStyle("-fx-font-family:arial; -fx-font-style:normal;");
+				style = "-fx-font-family:arial; -fx-font-style:italic;";
+				pane.setRight(iconHidden);
+//				text += " (hidden)";
+			} else {
+				style = "-fx-font-family:arial; -fx-font-style:normal;";
+				pane.setRight(iconShowing);
+			}
+			label.setText(text);
+			label.setStyle(style);
+
+			setGraphic(pane);
+
 		}
 
 	}
