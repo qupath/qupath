@@ -24,6 +24,7 @@ package qupath.lib.gui;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -74,6 +75,7 @@ import qupath.lib.gui.viewer.tools.ExtendedPathTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 class ToolBarComponent {
 
@@ -415,6 +417,7 @@ class ToolBarComponent {
 		}
 		
 	}
+
 
 
 

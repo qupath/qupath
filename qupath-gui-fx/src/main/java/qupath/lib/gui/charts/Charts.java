@@ -559,18 +559,19 @@ public class Charts {
 		
 		private Integer DEFAULT_MAX_DATAPOINTS = 10_000;
 		private Integer maxDatapoints;
+		private Random rnd = new Random();
 
 		private ScatterChartBuilder() {}
 		
 		/**
-		 * Choose the maximum number of supported datapoints.
+		 * Choose the maximum number of supported datapoints per series.
 		 * Scattercharts are rather 'heavyweight', and including many thousands of datapoints can cause 
 		 * severe performance issues due to high processing and memory requirements.
 		 * <p>
 		 * By default, datapoints will be randomly subsampled to a 'manageable number' where necessary, 
 		 * which can be customized with this setting.
 		 * 
-		 * @param max the maximum number of data points to show
+		 * @param max the maximum number of data points to show per series
 		 * @return this builder
 		 * 
 		 * @see #unlimitedDatapoints()
@@ -597,7 +598,17 @@ public class Charts {
 		protected String getDefaultWindowTitle() {
 			return "Scatter Chart";
 		}
-		
+
+		/**
+		 * Set the random number generator.
+		 * @param rnd A random number generator
+		 * @return A modified builder.
+		 */
+		public ScatterChartBuilder random(Random rnd) {
+			this.rnd = rnd;
+			return this;
+		}
+
 		/**
 		 * Plot centroids for the specified objects using a fixed pixel calibration.
 		 * @param pathObjects the objects to plot
@@ -607,7 +618,7 @@ public class Charts {
 		public <T> ScatterChartBuilder centroids(Collection<? extends PathObject> pathObjects, PixelCalibration cal) {
 			xLabel("x (" + cal.getPixelWidthUnit() + ")");
 			yLabel("y (" + cal.getPixelHeightUnit() + ")");
-			return series(
+			return addSeries(
 					null,
 					pathObjects,
 					(PathObject p) -> PathObjectTools.getROI(p, true).getCentroidX() * cal.getPixelWidth().doubleValue(),
@@ -634,111 +645,207 @@ public class Charts {
 		public ScatterChartBuilder measurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement) {
 			xLabel(xMeasurement);
 			yLabel(yMeasurement);
-			return series(
+			return addSeries(
 					null,
 					pathObjects,
 					(PathObject p) -> p.getMeasurementList().get(xMeasurement),
 					(PathObject p) -> p.getMeasurementList().get(yMeasurement));
 		}
-		
+
+
 		/**
-		 * Plot values extracted from objects within a specified collection.
-		 * @param <T>
+		 * Add values extracted from objects within a specified collection.
+		 * @param <T> The type of input for X and Y.
 		 * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param collection the objects to plot
 		 * @param xFun function capable of extracting a numeric value for the x location from each object in the collection
 		 * @param yFun function capable of extracting a numeric value for the y location from each object in the collection
 		 * @return this builder
 		 */
-		public <T> ScatterChartBuilder series(String name, Collection<? extends T> collection, Function<T, Number> xFun, Function<T, Number> yFun) {
-			return series(name,
+		public <T> ScatterChartBuilder addSeries(String name, Collection<? extends T> collection, Function<T, Number> xFun, Function<T, Number> yFun) {
+			return addSeries(name,
 					collection.stream()
 					.map(p -> new XYChart.Data<>(xFun.apply(p), yFun.apply(p), p))
 					.toList());
 		}
 
 		/**
-		 * Create a scatterplot using collections of numeric values.
+		 * Create and add a scatterplot using collections of numeric values.
 		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
-		 * @param x
-		 * @param y
+		 * @param x The x variable
+		 * @param y The y variable
 		 * @return this builder
 		 */
-		public ScatterChartBuilder series(String name, Collection<? extends Number> x, Collection<? extends Number> y) {
-			return series(name,
-					x.stream().mapToDouble(xx -> xx.doubleValue()).toArray(),
-					y.stream().mapToDouble(yy -> yy.doubleValue()).toArray());
+		public ScatterChartBuilder addSeries(String name, Collection<? extends Number> x, Collection<? extends Number> y) {
+			return addSeries(name,
+					x.stream().mapToDouble(Number::doubleValue).toArray(),
+					y.stream().mapToDouble(Number::doubleValue).toArray());
 		}
-		
+
 		/**
-		 * Create a scatterplot using arrays of numeric values.
+		 * Create and add a scatterplot using arrays of numeric values.
 		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
 		 * @return this builder
 		 */
-		public ScatterChartBuilder series(String name, double[] x, double[] y) {
-			return series(name, x, y, (List<?>)null);
+		public ScatterChartBuilder addSeries(String name, double[] x, double[] y) {
+			return addSeries(name, x, y, (List<?>)null);
 		}
-		
+
 		/**
-		 * Create a scatterplot using collections of numeric values, with an associated custom object.
-		 * @param <T>
+		 * Create and add a scatterplot using collections of numeric values, with an associated custom object.
+		 * @param <T> The type of custom object.
 		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
 		 * @param extra array of values to associate with each data point; should be the same length as x and y
 		 * @return this builder
 		 */
-		public <T> ScatterChartBuilder series(String name, double[] x, double[] y, T[] extra) {
-			return series(name, x, y, extra == null ? null : Arrays.asList(extra));
+		public <T> ScatterChartBuilder addSeries(String name, double[] x, double[] y, T[] extra) {
+			return addSeries(name, x, y, extra == null ? null : Arrays.asList(extra));
 		}
-		
+
 		/**
-		 * Create a scatterplot using collections of numeric values, with an associated custom object.
-		 * @param <T>
+		 * Create and add a scatterplot series using collections of numeric values, with an associated custom object.
+		 * @param <T> The type of custom object.
 		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
 		 * @param extra list of values to associate with each data point; should be the same length as x and y
 		 * @return this builder
 		 */
-		public <T> ScatterChartBuilder series(String name, double[] x, double[] y, List<T> extra) {
-			List<Data<Number, Number>> data = new ArrayList<>();
-			for (int i = 0; i < x.length; i++) {
-				if (extra != null && i < extra.size())
-					data.add(new Data<>(x[i], y[i], extra.get(i)));
-				else
-					data.add(new Data<>(x[i], y[i]));				
-			}
-			return series(name, data);
+		public <T> ScatterChartBuilder addSeries(String name, double[] x, double[] y, List<T> extra) {
+			return addSeries(createSeries(name, x, y, extra));
 		}
-		
+
 		/**
-		 * Create a scatterplot from existing data plots.
+		 * Create and add a scatterplot series from existing data.
 		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param data the data points to plot
 		 * @return this builder
 		 */
-		public ScatterChartBuilder series(String name, Collection<Data<Number, Number>> data) {
-			int n;
-			if (maxDatapoints == null) {
-				n = DEFAULT_MAX_DATAPOINTS;
-			} else
-				n = maxDatapoints.intValue();
-			if (data.size() > n) {
-				logger.warn("Subsampling {} data points to {}", data.size(), n);
-				var list = new ArrayList<>(data);
-				Collections.shuffle(list);
-				data = list.subList(0, n);
-			}
+		public ScatterChartBuilder addSeries(String name, Collection<Data<Number, Number>> data) {
 			if (data instanceof ObservableList)
 				series.add(new XYChart.Series<>(name, (ObservableList<Data<Number, Number>>)data));
 			else
 				series.add(new XYChart.Series<>(name, FXCollections.observableArrayList(data)));
 			return this;
 		}
-		
+
+		/**
+		 * Create a scatterplot series from existing data.
+		 * @param series the data points to plot
+		 * @return this builder
+		 */
+		public ScatterChartBuilder addSeries(Series<Number, Number> series) {
+			this.series.add(series);
+			return this;
+		}
+
+		/**
+		 * Create a data series from two measurements for the specified objects.
+		 * @param pathObjects the objects to plot
+		 * @param xMeasurement the measurement to extract from each object's measurement list for the x location
+		 * @param yMeasurement the measurement to extract from each object's measurement list for the y location
+		 * @return a series of data
+		 */
+		public static Series<Number, Number> createSeriesFromMeasurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement) {
+			return createSeries(
+					null,
+					pathObjects,
+					(PathObject p) -> p.getMeasurementList().get(xMeasurement),
+					(PathObject p) -> p.getMeasurementList().get(yMeasurement));
+		}
+
+		/**
+		 * Create a data series extracted from objects within a specified collection.
+		 *
+		 * @param <T>        The type of input for X and Y.
+		 * @param name       the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param collection the objects to plot
+		 * @param xFun       function capable of extracting a numeric value for the x location from each object in the collection
+		 * @param yFun       function capable of extracting a numeric value for the y location from each object in the collection
+		 * @return a series of data
+		 */
+		public static <T> Series<Number, Number> createSeries(String name, Collection<? extends T> collection, Function<T, Number> xFun, Function<T, Number> yFun) {
+			return createSeries(name,
+					collection.stream()
+							.map(p -> new XYChart.Data<>(xFun.apply(p), yFun.apply(p), p))
+							.toList());
+		}
+
+		/**
+		 * Create a series using collections of numeric values.
+		 *
+		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param x    The x variable
+		 * @param y    The y variable
+		 * @return a series of data
+		 */
+		public static Series<Number, Number> createSeries(String name, Collection<? extends Number> x, Collection<? extends Number> y) {
+			return createSeries(name,
+					x.stream().mapToDouble(Number::doubleValue).toArray(),
+					y.stream().mapToDouble(Number::doubleValue).toArray());
+		}
+
+		/**
+		 * Create a scatterplot using arrays of numeric values.
+		 *
+		 * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param x    x-values
+		 * @param y    y-values
+		 * @return a series of data
+		 */
+		public static Series<Number, Number> createSeries(String name, double[] x, double[] y) {
+			return createSeries(name, x, y, (List<?>)null);
+		}
+
+		/**
+		 * Create a series of data using collections of numeric values, with an associated custom object.
+		 *
+		 * @param <T>   The type of custom object.
+		 * @param name  the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param x     x-values
+		 * @param y     y-values
+		 * @param extra array of values to associate with each data point; should be the same length as x and y
+		 * @return a series of data
+		 */
+		public static <T> Series<Number, Number> createSeries(String name, double[] x, double[] y, T[] extra) {
+			return createSeries(name, x, y, extra == null ? null : Arrays.asList(extra));
+		}
+
+		/**
+		 * Create a scatterplot using collections of numeric values, with an associated custom object.
+		 *
+		 * @param <T>   The type of custom object.
+		 * @param name  the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param x     x-values
+		 * @param y     y-values
+		 * @param extra list of values to associate with each data point; should be the same length as x and y
+		 * @return a series of data
+		 */
+		public static <T> Series<Number, Number> createSeries(String name, double[] x, double[] y, List<T> extra) {
+			List<Data<Number, Number>> data = new ArrayList<>();
+			for (int i = 0; i < x.length; i++) {
+				if (extra != null && i < extra.size())
+					data.add(new Data<>(x[i], y[i], extra.get(i)));
+				else
+					data.add(new Data<>(x[i], y[i]));
+			}
+			return createSeries(name, data);
+		}
+
+		/**
+		 * Create a series of data from existing data sets.
+		 * @param name the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+		 * @param data the data points to plot
+		 * @return a series of data
+		 */
+		private static Series<Number, Number> createSeries(String name, Collection<Data<Number, Number>> data) {
+			return new XYChart.Series<>(name, FXCollections.observableArrayList(data));
+		}
+
 		@Override
 		protected void updateChart(ScatterChart<Number, Number> chart) {
 			super.updateChart(chart);
@@ -775,6 +882,7 @@ public class Charts {
 			return new ScatterChart<>(xAxis, yAxis);
 		}
 
+
 		/**
 		 * Try to select an object if possible (e.g. because a user clicked on it).
 		 * @param pathObject the object to select
@@ -782,6 +890,16 @@ public class Charts {
 		 * @param centerObject if true, try to center it in a viewer (if possible)
 		 */
 		private void tryToSelect(PathObject pathObject, boolean addToSelection, boolean centerObject) {
+			tryToSelect(pathObject, viewer, imageData, addToSelection, centerObject);
+		}
+
+		/**
+		 * Try to select an object if possible (e.g. because a user clicked on it).
+		 * @param pathObject the object to select
+		 * @param addToSelection if true, add to an existing selection; if false, reset any current selection
+		 * @param centerObject if true, try to center it in a viewer (if possible)
+		 */
+		public static void tryToSelect(PathObject pathObject, QuPathViewer viewer, ImageData<?> imageData, boolean addToSelection, boolean centerObject) {
 			PathObjectHierarchy hierarchy = null;
 			if (imageData != null)
 				hierarchy = imageData.getHierarchy();
@@ -804,7 +922,29 @@ public class Charts {
 		protected ScatterChartBuilder getThis() {
 			return this;
 		}
-		
+
+		@Override
+		public ScatterChart<Number, Number> build() {
+			subsampleSeries();
+			return super.build();
+		}
+
+		/**
+		 * Perform data subsampling to ensure that each series contains <= maxDatapoints.
+		 */
+		private void subsampleSeries() {
+			int n = maxDatapoints == null ? DEFAULT_MAX_DATAPOINTS : maxDatapoints;
+			for (var series: this.series) {
+				List<Data<Number, Number>> data = series.getData();
+				if (data.size() > n) {
+					logger.warn("Subsampling {} data points to {}", data.size(), n);
+					var list = new ArrayList<>(data);
+					Collections.shuffle(list, rnd);
+					data = list.subList(0, n);
+				}
+				series.getData().setAll(data);
+			}
+		}
 	}
 	
 	/**
