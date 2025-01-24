@@ -23,14 +23,13 @@
 
 package qupath.lib.gui.commands;
 
-import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.extensionmanager.gui.ExtensionManager;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
-import qupath.lib.gui.ExtensionControlPane;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 
@@ -39,57 +38,25 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * Command to list the names &amp; details of all installed extensions
+ * Command to start an {@link ExtensionManager}.
  */
 class ShowInstalledExtensionsCommand {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ShowInstalledExtensionsCommand.class);
-
-	private static Map<QuPathGUI, ShowInstalledExtensionsCommand> instances = new WeakHashMap<>();
-
-	private QuPathGUI qupath;
+	private static final Map<QuPathGUI, ShowInstalledExtensionsCommand> instances = new WeakHashMap<>();
+	private final QuPathGUI qupath;
 	private Stage dialog;
 
 	private ShowInstalledExtensionsCommand(QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
 
-	private void showInstalledExtensions() {
-		if (dialog == null) {
-			dialog = createDialog(qupath);
-			dialog.show();
-			FXUtils.retainWindowPosition(dialog); // Remember position after hiding
-		} else {
-			dialog.show();
-		}
-	}
-
-	private Stage createDialog(QuPathGUI qupath) {
-		dialog = new Stage();
-		FXUtils.addCloseWindowShortcuts(dialog);
-		dialog.initOwner(qupath.getStage());
-		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle(QuPathResources.getString("ExtensionControlPane"));
-		try {
-			var pane = ExtensionControlPane.createInstance();
-			dialog.setScene(new Scene(pane));
-			dialog.setWidth(pane.getPrefWidth());
-			dialog.setHeight(pane.getPrefHeight());
-			dialog.setMinWidth(500);
-			dialog.setMinHeight(300);
-		} catch (IOException e) {
-			logger.error("Unable to open extension control pane", e);
-			Dialogs.showErrorMessage(QuPathResources.getString("ExtensionControlPane"),
-					QuPathResources.getString("ExtensionControlPane.unableToOpen"));
-		}
-		return dialog;
-	}
-
 	/**
-	 * Show a dialog listing all installed extensions.
-	 * @param qupath
+	 * Show an {@link ExtensionManager}.
+	 *
+	 * @param qupath the QuPath GUI owning the window
 	 */
-	public static void showInstalledExtensions(final QuPathGUI qupath) {
+	public static void showInstalledExtensions(QuPathGUI qupath) {
 		getInstance(qupath).showInstalledExtensions();
 	}
 
@@ -97,5 +64,35 @@ class ShowInstalledExtensionsCommand {
 		return instances.computeIfAbsent(qupath, ShowInstalledExtensionsCommand::new);
 	}
 
+	private void showInstalledExtensions() {
+		if (dialog == null) {
+			dialog = createAndShowDialog(qupath);
+		} else {
+			dialog.show();
+		}
+	}
 
+	private static Stage createAndShowDialog(QuPathGUI qupath) {
+		Stage dialog = null;
+
+		try {
+			dialog = new ExtensionManager(
+					qupath.getExtensionCatalogManager(),
+					() -> Commands.requestUserDirectory(true)
+			);
+
+			FXUtils.addCloseWindowShortcuts(dialog);
+			dialog.initOwner(qupath.getStage());
+			dialog.initModality(Modality.APPLICATION_MODAL);
+			dialog.show();
+		} catch (IOException e) {
+			logger.error("Unable to open extension control pane", e);
+
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("ShowInstalledExtensionsCommand.extensionManager"),
+					QuPathResources.getString("ShowInstalledExtensionsCommand.unableToOpen")
+			);
+		}
+		return dialog;
+	}
 }
