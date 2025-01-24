@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -40,6 +40,8 @@ import java.util.stream.Collectors;
 
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.beans.value.ObservableValue;
+import javafx.scene.control.Tooltip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,7 +125,7 @@ public class SummaryMeasurementTableCommand {
 
 	private static final BooleanProperty useRegexColumnFilter = PathPrefs.createPersistentPreference("summaryMeasurementTableUseRegexColumnFilter", false);
 
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 	
 	private BooleanProperty showThumbnailsProperty ;
 
@@ -158,7 +160,7 @@ public class SummaryMeasurementTableCommand {
 		final PathObjectHierarchy hierarchy = imageData.getHierarchy();
 
 		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-		model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
+		model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
 
 		SplitPane splitPane = new SplitPane();
 		TabPane plotTabs = new TabPane();
@@ -242,10 +244,11 @@ public class SummaryMeasurementTableCommand {
 		TableColumn<PathObject, String> colObjectIDs = null;
 		for (String columnName : model.getAllNames()) {
 			// Add column
-			if (model.isStringMeasurement(columnName)) {
+			var tooltipText = model.getHelpText(columnName);
+			if (!model.isNumericMeasurement(columnName)) {
 				TableColumn<PathObject, String> col = new TableColumn<>(columnName);
-				col.setCellValueFactory(column -> model.createStringMeasurement(column.getValue(), column.getTableColumn().getText()));
-				col.setCellFactory(column -> new BasicTableCell<>());
+				col.setCellValueFactory(column -> createStringMeasurement(model, column.getValue(), column.getTableColumn().getText()));
+				col.setCellFactory(column -> new BasicTableCell<>(tooltipText));
 				if (ObservableMeasurementTableData.NAME_OBJECT_ID.equals(columnName)) {
 					colObjectIDs = col;
 				} else {
@@ -253,8 +256,8 @@ public class SummaryMeasurementTableCommand {
 				}
 			} else {
 				TableColumn<PathObject, Number> col = new TableColumn<>(columnName);
-				col.setCellValueFactory(column -> model.createNumericMeasurement(column.getValue(), column.getTableColumn().getText()));
-				col.setCellFactory(column -> new NumericTableCell<>(histogramDisplay));
+				col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
+				col.setCellFactory(column -> new NumericTableCell<>(tooltipText, histogramDisplay));
 				table.getColumns().add(col);			
 			}
 		}
@@ -431,12 +434,12 @@ public class SummaryMeasurementTableCommand {
 					Platform.runLater(() -> hierarchyChanged(event));
 					return;
 				}
-				if (imageData != null)
-					displayedName.set(ServerTools.getDisplayableImageName(imageData.getServer()));
+                displayedName.set(ServerTools.getDisplayableImageName(imageData.getServer()));
+
+				// TODO: Consider if this can be optimized to avoid rebuilding the full table so often
 				if (event.isStructureChangeEvent())
 					model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
-				else
-					model.refreshEntries();
+
 				table.refresh();
 				if (histogramDisplay != null) {
 					histogramDisplay.refreshHistogram();
@@ -453,11 +456,13 @@ public class SummaryMeasurementTableCommand {
 
 		frame.setOnShowing(e -> {
 			hierarchy.addListener(listener);
-			viewer.addViewerListener(tableViewerListener);
+			if (viewer != null)
+				viewer.addViewerListener(tableViewerListener);
 		});
 		frame.setOnHiding(e -> {
 			hierarchy.removeListener(listener);
-			viewer.removeViewerListener(tableViewerListener);
+			if (viewer != null)
+				viewer.removeViewerListener(tableViewerListener);
 		});
 
 		Scene scene = new Scene(pane, 800, 500);
@@ -471,12 +476,7 @@ public class SummaryMeasurementTableCommand {
 		menu.setOnShowing(e -> {
 			Set<PathClass> representedClasses = model.getBackingListEntries().stream().map(p -> p.getPathClass() == null ? null : p.getPathClass().getBaseClass()).collect(Collectors.toCollection(() -> new HashSet<>()));
 			representedClasses.remove(null);
-			if (representedClasses.isEmpty()) {
-				menuLimitClasses.setVisible(false);
-			}
-			else {
-				menuLimitClasses.setVisible(true);
-			}
+            menuLimitClasses.setVisible(!representedClasses.isEmpty());
 			menuLimitClasses.getItems().clear();
 			List<PathClass> sortedClasses = new ArrayList<>(representedClasses);
 			Collections.sort(sortedClasses);
@@ -503,6 +503,35 @@ public class SummaryMeasurementTableCommand {
 
 	}
 
+
+	/**
+	 * Create a specific numeric measurement.
+	 * <p>
+	 * Warning! This binding is not guaranteed to update its value automatically upon changes to the
+	 * underlying object or data.
+	 *
+	 * @param pathObject
+	 * @param column
+	 * @return
+	 */
+	private ObservableValue<Number> createNumericMeasurement(final ObservableMeasurementTableData model, final PathObject pathObject, final String column) {
+		return Bindings.createDoubleBinding(() -> model.getNumericValue(pathObject, column));
+	}
+
+	/**
+	 * Create a specific String measurement.
+	 * <p>
+	 * Warning! This binding is not guaranteed to update its value automatically upon changes to the
+	 * underlying object or data.
+	 *
+	 * @param pathObject
+	 * @param column
+	 * @return
+	 */
+	private ObservableValue<String> createStringMeasurement(final ObservableMeasurementTableData model, final PathObject pathObject, final String column) {
+		return Bindings.createStringBinding(() -> model.getStringValue(pathObject, column));
+	}
+
 	
 	private void maybeCenterROI(PathObject pathObject) {
 		if (pathObject == null)
@@ -517,8 +546,10 @@ public class SummaryMeasurementTableCommand {
 
 	static class BasicTableCell<S, T> extends TableCell<S, T> {
 
-		public BasicTableCell() {
+		public BasicTableCell(String tooltipText) {
 			setAlignment(Pos.CENTER);
+			if (tooltipText != null && !tooltipText.isEmpty())
+				setTooltip(new Tooltip(tooltipText));
 		}
 
 		@Override
@@ -538,10 +569,12 @@ public class SummaryMeasurementTableCommand {
 
 	static class NumericTableCell<T> extends TableCell<T, Number> {
 
-		private HistogramDisplay histogramDisplay;
+		private final HistogramDisplay histogramDisplay;
 
-		public NumericTableCell(final HistogramDisplay histogramDisplay) {
+		public NumericTableCell(String tooltipText, HistogramDisplay histogramDisplay) {
 			this.histogramDisplay = histogramDisplay;
+			if (tooltipText != null && !tooltipText.isEmpty())
+				setTooltip(new Tooltip(tooltipText));
 		}
 
 
@@ -586,7 +619,7 @@ public class SummaryMeasurementTableCommand {
 
 	class TableViewerListener implements QuPathViewerListener {
 
-		private TableView<PathObject> table;
+		private final TableView<PathObject> table;
 		private QuPathViewer viewer;
 
 		TableViewerListener(final QuPathViewer viewer, final TableView<PathObject> table) {
@@ -606,25 +639,11 @@ public class SummaryMeasurementTableCommand {
 
 		@Override
 		public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {
-//			if (this.viewer != null || table.getSelectionModel().getSelectedItem() == pathObjectSelected || !table.getItems().contains(pathObjectSelected))
-//				return;
-			
 			if (!Platform.isFxApplicationThread()) {
 				Platform.runLater(() -> selectedObjectChanged(viewer, pathObjectSelected));
 				return;
 			}
 			synchronizeTableToSelectionModel(viewer.getHierarchy(), table);
-
-//			Platform.runLater(() -> {
-//				if (pathObjectSelected == null)
-//					table.getSelectionModel().clearSelection();
-//				else {
-//					table.getSelectionModel().select(pathObjectSelected);
-//					// Scroll to the object if it is present in the table
-//					//					if (table.getSelectionModel().getSelectedItem() == pathObjectSelected)
-//					table.scrollTo(pathObjectSelected);
-//				}
-//			});
 		}
 
 		@Override
@@ -635,11 +654,6 @@ public class SummaryMeasurementTableCommand {
 
 	}
 
-
-
-	//	public static String getTableString(final JTable table, final String delim) {
-	//		return getTableModelString(table.getModel(), delim);
-	//	}
 
 	/**
 	 * Get a list of Strings representing table data.

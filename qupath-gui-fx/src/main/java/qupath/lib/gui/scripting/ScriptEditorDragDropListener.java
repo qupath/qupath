@@ -31,7 +31,9 @@ import java.util.stream.Collectors;
 import javafx.event.EventHandler;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
+import qupath.ext.extensionmanager.gui.ExtensionManager;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 
 /**
@@ -62,7 +64,11 @@ class ScriptEditorDragDropListener implements EventHandler<DragEvent> {
 			
 			List<File> jars = list.stream().filter(f -> f.getName().toLowerCase().endsWith(".jar")).toList();
 			if (!jars.isEmpty())
-				qupath.getExtensionManager().promptToCopyFilesToExtensionsDirectory(list);
+				ExtensionManager.promptToCopyFilesToExtensionDirectory(
+						list,
+						qupath.getExtensionCatalogManager().getExtensionDirectoryPath(),
+						() -> Commands.requestUserDirectory(true)
+				);
 			
 			List<File> remainingFiles = list.stream().filter(f -> !f.getName().toLowerCase().endsWith(".jar")).toList();
 			var supported = ScriptLanguageProvider.getAvailableLanguages().stream()

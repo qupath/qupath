@@ -46,11 +46,14 @@ import picocli.CommandLine.IVersionProvider;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParseResult;
+import qupath.ext.extensionmanager.core.ExtensionCatalogManager;
+import qupath.ext.extensionmanager.core.savedentities.Registry;
+import qupath.ext.extensionmanager.core.savedentities.SavedCatalog;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.BuildInfo;
-import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathApp;
+import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.extensions.Subcommand;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
@@ -348,7 +351,18 @@ class ScriptCommand implements Runnable {
 		
 	@Override
 	public void run() {
-		try {
+		try (ExtensionCatalogManager extensionCatalogManager = new ExtensionCatalogManager(
+				UserDirectoryManager.getInstance().extensionsDirectoryProperty(),
+				QuPath.class.getClassLoader(),
+				String.format("v%s", BuildInfo.getInstance().getVersion().toString()),
+				new Registry(List.of(new SavedCatalog(
+						"QuPath catalog",
+						"Extensions maintained by the QuPath team",
+						URI.create("https://github.com/qupath/qupath-catalog"),
+						URI.create("https://raw.githubusercontent.com/qupath/qupath-catalog/refs/heads/main/catalog.json"),
+						false
+				)))
+		)){
 			if (projectPath != null && !projectPath.toLowerCase().endsWith(ProjectIO.getProjectExtension()))
 				throw new IOException("Project file must end with '.qpproj'");
 			if (scriptCommand == null) {
@@ -360,12 +374,10 @@ class ScriptCommand implements Runnable {
 			
 			// Ensure we have a tile cache set
 			createTileCache();
-			
-			// Set classloader to include any available extensions
-			var extensionClassLoader = ExtensionClassLoader.getInstance();
-			extensionClassLoader.refresh();
-			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
-			Thread.currentThread().setContextClassLoader(extensionClassLoader);
+
+			// Load image server builders from extensions
+			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionCatalogManager.getClassLoader()));
+			Thread.currentThread().setContextClassLoader(extensionCatalogManager.getClassLoader());
 			
 			// Unfortunately necessary to force initialization (including GsonTools registration of some classes)
 			QP.getCoreClasses();
@@ -418,8 +430,7 @@ class ScriptCommand implements Runnable {
 				if (result != null)
 					logger.info("Script result: {}", result);
 			}
-			
-		} catch (Exception e) {
+        } catch (Exception e) {
 			logger.error(e.getLocalizedMessage(), e);
 			throw new RuntimeException(e);
 		}

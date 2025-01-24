@@ -1055,7 +1055,8 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	 * Note that the returned map currently is <i>not</i> threadsafe.
 	 * This may change in future versions.
 	 * <p>
-	 * When adding metadata,
+	 * It is preferable not to add metadata too eagerly, especially to large numbers of objects,
+	 * as this can considerably increase the memory footprint.
 	 * @return
 	 * @since v0.5.0
 	 */
@@ -1068,6 +1069,18 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 			}
 		}
 		return metadata;
+	}
+
+	/**
+	 * Query whether the object has any metadata associated with it.
+	 * <p>
+	 * Because calls to {@link #getMetadata()} unavoidably result in creating a new metadata
+	 * object, it is strongly recommended to call this before requesting the metadata if
+	 * no changes will be made and empty metadata can be ignored.
+	 * @return true if {@link #getMetadata()} would return a non-empty map, false otherwise
+	 */
+	public boolean hasMetadata() {
+		return metadata != null && !metadata.isEmpty();
 	}
 	
 	

@@ -160,6 +160,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		col1.setCellValueFactory(this::tableKeyColumnValueFactory);
 		TableColumn<String, String> col2 = new TableColumn<>("Value");
 		col2.setCellValueFactory(this::tableValueColumnValueFactory);
+
 		tableMeasurements.getColumns().addAll(col1, col2);
 		tableMeasurements.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 		tableMeasurements.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -188,6 +189,17 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 						.then((ContextMenu) null)
 						.otherwise(menu)
 		);
+
+		var tooltip = new Tooltip();
+		row.itemProperty().addListener((v, o, n) -> {
+			String helpText = n == null ? null : tableModel.getHelpText(n);
+			if (helpText == null || helpText.isBlank())
+				row.setTooltip(null);
+			else {
+				tooltip.setText(helpText);
+				row.setTooltip(tooltip);
+			}
+		});
 
 		return row;
 	}
