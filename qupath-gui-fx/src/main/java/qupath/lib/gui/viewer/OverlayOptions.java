@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -72,30 +72,30 @@ public class OverlayOptions {
 		CENTROIDS
 		};
 	
-	private ObjectProperty<MeasurementMapper> measurementMapper = new SimpleObjectProperty<>();
-	private BooleanProperty showAnnotations = new SimpleBooleanProperty(null, "showAnnotations", true);
-	private BooleanProperty showNames = new SimpleBooleanProperty(null, "showAnnotationNames", true);
-	private BooleanProperty showTMAGrid = new SimpleBooleanProperty(null, "showTMAGrid", true);
-	private BooleanProperty showDetections = new SimpleBooleanProperty(null, "showDetections", true);
-	private BooleanProperty showConnections = new SimpleBooleanProperty(null, "showConnections", false);
-	private BooleanProperty fillDetections = new SimpleBooleanProperty(null, "fillDetections", false);
-	private BooleanProperty fillAnnotations = new SimpleBooleanProperty(null, "fillAnnotations", false);
-	private BooleanProperty showTMACoreLabels = new SimpleBooleanProperty(null, "showTMACoreLabels", false);
-	private BooleanProperty showGrid = new SimpleBooleanProperty(null, "showGrid", false);
-	private ObjectProperty<GridLines> gridLines = new SimpleObjectProperty<>(null, "showGridLines", new GridLines());
+	private final ObjectProperty<MeasurementMapper> measurementMapper = new SimpleObjectProperty<>();
+	private final BooleanProperty showAnnotations = new SimpleBooleanProperty(null, "showAnnotations", true);
+	private final BooleanProperty showNames = new SimpleBooleanProperty(null, "showAnnotationNames", true);
+	private final BooleanProperty showTMAGrid = new SimpleBooleanProperty(null, "showTMAGrid", true);
+	private final BooleanProperty showDetections = new SimpleBooleanProperty(null, "showDetections", true);
+	private final BooleanProperty showConnections = new SimpleBooleanProperty(null, "showConnections", false);
+	private final BooleanProperty fillDetections = new SimpleBooleanProperty(null, "fillDetections", false);
+	private final BooleanProperty fillAnnotations = new SimpleBooleanProperty(null, "fillAnnotations", false);
+	private final BooleanProperty showTMACoreLabels = new SimpleBooleanProperty(null, "showTMACoreLabels", false);
+	private final BooleanProperty showGrid = new SimpleBooleanProperty(null, "showGrid", false);
+	private final ObjectProperty<GridLines> gridLines = new SimpleObjectProperty<>(null, "showGridLines", new GridLines());
 
-	private BooleanProperty showPixelClassification = new SimpleBooleanProperty(null, "showPixelClassification", true);
-	private ObjectProperty<RegionFilter> pixelClassificationFilter = new SimpleObjectProperty<>(null, "pixelClassificationFilter", RegionFilter.StandardRegionFilters.EVERYWHERE);
+	private final BooleanProperty showPixelClassification = new SimpleBooleanProperty(null, "showPixelClassification", true);
+	private final ObjectProperty<RegionFilter> pixelClassificationFilter = new SimpleObjectProperty<>(null, "pixelClassificationFilter", RegionFilter.StandardRegionFilters.EVERYWHERE);
 
-	private FloatProperty fontSize = new SimpleFloatProperty();
+	private final FloatProperty fontSize = new SimpleFloatProperty();
 
-	private ObservableSet<PathClass> hiddenClasses = FXCollections.observableSet();
+	private final ObservableSet<PathClass> hiddenClasses = FXCollections.observableSet();
 
-	private ObjectProperty<DetectionDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(null, "cellDisplayMode", DetectionDisplayMode.NUCLEI_AND_BOUNDARIES);
+	private final ObjectProperty<DetectionDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(null, "cellDisplayMode", DetectionDisplayMode.NUCLEI_AND_BOUNDARIES);
 
-	private FloatProperty opacity = new SimpleFloatProperty(1.0f);
+	private final FloatProperty opacity = new SimpleFloatProperty(1.0f);
 	
-	private LongProperty timestamp = new SimpleLongProperty(System.currentTimeMillis());
+	private final LongProperty timestamp = new SimpleLongProperty(System.nanoTime());
 
 	private static final OverlayOptions SHARED_INSTANCE = createSharedInstance();
 
@@ -175,7 +175,7 @@ public class OverlayOptions {
 	}
 	
 	private void updateTimestamp() {
-		this.timestamp.set(System.currentTimeMillis());
+		this.timestamp.set(System.nanoTime());
 	}
 	
 	/**
