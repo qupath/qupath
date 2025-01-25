@@ -51,6 +51,7 @@ import javafx.scene.paint.Color;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.glyphfont.FontAwesome;
+import org.controlsfx.glyphfont.GlyphFontRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -698,7 +699,9 @@ class PathClassPane {
 
 		private final Node iconShowing = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE));
 		private final Node iconHidden = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE_SLASH));
-		private final Node iconUnavailable = new StackPane(IconFactory.createNode(FontAwesome.Glyph.TIMES));
+		private final Node iconUnavailable = new StackPane(GlyphFontRegistry.font("FontAwesome")
+				.create('\uf2a8')
+				.size(QuPathGUI.TOOLBAR_ICON_SIZE));
 
 		private static final String STYLE_HIDDEN = "-fx-font-family:arial; -fx-font-style:italic;";
 		private static final String STYLE_SHOWING = "-fx-font-family:arial; -fx-font-style:normal;";
