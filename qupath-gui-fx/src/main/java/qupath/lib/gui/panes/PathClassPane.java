@@ -124,7 +124,7 @@ class PathClassPane {
 		this.qupath = qupath;
 		this.availablePathClasses = qupath.getAvailablePathClasses();
 		var mainPane = createClassPane();
-		var titled = createLeftRightTitledPane("Class list", createTitleNode());
+		var titled = GuiTools.createLeftRightTitledPane("Class list", createTitleNode());
 		titled.setContent(mainPane);
 		mainPane.setPadding(Insets.EMPTY);
 
@@ -132,36 +132,6 @@ class PathClassPane {
 		pane = new BorderPane(titled);
 	}
 
-	static TitledPane createLeftRightTitledPane(String name, Node right) {
-		var label = new Label(name);
-		label.setMaxWidth(Double.MAX_VALUE);
-		label.setMaxHeight(Double.MAX_VALUE);
-		label.setAlignment(Pos.CENTER_LEFT);
-		return createLeftRightTitledPane(label, right);
-	}
-
-	private static TitledPane createLeftRightTitledPane(Node left, Node right) {
-		var pane = new BorderPane();
-		pane.setLeft(left);
-		pane.setRight(right);
-		pane.setMaxWidth(Double.MAX_VALUE);
-		pane.setPadding(Insets.EMPTY);
-		var titled = new TitledPane();
-		titled.setGraphic(pane);
-		titled.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-		titled.setAlignment(Pos.CENTER);
-		titled.setMaxWidth(Double.MAX_VALUE);
-		titled.setMaxHeight(Double.MAX_VALUE);
-		titled.setCollapsible(false);
-		pane.paddingProperty().bind(Bindings.createObjectBinding(() -> {
-			if (titled.isCollapsible())
-				return new Insets(0, 5, 0, 25);
-			else
-				return new Insets(0, 5, 0, 5);
-		}, titled.collapsibleProperty()));
-		pane.minWidthProperty().bind(titled.widthProperty());
-		return titled;
-	}
 
 
 	private Pane createTitleNode() {
@@ -186,12 +156,7 @@ class PathClassPane {
 		var spacer = new Pane();
 		spacer.setPrefWidth(4.0);
 
-		var insets = new Insets(1.0, 8, 1, 8);
-		btnAdd.setPadding(insets);
-		btnRemove.setPadding(insets);
-		btnMore.setPadding(insets);
-
-		return new HBox(spacer, btnAdd, btnRemove, btnMore);
+		return new HBox(btnAdd, btnRemove, btnMore);
 	}
 
 	

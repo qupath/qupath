@@ -187,3 +187,8 @@
   -fx-fill: -qp-script-warn-color;
   -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.25), 2, 0, 1, 1);
 }
+
+/* Title pane with small additional buttons */
+.titled-pane > .title .titled-button-pane .button {
+  -fx-padding: 1 8 1 8;
+}

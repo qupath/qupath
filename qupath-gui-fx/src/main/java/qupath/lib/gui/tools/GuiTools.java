@@ -22,6 +22,7 @@
 package qupath.lib.gui.tools;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ObservableList;
 import javafx.css.StyleOrigin;
@@ -29,7 +30,10 @@ import javafx.css.StyleableObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.geometry.Side;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -38,6 +42,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -47,13 +52,16 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
@@ -1064,14 +1072,14 @@ public class GuiTools {
 		actionInverse.setText("Make inverse");
 		
 		Menu menuCombine = MenuTools.createMenu(
-				"Edit multiple",
+				"Edit multiple annotations",
 				actionMerge,
 				actionSubtract, // TODO: Make this less ambiguous!
 				actionIntersect
 				);
 		
 		Menu menuEdit = MenuTools.createMenu(
-				"Edit single",
+				"Edit 1 annotation",
 				actionInverse,
 				qupath.createPluginAction("Split", SplitAnnotationsPlugin.class, null)
 				);
@@ -1094,7 +1102,7 @@ public class GuiTools {
 				selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
 				allSelected = new ArrayList<>(imageData.getHierarchy().getSelectionModel().getSelectedObjects());
 				hasSelectedAnnotation = selected != null && selected.isAnnotation();
-				allSelectedAnnotations = allSelected.stream().allMatch(p -> p.isAnnotation());
+				allSelectedAnnotations = allSelected.stream().allMatch(PathObject::isAnnotation);
 			}
 			miLockAnnotations.setDisable(!hasSelectedAnnotation);
 			miUnlockAnnotations.setDisable(!hasSelectedAnnotation);
@@ -1419,5 +1427,55 @@ public class GuiTools {
 		stage.setMaxHeight(previousMaxHeight);
 	}
 
+
+
+	/**
+	 * Create a {@link TitledPane} with a text heading aligned to the left, and additional content
+	 * (usually one or more buttons) aligned to the right.
+	 * @param name the text to appear in the title
+	 * @param rightNodes the nodes to show aligned to the right; if more than 1, these will be wrapped in an {@link HBox}
+	 * @return the titled pane
+	 * @since v0.6.0
+	 */
+	public static TitledPane createLeftRightTitledPane(String name, Node... rightNodes) {
+		var label = new Label(name);
+		label.setMaxWidth(Double.MAX_VALUE);
+		label.setMaxHeight(Double.MAX_VALUE);
+		label.setAlignment(Pos.CENTER_LEFT);
+		label.setPadding(new Insets(0, 2, 0, 0));
+		var right = rightNodes.length == 1 ? rightNodes[0] : new HBox(rightNodes);
+		return createLeftRightTitledPane(label, right);
+	}
+
+	/**
+	 * Create a {@link TitledPane} with content aligned to the left and right of the title.
+	 * @param left the left content
+	 * @param right the right content
+	 * @return the titled pane
+	 * @since v0.6.0
+	 */
+	public static TitledPane createLeftRightTitledPane(Node left, Node right) {
+		var pane = new BorderPane();
+		pane.getStyleClass().add("titled-button-pane");
+		pane.setLeft(left);
+		pane.setRight(right);
+		pane.setMaxWidth(Double.MAX_VALUE);
+		pane.setPadding(Insets.EMPTY);
+		var titled = new TitledPane();
+		titled.setGraphic(pane);
+		titled.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+		titled.setAlignment(Pos.CENTER);
+		titled.setMaxWidth(Double.MAX_VALUE);
+		titled.setMaxHeight(Double.MAX_VALUE);
+		titled.setCollapsible(false);
+		pane.paddingProperty().bind(Bindings.createObjectBinding(() -> {
+			if (titled.isCollapsible())
+				return new Insets(0, 5, 0, 25);
+			else
+				return new Insets(0, 5, 0, 5);
+		}, titled.collapsibleProperty()));
+		pane.minWidthProperty().bind(titled.widthProperty());
+		return titled;
+	}
 
 }

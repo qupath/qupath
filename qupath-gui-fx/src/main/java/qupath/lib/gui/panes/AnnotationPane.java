@@ -33,12 +33,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.scene.control.TitledPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
@@ -120,9 +120,11 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 	
 	private final PathClassPane pathClassPane;
 
-	private PredicateTextField<PathObject> filter = new PredicateTextField<>(PathObject::getDisplayedName);
-	private ObservableList<PathObject> allAnnotations = FXCollections.observableArrayList();
-	private FilteredList<PathObject> filteredAnnotations = new FilteredList<>(allAnnotations);
+	private final PredicateTextField<PathObject> filter = new PredicateTextField<>(PathObject::getDisplayedName);
+	private final ObservableList<PathObject> allAnnotations = FXCollections.observableArrayList();
+	private final FilteredList<PathObject> filteredAnnotations = new FilteredList<>(allAnnotations);
+
+	private final ContextMenu menuAnnotations = new ContextMenu();
 
 	/*
 	 * List displaying annotations in the current hierarchy
@@ -157,8 +159,11 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		
 		pathClassPane = new PathClassPane(qupath);
 		setImageData(imageDataProperty.getValue());
-		
-		Pane paneAnnotations = createAnnotationsPane();
+
+		initializeFilter();
+		initializeAnnotationList();
+		GuiTools.populateAnnotationsMenu(qupath, menuAnnotations);
+		var paneAnnotations = createAnnotationTitledPane();
 		
 		SplitPane paneColumns = new SplitPane(
 				paneAnnotations,
@@ -185,12 +190,16 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		hierarchyChanged(PathObjectHierarchyEvent.createStructureChangeEvent(this, hierarchy, hierarchy.getRootObject()));
 		selectedPathObjectChanged(hierarchy.getSelectionModel().getSelectedObject(), null, hierarchy.getSelectionModel().getSelectedObjects());
 	}
-	
-	private Pane createAnnotationsPane() {
+
+	private void initializeFilter() {
+		filter.setPromptText("Filter annotations");
+		filter.setIgnoreCase(true);
+		filteredAnnotations.predicateProperty().bind(filter.predicateProperty());
+	}
+
+	private void initializeAnnotationList() {
 		hierarchyChanged(null); // Force update
 
-		filter.setPromptText("Filter annotations");
-		filteredAnnotations.predicateProperty().bind(filter.predicateProperty());
 		listAnnotations.setCellFactory(v -> PathObjectLabels.createListCell());
 
 		listAnnotations.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -207,11 +216,12 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 				qupath.getViewer().centerROI(pathObject.getROI());
 			}
 		});
-		
-		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> listAnnotations.refresh());
 
-		ContextMenu menuAnnotations = GuiTools.populateAnnotationsMenu(qupath, new ContextMenu());
+		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> listAnnotations.refresh());
 		listAnnotations.setContextMenu(menuAnnotations);
+	}
+
+	private TitledPane createAnnotationTitledPane() {
 
 		// Add the main annotation list
 		BorderPane panelObjects = new BorderPane();
@@ -255,18 +265,23 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 
 		panelObjects.setBottom(new VBox(filter, panelButtons));
 
-		var titled = PathClassPane.createLeftRightTitledPane("Annotation list",
-				new HBox(
-//						new Button(null, IconFactory.createNode(FontAwesome.Glyph.EDIT, 12)),
-//						new Button(null, IconFactory.createNode(FontAwesome.Glyph.MINUS, 12)),
-//						new Button(null, IconFactory.createNode(FontAwesome.Glyph.CARET_RIGHT, 12))
-				));
+		var btnProperties = new Button(null, IconFactory.createNode(FontAwesome.Glyph.PENCIL, 12));
+		btnProperties.disableProperty().bind(Bindings.isEmpty(listAnnotations.getSelectionModel().getSelectedItems()));
+		btnProperties.setOnAction(e -> {
+			var hierarchy = qupath.getViewer().getHierarchy();
+			if (hierarchy != null)
+				GuiTools.promptToSetActiveAnnotationProperties(hierarchy);
+		});
+
+		var titled = GuiTools.createLeftRightTitledPane("Annotation list", btnProperties);
+		// TODO: Consider additional buttons (e.g. to delete)
+
 		titled.setContent(panelObjects);
 		panelObjects.setPadding(Insets.EMPTY);
 		titled.setCollapsible(false);
 		titled.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		return new BorderPane(titled);
+		return titled;
 	}
 	
 	
@@ -500,5 +515,4 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		return c == null ? "" : c;
 	}
 
-	
 }
