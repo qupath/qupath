@@ -11,6 +11,12 @@ Some things may be added, some things may be removed, and some things may look d
 * Read and write OME-Zarr images (https://github.com/qupath/qupath/pull/1474)
   * Use `convert-ome` to write OME-Zarr from a command line
   * Use *File → Export images... → OME-Zarr* to export images from the user interface
+* Add, remove & upgrade extensions easily with *Extensions → Manage extensions* (https://github.com/qupath/qupath/pull/1716)
+  * See also https://github.com/qupath/extension-manager
+* More control over showing/hiding objects by classification (https://github.com/qupath/qupath/pull/1752)
+* New ImageJ script runner (https://github.com/qupath/qupath/pull/1682)
+* Improved measurements - with tooltips & scatterplots (https://github.com/qupath/qupath/pull/1747 & https://github.com/qupath/qupath/pull/1544)
+* Optionally build QuPath *and* Fiji together (https://github.com/qupath/qupath/pull/1728)
 
 ### Enhancements
 (These are not yet ordered by interestingness)
@@ -53,6 +59,7 @@ Some things may be added, some things may be removed, and some things may look d
   * Note that channel colors still only be set for non-RGB images
 * Improved ImageJ integration (https://github.com/qupath/qupath/pull/1676 https://github.com/qupath/qupath/pull/1677)
 * 'Selection mode' now supports 'deselecting' objects by pressing the 'Alt' key (https://github.com/qupath/qupath/issues/1704)
+* More 'filter boxes' in the user interface to find things in long lists or tables (https://github.com/qupath/qupath/pull/1742)
 
 ### Experimental features
 These features are included for testing and feedback.
