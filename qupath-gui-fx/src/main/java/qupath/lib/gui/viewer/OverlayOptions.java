@@ -37,9 +37,11 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableSet;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MeasurementMapper;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 
 import java.util.Arrays;
+import java.util.function.Predicate;
 
 /**
  * Default class for storing overlay display options.
@@ -91,6 +93,8 @@ public class OverlayOptions {
 	private final ObservableSet<PathClass> hiddenClasses = FXCollections.observableSet();
 
 	private final ObjectProperty<DetectionDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(null, "cellDisplayMode", DetectionDisplayMode.NUCLEI_AND_BOUNDARIES);
+
+	private final ObjectProperty<Predicate<PathObject>> showObjectPredicate = new SimpleObjectProperty<>(null, "showObjectPredicate");
 
 	private final FloatProperty opacity = new SimpleFloatProperty(1.0f);
 	
@@ -514,7 +518,81 @@ public class OverlayOptions {
 	public boolean getAllPathClassesVisible() {
 		return hiddenClasses.isEmpty();
 	}
-	
+
+	/**
+	 * Query whether an object should be hidden.
+	 * This could be for one of 3 reasons:
+	 * <ol>
+	 *     <li>It is of a type that should be hidden (e.g. detections, annotations, TMA cores)</li>
+	 *     <li>It is rejected by {@link #showObjectPredicateProperty()}</li>
+	 *     <li>It has a classification that should be hidden</li>
+	 * </ol>
+	 * This can be based on the predicate or the classification.
+	 * @param pathObject the object to test
+	 * @return true if the object should be hidden, false if it can be shown
+	 */
+	public boolean isHidden(PathObject pathObject) {
+		return isHiddenByType(pathObject) || isHiddenByPredicate(pathObject) || isPathClassHidden(pathObject.getPathClass());
+	}
+
+	/**
+	 * Get the predicate used to determine whether an object should be displayed or hidden.
+	 * Note that this is applied in <i>addition</i> to any values in {@link #hiddenClassesProperty()} and the individual
+	 * show/hide options for different object types.
+	 * <p>
+	 * Usually the value should be {@code null}, but it exists to allow more complex filtering of objects that cannot
+	 * be achieved using any of the other methods.
+	 * <p>
+	 * @return the predicate used to determine whether an object should be displayed or hidden
+	 * @see #isHidden(PathObject)
+	 */
+	public ObjectProperty<Predicate<PathObject>> showObjectPredicateProperty() {
+		return showObjectPredicate;
+	}
+
+	/**
+	 * Reset the value of {@link #showObjectPredicateProperty()}.
+	 */
+	public void resetShowObjectPredicate() {
+		setShowObjectPredicate(null);
+	}
+
+	/**
+	 * Set the value of {@link #showObjectPredicateProperty()}.
+	 * <p>
+	 * If the intention is to show all objects, either pass {@code null} or call {@link #resetShowObjectPredicate()} -
+	 * do not pass a predicate that always returns {@code true}, because this will be less efficient.
+	 *
+	 * @param pathObjectPredicate the predicate to use, or {@code null} null if no predicate should be used
+	 * @see #isHidden(PathObject)
+	 */
+	public void setShowObjectPredicate(Predicate<PathObject> pathObjectPredicate) {
+		showObjectPredicate.set(pathObjectPredicate);
+	}
+
+	/**
+	 * Get the value of {@link #showObjectPredicateProperty()}.
+	 * @return the value of the predicate
+	 */
+	public Predicate<PathObject> getShowObjectPredicate() {
+		return showObjectPredicate.get();
+	}
+
+	private boolean isHiddenByType(PathObject pathObject) {
+		if (pathObject.isDetection())
+			return !getShowDetections();
+		if (pathObject.isAnnotation())
+			return !getShowAnnotations();
+		if (pathObject.isTMACore())
+			return !getShowTMAGrid();
+		return false;
+	}
+
+	private boolean isHiddenByPredicate(PathObject pathObject) {
+		var predicate = getShowObjectPredicate();
+		return predicate != null && !predicate.test(pathObject);
+	}
+
 	/**
 	 * Query whether objects with a specified classification should be displayed or hidden.
 	 * @param pathClass the classification to query
