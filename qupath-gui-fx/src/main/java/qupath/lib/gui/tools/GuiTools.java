@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -58,6 +58,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.robot.Robot;
+import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -128,8 +129,15 @@ public class GuiTools {
 	/**
 	 * Vertical ellipsis, which can be used to indicate a 'more' button.
 	 */
-	private static String MORE_ELLIPSIS = "⋮";
-	
+	private static final String MORE_ELLIPSIS = "⋮";
+
+	/**
+	 * Style class to use with placeholder text.
+	 * This is commonly used in a list or table to indicate that no items are present.
+	 */
+	public static final String STYLE_PLACEHOLDER_TEXT = "text-placeholder";
+
+
 	/**
 	 * Create a {@link Button} with a standardized icon and tooltip text to indicate 'More', 
 	 * which triggers a {@link ContextMenu} when clicked.
@@ -176,11 +184,27 @@ public class GuiTools {
 		Dialogs.showErrorMessage(title, QuPathResources.getString("Dialogs.noProject"));
 	}
 
+	/**
+	 * Create a {@link Text} object for use as a placeholder in a list or table.
+	 * This is used to overcome the fact that the default styling does not update with the application
+	 * theme (e.g. dark mode), and {@link Text} nodes do not have a style class associated with them
+	 * by default.
+	 * @param text the text to display
+	 * @return a text object showing the requested text
+	 * @see #STYLE_PLACEHOLDER_TEXT
+	 * @since v0.6.0
+	 */
+	public static Text createPlaceholderText(String text) {
+		var textNode = new Text(text);
+		textNode.getStyleClass().add(STYLE_PLACEHOLDER_TEXT);
+		return textNode;
+	}
+
 
 	/**
 	 * Kinds of snapshot image that can be created for QuPath.
 	 */
-	public static enum SnapshotType {
+	public enum SnapshotType {
 		/**
 		 * Snapshot of the current viewer content.
 		 */

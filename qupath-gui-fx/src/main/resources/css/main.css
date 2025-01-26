@@ -45,6 +45,11 @@
 
 }
 
+/* Text objects used as placeholders */
+.text-placeholder {
+  -fx-fill: -fx-text-base-color;
+  -fx-opacity: 0.8;
+}
 
 /* Soften the main toolbar icons */
 .tool-bar .qupath-icon * {

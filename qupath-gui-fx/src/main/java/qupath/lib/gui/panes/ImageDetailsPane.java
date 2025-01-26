@@ -45,6 +45,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import javafx.scene.control.TitledPane;
+import javafx.scene.text.Text;
 import org.controlsfx.control.MasterDetailPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,6 +163,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		imageDataProperty.addListener(this);
 
 		// Create the table
+		table.setPlaceholder(GuiTools.createPlaceholderText("No image selected"));
 		table.setMinHeight(200);
 		table.setPrefHeight(250);
 		table.setMaxHeight(Double.MAX_VALUE);

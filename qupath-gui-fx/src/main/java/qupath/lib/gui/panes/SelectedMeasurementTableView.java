@@ -64,6 +64,7 @@ import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableRow;
 import qupath.fx.controls.PredicateTextField;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -155,9 +156,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	private TableView<String> createMeasurementTable() {
 		TableView<String> tableMeasurements = new TableView<>();
 
-		var placeholder = new Text("No image or object selected");
-		placeholder.setStyle("-fx-fill: -fx-text-base-color;");
-		tableMeasurements.setPlaceholder(placeholder);
+		tableMeasurements.setPlaceholder(GuiTools.createPlaceholderText("No image or object selected"));
 		allKeys.setAll(tableModel.getAllNames());
 		tableMeasurements.setItems(filteredKeys);
 
