@@ -28,10 +28,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
@@ -41,10 +43,12 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -84,7 +88,6 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -120,7 +123,49 @@ class PathClassPane {
 	PathClassPane(QuPathGUI qupath) {
 		this.qupath = qupath;
 		this.availablePathClasses = qupath.getAvailablePathClasses();
-		pane = createClassPane();
+		var mainPane = createClassPane();
+		var titled = new TitledPane(null, mainPane);
+		titled.setMaxWidth(Double.MAX_VALUE);
+		titled.setMaxHeight(Double.MAX_VALUE);
+		titled.setCollapsible(false);
+		mainPane.setPadding(Insets.EMPTY);
+		var title = createTitleNode();
+		title.minWidthProperty().bind(titled.widthProperty().subtract(20));
+		titled.setGraphic(title);
+
+		titled.setContentDisplay(ContentDisplay.RIGHT);
+		pane = new BorderPane(titled);
+	}
+
+	private Pane createTitleNode() {
+		int iconSize = 8;
+
+		Action addNewAction = new Action(e -> promptToAddClass());
+		addNewAction.setGraphic(IconFactory.createNode(FontAwesome.Glyph.PLUS, iconSize));
+		addNewAction.setLongText("Add a new class to the list");
+
+		Action removeSelected = new Action(e -> promptToRemoveSelectedClasses());
+		removeSelected.setGraphic(IconFactory.createNode(FontAwesome.Glyph.MINUS, iconSize));
+		removeSelected.disabledProperty().bind(Bindings.isEmpty(listClasses.getSelectionModel().getSelectedItems().filtered(p -> p != PathClass.NULL_CLASS)));
+		removeSelected.setLongText("Remove the selected classes from the list (this does not change or remove objects)");
+
+		Button btnAdd = ActionUtils.createButton(addNewAction);
+		Button btnRemove = ActionUtils.createButton(removeSelected);
+
+		var btnMore = GuiTools.createMoreButton(createClassesMenu(), Side.RIGHT);
+		btnMore.setText(null);
+		btnMore.setGraphic(IconFactory.createNode(FontAwesome.Glyph.CARET_RIGHT, 12));
+
+		var label = new  Label("Class list");
+		label.setMaxWidth(Double.MAX_VALUE);
+
+		var spacer = new Pane();
+		spacer.setPrefWidth(4.0);
+
+		var pane = new BorderPane(label);
+		pane.setRight(new HBox(spacer, btnAdd, btnRemove, btnMore));
+		pane.setMaxWidth(Double.MAX_VALUE);
+		return pane;
 	}
 
 	
@@ -129,9 +174,7 @@ class PathClassPane {
 
 		var filteredList = availablePathClasses.filtered(p -> true);
 		listClasses.setItems(filteredList);
-//		listClasses.setTooltip(new Tooltip("Available classifications (right-click to add or remove).\n" +
-//				"Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info."));
-		
+
 		listClasses.getSelectionModel().selectedItemProperty()
 				.addListener((v, o, n) -> updateAutoSetPathClassProperty());
 		
@@ -160,13 +203,6 @@ class PathClassPane {
 		BorderPane paneClasses = new BorderPane();
 		paneClasses.setCenter(listClasses);
 
-		Action addNewAction = new Action("Add...", e -> promptToAddClass());
-		addNewAction.setLongText("Add a new class to the list");
-
-		Action removeSelected = new Action("Remove", e -> promptToRemoveSelectedClasses());
-		removeSelected.disabledProperty().bind(Bindings.isEmpty(listClasses.getSelectionModel().getSelectedItems().filtered(p -> p != PathClass.NULL_CLASS)));
-		removeSelected.setLongText("Remove the selected classes from the list (this does not change or remove objects)");
-
 		Action setSelectedObjectClassAction = new Action("Set selected", e -> promptToSetClass());
 		setSelectedObjectClassAction.setLongText("Set the class of the currently-selected objects");
 
@@ -176,14 +212,8 @@ class PathClassPane {
 		
 		doAutoSetPathClass.addListener((e, f, g) -> updateAutoSetPathClassProperty());
 
-		Button btnAdd = ActionUtils.createButton(addNewAction);
-		Button btnRemove = ActionUtils.createButton(removeSelected);
-
 		Button btnSetClass = ActionUtils.createButton(setSelectedObjectClassAction);
 		ToggleButton btnAutoClass = ActionUtils.createToggleButton(autoClassifyAnnotationsAction);
-
-		// Context menu button to populate classification list
-		Button btnMoreClasses = GuiTools.createMoreButton(createClassesMenu(), Side.RIGHT);
 
 		// Context menu button to work with selected objects & classifications
 		Button btnMoreObjects = GuiTools.createMoreButton(createSelectedMenu(), Side.RIGHT);
@@ -195,10 +225,7 @@ class PathClassPane {
 		col2.setPercentWidth(50.0);
 		paneClassButtons.getColumnConstraints().setAll(col1, col2);
 
-		var paneMore = new VBox(btnMoreClasses, btnMoreObjects);
-
-		paneClassButtons.add(btnAdd, 0, 0);
-		paneClassButtons.add(btnRemove, 1, 0);
+		var paneMore = new VBox(btnMoreObjects);
 
 		paneClassButtons.add(btnSetClass, 0, 1);
 		paneClassButtons.add(btnAutoClass, 1, 1);
@@ -215,8 +242,8 @@ class PathClassPane {
 		paneBottom.setTop(filter);
 		paneBottom.setRight(paneMore);
 
-		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, btnAdd, btnRemove, btnSetClass, btnAutoClass);
-		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, btnAdd, btnRemove, btnSetClass, btnAutoClass, filter);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, btnSetClass, btnAutoClass);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, btnSetClass, btnAutoClass, filter);
 		
 		paneClasses.setBottom(paneBottom);
 		return paneClasses;
@@ -643,7 +670,7 @@ class PathClassPane {
 	private boolean promptToRemoveSelectedClasses() {
 		List<PathClass> pathClasses = getSelectedPathClasses()
 				.stream()
-				.filter(p -> p != null && p != PathClass.NULL_CLASS)
+				.filter(PathClassPane::isNotNull)
 				.toList();
 		if (pathClasses.isEmpty())
 			return false;
@@ -655,6 +682,14 @@ class PathClassPane {
 		if (Dialogs.showConfirmDialog("Remove classes", message))
 			return availablePathClasses.removeAll(pathClasses);
 		return false;
+	}
+
+	private static boolean isNotNull(PathClass pathClass) {
+		return !isNull(pathClass);
+	}
+
+	private static boolean isNull(PathClass pathClass) {
+		return pathClass == null || pathClass == PathClass.NULL_CLASS;
 	}
 	
 	
@@ -673,25 +708,20 @@ class PathClassPane {
 	private List<PathClass> getSelectedPathClasses() {
 		return listClasses.getSelectionModel().getSelectedItems()
 				.stream()
-				.map(p -> p.getName() == null ? null : p)
+				.map(p -> p.getName() == null ? null : p) // Return null for NULL_CLASS
 				.toList();
 	}
 	
 	
 	/**
-	 * A {@link javafx.scene.control.ListCell} for displaying {@linkplain PathClass PathClasses}, including annotation counts
-	 * for the classes if available.
+	 * A {@link ListCell} to display a {@link PathClass}.
 	 */
 	private static class PathClassListCell extends ListCell<PathClass> {
 		
 		private final QuPathGUI qupath;
 		private final OverlayOptions overlayOptions;
 
-		// Tooltip for the main label (but not the visibility part)
-		private final Tooltip tooltip = new Tooltip("Available classifications (right-click to add or remove).\n" +
-				"Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info.");
-
-		private final BorderPane pane = new BorderPane();
+        private final BorderPane pane = new BorderPane();
 		private final Label label = new Label();
 
 		private final int size = 10;
@@ -712,10 +742,14 @@ class PathClassPane {
 			label.setMaxWidth(Double.MAX_VALUE);
 			label.setMinWidth(20);
 			label.setGraphic(rectangle);
-			label.setTooltip(tooltip);
+            // Tooltip for the main label (but not the visibility part)
+            Tooltip tooltip = new Tooltip("Available classifications (right-click to add or remove).\n" +
+                    "Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info.");
+            label.setTooltip(tooltip);
 			label.setTextOverrun(OverrunStyle.ELLIPSIS);
 
 			var sp = new StackPane(label);
+			label.setMaxWidth(Double.MAX_VALUE);
 			sp.setPrefWidth(1.0);
 			sp.setMinHeight(0.0);
 			StackPane.setAlignment(label, Pos.CENTER_LEFT);
@@ -769,13 +803,10 @@ class PathClassPane {
 			}
 		}
 
-		private QuPathViewer getViewer() {
-			return qupath == null ? null : qupath.getViewer();
-		}
 
 		private PathObjectHierarchy getHierarchy() {
-			var viewer = getViewer();
-			return viewer == null ? null : viewer.getHierarchy();
+			var imageData = qupath == null ? null : qupath.getImageData();
+			return imageData == null ? null : imageData.getHierarchy();
 		}
 
 		private boolean isHidden(PathClass pathClass) {
