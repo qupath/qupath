@@ -33,6 +33,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import javafx.geometry.Insets;
+import javafx.scene.control.TitledPane;
+import javafx.scene.layout.HBox;
+import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +65,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -86,19 +91,19 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 
 	private static final Logger logger = LoggerFactory.getLogger(AnnotationPane.class);
 
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 	
 	// Need to preserve this to guard against garbage collection
 	@SuppressWarnings("unused")
-	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
+	private final ObservableValue<ImageData<BufferedImage>> imageDataProperty;
 	private ImageData<BufferedImage> imageData;
 	
-	private BooleanProperty disableUpdates = new SimpleBooleanProperty(false);
+	private final BooleanProperty disableUpdates = new SimpleBooleanProperty(false);
 	
 	private PathObjectHierarchy hierarchy;
-	private BooleanProperty hasImageData = new SimpleBooleanProperty(false);
+	private final BooleanProperty hasImageData = new SimpleBooleanProperty(false);
 	
-	private BorderPane pane = new BorderPane();
+	private final BorderPane pane = new BorderPane();
 
 	/*
 	 * Request that we only synchronize to the primary selection; otherwise synchronizing to 
@@ -106,7 +111,7 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 	 */
 	private static boolean synchronizePrimarySelectionOnly = true;
 	
-	private PathClassPane pathClassPane;
+	private final PathClassPane pathClassPane;
 	
 	/*
 	 * List displaying annotations in the current hierarchy
@@ -237,7 +242,19 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		});
 
 		panelObjects.setBottom(panelButtons);
-		return panelObjects;
+
+		var titled = PathClassPane.createLeftRightTitledPane("Annotation list",
+				new HBox(
+//						new Button(null, IconFactory.createNode(FontAwesome.Glyph.EDIT, 12)),
+//						new Button(null, IconFactory.createNode(FontAwesome.Glyph.MINUS, 12)),
+//						new Button(null, IconFactory.createNode(FontAwesome.Glyph.CARET_RIGHT, 12))
+				));
+		titled.setContent(panelObjects);
+		panelObjects.setPadding(Insets.EMPTY);
+		titled.setCollapsible(false);
+		titled.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+		return new BorderPane(titled);
 	}
 	
 	

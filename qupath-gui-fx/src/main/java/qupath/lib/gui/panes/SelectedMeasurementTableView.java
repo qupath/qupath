@@ -41,6 +41,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,7 +93,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	private BorderPane pane;
 	private TableView<String> tableMeasurements;
 	
-	private ObservableMeasurementTableData tableModel = new ObservableMeasurementTableData();
+	private final ObservableMeasurementTableData tableModel = new ObservableMeasurementTableData();
 	
 	private boolean delayedUpdate = false;
 
@@ -102,14 +103,14 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	 * Property to indicate whether the table is currently visible.
 	 * If it isn't, it doesn't need to be updated.
 	 */
-	private BooleanProperty isShowing = new SimpleBooleanProperty(false);
+	private final BooleanProperty isShowing = new SimpleBooleanProperty(false);
 
-	private ObservableList<String> allKeys = FXCollections.observableArrayList();
-	private FilteredList<String> filteredKeys = new FilteredList<>(allKeys);
+	private final ObservableList<String> allKeys = FXCollections.observableArrayList();
+	private final FilteredList<String> filteredKeys = new FilteredList<>(allKeys);
 
-	private BooleanProperty useRegex = new SimpleBooleanProperty(false);
-	private BooleanProperty ignoreCase = new SimpleBooleanProperty(true);
-	private StringProperty filterText = new SimpleStringProperty("");
+	private final BooleanProperty useRegex = new SimpleBooleanProperty(false);
+	private final BooleanProperty ignoreCase = new SimpleBooleanProperty(true);
+	private final StringProperty filterText = new SimpleStringProperty("");
 
 	/**
 	 * Constructor.
@@ -153,6 +154,10 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	@SuppressWarnings("unchecked")
 	private TableView<String> createMeasurementTable() {
 		TableView<String> tableMeasurements = new TableView<>();
+
+		var placeholder = new Text("No image or object selected");
+		placeholder.setStyle("-fx-fill: -fx-text-base-color;");
+		tableMeasurements.setPlaceholder(placeholder);
 		allKeys.setAll(tableModel.getAllNames());
 		tableMeasurements.setItems(filteredKeys);
 
@@ -251,7 +256,6 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 						return "Filter measurements by key";
 				}, useRegex)
 		);
-		filter.setSpacing(5.0);
 		var tooltip = new Tooltip("Enter text to find specific measurements by key");
 		Tooltip.install(filter, tooltip);
 		return filter;
