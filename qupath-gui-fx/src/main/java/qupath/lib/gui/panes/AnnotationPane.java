@@ -266,11 +266,18 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		panelObjects.setBottom(new VBox(filter, panelButtons));
 
 		var btnProperties = new Button(null, IconFactory.createNode(FontAwesome.Glyph.PENCIL, 12));
+		btnProperties.setTooltip(new Tooltip("Set selected annotation properties"));
 		btnProperties.disableProperty().bind(Bindings.isEmpty(listAnnotations.getSelectionModel().getSelectedItems()));
 		btnProperties.setOnAction(e -> {
 			var hierarchy = qupath.getViewer().getHierarchy();
-			if (hierarchy != null)
+			if (hierarchy != null) {
+				// TODO: We lose the selection here...
 				GuiTools.promptToSetActiveAnnotationProperties(hierarchy);
+				// Try to recover the selection
+				var model = hierarchy.getSelectionModel();
+				selectedPathObjectChanged(
+						model.getSelectedObject(), model.getSelectedObject(), model.getSelectedObjects());
+			}
 		});
 
 		var titled = GuiTools.createLeftRightTitledPane("Annotation list", btnProperties);

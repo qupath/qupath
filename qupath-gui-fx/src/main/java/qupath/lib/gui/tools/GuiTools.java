@@ -42,6 +42,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -97,6 +98,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -123,6 +125,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -896,15 +899,28 @@ public class GuiTools {
 				.toList();
 		
 		if (promptToSetAnnotationProperties((PathAnnotationObject)currentObject, otherAnnotations)) {
-			hierarchy.fireObjectsChangedEvent(null, Collections.singleton(currentObject));
+			var changedObjects = new ArrayList<PathObject>();
+			changedObjects.add(currentObject);
+			changedObjects.addAll(otherAnnotations);
+			hierarchy.fireObjectsChangedEvent(null, changedObjects);
 			// Ensure the object is still selected
-			hierarchy.getSelectionModel().setSelectedObject(currentObject);
+			hierarchy.getSelectionModel().setSelectedObjects(changedObjects, currentObject);
 			return true;
 		}
 		return false;
 	}
-	
-	
+
+	// Special PathClass to represent that we don't want to change the current classification
+	private static final PathClass PATH_CLASS_UNCHANGED = PathClass.fromString(
+			UUID.randomUUID().toString(),
+			ColorTools.packARGB(0, 255, 255, 255));
+
+	private static String pathClassStringFun(PathClass pathClass) {
+		if (pathClass == PATH_CLASS_UNCHANGED)
+			return "[Don't change]";
+		return PathClassListCell.defaultStringFunction(pathClass);
+	}
+
 	private static boolean promptToSetAnnotationProperties(final PathAnnotationObject annotation, Collection<PathAnnotationObject> otherAnnotations) {
 		
 		GridPane panel = new GridPane();
@@ -915,21 +931,42 @@ public class GuiTools {
 			textField.setText(annotation.getName());
 		textField.setPrefColumnCount(20);
 		// Post focus request to run later, after dialog displayed
-		Platform.runLater(() -> textField.requestFocus());
-		
-		panel.add(new Label("Name "), 0, 0);
-		panel.add(textField, 1, 0);
+		Platform.runLater(textField::requestFocus);
 
+		int row = 0;
+		panel.addRow(row++, new Label("Name "), textField);
+
+		// We could change this to prompt for color only if we don't have a classification
 		boolean promptForColor = true;
-		ColorPicker colorPicker = null;
+
+		ComboBox<PathClass> comboClasses = new ComboBox<>();
+		var availableClasses = new ArrayList<>(QuPathGUI.getInstance().getAvailablePathClasses());
+		var currentClass = annotation.getPathClass();
+		if (currentClass == null)
+			currentClass = PathClass.NULL_CLASS;
+		if (!availableClasses.contains(currentClass)) {
+			availableClasses.add(currentClass);
+		}
+		comboClasses.getItems().setAll(availableClasses);
+		comboClasses.setCellFactory(c -> new PathClassListCell(GuiTools::pathClassStringFun));
+		comboClasses.setButtonCell(new PathClassListCell(GuiTools::pathClassStringFun));
+		// If we have multiple objects with different classifications, we need some option that won't change them
+		if (otherAnnotations != null && otherAnnotations.stream().anyMatch(p -> p.getPathClass() != annotation.getPathClass())) {
+			comboClasses.getItems().addFirst(PATH_CLASS_UNCHANGED);
+			comboClasses.getSelectionModel().select(PATH_CLASS_UNCHANGED);
+		} else {
+			comboClasses.setValue(currentClass);
+		}
+		panel.addRow(row++, new Label("Class "), comboClasses);
+
+
 		var originalColor = ColorToolsFX.getDisplayedColor(annotation);
 		var colorChanged = new SimpleBooleanProperty(false); // Track if the user changed anything, so that we don't set the color unnecessarily
+		ColorPicker colorPicker = new ColorPicker(originalColor);
 		if (promptForColor) {
-			colorPicker = new ColorPicker(originalColor);
 			// If we don't touch the color picker, don't set the color (because it might be the default)
 			colorPicker.valueProperty().addListener((v, o, n) -> colorChanged.set(true));
-			panel.add(new Label("Color "), 0, 1);
-			panel.add(colorPicker, 1, 1);
+			panel.addRow(row++, new Label("Color "), colorPicker);
 			colorPicker.prefWidthProperty().bind(textField.widthProperty());
 		}
 		
@@ -940,31 +977,28 @@ public class GuiTools {
 		labDescription.setLabelFor(textAreaDescription);
 		textAreaDescription.setStyle("-fx-font-family: monospaced;");
 		textAreaDescription.setWrapText(true);
-		panel.add(labDescription, 0, 2);
-		panel.add(textAreaDescription, 1, 2);
-		
+		panel.addRow(row++, labDescription, textAreaDescription);
+
 		CheckBox cbLocked = new CheckBox("");
 		cbLocked.setSelected(annotation.isLocked());
 		Label labelLocked = new Label("Locked");
-		panel.add(labelLocked, 0, 3);
 		labelLocked.setLabelFor(cbLocked);
-		panel.add(cbLocked, 1, 3);
-		
+		panel.addRow(row++, labelLocked, cbLocked);
+
 		
 		CheckBox cbAll = new CheckBox("");
 		boolean hasOthers = otherAnnotations != null && !otherAnnotations.isEmpty();
 		cbAll.setSelected(hasOthers);
-		Label labelApplyToAll = new Label("Apply to all");
-		cbAll.setTooltip(new Tooltip("Apply properties to all " + (otherAnnotations.size() + 1) + " selected annotations"));
 		if (hasOthers) {
-			panel.add(labelApplyToAll, 0, 4);
+			Label labelApplyToAll = new Label("Apply to all");
+			cbAll.setTooltip(new Tooltip("Apply properties to all " + (otherAnnotations.size() + 1) + " selected annotations"));
 			labelApplyToAll.setLabelFor(cbAll);
-			panel.add(cbAll, 1, 4);
+			panel.addRow(row++, labelApplyToAll, cbAll);
 		}
-		
-		GridPaneUtils.setToExpandGridPaneWidth(textField, colorPicker, textAreaDescription, cbLocked, cbAll);
+
+		GridPaneUtils.setToExpandGridPaneWidth(textField, colorPicker, comboClasses, textAreaDescription, cbLocked, cbAll);
 //		PaneTools.setHGrowPriority(Priority.NEVER, labDescription);
-		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, colorPicker, textAreaDescription, cbLocked, cbAll);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, colorPicker, comboClasses, textAreaDescription, cbLocked, cbAll);
 		GridPaneUtils.setVGrowPriority(Priority.NEVER, colorPicker);
 		GridPaneUtils.setToExpandGridPaneHeight(textAreaDescription);
 		
@@ -997,15 +1031,24 @@ public class GuiTools {
 			toChange.addAll(otherAnnotations);
 		
 		String name = textField.getText().trim();
-		
+		var pathClass = comboClasses.getValue();
+		if (pathClass == PathClass.NULL_CLASS)
+			pathClass = null;
+
 		for (var temp : toChange) {
-			if (name.length() > 0)
+			if (!name.isEmpty())
 				temp.setName(name);
 			else
 				temp.setName(null);
+
 			if (promptForColor && colorChanged.get())
 				temp.setColor(ColorToolsFX.getARGB(colorPicker.getValue()));
-	
+
+			// Set the classification - this may override the color
+			if (pathClass != PATH_CLASS_UNCHANGED && pathClass != temp.getPathClass()) {
+				temp.setPathClass(pathClass);
+			}
+
 			// Set the description only if we have to
 			String description = textAreaDescription.getText();
 			if (description == null || description.isEmpty())
