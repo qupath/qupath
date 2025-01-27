@@ -167,14 +167,13 @@ public class SummaryMeasurementTableCommand {
 		HistogramDisplay histogramDisplay = new HistogramDisplay(model, true);
 		ScatterPlotDisplay scatterPlotDisplay = new ScatterPlotDisplay(model);
 
-		Tab tabHistogram = new Tab();
-		tabHistogram.setContent(histogramDisplay.getPane());
+		Tab tabHistogram = new Tab("Histogram", histogramDisplay.getPane());
+		tabHistogram.setClosable(false);
 		plotTabs.getTabs().add(tabHistogram);
-		tabHistogram.setText("Histogram");
-		Tab tabScatter = new Tab();
-		tabScatter.setContent(scatterPlotDisplay.getPane());
+
+		Tab tabScatter = new Tab("Scatter plot", scatterPlotDisplay.getPane());
+		tabScatter.setClosable(false);
 		plotTabs.getTabs().add(tabScatter);
-		tabScatter.setText("Scatter plot");
 
 		//		table.setTableMenuButtonVisible(true);
 		TableView<PathObject> table = new TableView<>();
