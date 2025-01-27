@@ -1060,7 +1060,8 @@ public class PathPrefs {
 	private static StringProperty tableDelimiter = createPersistentPreference("tableDelimiter", "\t");
 
 	/**
-	 * Delimiter to use when exporting tables. Default is {@code "\t"}. Commas should be used with caution because of potential localization trouble.
+	 * Delimiter to use when exporting tables. Default is {@code "\t"}.
+	 * Commas should be used with caution because of potential localization trouble.
 	 * @return
 	 */
 	public static StringProperty tableDelimiterProperty() {

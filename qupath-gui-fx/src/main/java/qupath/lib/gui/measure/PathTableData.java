@@ -23,9 +23,12 @@
 
 package qupath.lib.gui.measure;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Predicate;
 
+import org.slf4j.LoggerFactory;
 import qupath.lib.objects.PathObject;
 
 /**
@@ -34,8 +37,8 @@ import qupath.lib.objects.PathObject;
  * This can be thought of a table, where items (often {@link PathObject} correspond to rows and named columns either return 
  * numeric or {@link String} data.
  * <p>
- * This provides a useful method of wrapping one or more objects, and providing access to metadata, stored measurements and dynamically computed values 
- * in a way that is amenable to display within a table.
+ * This provides a useful method of wrapping one or more objects, and providing access to metadata, stored measurements
+ * and dynamically computed values in a way that is amenable to display within a table.
  * 
  * @author Pete Bankhead
  * @param <T> 
@@ -47,6 +50,7 @@ public interface PathTableData<T> {
 	 * Return an ordered list of all names, including both numeric measurements and {@link String} values.
 	 * 
 	 * @return
+	 * @see #getMeasurementNames()
 	 */
 	List<String> getAllNames();
 
@@ -74,6 +78,7 @@ public interface PathTableData<T> {
 	/**
 	 * Get the names of all numeric measurements.
 	 * @return
+	 * @see #getAllNames()
 	 */
 	List<String> getMeasurementNames();
 
@@ -100,5 +105,67 @@ public interface PathTableData<T> {
 	 */
 	List<T> getItems();
 
+
+	/**
+	 * Get a list of Strings representing table data.
+	 * <p>
+	 * Each entry in the list corresponds to a row.
+	 *
+	 * @param delim the delimiter to use between columns
+	 * @param nDecimalPlaces the number of decimal places to use for numeric values; if negative, the default number of decimal places is used
+	 * @param columnFilter a predicate to choose which columns to include; if null, all columns from the table are used
+	 * @return a list of strings, with the first item giving the column names and each additional string representing
+	 * 	       a row in the table
+	 * @since v0.6.0
+	 */
+	default List<String> getRowStrings(final String delim, int nDecimalPlaces, Predicate<String> columnFilter) {
+
+		var logger = LoggerFactory.getLogger(PathTableData.class);
+
+		List<String> rows = new ArrayList<>();
+		StringBuilder sb = new StringBuilder();
+
+		List<String> names = new ArrayList<>(getAllNames());
+		if (columnFilter != null)
+			names = names.stream().filter(columnFilter).toList();
+
+		int nColumns = names.size();
+		for (int col = 0; col < nColumns; col++) {
+			if (names.get(col).chars().filter(e -> e == '"').count() % 2 != 0)
+				logger.warn("Syntax is ambiguous (i.e. misuse of '\"'), which might result in inconsistencies/errors.");
+			if (names.get(col).contains(delim))
+				sb.append("\"")
+						.append(names.get(col))
+						.append("\"");
+			else
+				sb.append(names.get(col));
+
+			if (col < nColumns - 1)
+				sb.append(delim);
+		}
+		rows.add(sb.toString());
+		sb.setLength(0);
+
+		for (T object : getItems()) {
+			for (int col = 0; col < nColumns; col++) {
+				String val = getStringValue(object, names.get(col), nDecimalPlaces);
+				if (val != null) {
+					if (val.contains("\""))
+						logger.warn("Syntax is ambiguous (i.e. misuse of '\"'), which might result in inconsistencies/errors.");
+					if (val.contains(delim))
+						sb.append("\"")
+								.append(val)
+								.append("\"");
+					else
+						sb.append(val);
+				}
+				if (col < nColumns - 1)
+					sb.append(delim);
+			}
+			rows.add(sb.toString());
+			sb.setLength(0);
+		}
+		return rows;
+	}
 	
 }

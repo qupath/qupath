@@ -80,11 +80,13 @@ import qupath.lib.images.servers.LabeledImageServer;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.io.UriUpdater;
+import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.plugins.PathPlugin;
@@ -519,6 +521,26 @@ public class QPEx extends QP {
 	 */
 	public static void saveDetectionMeasurements(final String path, final String... includeColumns) {
 		saveMeasurements(getCurrentImageData(), PathDetectionObject.class, path, includeColumns);
+	}
+
+	/**
+	 * Save cell measurements for the current image.
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 * @since v0.6.0
+	 */
+	public static void saveCellMeasurements(final String path, final String... includeColumns) {
+		saveMeasurements(getCurrentImageData(), PathCellObject.class, path, includeColumns);
+	}
+
+	/**
+	 * Save tile measurements for the current image.
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 * @since v0.6.0
+	 */
+	public static void saveTileMeasurements(final String path, final String... includeColumns) {
+		saveMeasurements(getCurrentImageData(), PathTileObject.class, path, includeColumns);
 	}
 	
 	/**

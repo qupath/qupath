@@ -81,7 +81,6 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.fx.controls.PredicateTextField;
@@ -101,9 +100,11 @@ import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -285,17 +286,6 @@ public class SummaryMeasurementTableCommand {
 			}
 		});
 		buttons.add(btnPlots);
-
-//		Button btnScatterplot = new Button("Show scatterplots");
-//		btnScatterplot.setOnAction(e -> {
-//			SwingUtilities.invokeLater(() -> {
-//				JDialog dialog = new ScatterplotDisplay(null, "Scatterplots: " + displayedName, model).getDialog();
-//				dialog.setLocationRelativeTo(null);
-//				dialog.setVisible(true);
-//			});
-//		});
-//		buttons.add(btnScatterplot);
-		
 		
 		Button btnCopy = new Button("Copy to clipboard");
 		btnCopy.setOnAction(e -> {
@@ -337,12 +327,20 @@ public class SummaryMeasurementTableCommand {
 				}
 				else if (type == PathAnnotationObject.class) {
 					step = new DefaultScriptableWorkflowStep("Save annotation measurements",
-							String.format("saveAnnotationMeasurements('%s\'%s)", path, includeColumns)
+							String.format("saveAnnotationMeasurements('%s'%s)", path, includeColumns)
 							);
 				} else if (type == PathDetectionObject.class) {
 					step = new DefaultScriptableWorkflowStep("Save detection measurements",
 							String.format("saveDetectionMeasurements('%s'%s)", path, includeColumns)
 							);
+				} else if (type == PathCellObject.class) {
+					step = new DefaultScriptableWorkflowStep("Save cell measurements",
+							String.format("saveCellMeasurements('%s'%s)", path, includeColumns)
+					);
+				} else if (type == PathTileObject.class) {
+					step = new DefaultScriptableWorkflowStep("Save tile measurements",
+							String.format("saveTileMeasurements('%s'%s)", path, includeColumns)
+					);
 				} else {
 					step = new DefaultScriptableWorkflowStep("Save measurements",
 							String.format("saveMeasurements('%s', %s%s)", path, type == null ? null : type.getName(), includeColumns)
@@ -402,18 +400,17 @@ public class SummaryMeasurementTableCommand {
 				miShowImages
 				);
 
-		var miShowObjectIss = new CheckMenuItem("Show Object IDs");
-		miShowObjectIss.selectedProperty().bindBidirectional(showObjectIdsProperty);
+		var miShowObjectIds = new CheckMenuItem("Show Object IDs");
+		miShowObjectIds.selectedProperty().bindBidirectional(showObjectIdsProperty);
 		popup.getItems().setAll(
 				miShowImages,
-				miShowObjectIss
+				miShowObjectIds
 				);
 		
 		var btnExtra = GuiTools.createMoreButton(popup, Side.RIGHT);
 
 
 		BorderPane pane = new BorderPane();
-		//		pane.setCenter(table);
 		splitPane.getItems().add(paneTable);
 		pane.setCenter(splitPane);
 		var paneButtons = GridPaneUtils.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
@@ -428,7 +425,7 @@ public class SummaryMeasurementTableCommand {
 			public void hierarchyChanged(PathObjectHierarchyEvent event) {
 				if (event.isChanging())
 					return;
-				
+
 				if (!Platform.isFxApplicationThread()) {
 					Platform.runLater(() -> hierarchyChanged(event));
 					return;
@@ -447,7 +444,7 @@ public class SummaryMeasurementTableCommand {
 					scatterPlotDisplay.refreshScatterPlot();
 				}
 			}
-			
+
 		};
 		
 		
@@ -473,7 +470,10 @@ public class SummaryMeasurementTableCommand {
 		ContextMenu menu = new ContextMenu();
 		Menu menuLimitClasses = new Menu("Show classes");
 		menu.setOnShowing(e -> {
-			Set<PathClass> representedClasses = model.getBackingListEntries().stream().map(p -> p.getPathClass() == null ? null : p.getPathClass().getBaseClass()).collect(Collectors.toCollection(() -> new HashSet<>()));
+			Set<PathClass> representedClasses = model.getBackingListEntries()
+					.stream()
+					.map(p -> p.getPathClass() == null ? null : p.getPathClass().getBaseClass())
+					.collect(Collectors.toCollection(HashSet::new));
 			representedClasses.remove(null);
             menuLimitClasses.setVisible(!representedClasses.isEmpty());
 			menuLimitClasses.getItems().clear();
@@ -494,11 +494,6 @@ public class SummaryMeasurementTableCommand {
 				menuLimitClasses.getItems().add(miClass);
 			}
 		});
-		
-		if (type != TMACoreObject.class) {
-			menu.getItems().add(menuLimitClasses);
-			table.setContextMenu(menu);
-		}
 
 	}
 
@@ -601,18 +596,12 @@ public class SummaryMeasurementTableCommand {
 					if (e.isAltDown() && histogramDisplay != null) {
 						histogramDisplay.showHistogram(getTableColumn().getText());
 						e.consume();
-						//	            		showChart(column);
 					}
 				});
-
-				//			                setTooltip(new Tooltip(df6.format(item))); // Performance issue?
 			}
 		}
 
 	}
-
-
-
 
 
 
@@ -666,52 +655,10 @@ public class SummaryMeasurementTableCommand {
 	 * @return
 	 */
 	public static <T> List<String> getTableModelStrings(final PathTableData<T> model, final String delim, Collection<String> excludeColumns) {
-		List<String> rows = new ArrayList<>();
-		
-		StringBuilder sb = new StringBuilder();
-		
-		List<String> names = new ArrayList<>(model.getAllNames());
-		names.removeAll(excludeColumns);
-		
-		int nColumns = names.size();
-		for (int col = 0; col < nColumns; col++) {
-			if (names.get(col).chars().filter(e -> e == '"').count() % 2 != 0)
-				logger.warn("Syntax is ambiguous (i.e. misuse of '\"'), which might result in inconsistencies/errors.");
-			if (names.get(col).contains(delim))
-				sb.append("\"" + names.get(col) + "\"");
-			else
-				sb.append(names.get(col));
-			
-			if (col < nColumns - 1)
-				sb.append(delim);
-		}
-		rows.add(sb.toString());
-		sb.setLength(0);
-		
-		for (T object : model.getItems()) {
-			for (int col = 0; col < nColumns; col++) {
-				String val = model.getStringValue(object, names.get(col));
-				if (val != null) {
-					if (val.contains("\""))
-						logger.warn("Syntax is ambiguous (i.e. misuse of '\"'), which might result in inconsistencies/errors.");
-					if (val.contains(delim))
-						sb.append("\"" + val + "\"");
-					else
-						sb.append(val);						
-				}
-//				double value = model.getNumericValue(object, model.getAllNames().get(col));
-//				if (Double.isNaN(value))
-//					sb.append("-");
-//				else
-//					sb.append(GeneralTools.getFormatter(4).format(value));
-				if (col < nColumns - 1)
-					sb.append(delim);
-			}
-			rows.add(sb.toString());
-			sb.setLength(0);
-		}
-		return rows;
+		var toExclude = Set.of(excludeColumns.toArray(String[]::new));
+		return model.getRowStrings(delim, -1, s -> !toExclude.contains(s));
 	}
+
 
 	/**
 	 * Get a single String representing the data in a table.
@@ -727,7 +674,8 @@ public class SummaryMeasurementTableCommand {
 	 */
 	public static <T> String getTableModelString(final PathTableData<T> model, final String delim, Collection<String> excludeColumns) throws IllegalArgumentException {
 		List<String> rows = getTableModelStrings(model, delim, excludeColumns);
-		long length = rows.stream().mapToLong(r -> r.length()).sum() + rows.size() * System.lineSeparator().length();
+		int nSeparators = rows.size() * System.lineSeparator().length();
+		long length = rows.stream().mapToLong(String::length).sum() + nSeparators;
 		long maxLength = Integer.MAX_VALUE - 1;
 		if (length > Integer.MAX_VALUE)
 			throw new IllegalArgumentException("Requested string is too long! Requires " + maxLength + " characters, but Java arrays limited to " + maxLength);
@@ -887,19 +835,7 @@ public class SummaryMeasurementTableCommand {
 				}
 				tableModel.selectIndices(indsToSelect[0], Arrays.copyOfRange(indsToSelect, 1, count));
 			}
-			
-//			for (int i = 0; i < n; i++) {
-//				PathObject temp = table.getItems().get(i);
-//				if (temp == mainSelectedObject)
-//					mainObjectInd = i;
-//				if (model.isSelected(temp)) {
-//					// Only select if necessary, or if this is the main selected object
-//					if (!tableModel.isSelected(i))
-//						tableModel.select(i);
-//				}
-//				else
-//					tableModel.clearSelection(i);
-//			}
+
 			// Ensure that the main object is focussed & its node expanded
 			if (mainObjectInd >= 0 && model.singleSelection()) {
 				tableModel.select(mainObjectInd);
