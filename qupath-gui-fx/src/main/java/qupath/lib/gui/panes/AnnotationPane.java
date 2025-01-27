@@ -33,6 +33,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import javafx.beans.binding.Bindings;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.geometry.Insets;
+import javafx.scene.control.TitledPane;
+import javafx.scene.layout.VBox;
+import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,10 +65,12 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import qupath.fx.controls.PredicateTextField;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -86,19 +96,21 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 
 	private static final Logger logger = LoggerFactory.getLogger(AnnotationPane.class);
 
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 	
 	// Need to preserve this to guard against garbage collection
 	@SuppressWarnings("unused")
-	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
+	private final ObservableValue<ImageData<BufferedImage>> imageDataProperty;
+
+	// For convenience - store current image & hierarchy
 	private ImageData<BufferedImage> imageData;
-	
-	private BooleanProperty disableUpdates = new SimpleBooleanProperty(false);
-	
 	private PathObjectHierarchy hierarchy;
-	private BooleanProperty hasImageData = new SimpleBooleanProperty(false);
+
+	private final BooleanProperty disableUpdates = new SimpleBooleanProperty(false);
 	
-	private BorderPane pane = new BorderPane();
+	private final BooleanProperty hasImageData = new SimpleBooleanProperty(false);
+	
+	private final BorderPane pane = new BorderPane();
 
 	/*
 	 * Request that we only synchronize to the primary selection; otherwise synchronizing to 
@@ -106,13 +118,19 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 	 */
 	private static boolean synchronizePrimarySelectionOnly = true;
 	
-	private PathClassPane pathClassPane;
-	
+	private final PathClassPane pathClassPane;
+
+	private final PredicateTextField<PathObject> filter = new PredicateTextField<>(PathObject::getDisplayedName);
+	private final ObservableList<PathObject> allAnnotations = FXCollections.observableArrayList();
+	private final FilteredList<PathObject> filteredAnnotations = new FilteredList<>(allAnnotations);
+
+	private final ContextMenu menuAnnotations = new ContextMenu();
+
 	/*
 	 * List displaying annotations in the current hierarchy
 	 */
-	private ListView<PathObject> listAnnotations;
-		
+	private final ListView<PathObject> listAnnotations = new ListView<>(filteredAnnotations);
+
 	/*
 	 * Selection being changed by outside forces, i.e. don't fire an event
 	 */
@@ -141,8 +159,11 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		
 		pathClassPane = new PathClassPane(qupath);
 		setImageData(imageDataProperty.getValue());
-		
-		Pane paneAnnotations = createAnnotationsPane();
+
+		initializeFilter();
+		initializeAnnotationList();
+		GuiTools.populateAnnotationsMenu(qupath, menuAnnotations);
+		var paneAnnotations = createAnnotationTitledPane();
 		
 		SplitPane paneColumns = new SplitPane(
 				paneAnnotations,
@@ -169,9 +190,14 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		hierarchyChanged(PathObjectHierarchyEvent.createStructureChangeEvent(this, hierarchy, hierarchy.getRootObject()));
 		selectedPathObjectChanged(hierarchy.getSelectionModel().getSelectedObject(), null, hierarchy.getSelectionModel().getSelectedObjects());
 	}
-	
-	private Pane createAnnotationsPane() {
-		listAnnotations = new ListView<>();
+
+	private void initializeFilter() {
+		filter.setPromptText("Filter annotations");
+		filter.setIgnoreCase(true);
+		filteredAnnotations.predicateProperty().bind(filter.predicateProperty());
+	}
+
+	private void initializeAnnotationList() {
 		hierarchyChanged(null); // Force update
 
 		listAnnotations.setCellFactory(v -> PathObjectLabels.createListCell());
@@ -190,11 +216,12 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 				qupath.getViewer().centerROI(pathObject.getROI());
 			}
 		});
-		
-		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> listAnnotations.refresh());
 
-		ContextMenu menuAnnotations = GuiTools.populateAnnotationsMenu(qupath, new ContextMenu());
+		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> listAnnotations.refresh());
 		listAnnotations.setContextMenu(menuAnnotations);
+	}
+
+	private TitledPane createAnnotationTitledPane() {
 
 		// Add the main annotation list
 		BorderPane panelObjects = new BorderPane();
@@ -236,8 +263,32 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 			}
 		});
 
-		panelObjects.setBottom(panelButtons);
-		return panelObjects;
+		panelObjects.setBottom(new VBox(filter, panelButtons));
+
+		var btnProperties = new Button(null, IconFactory.createNode(FontAwesome.Glyph.PENCIL, 12));
+		btnProperties.setTooltip(new Tooltip("Set selected annotation properties"));
+		btnProperties.disableProperty().bind(Bindings.isEmpty(listAnnotations.getSelectionModel().getSelectedItems()));
+		btnProperties.setOnAction(e -> {
+			var hierarchy = qupath.getViewer().getHierarchy();
+			if (hierarchy != null) {
+				// TODO: We lose the selection here...
+				GuiTools.promptToSetActiveAnnotationProperties(hierarchy);
+				// Try to recover the selection
+				var model = hierarchy.getSelectionModel();
+				selectedPathObjectChanged(
+						model.getSelectedObject(), model.getSelectedObject(), model.getSelectedObjects());
+			}
+		});
+
+		var titled = GuiTools.createLeftRightTitledPane("Annotation list", btnProperties);
+		// TODO: Consider additional buttons (e.g. to delete)
+
+		titled.setContent(panelObjects);
+		panelObjects.setPadding(Insets.EMPTY);
+		titled.setCollapsible(false);
+		titled.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+		return titled;
 	}
 	
 	
@@ -281,10 +332,10 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
 			hierarchy.addListener(this);
 			PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
-			listAnnotations.getItems().setAll(hierarchy.getAnnotationObjects());
+			allAnnotations.setAll(hierarchy.getAnnotationObjects());
 			hierarchy.getSelectionModel().setSelectedObject(selected);
 		} else {
-			listAnnotations.getItems().clear();
+			allAnnotations.clear();
 			hierarchy = null;
 		}
 		hasImageData.set(this.imageData != null);
@@ -400,7 +451,7 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		}
 		
 		if (hierarchy == null) {
-			listAnnotations.getItems().clear();
+			allAnnotations.clear();
 			return;
 		}
 		
@@ -426,7 +477,7 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 
 		// If the lists are the same, we just need to refresh the appearance (because e.g. classifications or measurements now differ)
 		// For some reason, 'equals' alone wasn't behaving nicely (perhaps due to ordering?)... so try a more manual test instead
-		if (newList.equals(listAnnotations.getItems())) {
+		if (newList.equals(allAnnotations)) {
 			// Don't refresh unless there is good reason to believe the list should appear different now
 			// This was introduced due to flickering as annotations were dragged
 			// TODO: Reconsider when annotation list is refreshed
@@ -439,7 +490,7 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 //		listAnnotations.getSelectionModel().clearSelection(); // Clearing the selection would cause annotations to disappear when interactively training a classifier!
 		boolean lastChanging = suppressSelectionChanges;
 		suppressSelectionChanges = true;
-		listAnnotations.getItems().setAll(newList);
+		allAnnotations.setAll(newList);
 		suppressSelectionChanges = lastChanging;
 	}
 
@@ -471,5 +522,4 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		return c == null ? "" : c;
 	}
 
-	
 }

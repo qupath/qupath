@@ -81,6 +81,7 @@ import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -261,9 +262,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
         var imageDisplay = imageDisplayObjectProperty.getValue();
         if (imageDisplay != null)
             channelList.setAll(imageDisplay.availableChannels());
-        var textPlaceholder = new Text("No channels available");
-        textPlaceholder.setStyle("-fx-fill: -fx-text-base-color;");
-        table.setPlaceholder(textPlaceholder);
+        table.setPlaceholder(GuiTools.createPlaceholderText("No channels available"));
         table.addEventHandler(KeyEvent.KEY_PRESSED, new ChannelTableKeypressedListener());
 
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);

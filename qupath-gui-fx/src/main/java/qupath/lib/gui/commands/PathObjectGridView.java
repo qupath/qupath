@@ -68,6 +68,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -546,9 +547,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 
 	private static Text createPlaceholderText(String text) {
-		var textNode = new Text(text);
-		textNode.setStyle("-fx-fill: -fx-text-base-color;");
-		return textNode;
+		return GuiTools.createPlaceholderText(text);
 	}
 	
 	class QuPathGridView extends StackPane {

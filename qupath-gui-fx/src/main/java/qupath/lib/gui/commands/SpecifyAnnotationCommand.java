@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -34,23 +34,20 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.shape.Rectangle;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.common.GeneralTools;
 import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PathClassListCell;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -157,7 +154,7 @@ class SpecifyAnnotationCommand {
 				);
 		comboClassification.setMaxWidth(Double.MAX_VALUE);
 		comboClassification.setCellFactory(o -> {
-			return new ClassificationCell();
+			return new PathClassListCell();
 		});
 		//			comboClassification.cell;
 
@@ -350,26 +347,5 @@ class SpecifyAnnotationCommand {
 		return pane;
 	}
 
-
-
-	class ClassificationCell extends ListCell<PathClass> {
-
-		@Override
-		protected void updateItem(PathClass value, boolean empty) {
-			super.updateItem(value, empty);
-			int size = 10;
-			if (value == null || empty) {
-				setText(null);
-				setGraphic(null);
-			} else if (value.getName() == null) {
-				setText("None");
-				setGraphic(new Rectangle(size, size, ColorToolsFX.getCachedColor(0, 0, 0, 0)));
-			} else {
-				setText(value.getName());
-				setGraphic(new Rectangle(size, size, ColorToolsFX.getPathClassColor(value)));
-			}
-		}
-
-	}
 
 }

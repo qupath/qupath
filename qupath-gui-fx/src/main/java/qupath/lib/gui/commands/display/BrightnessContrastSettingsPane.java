@@ -58,6 +58,7 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.display.settings.DisplaySettingUtils;
 import qupath.lib.display.settings.ImageDisplaySettings;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.projects.ResourceManager;
 
 import java.io.IOException;
@@ -135,9 +136,7 @@ public class BrightnessContrastSettingsPane extends GridPane {
         });
         comboSettings.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
         comboSettings.setButtonCell(new SettingListCell(settingsChanged));
-        var placeholder = new Text("No compatible settings");
-        placeholder.setStyle("-fx-fill: -fx-text-base-color;");
-        comboSettings.setPlaceholder(placeholder);
+        comboSettings.setPlaceholder(GuiTools.createPlaceholderText("No compatible settings"));
         resourceManagerProperty.addListener((v, o, n) -> refreshResources());
         var btnSave = new Button("Save");
         btnSave.setTooltip(new Tooltip("Save the current display settings in the project"));

@@ -365,7 +365,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 					}
 				}
 				
-				if (name != null && !name.isBlank() && roi != null && !overlayOptions.isPathClassHidden(namedObject.getPathClass())) {
+				if (name != null && !name.isBlank() && roi != null && !overlayOptions.isHidden(namedObject)) {
 
 					var bounds = metrics.getStringBounds(name, g2d);
 

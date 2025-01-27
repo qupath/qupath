@@ -273,6 +273,7 @@ public class ContextHelpViewer {
 				createDetectionsHiddenEntry(),
 				createPixelClassificationOverlayHiddenEntry(),
 				createTMAGridHiddenEntry(),
+				createHiddenObjectsPredicate(),
 				createHiddenClassificationsEntry(),
 				createNoImageEntry(),
 				createNoProjectEntry(),
@@ -542,7 +543,14 @@ public class ContextHelpViewer {
 				qupath.getLogViewerCommand().hasUnseenErrors());
 		return entry;
 	}
-	
+
+	private HelpListEntry createHiddenObjectsPredicate() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.hiddenObjectsPredicate");
+		entry.visibleProperty().bind(
+				qupath.getOverlayOptions().showObjectPredicateProperty().isNotNull());
+		return entry;
+	}
 	
 	private HelpListEntry createAnnotationsHiddenEntry() {
 		var entry = HelpListEntry.createInfo(
