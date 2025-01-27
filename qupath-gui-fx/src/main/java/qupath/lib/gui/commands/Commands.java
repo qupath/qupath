@@ -1733,6 +1733,9 @@ public class Commands {
 			imageData.getHistoryWorkflow().addStep(
 					new DefaultScriptableWorkflowStep("Delete converted detections", "removeObjects(getSelectedObjects())")
 			);
+			imageData.getHistoryWorkflow().addStep(
+					new DefaultScriptableWorkflowStep("Deselect deleted objects", "deselectAll()")
+			);
 		}
 	}
 
