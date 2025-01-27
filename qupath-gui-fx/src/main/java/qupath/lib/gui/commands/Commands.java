@@ -1727,7 +1727,7 @@ public class Commands {
 				new DefaultScriptableWorkflowStep("Select detections", "selectDetections()")
 		);
 		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Convert selected objects to points", "convertSelectedObjects()")
+				new DefaultScriptableWorkflowStep("Convert selected objects to points", "convertSelectedObjectsToPoints()")
 		);
 		if (deleteDetections) {
 			imageData.getHistoryWorkflow().addStep(
