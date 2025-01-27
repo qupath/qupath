@@ -5240,6 +5240,8 @@ public class QP {
 	/**
 	 * Convert the selected objects to points, based on the object centroids.
 	 * Cells are converted based on the nucleus ROI.
+	 * <br>
+	 * The original objects are not removed; see {@link QP#removeObject(PathObject pathObject)}.
 	 * See {@link PathObjectTools#convertToPoints(Collection, boolean)} if you want to use the cell ROI instead.
 	 * The original objects will be removed from the object hierarchy.
 	 */
@@ -5251,6 +5253,8 @@ public class QP {
 	/**
 	 * Convert all detection objects to points, based on the object centroids.
 	 * Cells are converted based on the nucleus ROI.
+	 * <br>
+	 * The original objects are not removed; see {@link QP#removeObject(PathObject pathObject)}.
 	 * See {@link PathObjectTools#convertToPoints(Collection, boolean)} if you want to use the cell ROI instead.
 	 * The original objects will be removed from the object hierarchy.
 	 */
@@ -5261,10 +5265,12 @@ public class QP {
 	/**
 	 * Convert the selected objects to points, based on the object centroids.
 	 * Cells are converted based on the nucleus ROI.
+	 * <br>
+	 * The original objects are not removed; see {@link QP#removeObject(PathObject pathObject)}.
 	 * See {@link PathObjectTools#convertToPoints(Collection, boolean)} if you want to use the cell ROI instead.
 	 * @param pathObjects The objects to be converted to points (these will be removed from the object hierarchy).
 	 */
 	public static void convertSpecifiedObjectsToPoints(Collection<? extends PathObject> pathObjects) {
-		PathObjectTools.convertToPoints(getCurrentHierarchy(), pathObjects, true, true);
+		PathObjectTools.convertToPoints(getCurrentHierarchy(), pathObjects, true, false);
 	}
 }
