@@ -38,6 +38,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.Tooltip;
 import org.slf4j.Logger;
@@ -88,6 +90,7 @@ import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramDisplay;
+import qupath.lib.gui.charts.ScatterPlotDisplay;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -160,7 +163,18 @@ public class SummaryMeasurementTableCommand {
 		model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
 
 		SplitPane splitPane = new SplitPane();
+		TabPane plotTabs = new TabPane();
 		HistogramDisplay histogramDisplay = new HistogramDisplay(model, true);
+		ScatterPlotDisplay scatterPlotDisplay = new ScatterPlotDisplay(model);
+
+		Tab tabHistogram = new Tab();
+		tabHistogram.setContent(histogramDisplay.getPane());
+		plotTabs.getTabs().add(tabHistogram);
+		tabHistogram.setText("Histogram");
+		Tab tabScatter = new Tab();
+		tabScatter.setContent(scatterPlotDisplay.getPane());
+		plotTabs.getTabs().add(tabScatter);
+		tabScatter.setText("Scatter plot");
 
 		//		table.setTableMenuButtonVisible(true);
 		TableView<PathObject> table = new TableView<>();
@@ -224,7 +238,8 @@ public class SummaryMeasurementTableCommand {
 		boolean tmaCoreList = TMACoreObject.class.isAssignableFrom(type);
 		if (tmaCoreList)
 			histogramDisplay.setNumBins(10);			
-			
+
+
 		// Create numeric columns
 		TableColumn<PathObject, String> colObjectIDs = null;
 		for (String columnName : model.getAllNames()) {
@@ -262,15 +277,15 @@ public class SummaryMeasurementTableCommand {
 		// Add buttons at the bottom
 		List<ButtonBase> buttons = new ArrayList<>();
 		
-		ToggleButton btnHistogram = new ToggleButton("Show histograms");
-		btnHistogram.selectedProperty().addListener((v, o, n) -> {
+		ToggleButton btnPlots = new ToggleButton("Show plots");
+		btnPlots.selectedProperty().addListener((v, o, n) -> {
 			if (n) {
-				Pane paneHistograms = histogramDisplay.getPane();
-				splitPane.getItems().add(paneHistograms);
-			} else if (histogramDisplay != null)
-				splitPane.getItems().remove(histogramDisplay.getPane());
+				splitPane.getItems().add(plotTabs);
+			} else {
+				splitPane.getItems().remove(plotTabs);
+			}
 		});
-		buttons.add(btnHistogram);
+		buttons.add(btnPlots);
 
 //		Button btnScatterplot = new Button("Show scatterplots");
 //		btnScatterplot.setOnAction(e -> {
@@ -426,7 +441,12 @@ public class SummaryMeasurementTableCommand {
 					model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
 
 				table.refresh();
-                histogramDisplay.refreshHistogram();
+				if (histogramDisplay != null) {
+					histogramDisplay.refreshHistogram();
+				}
+				if (scatterPlotDisplay != null) {
+					scatterPlotDisplay.refreshScatterPlot();
+				}
 			}
 			
 		};
@@ -445,7 +465,7 @@ public class SummaryMeasurementTableCommand {
 				viewer.removeViewerListener(tableViewerListener);
 		});
 
-		Scene scene = new Scene(pane, 600, 500);
+		Scene scene = new Scene(pane, 800, 500);
 		frame.setScene(scene);
 		frame.show();
 		
