@@ -1724,8 +1724,16 @@ public class Commands {
 		boolean	deleteDetections = button == ButtonType.YES;
 		PathObjectTools.convertToPoints(hierarchy, pathObjects, preferNucleus, deleteDetections);
 		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Convert detections to points", "convertDetectionsToPoints()")
+				new DefaultScriptableWorkflowStep("Select detections", "selectDetections()")
 		);
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep("Convert selected objects to points", "convertSelectedObjects()")
+		);
+		if (deleteDetections) {
+			imageData.getHistoryWorkflow().addStep(
+					new DefaultScriptableWorkflowStep("Delete converted detections", "removeObjects(getSelectedObjects())")
+			);
+		}
 	}
 
 
