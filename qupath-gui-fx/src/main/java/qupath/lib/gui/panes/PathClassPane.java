@@ -28,11 +28,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javafx.collections.SetChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -43,7 +45,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
@@ -130,6 +131,11 @@ class PathClassPane {
 
 		titled.setContentDisplay(ContentDisplay.RIGHT);
 		pane = new BorderPane(titled);
+
+		// Refresh when visibilities change
+		var options = qupath.getOverlayOptions();
+		options.hideExactClassesOnlyProperty().addListener((v, o, n) -> listClasses.refresh());
+		options.hiddenClassesProperty().addListener((SetChangeListener.Change<? extends PathClass> c) -> listClasses.refresh());
 	}
 
 
@@ -374,6 +380,9 @@ class PathClassPane {
 		MenuItem miSetVisible = new MenuItem("Show objects with selected classes");
 		miSetVisible.setOnAction(e -> setSelectedClassesVisibility(true));
 
+		CheckMenuItem miShowHideExact = new CheckMenuItem("Only hide if object class matches exactly");
+		miShowHideExact.selectedProperty().bindBidirectional(qupath.getOverlayOptions().hideExactClassesOnlyProperty());
+
 		MenuItem miSelectObjects = new MenuItem("Select objects by classification");
 		miSelectObjects.disableProperty().bind(Bindings.createBooleanBinding(
 				() -> {
@@ -400,6 +409,7 @@ class PathClassPane {
 		menu.getItems().addAll(
 				miSetVisible,
 				miSetHidden,
+				miShowHideExact,
 				new SeparatorMenuItem(),
 				miSelectObjects);
 

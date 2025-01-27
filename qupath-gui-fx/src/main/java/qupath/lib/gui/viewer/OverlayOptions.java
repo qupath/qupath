@@ -91,6 +91,7 @@ public class OverlayOptions {
 	private final FloatProperty fontSize = new SimpleFloatProperty();
 
 	private final ObservableSet<PathClass> hiddenClasses = FXCollections.observableSet();
+	private final BooleanProperty hideExactClassesOnly = new SimpleBooleanProperty(false);
 
 	private final ObjectProperty<DetectionDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(null, "cellDisplayMode", DetectionDisplayMode.NUCLEI_AND_BOUNDARIES);
 
@@ -113,7 +114,8 @@ public class OverlayOptions {
 		for (var prop : Arrays.asList(options.showNames, options.showConnections, options.fillDetections,
 				options.fillAnnotations, options.showTMACoreLabels,
 				options.showGrid, options.showAnnotations, options.showDetections,
-				options.showPixelClassification, options.showTMAGrid)) {
+				options.showPixelClassification, options.showTMAGrid,
+				options.hideExactClassesOnly)) {
 			prop.bindBidirectional(PathPrefs.createPersistentPreference("overlayOptions_" + prop.getName(), prop.get()));
 		}
 		options.cellDisplayMode.bindBidirectional(PathPrefs.createPersistentPreference("overlayOptions_cellDisplayMode", options.cellDisplayMode.get(), DetectionDisplayMode.class));
@@ -162,6 +164,8 @@ public class OverlayOptions {
 		this.fillDetections.set(options.fillDetections.get());
 		this.gridLines.set(options.gridLines.get());
 		this.hiddenClasses.addAll(options.hiddenClasses);
+		this.showObjectPredicateProperty().set(options.showObjectPredicateProperty().get());
+		this.hideExactClassesOnly.set(options.hideExactClassesOnlyProperty().get());
 		this.measurementMapper.set(options.measurementMapper.get());
 		this.opacity.set(options.opacity.get());
 		this.showAnnotations.set(options.showAnnotations.get());
@@ -545,6 +549,7 @@ public class OverlayOptions {
 	 * <p>
 	 * @return the predicate used to determine whether an object should be displayed or hidden
 	 * @see #isHidden(PathObject)
+	 * @since v0.6.0
 	 */
 	public ObjectProperty<Predicate<PathObject>> showObjectPredicateProperty() {
 		return showObjectPredicate;
@@ -552,6 +557,7 @@ public class OverlayOptions {
 
 	/**
 	 * Reset the value of {@link #showObjectPredicateProperty()}.
+	 * @since v0.6.0
 	 */
 	public void resetShowObjectPredicate() {
 		setShowObjectPredicate(null);
@@ -565,6 +571,7 @@ public class OverlayOptions {
 	 *
 	 * @param pathObjectPredicate the predicate to use, or {@code null} null if no predicate should be used
 	 * @see #isHidden(PathObject)
+	 * @since v0.6.0
 	 */
 	public void setShowObjectPredicate(Predicate<PathObject> pathObjectPredicate) {
 		showObjectPredicate.set(pathObjectPredicate);
@@ -573,6 +580,7 @@ public class OverlayOptions {
 	/**
 	 * Get the value of {@link #showObjectPredicateProperty()}.
 	 * @return the value of the predicate
+	 * @since v0.6.0
 	 */
 	public Predicate<PathObject> getShowObjectPredicate() {
 		return showObjectPredicate.get();
@@ -608,8 +616,7 @@ public class OverlayOptions {
 		if (hiddenClasses.contains(pathClass))
 			return true;
 
-		boolean hideExactClassificationsOnly = false;
-		if (hideExactClassificationsOnly)
+		if (getHideExactClassesOnly())
 			return false;
 		else
 			return isPathClassHiddenByParts(pathClass);
@@ -654,6 +661,37 @@ public class OverlayOptions {
 	 */
 	public ObservableSet<PathClass> hiddenClassesProperty() {
 		return hiddenClasses;
+	}
+
+	/**
+	 * Request that only exact matches to classes in {@link #hiddenClassesProperty()} should be hidden.
+	 * This influences the result of {@link #isPathClassHidden(PathClass)}.
+	 * <p>
+	 * If false, then any object with a classification that is a superset of a hidden classification will also be hidden.
+	 * For example, if {@code "CD3"} is hidden then {@code "CD3: CD8"} will also be hidden.
+	 * @return
+	 * @since v0.6.0
+	 */
+	public BooleanProperty hideExactClassesOnlyProperty() {
+		return hideExactClassesOnly;
+	}
+
+	/**
+	 * Get the value of {@link #hideExactClassesOnlyProperty()}.
+	 * @return
+	 * @since v0.6.0
+	 */
+	public boolean getHideExactClassesOnly() {
+		return hideExactClassesOnly.get();
+	}
+
+	/**
+	 * Set the value of {@link #hideExactClassesOnlyProperty()}.
+	 * @param value the new value
+	 * @since v0.6.0
+	 */
+	public void setHideExactClassesOnly(boolean value) {
+		hideExactClassesOnly.set(value);
 	}
 	
 	
