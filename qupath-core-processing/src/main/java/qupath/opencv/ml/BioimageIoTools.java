@@ -55,6 +55,8 @@ import qupath.opencv.dnn.DnnShape;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
 
+import static qupath.bioimageio.spec.tensor.axes.Axes.getAxesString;
+
 /**
  * Helper class for working with Bioimage Model Zoo model specs, and attempting to 
  * replicating the processing within QuPath.
@@ -150,7 +152,7 @@ public class BioimageIoTools {
 					// *Conceivably* we could support these via some as-yet-unwritten extension... but we probably don't
 					break;
 				}
-				String axes = Axis.getAxesString(spec.getInputs().getFirst().getAxes());
+				String axes = getAxesString(spec.getInputs().getFirst().getAxes());
 				var inputShapeMap = spec.getInputs().stream().collect(Collectors.toMap(i -> i.getName(), i -> getShape(i)));
 				var inputShape = inputShapeMap.size() == 1 ? inputShapeMap.values().iterator().next() : null; // Need a single input, otherwise can't be used for output
 				var outputShapeMap = spec.getOutputs().stream().collect(Collectors.toMap(o -> o.getName(), o -> getShape(o, inputShape)));
@@ -235,7 +237,7 @@ public class BioimageIoTools {
 		var output = outputs.getFirst();
 		
 		// Get dimensions and padding
-		String axes = Axis.getAxesString(input.getAxes());
+		String axes = getAxesString(input.getAxes());
 		int indChannels = axes.indexOf("c");
 		int indX = axes.indexOf("x");
 		int indY = axes.indexOf("y");
@@ -406,7 +408,7 @@ public class BioimageIoTools {
 		if (transform instanceof Processing.ScaleRange scale) {
             var mode = warnIfUnsupportedMode(transform.getName(), scale.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE));
 			assert mode == Processing.ProcessingMode.PER_SAMPLE; // TODO: Consider how to support per dataset
-			String axes = Axis.getAxesString(scale.getAxes());
+			String axes = getAxesString(scale.getAxes());
 			boolean perChannel = false;
 			if (axes != null)
 				perChannel = !axes.contains("c");
@@ -422,7 +424,7 @@ public class BioimageIoTools {
 		if (transform instanceof Processing.ZeroMeanUnitVariance zeroMeanUnitVariance) {
             var mode = warnIfUnsupportedMode(transform.getName(), zeroMeanUnitVariance.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE, Processing.ProcessingMode.FIXED));
 			if (mode == Processing.ProcessingMode.PER_SAMPLE) {
-				String axes = Axis.getAxesString(zeroMeanUnitVariance.getAxes());
+				String axes = getAxesString(zeroMeanUnitVariance.getAxes());
 				boolean perChannel = false;
 				if (axes != null) {
 					perChannel = !axes.contains("c");
