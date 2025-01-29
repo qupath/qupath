@@ -104,6 +104,7 @@ They may change or be removed in future versions.
   * *This will affect the use of the QuPath StarDist extension*
 * `ImageServer.finalize()` is no longer overridden to call `close()` in case the caller forgets
   * `finalize()` is deprecated for removal; any class that relied on this should consider using `Cleaner`
+* Remove `BioImageioSpec` from `QP.getCoreClasses()`
 
 ### Build changes
 * Use Kotlin instead of Groovy for QuPath's build scripts (https://github.com/qupath/qupath/pull/1696)
@@ -131,6 +132,7 @@ They may change or be removed in future versions.
 * RichTextFX 0.11.4
 * slf4j 2.0.16
 * snakeyaml 2.3
+* qupath-bioimageio-spec 0.2.0
 
 
 ## Version 0.5.1
