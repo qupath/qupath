@@ -58,7 +58,7 @@
 
 /* Adapt menu icon colors */
 .qupath-icon {
-  -fx-text-fill: -fx-text-base-color;
+  -fx-text-fill: -fx-text-background-color;;
 }
 
 /* Used in command finder for help text */

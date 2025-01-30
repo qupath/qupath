@@ -28,16 +28,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.DoubleBinding;
-import javafx.collections.SetChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
-import javafx.scene.control.ComboBox;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -56,6 +55,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.util.StringConverter;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.glyphfont.FontAwesome;
@@ -137,8 +137,10 @@ class PathClassPane {
 
 		// Refresh when visibilities change
 		var options = qupath.getOverlayOptions();
-		options.selectedClassVisibilityModeProperty().addListener((v, o, n) -> listClasses.refresh());
-		options.selectedClassesProperty().addListener((SetChangeListener.Change<? extends PathClass> c) -> listClasses.refresh());
+		InvalidationListener refresher = o -> listClasses.refresh();
+		options.selectedClassVisibilityModeProperty().addListener(refresher);
+		options.useExactSelectedClassesProperty().addListener(refresher);
+		options.selectedClassesProperty().addListener(refresher);
 	}
 
 
@@ -245,43 +247,41 @@ class PathClassPane {
 		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, btnSetClass, btnAutoClass);
 		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, btnSetClass, btnAutoClass, filter);
 
-		var comboSelectToShow = new ComboBox<String>();
-		String selectToShow = "Select to show";
-		String selectToHide = "Select to hide";
-		comboSelectToShow.getItems().setAll(
-				selectToHide, selectToShow
-		);
+		var comboSelectToShow = new ChoiceBox<OverlayOptions.ClassVisibilityMode>();
+		comboSelectToShow.setConverter(new ClassVisibilityConverter());
+		comboSelectToShow.getItems().setAll(OverlayOptions.ClassVisibilityMode.values());
 		comboSelectToShow.setMaxWidth(Double.MAX_VALUE);
-		var cbExact = new CheckBox("Exact");
-		cbExact.setMaxHeight(Double.MAX_VALUE);
-		cbExact.setAlignment(Pos.CENTER);
+
+		var btnMoreVisible = GuiTools.createMoreButton(createVisbilityMenu(), Side.RIGHT);
 		var paneTop = new BorderPane(comboSelectToShow);
-		paneTop.setRight(cbExact);
-		comboSelectToShow.valueProperty().addListener((v, o, n) -> {
-			OverlayOptions.ClassVisibilityMode mode;
-			if (selectToShow.equals(n)) {
-				if (cbExact.isSelected())
-					mode = OverlayOptions.ClassVisibilityMode.SHOW_EXACT_SELECTED;
-				else
-					mode = OverlayOptions.ClassVisibilityMode.SHOW_CONTAINS_SELECTED;
-			} else {
-				if (cbExact.isSelected())
-					mode = OverlayOptions.ClassVisibilityMode.HIDE_EXACT_SELECTED;
-				else
-					mode = OverlayOptions.ClassVisibilityMode.HIDE_CONTAINS_SELECTED;
-			}
-			getOverlayOptions().setSelectedClassVisibilityMode(mode);
-		});
+		paneTop.setRight(btnMoreVisible);
+		comboSelectToShow.valueProperty()
+				.bindBidirectional(getOverlayOptions().selectedClassVisibilityModeProperty());
 		comboSelectToShow.getSelectionModel().selectFirst();
-		cbExact.selectedProperty().addListener((v, o, n) -> {
-			var item = comboSelectToShow.getValue();
-			comboSelectToShow.getSelectionModel().clearSelection();
-			comboSelectToShow.setValue(item);
-		});
 
 		paneClasses.setTop(paneTop);
 		paneClasses.setBottom(paneBottom);
 		return paneClasses;
+	}
+
+	private static class ClassVisibilityConverter extends StringConverter<OverlayOptions.ClassVisibilityMode> {
+
+		@Override
+		public String toString(OverlayOptions.ClassVisibilityMode object) {
+			return switch (object) {
+				case HIDE_SELECTED -> "Select to hide";
+				case SHOW_SELECTED -> "Select to show";
+			};
+		}
+
+		@Override
+		public OverlayOptions.ClassVisibilityMode fromString(String string) {
+			return switch (string) {
+				case "Select to hide" -> OverlayOptions.ClassVisibilityMode.HIDE_SELECTED;
+				case "Select to show" -> OverlayOptions.ClassVisibilityMode.SHOW_SELECTED;
+				default -> null;
+			};
+		}
 	}
 	
 	
@@ -409,17 +409,42 @@ class PathClassPane {
 		return menu;
 	}
 
+	private ContextMenu createVisbilityMenu() {
+		ContextMenu menu = new ContextMenu();
+
+		CheckMenuItem miSelectExact = new CheckMenuItem("Show/hide exact class matches only");
+		miSelectExact.selectedProperty().bindBidirectional(getOverlayOptions().useExactSelectedClassesProperty());
+
+		MenuItem miResetClassVisibility = new MenuItem("Reset selected classes");
+		miResetClassVisibility.setOnAction(e -> resetSelectedClassVisibility());
+
+		MenuItem miRestoreClassVisibilityDefaults = new MenuItem("Restore default visibility");
+		miRestoreClassVisibilityDefaults.setOnAction(e -> restoreClassVisibilityDefaults());
+
+		menu.getItems().addAll(
+				miSelectExact,
+				new SeparatorMenuItem(),
+				miResetClassVisibility,
+				miRestoreClassVisibilityDefaults
+		);
+		return menu;
+	}
+
+
+	private void resetSelectedClassVisibility() {
+		var options = getOverlayOptions();
+		options.selectedClassesProperty().clear();
+	}
+
+	private void restoreClassVisibilityDefaults() {
+		var options = getOverlayOptions();
+		options.setSelectedClassVisibilityMode(OverlayOptions.ClassVisibilityMode.HIDE_SELECTED);
+		options.setUseExactSelectedClasses(false);
+		options.selectedClassesProperty().clear();
+	}
 
 	private ContextMenu createSelectedMenu() {
 		ContextMenu menu = new ContextMenu();
-
-		MenuItem miSetHidden = new MenuItem("Hide objects with selected classes");
-		miSetHidden.setOnAction(e -> setSelectedClassesVisibility(false));
-		MenuItem miSetVisible = new MenuItem("Show objects with selected classes");
-		miSetVisible.setOnAction(e -> setSelectedClassesVisibility(true));
-
-		CheckMenuItem miShowHideExact = new CheckMenuItem("Only hide if object class matches exactly");
-//		miShowHideExact.selectedProperty().bindBidirectional(qupath.getOverlayOptions().selectedClassVisibilityModeProperty());
 
 		MenuItem miSelectObjects = new MenuItem("Select objects by classification");
 		miSelectObjects.disableProperty().bind(Bindings.createBooleanBinding(
@@ -437,18 +462,8 @@ class PathClassPane {
 			Commands.selectObjectsByClassification(imageData, getSelectedPathClasses().toArray(PathClass[]::new));
 		});
 
-		menu.setOnShowing(e -> {
-			var selected = getSelectedPathClasses();
-			boolean hasClasses = !selected.isEmpty();
-			miSetVisible.setDisable(!hasClasses);
-			miSetHidden.setDisable(!hasClasses);
-		});
 
 		menu.getItems().addAll(
-				miSetVisible,
-				miSetHidden,
-				miShowHideExact,
-				new SeparatorMenuItem(),
 				miSelectObjects);
 
 		return menu;
@@ -818,6 +833,10 @@ class PathClassPane {
 		private DoubleBinding opacityBinding = Bindings.createDoubleBinding(this::calculateOpacity,
 				hoverProperty(), selectedProperty(), itemProperty());
 
+		private boolean isSelected(PathClass pathClass) {
+			return overlayOptions.selectedClassesProperty().contains(pathClass);
+		}
+
 		private double calculateOpacity() {
 			var item = getItem();
 			if (item == null)
@@ -826,31 +845,16 @@ class PathClassPane {
 				return 0.8;
 			var mode = overlayOptions.getSelectedClassVisibilityMode();
 			switch (mode) {
-				case HIDE_EXACT_SELECTED:
+				case HIDE_SELECTED:
 					if (isHidden(item))
-						return 0.8;
+						return isSelected(item) ? 0.8 : 0.6;
 					else
 						return 0.1;
-				case HIDE_CONTAINS_SELECTED:
-					if (isHidden(item)) {
-						if (overlayOptions.selectedClassesProperty().contains(item))
-							return 0.8;
-						else
-							return 0.4;
-					} else
-						return 0.1;
-				case SHOW_EXACT_SELECTED:
+				case SHOW_SELECTED:
 					if (isHidden(item))
-						return 0.1;
-					else
-						return 0.8;
-				case SHOW_CONTAINS_SELECTED:
-					if (isHidden(item))
-						return 0.1;
-					else if (overlayOptions.selectedClassesProperty().contains(item))
-						return 0.8;
-					else
 						return 0.4;
+					else
+						return isSelected(item) ? 0.8 : 0.6;
 			}
 			return 1.0;
 		}
@@ -871,6 +875,7 @@ class PathClassPane {
 				options.setPathClassHidden(pathClass, !options.selectedClassesProperty().contains(pathClass));
 				getListView().refresh();
 			}
+			e.consume();
 		}
 
 
@@ -934,8 +939,8 @@ class PathClassPane {
 				label.setStyle(STYLE_HIDDEN);
 				if (value == PathClass.NULL_CLASS) {
 					pane.setRight(iconHidden);
-				} else if (mode == OverlayOptions.ClassVisibilityMode.HIDE_CONTAINS_SELECTED &&
-						!overlayOptions.selectedClassesProperty().contains(value)) {
+				} else if (mode == OverlayOptions.ClassVisibilityMode.HIDE_SELECTED &&
+						!isSelected(value)) {
 					pane.setRight(iconUnavailable);
 				} else {
 					pane.setRight(iconHidden);

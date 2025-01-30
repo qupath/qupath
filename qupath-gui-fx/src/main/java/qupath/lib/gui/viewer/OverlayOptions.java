@@ -52,12 +52,8 @@ import java.util.function.Predicate;
 public class OverlayOptions {
 
 	public enum ClassVisibilityMode {
-
-		SHOW_EXACT_SELECTED,
-		SHOW_CONTAINS_SELECTED,
-		HIDE_EXACT_SELECTED,
-		HIDE_CONTAINS_SELECTED
-
+		SHOW_SELECTED,
+		HIDE_SELECTED
 	}
 	
 	/**
@@ -100,7 +96,8 @@ public class OverlayOptions {
 	private final FloatProperty fontSize = new SimpleFloatProperty();
 
 	private final ObservableSet<PathClass> selectedClasses = FXCollections.observableSet();
-	private final ObjectProperty<ClassVisibilityMode> selectedClassVisibilityMode = new SimpleObjectProperty<>(ClassVisibilityMode.HIDE_CONTAINS_SELECTED);
+	private final ObjectProperty<ClassVisibilityMode> selectedClassVisibilityMode = new SimpleObjectProperty<>(ClassVisibilityMode.HIDE_SELECTED);
+	private final BooleanProperty useExactSelectedClasses = new SimpleBooleanProperty(null, "useExactSelectedClasses", false);
 
 	private final ObjectProperty<DetectionDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(null, "cellDisplayMode", DetectionDisplayMode.NUCLEI_AND_BOUNDARIES);
 
@@ -123,7 +120,8 @@ public class OverlayOptions {
 		for (var prop : Arrays.asList(options.showNames, options.showConnections, options.fillDetections,
 				options.fillAnnotations, options.showTMACoreLabels,
 				options.showGrid, options.showAnnotations, options.showDetections,
-				options.showPixelClassification, options.showTMAGrid)) {
+				options.showPixelClassification, options.showTMAGrid,
+				options.useExactSelectedClasses)) {
 			prop.bindBidirectional(PathPrefs.createPersistentPreference("overlayOptions_" + prop.getName(), prop.get()));
 		}
 		options.selectedClassVisibilityMode.bindBidirectional(PathPrefs.createPersistentPreference("overlayOptions_selectedClassVisibilityMode", options.selectedClassVisibilityMode.get(), ClassVisibilityMode.class));
@@ -160,6 +158,8 @@ public class OverlayOptions {
 		cellDisplayMode.addListener(timestamper);
 		opacity.addListener(timestamper);
 		fontSize.addListener(timestamper);
+		useExactSelectedClasses.addListener(timestamper);
+		selectedClassVisibilityMode.addListener(timestamper);
 	}
 	
 	/**
@@ -175,6 +175,7 @@ public class OverlayOptions {
 		this.selectedClasses.addAll(options.selectedClasses);
 		this.showObjectPredicateProperty().set(options.showObjectPredicateProperty().get());
 		this.selectedClassVisibilityMode.set(options.selectedClassVisibilityModeProperty().get());
+		this.useExactSelectedClasses.set(options.useExactSelectedClasses.get());
 		this.measurementMapper.set(options.measurementMapper.get());
 		this.opacity.set(options.opacity.get());
 		this.showAnnotations.set(options.showAnnotations.get());
@@ -617,10 +618,8 @@ public class OverlayOptions {
 	 */
 	public boolean isPathClassHidden(final PathClass pathClass) {
 		var mode = getSelectedClassVisibilityMode();
-		boolean showByDefault = mode == ClassVisibilityMode.HIDE_CONTAINS_SELECTED ||
-				mode == ClassVisibilityMode.HIDE_EXACT_SELECTED;
-		boolean checkContains = mode == ClassVisibilityMode.HIDE_CONTAINS_SELECTED ||
-				mode == ClassVisibilityMode.SHOW_CONTAINS_SELECTED;
+		boolean showByDefault = mode == ClassVisibilityMode.HIDE_SELECTED;
+		boolean checkContains = !getUseExactSelectedClasses();
 
 		// If the class is selected,
 		if (isSelectedClass(pathClass) || (checkContains && containsSelectedClass(pathClass))) {
@@ -685,6 +684,30 @@ public class OverlayOptions {
 	 */
 	public ObservableSet<PathClass> selectedClassesProperty() {
 		return selectedClasses;
+	}
+
+	/**
+	 * Property to control whether entries in {@link #selectedClassesProperty()} should be used exactly,
+	 * or should also include all related classes (i.e. classes that are supersets of the selected class).
+	 * @return
+	 */
+	public BooleanProperty useExactSelectedClassesProperty() {
+		return useExactSelectedClasses;
+	}
+
+	/**
+	 * Set the value of {@link #useExactSelectedClassesProperty()}
+	 * @param useExact
+	 */
+	public void setUseExactSelectedClasses(boolean useExact) {
+		useExactSelectedClasses.set(useExact);
+	}
+
+	/**
+	 * @return the value of {@link #useExactSelectedClassesProperty()}
+	 */
+	public boolean getUseExactSelectedClasses() {
+		return useExactSelectedClasses.get();
 	}
 
 	/**
