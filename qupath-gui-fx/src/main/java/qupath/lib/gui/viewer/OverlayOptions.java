@@ -50,6 +50,15 @@ import java.util.function.Predicate;
  * 
  */
 public class OverlayOptions {
+
+	public enum ClassVisibilityMode {
+
+		SHOW_EXACT_SELECTED,
+		SHOW_CONTAINS_SELECTED,
+		HIDE_EXACT_SELECTED,
+		HIDE_CONTAINS_SELECTED
+
+	}
 	
 	/**
 	 * Display modes for cells and other detections.
@@ -90,8 +99,8 @@ public class OverlayOptions {
 
 	private final FloatProperty fontSize = new SimpleFloatProperty();
 
-	private final ObservableSet<PathClass> hiddenClasses = FXCollections.observableSet();
-	private final BooleanProperty hideExactClassesOnly = new SimpleBooleanProperty(false);
+	private final ObservableSet<PathClass> selectedClasses = FXCollections.observableSet();
+	private final ObjectProperty<ClassVisibilityMode> selectedClassVisibilityMode = new SimpleObjectProperty<>(ClassVisibilityMode.HIDE_CONTAINS_SELECTED);
 
 	private final ObjectProperty<DetectionDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(null, "cellDisplayMode", DetectionDisplayMode.NUCLEI_AND_BOUNDARIES);
 
@@ -114,10 +123,10 @@ public class OverlayOptions {
 		for (var prop : Arrays.asList(options.showNames, options.showConnections, options.fillDetections,
 				options.fillAnnotations, options.showTMACoreLabels,
 				options.showGrid, options.showAnnotations, options.showDetections,
-				options.showPixelClassification, options.showTMAGrid,
-				options.hideExactClassesOnly)) {
+				options.showPixelClassification, options.showTMAGrid)) {
 			prop.bindBidirectional(PathPrefs.createPersistentPreference("overlayOptions_" + prop.getName(), prop.get()));
 		}
+		options.selectedClassVisibilityMode.bindBidirectional(PathPrefs.createPersistentPreference("overlayOptions_selectedClassVisibilityMode", options.selectedClassVisibilityMode.get(), ClassVisibilityMode.class));
 		options.cellDisplayMode.bindBidirectional(PathPrefs.createPersistentPreference("overlayOptions_cellDisplayMode", options.cellDisplayMode.get(), DetectionDisplayMode.class));
 		options.fontSize.bindBidirectional(PathPrefs.createPersistentPreference("overlayOptions_fontSize", options.fontSize.get()));
 		return options;
@@ -147,7 +156,7 @@ public class OverlayOptions {
 		showTMACoreLabels.addListener(timestamper);
 		showGrid.addListener(timestamper);
 		gridLines.addListener(timestamper);
-		hiddenClasses.addListener(timestamper);
+		selectedClasses.addListener(timestamper);
 		cellDisplayMode.addListener(timestamper);
 		opacity.addListener(timestamper);
 		fontSize.addListener(timestamper);
@@ -163,9 +172,9 @@ public class OverlayOptions {
 		this.fillAnnotations.set(options.fillAnnotations.get());
 		this.fillDetections.set(options.fillDetections.get());
 		this.gridLines.set(options.gridLines.get());
-		this.hiddenClasses.addAll(options.hiddenClasses);
+		this.selectedClasses.addAll(options.selectedClasses);
 		this.showObjectPredicateProperty().set(options.showObjectPredicateProperty().get());
-		this.hideExactClassesOnly.set(options.hideExactClassesOnlyProperty().get());
+		this.selectedClassVisibilityMode.set(options.selectedClassVisibilityModeProperty().get());
 		this.measurementMapper.set(options.measurementMapper.get());
 		this.opacity.set(options.opacity.get());
 		this.showAnnotations.set(options.showAnnotations.get());
@@ -517,10 +526,10 @@ public class OverlayOptions {
 
 	/**
 	 * @return true if objects should be displayed regardless of classification (i.e. no classifications are 'hidden')
-	 * @see #hiddenClassesProperty()
+	 * @see #selectedClassesProperty()
 	 */
 	public boolean getAllPathClassesVisible() {
-		return hiddenClasses.isEmpty();
+		return selectedClasses.isEmpty();
 	}
 
 	/**
@@ -541,7 +550,7 @@ public class OverlayOptions {
 
 	/**
 	 * Get the predicate used to determine whether an object should be displayed or hidden.
-	 * Note that this is applied in <i>addition</i> to any values in {@link #hiddenClassesProperty()} and the individual
+	 * Note that this is applied in <i>addition</i> to any values in {@link #selectedClassesProperty()} and the individual
 	 * show/hide options for different object types.
 	 * <p>
 	 * Usually the value should be {@code null}, but it exists to allow more complex filtering of objects that cannot
@@ -607,33 +616,48 @@ public class OverlayOptions {
 	 * @return true if objects with the classification should be displayed, false if they should be hidden
 	 */
 	public boolean isPathClassHidden(final PathClass pathClass) {
-		if (hiddenClasses.isEmpty())
+		var mode = getSelectedClassVisibilityMode();
+		boolean showByDefault = mode == ClassVisibilityMode.HIDE_CONTAINS_SELECTED ||
+				mode == ClassVisibilityMode.HIDE_EXACT_SELECTED;
+		boolean checkContains = mode == ClassVisibilityMode.HIDE_CONTAINS_SELECTED ||
+				mode == ClassVisibilityMode.SHOW_CONTAINS_SELECTED;
+
+		// If the class is selected,
+		if (isSelectedClass(pathClass) || (checkContains && containsSelectedClass(pathClass))) {
+			return showByDefault;
+		} else {
+			return !showByDefault;
+		}
+	}
+
+	private boolean isSelectedClass(final PathClass pathClass) {
+		if (selectedClasses.isEmpty())
 			return false;
 
 		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
-			return hiddenClasses.contains(null) || hiddenClasses.contains(PathClass.NULL_CLASS);
+			return selectedClasses.contains(null) || selectedClasses.contains(PathClass.NULL_CLASS);
 
-		if (hiddenClasses.contains(pathClass))
-			return true;
-
-		if (getHideExactClassesOnly())
-			return false;
-		else
-			return isPathClassHiddenByParts(pathClass);
+		return selectedClasses.contains(pathClass);
 	}
 
 	/**
-	 * Check if a classification matches all the parts of any hidden classification.
+	 * Check if a classification matches all the parts of any selected classification.
 	 * This is a 'generous' criterion, e.g. hiding "CD3" will hide "CD3", "CD3: CD8", "CD8: CD3"...
 	 * @param pathClass
 	 * @return
 	 */
-	private boolean isPathClassHiddenByParts(PathClass pathClass) {
+	private boolean containsSelectedClass(final PathClass pathClass) {
+		if (selectedClasses.isEmpty())
+			return false;
+
+		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
+			return false;
+
 		var set = pathClass.toSet();
-		for (var hidden : hiddenClasses) {
-			if (hidden != null && hidden != PathClass.NULL_CLASS) {
-				if (pathClass.isDerivedClass() || hidden.isDerivedClass()) {
-					if (set.containsAll(hidden.toSet()))
+		for (var selected : selectedClasses) {
+			if (selected != null && selected != PathClass.NULL_CLASS) {
+				if (pathClass.isDerivedClass() || selected.isDerivedClass()) {
+					if (set.containsAll(selected.toSet()))
 						return true;
 				}
 			}
@@ -651,20 +675,20 @@ public class OverlayOptions {
 	 */
 	public void setPathClassHidden(final PathClass pathClass, final boolean hidden) {
 		if (hidden)
-			hiddenClasses.add(pathClass);
+			selectedClasses.add(pathClass);
 		else
-			hiddenClasses.remove(pathClass);
+			selectedClasses.remove(pathClass);
 	}
 	
 	/**
 	 * @return an observable set containing classifications for which the corresponding objects should not be displayed
 	 */
-	public ObservableSet<PathClass> hiddenClassesProperty() {
-		return hiddenClasses;
+	public ObservableSet<PathClass> selectedClassesProperty() {
+		return selectedClasses;
 	}
 
 	/**
-	 * Request that only exact matches to classes in {@link #hiddenClassesProperty()} should be hidden.
+	 * Request that only exact matches to classes in {@link #selectedClassesProperty()} should be hidden.
 	 * This influences the result of {@link #isPathClassHidden(PathClass)}.
 	 * <p>
 	 * If false, then any object with a classification that is a superset of a hidden classification will also be hidden.
@@ -672,26 +696,26 @@ public class OverlayOptions {
 	 * @return
 	 * @since v0.6.0
 	 */
-	public BooleanProperty hideExactClassesOnlyProperty() {
-		return hideExactClassesOnly;
+	public ObjectProperty<ClassVisibilityMode> selectedClassVisibilityModeProperty() {
+		return selectedClassVisibilityMode;
 	}
 
 	/**
-	 * Get the value of {@link #hideExactClassesOnlyProperty()}.
+	 * Get the value of {@link #selectedClassVisibilityModeProperty()}.
 	 * @return
 	 * @since v0.6.0
 	 */
-	public boolean getHideExactClassesOnly() {
-		return hideExactClassesOnly.get();
+	public ClassVisibilityMode getSelectedClassVisibilityMode() {
+		return selectedClassVisibilityMode.get();
 	}
 
 	/**
-	 * Set the value of {@link #hideExactClassesOnlyProperty()}.
+	 * Set the value of {@link #selectedClassVisibilityModeProperty()}.
 	 * @param value the new value
 	 * @since v0.6.0
 	 */
-	public void setHideExactClassesOnly(boolean value) {
-		hideExactClassesOnly.set(value);
+	public void setSelectedClassVisibilityMode(ClassVisibilityMode value) {
+		selectedClassVisibilityMode.set(value);
 	}
 	
 	

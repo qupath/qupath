@@ -910,8 +910,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (overlayOptions != null) {
 			
 			overlayOptionsManager.attachListener(overlayOptions.fillDetectionsProperty(), repainterOverlay);
-			overlayOptionsManager.attachListener(overlayOptions.hiddenClassesProperty(), repainterOverlay);
-			overlayOptionsManager.attachListener(overlayOptions.hideExactClassesOnlyProperty(), repainterOverlay);
+			overlayOptionsManager.attachListener(overlayOptions.selectedClassesProperty(), repainterOverlay);
+			overlayOptionsManager.attachListener(overlayOptions.selectedClassVisibilityModeProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.measurementMapperProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.detectionDisplayModeProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.showConnectionsProperty(), repainterOverlay);
