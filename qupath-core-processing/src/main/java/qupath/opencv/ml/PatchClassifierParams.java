@@ -489,7 +489,11 @@ public class PatchClassifierParams {
 		 * @see #outputClassNames(String...)
 		 */
 		public Builder outputClassNames(String... outputClasses) {
-			return outputClasses(Arrays.stream(outputClasses).map(PathClass::fromString).toArray(PathClass[]::new));
+			return outputClasses(
+					Arrays.stream(outputClasses)
+							.map(PathClass::fromString)
+							.toArray(PathClass[]::new)
+			);
 		}
 		
 		/**
@@ -504,7 +508,7 @@ public class PatchClassifierParams {
 			return outputClasses(
 					outputClasses.entrySet().stream()
 					.collect(
-							Collectors.toMap(Map.Entry::getKey, e -> PathClass.fromString(e.getValue()))
+							Collectors.toMap(e -> e.getKey(), e -> PathClass.fromString(e.getValue()))
 					));
 		}
 		
