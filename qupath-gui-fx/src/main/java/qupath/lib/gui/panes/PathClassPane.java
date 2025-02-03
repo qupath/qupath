@@ -269,16 +269,16 @@ class PathClassPane {
 		@Override
 		public String toString(OverlayOptions.ClassVisibilityMode object) {
 			return switch (object) {
-				case HIDE_SELECTED -> "Select to hide";
-				case SHOW_SELECTED -> "Select to show";
+				case HIDE_SELECTED -> "Show by default";
+				case SHOW_SELECTED -> "Hide by default";
 			};
 		}
 
 		@Override
 		public OverlayOptions.ClassVisibilityMode fromString(String string) {
 			return switch (string) {
-				case "Select to hide" -> OverlayOptions.ClassVisibilityMode.HIDE_SELECTED;
-				case "Select to show" -> OverlayOptions.ClassVisibilityMode.SHOW_SELECTED;
+				case "Show by default" -> OverlayOptions.ClassVisibilityMode.HIDE_SELECTED;
+				case "Hide by default" -> OverlayOptions.ClassVisibilityMode.SHOW_SELECTED;
 				default -> null;
 			};
 		}
@@ -344,7 +344,7 @@ class PathClassPane {
 			e.consume();
 			return;
 		} else if (pasteCombo.match(e)) {
-			logger.debug("Paste not implemented for classification list!");
+			logger.debug("Paste not implemented for class list!");
 			e.consume();
 			return;
 		}
@@ -418,7 +418,7 @@ class PathClassPane {
 		MenuItem miResetClassVisibility = new MenuItem("Reset selected classes");
 		miResetClassVisibility.setOnAction(e -> resetSelectedClassVisibility());
 
-		MenuItem miRestoreClassVisibilityDefaults = new MenuItem("Restore default visibility");
+		MenuItem miRestoreClassVisibilityDefaults = new MenuItem("Restore class visibility to default settings");
 		miRestoreClassVisibilityDefaults.setOnAction(e -> restoreClassVisibilityDefaults());
 
 		menu.getItems().addAll(
@@ -582,7 +582,7 @@ class PathClassPane {
 				.collect(Collectors.toCollection(ArrayList::new));
 
 		if (newClasses.isEmpty()) {
-			Dialogs.showErrorMessage("Set available classes", "No classifications found in current image!");
+			Dialogs.showErrorMessage("Set available classes", "No classes found in current image!");
 			return false;
 		}
 		
@@ -629,7 +629,7 @@ class PathClassPane {
 				return false;
 			}
 			if (pathClasses.size() == availablePathClasses.size() && availablePathClasses.containsAll(pathClasses)) {
-				Dialogs.showInfoNotification("Import PathClasses", file.getName() + " contains same classifications - no changes to make");
+				Dialogs.showInfoNotification("Import PathClasses", file.getName() + " contains same classes - no changes to make");
 				return false;
 			}
 			availablePathClasses.setAll(pathClasses);
@@ -797,7 +797,7 @@ class PathClassPane {
 			label.setMinWidth(20);
 			label.setGraphic(rectangle);
 			// Tooltip for the main label (but not the visibility part)
-			Tooltip tooltip = new Tooltip("Available classifications (right-click to add or remove).\n" +
+			Tooltip tooltip = new Tooltip("Available classes (right-click to add or remove).\n" +
 					"Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info.");
 			label.setTooltip(tooltip);
 			label.setTextOverrun(OverrunStyle.ELLIPSIS);
@@ -817,7 +817,7 @@ class PathClassPane {
 		private void configureHiddenIcon() {
 			iconHidden.opacityProperty().bind(opacityBinding);
 			if (overlayOptions != null) {
-				Tooltip.install(iconHidden, new Tooltip("Classification hidden - click to toggle visibility"));
+				Tooltip.install(iconHidden, new Tooltip("Class hidden - click to toggle visibility"));
 				iconHidden.setOnMouseClicked(this::handleToggleVisibility);
 			}
 		}
@@ -825,7 +825,7 @@ class PathClassPane {
 		private void configureShowingIcon() {
 			iconShowing.opacityProperty().bind(opacityBinding);
 			if (overlayOptions != null) {
-				Tooltip.install(iconShowing, new Tooltip("Classification showing - click to toggle visibility"));
+				Tooltip.install(iconShowing, new Tooltip("Class showing - click to toggle visibility"));
 				iconShowing.setOnMouseClicked(this::handleToggleVisibility);
 			}
 		}
@@ -863,7 +863,7 @@ class PathClassPane {
 			iconUnavailable.opacityProperty().bind(opacityBinding);
 			if (overlayOptions != null) {
 				Tooltip.install(iconUnavailable,
-						new Tooltip("Derived classification is hidden because a related classification is already hidden"));
+						new Tooltip("Derived class is hidden because a related class is already hidden"));
 				iconUnavailable.setOnMouseClicked(this::handleToggleVisibility);
 			}
 		}

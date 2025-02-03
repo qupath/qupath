@@ -51,9 +51,22 @@ import java.util.function.Predicate;
  */
 public class OverlayOptions {
 
+	/**
+	 * Visibility modes for classes.
+	 * This refers to how {@link #selectedClassesProperty()} and {@link #useExactSelectedClassesProperty()}
+	 * are interpreted.
+	 */
 	public enum ClassVisibilityMode {
-		SHOW_SELECTED,
-		HIDE_SELECTED
+		/**
+		 * Hide classes that are included in the selected class collection.
+		 * Show all other classes.
+		 */
+		HIDE_SELECTED,
+		/**
+		 * Show classes that are included in the selected class collection.
+		 * Hide all other classes.
+		 */
+		SHOW_SELECTED
 	}
 	
 	/**
