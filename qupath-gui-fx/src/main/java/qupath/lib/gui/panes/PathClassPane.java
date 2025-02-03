@@ -26,6 +26,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import javafx.beans.InvalidationListener;
@@ -37,6 +38,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -682,22 +684,28 @@ class PathClassPane {
 	private boolean promptToEditSelectedClass() {
 		PathClass pathClassSelected = getSelectedPathClass();
 		if (Commands.promptToEditClass(pathClassSelected)) {
-			//					listModelPathClasses.fireListDataChangedEvent();
-			GuiTools.refreshList(listClasses);
-			var project = qupath.getProject();
-			// Make sure we have updated the classes in the project
-			if (project != null) {
-				project.setPathClasses(listClasses.getItems());
-			}
-			qupath.getViewerManager().repaintAllViewers();
-			// TODO: Considering the only thing that can change is the color, firing an event should be unnecessary?
-			// In any case, it doesn't make sense to do the current image only... should do all or none
-			var hierarchy = getHierarchy();
-			if (hierarchy != null)
-				hierarchy.fireHierarchyChangedEvent(listClasses);
+			handleClassUpdated();
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Call this method when a class changes (e.g. the colors).
+	 */
+	private void handleClassUpdated() {
+		GuiTools.refreshList(listClasses);
+		var project = qupath.getProject();
+		// Make sure we have updated the classes in the project
+		if (project != null) {
+			project.setPathClasses(listClasses.getItems());
+		}
+		qupath.getViewerManager().repaintAllViewers();
+		// TODO: Considering the only thing that can change is the color, firing an event should be unnecessary?
+		// In any case, it doesn't make sense to do the current image only... should do all or none
+		var hierarchy = getHierarchy();
+		if (hierarchy != null)
+			hierarchy.fireHierarchyChangedEvent(listClasses);
 	}
 	
 	/**
@@ -778,14 +786,15 @@ class PathClassPane {
 		private final BorderPane pane = new BorderPane();
 		private final Label label = new Label();
 
-		private final int size = 10;
-		private final Rectangle rectangle = new Rectangle(size, size);
+		private final ColorPicker colorPicker = new ColorPicker();
+		private final int colorPickerSize = 10;
+		private final int eyeSize = 14;
 
-		private final Node iconShowing = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE));
-		private final Node iconHidden = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE_SLASH));
+		private final Node iconShowing = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE, eyeSize));
+		private final Node iconHidden = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE_SLASH, eyeSize));
 		private final Node iconUnavailable = new StackPane(GlyphFontRegistry.font("FontAwesome")
 				.create('\uf2a8')
-				.size(QuPathGUI.TOOLBAR_ICON_SIZE));
+				.size(eyeSize));
 
 		private static final String STYLE_HIDDEN = "-fx-font-family:arial; -fx-font-style:italic;";
 		private static final String STYLE_SHOWING = "-fx-font-family:arial; -fx-font-style:normal;";
@@ -795,7 +804,13 @@ class PathClassPane {
 			this.overlayOptions = qupath == null ? null : qupath.getOverlayOptions();
 			label.setMaxWidth(Double.MAX_VALUE);
 			label.setMinWidth(20);
-			label.setGraphic(rectangle);
+
+			colorPicker.getStyleClass().addAll("button", "minimal-color-picker", "always-opaque");
+			colorPicker.setStyle("-fx-color-rect-width: " + colorPickerSize + "; -fx-color-rect-height: " + colorPickerSize + ";");
+			colorPicker.setOnHiding(e -> this.handleColorChange(colorPicker.getValue()));
+
+			label.setGraphic(colorPicker);
+
 			// Tooltip for the main label (but not the visibility part)
 			Tooltip tooltip = new Tooltip("Available classes (right-click to add or remove).\n" +
 					"Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info.");
@@ -812,6 +827,28 @@ class PathClassPane {
 			configureHiddenIcon();
 			configureShowingIcon();
 			configureUnavailableIcon();
+		}
+
+		private void handleColorChange(Color color) {
+			var pathClass = getItem();
+			if (pathClass != null && pathClass != PathClass.NULL_CLASS) {
+				var rgb = ColorToolsFX.getRGB(color);
+				if (!Objects.equals(rgb, pathClass.getColor())) {
+					pathClass.setColor(rgb);
+					var qupath = QuPathGUI.getInstance();
+					if (qupath != null) {
+						// TODO: Consider whether project class list needs to be updated
+						for (var viewer : qupath.getAllViewers()) {
+							// Technically we only need to repaint the viewers, but we need to ensure that
+							// any cached tiles are updated as well - so it's easiest to fire a hierarchy changed event
+							var hierarchy = viewer.getHierarchy();
+							if (hierarchy != null) {
+								hierarchy.fireHierarchyChangedEvent(pathClass);
+							}
+						}
+					}
+				}
+			}
 		}
 
 		private void configureHiddenIcon() {
@@ -932,7 +969,9 @@ class PathClassPane {
 				setGraphic(null);
 				return;
 			}
-			rectangle.setFill(getColor(value));
+			colorPicker.setValue(getColor(value));
+			colorPicker.setDisable(value == PathClass.NULL_CLASS);
+
 			String text = getText(value);
 			var mode = overlayOptions.getSelectedClassVisibilityMode();
 			if (isHidden(value)) {
