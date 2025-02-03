@@ -26,15 +26,19 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
-import javafx.collections.SetChangeListener;
+import javafx.beans.InvalidationListener;
+import javafx.beans.binding.DoubleBinding;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -53,6 +57,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.util.StringConverter;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.glyphfont.FontAwesome;
@@ -134,8 +139,10 @@ class PathClassPane {
 
 		// Refresh when visibilities change
 		var options = qupath.getOverlayOptions();
-		options.hideExactClassesOnlyProperty().addListener((v, o, n) -> listClasses.refresh());
-		options.hiddenClassesProperty().addListener((SetChangeListener.Change<? extends PathClass> c) -> listClasses.refresh());
+		InvalidationListener refresher = o -> listClasses.refresh();
+		options.selectedClassVisibilityModeProperty().addListener(refresher);
+		options.useExactSelectedClassesProperty().addListener(refresher);
+		options.selectedClassesProperty().addListener(refresher);
 	}
 
 
@@ -241,9 +248,42 @@ class PathClassPane {
 
 		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, btnSetClass, btnAutoClass);
 		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, btnSetClass, btnAutoClass, filter);
-		
+
+		var comboSelectToShow = new ChoiceBox<OverlayOptions.ClassVisibilityMode>();
+		comboSelectToShow.setConverter(new ClassVisibilityConverter());
+		comboSelectToShow.getItems().setAll(OverlayOptions.ClassVisibilityMode.values());
+		comboSelectToShow.setMaxWidth(Double.MAX_VALUE);
+
+		var btnMoreVisible = GuiTools.createMoreButton(createVisbilityMenu(), Side.RIGHT);
+		var paneTop = new BorderPane(comboSelectToShow);
+		paneTop.setRight(btnMoreVisible);
+		comboSelectToShow.valueProperty()
+				.bindBidirectional(getOverlayOptions().selectedClassVisibilityModeProperty());
+		comboSelectToShow.getSelectionModel().selectFirst();
+
+		paneClasses.setTop(paneTop);
 		paneClasses.setBottom(paneBottom);
 		return paneClasses;
+	}
+
+	private static class ClassVisibilityConverter extends StringConverter<OverlayOptions.ClassVisibilityMode> {
+
+		@Override
+		public String toString(OverlayOptions.ClassVisibilityMode object) {
+			return switch (object) {
+				case HIDE_SELECTED -> "Show by default";
+				case SHOW_SELECTED -> "Hide by default";
+			};
+		}
+
+		@Override
+		public OverlayOptions.ClassVisibilityMode fromString(String string) {
+			return switch (string) {
+				case "Show by default" -> OverlayOptions.ClassVisibilityMode.HIDE_SELECTED;
+				case "Hide by default" -> OverlayOptions.ClassVisibilityMode.SHOW_SELECTED;
+				default -> null;
+			};
+		}
 	}
 	
 	
@@ -306,7 +346,7 @@ class PathClassPane {
 			e.consume();
 			return;
 		} else if (pasteCombo.match(e)) {
-			logger.debug("Paste not implemented for classification list!");
+			logger.debug("Paste not implemented for class list!");
 			e.consume();
 			return;
 		}
@@ -371,17 +411,42 @@ class PathClassPane {
 		return menu;
 	}
 
+	private ContextMenu createVisbilityMenu() {
+		ContextMenu menu = new ContextMenu();
+
+		CheckMenuItem miSelectExact = new CheckMenuItem("Show/hide exact class matches only");
+		miSelectExact.selectedProperty().bindBidirectional(getOverlayOptions().useExactSelectedClassesProperty());
+
+		MenuItem miResetClassVisibility = new MenuItem("Reset selected classes");
+		miResetClassVisibility.setOnAction(e -> resetSelectedClassVisibility());
+
+		MenuItem miRestoreClassVisibilityDefaults = new MenuItem("Restore class visibility to default settings");
+		miRestoreClassVisibilityDefaults.setOnAction(e -> restoreClassVisibilityDefaults());
+
+		menu.getItems().addAll(
+				miSelectExact,
+				new SeparatorMenuItem(),
+				miResetClassVisibility,
+				miRestoreClassVisibilityDefaults
+		);
+		return menu;
+	}
+
+
+	private void resetSelectedClassVisibility() {
+		var options = getOverlayOptions();
+		options.selectedClassesProperty().clear();
+	}
+
+	private void restoreClassVisibilityDefaults() {
+		var options = getOverlayOptions();
+		options.setSelectedClassVisibilityMode(OverlayOptions.ClassVisibilityMode.HIDE_SELECTED);
+		options.setUseExactSelectedClasses(false);
+		options.selectedClassesProperty().clear();
+	}
 
 	private ContextMenu createSelectedMenu() {
 		ContextMenu menu = new ContextMenu();
-
-		MenuItem miSetHidden = new MenuItem("Hide objects with selected classes");
-		miSetHidden.setOnAction(e -> setSelectedClassesVisibility(false));
-		MenuItem miSetVisible = new MenuItem("Show objects with selected classes");
-		miSetVisible.setOnAction(e -> setSelectedClassesVisibility(true));
-
-		CheckMenuItem miShowHideExact = new CheckMenuItem("Only hide if object class matches exactly");
-		miShowHideExact.selectedProperty().bindBidirectional(qupath.getOverlayOptions().hideExactClassesOnlyProperty());
 
 		MenuItem miSelectObjects = new MenuItem("Select objects by classification");
 		miSelectObjects.disableProperty().bind(Bindings.createBooleanBinding(
@@ -399,18 +464,8 @@ class PathClassPane {
 			Commands.selectObjectsByClassification(imageData, getSelectedPathClasses().toArray(PathClass[]::new));
 		});
 
-		menu.setOnShowing(e -> {
-			var selected = getSelectedPathClasses();
-			boolean hasClasses = !selected.isEmpty();
-			miSetVisible.setDisable(!hasClasses);
-			miSetHidden.setDisable(!hasClasses);
-		});
 
 		menu.getItems().addAll(
-				miSetVisible,
-				miSetHidden,
-				miShowHideExact,
-				new SeparatorMenuItem(),
 				miSelectObjects);
 
 		return menu;
@@ -430,13 +485,13 @@ class PathClassPane {
 	}
 	
 	private OverlayOptions getOverlayOptions() {
-		return qupath.getViewer().getOverlayOptions();
+		return qupath.getOverlayOptions();
 	}
 	
 	private void toggleSelectedClassesVisibility() {
 		OverlayOptions overlayOptions = getOverlayOptions();
 		for (var pathClass : getSelectedPathClasses()) {
-			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.hiddenClassesProperty().contains(pathClass));
+			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.selectedClassesProperty().contains(pathClass));
 		}
 		listClasses.refresh();
 	}
@@ -529,7 +584,7 @@ class PathClassPane {
 				.collect(Collectors.toCollection(ArrayList::new));
 
 		if (newClasses.isEmpty()) {
-			Dialogs.showErrorMessage("Set available classes", "No classifications found in current image!");
+			Dialogs.showErrorMessage("Set available classes", "No classes found in current image!");
 			return false;
 		}
 		
@@ -576,7 +631,7 @@ class PathClassPane {
 				return false;
 			}
 			if (pathClasses.size() == availablePathClasses.size() && availablePathClasses.containsAll(pathClasses)) {
-				Dialogs.showInfoNotification("Import PathClasses", file.getName() + " contains same classifications - no changes to make");
+				Dialogs.showInfoNotification("Import PathClasses", file.getName() + " contains same classes - no changes to make");
 				return false;
 			}
 			availablePathClasses.setAll(pathClasses);
@@ -629,22 +684,28 @@ class PathClassPane {
 	private boolean promptToEditSelectedClass() {
 		PathClass pathClassSelected = getSelectedPathClass();
 		if (Commands.promptToEditClass(pathClassSelected)) {
-			//					listModelPathClasses.fireListDataChangedEvent();
-			GuiTools.refreshList(listClasses);
-			var project = qupath.getProject();
-			// Make sure we have updated the classes in the project
-			if (project != null) {
-				project.setPathClasses(listClasses.getItems());
-			}
-			qupath.getViewerManager().repaintAllViewers();
-			// TODO: Considering the only thing that can change is the color, firing an event should be unnecessary?
-			// In any case, it doesn't make sense to do the current image only... should do all or none
-			var hierarchy = getHierarchy();
-			if (hierarchy != null)
-				hierarchy.fireHierarchyChangedEvent(listClasses);
+			handleClassUpdated();
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Call this method when a class changes (e.g. the colors).
+	 */
+	private void handleClassUpdated() {
+		GuiTools.refreshList(listClasses);
+		var project = qupath.getProject();
+		// Make sure we have updated the classes in the project
+		if (project != null) {
+			project.setPathClasses(listClasses.getItems());
+		}
+		qupath.getViewerManager().repaintAllViewers();
+		// TODO: Considering the only thing that can change is the color, firing an event should be unnecessary?
+		// In any case, it doesn't make sense to do the current image only... should do all or none
+		var hierarchy = getHierarchy();
+		if (hierarchy != null)
+			hierarchy.fireHierarchyChangedEvent(listClasses);
 	}
 	
 	/**
@@ -725,14 +786,15 @@ class PathClassPane {
 		private final BorderPane pane = new BorderPane();
 		private final Label label = new Label();
 
-		private final int size = 10;
-		private final Rectangle rectangle = new Rectangle(size, size);
+		private final ColorPicker colorPicker = new ColorPicker();
+		private final int colorPickerSize = 10;
+		private final int eyeSize = 14;
 
-		private final Node iconShowing = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE));
-		private final Node iconHidden = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE_SLASH));
+		private final Node iconShowing = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE, eyeSize));
+		private final Node iconHidden = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE_SLASH, eyeSize));
 		private final Node iconUnavailable = new StackPane(GlyphFontRegistry.font("FontAwesome")
 				.create('\uf2a8')
-				.size(QuPathGUI.TOOLBAR_ICON_SIZE));
+				.size(eyeSize));
 
 		private static final String STYLE_HIDDEN = "-fx-font-family:arial; -fx-font-style:italic;";
 		private static final String STYLE_SHOWING = "-fx-font-family:arial; -fx-font-style:normal;";
@@ -742,9 +804,15 @@ class PathClassPane {
 			this.overlayOptions = qupath == null ? null : qupath.getOverlayOptions();
 			label.setMaxWidth(Double.MAX_VALUE);
 			label.setMinWidth(20);
-			label.setGraphic(rectangle);
+
+			colorPicker.getStyleClass().addAll( "minimal-color-picker", "always-opaque", "button");
+			colorPicker.setStyle("-fx-color-rect-width: " + colorPickerSize + "; -fx-color-rect-height: " + colorPickerSize + ";");
+			colorPicker.setOnHiding(e -> this.handleColorChange(colorPicker.getValue()));
+
+			label.setGraphic(colorPicker);
+
 			// Tooltip for the main label (but not the visibility part)
-			Tooltip tooltip = new Tooltip("Available classifications (right-click to add or remove).\n" +
+			Tooltip tooltip = new Tooltip("Available classes (right-click to add or remove).\n" +
 					"Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info.");
 			label.setTooltip(tooltip);
 			label.setTextOverrun(OverrunStyle.ELLIPSIS);
@@ -761,36 +829,78 @@ class PathClassPane {
 			configureUnavailableIcon();
 		}
 
-		private void configureHiddenIcon() {
-			iconHidden.styleProperty().bind(Bindings.createStringBinding(() -> {
-				return iconHidden.hoverProperty().get() ? "-fx-opacity: 0.8;" : "-fx-opacity: 0.4;";
-			}, iconHidden.hoverProperty()));
+		private void handleColorChange(Color color) {
+			var pathClass = getItem();
+			if (pathClass != null && pathClass != PathClass.NULL_CLASS) {
+				var rgb = ColorToolsFX.getRGB(color);
+				if (!Objects.equals(rgb, pathClass.getColor())) {
+					pathClass.setColor(rgb);
+					var qupath = QuPathGUI.getInstance();
+					if (qupath != null) {
+						// TODO: Consider whether project class list needs to be updated
+						for (var viewer : qupath.getAllViewers()) {
+							// Technically we only need to repaint the viewers, but we need to ensure that
+							// any cached tiles are updated as well - so it's easiest to fire a hierarchy changed event
+							var hierarchy = viewer.getHierarchy();
+							if (hierarchy != null) {
+								hierarchy.fireHierarchyChangedEvent(pathClass);
+							}
+						}
+					}
+				}
+			}
+		}
 
+		private void configureHiddenIcon() {
+			iconHidden.opacityProperty().bind(opacityBinding);
 			if (overlayOptions != null) {
-				Tooltip.install(iconHidden, new Tooltip("Classification hidden - click to toggle visibility"));
+				Tooltip.install(iconHidden, new Tooltip("Class hidden - click to toggle visibility"));
 				iconHidden.setOnMouseClicked(this::handleToggleVisibility);
 			}
 		}
 
 		private void configureShowingIcon() {
-			iconShowing.styleProperty().bind(Bindings.createStringBinding(() -> {
-				return iconShowing.hoverProperty().get() ? "-fx-opacity: 0.8;" : "-fx-opacity: 0.1;";
-			}, iconShowing.hoverProperty()));
-
+			iconShowing.opacityProperty().bind(opacityBinding);
 			if (overlayOptions != null) {
-				Tooltip.install(iconShowing, new Tooltip("Classification showing - click to toggle visibility"));
+				Tooltip.install(iconShowing, new Tooltip("Class showing - click to toggle visibility"));
 				iconShowing.setOnMouseClicked(this::handleToggleVisibility);
 			}
 		}
 
-		private void configureUnavailableIcon() {
-			iconUnavailable.styleProperty().bind(Bindings.createStringBinding(() -> {
-				return iconUnavailable.hoverProperty().get() ? "-fx-opacity: 0.8;" : "-fx-opacity: 0.4;";
-			}, iconUnavailable.hoverProperty()));
+		private DoubleBinding opacityBinding = Bindings.createDoubleBinding(this::calculateOpacity,
+				hoverProperty(), selectedProperty(), itemProperty());
 
+		private boolean isSelected(PathClass pathClass) {
+			return overlayOptions.selectedClassesProperty().contains(pathClass);
+		}
+
+		private double calculateOpacity() {
+			var item = getItem();
+			if (item == null)
+				return 0.0;
+			if (isHover() || isSelected())
+				return 0.8;
+			var mode = overlayOptions.getSelectedClassVisibilityMode();
+			switch (mode) {
+				case HIDE_SELECTED:
+					if (isHidden(item))
+						return isSelected(item) ? 0.8 : 0.6;
+					else
+						return 0.1;
+				case SHOW_SELECTED:
+					if (isHidden(item))
+						return 0.4;
+					else
+						return isSelected(item) ? 0.8 : 0.6;
+			}
+			return 1.0;
+		}
+
+		private void configureUnavailableIcon() {
+			iconUnavailable.opacityProperty().bind(opacityBinding);
 			if (overlayOptions != null) {
 				Tooltip.install(iconUnavailable,
-						new Tooltip("Derived classification is hidden because a related classification is already hidden"));
+						new Tooltip("Derived class is hidden because a related class is already hidden"));
 				iconUnavailable.setOnMouseClicked(this::handleToggleVisibility);
 			}
 		}
@@ -799,9 +909,10 @@ class PathClassPane {
 			var pathClass = getItem();
 			var options = overlayOptions;
 			if (pathClass != null && options != null) {
-				options.setPathClassHidden(pathClass, !options.hiddenClassesProperty().contains(pathClass));
+				options.setPathClassHidden(pathClass, !options.selectedClassesProperty().contains(pathClass));
 				getListView().refresh();
 			}
+			e.consume();
 		}
 
 
@@ -858,11 +969,17 @@ class PathClassPane {
 				setGraphic(null);
 				return;
 			}
-			rectangle.setFill(getColor(value));
+			colorPicker.setValue(getColor(value));
+			colorPicker.setDisable(value == PathClass.NULL_CLASS);
+
 			String text = getText(value);
+			var mode = overlayOptions.getSelectedClassVisibilityMode();
 			if (isHidden(value)) {
 				label.setStyle(STYLE_HIDDEN);
-				if (value != PathClass.NULL_CLASS && !overlayOptions.hiddenClassesProperty().contains(value)) {
+				if (value == PathClass.NULL_CLASS) {
+					pane.setRight(iconHidden);
+				} else if (mode == OverlayOptions.ClassVisibilityMode.HIDE_SELECTED &&
+						!isSelected(value)) {
 					pane.setRight(iconUnavailable);
 				} else {
 					pane.setRight(iconHidden);

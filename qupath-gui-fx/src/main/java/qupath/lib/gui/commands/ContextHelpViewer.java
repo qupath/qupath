@@ -27,7 +27,6 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.LongBinding;
 import javafx.beans.binding.ObjectExpression;
-import javafx.beans.binding.SetBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -63,7 +62,6 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.InfoMessage;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -573,7 +571,7 @@ public class ContextHelpViewer {
 	private HelpListEntry createHiddenClassificationsEntry() {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.classificationsHidden");
-		entry.visibleProperty().bind(Bindings.isEmpty(qupath.getOverlayOptions().hiddenClassesProperty()).not());
+		entry.visibleProperty().bind(Bindings.isEmpty(qupath.getOverlayOptions().selectedClassesProperty()).not());
 		return entry;
 	}
 	
