@@ -130,13 +130,17 @@
   -fx-text-alignment: center;
 }
 
-/*to prevent icons from being dark when the row is selected*/
-.list-cell .button .text {
-  -fx-fill: -fx-text-base-color;
-}
-.table-row-cell .button .text {
-  -fx-fill: -fx-text-base-color;
-}
+/* To prevent icons from being dark when the row is selected
+ * Removed because it was messing up the tooltip text color for minimal-color-picker -
+ * and updating qupath-icon to use the background color is hopefully sufficient.
+ * (Code left temporarily in case it's needed again.)
+ */
+/*.list-cell .button .text {*/
+/*  -fx-fill: -fx-text-base-color;*/
+/*}*/
+/*.table-row-cell .button .text {*/
+/*  -fx-fill: -fx-text-base-color;*/
+/*}*/
 
 .list-cell .extension-manager-list-icon {
   -fx-text-fill: -fx-text-background-color;

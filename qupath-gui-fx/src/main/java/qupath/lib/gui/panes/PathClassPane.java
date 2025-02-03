@@ -805,7 +805,7 @@ class PathClassPane {
 			label.setMaxWidth(Double.MAX_VALUE);
 			label.setMinWidth(20);
 
-			colorPicker.getStyleClass().addAll("button", "minimal-color-picker", "always-opaque");
+			colorPicker.getStyleClass().addAll( "minimal-color-picker", "always-opaque", "button");
 			colorPicker.setStyle("-fx-color-rect-width: " + colorPickerSize + "; -fx-color-rect-height: " + colorPickerSize + ";");
 			colorPicker.setOnHiding(e -> this.handleColorChange(colorPicker.getValue()));
 
