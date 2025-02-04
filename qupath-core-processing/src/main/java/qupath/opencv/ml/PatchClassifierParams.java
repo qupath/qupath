@@ -267,7 +267,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define the input channels using channel names.
 		 * @param channels The input channel names.
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 * @see #inputChannels(int...)
 		 */
 		public Builder inputChannels(String... channels) {
@@ -280,7 +280,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define the input channels using (zero-based) channel numbers.
 		 * @param channels The channel indices.
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 * @see #inputChannels(String...)
 		 */
 		public Builder inputChannels(int... channels) {
@@ -295,7 +295,7 @@ public class PatchClassifierParams {
 		 * An ordered collection (e.g. list) should be used, since the iteration order 
 		 * is important.
 		 * @param channels The channels.
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 */
 		public Builder inputChannels(Collection<? extends ColorTransform> channels) {
 			this.params.inputChannels = new ArrayList<>(channels);
@@ -306,7 +306,7 @@ public class PatchClassifierParams {
 		 * Define the input resolution using a pixel calibration and a scaling factor.
 		 * @param cal input calibration; if null, a default calibration will be used
 		 * @param downsample scaling factor (1.0 to use the calibration directly)
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 */
 		public Builder inputResolution(PixelCalibration cal, double downsample) {
 			if (cal == null)
@@ -317,7 +317,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define the input resolution using a pixel calibration object.
 		 * @param cal The pixel calibration.
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 */
 		public Builder inputResolution(PixelCalibration cal) {
 			this.params.inputResolution = cal;
@@ -327,7 +327,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define a halo that is symmetric in x and y.
 		 * @param padding padding value, to be added both before and after rows and columns.
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 * @see #halo(Padding)
 		 */
 		public Builder halo(int padding) {
@@ -337,7 +337,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define a halo using a padding object.
 		 * @param halo The padding/halo
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 * @see #halo(int)
 		 */
 		public Builder halo(Padding halo) {
@@ -348,7 +348,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define the requested square patch size.
 		 * @param patchSize width and height of the patch
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 */
 		public Builder patchSize(int patchSize) {
 			return patchSize(patchSize, patchSize);
@@ -358,7 +358,7 @@ public class PatchClassifierParams {
 		 * Define the requested patch size.
 		 * @param patchWidth requested patch width
 		 * @param patchHeight requested patch height
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 */
 		public Builder patchSize(int patchWidth, int patchHeight) {
 			this.params.patchWidth = patchWidth;
@@ -371,7 +371,7 @@ public class PatchClassifierParams {
 		 * Note that any existing preprocessing steps in the builder will 
 		 * be replaced by those provided here.
 		 * @param preprocessingOps The preprocessing operations
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 */
 		public Builder preprocessing(ImageOp... preprocessingOps) {
 			this.params.preprocessingOps = Arrays.asList(preprocessingOps);
@@ -383,7 +383,7 @@ public class PatchClassifierParams {
 		 * Note that any existing preprocessing steps in the builder will 
 		 * be replaced by those provided here.
 		 * @param preprocessingOps The preprocessing operations
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 */
 		public Builder preprocessing(Collection<? extends ImageOp> preprocessingOps) {
 			this.params.preprocessingOps = new ArrayList<>(preprocessingOps);
@@ -394,7 +394,7 @@ public class PatchClassifierParams {
 		 * Define the prediction image op, to be applied after preprocessing 
 		 * and before postprocessing.
 		 * @param predictionOp The prediction operations
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 * @see #prediction(DnnModel, Padding, String...)
 		 */
 		public Builder prediction(ImageOp predictionOp) {
@@ -408,7 +408,7 @@ public class PatchClassifierParams {
 		 * @param model The model
 		 * @param padding The padding
 		 * @param outputNames The output names
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 * @see #prediction(ImageOp)
 		 */
 		public Builder prediction(DnnModel model, Padding padding, String... outputNames) {
@@ -423,7 +423,7 @@ public class PatchClassifierParams {
 		 * Note that any existing postprocessing steps in the builder will 
 		 * be replaced by those provided here.
 		 * @param postprocessingOps The postprocessing operations
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 */
 		public Builder postprocessing(ImageOp... postprocessingOps) {
 			this.params.postprocessingOps = Arrays.asList(postprocessingOps);
@@ -435,7 +435,7 @@ public class PatchClassifierParams {
 		 * Note that any existing postprocessing steps in the builder will 
 		 * be replaced by those provided here.
 		 * @param postprocessingOps The postprocessing operations
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 */
 		public Builder postprocessing(Collection<? extends ImageOp> postprocessingOps) {
 			this.params.postprocessingOps = new ArrayList<>(postprocessingOps);
@@ -445,7 +445,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define the channel type for the output.
 		 * @param channelType The channel type
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 */
 		public Builder outputChannelType(ChannelType channelType) {
 			this.params.outputChannelType = channelType;
@@ -455,7 +455,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define the classifications for the output as a map.
 		 * @param outputClasses The output classes
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 * @see #outputClassNames(Map)
 		 * @see #outputClasses(PathClass...)
 		 * @see #outputClassNames(String...)
@@ -468,7 +468,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define the classifications for the output as an array.
 		 * @param outputClasses The output classes
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 * @see #outputClasses(Map)
 		 * @see #outputClassNames(Map)
 		 * @see #outputClassNames(String...)
@@ -484,7 +484,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define the classifications for the output as an array of classification names.
 		 * @param outputClasses The output classes
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 * @see #outputClasses(PathClass...)
 		 * @see #outputClassNames(String...)
 		 */
@@ -499,7 +499,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define the classifications for the output as a map with string values.
 		 * @param outputClasses A map from integer output to output class names
-		 * @return The modified builder.
+		 * @return The same builder modified
 		 * @see #outputClasses(Map)
 		 * @see #outputClasses(PathClass...)
 		 * @see #outputClassNames(String...)
