@@ -1778,9 +1778,9 @@ public class Commands {
 		hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
 		imageData.getHistoryWorkflow().addStep(
 				new DefaultScriptableWorkflowStep("Simplify selected annotations",
-						String.format("simplifySelectedAnnotations(%f)", altitudeThreshold)
-				)
-		);
+						"simplifySelectedAnnotations(" + altitudeThreshold + ")"
+						)
+				);
 	}
 	
 	/**
