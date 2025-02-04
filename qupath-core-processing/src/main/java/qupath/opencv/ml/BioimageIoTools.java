@@ -192,12 +192,29 @@ public class BioimageIoTools {
 			return DnnShape.of(Arrays.stream(outputSpec.getShape().getOffset()).mapToLong(i -> (long)i).toArray());
 		}
 		int n = inputShape.numDimensions();
+		int[] inputArr = new int[n];
 		long[] shape = new long[n];
-		double[] scales = outputSpec.getShape().getScale();
-		double[] offsets = outputSpec.getShape().getOffset();
-		for (int i = 0; i < scales.length; i++) {
-			shape[i] = Math.round(inputShape.get(i) * scales[i] + offsets[i] * 2);
+		for (int i = 0; i < n; i++) {
+			inputArr[i] = (int) inputShape.get(i);
 		}
+		int[] outputShape = outputSpec.getShape().getTargetShape(inputArr);
+		for (int i = 0; i < n; i++) {
+			shape[i] = outputShape[i];
+		}
+
+		// case 0: fixed size
+
+		// case 1: scale + offset to a reference shape
+//		double[] scales = outputSpec.getShape().getScale();
+//		double[] offsets = outputSpec.getShape().getOffset();
+//		for (int i = 0; i < scales.length; i++) {
+//			shape[i] = Math.round(inputShape.get(i) * scales[i] + offsets[i] * 2);
+//		}
+
+		// case 2: parameterized size (min + step)
+
+		// case 3: data-dependent size
+
 		return DnnShape.of(shape);
 	}
 	
