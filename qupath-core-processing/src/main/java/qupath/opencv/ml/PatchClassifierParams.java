@@ -97,7 +97,7 @@ public class PatchClassifierParams {
 
 	/**
 	 * Get the channels to extract from the image as input to the model.
-	 * @return The input channels.
+	 * @return the input channels.
 	 */
 	public List<ColorTransform> getInputChannels() {
 		return inputChannels == null ? Collections.emptyList() : new ArrayList<>(inputChannels);
@@ -105,7 +105,7 @@ public class PatchClassifierParams {
 
 	/**
 	 * Get the width of a patch, in pixels.
-	 * @return The width of a patch in pixels
+	 * @return the width of a patch in pixels
 	 */
 	public int getPatchWidth() {
 		return patchWidth;
@@ -113,7 +113,7 @@ public class PatchClassifierParams {
 
 	/**
 	 * Get the height of a patch, in pixels.
-	 * @return The height of a patch in pixels
+	 * @return the height of a patch in pixels
 	 */
 	public int getPatchHeight() {
 		return patchHeight;
@@ -124,7 +124,7 @@ public class PatchClassifierParams {
 	 * This can be used to determine appropriate padding to 
 	 * avoid tile boundary artifacts. 
 	 * Can be null or empty.
-	 * @return The padding
+	 * @return the padding
 	 */
 	public Padding getHalo() {
 		return halo == null ? Padding.empty() : halo;
@@ -132,7 +132,7 @@ public class PatchClassifierParams {
 
 	/**
 	 * Get the requested input resolution for the image.
-	 * @return The requested pixel calibration of the input
+	 * @return the requested pixel calibration of the input
 	 */
 	public PixelCalibration getInputResolution() {
 		return inputResolution;
@@ -140,7 +140,7 @@ public class PatchClassifierParams {
 
 	/**
 	 * Get the requested output channel type.
-	 * @return The requested output type
+	 * @return the requested output type
 	 */
 	public ChannelType getOutputChannelType() {
 		return outputChannelType;
@@ -150,7 +150,7 @@ public class PatchClassifierParams {
 	 * Get the classifications for the output.
 	 * Keys to the map are generally channel numbers of the output 
 	 * (zero-based), or could be labels in a single-channel labeled image.
-	 * @return A map from ints to class names.
+	 * @return a map from ints to class names.
 	 */
 	public Map<Integer, PathClass> getOutputClasses() {
 		return new LinkedHashMap<>(outputClasses);
@@ -158,7 +158,7 @@ public class PatchClassifierParams {
 
 	/**
 	 * Get any preprocessing steps that should be applied.
-	 * @return The preprocessing operations.
+	 * @return the preprocessing operations.
 	 */
 	public List<ImageOp> getPreprocessing() {
 		return preprocessingOps == null ? Collections.emptyList() : new ArrayList<>(preprocessingOps);
@@ -168,7 +168,7 @@ public class PatchClassifierParams {
 	 * Get the image op used for prediction only.
 	 * This is applied after any preprocessing steps, but before 
 	 * any postprocessing steps.
-	 * @return The prediction operation.
+	 * @return the prediction operation.
 	 */
 	public ImageOp getPredictionOp() {
 		return predictionOp;
@@ -176,7 +176,7 @@ public class PatchClassifierParams {
 
 	/**
 	 * Get any postprocessing steps that should be applied after prediction.
-	 * @return The postprocessing operations.
+	 * @return the postprocessing operations.
 	 */
 	public List<ImageOp> getPostprocessing() {
 		return postprocessingOps == null ? Collections.emptyList() : new ArrayList<>(postprocessingOps);
@@ -185,8 +185,8 @@ public class PatchClassifierParams {
 	
 	/**
 	 * Build a pixel classifier using these parameters
-	 * @param params The classifier parameters.
-	 * @return A pixel classifier using the input parameters.
+	 * @param params the classifier parameters.
+	 * @return a pixel classifier using the input parameters.
 	 */
 	public static PixelClassifier buildPixelClassifier(PatchClassifierParams params) {
 
@@ -239,7 +239,7 @@ public class PatchClassifierParams {
 	 * Create a builder to generate new patch classifier params, 
 	 * initialized with the values from an existing parameter object.
 	 * @param params the existing parameters, used to initialize the builder
-	 * @return A builder using the input parameters.
+	 * @return a builder using the input parameters.
 	 */
 	public static Builder builder(PatchClassifierParams params) {
 		return new Builder(params);
@@ -266,7 +266,7 @@ public class PatchClassifierParams {
 		
 		/**
 		 * Define the input channels using channel names.
-		 * @param channels The input channel names.
+		 * @param channels the names of the channels to be used as input
 		 * @return a reference to this builder
 		 * @see #inputChannels(int...)
 		 */
@@ -279,7 +279,7 @@ public class PatchClassifierParams {
 		
 		/**
 		 * Define the input channels using (zero-based) channel numbers.
-		 * @param channels The channel indices.
+		 * @param channels the indices of the channels to be used as input
 		 * @return a reference to this builder
 		 * @see #inputChannels(String...)
 		 */
@@ -294,7 +294,7 @@ public class PatchClassifierParams {
 		 * Define the input channels from a collection of color transforms.
 		 * An ordered collection (e.g. list) should be used, since the iteration order 
 		 * is important.
-		 * @param channels The channels.
+		 * @param channels the channels to be used as input
 		 * @return a reference to this builder
 		 */
 		public Builder inputChannels(Collection<? extends ColorTransform> channels) {
@@ -316,7 +316,7 @@ public class PatchClassifierParams {
 		
 		/**
 		 * Define the input resolution using a pixel calibration object.
-		 * @param cal The pixel calibration.
+		 * @param cal the pixel calibration
 		 * @return a reference to this builder
 		 */
 		public Builder inputResolution(PixelCalibration cal) {
@@ -336,7 +336,7 @@ public class PatchClassifierParams {
 		
 		/**
 		 * Define a halo using a padding object.
-		 * @param halo The padding/halo
+		 * @param halo padding value, to be added both before and after rows and columns
 		 * @return a reference to this builder
 		 * @see #halo(int)
 		 */
@@ -370,7 +370,7 @@ public class PatchClassifierParams {
 		 * Define the preprocessing steps from an array.
 		 * Note that any existing preprocessing steps in the builder will 
 		 * be replaced by those provided here.
-		 * @param preprocessingOps The preprocessing operations
+		 * @param preprocessingOps the preprocessing operations
 		 * @return a reference to this builder
 		 */
 		public Builder preprocessing(ImageOp... preprocessingOps) {
@@ -382,7 +382,7 @@ public class PatchClassifierParams {
 		 * Define the preprocessing steps from a collection.
 		 * Note that any existing preprocessing steps in the builder will 
 		 * be replaced by those provided here.
-		 * @param preprocessingOps The preprocessing operations
+		 * @param preprocessingOps the preprocessing operations
 		 * @return a reference to this builder
 		 */
 		public Builder preprocessing(Collection<? extends ImageOp> preprocessingOps) {
@@ -393,7 +393,7 @@ public class PatchClassifierParams {
 		/**
 		 * Define the prediction image op, to be applied after preprocessing 
 		 * and before postprocessing.
-		 * @param predictionOp The prediction operations
+		 * @param predictionOp the prediction operations
 		 * @return a reference to this builder
 		 * @see #prediction(DnnModel, Padding, String...)
 		 */
@@ -405,9 +405,9 @@ public class PatchClassifierParams {
 		/**
 		 * Define the DNN to be used for prediction, to be applied after preprocessing 
 		 * and before postprocessing.
-		 * @param model The model
-		 * @param padding The padding
-		 * @param outputNames The output names
+		 * @param model the model
+		 * @param padding the padding
+		 * @param outputNames the output names
 		 * @return a reference to this builder
 		 * @see #prediction(ImageOp)
 		 */
@@ -422,7 +422,7 @@ public class PatchClassifierParams {
 		 * Define the postprocessing steps from an array.
 		 * Note that any existing postprocessing steps in the builder will 
 		 * be replaced by those provided here.
-		 * @param postprocessingOps The postprocessing operations
+		 * @param postprocessingOps the postprocessing operations
 		 * @return a reference to this builder
 		 */
 		public Builder postprocessing(ImageOp... postprocessingOps) {
@@ -434,7 +434,7 @@ public class PatchClassifierParams {
 		 * Define the postprocessing steps from a collection.
 		 * Note that any existing postprocessing steps in the builder will 
 		 * be replaced by those provided here.
-		 * @param postprocessingOps The postprocessing operations
+		 * @param postprocessingOps the postprocessing operations
 		 * @return a reference to this builder
 		 */
 		public Builder postprocessing(Collection<? extends ImageOp> postprocessingOps) {
@@ -444,7 +444,7 @@ public class PatchClassifierParams {
 
 		/**
 		 * Define the channel type for the output.
-		 * @param channelType The channel type
+		 * @param channelType the channel type (feature, probability, etc)
 		 * @return a reference to this builder
 		 */
 		public Builder outputChannelType(ChannelType channelType) {
@@ -454,7 +454,7 @@ public class PatchClassifierParams {
 		
 		/**
 		 * Define the classifications for the output as a map.
-		 * @param outputClasses The output classes
+		 * @param outputClasses the classifications to be given to output objects
 		 * @return a reference to this builder
 		 * @see #outputClassNames(Map)
 		 * @see #outputClasses(PathClass...)
@@ -467,7 +467,7 @@ public class PatchClassifierParams {
 		
 		/**
 		 * Define the classifications for the output as an array.
-		 * @param outputClasses The output classes
+		 * @param outputClasses the classifications to be given to output objects
 		 * @return a reference to this builder
 		 * @see #outputClasses(Map)
 		 * @see #outputClassNames(Map)
@@ -498,7 +498,7 @@ public class PatchClassifierParams {
 		
 		/**
 		 * Define the classifications for the output as a map with string values.
-		 * @param outputClasses A map from integer output to output class names
+		 * @param outputClasses a map from integer output to output class names
 		 * @return a reference to this builder
 		 * @see #outputClasses(Map)
 		 * @see #outputClasses(PathClass...)

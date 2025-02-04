@@ -207,7 +207,7 @@ public class BioimageIoTools {
 	 * be modified and updated according to user requirements.
 	 * @param model the model spec to initialize the parameters
 	 * @param inputOps optional additional preprocessing ops to apply, before any in the model spec are added
-	 * @return A parameters object.
+	 * @return a parameters object
 	 */
 	public static PatchClassifierParams buildPatchClassifierParams(Model model, ImageOp... inputOps) {
 		return buildPatchClassifierParams(model, -1, -1, inputOps);
@@ -221,7 +221,7 @@ public class BioimageIoTools {
 	 * @param preferredTileWidth preferred tile width, or -1 to automatically determine this; the width will be updated based on the spec
 	 * @param preferredTileHeight preferred tile height, or -1 to automatically determine this; the height will be updated based on the spec
 	 * @param inputOps optional additional preprocessing ops to apply, before any in the model spec are added
-	 * @return A parameters object.
+	 * @return a parameters object
 	 */
 	public static PatchClassifierParams buildPatchClassifierParams(Model modelSpec, int preferredTileWidth, int preferredTileHeight, ImageOp...inputOps) {
 
