@@ -229,7 +229,7 @@ public class PatchClassifierParams {
 
 	/**
 	 * Create a builder to generate new patch classifier params.
-	 * @return A builder.
+	 * @return a new builder.
 	 */
 	public static Builder builder() {
 		return new Builder();
