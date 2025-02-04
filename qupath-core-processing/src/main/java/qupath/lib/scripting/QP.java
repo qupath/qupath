@@ -64,7 +64,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ObjectArrays;
 
-import qupath.bioimageio.spec.BioimageIoSpec;
 import qupath.imagej.processing.IJFilters;
 import qupath.imagej.tools.IJProperties;
 import qupath.imagej.tools.IJTools;
@@ -318,7 +317,7 @@ public class QP {
 			ServerTools.class,
 			PixelClassifierTools.class,
 			
-			BioimageIoSpec.class,
+
 			BioimageIoTools.class,
 			
 			DensityMaps.class,
