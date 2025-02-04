@@ -23,7 +23,6 @@
 
 package qupath.lib.gui.commands;
 
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +68,7 @@ class ShowInstalledExtensionsCommand {
 			dialog = createAndShowDialog(qupath);
 		} else {
 			dialog.show();
+			dialog.requestFocus();
 		}
 	}
 
@@ -83,7 +83,6 @@ class ShowInstalledExtensionsCommand {
 
 			FXUtils.addCloseWindowShortcuts(dialog);
 			dialog.initOwner(qupath.getStage());
-			dialog.initModality(Modality.APPLICATION_MODAL);
 			dialog.show();
 		} catch (IOException e) {
 			logger.error("Unable to open extension control pane", e);
