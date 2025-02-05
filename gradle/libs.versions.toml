@@ -10,10 +10,10 @@ commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.1.2"
 
-deepJavaLibrary = "0.31.0"
+deepJavaLibrary = "0.31.1"
 
-groovy          = "4.0.24"
-gson            = "2.11.0"
+groovy          = "4.0.25"
+gson            = "2.12.1"
 guava           = "33.4.0-jre"
 
 ikonli          = "12.3.1"
@@ -22,13 +22,14 @@ imagej          = "1.54k"
 # Compatibility with Java 21 with QuPath v0.6.x
 jdk             = "21"
 
+# For gradle-javacpp-platform (no 1.5.11 available)
 javacpp         = "1.5.10"
 
 opencv          = "4.10.0-1.5.11"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
-javafx          = "23"
-jna             = "5.14.0"
+javafx          = "23.0.2"
+jna             = "5.16.0"
 jfreeSvg        = "5.0.6"
 jfxtras         = "17-r1"
 jts             = "1.20.0"
