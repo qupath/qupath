@@ -90,6 +90,8 @@ They may change or be removed in future versions.
 * Create training image does not work properly for z-stacks / time series (https://github.com/qupath/qupath/issues/1701)
 * Channel colors are not stored properly when using saved display settings (https://github.com/qupath/qupath/issues/1726)
 * 'Split annotations by lines' does not work for z-stacks or time-series if line thickness > 0 (https://github.com/qupath/qupath/issues/1729)
+* QuPath ignores OpenSlide when opening some images from the command line outside a project (but they work properly in the UI) (https://github.com/qupath/qupath/issues/1758)
+* Exporting specific channels with OMEPyramidWriter includes wrong channel names (https://github.com/qupath/qupath/issues/1754)
 
 ### API changes
 * New `Map<String, String> getMetadata()` method added to `PathObject`, `Project` and `ProjectImageEntry` (https://github.com/qupath/qupath/pull/1587)
@@ -111,6 +113,9 @@ They may change or be removed in future versions.
   * *This will affect the use of the QuPath StarDist extension*
 * `ImageServer.finalize()` is no longer overridden to call `close()` in case the caller forgets
   * `finalize()` is deprecated for removal; any class that relied on this should consider using `Cleaner`
+* Remove `BioImageioSpec` from `QP.getCoreClasses()`
+* `ImageData.setImageType(type)` now throws an exception if the type is incompatible (https://github.com/qupath/qupath/issues/1762)
+
 
 ### Build changes
 * Use Kotlin instead of Groovy for QuPath's build scripts (https://github.com/qupath/qupath/pull/1696)
@@ -118,18 +123,18 @@ They may change or be removed in future versions.
   * Extension writers can use either Groovy or Kotlin - but may need to make some changes to their build scripts
 
 ### Dependency updates
-* Bio-Formats 8.0.1
+* Bio-Formats 8.1.0
 * Commonmark 0.24.0
-* DeepJavaLibrary 0.31.0
-* Groovy 4.0.24
-* Gson 2.11.0
+* DeepJavaLibrary 0.31.1
+* Groovy 4.0.25
+* Gson 2.12.1
 * Guava 33.4.0-jre
 * ImageJ 1.54k
 * JavaCPP 1.5.11
-* JavaFX 23
+* JavaFX 23.0.2
 * Java Topology Suite 1.20.0
 * JFreeSVG 5.0.6
-* JNA 5.14.0
+* JNA 5.16.0
 * JUnit 5.11.0
 * Logback 1.5.8
 * Picocli 4.7.6
@@ -138,6 +143,7 @@ They may change or be removed in future versions.
 * RichTextFX 0.11.4
 * slf4j 2.0.16
 * snakeyaml 2.3
+* qupath-bioimageio-spec 0.2.0
 
 
 ## Version 0.5.1

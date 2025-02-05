@@ -46,12 +46,11 @@ public class OpenSlideExtension implements QuPathExtension {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenSlideExtension.class);
 
-    // TODO: Check why this fails if I use @DirectoryPref!
     @DirectoryPref("pref.openslide.path")
-    public StringProperty openslidePathProperty =
+    public static final StringProperty openslidePathProperty =
             PathPrefs.createPersistentPreference("openslide.path", "");
 
-    private ChangeListener<String> openslidePathListener = this::handleOpenSlideDirectoryChange;
+    private final ChangeListener<String> openslidePathListener = this::handleOpenSlideDirectoryChange;
 
     @Override
     public void installExtension(QuPathGUI qupath) {

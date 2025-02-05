@@ -107,7 +107,7 @@ public class ScriptLanguageProvider {
 	
 	
 	private static ClassLoader getExtensionClassLoader() {
-		return QuPathGUI.getInstance().getExtensionCatalogManager().getClassLoader();
+		return QuPathGUI.getExtensionCatalogManager().getClassLoader();
 	}
 	
 	

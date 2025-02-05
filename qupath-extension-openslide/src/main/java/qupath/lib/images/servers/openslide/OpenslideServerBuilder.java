@@ -47,6 +47,10 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenslideServerBuilder.class);
 
+	/**
+	 * Flag that we failed to load OpenSlide before, and should not continue trying.
+	 */
+	private boolean failedToLoad = false;
 
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
@@ -71,9 +75,11 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
 	}
 
-	private static float supportLevel(URI uri, String...args) {
-		if (!OpenSlideLoader.isOpenSlideAvailable())
+	private float supportLevel(URI uri, String...args) {
+		if (!OpenSlideLoader.isOpenSlideAvailable() && !failedToLoad && !OpenSlideLoader.tryToLoadQuietly()) {
+			failedToLoad = true;
 			return 0;
+		}
 		
 		// Don't handle queries or fragments with OpenSlide
 		ImageCheckType type = FileFormatInfo.checkType(uri);

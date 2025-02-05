@@ -70,8 +70,8 @@ dependencies {
     if ("pytorch" in djlEngines) {
 		var ptVersion = djlVersion
 		if (isIntelMac && !ptVersion.contains("!!")) {
-			logger.warn("Setting PyTorch engine to $ptVersion for compatibility with Mac x86_64")
 			ptVersion = "0.28.0!!"
+			logger.warn("Setting PyTorch engine to $ptVersion for compatibility with Mac x86_64")
 		}
 	    implementation("ai.djl.pytorch:pytorch-engine:$ptVersion")
 	    if ("pytorch" in djlZoos)
