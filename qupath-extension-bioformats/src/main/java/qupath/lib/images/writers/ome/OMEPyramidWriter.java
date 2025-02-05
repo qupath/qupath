@@ -323,9 +323,8 @@ public class OMEPyramidWriter {
 			
 			// Switch automatically to bigtiff is we have a large image or it has already been requested
 			var wrappedWriter = writer.getWriter(path);
-			if (wrappedWriter instanceof TiffWriter) {
-				var tiffWriter = (TiffWriter)wrappedWriter;
-				if (bigTiff) {
+			if (wrappedWriter instanceof TiffWriter tiffWriter) {
+                if (bigTiff) {
 					logger.debug("Setting bigtiff to true");
 					tiffWriter.setBigTiff(true);
 				} else if (noBigTiff) {
@@ -485,7 +484,7 @@ public class OMEPyramidWriter {
 					meta.setChannelID("Channel:0:" + c, series, c);			
 	//				meta.setChannelSamplesPerPixel(new PositiveInteger(nSamples), series, c);
 	//				Integer color = server.getChannels().get(c).getColor();
-					ImageChannel channel = serverOriginal.getChannel(c);
+					ImageChannel channel = serverOriginal.getChannel(channels[c]);
 					Integer color = channel.getColor();
 					meta.setChannelColor(new Color(
 							ColorTools.red(color),
