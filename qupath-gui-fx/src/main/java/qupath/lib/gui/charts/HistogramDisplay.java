@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import javafx.beans.property.StringProperty;
+import org.controlsfx.control.SearchableComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,14 +63,16 @@ import qupath.lib.plugins.parameters.ParameterList;
  */
 public class HistogramDisplay implements ParameterChangeListener {
 
-	static final Logger logger = LoggerFactory.getLogger(HistogramDisplay.class);
+	private static final Logger logger = LoggerFactory.getLogger(HistogramDisplay.class);
 
 	private PathTableData<?> model;
 	private final BorderPane pane = new BorderPane();
 
-	private final ComboBox<String> comboName = new ComboBox<>();
+	private final SearchableComboBox<String> comboName = new SearchableComboBox<>();
 	private final HistogramChart histogramChart = new HistogramChart();
 	private final ParameterPanelFX panelParams;
+
+	private final StringProperty selectedColumn = new SimpleStringProperty();
 
 	private int currentBins;
 	private double[] currentValues;
@@ -113,7 +117,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 		TableColumn<Property<Number>, String> colName = new TableColumn<>("Measurement");
 		colName.setCellValueFactory(p -> new SimpleStringProperty(p.getValue().getName()));
 		TableColumn<Property<Number>, Number> colValue = new TableColumn<>("Value");
-		colValue.setCellValueFactory(p -> p.getValue());
+		colValue.setCellValueFactory(TableColumn.CellDataFeatures::getValue);
 		colValue.setCellFactory(column -> {
 			return new TableCell<>() {
                 @Override
@@ -142,7 +146,8 @@ public class HistogramDisplay implements ParameterChangeListener {
 		BorderPane panelMain = new BorderPane();
 		panelMain.setCenter(histogramChart);
 
-		comboName.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+		selectedColumn.bindBidirectional(comboName.valueProperty());
+		selectedColumn.addListener((v, o, n) -> {
 			setHistogram(model, n);
 		});
 		histogramChart.setShowTickLabels(paramsHistogram.getBooleanParameterValue("drawAxes"));
@@ -262,8 +267,10 @@ public class HistogramDisplay implements ParameterChangeListener {
 			currentBins = nBins;
 			currentValues = values;
 			this.model = model;
-		} else
+		} else {
 			histogramChart.getHistogramData().clear();
+			currentValues = null;
+		}
 	}
 
 	private static void updateCountsTransform(HistogramChart histogramChart, ParameterList params) {

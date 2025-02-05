@@ -2,11 +2,15 @@ package qupath.lib.gui.charts;
 
 import javafx.geometry.Insets;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import org.controlsfx.control.SearchableComboBox;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.measure.PathTableData;
@@ -20,8 +24,8 @@ import qupath.lib.plugins.parameters.ParameterList;
 public class ScatterPlotDisplay implements ParameterChangeListener {
 
     private final PathTableData<PathObject> model;
-    private final ComboBox<String> comboNameX = new ComboBox<>();
-    private final ComboBox<String> comboNameY = new ComboBox<>();
+    private final SearchableComboBox<String> comboNameX = new SearchableComboBox<>();
+    private final SearchableComboBox<String> comboNameY = new SearchableComboBox<>();
     private final BorderPane pane = new BorderPane();
     private final ParameterList paramsScatter = new ParameterList()
             .addIntParameter("nPoints", "Max number of points", 10000, null,  "Maximum number of points to be drawn (>=1)")
@@ -83,7 +87,19 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
                 scatter.setDataFromMeasurements(model.getItems(), comboNameX.getValue(), n)
         );
 
-        pane.setTop(new VBox(comboNameX, comboNameY));
+        var topPane = new GridPane();
+        var labelX = new Label("X");
+        comboNameX.setTooltip(new Tooltip("Y-axis measurement"));
+        labelX.setLabelFor(comboNameX);
+        topPane.addRow(0, labelX, comboNameX);
+
+        var labelY = new Label("Y");
+        comboNameY.setTooltip(new Tooltip("Y-axis measurement"));
+        labelY.setLabelFor(comboNameY);
+        topPane.addRow(1, labelY, comboNameY);
+        topPane.setHgap(5);
+
+        pane.setTop(topPane);
         comboNameX.prefWidthProperty().bind(pane.widthProperty());
         comboNameY.prefWidthProperty().bind(pane.widthProperty());
         panelMain.setMinSize(200, 200);
@@ -130,6 +146,7 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
      * Refresh the scatter plot, in case the underlying data has been updated.
      */
     public void refreshScatterPlot() {
+        // TODO: Fix this - it works only for values within a measurement list (e.g. not centroids or other 'live' values)
         scatter.setDataFromMeasurements(model.getItems(), comboNameX.getValue(), comboNameY.getValue());
     }
 
