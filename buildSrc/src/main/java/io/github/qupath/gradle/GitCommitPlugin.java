@@ -9,7 +9,11 @@ import org.gradle.api.Project;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
 import java.util.stream.Collectors;
+
 
 public class GitCommitPlugin implements Plugin<Project> {
 
@@ -43,7 +47,7 @@ public class GitCommitPlugin implements Plugin<Project> {
         var process = new ProcessBuilder().command(
                 "git", "log", "--pretty=format:\"%h\"", "-n 1"
         ).start();
-        try (var reader = process.inputReader()) {
+        try (var reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             var commit = reader.lines().collect(Collectors.joining(System.lineSeparator()));
             if (commit.isBlank())
                 throw new RuntimeException("Git commit is missing!");
