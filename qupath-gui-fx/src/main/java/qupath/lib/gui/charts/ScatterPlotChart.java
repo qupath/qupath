@@ -151,9 +151,13 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
     }
 
     private void resampleAndUpdate() {
-        Collections.shuffle(data, new Random(rngSeed.get()));
-        series.getFirst().getData().clear();
-        series.getFirst().getData().setAll(data.subList(0, Math.min(maxPoints.get(), data.size())));
+        int n = maxPoints.get();
+        if (n < data.size()) {
+            Collections.shuffle(data, new Random(rngSeed.get()));
+            series.getFirst().getData().setAll(data.subList(0, n));
+        } else {
+            series.getFirst().getData().setAll(data);
+        }
         updateChart();
     }
 
