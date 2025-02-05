@@ -495,6 +495,8 @@ public class SummaryMeasurementTableCommand {
 			}
 		});
 
+		menu.getItems().add(menuLimitClasses);
+		table.setContextMenu(menu);
 	}
 
 
