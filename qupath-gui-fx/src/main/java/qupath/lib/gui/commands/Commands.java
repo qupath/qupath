@@ -1724,17 +1724,11 @@ public class Commands {
 		boolean	deleteDetections = button == ButtonType.YES;
 		PathObjectTools.convertToPoints(hierarchy, pathObjects, preferNucleus, deleteDetections);
 		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Select detections", "selectDetections()")
-		);
-		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Convert selected objects to points", "convertSelectedObjectsToPoints()")
+				new DefaultScriptableWorkflowStep("Convert detections to points", "convertDetectionsToPoints()")
 		);
 		if (deleteDetections) {
 			imageData.getHistoryWorkflow().addStep(
-					new DefaultScriptableWorkflowStep("Delete converted detections", "removeObjects(getSelectedObjects())")
-			);
-			imageData.getHistoryWorkflow().addStep(
-					new DefaultScriptableWorkflowStep("Deselect deleted objects", "deselectAll()")
+					new DefaultScriptableWorkflowStep("Delete detections", "removeDetections()")
 			);
 		}
 	}

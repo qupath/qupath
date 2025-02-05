@@ -5212,7 +5212,6 @@ public class QP {
 		simplifySpecifiedAnnotations(
 				Objects.requireNonNull(getSelectedObjects())
 						.stream()
-						.filter(p -> p instanceof PathAnnotationObject)
 						.toList(),
 				altitudeThreshold);
 	}
@@ -5226,15 +5225,18 @@ public class QP {
 	 * @param altitudeThreshold altitude value for simplification
 	 */
 	public static void simplifySpecifiedAnnotations(Collection<? extends PathObject> pathObjects, double altitudeThreshold) {
+		int skipped = 0;
 		for (var po: pathObjects) {
-			var pathROI = po.getROI();
-			if (pathROI instanceof PolygonROI polygonROI) {
-				pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
-			} else {
-				pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
+			if (!(po instanceof PathAnnotationObject pao)) {
+				skipped++;
+				continue;
 			}
-			((PathAnnotationObject)po).setROI(pathROI);
+			pao.setROI(ShapeSimplifier.simplifyROI(po.getROI(), altitudeThreshold));
 		}
+		if (skipped > 0) {
+			logger.warn("{} non-annotation objects supplied to simplifySpecifiedAnnotations (ignored)", skipped);
+		}
+
 	}
 
 	/**
@@ -5246,7 +5248,7 @@ public class QP {
 	 * The original objects will be removed from the object hierarchy.
 	 */
 	public static void convertSelectedObjectsToPoints() {
-		convertSpecifiedObjectsToPoints(getSelectedObjects());
+		convertSpecifiedObjectsToPoints(getCurrentHierarchy(), getSelectedObjects());
 	}
 
 
@@ -5259,7 +5261,7 @@ public class QP {
 	 * The original objects will be removed from the object hierarchy.
 	 */
 	public static void convertDetectionsToPoints() {
-		convertSpecifiedObjectsToPoints(getDetectionObjects());
+		convertSpecifiedObjectsToPoints(getCurrentHierarchy(), getDetectionObjects());
 	}
 
 	/**
@@ -5270,7 +5272,7 @@ public class QP {
 	 * See {@link PathObjectTools#convertToPoints(Collection, boolean)} if you want to use the cell ROI instead.
 	 * @param pathObjects The objects to be converted to points (these will be removed from the object hierarchy).
 	 */
-	public static void convertSpecifiedObjectsToPoints(Collection<? extends PathObject> pathObjects) {
-		PathObjectTools.convertToPoints(getCurrentHierarchy(), pathObjects, true, false);
+	public static void convertSpecifiedObjectsToPoints(PathObjectHierarchy hierarchy, Collection<? extends PathObject> pathObjects) {
+		PathObjectTools.convertToPoints(hierarchy, pathObjects, true, false);
 	}
 }

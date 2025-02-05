@@ -141,6 +141,164 @@ public class ShapeSimplifier {
 		points.removeAll(toRemove);
 	}
 
+
+	/**
+	 *
+	 * Create a simplified shape (fewer coordinates) using method based on Visvalingam's Algorithm.
+	 * <p>
+	 * See references:
+	 * https://hydra.hull.ac.uk/resources/hull:8338
+	 * https://www.jasondavies.com/simplify/
+	 * http://bost.ocks.org/mike/simplify/
+	 *
+	 * @param shapeROI
+	 * @param altitudeThreshold
+	 * @return
+	 */
+	public static ROI simplifyShape(ROI shapeROI, double altitudeThreshold) {
+		Shape shape = RoiTools.getShape(shapeROI);
+		Path2D path = shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape);
+		path = simplifyPath(path, altitudeThreshold);
+		// Construct a new polygon
+		return RoiTools.getShapeROI(path, shapeROI.getImagePlane(), 0.5);
+	}
+
+	/**
+	 *
+	 * Create a simplified path (fewer coordinates) using method based on Visvalingam's Algorithm,
+	 * processing all segments.
+	 * <p>
+	 * See references:
+	 * https://hydra.hull.ac.uk/resources/hull:8338
+	 * https://www.jasondavies.com/simplify/
+	 * http://bost.ocks.org/mike/simplify/
+	 *
+	 * @param path
+	 * @param altitudeThreshold
+	 * @return
+	 * @see #simplifyPath(Path2D, double, int)
+	 */
+	public static Path2D simplifyPath(Path2D path, double altitudeThreshold) {
+		return simplifyPath(path, altitudeThreshold, -1);
+	}
+
+	/**
+	 *
+	 * Create a simplified path (fewer coordinates) using method based on Visvalingam's Algorithm,
+	 * optionally skipping segments with few points.
+	 * <p>
+	 * This method introduces {@code segmentPointThreshold} because simplifying multipolygons can produce a
+	 * 'jagged' effect when the simplification is applied to segments that contain only a few vertices.
+	 * This was particularly noticeable in QuPath's viewer, where a high altitude threshold is used.
+	 * <p>
+	 * See references:
+	 * https://hydra.hull.ac.uk/resources/hull:8338
+	 * https://www.jasondavies.com/simplify/
+	 * http://bost.ocks.org/mike/simplify/
+	 *
+	 * @param path the path to simplify
+	 * @param altitudeThreshold the altitude threshold
+	 * @param segmentPointThreshold the minimum number of points in a closed segment for simplification to be applied;
+	 *                              segments with fewer points (after removing duplicates) will be retained unchanged.
+	 * @return
+	 * @see #simplifyPath(Path2D, double)
+	 * @since v0.6.0
+	 */
+	public static Path2D simplifyPath(Path2D path, double altitudeThreshold, int segmentPointThreshold) {
+
+		List<Point2> points = new ArrayList<>();
+		PathIterator iter = path.getPathIterator(null, 0.5);
+//		int nVerticesBefore = 0;
+//		int nVerticesAfter = 0;
+
+		Path2D pathNew = new Path2D.Float();
+		while (!iter.isDone()) {
+			points.clear();
+			getNextClosedSegment(iter, points);
+//			nVerticesBefore += points.size();
+			if (points.isEmpty())
+				break;
+
+			boolean doSimplify = true;
+			if (segmentPointThreshold >= 0) {
+				removeDuplicates(points);
+				doSimplify = points.size() >= segmentPointThreshold;
+			}
+
+			if (doSimplify)
+				ShapeSimplifier.simplifyPolygonPoints(points, altitudeThreshold);
+//			nVerticesAfter += points.size();
+
+			boolean firstPoint = true;
+			for (Point2 p : points) {
+				double xx = p.getX();
+				double yy = p.getY();
+				if (firstPoint) {
+					pathNew.moveTo(xx, yy);
+					firstPoint = false;
+				} else
+					pathNew.lineTo(xx, yy);
+			}
+			pathNew.closePath();
+		}
+
+//		logger.trace("Path simplified: {} vertices reduced to {} ({}%)", nVerticesBefore, nVerticesAfter, (nVerticesAfter*100./nVerticesBefore));
+
+		return pathNew;
+	}
+
+	/**
+	 * Apply a simple 3-point moving average to a list of points.
+	 *
+	 * @param points
+	 * @return
+	 */
+	public static List<Point2> smoothPoints(List<Point2> points) {
+		List<Point2> points2 = new ArrayList<>(points.size());
+		for (int i = 0; i < points.size(); i++) {
+			Point2 p1 = points.get((i+points.size()-1)%points.size());
+			Point2 p2 = points.get(i);
+			Point2 p3 = points.get((i+1)%points.size());
+			points2.add(new Point2((p1.getX() + p2.getX() + p3.getX())/3, (p1.getY() + p2.getY() + p3.getY())/3));
+		}
+		return points2;
+	}
+
+	/**
+	 *
+	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam's Algorithm.
+	 * <p>
+	 * See references:
+	 * <a href="https://hydra.hull.ac.uk/resources/hull:8338">Hydra</a>
+	 * <a href="https://www.jasondavies.com/simplify/">Jason Davies</a>
+	 * <a href="http://bost.ocks.org/mike/simplify/">Mike Bostock</a>
+	 *
+	 * @param polygon
+	 * @param altitudeThreshold
+	 * @return
+	 */
+	public static PolygonROI simplifyPolygon(PolygonROI polygon, final double altitudeThreshold) {
+		List<Point2> points = polygon.getAllPoints();
+		simplifyPolygonPoints(points, altitudeThreshold);
+		// Construct a new polygon
+		return ROIs.createPolygonROI(points, ImagePlane.getPlaneWithChannel(polygon));
+	}
+
+	/**
+	 * Simplify a ROI using either polygon or general shape methods.
+	 * @param roi the input ROI
+	 * @return a simplified copy of the input
+	 */
+	public static ROI simplifyROI(ROI roi, double altitudeThreshold) {
+		ROI out;
+		if (roi instanceof PolygonROI polygonROI) {
+			out = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
+		} else {
+			out = ShapeSimplifier.simplifyShape(roi, altitudeThreshold);
+		}
+		return out;
+	}
+
 	/**
 	 * Remove consecutive duplicate points from a list, in-place.
 	 * Assumes the list is mutable.
@@ -159,30 +317,7 @@ public class ShapeSimplifier {
 		if (lastPoint.equals(points.getFirst()))
 			iter.remove();
 	}
-	
-	
-	/**
-	 * 
-	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam's Algorithm.
-	 * <p>
-	 * See references:
-	 * https://hydra.hull.ac.uk/resources/hull:8338
-	 * https://www.jasondavies.com/simplify/
-	 * http://bost.ocks.org/mike/simplify/
-	 * 
-	 * @param polygon
-	 * @param altitudeThreshold
-	 * @return
-	 */
-	public static PolygonROI simplifyPolygon(PolygonROI polygon, final double altitudeThreshold) {
-		List<Point2> points = polygon.getAllPoints();
-		simplifyPolygonPoints(points, altitudeThreshold);
-		// Construct a new polygon
-		return ROIs.createPolygonROI(points, ImagePlane.getPlaneWithChannel(polygon));
-	}
-	
-	
-	
+
 	/**
 	 * Calculate the area of a triangle from its vertices.
 	 * 
@@ -196,8 +331,7 @@ public class ShapeSimplifier {
 						p2.getX() * (p3.getY() - p1.getY()) + 
 						p3.getX() * (p1.getY() - p2.getY())));
 	}
-	
-	
+
 	static class PointWithArea implements Comparable<PointWithArea> {
 		
 		private PointWithArea pPrevious;
@@ -255,125 +389,13 @@ public class ShapeSimplifier {
 			return (area < p.area) ? -1 : (area == p.area ? 0 : 1);
 		}
 		
-		
 		@Override
 		public String toString() {
 			return getX() + ", " + getY() + ", Area: " + getArea();
 		}
-		
 
 	}
 
-
-	/**
-	 * 
-	 * Create a simplified shape (fewer coordinates) using method based on Visvalingam's Algorithm.
-	 * <p>
-	 * See references:
-	 * https://hydra.hull.ac.uk/resources/hull:8338
-	 * https://www.jasondavies.com/simplify/
-	 * http://bost.ocks.org/mike/simplify/
-	 * 
-	 * @param shapeROI
-	 * @param altitudeThreshold
-	 * @return
-	 */
-	public static ROI simplifyShape(ROI shapeROI, double altitudeThreshold) {
-		Shape shape = RoiTools.getShape(shapeROI);
-		Path2D path = shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape);
-		path = simplifyPath(path, altitudeThreshold);
-		// Construct a new polygon
-		return RoiTools.getShapeROI(path, shapeROI.getImagePlane(), 0.5);
-	}
-	
-	
-	
-	
-	/**
-	 * 
-	 * Create a simplified path (fewer coordinates) using method based on Visvalingam's Algorithm,
-	 * processing all segments.
-	 * <p>
-	 * See references:
-	 * https://hydra.hull.ac.uk/resources/hull:8338
-	 * https://www.jasondavies.com/simplify/
-	 * http://bost.ocks.org/mike/simplify/
-	 * 
-	 * @param path
-	 * @param altitudeThreshold
-	 * @return
-	 * @see #simplifyPath(Path2D, double, int)
-	 */
-	public static Path2D simplifyPath(Path2D path, double altitudeThreshold) {
-		return simplifyPath(path, altitudeThreshold, -1);
-	}
-
-	/**
-	 *
-	 * Create a simplified path (fewer coordinates) using method based on Visvalingam's Algorithm,
-	 * optionally skipping segments with few points.
-	 * <p>
-	 * This method introduces {@code segmentPointThreshold} because simplifying multipolygons can produce a
-	 * 'jagged' effect when the simplification is applied to segments that contain only a few vertices.
-	 * This was particularly noticeable in QuPath's viewer, where a high altitude threshold is used.
-	 * <p>
-	 * See references:
-	 * https://hydra.hull.ac.uk/resources/hull:8338
-	 * https://www.jasondavies.com/simplify/
-	 * http://bost.ocks.org/mike/simplify/
-	 *
-	 * @param path the path to simplify
-	 * @param altitudeThreshold the altitude threshold
-	 * @param segmentPointThreshold the minimum number of points in a closed segment for simplification to be applied;
-	 *                              segments with fewer points (after removing duplicates) will be retained unchanged.
-	 * @return
-	 * @see #simplifyPath(Path2D, double)
-	 * @since v0.6.0
-	 */
-	public static Path2D simplifyPath(Path2D path, double altitudeThreshold, int segmentPointThreshold) {
-
-		List<Point2> points = new ArrayList<>();
-		PathIterator iter = path.getPathIterator(null, 0.5);
-//		int nVerticesBefore = 0;
-//		int nVerticesAfter = 0;
-		
-		Path2D pathNew = new Path2D.Float();
-		while (!iter.isDone()) {
-			points.clear();
-			getNextClosedSegment(iter, points);
-//			nVerticesBefore += points.size();
-			if (points.isEmpty())
-				break;
-
-			boolean doSimplify = true;
-			if (segmentPointThreshold >= 0) {
-				removeDuplicates(points);
-				doSimplify = points.size() >= segmentPointThreshold;
-			}
-
-			if (doSimplify)
-				ShapeSimplifier.simplifyPolygonPoints(points, altitudeThreshold);
-//			nVerticesAfter += points.size();
-			
-			boolean firstPoint = true;
-			for (Point2 p : points) {
-				double xx = p.getX();
-				double yy = p.getY();
-				if (firstPoint) {
-					pathNew.moveTo(xx, yy);
-					firstPoint = false;
-				} else
-					pathNew.lineTo(xx, yy);
-			}
-			pathNew.closePath();
-		}
-		
-//		logger.trace("Path simplified: {} vertices reduced to {} ({}%)", nVerticesBefore, nVerticesAfter, (nVerticesAfter*100./nVerticesBefore));
-		
-		return pathNew;
-	}
-
-	
 	private static void getNextClosedSegment(PathIterator iter, List<Point2> points) {
 		double[] seg = new double[6];
 		while (!iter.isDone()) {
@@ -392,26 +414,6 @@ public class ShapeSimplifier {
 			};
 			iter.next();
 		}
-	}
-
-
-
-
-	/**
-	 * Apply a simple 3-point moving average to a list of points.
-	 * 
-	 * @param points
-	 * @return
-	 */
-	public static List<Point2> smoothPoints(List<Point2> points) {
-		List<Point2> points2 = new ArrayList<>(points.size());
-		for (int i = 0; i < points.size(); i++) {
-			Point2 p1 = points.get((i+points.size()-1)%points.size());
-			Point2 p2 = points.get(i);
-			Point2 p3 = points.get((i+1)%points.size());
-			points2.add(new Point2((p1.getX() + p2.getX() + p3.getX())/3, (p1.getY() + p2.getY() + p3.getY())/3));
-		}
-		return points2;
 	}
 
 }
