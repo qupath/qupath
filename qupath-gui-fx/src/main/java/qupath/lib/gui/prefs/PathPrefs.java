@@ -109,7 +109,7 @@ public class PathPrefs {
 		return PreferenceManager.createForUserPreferences(nodeName);
 	}
 
-	private static BooleanProperty useSystemMenubar = new SimpleBooleanProperty();
+	private static final BooleanProperty useSystemMenubar = new SimpleBooleanProperty();
 
 	/**
 	 * Legacy property used to specify whether the system menubar should be used for the main QuPath stage.

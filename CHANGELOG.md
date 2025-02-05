@@ -90,6 +90,7 @@ They may change or be removed in future versions.
 * Create training image does not work properly for z-stacks / time series (https://github.com/qupath/qupath/issues/1701)
 * Channel colors are not stored properly when using saved display settings (https://github.com/qupath/qupath/issues/1726)
 * 'Split annotations by lines' does not work for z-stacks or time-series if line thickness > 0 (https://github.com/qupath/qupath/issues/1729)
+* QuPath ignores OpenSlide when opening some images from the command line outside a project (but they work properly in the UI) (https://github.com/qupath/qupath/issues/1758)
 
 ### API changes
 * New `Map<String, String> getMetadata()` method added to `PathObject`, `Project` and `ProjectImageEntry` (https://github.com/qupath/qupath/pull/1587)
