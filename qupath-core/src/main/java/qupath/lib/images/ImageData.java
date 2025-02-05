@@ -305,7 +305,11 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 * @return
 	 */
 	public boolean isBrightfield() {
-		return getImageType().toString().toLowerCase().startsWith("brightfield");
+		return isBrightfield(getImageType());
+	}
+
+	private static boolean isBrightfield(ImageType type) {
+		return type.toString().toLowerCase().startsWith("brightfield");
 	}
 	
 	/**
@@ -318,11 +322,19 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	/**
 	 * Set the image type.
-	 * @param type
+	 * @param type the type of the image
+	 * @throws IllegalArgumentException if the type is not supported by the image;
+	 *         specifically, brightfield types using color deconvolution stains are currently only supported for
+	 *         RGB images.
 	 */
-	public void setImageType(final ImageType type) {
+	public void setImageType(final ImageType type) throws IllegalArgumentException {
 		if (this.type == type)
 			return;
+
+		if (isBrightfield(type) && !getServerMetadata().isRGB()) {
+			throw new IllegalArgumentException("Type for non-RGB image cannot be set to " + type);
+		}
+
 		logger.trace("Setting image type to {}", type);
 		ImageType oldType = this.type;
 		this.type = type;
@@ -331,20 +343,10 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		getHistoryWorkflow().addStep(
 				new DefaultScriptableWorkflowStep("Set image type",
 						Collections.singletonMap("Image type", type),
-						"setImageType(\'" + type.name() + "');")
+                        "setImageType('" + type.name() + "')")
 			);
 		if (isBrightfield())
 			addColorDeconvolutionStainsToWorkflow(this);
-		
-		// TODO: REINTRODUCE LOGGING!
-//		// Log the step
-//		getWorkflow().addStep(
-//				new DefaultScriptableWorkflowStep("Set image type",
-//						Collections.singletonMap("Image type", type),
-//						QP.class.getSimpleName() + ".setImageType(\'" + type.toString() + "');")
-//			);
-//		if (isBrightfield())
-//			addColorDeconvolutionStainsToWorkflow(this);
 
 		pcs.firePropertyChange("imageType", oldType, type);
 		changes = true;
