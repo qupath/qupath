@@ -123,7 +123,7 @@ They may change or be removed in future versions.
   * Extension writers can use either Groovy or Kotlin - but may need to make some changes to their build scripts
 
 ### Dependency updates
-* Bio-Formats 8.0.1
+* Bio-Formats 8.1.0
 * Commonmark 0.24.0
 * DeepJavaLibrary 0.31.1
 * Groovy 4.0.25
