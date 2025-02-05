@@ -98,7 +98,7 @@ tasks.withType<Javadoc> {
         // Need to use the major version only with javafx
         links(
             "https://docs.oracle.com/en/java/javase/${libs.versions.jdk.get()}/docs/api/",
-            "https://openjfx.io/javadoc/${libs.versions.javafx.get().split("\\.")[0]}/",
+            "https://openjfx.io/javadoc/${libs.versions.javafx.get().split(".")[0]}/",
             "https://javadoc.io/doc/org.bytedeco/javacpp/${libs.versions.javacpp.get()}/",
             "https://javadoc.io/doc/org.bytedeco/opencv/${libs.versions.opencv.get()}/",
             "https://javadoc.io/doc/com.google.code.gson/gson/${libs.versions.gson.get()}/",

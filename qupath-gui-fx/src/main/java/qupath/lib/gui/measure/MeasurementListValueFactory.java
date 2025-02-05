@@ -9,7 +9,6 @@ import java.util.List;
 
 /**
  * Measurements that only extract metadata from objects.
- * @return
  */
 public class MeasurementListValueFactory implements PathObjectValueFactory {
 

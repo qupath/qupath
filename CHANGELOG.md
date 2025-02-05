@@ -121,16 +121,16 @@ They may change or be removed in future versions.
 ### Dependency updates
 * Bio-Formats 8.0.1
 * Commonmark 0.24.0
-* DeepJavaLibrary 0.31.0
-* Groovy 4.0.24
-* Gson 2.11.0
+* DeepJavaLibrary 0.31.1
+* Groovy 4.0.25
+* Gson 2.12.1
 * Guava 33.4.0-jre
 * ImageJ 1.54k
 * JavaCPP 1.5.11
-* JavaFX 23
+* JavaFX 23.0.2
 * Java Topology Suite 1.20.0
 * JFreeSVG 5.0.6
-* JNA 5.14.0
+* JNA 5.16.0
 * JUnit 5.11.0
 * Logback 1.5.8
 * Picocli 4.7.6
