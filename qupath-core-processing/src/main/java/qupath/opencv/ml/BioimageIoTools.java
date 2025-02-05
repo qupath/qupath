@@ -42,7 +42,6 @@ import qupath.bioimageio.spec.Weights;
 import qupath.bioimageio.spec.tensor.InputTensor;
 import qupath.bioimageio.spec.tensor.OutputTensor;
 import qupath.bioimageio.spec.tensor.Processing;
-import qupath.bioimageio.spec.tensor.axes.Axis;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelType;
@@ -153,9 +152,9 @@ public class BioimageIoTools {
 					break;
 				}
 				String axes = getAxesString(spec.getInputs().getFirst().getAxes());
-				var inputShapeMap = spec.getInputs().stream().collect(Collectors.toMap(i -> i.getName(), i -> getShape(i)));
+				var inputShapeMap = spec.getInputs().stream().collect(Collectors.toMap(i -> i.getName(), i -> getMinShape(i)));
 				var inputShape = inputShapeMap.size() == 1 ? inputShapeMap.values().iterator().next() : null; // Need a single input, otherwise can't be used for output
-				var outputShapeMap = spec.getOutputs().stream().collect(Collectors.toMap(o -> o.getName(), o -> getShape(o, inputShape)));
+				var outputShapeMap = spec.getOutputs().stream().collect(Collectors.toMap(o -> o.getName(), o -> getShapeFromInput(o, inputShape)));
 				
 				var params = DnnModelParams.builder()
 						.framework(frameworkName)
@@ -181,11 +180,11 @@ public class BioimageIoTools {
 		return dnn;
 	}
 	
-	private static DnnShape getShape(InputTensor spec) {
+	private static DnnShape getMinShape(InputTensor spec) {
 		return DnnShape.of(Arrays.stream(spec.getShape().getShapeMin()).mapToLong(i -> i).toArray());
 	}
 
-	private static DnnShape getShape(OutputTensor outputSpec, DnnShape inputShape) {
+	private static DnnShape getShapeFromInput(OutputTensor outputSpec, DnnShape inputShape) {
 		if (inputShape == null) {
 			if (Arrays.stream(outputSpec.getShape().getScale()).anyMatch(s -> s != 0))
 				logger.warn("Attempting to infer scaled output shape, but input shape is not available");
@@ -201,20 +200,6 @@ public class BioimageIoTools {
 		for (int i = 0; i < n; i++) {
 			shape[i] = outputShape[i];
 		}
-
-		// case 0: fixed size
-
-		// case 1: scale + offset to a reference shape
-//		double[] scales = outputSpec.getShape().getScale();
-//		double[] offsets = outputSpec.getShape().getOffset();
-//		for (int i = 0; i < scales.length; i++) {
-//			shape[i] = Math.round(inputShape.get(i) * scales[i] + offsets[i] * 2);
-//		}
-
-		// case 2: parameterized size (min + step)
-
-		// case 3: data-dependent size
-
 		return DnnShape.of(shape);
 	}
 	
