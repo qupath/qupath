@@ -5192,9 +5192,7 @@ public class QP {
 
 	/**
 	 * Simplify all annotations to a given threshold
-	 * <p>
-	 *     See {@link ShapeSimplifier#simplifyPolygon(PolygonROI, double)} )} for details.
-	 * </p>
+	 * @see ShapeSimplifier#simplifyPolygon(PolygonROI, double)
 	 * @param altitudeThreshold altitude value for simplification
 	 */
 	public static void simplifyAllAnnotations(double altitudeThreshold) {
@@ -5203,9 +5201,7 @@ public class QP {
 
 	/**
 	 * Simplify the currently selected annotations to a given threshold
-	 * <p>
-	 *     See {@link ShapeSimplifier#simplifyPolygon(PolygonROI, double)} )} for details.
-	 * </p>
+	 * @see ShapeSimplifier#simplifyPolygon(PolygonROI, double)
 	 * @param altitudeThreshold altitude value for simplification
 	 */
 	public static void simplifySelectedAnnotations(double altitudeThreshold) {
@@ -5218,9 +5214,7 @@ public class QP {
 
 	/**
 	 * Simplify a set of pathObjects to a given threshold.
-	 * <p>
-	 *     See {@link ShapeSimplifier#simplifyPolygon(PolygonROI, double)} )} for details.
-	 * </p>
+	 * @see ShapeSimplifier#simplifyPolygon(PolygonROI, double)
 	 * @param pathObjects the path objects
 	 * @param altitudeThreshold altitude value for simplification
 	 */
@@ -5244,8 +5238,7 @@ public class QP {
 	 * Cells are converted based on the nucleus ROI.
 	 * <br>
 	 * The original objects are not removed; see {@link QP#removeObjects(Collection pathObjects)}.
-	 * See {@link PathObjectTools#convertToPoints(Collection, boolean)} if you want to use the cell ROI instead.
-	 * The original objects will be removed from the object hierarchy.
+	 * @see PathObjectTools#convertToPoints(Collection, boolean) if you want to use the cell ROI instead.
 	 */
 	public static void convertSelectedObjectsToPoints() {
 		convertSpecifiedObjectsToPoints(getCurrentHierarchy(), getSelectedObjects());
@@ -5257,8 +5250,7 @@ public class QP {
 	 * Cells are converted based on the nucleus ROI.
 	 * <br>
 	 * The original objects are not removed; see {@link QP#removeObjects(Collection pathObjects)}.
-	 * See {@link PathObjectTools#convertToPoints(Collection, boolean)} if you want to use the cell ROI instead.
-	 * The original objects will be removed from the object hierarchy.
+	 * @see PathObjectTools#convertToPoints(Collection, boolean) if you want to use the cell ROI instead.
 	 */
 	public static void convertDetectionsToPoints() {
 		convertSpecifiedObjectsToPoints(getCurrentHierarchy(), getDetectionObjects());
@@ -5269,8 +5261,9 @@ public class QP {
 	 * Cells are converted based on the nucleus ROI.
 	 * <br>
 	 * The original objects are not removed; see {@link QP#removeObjects(Collection pathObjects)}.
-	 * See {@link PathObjectTools#convertToPoints(Collection, boolean)} if you want to use the cell ROI instead.
-	 * @param pathObjects The objects to be converted to points (these will be removed from the object hierarchy).
+	 * @see PathObjectTools#convertToPoints(Collection, boolean) if you want to use the cell ROI instead.
+	 * @param hierarchy the hierarchy that the objects are contained in
+	 * @param pathObjects the objects to be converted to points (these will be removed from the object hierarchy).
 	 */
 	public static void convertSpecifiedObjectsToPoints(PathObjectHierarchy hierarchy, Collection<? extends PathObject> pathObjects) {
 		PathObjectTools.convertToPoints(hierarchy, pathObjects, true, false);
