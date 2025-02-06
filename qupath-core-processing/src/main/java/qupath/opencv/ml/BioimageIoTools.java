@@ -42,6 +42,7 @@ import qupath.bioimageio.spec.Weights;
 import qupath.bioimageio.spec.tensor.InputTensor;
 import qupath.bioimageio.spec.tensor.OutputTensor;
 import qupath.bioimageio.spec.tensor.Processing;
+import qupath.bioimageio.spec.tensor.Shape;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelType;
@@ -66,16 +67,7 @@ import static qupath.bioimageio.spec.tensor.axes.Axes.getAxesString;
 public class BioimageIoTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(BioimageIoTools.class);
-	
-	
-	private static URI resolveUri(URI base, String relative) {
-		if (base.toString().startsWith("jar:file:")) {
-			return URI.create("jar:" + URI.create(base.toString().substring(4)).resolve(relative));
-		}
-		return base.resolve(relative);
-	}
-	
-	
+
 	/**
 	 * Attempt to build a {@link DnnModel} that follows this spec as closely as possible.
 	 * <p>
@@ -135,26 +127,20 @@ public class BioimageIoTools {
 				}
 				String frameworkName = null;
 				switch (key) {
-				case ONNX:
-					frameworkName = DnnModelParams.FRAMEWORK_ONNX_RUNTIME;
-					break;
-				case TENSORFLOW_SAVED_MODEL_BUNDLE:
-					frameworkName = DnnModelParams.FRAMEWORK_TENSORFLOW;
-					break;
-				case TORCHSCRIPT:
-					frameworkName = DnnModelParams.FRAMEWORK_PYTORCH;
-					break;
-				case PYTORCH_STATE_DICT:
-				case TENSORFLOW_JS:
-				case KERAS_HDF5:
-				default:
+					case ONNX -> frameworkName = DnnModelParams.FRAMEWORK_ONNX_RUNTIME;
+					case TENSORFLOW_SAVED_MODEL_BUNDLE -> frameworkName = DnnModelParams.FRAMEWORK_TENSORFLOW;
+					case TORCHSCRIPT -> frameworkName = DnnModelParams.FRAMEWORK_PYTORCH;
 					// *Conceivably* we could support these via some as-yet-unwritten extension... but we probably don't
-					break;
+					case PYTORCH_STATE_DICT, TENSORFLOW_JS, KERAS_HDF5 -> {}
+					default -> {}
 				}
 				String axes = getAxesString(spec.getInputs().getFirst().getAxes());
+				// currently, we fetch the minimum size of each axis
+				// ideally, we should aim for a sensible target size for efficient inference (e.g., 512x512 on x and y axes)
 				var inputShapeMap = spec.getInputs().stream().collect(Collectors.toMap(i -> i.getName(), i -> getMinShape(i)));
 				var inputShape = inputShapeMap.size() == 1 ? inputShapeMap.values().iterator().next() : null; // Need a single input, otherwise can't be used for output
-				var outputShapeMap = spec.getOutputs().stream().collect(Collectors.toMap(o -> o.getName(), o -> getShapeFromInput(o, inputShape)));
+				// get the size of the output axes based on the input axes
+				var outputShapeMap = spec.getOutputs().stream().collect(Collectors.toMap(o -> o.getName(), o -> getOutputShapeFromInput(o, inputShape)));
 				
 				var params = DnnModelParams.builder()
 						.framework(frameworkName)
@@ -179,33 +165,11 @@ public class BioimageIoTools {
 		}
 		return dnn;
 	}
-	
-	private static DnnShape getMinShape(InputTensor spec) {
-		return DnnShape.of(Arrays.stream(spec.getShape().getShapeMin()).mapToLong(i -> i).toArray());
-	}
 
-	private static DnnShape getShapeFromInput(OutputTensor outputSpec, DnnShape inputShape) {
-		if (inputShape == null) {
-			if (Arrays.stream(outputSpec.getShape().getScale()).anyMatch(s -> s != 0))
-				logger.warn("Attempting to infer scaled output shape, but input shape is not available");
-			return DnnShape.of(Arrays.stream(outputSpec.getShape().getOffset()).mapToLong(i -> (long)i).toArray());
-		}
-		int n = inputShape.numDimensions();
-		int[] inputArr = new int[n];
-		long[] shape = new long[n];
-		for (int i = 0; i < n; i++) {
-			inputArr[i] = (int) inputShape.get(i);
-		}
-		int[] outputShape = outputSpec.getShape().getTargetShape(inputArr);
-		for (int i = 0; i < n; i++) {
-			shape[i] = outputShape[i];
-		}
-		return DnnShape.of(shape);
-	}
-	
+
 	/**
 	 * Create an instance of {@link PatchClassifierParams} from a model spec.
-	 * This encapsulates some key information QuPath needs for building a model in a way that can 
+	 * This encapsulates some key information QuPath needs for building a model in a way that can
 	 * be modified and updated according to user requirements.
 	 * @param model the model spec to initialize the parameters
 	 * @param inputOps optional additional preprocessing ops to apply, before any in the model spec are added
@@ -214,10 +178,10 @@ public class BioimageIoTools {
 	public static PatchClassifierParams buildPatchClassifierParams(Model model, ImageOp... inputOps) {
 		return buildPatchClassifierParams(model, -1, -1, inputOps);
 	}
-	
+
 	/**
 	 * Create an instance of {@link PatchClassifierParams} from a model spec.
-	 * This encapsulates some key information QuPath needs for building a model in a way that can 
+	 * This encapsulates some key information QuPath needs for building a model in a way that can
 	 * be modified and updated according to user requirements.
 	 * @param modelSpec the model spec to initialize the parameters
 	 * @param preferredTileWidth preferred tile width, or -1 to automatically determine this; the width will be updated based on the spec
@@ -237,7 +201,7 @@ public class BioimageIoTools {
 
 		var input = inputs.getFirst();
 		var output = outputs.getFirst();
-		
+
 		// Get dimensions and padding
 		String axes = getAxesString(input.getAxes());
 		int indChannels = axes.indexOf("c");
@@ -251,7 +215,7 @@ public class BioimageIoTools {
 		int widthStep = shapeStep[indX];
 		int heightStep = shapeStep[indY];
 		long[] inputShape = Arrays.stream(shapeMin).mapToLong(i -> i).toArray();
-		
+
 		// Update tile sizes
 		if (preferredTileWidth <= 0)
 			preferredTileWidth = 512;
@@ -261,7 +225,7 @@ public class BioimageIoTools {
 		height = BioimageIoTools.updateLength(height, heightStep, preferredTileHeight);
 		inputShape[indX] = width;
 		inputShape[indY] = height;
-		
+
 		int[] outputShape = output.getShape().getShape();
 		if (outputShape == null || outputShape.length == 0) {
 			// Calculate output shape
@@ -280,11 +244,11 @@ public class BioimageIoTools {
 		var halo = output.getHalo();
 		if (halo != null && halo.length != 0) {
 			padding = Padding.getPadding(halo[indX], halo[indY]);
-			
+
 		}
-		
+
 		List<ImageOp> preprocessing = new ArrayList<>();
-        Collections.addAll(preprocessing, inputOps);
+		Collections.addAll(preprocessing, inputOps);
 		preprocessing.add(ImageOps.Core.ensureType(PixelType.FLOAT32)); // Expected by bioimage.io
 		if (input.getPreprocessing() != null) {
 			for (var transform : input.getPreprocessing()) {
@@ -295,14 +259,14 @@ public class BioimageIoTools {
 					preprocessing.add(op);
 			}
 		}
-		
+
 		// Try to find compatible weights
 		var dnn = buildDnnModel(modelSpec);
-		
+
 		if (dnn == null)
-			throw new UnsupportedOperationException("Unable to create a DnnModel for " + modelSpec.getName() + 
+			throw new UnsupportedOperationException("Unable to create a DnnModel for " + modelSpec.getName() +
 					".\nCheck 'View > Show log' for more details.");
-		
+
 		List<ImageOp> postprocessing = new ArrayList<>();
 		if (output.getPostprocessing() != null) {
 			for (var transform : output.getPostprocessing()) {
@@ -313,12 +277,12 @@ public class BioimageIoTools {
 					postprocessing.add(op);
 			}
 		}
-		
+
 		var labels = new LinkedHashMap<Integer, PathClass>();
 		for (int c = 0; c < nChannelsOut; c++) {
 			labels.put(c, PathClass.getInstance("Class " + c));
 		}
-		
+
 		return PatchClassifierParams.builder()
 				.inputChannels(IntStream.range(0, nChannelsIn).toArray())
 				.patchSize(width, height)
@@ -330,27 +294,20 @@ public class BioimageIoTools {
 				.outputChannelType(ChannelType.PROBABILITY)
 				.build();
 	}
-	
-	
-	private static int updateLength(int minLength, int step, int targetLength) {
-		if (targetLength <= minLength || step <= 0)
-			return minLength;
-		return minLength + (int)((double)(targetLength - minLength) / step) * step;
-	}
-	
+
 	/**
 	 * Create an {@link ImageOp} that applies the specified transforms sequentially.
 	 * <p>
 	 * <b>Important!</b>
 	 * This method is experimental and subject to change in future versions.
 	 * <p>
-	 * Not all Bioimage Model Zoo transforms are supported 
-	 * by QuPath ops, and ops are generally per tile whereas model zoo transforms 
+	 * Not all Bioimage Model Zoo transforms are supported
+	 * by QuPath ops, and ops are generally per tile whereas model zoo transforms
 	 * sometimes require global statistics (e.g. for normalization).
 	 * <p>
-	 * This method will make an attempt to return a suitable op, but it may 
+	 * This method will make an attempt to return a suitable op, but it may
 	 * not be able to incorporate all steps.
-	 * 
+	 *
 	 * @param transforms The transformations in bioimageio model format
 	 * @return Corresponding image operations.
 	 */
@@ -364,51 +321,50 @@ public class BioimageIoTools {
 		}
 		return ops.size() == 1 ? ops.getFirst() : ImageOps.Core.sequential(ops);
 	}
-	
-	
+
 	/**
 	 * Create an {@link ImageOp} that applies the specified transforms, if possible.
 	 * <p>
 	 * <b>Important!</b>
 	 * This method is experimental and subject to change in future versions.
 	 * <p>
-	 * Not all Bioimage Model Zoo transforms are supported 
-	 * by QuPath ops, and ops are generally per tile whereas model zoo transforms 
+	 * Not all Bioimage Model Zoo transforms are supported
+	 * by QuPath ops, and ops are generally per tile whereas model zoo transforms
 	 * sometimes require global statistics (e.g. for normalization).
 	 * <p>
-	 * This method will make an attempt to return a suitable op, but may 
+	 * This method will make an attempt to return a suitable op, but may
 	 * return null if no such op is available.
 	 *
 	 * @param transform The transformation in bioimageio model format
 	 * @return a corresponding image operation.
 	 */
 	public static ImageOp transformToOp(Processing transform) {
-		
+
 		if (transform instanceof Processing.Binarize binarize) {
-            return ImageOps.Threshold.threshold(binarize.getThreshold());
+			return ImageOps.Threshold.threshold(binarize.getThreshold());
 		}
-		
+
 		if (transform instanceof Processing.Clip clip) {
-            return ImageOps.Core.clip(clip.getMin(), clip.getMax());
+			return ImageOps.Core.clip(clip.getMin(), clip.getMax());
 		}
-		
+
 		if (transform instanceof Processing.ScaleLinear scale) {
-            // TODO: Consider axes
+			// TODO: Consider axes
 			return ImageOps.Core.sequential(
 					ImageOps.Core.multiply(scale.getGain()),
-					ImageOps.Core.add(scale.getOffset())					
-					);
+					ImageOps.Core.add(scale.getOffset())
+			);
 		}
 
 		if (transform instanceof Processing.ScaleMeanVariance scale) {
 			// TODO: Figure out if possible to somehow support ScaleMeanVariance
-            logger.warn("Unsupported transform {} - cannot access reference tensor {}", transform, scale.getReferenceTensor());
+			logger.warn("Unsupported transform {} - cannot access reference tensor {}", transform, scale.getReferenceTensor());
 			return null;
 //			var mode = warnIfUnsupportedMode(transform.getName(), scale.getMode(), List.of(ProcessingMode.PER_SAMPLE));
 		}
 
 		if (transform instanceof Processing.ScaleRange scale) {
-            var mode = warnIfUnsupportedMode(transform.getName(), scale.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE));
+			var mode = warnIfUnsupportedMode(transform.getName(), scale.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE));
 			assert mode == Processing.ProcessingMode.PER_SAMPLE; // TODO: Consider how to support per dataset
 			String axes = getAxesString(scale.getAxes());
 			boolean perChannel = false;
@@ -422,9 +378,9 @@ public class BioimageIoTools {
 		if (transform instanceof Processing.Sigmoid) {
 			return ImageOps.Normalize.sigmoid();
 		}
-		
+
 		if (transform instanceof Processing.ZeroMeanUnitVariance zeroMeanUnitVariance) {
-            var mode = warnIfUnsupportedMode(transform.getName(), zeroMeanUnitVariance.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE, Processing.ProcessingMode.FIXED));
+			var mode = warnIfUnsupportedMode(transform.getName(), zeroMeanUnitVariance.getMode(), List.of(Processing.ProcessingMode.PER_SAMPLE, Processing.ProcessingMode.FIXED));
 			if (mode == Processing.ProcessingMode.PER_SAMPLE) {
 				String axes = getAxesString(zeroMeanUnitVariance.getAxes());
 				boolean perChannel = false;
@@ -447,14 +403,62 @@ public class BioimageIoTools {
 				return ImageOps.Core.sequential(
 						ImageOps.Core.subtract(zeroMeanUnitVariance.getMean()),
 						ImageOps.Core.divide(std)
-						);
+				);
 			}
 		}
 
 		logger.warn("Unknown transform {} - cannot convert to ImageOp", transform);
 		return null;
 	}
+
+	/**
+	 * Gets the minimum allowable shape for a tensor. Note: this is very unlikely to be the "optimal" shape!
+	 * todo: consider instead using {@link Shape#getTargetShape(int...)} instead of {@link Shape#getShapeMin()}.
+	 * @param spec the input tensor
+	 * @return integer sizes for the minimum allowable shape (can be zeros!)
+	 */
+	private static DnnShape getMinShape(InputTensor spec) {
+		return DnnShape.of(Arrays.stream(spec.getShape().getShapeMin()).mapToLong(i -> i).toArray());
+	}
+
+	/**
+	 * Attempt to match the shape of an output tensor to the input tensor's shape, subject to whatever constraints are applied by the output tensor.
+	 * @param outputSpec the output tensor
+	 * @param inputShape the input tensor's shape
+	 * @return an output shape that matches the input according to the output tensor's requirements
+	 */
+	private static DnnShape getOutputShapeFromInput(OutputTensor outputSpec, DnnShape inputShape) {
+		if (inputShape == null) {
+			if (Arrays.stream(outputSpec.getShape().getScale()).anyMatch(s -> s != 0))
+				logger.warn("Attempting to infer scaled output shape, but input shape is not available");
+			return DnnShape.of(Arrays.stream(outputSpec.getShape().getOffset()).mapToLong(i -> (long)i).toArray());
+		}
+		int n = inputShape.numDimensions();
+		int[] inputArr = new int[n];
+		long[] shape = new long[n];
+		for (int i = 0; i < n; i++) {
+			inputArr[i] = (int) inputShape.get(i);
+		}
+		int[] outputShape = outputSpec.getShape().getTargetShape(inputArr);
+		for (int i = 0; i < n; i++) {
+			shape[i] = outputShape[i];
+		}
+		return DnnShape.of(shape);
+	}
+
+	private static URI resolveUri(URI base, String relative) {
+		if (base.toString().startsWith("jar:file:")) {
+			return URI.create("jar:" + URI.create(base.toString().substring(4)).resolve(relative));
+		}
+		return base.resolve(relative);
+	}
+
 	
+	private static int updateLength(int minLength, int step, int targetLength) {
+		if (targetLength <= minLength || step <= 0)
+			return minLength;
+		return minLength + (int)((double)(targetLength - minLength) / step) * step;
+	}
 	
 	private static boolean sameAxes(String input, String target) {
 		if (Objects.equals(input, target))
