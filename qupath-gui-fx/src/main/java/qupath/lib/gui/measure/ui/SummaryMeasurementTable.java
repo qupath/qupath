@@ -5,8 +5,6 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
@@ -32,15 +30,17 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.stage.Stage;
+import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.controls.PredicateTextField;
 import qupath.fx.dialogs.FileChoosers;
-import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramDisplay;
@@ -50,13 +50,12 @@ import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PathObjectImageViewers;
+import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
@@ -84,37 +83,206 @@ public class SummaryMeasurementTable {
 
     private static final Logger logger = LoggerFactory.getLogger(SummaryMeasurementTable.class);
 
-    private final QuPathGUI qupath;
+    private final KeyCombination centerCode = new KeyCodeCombination(KeyCode.SPACE);
+
     private final ImageData<BufferedImage> imageData;
+    private final PathObjectHierarchy hierarchy;
 
     private static final BooleanProperty useRegexColumnFilter = PathPrefs.createPersistentPreference("summaryMeasurementTableUseRegexColumnFilter", false);
 
     private final BooleanProperty showThumbnailsProperty = new SimpleBooleanProperty(PathPrefs.showMeasurementTableThumbnailsProperty().get());;
     private final BooleanProperty showObjectIdsProperty = new SimpleBooleanProperty(PathPrefs.showMeasurementTableObjectIDsProperty().get());
 
+    private final ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 
-    public SummaryMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
-        Objects.requireNonNull(qupath);
+    private BorderPane pane;
+
+    private QuPathViewer viewer;
+    private ViewerTableSynchronizer synchronizer;
+    private final PathObjectHierarchyListener listener = this::handleHierarchyChange;
+
+    private TableView<PathObject> table;
+
+    private final SplitPane splitPane = new SplitPane();
+
+    private final TabPane plotTabs = new TabPane();
+    private HistogramDisplay histogramDisplay;
+    private ScatterPlotDisplay scatterPlotDisplay;
+
+    private Class<? extends PathObject> type;
+
+
+    // Column for displaying thumbnail images
+    private TableColumn<PathObject, PathObject> colThumbnails;
+    private final double thumbnailPadding = 10.0;
+
+    public SummaryMeasurementTable(ImageData<BufferedImage> imageData,
+                                   Class<? extends PathObject> type) {
         Objects.requireNonNull(imageData);
-        this.qupath = qupath;
         this.imageData = imageData;
+        this.hierarchy = imageData.getHierarchy();
+        this.type = type;
     }
 
-    /**
-     * Show a measurement table for the specified image data.
-     * @param type the object type to show
-     */
-    public void showTable(Class<? extends PathObject> type) {
-
-        final PathObjectHierarchy hierarchy = imageData.getHierarchy();
-
-        ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+    private void init() {
         model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
 
-        SplitPane splitPane = new SplitPane();
-        TabPane plotTabs = new TabPane();
-        HistogramDisplay histogramDisplay = new HistogramDisplay(model, true);
-        ScatterPlotDisplay scatterPlotDisplay = new ScatterPlotDisplay(model);
+        findViewer();
+        initTable();
+
+        synchronizer = new ViewerTableSynchronizer(viewer, hierarchy, table);
+
+        initSplitPane();
+        initTabPane();
+
+        pane = new BorderPane();
+        pane.setCenter(splitPane);
+        pane.setTop(createToolbar());
+
+        // Only listen with the pane is attached to a scene that is showing
+        pane.sceneProperty()
+                .flatMap(Scene::windowProperty)
+                .flatMap(Window::showingProperty)
+                .addListener(this::handleVisibilityChanged);
+
+        // Add ability to remove entries from table
+        table.setContextMenu(createContextMenu());
+    }
+
+    private void findViewer() {
+        // Try to find a viewer containing the image data
+        var qupath = QuPathGUI.getInstance();
+        viewer = qupath == null ? null : qupath.getAllViewers()
+                .stream()
+                .filter(v -> v.getImageData() == imageData)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void initTable() {
+        // Create the table
+        table = new TableView<>();
+        table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        // Handle double-click as a way to center on a ROI
+        table.setRowFactory(this::createTableRow);
+        table.setOnKeyPressed(this::handleTableKeypress);
+
+        // Add a column to display images thumbnails - but only if we have a viewer
+        if (viewer != null) {
+            colThumbnails = createThumbnailColumn();
+            table.getColumns().add(colThumbnails);
+        }
+
+        // Set fixed cell size - this can avoid large numbers of non-visible cells being computed
+        table.fixedCellSizeProperty().bind(Bindings.createDoubleBinding(() -> {
+            if (colThumbnails.isVisible())
+                return Math.max(24, colThumbnails.getWidth() + thumbnailPadding);
+            else
+                return -1.0;
+        }, colThumbnails.widthProperty(), colThumbnails.visibleProperty()));
+
+        // Add main table columns
+        boolean appendIdColumn = false;
+        for (String columnName : model.getAllNames()) {
+            if (ObservableMeasurementTableData.NAME_OBJECT_ID.equals(columnName))
+                appendIdColumn = true;
+            else if (model.isNumericMeasurement(columnName)) {
+                var col = createNumericTableColumn(columnName);
+                table.getColumns().add(col);
+            } else {
+                var col = createStringTableColumn(columnName);
+                table.getColumns().add(col);
+            }
+        }
+
+        // Add object ID column at the end, since it takes quite a lot of space
+        if (appendIdColumn) {
+            var colObjectIDs = createStringTableColumn(ObservableMeasurementTableData.NAME_OBJECT_ID);
+            colObjectIDs.visibleProperty().bind(showObjectIdsProperty);
+            table.getColumns().add(colObjectIDs);
+        }
+
+        // Set the PathObjects - need to deal with sorting, since a FilteredList won't handle it directly
+        SortedList<PathObject> items = new SortedList<>(model.getItems());
+        items.comparatorProperty().bind(table.comparatorProperty());
+        table.setItems(items);
+    }
+
+    private TableColumn<PathObject, Number> createNumericTableColumn(String name) {
+        var tooltipText = model.getHelpText(name);
+        TableColumn<PathObject, Number> col = new TableColumn<>(name);
+        col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
+        col.setCellFactory(column -> new NumericTableCell<>(tooltipText, histogramDisplay));
+        return col;
+    }
+
+    private TableColumn<PathObject, String> createStringTableColumn(String name) {
+        var tooltipText = model.getHelpText(name);
+        TableColumn<PathObject, String> col = new TableColumn<>(name);
+        col.setCellValueFactory(column -> createStringMeasurement(model, column.getValue(), column.getTableColumn().getText()));
+        col.setCellFactory(column -> new BasicTableCell<>(tooltipText));
+        return col;
+    }
+
+    private TableColumn<PathObject, PathObject> createThumbnailColumn() {
+        var colThumbnails = new TableColumn<PathObject, PathObject>("Thumbnail");
+        colThumbnails.setCellValueFactory(val -> new SimpleObjectProperty<>(val.getValue()));
+        colThumbnails.visibleProperty().bind(showThumbnailsProperty);
+        colThumbnails.setCellFactory(column -> PathObjectImageViewers.createTableCell(
+                viewer, imageData.getServer(), true, thumbnailPadding));
+        return colThumbnails;
+    }
+
+    private Pane createColumnFilterPane() {
+        var tfColumnFilter = new PredicateTextField<String>();
+        tfColumnFilter.useRegexProperty().bindBidirectional(useRegexColumnFilter);
+
+        var columnFilter = tfColumnFilter.predicateProperty();
+        columnFilter.addListener((v, o, n) -> {
+            for (TableColumn<?, ?> col : table.getColumns()) {
+                if (col == colThumbnails || col.visibleProperty().isBound()) // Retain thumbnails
+                    continue;
+                var name = col.getText();
+                col.setVisible(n.test(name));
+            }
+        });
+
+        GridPane paneFilter = new GridPane();
+        paneFilter.add(new Label("Column filter"), 0, 0);
+        paneFilter.add(tfColumnFilter, 1, 0);
+        GridPane.setHgrow(tfColumnFilter, Priority.ALWAYS);
+        paneFilter.setHgap(5);
+
+        if (TMACoreObject.class.isAssignableFrom(type)) {
+            CheckBox cbHideMissing = new CheckBox("Hide missing cores");
+            paneFilter.add(cbHideMissing, 2, 0);
+            cbHideMissing.selectedProperty().addListener((v, o, n) -> {
+                if (n) {
+                    model.setPredicate(p -> (!(p instanceof TMACoreObject)) || !((TMACoreObject)p).isMissing());
+                } else
+                    model.setPredicate(null);
+            });
+            cbHideMissing.setSelected(true);
+        }
+        paneFilter.setPadding(new Insets(2, 5, 2, 5));
+        return paneFilter;
+    }
+
+    private Pane createTablePane() {
+        BorderPane paneTable = new BorderPane();
+        paneTable.setCenter(table);
+        paneTable.setBottom(createColumnFilterPane());
+        return paneTable;
+    }
+
+    private void initSplitPane() {
+        splitPane.getItems().add(createTablePane());
+    }
+
+
+    private void initTabPane() {
+        histogramDisplay = new HistogramDisplay(model, true);
+        scatterPlotDisplay = new ScatterPlotDisplay(model);
 
         Tab tabHistogram = new Tab("Histogram", histogramDisplay.getPane());
         tabHistogram.setClosable(false);
@@ -123,97 +291,9 @@ public class SummaryMeasurementTable {
         Tab tabScatter = new Tab("Scatter plot", scatterPlotDisplay.getPane());
         tabScatter.setClosable(false);
         plotTabs.getTabs().add(tabScatter);
+    }
 
-        //		table.setTableMenuButtonVisible(true);
-        TableView<PathObject> table = new TableView<>();
-        table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        StringProperty displayedName = new SimpleStringProperty(ServerTools.getDisplayableImageName(imageData.getServer()));
-        var title = Bindings.createStringBinding(() -> {
-            if (type == null)
-                return "Measurements " + displayedName.get();
-            else
-                return PathObjectTools.getSuitableName(type, true) + ": " + displayedName.get();
-        }, displayedName);
-
-
-        // Handle double-click as a way to center on a ROI
-        var centerCode = new KeyCodeCombination(KeyCode.SPACE);
-        table.setRowFactory(params -> {
-            var row = new TableRow<PathObject>();
-            row.setOnMouseClicked(e -> {
-                if (e.getClickCount() == 2) {
-                    maybeCenterROI(row.getItem());
-                }
-            });
-            return row;
-        });
-        table.setOnKeyPressed(e -> {
-            if (centerCode.match(e)) {
-                var selected = table.getSelectionModel().getSelectedItem();
-                if (selected != null)
-                    maybeCenterROI(selected);
-            }
-        });
-
-        // Add a column to display images thumbnails
-        TableColumn<PathObject, PathObject> colThumbnails = new TableColumn<>("Thumbnail");
-        colThumbnails.setCellValueFactory(val -> new SimpleObjectProperty<>(val.getValue()));
-        colThumbnails.visibleProperty().bind(showThumbnailsProperty);
-        double padding = 10;
-        var viewer = qupath.getAllViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
-        colThumbnails.setCellFactory(column -> PathObjectImageViewers.createTableCell(
-                viewer, imageData.getServer(), true, padding));
-//			col.widthProperty().addListener((v, o, n) -> table.refresh());
-//		colThumbnails.setMaxWidth(maxWidth + padding*2);
-        table.getColumns().add(colThumbnails);
-
-        // Set fixed cell size - this can avoid large numbers of non-visible cells being computed
-        table.fixedCellSizeProperty().bind(Bindings.createDoubleBinding(() -> {
-            if (colThumbnails.isVisible())
-                return Math.max(24, colThumbnails.getWidth() + padding);
-            else
-                return -1.0;
-        }, colThumbnails.widthProperty(), colThumbnails.visibleProperty()));
-
-        // Have fewer histogram bins if we have TMA cores (since there aren't usually very many)
-        boolean tmaCoreList = TMACoreObject.class.isAssignableFrom(type);
-        if (tmaCoreList)
-            histogramDisplay.setNumBins(10);
-
-
-        // Create numeric columns
-        TableColumn<PathObject, String> colObjectIDs = null;
-        for (String columnName : model.getAllNames()) {
-            // Add column
-            var tooltipText = model.getHelpText(columnName);
-            if (!model.isNumericMeasurement(columnName)) {
-                TableColumn<PathObject, String> col = new TableColumn<>(columnName);
-                col.setCellValueFactory(column -> createStringMeasurement(model, column.getValue(), column.getTableColumn().getText()));
-                col.setCellFactory(column -> new BasicTableCell<>(tooltipText));
-                if (ObservableMeasurementTableData.NAME_OBJECT_ID.equals(columnName)) {
-                    colObjectIDs = col;
-                } else {
-                    table.getColumns().add(col);
-                }
-            } else {
-                TableColumn<PathObject, Number> col = new TableColumn<>(columnName);
-                col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
-                col.setCellFactory(column -> new NumericTableCell<>(tooltipText, histogramDisplay));
-                table.getColumns().add(col);
-            }
-        }
-        // Add object ID column at the end, since it takes quite a lot of space
-        if (colObjectIDs != null) {
-            colObjectIDs.visibleProperty().bind(showObjectIdsProperty);
-            table.getColumns().add(colObjectIDs);
-        }
-
-
-        // Set the PathObjects - need to deal with sorting, since a FilteredList won't handle it directly
-        SortedList<PathObject> items = new SortedList<>(model.getItems());
-        items.comparatorProperty().bind(table.comparatorProperty());
-        table.setItems(items);
-
+    private Pane createToolbar() {
 
         // Add buttons at the bottom
         List<ButtonBase> buttons = new ArrayList<>();
@@ -229,103 +309,12 @@ public class SummaryMeasurementTable {
         buttons.add(btnPlots);
 
         Button btnCopy = new Button("Copy to clipboard");
-        btnCopy.setOnAction(e -> {
-            // TODO: Deal with repetition immediately below...
-            Set<String> excludeColumns = new HashSet<>();
-            for (TableColumn<?, ?> col : table.getColumns()) {
-                if (!col.isVisible())
-                    excludeColumns.add(col.getText());
-            }
-            copyTableContentsToClipboard(model, excludeColumns);
-        });
+        btnCopy.setOnAction(e -> handleCopyButton());
         buttons.add(btnCopy);
 
         Button btnSave = new Button("Save");
-        btnSave.setOnAction(e -> {
-            Set<String> excludeColumns = new HashSet<>();
-            for (TableColumn<?, ?> col : table.getColumns()) {
-                if (!col.isVisible())
-                    excludeColumns.add(col.getText());
-            }
-            File fileOutput = promptForOutputFile();
-            if (fileOutput == null)
-                return;
-            if (saveTableModel(model, fileOutput, excludeColumns)) {
-                WorkflowStep step;
-                String includeColumns;
-                if (excludeColumns.isEmpty())
-                    includeColumns = "";
-                else {
-                    List<String> includeColumnList = new ArrayList<>(model.getAllNames());
-                    includeColumnList.removeAll(excludeColumns);
-                    includeColumns = ", " + includeColumnList.stream().map(s -> "'" + s + "'").collect(Collectors.joining(", "));
-                }
-                String path = qupath.getProject() == null ? fileOutput.toURI().getPath() : fileOutput.getParentFile().toURI().getPath();
-                if (type == TMACoreObject.class) {
-                    step = new DefaultScriptableWorkflowStep("Save TMA measurements",
-                            String.format("saveTMAMeasurements('%s'%s)", path, includeColumns)
-                    );
-                }
-                else if (type == PathAnnotationObject.class) {
-                    step = new DefaultScriptableWorkflowStep("Save annotation measurements",
-                            String.format("saveAnnotationMeasurements('%s'%s)", path, includeColumns)
-                    );
-                } else if (type == PathDetectionObject.class) {
-                    step = new DefaultScriptableWorkflowStep("Save detection measurements",
-                            String.format("saveDetectionMeasurements('%s'%s)", path, includeColumns)
-                    );
-                } else if (type == PathCellObject.class) {
-                    step = new DefaultScriptableWorkflowStep("Save cell measurements",
-                            String.format("saveCellMeasurements('%s'%s)", path, includeColumns)
-                    );
-                } else if (type == PathTileObject.class) {
-                    step = new DefaultScriptableWorkflowStep("Save tile measurements",
-                            String.format("saveTileMeasurements('%s'%s)", path, includeColumns)
-                    );
-                } else {
-                    step = new DefaultScriptableWorkflowStep("Save measurements",
-                            String.format("saveMeasurements('%s', %s%s)", path, type == null ? null : type.getName(), includeColumns)
-                    );
-                }
-                imageData.getHistoryWorkflow().addStep(step);
-            }
-        });
+        btnSave.setOnAction(e -> handleSaveButton());
         buttons.add(btnSave);
-
-
-        BorderPane paneTable = new BorderPane();
-        paneTable.setCenter(table);
-        // Add text field to filter visible columns
-        var tfColumnFilter = new PredicateTextField<String>();
-        tfColumnFilter.useRegexProperty().bindBidirectional(useRegexColumnFilter);
-        GridPane paneFilter = new GridPane();
-        paneFilter.add(new Label("Column filter"), 0, 0);
-        paneFilter.add(tfColumnFilter, 1, 0);
-        GridPane.setHgrow(tfColumnFilter, Priority.ALWAYS);
-        paneFilter.setHgap(5);
-        if (tmaCoreList) {
-            CheckBox cbHideMissing = new CheckBox("Hide missing cores");
-            paneFilter.add(cbHideMissing, 2, 0);
-            cbHideMissing.selectedProperty().addListener((v, o, n) -> {
-                if (n) {
-                    model.setPredicate(p -> (!(p instanceof TMACoreObject)) || !((TMACoreObject)p).isMissing());
-                } else
-                    model.setPredicate(null);
-            });
-            cbHideMissing.setSelected(true);
-        }
-
-        paneFilter.setPadding(new Insets(2, 5, 2, 5));
-        paneTable.setBottom(paneFilter);
-        var columnFilter = tfColumnFilter.predicateProperty();
-        columnFilter.addListener((v, o, n) -> {
-            for (TableColumn<?, ?> col : table.getColumns()) {
-                if (col == colThumbnails || col.visibleProperty().isBound()) // Retain thumbnails
-                    continue;
-                var name = col.getText();
-                col.setVisible(n.test(name));
-            }
-        });
 
         // Add some extra options
         var popup = new ContextMenu();
@@ -344,63 +333,90 @@ public class SummaryMeasurementTable {
 
         var btnExtra = GuiTools.createMoreButton(popup, Side.RIGHT);
 
-
-        BorderPane pane = new BorderPane();
-        splitPane.getItems().add(paneTable);
-        pane.setCenter(splitPane);
         var paneButtons = GridPaneUtils.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
         var paneButtons2 = new BorderPane(paneButtons);
         paneButtons2.setRight(btnExtra);
-        pane.setBottom(paneButtons2);
+
+        return paneButtons2;
+    }
 
 
-        PathObjectHierarchyListener listener = new PathObjectHierarchyListener() {
 
-            @Override
-            public void hierarchyChanged(PathObjectHierarchyEvent event) {
-                if (event.isChanging())
-                    return;
+    /**
+     * Handle copy request.
+     */
+    private void handleCopyButton() {
+        // TODO: Deal with repetition immediately below...
+        Set<String> excludeColumns = getExcludedColumns();
+        copyTableContentsToClipboard(model, excludeColumns);
+    }
 
-                if (!Platform.isFxApplicationThread()) {
-                    Platform.runLater(() -> hierarchyChanged(event));
-                    return;
-                }
-                displayedName.set(ServerTools.getDisplayableImageName(imageData.getServer()));
+    private Set<String> getExcludedColumns() {
+        Set<String> excludeColumns = new HashSet<>();
+        for (TableColumn<?, ?> col : table.getColumns()) {
+            if (!col.isVisible())
+                excludeColumns.add(col.getText());
+        }
+        return excludeColumns;
+    }
 
-                // TODO: Consider if this can be optimized to avoid rebuilding the full table so often
-                if (event.isStructureChangeEvent())
-                    model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
+    private boolean hasProject() {
+        var qupath = QuPathGUI.getInstance();
+        return qupath != null && qupath.getProject() != null;
+    }
 
-                table.refresh();
-                histogramDisplay.refreshHistogram();
-                scatterPlotDisplay.refreshScatterPlot();
+    /**
+     * Handle save request.
+      */
+    private void handleSaveButton() {
+        Set<String> excludeColumns = getExcludedColumns();
+        File fileOutput = promptForOutputFile();
+        if (fileOutput == null)
+            return;
+        if (saveTableModel(model, fileOutput, excludeColumns)) {
+            WorkflowStep step;
+            String includeColumns;
+            if (excludeColumns.isEmpty())
+                includeColumns = "";
+            else {
+                List<String> includeColumnList = new ArrayList<>(model.getAllNames());
+                includeColumnList.removeAll(excludeColumns);
+                includeColumns = ", " + includeColumnList.stream().map(s -> "'" + s + "'").collect(Collectors.joining(", "));
             }
+            String path = !hasProject() ? fileOutput.toURI().getPath() : fileOutput.getParentFile().toURI().getPath();
+            if (type == TMACoreObject.class) {
+                step = new DefaultScriptableWorkflowStep("Save TMA measurements",
+                        String.format("saveTMAMeasurements('%s'%s)", path, includeColumns)
+                );
+            }
+            else if (type == PathAnnotationObject.class) {
+                step = new DefaultScriptableWorkflowStep("Save annotation measurements",
+                        String.format("saveAnnotationMeasurements('%s'%s)", path, includeColumns)
+                );
+            } else if (type == PathDetectionObject.class) {
+                step = new DefaultScriptableWorkflowStep("Save detection measurements",
+                        String.format("saveDetectionMeasurements('%s'%s)", path, includeColumns)
+                );
+            } else if (type == PathCellObject.class) {
+                step = new DefaultScriptableWorkflowStep("Save cell measurements",
+                        String.format("saveCellMeasurements('%s'%s)", path, includeColumns)
+                );
+            } else if (type == PathTileObject.class) {
+                step = new DefaultScriptableWorkflowStep("Save tile measurements",
+                        String.format("saveTileMeasurements('%s'%s)", path, includeColumns)
+                );
+            } else {
+                step = new DefaultScriptableWorkflowStep("Save measurements",
+                        String.format("saveMeasurements('%s', %s%s)", path, type == null ? null : type.getName(), includeColumns)
+                );
+            }
+            imageData.getHistoryWorkflow().addStep(step);
+        }
+    }
 
-        };
 
-
-        var viewerTableSynchronizer = new ViewerTableSynchronizer(viewer, hierarchy, table);
-
-        Stage stage = new Stage();
-        FXUtils.addCloseWindowShortcuts(stage);
-        stage.initOwner(qupath.getStage());
-        stage.titleProperty().bind(title);
-
-        stage.setOnShowing(e -> {
-            hierarchy.addListener(listener);
-            viewerTableSynchronizer.attachListeners();
-        });
-        stage.setOnHiding(e -> {
-            hierarchy.removeListener(listener);
-            viewerTableSynchronizer.removeListeners();
-        });
-
-        Scene scene = new Scene(pane, 800, 500);
-        stage.setScene(scene);
-        stage.show();
-
-
-        // Add ability to remove entries from table
+    // TODO: Remove this context menu when we have a better way to handle visibility
+    private ContextMenu createContextMenu() {
         ContextMenu menu = new ContextMenu();
         Menu menuLimitClasses = new Menu("Show classes");
         menu.setOnShowing(e -> {
@@ -430,7 +446,66 @@ public class SummaryMeasurementTable {
         });
 
         menu.getItems().add(menuLimitClasses);
-        table.setContextMenu(menu);
+        return menu;
+    }
+
+
+    private void handleHierarchyChange(PathObjectHierarchyEvent event) {
+        if (event.isChanging())
+            return;
+
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> handleHierarchyChange(event));
+            return;
+        }
+
+        // TODO: Consider if this can be optimized to avoid rebuilding the full table so often
+        if (event.isStructureChangeEvent())
+            model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
+
+        table.refresh();
+        histogramDisplay.refreshHistogram();
+        scatterPlotDisplay.refreshScatterPlot();
+    }
+
+    private TableRow<PathObject> createTableRow(TableView<PathObject> table) {
+        var row = new TableRow<PathObject>();
+        row.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                maybeCenterROI(row.getItem());
+            }
+        });
+        return row;
+    }
+
+    private void handleTableKeypress(KeyEvent e) {
+        if (centerCode.match(e)) {
+            var selected = table.getSelectionModel().getSelectedItem();
+            if (selected != null)
+                maybeCenterROI(selected);
+        }
+    }
+
+
+    public Pane getPane() {
+        if (table == null)
+            init();
+        return pane;
+    }
+
+
+    private void handleVisibilityChanged(ObservableValue<? extends Boolean> obs, Boolean oldValue, Boolean newValue) {
+        if (newValue) {
+            logger.debug("Attaching listeners");
+            imageData.getHierarchy().addListener(listener);
+            if (synchronizer != null)
+                synchronizer.attachListeners();
+        } else {
+            logger.debug("Removing listeners");
+            imageData.getHierarchy().removeListener(listener);
+            if (synchronizer != null)
+                synchronizer.removeListeners();
+        }
     }
 
 
@@ -464,12 +539,16 @@ public class SummaryMeasurementTable {
 
 
     private void maybeCenterROI(PathObject pathObject) {
-        if (pathObject == null)
+        if (pathObject == null || viewer == null || viewer.getHierarchy() != hierarchy)
             return;
         var roi = pathObject.getROI();
-        var viewer = qupath.getViewer();
-        if (roi != null && viewer != null && viewer.getHierarchy() != null)
-            viewer.centerROI(roi);
+        if (roi != null) {
+            // v0.6.0 - centre the ROI only if it isn't already visible
+            if (!viewer.getDisplayedRegionShape()
+                    .contains(roi.getCentroidX(), roi.getCentroidY())) {
+                viewer.centerROI(roi);
+            }
+        }
     }
 
 
