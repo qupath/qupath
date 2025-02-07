@@ -1,4 +1,4 @@
-package qupath.lib.gui.commands;
+package qupath.lib.gui.measure.ui;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -8,10 +8,8 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -22,17 +20,14 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.ToggleButton;
-import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
@@ -47,7 +42,6 @@ import qupath.fx.controls.PredicateTextField;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramDisplay;
 import qupath.lib.gui.charts.ScatterPlotDisplay;
@@ -56,8 +50,6 @@ import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PathObjectImageViewers;
-import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathAnnotationObject;
@@ -71,18 +63,15 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 
-import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -104,7 +93,7 @@ public class SummaryMeasurementTable {
     private final BooleanProperty showObjectIdsProperty = new SimpleBooleanProperty(PathPrefs.showMeasurementTableObjectIDsProperty().get());
 
 
-    SummaryMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+    public SummaryMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
         Objects.requireNonNull(qupath);
         Objects.requireNonNull(imageData);
         this.qupath = qupath;
@@ -138,12 +127,6 @@ public class SummaryMeasurementTable {
         //		table.setTableMenuButtonVisible(true);
         TableView<PathObject> table = new TableView<>();
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<>() {
-            @Override
-            public void onChanged(ListChangeListener.Change<? extends PathObject> c) {
-                synchronizeSelectionModelToTable(hierarchy, c, table);
-            }
-        });
         StringProperty displayedName = new SimpleStringProperty(ServerTools.getDisplayableImageName(imageData.getServer()));
         var title = Bindings.createStringBinding(() -> {
             if (type == null)
@@ -206,7 +189,7 @@ public class SummaryMeasurementTable {
             if (!model.isNumericMeasurement(columnName)) {
                 TableColumn<PathObject, String> col = new TableColumn<>(columnName);
                 col.setCellValueFactory(column -> createStringMeasurement(model, column.getValue(), column.getTableColumn().getText()));
-                col.setCellFactory(column -> new SummaryMeasurementTable.BasicTableCell<>(tooltipText));
+                col.setCellFactory(column -> new BasicTableCell<>(tooltipText));
                 if (ObservableMeasurementTableData.NAME_OBJECT_ID.equals(columnName)) {
                     colObjectIDs = col;
                 } else {
@@ -215,7 +198,7 @@ public class SummaryMeasurementTable {
             } else {
                 TableColumn<PathObject, Number> col = new TableColumn<>(columnName);
                 col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
-                col.setCellFactory(column -> new SummaryMeasurementTable.NumericTableCell<>(tooltipText, histogramDisplay));
+                col.setCellFactory(column -> new NumericTableCell<>(tooltipText, histogramDisplay));
                 table.getColumns().add(col);
             }
         }
@@ -310,12 +293,6 @@ public class SummaryMeasurementTable {
         buttons.add(btnSave);
 
 
-        Stage frame = new Stage();
-        FXUtils.addCloseWindowShortcuts(frame);
-        frame.initOwner(qupath.getStage());
-        frame.titleProperty().bind(title);
-
-
         BorderPane paneTable = new BorderPane();
         paneTable.setCenter(table);
         // Add text field to filter visible columns
@@ -395,33 +372,32 @@ public class SummaryMeasurementTable {
                     model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
 
                 table.refresh();
-                if (histogramDisplay != null) {
-                    histogramDisplay.refreshHistogram();
-                }
-                if (scatterPlotDisplay != null) {
-                    scatterPlotDisplay.refreshScatterPlot();
-                }
+                histogramDisplay.refreshHistogram();
+                scatterPlotDisplay.refreshScatterPlot();
             }
 
         };
 
 
-        var tableViewerListener = new SummaryMeasurementTable.TableViewerListener(viewer, table);
+        var viewerTableSynchronizer = new ViewerTableSynchronizer(viewer, hierarchy, table);
 
-        frame.setOnShowing(e -> {
+        Stage stage = new Stage();
+        FXUtils.addCloseWindowShortcuts(stage);
+        stage.initOwner(qupath.getStage());
+        stage.titleProperty().bind(title);
+
+        stage.setOnShowing(e -> {
             hierarchy.addListener(listener);
-            if (viewer != null)
-                viewer.addViewerListener(tableViewerListener);
+            viewerTableSynchronizer.attachListeners();
         });
-        frame.setOnHiding(e -> {
+        stage.setOnHiding(e -> {
             hierarchy.removeListener(listener);
-            if (viewer != null)
-                viewer.removeViewerListener(tableViewerListener);
+            viewerTableSynchronizer.removeListeners();
         });
 
         Scene scene = new Scene(pane, 800, 500);
-        frame.setScene(scene);
-        frame.show();
+        stage.setScene(scene);
+        stage.show();
 
 
         // Add ability to remove entries from table
@@ -494,112 +470,6 @@ public class SummaryMeasurementTable {
         var viewer = qupath.getViewer();
         if (roi != null && viewer != null && viewer.getHierarchy() != null)
             viewer.centerROI(roi);
-    }
-
-
-
-    static class BasicTableCell<S, T> extends TableCell<S, T> {
-
-        public BasicTableCell(String tooltipText) {
-            setAlignment(Pos.CENTER);
-            if (tooltipText != null && !tooltipText.isEmpty())
-                setTooltip(new Tooltip(tooltipText));
-        }
-
-        @Override
-        protected void updateItem(T item, boolean empty) {
-            super.updateItem(item, empty);
-            if (item == null || empty) {
-                setText(null);
-                setGraphic(null);
-                return;
-            }
-            setText(item.toString());
-        }
-
-    }
-
-
-
-    static class NumericTableCell<T> extends TableCell<T, Number> {
-
-        private final HistogramDisplay histogramDisplay;
-
-        public NumericTableCell(String tooltipText, HistogramDisplay histogramDisplay) {
-            this.histogramDisplay = histogramDisplay;
-            if (tooltipText != null && !tooltipText.isEmpty())
-                setTooltip(new Tooltip(tooltipText));
-        }
-
-
-        @Override
-        protected void updateItem(Number item, boolean empty) {
-            super.updateItem(item, empty);
-            if (item == null || empty) {
-                setText(null);
-                setStyle("");
-            } else {
-                setAlignment(Pos.CENTER);
-                if (Double.isNaN(item.doubleValue()))
-                    setText("-");
-                else {
-                    if (item.doubleValue() >= 1000)
-                        setText(GeneralTools.formatNumber(item.doubleValue(), 1));
-                    else if (item.doubleValue() >= 10)
-                        setText(GeneralTools.formatNumber(item.doubleValue(), 2));
-                    else
-                        setText(GeneralTools.formatNumber(item.doubleValue(), 3));
-                }
-
-
-                setOnMouseClicked(e -> {
-                    if (e.isAltDown() && histogramDisplay != null) {
-                        histogramDisplay.showHistogram(getTableColumn().getText());
-                        e.consume();
-                    }
-                });
-            }
-        }
-
-    }
-
-
-
-    class TableViewerListener implements QuPathViewerListener {
-
-        private final TableView<PathObject> table;
-        private QuPathViewer viewer;
-
-        TableViewerListener(final QuPathViewer viewer, final TableView<PathObject> table) {
-            this.viewer = viewer;
-            this.table = table;
-        }
-
-        @Override
-        public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
-            // Stop listening to the viewer when the data changes
-            if (this.viewer == viewer && imageDataNew != imageDataOld)
-                viewer.removeViewerListener(this);
-        }
-
-        @Override
-        public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {}
-
-        @Override
-        public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {
-            if (!Platform.isFxApplicationThread()) {
-                Platform.runLater(() -> selectedObjectChanged(viewer, pathObjectSelected));
-                return;
-            }
-            synchronizeTableToSelectionModel(viewer.getHierarchy(), table);
-        }
-
-        @Override
-        public void viewerClosed(QuPathViewer viewer) {
-            viewer.removeViewerListener(this);
-            this.viewer = null; // Remove reference
-        }
-
     }
 
 
@@ -688,124 +558,10 @@ public class SummaryMeasurementTable {
             writer.close();
             return true;
         } catch (IOException e) {
-            logger.error("Error writing file to " + fileOutput, e);
+            logger.error("Error writing file to {}", fileOutput, e);
         }
         return false;
     }
 
-
-    private boolean synchronizingTableToModel = false;
-    private boolean synchronizingModelToTable = false;
-
-    private void synchronizeSelectionModelToTable(final PathObjectHierarchy hierarchy, final ListChangeListener.Change<? extends PathObject> change, final TableView<PathObject> table) {
-        if (synchronizingTableToModel || hierarchy == null)
-            return;
-
-        PathObjectSelectionModel model = hierarchy.getSelectionModel();
-        if (model == null) {
-            return;
-        }
-
-        boolean wasSynchronizingToTree = synchronizingModelToTable;
-        try {
-            synchronizingModelToTable = true;
-
-            // Check - was anything removed?
-            boolean removed = false;
-            if (change != null) {
-                while (change.next())
-                    removed = removed | change.wasRemoved();
-            }
-
-            MultipleSelectionModel<PathObject> treeModel = table.getSelectionModel();
-            List<PathObject> selectedItems = treeModel.getSelectedItems();
-
-            // If we just have no selected items, and something was removed, then clear the selection
-            if (selectedItems.isEmpty() && removed) {
-                model.clearSelection();
-                return;
-            }
-
-            // If we just have one selected item, and also items were removed from the selection, then only select the one item we have
-//			if (selectedItems.size() == 1 && removed) {
-            if (selectedItems.size() == 1) {
-                model.setSelectedObject(selectedItems.get(0), false);
-                return;
-            }
-
-            // If we have multiple selected items, we need to ensure that everything in the tree matches with everything in the selection model
-            Set<PathObject> toSelect = new HashSet<>(treeModel.getSelectedItems());
-            PathObject primary = treeModel.getSelectedItem();
-            model.setSelectedObjects(toSelect, primary);
-        } finally {
-            synchronizingModelToTable = wasSynchronizingToTree;
-        }
-    }
-
-
-    private void synchronizeTableToSelectionModel(final PathObjectHierarchy hierarchy, final TableView<PathObject> table) {
-        if (synchronizingModelToTable || hierarchy == null)
-            return;
-        boolean ownsChanges = !synchronizingTableToModel;
-        try {
-            synchronizingTableToModel = true;
-
-            PathObjectSelectionModel model = hierarchy.getSelectionModel();
-            TableView.TableViewSelectionModel<PathObject> tableModel = table.getSelectionModel();
-            if (model == null || model.noSelection()) {
-                tableModel.clearSelection();
-                return;
-            }
-
-            if (model.singleSelection() || tableModel.getSelectionMode() == SelectionMode.SINGLE) {
-                int ind = table.getItems().indexOf(model.getSelectedObject());
-                if (ind >= 0) {
-                    if (tableModel.getSelectedItem() != model.getSelectedObject()) {
-                        tableModel.clearAndSelect(ind);
-                        table.scrollTo(ind);
-                    }
-                } else
-                    tableModel.clearSelection();
-                return;
-            }
-
-            // Loop through all possible selections, and select them if they should be selected (and not if they shouldn't)
-            // For performance reasons, we need to do this using arrays - otherwise way too many events may be fired
-            int n = table.getItems().size();
-            PathObject mainSelectedObject = model.getSelectedObject();
-            int mainObjectInd = -1;
-            int[] indsToSelect = new int[table.getItems().size()];
-            int count = 0;
-            for (int i = 0; i < n; i++) {
-                PathObject temp = table.getItems().get(i);
-                if (temp == mainSelectedObject)
-                    mainObjectInd = i;
-                if (model.isSelected(temp)) {
-                    indsToSelect[count] = i;
-                    count++;
-                }
-            }
-            tableModel.clearSelection();
-            if (count > 0) {
-                int maxCount = 1000;
-                if (count > maxCount) {
-                    logger.warn("Only the first {} items will be selected in the table (out of {} total) - otherwise QuPath can grind to a halt, sorry",
-                            maxCount, count);
-                    count = maxCount;
-                }
-                tableModel.selectIndices(indsToSelect[0], Arrays.copyOfRange(indsToSelect, 1, count));
-            }
-
-            // Ensure that the main object is focussed & its node expanded
-            if (mainObjectInd >= 0 && model.singleSelection()) {
-                tableModel.select(mainObjectInd);
-                table.scrollTo(mainObjectInd);
-            }
-
-        } finally {
-            if (ownsChanges)
-                synchronizingTableToModel = false;
-        }
-    }
 
 }

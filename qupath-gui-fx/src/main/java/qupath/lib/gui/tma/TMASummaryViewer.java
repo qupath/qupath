@@ -142,7 +142,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.charts.HistogramDisplay;
-import qupath.lib.gui.commands.SummaryMeasurementTable;
+import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;

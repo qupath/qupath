@@ -74,6 +74,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MeasurementExporter;

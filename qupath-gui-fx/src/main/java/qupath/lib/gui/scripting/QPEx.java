@@ -64,7 +64,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.TaskRunnerFX;
 import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.charts.Charts;
-import qupath.lib.gui.commands.SummaryMeasurementTable;
+import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
