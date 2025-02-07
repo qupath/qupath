@@ -52,11 +52,8 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PathObjectImageViewers;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -77,6 +74,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class SummaryMeasurementTable {
@@ -109,23 +107,25 @@ public class SummaryMeasurementTable {
     private HistogramDisplay histogramDisplay;
     private ScatterPlotDisplay scatterPlotDisplay;
 
-    private Class<? extends PathObject> type;
-
+//    private final Class<? extends PathObject> type;
+    private Predicate<PathObject> filter;
 
     // Column for displaying thumbnail images
     private TableColumn<PathObject, PathObject> colThumbnails;
     private final double thumbnailPadding = 10.0;
 
     public SummaryMeasurementTable(ImageData<BufferedImage> imageData,
-                                   Class<? extends PathObject> type) {
+                                   Predicate<PathObject> filter) {
         Objects.requireNonNull(imageData);
+        Objects.requireNonNull(filter);
         this.imageData = imageData;
         this.hierarchy = imageData.getHierarchy();
-        this.type = type;
+        this.filter = filter;
     }
 
+
     private void init() {
-        model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
+        updateObjects();
 
         findViewer();
         initTable();
@@ -147,6 +147,25 @@ public class SummaryMeasurementTable {
 
         // Add ability to remove entries from table
         table.setContextMenu(createContextMenu());
+    }
+
+    /**
+     * Extract the required objects from the hierarchy & update the model.
+     */
+    private void updateObjects() {
+        Collection<PathObject> list;
+        if (filter instanceof PathObjectFilter f) {
+            list = switch (f) {
+                case DETECTIONS_ALL -> hierarchy.getDetectionObjects();
+                case ANNOTATIONS -> hierarchy.getAnnotationObjects();
+                case CELLS -> hierarchy.getCellObjects();
+                case TILES -> hierarchy.getTileObjects();
+                default -> hierarchy.getAllObjects(true).stream().filter(filter).toList();
+            };
+        } else {
+            list = hierarchy.getAllObjects(true).stream().filter(filter).toList();
+        }
+        model.setImageData(imageData, list);
     }
 
     private void findViewer() {
@@ -253,7 +272,7 @@ public class SummaryMeasurementTable {
         GridPane.setHgrow(tfColumnFilter, Priority.ALWAYS);
         paneFilter.setHgap(5);
 
-        if (TMACoreObject.class.isAssignableFrom(type)) {
+        if (filter == PathObjectFilter.TMA_CORES) {
             CheckBox cbHideMissing = new CheckBox("Hide missing cores");
             paneFilter.add(cbHideMissing, 2, 0);
             cbHideMissing.selectedProperty().addListener((v, o, n) -> {
@@ -384,31 +403,31 @@ public class SummaryMeasurementTable {
                 includeColumns = ", " + includeColumnList.stream().map(s -> "'" + s + "'").collect(Collectors.joining(", "));
             }
             String path = !hasProject() ? fileOutput.toURI().getPath() : fileOutput.getParentFile().toURI().getPath();
-            if (type == TMACoreObject.class) {
+            if (filter == PathObjectFilter.TMA_CORES) {
                 step = new DefaultScriptableWorkflowStep("Save TMA measurements",
                         String.format("saveTMAMeasurements('%s'%s)", path, includeColumns)
                 );
             }
-            else if (type == PathAnnotationObject.class) {
+            else if (filter == PathObjectFilter.ANNOTATIONS) {
                 step = new DefaultScriptableWorkflowStep("Save annotation measurements",
                         String.format("saveAnnotationMeasurements('%s'%s)", path, includeColumns)
                 );
-            } else if (type == PathDetectionObject.class) {
+            } else if (filter == PathObjectFilter.DETECTIONS_ALL) {
                 step = new DefaultScriptableWorkflowStep("Save detection measurements",
                         String.format("saveDetectionMeasurements('%s'%s)", path, includeColumns)
                 );
-            } else if (type == PathCellObject.class) {
+            } else if (filter == PathObjectFilter.CELLS) {
                 step = new DefaultScriptableWorkflowStep("Save cell measurements",
                         String.format("saveCellMeasurements('%s'%s)", path, includeColumns)
                 );
-            } else if (type == PathTileObject.class) {
+            } else if (filter == PathObjectFilter.TILES) {
                 step = new DefaultScriptableWorkflowStep("Save tile measurements",
                         String.format("saveTileMeasurements('%s'%s)", path, includeColumns)
                 );
-            } else {
-                step = new DefaultScriptableWorkflowStep("Save measurements",
-                        String.format("saveMeasurements('%s', %s%s)", path, type == null ? null : type.getName(), includeColumns)
-                );
+            }  else {
+                // TODO: Is there any way to log for an arbitrary filter?
+                logger.debug("Can't log measurement export for filter {}", filter);
+                return;
             }
             imageData.getHistoryWorkflow().addStep(step);
         }
@@ -460,8 +479,9 @@ public class SummaryMeasurementTable {
         }
 
         // TODO: Consider if this can be optimized to avoid rebuilding the full table so often
-        if (event.isStructureChangeEvent())
-            model.setImageData(imageData, imageData.getHierarchy().getObjects(null, type));
+        if (event.isStructureChangeEvent()) {
+            updateObjects();
+        }
 
         table.refresh();
         histogramDisplay.refreshHistogram();

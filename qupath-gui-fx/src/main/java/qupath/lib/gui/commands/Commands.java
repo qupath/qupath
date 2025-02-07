@@ -91,6 +91,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
@@ -279,7 +280,7 @@ public class Commands {
 	 * @param imageData the image data for which to show measurements
 	 */
 	public static void showDetectionMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
-		new SummaryMeasurementTableCommand(qupath).showTable(imageData, PathDetectionObject.class);
+		new SummaryMeasurementTableCommand(qupath).showTable(imageData, PathObjectFilter.DETECTIONS_ALL);
 	}
 	
 	/**
@@ -288,7 +289,7 @@ public class Commands {
 	 * @param imageData the image data for which to show measurements
 	 */
 	public static void showCellMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
-		new SummaryMeasurementTableCommand(qupath).showTable(imageData, PathCellObject.class);
+		new SummaryMeasurementTableCommand(qupath).showTable(imageData, PathObjectFilter.CELLS);
 	}
 	
 	/**
@@ -297,7 +298,7 @@ public class Commands {
 	 * @param imageData the image data for which to show measurements
 	 */
 	public static void showAnnotationMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
-		new SummaryMeasurementTableCommand(qupath).showTable(imageData, PathAnnotationObject.class);
+		new SummaryMeasurementTableCommand(qupath).showTable(imageData, PathObjectFilter.ANNOTATIONS);
 	}
 	
 	/**
@@ -306,7 +307,7 @@ public class Commands {
 	 * @param imageData the image data for which to show measurements
 	 */
 	public static void showTMAMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
-		new SummaryMeasurementTableCommand(qupath).showTable(imageData, TMACoreObject.class);
+		new SummaryMeasurementTableCommand(qupath).showTable(imageData, PathObjectFilter.TMA_CORES);
 	}
 	
 	

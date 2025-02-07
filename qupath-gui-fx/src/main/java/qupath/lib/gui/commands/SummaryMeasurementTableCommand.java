@@ -24,6 +24,7 @@
 package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
+import java.util.function.Predicate;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
@@ -38,11 +39,8 @@ import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.projects.ProjectImageEntry;
 
 
@@ -69,39 +67,31 @@ public class SummaryMeasurementTableCommand {
 	/**
 	 * Show a measurement table for the specified image data.
 	 * @param imageData the image data
-	 * @param type the object type to show
+	 * @param filter the filter to select which objects to include
+	 * @see PathObjectFilter
 	 */
-	public void showTable(ImageData<BufferedImage> imageData, Class<? extends PathObject> type) {
+	public void showTable(ImageData<BufferedImage> imageData, Predicate<PathObject> filter) {
 		if (imageData == null) {
 			logger.debug("Show table called with no image");
 			GuiTools.showNoImageError("Show measurement table");
 			return;
 		}
-		logger.debug("Show table called for {} and object filter {}", imageData, PathObjectTools.getSuitableName(type, false));
-		showForType(imageData, type);
-	}
-
-	public static Stage showForDetections(ImageData<BufferedImage> imageData) {
-		return new SummaryMeasurementTableCommand(QuPathGUI.getInstance()).showForType(imageData, PathDetectionObject.class);
-	}
-
-	public static Stage showForAnnotations(ImageData<BufferedImage> imageData) {
-		return new SummaryMeasurementTableCommand(QuPathGUI.getInstance()).showForType(imageData, PathAnnotationObject.class);
-	}
-
-	public static Stage showForCells(ImageData<BufferedImage> imageData) {
-		return new SummaryMeasurementTableCommand(QuPathGUI.getInstance()).showForType(imageData, PathCellObject.class);
+		logger.debug("Show table called for {} and object filter {}", imageData, filter);
+		showForFilter(imageData, filter);
 	}
 
 
-	private Stage showForType(ImageData<BufferedImage> imageData, Class<? extends PathObject> type) {
-		var table = new SummaryMeasurementTable(imageData, type);
+	private Stage showForFilter(ImageData<BufferedImage> imageData, Predicate<PathObject> filter) {
+		var table = new SummaryMeasurementTable(imageData, filter);
 
 		Stage stage = new Stage();
 		FXUtils.addCloseWindowShortcuts(stage);
 		stage.initOwner(qupath.getStage());
 
-		var prefix = type == null ? "Measurements: " : PathObjectTools.getSuitableName(type, true);
+		String name = null;
+		if (filter instanceof PathObjectFilter f)
+			name = filterToName(f);
+		var prefix = name == null ? "Measurements: " : name;
 		var title = createImageNameBinding(prefix, imageData);
 		stage.titleProperty().bind(title);
 
@@ -110,6 +100,17 @@ public class SummaryMeasurementTableCommand {
 		stage.setScene(scene);
 		stage.show();
 		return stage;
+	}
+
+	private static String filterToName(PathObjectFilter filter) {
+		return switch (filter) {
+			case TILES -> "Tiles";
+			case CELLS -> "Cells";
+			case DETECTIONS_ALL -> "Detections";
+			case ANNOTATIONS -> "Annotations";
+			case TMA_CORES -> "TMA cores";
+			default -> null;
+		};
 	}
 
 	private StringBinding createImageNameBinding(String prefix, ImageData<BufferedImage> imageData) {

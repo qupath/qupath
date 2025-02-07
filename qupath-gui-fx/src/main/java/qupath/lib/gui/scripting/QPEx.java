@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
@@ -83,6 +85,7 @@ import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.io.UriUpdater;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathAnnotationObject;
@@ -793,5 +796,127 @@ public class QPEx extends QP {
 	}
 
 
+	/**
+	 * Show a measurement table for TMA core objects from the current image.
+	 * @since v0.6.0
+	 */
+	public static void showTmaCoreMeasurementTable() {
+		showTmaCoreMeasurementTable(getCurrentImageData());
+	}
+
+	/**
+	 * Show a measurement table for TMA core objects from the specified image.
+	 * @param imageData the image data
+	 * @since v0.6.0
+	 */
+	public static void showTmaCoreMeasurementTable(ImageData<BufferedImage> imageData) {
+		showMeasurementTable(imageData, PathObjectFilter.TMA_CORES);
+	}
+
+	/**
+	 * Show a measurement table for all detection objects from the current image.
+	 * @since v0.6.0
+	 */
+	public static void showDetectionMeasurementTable() {
+		showDetectionMeasurementTable(getCurrentImageData());
+	}
+
+	/**
+	 * Show a measurement table for all detection objects from the specified image.
+	 * @param imageData the image data
+	 * @since v0.6.0
+	 */
+	public static void showDetectionMeasurementTable(ImageData<BufferedImage> imageData) {
+		showMeasurementTable(imageData, PathObjectFilter.DETECTIONS_ALL);
+	}
+
+	/**
+	 * Show a measurement table for annotation objects from the current image.
+	 * @since v0.6.0
+	 */
+	public static void showAnnotationMeasurementTable() {
+		showAnnotationMeasurementTable(getCurrentImageData());
+	}
+
+	/**
+	 * Show a measurement table for annotation objects from the specified image.
+	 * @param imageData the image data
+	 * @since v0.6.0
+	 */
+	public static void showAnnotationMeasurementTable(ImageData<BufferedImage> imageData) {
+		showMeasurementTable(imageData, PathObjectFilter.ANNOTATIONS);
+	}
+
+	/**
+	 * Show a measurement table for tile objects from the current image.
+	 * @since v0.6.0
+	 */
+	public static void showCellMeasurementTable() {
+		showCellMeasurementTable(getCurrentImageData());
+	}
+
+	/**
+	 * Show a measurement table for cell objects from the specified image.
+	 * @param imageData the image data
+	 * @since v0.6.0
+	 */
+	public static void showCellMeasurementTable(ImageData<BufferedImage> imageData) {
+		showMeasurementTable(imageData, PathObjectFilter.CELLS);
+	}
+
+	/**
+	 * Show a measurement table for tile objects from the current image.
+	 * @since v0.6.0
+	 */
+	public static void showTileMeasurementTable() {
+		showTileMeasurementTable(getCurrentImageData());
+	}
+
+	/**
+	 * Show a measurement table for tile objects from the specified image.
+	 * @param imageData the image data
+	 * @since v0.6.0
+	 */
+	public static void showTileMeasurementTable(ImageData<BufferedImage> imageData) {
+		showMeasurementTable(imageData, PathObjectFilter.TILES);
+	}
+
+	/**
+	 * Show a measurement table for the current image.
+	 * <p>
+	 * This method is provided for flexibility, and accepts an arbitrary predicate to select objects precisely.
+	 * If the table should contain all objects of a specific type (e.g. detections, cells, annotations)
+	 * then one of the related 'show' methods should be used instead, because they are better optimized and
+	 * can log export scripts.
+	 *
+	 * @param filter the filter to use when selecting objects to display
+	 * @see PathObjectFilter
+	 * @since v0.6.0
+	 */
+	public static void showMeasurementTable(Predicate<PathObject> filter) {
+		showMeasurementTable(getCurrentImageData(), filter);
+	}
+
+	/**
+	 * Show a measurement table for the specified image.
+	 * <p>
+	 * This method is provided for flexibility, and accepts an arbitrary predicate to select objects precisely.
+	 * If the table should contain all objects of a specific type (e.g. detections, cells, annotations)
+	 * then one of the related 'show' methods should be used instead, because they are better optimized and
+	 * can log export scripts.
+	 * 
+	 * @param imageData the image data
+	 * @param filter the filter to use when selecting objects to display
+	 * @see PathObjectFilter
+	 * @since v0.6.0
+	 */
+	public static void showMeasurementTable(ImageData<BufferedImage> imageData, Predicate<PathObject> filter) {
+		if (imageData == null) {
+			logger.warn("Can't show measurement table - image data is null");
+			return;
+		}
+		var command = new SummaryMeasurementTableCommand(QuPathGUI.getInstance());
+		FXUtils.runOnApplicationThread(() -> command.showTable(imageData, filter));
+	}
 	
 }
