@@ -1722,10 +1722,13 @@ public class Commands {
 		boolean	deleteDetections = button == ButtonType.YES;
 		PathObjectTools.convertToPoints(hierarchy, pathObjects, preferNucleus, deleteDetections);
 		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Convert detections to points",
-						String.format("PathObjectTools.convertToPoints(getCurrentHierarchy(), getDetectionObjects(), %b, %b)", preferNucleus, deleteDetections)
-				)
+				new DefaultScriptableWorkflowStep("Convert detections to points", "convertDetectionsToPoints()")
 		);
+		if (deleteDetections) {
+			imageData.getHistoryWorkflow().addStep(
+					new DefaultScriptableWorkflowStep("Delete detections", "removeDetections()")
+			);
+		}
 	}
 
 
@@ -1761,24 +1764,15 @@ public class Commands {
 		}
 		
 		long startTime = System.currentTimeMillis();
-		for (var pathObject : pathObjects) {
-			ROI pathROI = pathObject.getROI();
-			if (pathROI instanceof PolygonROI) {
-				PolygonROI polygonROI = (PolygonROI)pathROI;
-				pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
-			} else {
-				pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
-			}
-			((PathAnnotationObject)pathObject).setROI(pathROI);
-		}
+		QP.simplifySpecifiedAnnotations(pathObjects, altitudeThreshold);
 		long endTime = System.currentTimeMillis();
 		logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
 		hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
 		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Simplify annotations",
-						String.format("simplifyAnnotations(getSelectedObjects(), %f)", altitudeThreshold)
-				)
-		);
+				new DefaultScriptableWorkflowStep("Simplify selected annotations",
+						"simplifySelectedAnnotations(" + altitudeThreshold + ")"
+						)
+				);
 	}
 	
 	/**
@@ -2137,7 +2131,4 @@ public class Commands {
 			Dialogs.showErrorNotification("Export error", e.getLocalizedMessage());
 		}
 	}
-
-	
-	
 }

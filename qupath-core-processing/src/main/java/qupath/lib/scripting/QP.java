@@ -135,8 +135,10 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.dnn.DnnModelParams;
 import qupath.opencv.dnn.DnnModels;
@@ -5186,5 +5188,83 @@ public class QP {
 				 + "or default a local variable with 'def {}'", name, name, name);
 		 throw new UnsupportedOperationException(name + " cannot be set!");
 	 }
-	
+
+	/**
+	 * Simplify all annotations to a given threshold
+	 * @see ShapeSimplifier#simplifyPolygon(PolygonROI, double)
+	 * @param altitudeThreshold altitude value for simplification
+	 */
+	public static void simplifyAllAnnotations(double altitudeThreshold) {
+		 simplifySpecifiedAnnotations(getAnnotationObjects(), altitudeThreshold);
+	}
+
+	/**
+	 * Simplify the currently selected annotations to a given threshold
+	 * @see ShapeSimplifier#simplifyPolygon(PolygonROI, double)
+	 * @param altitudeThreshold altitude value for simplification
+	 */
+	public static void simplifySelectedAnnotations(double altitudeThreshold) {
+		simplifySpecifiedAnnotations(
+				Objects.requireNonNull(getSelectedObjects())
+						.stream()
+						.toList(),
+				altitudeThreshold);
+	}
+
+	/**
+	 * Simplify a set of pathObjects to a given threshold.
+	 * @see ShapeSimplifier#simplifyPolygon(PolygonROI, double)
+	 * @param pathObjects the path objects
+	 * @param altitudeThreshold altitude value for simplification
+	 */
+	public static void simplifySpecifiedAnnotations(Collection<? extends PathObject> pathObjects, double altitudeThreshold) {
+		int skipped = 0;
+		for (var po: pathObjects) {
+			if (!(po instanceof PathAnnotationObject pao)) {
+				skipped++;
+				continue;
+			}
+			pao.setROI(ShapeSimplifier.simplifyROI(po.getROI(), altitudeThreshold));
+		}
+		if (skipped > 0) {
+			logger.warn("{} non-annotation objects supplied to simplifySpecifiedAnnotations (ignored)", skipped);
+		}
+
+	}
+
+	/**
+	 * Convert the selected objects to points, based on the object centroids.
+	 * Cells are converted based on the nucleus ROI.
+	 * <br>
+	 * The original objects are not removed; see {@link QP#removeObjects(Collection pathObjects)}.
+	 * @see PathObjectTools#convertToPoints(Collection, boolean) if you want to use the cell ROI instead.
+	 */
+	public static void convertSelectedObjectsToPoints() {
+		convertSpecifiedObjectsToPoints(getCurrentHierarchy(), getSelectedObjects());
+	}
+
+
+	/**
+	 * Convert all detection objects to points, based on the object centroids.
+	 * Cells are converted based on the nucleus ROI.
+	 * <br>
+	 * The original objects are not removed; see {@link QP#removeObjects(Collection pathObjects)}.
+	 * @see PathObjectTools#convertToPoints(Collection, boolean) if you want to use the cell ROI instead.
+	 */
+	public static void convertDetectionsToPoints() {
+		convertSpecifiedObjectsToPoints(getCurrentHierarchy(), getDetectionObjects());
+	}
+
+	/**
+	 * Convert the selected objects to points, based on the object centroids.
+	 * Cells are converted based on the nucleus ROI.
+	 * <br>
+	 * The original objects are not removed; see {@link QP#removeObjects(Collection pathObjects)}.
+	 * @see PathObjectTools#convertToPoints(Collection, boolean) if you want to use the cell ROI instead.
+	 * @param hierarchy the hierarchy that the objects are contained in
+	 * @param pathObjects the objects to be converted to points (these will be removed from the object hierarchy).
+	 */
+	public static void convertSpecifiedObjectsToPoints(PathObjectHierarchy hierarchy, Collection<? extends PathObject> pathObjects) {
+		PathObjectTools.convertToPoints(hierarchy, pathObjects, true, false);
+	}
 }

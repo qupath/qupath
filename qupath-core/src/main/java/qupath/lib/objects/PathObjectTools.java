@@ -67,8 +67,10 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -746,7 +748,7 @@ public class PathObjectTools {
 	 * 
 	 * @see #convertToPoints(Collection, boolean)
 	 */
-	public static void convertToPoints(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects, boolean preferNucleus, boolean deleteObjects) {
+	public static void convertToPoints(PathObjectHierarchy hierarchy, Collection<? extends PathObject> pathObjects, boolean preferNucleus, boolean deleteObjects) {
 		var points = convertToPoints(pathObjects, preferNucleus);
 		if (deleteObjects)
 			hierarchy.removeObjects(pathObjects, true);
@@ -767,7 +769,7 @@ public class PathObjectTools {
 	 * 
 	 * @see #convertToPoints(PathObjectHierarchy, Collection, boolean, boolean)
 	 */
-	public static Collection<PathObject> convertToPoints(Collection<PathObject> pathObjects, boolean preferNucleus) {
+	public static Collection<PathObject> convertToPoints(Collection<? extends PathObject> pathObjects, boolean preferNucleus) {
 		// Create Points lists for each class
 		Map<PathClass, Map<ImagePlane, List<Point2>>> pointsMap = new HashMap<>();
 		for (PathObject pathObject : pathObjects) {
@@ -2178,5 +2180,5 @@ public class PathObjectTools {
 	public static void setIntensityClassifications(final Collection<? extends PathObject> pathObjects, final String measurementName, final double... thresholds) {
 		pathObjects.stream().forEach(p -> setIntensityClassification(p, measurementName, thresholds));
 	}
-	
+
 }
