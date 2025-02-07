@@ -64,6 +64,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.TaskRunnerFX;
 import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.charts.Charts;
+import qupath.lib.gui.commands.SummaryMeasurementTable;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
@@ -623,11 +624,11 @@ public class QPEx extends QP {
 				excludeColumns = new LinkedHashSet<>(model.getAllNames());
 				excludeColumns.removeAll(Arrays.asList(includeColumns));
 			}
-			for (String row : SummaryMeasurementTableCommand.getTableModelStrings(model, PathPrefs.tableDelimiterProperty().get(), excludeColumns))
+			for (String row : SummaryMeasurementTable.getTableModelStrings(model, PathPrefs.tableDelimiterProperty().get(), excludeColumns))
 				writer.println(row);
 			writer.close();
 		} catch (IOException e) {
-			logger.error("Error writing file to " + fileOutput, e);
+            logger.error("Error writing file to {}", fileOutput, e);
 		}
 	}
 	

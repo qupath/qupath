@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.SummaryMeasurementTable;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
@@ -158,7 +159,7 @@ public class TMADataIO {
 		// Save the summary results
 		ObservableMeasurementTableData tableData = new ObservableMeasurementTableData();
 		tableData.setImageData(imageData, tmaGrid.getTMACoreList());
-		SummaryMeasurementTableCommand.saveTableModel(tableData, new File(dirData, "TMA results - " + ServerTools.getDisplayableImageName(server) + ".txt"), Collections.emptyList());
+		SummaryMeasurementTable.saveTableModel(tableData, new File(dirData, "TMA results - " + ServerTools.getDisplayableImageName(server) + ".txt"), Collections.emptyList());
 
 		boolean outputCoreImages = Double.isNaN(downsampleFactor) || downsampleFactor > 0;
 		if (outputCoreImages) {

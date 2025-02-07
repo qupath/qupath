@@ -441,7 +441,7 @@ public class MeasurementExportCommand implements Runnable {
 					ImageData<?> imageData = entry.readImageData();
 					ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 					model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
-					List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, separator, excludeColumns);
+					List<String> data = SummaryMeasurementTable.getTableModelStrings(model, separator, excludeColumns);
 					
 					// Get header
 					String[] header;

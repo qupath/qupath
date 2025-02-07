@@ -69,6 +69,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PathObjectImageViewers;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -586,15 +587,14 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		}
 
 		private Label getLabel(PathObject pathObject) {
-			var painter = PathObjectImageManagers.createImageViewPainter(
-					qupath.getViewer(), imageDataProperty.get().getServer(), true,
-					ForkJoinPool.commonPool());
+			var painter = PathObjectImageViewers.createImageViewer(
+					qupath.getViewer(), imageDataProperty.get().getServer(), true);
 
 			var imageView = painter.getNode();
 			imageView.fitWidthProperty().bind(imageSize);
 			imageView.fitHeightProperty().bind(imageSize);
 
-			painter.setPathObject(pathObject);
+			painter.setItem(pathObject);
 
 			var out = new Label("", imageView);
 			StackPane.setAlignment(out, Pos.TOP_LEFT);

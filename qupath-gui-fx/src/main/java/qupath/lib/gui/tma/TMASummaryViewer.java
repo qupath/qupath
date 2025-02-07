@@ -142,6 +142,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.charts.HistogramDisplay;
+import qupath.lib.gui.commands.SummaryMeasurementTable;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
@@ -317,7 +318,7 @@ public class TMASummaryViewer {
 		
 		MenuItem miSave = new MenuItem("Save As...");
 		miSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-		miSave.setOnAction(e -> SummaryMeasurementTableCommand.saveTableModel(model, null, Collections.emptyList()));
+		miSave.setOnAction(e -> SummaryMeasurementTable.saveTableModel(model, null, Collections.emptyList()));
 		
 		
 		MenuItem miImportFromImage = new MenuItem("Import from current image...");
@@ -347,7 +348,7 @@ public class TMASummaryViewer {
 		Menu menuEdit = new Menu("Edit");
 		MenuItem miCopy = new MenuItem("Copy table to clipboard");
 		miCopy.setOnAction(e -> {
-			SummaryMeasurementTableCommand.copyTableContentsToClipboard(model, Collections.emptyList());
+			SummaryMeasurementTable.copyTableContentsToClipboard(model, Collections.emptyList());
 		});
 		
 		
