@@ -2,14 +2,18 @@ package qupath.lib.gui.measure.ui;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -91,6 +95,13 @@ public class SummaryMeasurementTable {
     private final BooleanProperty showThumbnailsProperty = new SimpleBooleanProperty(PathPrefs.showMeasurementTableThumbnailsProperty().get());;
     private final BooleanProperty showObjectIdsProperty = new SimpleBooleanProperty(PathPrefs.showMeasurementTableObjectIDsProperty().get());
 
+    private final BooleanProperty showToolbarText = new SimpleBooleanProperty(false);
+
+    private final BooleanProperty bindToOverlayOptions = new SimpleBooleanProperty(false);
+    private final ObjectBinding<ContentDisplay> toolbarContentDisplayBinding = createToolbarContentDisplayBinding();
+
+    private ObjectBinding<Predicate<PathObject>> overlayVisibilityPredicate;
+
     private final ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 
     private BorderPane pane;
@@ -107,19 +118,19 @@ public class SummaryMeasurementTable {
     private HistogramDisplay histogramDisplay;
     private ScatterPlotDisplay scatterPlotDisplay;
 
-    private final Predicate<PathObject> filter;
+    private final Predicate<PathObject> primaryFilter;
 
     // Column for displaying thumbnail images
     private TableColumn<PathObject, PathObject> colThumbnails;
     private final double thumbnailPadding = 10.0;
 
     public SummaryMeasurementTable(ImageData<BufferedImage> imageData,
-                                   Predicate<PathObject> filter) {
+                                   Predicate<PathObject> primaryFilter) {
         Objects.requireNonNull(imageData);
-        Objects.requireNonNull(filter);
+        Objects.requireNonNull(primaryFilter);
         this.imageData = imageData;
         this.hierarchy = imageData.getHierarchy();
-        this.filter = filter;
+        this.primaryFilter = primaryFilter;
     }
 
 
@@ -127,12 +138,17 @@ public class SummaryMeasurementTable {
         updateObjects();
 
         findViewer();
+        initOverlayVisibilityBinding();
         initTable();
 
         synchronizer = new ViewerTableSynchronizer(viewer, hierarchy, table);
 
+        model.getItems().addListener(this::handleObjectsChanged);
+
         initSplitPane();
         initTabPane();
+
+        initActions();
 
         pane = new BorderPane();
         pane.setCenter(splitPane);
@@ -148,12 +164,34 @@ public class SummaryMeasurementTable {
         table.setContextMenu(createContextMenu());
     }
 
+    private void initOverlayVisibilityBinding() {
+        if (viewer == null)
+            return;
+        var options = viewer.getOverlayOptions();
+        overlayVisibilityPredicate = Bindings.createObjectBinding(() -> {
+            if (bindToOverlayOptions.get())
+                return (PathObject p) -> !options.isHidden(p);
+            else
+                return null;
+        }, options.selectedClassesProperty(), options.useExactSelectedClassesProperty(),
+                options.selectedClassVisibilityModeProperty(),
+                bindToOverlayOptions);
+
+        overlayVisibilityPredicate.addListener((v, o, n) -> model.setPredicate(n));
+        model.setPredicate(overlayVisibilityPredicate.get());
+    }
+
+    private void handleObjectsChanged(ListChangeListener.Change<? extends PathObject> c) {
+        histogramDisplay.refreshHistogram();
+        scatterPlotDisplay.refreshScatterPlot();
+    }
+
     /**
      * Extract the required objects from the hierarchy & update the model.
      */
     private void updateObjects() {
         Collection<PathObject> list;
-        if (filter instanceof PathObjectFilter f) {
+        if (primaryFilter instanceof PathObjectFilter f) {
             list = switch (f) {
                 case DETECTIONS_ALL -> hierarchy.getDetectionObjects();
                 case ANNOTATIONS -> hierarchy.getAnnotationObjects();
@@ -167,11 +205,14 @@ public class SummaryMeasurementTable {
         model.setImageData(imageData, list);
     }
 
-    private List<PathObject> getAllObjectsFiltered() {
-        return hierarchy.getAllObjects(true)
-                .stream()
-                .filter(filter)
-                .toList();
+    private Collection<PathObject> getAllObjectsFiltered() {
+        if (primaryFilter == null)
+            return hierarchy.getAllObjects(false);
+        else
+            return hierarchy.getAllObjects(true)
+                    .stream()
+                    .filter(primaryFilter)
+                    .toList();
     }
 
     private void findViewer() {
@@ -278,7 +319,7 @@ public class SummaryMeasurementTable {
         GridPane.setHgrow(tfColumnFilter, Priority.ALWAYS);
         paneFilter.setHgap(5);
 
-        if (filter == PathObjectFilter.TMA_CORES) {
+        if (primaryFilter == PathObjectFilter.TMA_CORES) {
             CheckBox cbHideMissing = new CheckBox("Hide missing cores");
             paneFilter.add(cbHideMissing, 2, 0);
             cbHideMissing.selectedProperty().addListener((v, o, n) -> {
@@ -296,8 +337,26 @@ public class SummaryMeasurementTable {
     private Pane createTablePane() {
         BorderPane paneTable = new BorderPane();
         paneTable.setCenter(table);
-        paneTable.setBottom(createColumnFilterPane());
+
+        var paneBottom = new BorderPane(createColumnFilterPane());
+        paneBottom.setRight(createObjectCountPane());
+        paneTable.setBottom(paneBottom);
         return paneTable;
+    }
+
+    private Pane createObjectCountPane() {
+        var label = new Label();
+        label.textProperty().bind(Bindings.createStringBinding(this::getObjectCountText, table.getItems()));
+        label.setAlignment(Pos.CENTER_RIGHT);
+//        label.setPrefWidth(120);
+        label.setMaxWidth(Double.MAX_VALUE);
+        label.setPadding(new Insets(0, 5, 0, 5));
+        return new BorderPane(label);
+    }
+
+    private String getObjectCountText() {
+        int n = table.getItems().size();
+        return n == 1 ? "1 object" : n + " objects";
     }
 
     private void initSplitPane() {
@@ -326,6 +385,7 @@ public class SummaryMeasurementTable {
     private Action actionSave;
     private Action actionThumbnails;
     private Action actionId;
+    private Action actionBindVisibility;
 
     private Action createShowPlotsAction() {
         var action = new Action("Show plots");
@@ -341,19 +401,22 @@ public class SummaryMeasurementTable {
     }
 
     private Action createCopyAction() {
-        var action = new Action("Copy to clipboard", e -> handleCopyButton());
+        var action = new Action("Copy", e -> handleCopyButton());
+        action.setLongText("Copy the table contents to the system clipboard");
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.CLIPBOARD));
         return action;
     }
 
     private Action createSaveAction() {
         var action = new Action("Save", e -> handleSaveButton());
+        action.setLongText("Save the table contents");
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.SAVE));
         return action;
     }
 
     private Action createShowThumbnailsAction() {
-        var action = new Action("Show thumbnails");
+        var action = new Action("Show images");
+        action.setLongText("Show or hide object images (usually the first column in the table)");
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.IMAGE));
         action.selectedProperty().bindBidirectional(showThumbnailsProperty);
         return action;
@@ -361,24 +424,48 @@ public class SummaryMeasurementTable {
 
     private Action createShowIdAction() {
         var action = new Action("Show object IDs");
+        action.setLongText("Show or hide object IDs (usually the last column in the table)");
         action.setGraphic(IconFactory.createFontAwesome('\uf2c2'));
         action.selectedProperty().bindBidirectional(showObjectIdsProperty);
         return action;
     }
 
-    private ToolBar createToolbar() {
+    private Action createBindVisibilityAction() {
+        var action = new Action("Apply class visibility");
+        action.setLongText("Use class visibility settings from the viewer to filter objects for display in the table");
+        action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.EYE));
+        action.selectedProperty().bindBidirectional(bindToOverlayOptions);
+        return action;
+    }
+
+    private void initActions() {
         actionShowPlots = createShowPlotsAction();
         actionCopy = createCopyAction();
         actionSave = createSaveAction();
         actionThumbnails = createShowThumbnailsAction();
         actionId = createShowIdAction();
 
-        var btnPlots = ActionTools.createToggleButtonWithGraphicOnly(actionShowPlots);
-        var btnCopy = ActionTools.createButtonWithGraphicOnly(actionCopy);
-        var btnSave = ActionTools.createButtonWithGraphicOnly(actionSave);
+        if (overlayVisibilityPredicate != null) {
+            actionBindVisibility = createBindVisibilityAction();
+        }
+    }
 
-        var btnThumbnails = ActionTools.createToggleButtonWithGraphicOnly(actionThumbnails);
-        var btnIds = ActionTools.createToggleButtonWithGraphicOnly(actionId);
+    private ToolBar createToolbar() {
+
+        var btnPlots = ActionTools.createToggleButton(actionShowPlots);
+        btnPlots.contentDisplayProperty().bind(toolbarContentDisplayBinding);
+
+        var btnCopy = ActionTools.createButton(actionCopy);
+        btnCopy.contentDisplayProperty().bind(toolbarContentDisplayBinding);
+
+        var btnSave = ActionTools.createButton(actionSave);
+        btnSave.contentDisplayProperty().bind(toolbarContentDisplayBinding);
+
+        var btnThumbnails = ActionTools.createToggleButton(actionThumbnails);
+        btnThumbnails.contentDisplayProperty().bind(toolbarContentDisplayBinding);
+
+        var btnIds = ActionTools.createToggleButton(actionId);
+        btnIds.contentDisplayProperty().bind(toolbarContentDisplayBinding);
 
         var toolbar = new ToolBar();
         toolbar.getItems().setAll(
@@ -392,9 +479,28 @@ public class SummaryMeasurementTable {
                 btnIds
         );
 
+        // Add visibility binding, if available
+        if (actionBindVisibility != null) {
+            var btnVisibility = ActionTools.createToggleButton(actionBindVisibility);
+            btnVisibility.contentDisplayProperty().bind(toolbarContentDisplayBinding);
+            toolbar.getItems().addAll(
+                    new Separator(),
+                    btnVisibility
+            );
+        }
+
         return toolbar;
     }
 
+
+    private ObjectBinding<ContentDisplay> createToolbarContentDisplayBinding() {
+        return Bindings.createObjectBinding(() -> {
+            if (showToolbarText.get())
+                return ContentDisplay.CENTER;
+            else
+                return ContentDisplay.GRAPHIC_ONLY;
+        }, showToolbarText);
+    }
 
 
     /**
@@ -439,30 +545,30 @@ public class SummaryMeasurementTable {
                 includeColumns = ", " + includeColumnList.stream().map(s -> "'" + s + "'").collect(Collectors.joining(", "));
             }
             String path = !hasProject() ? fileOutput.toURI().getPath() : fileOutput.getParentFile().toURI().getPath();
-            if (filter == PathObjectFilter.TMA_CORES) {
+            if (primaryFilter == PathObjectFilter.TMA_CORES) {
                 step = new DefaultScriptableWorkflowStep("Save TMA measurements",
                         String.format("saveTMAMeasurements('%s'%s)", path, includeColumns)
                 );
             }
-            else if (filter == PathObjectFilter.ANNOTATIONS) {
+            else if (primaryFilter == PathObjectFilter.ANNOTATIONS) {
                 step = new DefaultScriptableWorkflowStep("Save annotation measurements",
                         String.format("saveAnnotationMeasurements('%s'%s)", path, includeColumns)
                 );
-            } else if (filter == PathObjectFilter.DETECTIONS_ALL) {
+            } else if (primaryFilter == PathObjectFilter.DETECTIONS_ALL) {
                 step = new DefaultScriptableWorkflowStep("Save detection measurements",
                         String.format("saveDetectionMeasurements('%s'%s)", path, includeColumns)
                 );
-            } else if (filter == PathObjectFilter.CELLS) {
+            } else if (primaryFilter == PathObjectFilter.CELLS) {
                 step = new DefaultScriptableWorkflowStep("Save cell measurements",
                         String.format("saveCellMeasurements('%s'%s)", path, includeColumns)
                 );
-            } else if (filter == PathObjectFilter.TILES) {
+            } else if (primaryFilter == PathObjectFilter.TILES) {
                 step = new DefaultScriptableWorkflowStep("Save tile measurements",
                         String.format("saveTileMeasurements('%s'%s)", path, includeColumns)
                 );
             }  else {
                 // TODO: Is there any way to log for an arbitrary filter?
-                logger.debug("Can't log measurement export for filter {}", filter);
+                logger.debug("Can't log measurement export for filter {}", primaryFilter);
                 return;
             }
             imageData.getHistoryWorkflow().addStep(step);
@@ -517,11 +623,11 @@ public class SummaryMeasurementTable {
         // TODO: Consider if this can be optimized to avoid rebuilding the full table so often
         if (event.isStructureChangeEvent()) {
             updateObjects();
+        } else {
+            table.refresh();
+            histogramDisplay.refreshHistogram();
+            scatterPlotDisplay.refreshScatterPlot();
         }
-
-        table.refresh();
-        histogramDisplay.refreshHistogram();
-        scatterPlotDisplay.refreshScatterPlot();
     }
 
     private TableRow<PathObject> createTableRow(TableView<PathObject> table) {
