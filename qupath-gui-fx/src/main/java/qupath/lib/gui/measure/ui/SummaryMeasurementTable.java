@@ -44,6 +44,7 @@ import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.controls.PredicateTextField;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
@@ -453,6 +454,7 @@ public class SummaryMeasurementTable {
         var action = new Action("Copy", e -> handleCopyButton());
         action.setLongText("Copy the table contents to the system clipboard");
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.CLIPBOARD));
+        action.disabledProperty().bind(Bindings.isEmpty(table.getSelectionModel().getSelectedItems()));
         return action;
     }
 
@@ -587,9 +589,25 @@ public class SummaryMeasurementTable {
      * Handle copy request.
      */
     private void handleCopyButton() {
-        // TODO: Deal with repetition immediately below...
         Set<String> excludeColumns = getExcludedColumns();
-        copyTableContentsToClipboard(model, excludeColumns);
+        var items = table.getSelectionModel().getSelectedItems();
+        if (items.isEmpty())
+            items = table.getItems();
+
+        var strings = model.getRowStrings(new ArrayList<>(items),
+                PathPrefs.tableDelimiterProperty().get(),
+                -1,
+                c -> !excludeColumns.contains(c));
+
+        try {
+            var content = new ClipboardContent();
+            content.putString(String.join(System.lineSeparator(), strings));
+            Clipboard.getSystemClipboard().setContent(content);
+        } catch (OutOfMemoryError e) {
+            logger.error("Error attempting to copy measurements: {}", e.getMessage(), e);
+            Dialogs.showErrorMessage("Copy measurements",
+                    "Measurement table is too long to copy - please select fewer items");
+        }
     }
 
     private Set<String> getExcludedColumns() {
