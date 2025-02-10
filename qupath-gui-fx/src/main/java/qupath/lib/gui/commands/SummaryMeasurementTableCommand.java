@@ -91,8 +91,8 @@ public class SummaryMeasurementTableCommand {
 		String name = null;
 		if (filter instanceof PathObjectFilter f)
 			name = filterToName(f);
-		var prefix = name == null ? "Measurements: " : name;
-		var title = createImageNameBinding(prefix, imageData);
+		var prefix = name == null || name.isBlank() ? "Measurements" : name;
+		var title = createImageNameBinding(prefix + ": ", imageData);
 		stage.titleProperty().bind(title);
 
 		var pane = table.getPane();

@@ -180,7 +180,11 @@ public class IconFactory {
 		}
 		
 		static IntFunction<Node> fontAwesome(FontAwesome.Glyph glyph) {
-			return new FontIconSupplier(fontAwesome, glyph.getChar());
+			return fontAwesome(glyph.getChar());
+		}
+
+		static IntFunction<Node> fontAwesome(char c) {
+			return new FontIconSupplier(fontAwesome, c);
 		}
 		
 		static IntFunction<Node> icoMoon(char c) {
@@ -980,6 +984,25 @@ public class IconFactory {
 	 */
 	public static Node createNode(FontAwesome.Glyph glyph) {
 		return new DuplicatableNode(() -> IconSuppliers.fontAwesome(glyph).apply(QuPathGUI.TOOLBAR_ICON_SIZE));
+	}
+
+	/**
+	 * Create a node from a FontAwesome Glyph with the default size for toolbars.
+	 * @param character the character for the Glyph
+	 * @return a duplicatable node
+	 */
+	public static Node createFontAwesome(char character) {
+		return new DuplicatableNode(() -> IconSuppliers.fontAwesome(character).apply(QuPathGUI.TOOLBAR_ICON_SIZE));
+	}
+
+	/**
+	 * Create a node from a FontAwesome Glyph with the default size for toolbars.
+	 * @param character the character for the Glyph
+	 * @param size the glyph size
+	 * @return a duplicatable node
+	 */
+	public static Node createFontAwesome(char character, int size) {
+		return new DuplicatableNode(() -> IconSuppliers.fontAwesome(character).apply(size));
 	}
 
 

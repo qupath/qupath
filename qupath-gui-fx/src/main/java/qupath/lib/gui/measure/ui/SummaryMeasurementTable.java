@@ -8,24 +8,21 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
-import javafx.geometry.Side;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBase;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.Separator;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
-import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToolBar;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
@@ -37,18 +34,21 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Window;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.controls.PredicateTextField;
 import qupath.fx.dialogs.FileChoosers;
-import qupath.fx.utils.GridPaneUtils;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.charts.HistogramDisplay;
 import qupath.lib.gui.charts.ScatterPlotDisplay;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PathObjectImageViewers;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -107,8 +107,7 @@ public class SummaryMeasurementTable {
     private HistogramDisplay histogramDisplay;
     private ScatterPlotDisplay scatterPlotDisplay;
 
-//    private final Class<? extends PathObject> type;
-    private Predicate<PathObject> filter;
+    private final Predicate<PathObject> filter;
 
     // Column for displaying thumbnail images
     private TableColumn<PathObject, PathObject> colThumbnails;
@@ -160,12 +159,19 @@ public class SummaryMeasurementTable {
                 case ANNOTATIONS -> hierarchy.getAnnotationObjects();
                 case CELLS -> hierarchy.getCellObjects();
                 case TILES -> hierarchy.getTileObjects();
-                default -> hierarchy.getAllObjects(true).stream().filter(filter).toList();
+                default -> getAllObjectsFiltered();
             };
         } else {
-            list = hierarchy.getAllObjects(true).stream().filter(filter).toList();
+            list = getAllObjectsFiltered();
         }
         model.setImageData(imageData, list);
+    }
+
+    private List<PathObject> getAllObjectsFiltered() {
+        return hierarchy.getAllObjects(true)
+                .stream()
+                .filter(filter)
+                .toList();
     }
 
     private void findViewer() {
@@ -310,53 +316,83 @@ public class SummaryMeasurementTable {
         Tab tabScatter = new Tab("Scatter plot", scatterPlotDisplay.getPane());
         tabScatter.setClosable(false);
         plotTabs.getTabs().add(tabScatter);
+
+        FXUtils.makeTabUndockable(tabHistogram);
+        FXUtils.makeTabUndockable(tabScatter);
     }
 
-    private Pane createToolbar() {
+    private Action actionShowPlots;
+    private Action actionCopy;
+    private Action actionSave;
+    private Action actionThumbnails;
+    private Action actionId;
 
-        // Add buttons at the bottom
-        List<ButtonBase> buttons = new ArrayList<>();
-
-        ToggleButton btnPlots = new ToggleButton("Show plots");
-        btnPlots.selectedProperty().addListener((v, o, n) -> {
+    private Action createShowPlotsAction() {
+        var action = new Action("Show plots");
+        action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.BAR_CHART));
+        action.selectedProperty().addListener((v, o, n) -> {
             if (n) {
                 splitPane.getItems().add(plotTabs);
             } else {
                 splitPane.getItems().remove(plotTabs);
             }
         });
-        buttons.add(btnPlots);
+        return action;
+    }
 
-        Button btnCopy = new Button("Copy to clipboard");
-        btnCopy.setOnAction(e -> handleCopyButton());
-        buttons.add(btnCopy);
+    private Action createCopyAction() {
+        var action = new Action("Copy to clipboard", e -> handleCopyButton());
+        action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.CLIPBOARD));
+        return action;
+    }
 
-        Button btnSave = new Button("Save");
-        btnSave.setOnAction(e -> handleSaveButton());
-        buttons.add(btnSave);
+    private Action createSaveAction() {
+        var action = new Action("Save", e -> handleSaveButton());
+        action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.SAVE));
+        return action;
+    }
 
-        // Add some extra options
-        var popup = new ContextMenu();
-        var miShowImages = new CheckMenuItem("Show thumbnails");
-        miShowImages.selectedProperty().bindBidirectional(showThumbnailsProperty);
-        popup.getItems().setAll(
-                miShowImages
+    private Action createShowThumbnailsAction() {
+        var action = new Action("Show thumbnails");
+        action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.IMAGE));
+        action.selectedProperty().bindBidirectional(showThumbnailsProperty);
+        return action;
+    }
+
+    private Action createShowIdAction() {
+        var action = new Action("Show object IDs");
+        action.setGraphic(IconFactory.createFontAwesome('\uf2c2'));
+        action.selectedProperty().bindBidirectional(showObjectIdsProperty);
+        return action;
+    }
+
+    private ToolBar createToolbar() {
+        actionShowPlots = createShowPlotsAction();
+        actionCopy = createCopyAction();
+        actionSave = createSaveAction();
+        actionThumbnails = createShowThumbnailsAction();
+        actionId = createShowIdAction();
+
+        var btnPlots = ActionTools.createToggleButtonWithGraphicOnly(actionShowPlots);
+        var btnCopy = ActionTools.createButtonWithGraphicOnly(actionCopy);
+        var btnSave = ActionTools.createButtonWithGraphicOnly(actionSave);
+
+        var btnThumbnails = ActionTools.createToggleButtonWithGraphicOnly(actionThumbnails);
+        var btnIds = ActionTools.createToggleButtonWithGraphicOnly(actionId);
+
+        var toolbar = new ToolBar();
+        toolbar.getItems().setAll(
+                btnPlots,
+                new Separator(),
+                btnSave,
+                new Separator(),
+                btnCopy,
+                new Separator(),
+                btnThumbnails,
+                btnIds
         );
 
-        var miShowObjectIds = new CheckMenuItem("Show Object IDs");
-        miShowObjectIds.selectedProperty().bindBidirectional(showObjectIdsProperty);
-        popup.getItems().setAll(
-                miShowImages,
-                miShowObjectIds
-        );
-
-        var btnExtra = GuiTools.createMoreButton(popup, Side.RIGHT);
-
-        var paneButtons = GridPaneUtils.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
-        var paneButtons2 = new BorderPane(paneButtons);
-        paneButtons2.setRight(btnExtra);
-
-        return paneButtons2;
+        return toolbar;
     }
 
 
