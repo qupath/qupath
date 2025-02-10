@@ -1,16 +1,13 @@
 package qupath.lib.gui.charts;
 
 import javafx.geometry.Insets;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
 import org.controlsfx.control.SearchableComboBox;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.measure.PathTableData;

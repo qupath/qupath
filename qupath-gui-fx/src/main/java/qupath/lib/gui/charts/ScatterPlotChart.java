@@ -6,13 +6,15 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.ScatterChart;
+import javafx.scene.effect.BlurType;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.effect.Effect;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ColorTools;
@@ -22,6 +24,8 @@ import qupath.lib.objects.PathObject;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -30,14 +34,13 @@ import java.util.Random;
 public class ScatterPlotChart extends ScatterChart<Number, Number> {
 
     private static final Logger logger = LoggerFactory.getLogger(ScatterPlotChart.class);
+
     private final IntegerProperty rngSeed = new SimpleIntegerProperty(42);
     private final DoubleProperty pointOpacity = new SimpleDoubleProperty(1);
     private final DoubleProperty pointSize = new SimpleDoubleProperty(5);
     private final IntegerProperty maxPoints = new SimpleIntegerProperty(10000);
     private final BooleanProperty drawGrid = new SimpleBooleanProperty(true);
     private final BooleanProperty drawAxes = new SimpleBooleanProperty(true);
-    private final StringProperty xLabel = new SimpleStringProperty();
-    private final StringProperty yLabel = new SimpleStringProperty();
     private final ObservableList<Data<Number, Number>> data = FXCollections.observableArrayList(); // the entire possible dataset
     private final ObservableList<Series<Number, Number>> series = FXCollections.observableArrayList(); // the data that are plotted
     private final QuPathViewer viewer;
@@ -48,6 +51,7 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
      */
     public ScatterPlotChart(QuPathViewer viewer) {
         super(new NumberAxis(), new NumberAxis());
+
         this.viewer = viewer;
         pointOpacity.addListener((obs, oldV, newV) -> updateChart());
         pointSize.addListener((obs, oldV, newV) -> updateChart());
@@ -64,12 +68,6 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
                 maxPoints.set(0);
             }
             resampleAndUpdate();
-        });
-        xLabel.addListener((obs, oldV, newV) -> {
-            getXAxis().setLabel(newV);
-        });
-        yLabel.addListener((obs, oldV, newV) -> {
-            getYAxis().setLabel(newV);
         });
         rngSeed.addListener((obs, oldV, newV) -> resampleAndUpdate());
         setHorizontalGridLinesVisible(drawGrid.get());
@@ -139,7 +137,7 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
      * @param value The axis label
      */
     public void xLabel(String value) {
-        this.xLabel.set(value);
+        getXAxis().setLabel(value);
     }
 
     /**
@@ -147,7 +145,7 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
      * @param value The axis label
      */
     public void yLabel(String value) {
-        this.yLabel.set(value);
+        getYAxis().setLabel(value);
     }
 
     private void resampleAndUpdate() {
@@ -164,8 +162,11 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
     void setDataFromMeasurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement) {
         xLabel(xMeasurement);
         yLabel(yMeasurement);
-        this.data.clear();
-        this.data.addAll(Charts.ScatterChartBuilder.createSeriesFromMeasurements(pathObjects, xMeasurement, yMeasurement).getData());
+        if (xMeasurement == null || yMeasurement == null) {
+            this.data.clear();
+        } else {
+            this.data.setAll(Charts.ScatterChartBuilder.createSeriesFromMeasurements(pathObjects, xMeasurement, yMeasurement).getData());
+        }
         resampleAndUpdate();
     }
 
@@ -175,28 +176,36 @@ public class ScatterPlotChart extends ScatterChart<Number, Number> {
         setLegendVisible(false);
 
         // If we have a hierarchy, and PathObjects, make the plot live
+        // Store styles in a map because we expect to reuse the same ones a lot (because we have the same colors)
+        Map<Integer, String> styleMap = new HashMap<>();
+        // Create a single reusable shadow effect
+        Effect shadow = new DropShadow(
+                BlurType.THREE_PASS_BOX,
+                new Color(0, 0, 0, 0.5),
+                4, 0, 1, 1);
         for (var s: series) {
             for (var d : s.getData()) {
                 var extra = d.getExtraValue();
                 var node = d.getNode();
                 if (extra instanceof PathObject pathObject && node != null) {
                     Integer color = ColorToolsFX.getDisplayedColorARGB(pathObject);
-                    String style = String.format(
+                    String style = styleMap.computeIfAbsent(color, argb -> String.format(
                             "-fx-background-color: rgb(%d, %d, %d, %.2f); " +
                                     "-fx-background-radius: " + pointSize.intValue() + "px ; " +
                                     "-fx-padding: " + pointSize.intValue() + "px ; "
                             ,
-                            ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), pointOpacity.get()
-                    );
+                            ColorTools.red(argb), ColorTools.green(argb), ColorTools.blue(argb), pointOpacity.get()
+                    ));
                     node.setStyle(style);
                     node.addEventHandler(MouseEvent.ANY, e -> {
                         if (e.getEventType() == MouseEvent.MOUSE_CLICKED)
-                            Charts.ScatterChartBuilder.tryToSelect((PathObject)extra, viewer, viewer.getImageData(), e.isShiftDown(), e.getClickCount() == 2);
+                            Charts.ScatterChartBuilder.tryToSelect(
+                                    pathObject, viewer, viewer.getImageData(),
+                                    e.isShiftDown(), e.getClickCount() == 2);
                         else if (e.getEventType() == MouseEvent.MOUSE_ENTERED)
-                            node.setStyle(style + ";"
-                                    + "-fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 4, 0, 1, 1);");
+                            node.setEffect(shadow);
                         else if (e.getEventType() == MouseEvent.MOUSE_EXITED)
-                            node.setStyle(style);
+                            node.setEffect(null);
                     });
                 }
             }
