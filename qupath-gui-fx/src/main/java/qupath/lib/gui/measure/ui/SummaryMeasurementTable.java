@@ -17,6 +17,7 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
@@ -52,7 +53,9 @@ import qupath.lib.gui.charts.ScatterPlotDisplay;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PathObjectImageViewers;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -85,19 +88,35 @@ public class SummaryMeasurementTable {
 
     private static final Logger logger = LoggerFactory.getLogger(SummaryMeasurementTable.class);
 
+    private static final String PROPERTY_KEY = "summary.measurement.table.";
+
+    private static final BooleanProperty PROP_USE_REGEX = PathPrefs.createPersistentPreference(
+            PROPERTY_KEY + "useRegex", false);
+
+    private static final BooleanProperty PROP_SHOW_TOOLBAR = PathPrefs.createPersistentPreference(
+            PROPERTY_KEY + "showToolbar", true);
+
+    private static final BooleanProperty PROP_SHOW_TOOLBAR_TEXT = PathPrefs.createPersistentPreference(
+            PROPERTY_KEY + "showToolbarText", true);
+
+    private final BooleanProperty PROP_BIND_VISIBILITY = PathPrefs.createPersistentPreference(
+            PROPERTY_KEY + "bindVisibility", false);
+
+
     private final KeyCombination centerCode = new KeyCodeCombination(KeyCode.SPACE);
 
     private final ImageData<BufferedImage> imageData;
     private final PathObjectHierarchy hierarchy;
 
-    private static final BooleanProperty useRegexColumnFilter = PathPrefs.createPersistentPreference("summaryMeasurementTableUseRegexColumnFilter", false);
+    private final BooleanProperty useRegexColumnFilter = createPartiallyBoundProperty(PROP_USE_REGEX);
 
-    private final BooleanProperty showThumbnailsProperty = new SimpleBooleanProperty(PathPrefs.showMeasurementTableThumbnailsProperty().get());;
-    private final BooleanProperty showObjectIdsProperty = new SimpleBooleanProperty(PathPrefs.showMeasurementTableObjectIDsProperty().get());
+    private final BooleanProperty showThumbnailsProperty = createPartiallyBoundProperty(PathPrefs.showMeasurementTableThumbnailsProperty());
+    private final BooleanProperty showObjectIdsProperty = createPartiallyBoundProperty(PathPrefs.showMeasurementTableObjectIDsProperty());
 
-    private final BooleanProperty showToolbarText = new SimpleBooleanProperty(false);
+    private final BooleanProperty showToolbar = createPartiallyBoundProperty(PROP_SHOW_TOOLBAR);
+    private final BooleanProperty showToolbarText = createPartiallyBoundProperty(PROP_SHOW_TOOLBAR_TEXT);
 
-    private final BooleanProperty bindToOverlayOptions = new SimpleBooleanProperty(false);
+    private final BooleanProperty bindToOverlayOptions = createPartiallyBoundProperty(PROP_BIND_VISIBILITY);
     private final ObjectBinding<ContentDisplay> toolbarContentDisplayBinding = createToolbarContentDisplayBinding();
 
     private ObjectBinding<Predicate<PathObject>> overlayVisibilityPredicate;
@@ -133,6 +152,24 @@ public class SummaryMeasurementTable {
         this.primaryFilter = primaryFilter;
     }
 
+    /**
+     * Create a new boolean property that can set the value of an existing property, but is not updated when the existing
+     * property changes.
+     * <p>
+     * This is useful when we want to update a persistent property based on the last user-specified value, but we don't
+     * necessarily want to update other tables using related properties (i.e. we might hide a toolbar in one table,
+     * but not for previously-opened tables that are still showing).
+     *
+     * @param prop the existing property
+     * @return the new property; it will take its initial value from the existing property
+     */
+    private static BooleanProperty createPartiallyBoundProperty(BooleanProperty prop) {
+        var prop2 = new SimpleBooleanProperty(prop.getValue());
+        prop.bind(prop2);
+        return prop2;
+    }
+
+
 
     private void init() {
         updateObjects();
@@ -151,8 +188,15 @@ public class SummaryMeasurementTable {
         initActions();
 
         pane = new BorderPane();
-        pane.setCenter(splitPane);
-        pane.setTop(createToolbar());
+        var centerPane = new BorderPane(splitPane);
+        var toolbar = createToolbar();
+        centerPane.setTop(toolbar);
+        centerPane.topProperty().bind(Bindings.createObjectBinding(
+                () -> showToolbar.get() ? toolbar : null
+        , showToolbar));
+
+        pane.setCenter(centerPane);
+        pane.setTop(createMenuBar());
 
         // Only listen with the pane is attached to a scene that is showing
         pane.sceneProperty()
@@ -385,7 +429,12 @@ public class SummaryMeasurementTable {
     private Action actionSave;
     private Action actionThumbnails;
     private Action actionId;
+    private Action actionShowToolbar;
+    private Action actionToolbarText;
     private Action actionBindVisibility;
+
+    private Action actionSelectAll;
+    private Action actionSelectNone;
 
     private Action createShowPlotsAction() {
         var action = new Action("Show plots");
@@ -416,7 +465,7 @@ public class SummaryMeasurementTable {
 
     private Action createShowThumbnailsAction() {
         var action = new Action("Show images");
-        action.setLongText("Show or hide object images (usually the first column in the table)");
+        action.setLongText("Show or hide object thumbnail image column (usually the first column in the table)");
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.IMAGE));
         action.selectedProperty().bindBidirectional(showThumbnailsProperty);
         return action;
@@ -424,7 +473,7 @@ public class SummaryMeasurementTable {
 
     private Action createShowIdAction() {
         var action = new Action("Show object IDs");
-        action.setLongText("Show or hide object IDs (usually the last column in the table)");
+        action.setLongText("Show or hide object ID column (usually the last column in the table)");
         action.setGraphic(IconFactory.createFontAwesome('\uf2c2'));
         action.selectedProperty().bindBidirectional(showObjectIdsProperty);
         return action;
@@ -438,10 +487,41 @@ public class SummaryMeasurementTable {
         return action;
     }
 
+    private Action createToolbarShowAction() {
+        var action = new Action("Show toolbar");
+        action.setLongText("Show or hide the toolbar");
+        action.selectedProperty().bindBidirectional(showToolbar);
+        return action;
+    }
+
+    private Action createToolbarTextAction() {
+        var action = new Action("Show toolbar button text");
+        action.setLongText("Show the full text for toolbar buttons (required more space)");
+        action.selectedProperty().bindBidirectional(showToolbarText);
+        return action;
+    }
+
+    private Action createSelectAllAction() {
+        var action = new Action("Select all", e -> table.getSelectionModel().selectAll());
+        action.setLongText("Select all rows in the title");
+        return action;
+    }
+
+    private Action createSelectNoneAction() {
+        var action = new Action("Select none", e -> table.getSelectionModel().clearSelection());
+        action.setLongText("Deselect all rows in the table");
+        return action;
+    }
+
     private void initActions() {
         actionShowPlots = createShowPlotsAction();
         actionCopy = createCopyAction();
         actionSave = createSaveAction();
+        actionShowToolbar = createToolbarShowAction();
+        actionToolbarText = createToolbarTextAction();
+
+        actionSelectAll = createSelectAllAction();
+        actionSelectNone = createSelectNoneAction();
         actionThumbnails = createShowThumbnailsAction();
         actionId = createShowIdAction();
 
@@ -496,7 +576,7 @@ public class SummaryMeasurementTable {
     private ObjectBinding<ContentDisplay> createToolbarContentDisplayBinding() {
         return Bindings.createObjectBinding(() -> {
             if (showToolbarText.get())
-                return ContentDisplay.CENTER;
+                return ContentDisplay.LEFT; // TODO: Consider using TOP
             else
                 return ContentDisplay.GRAPHIC_ONLY;
         }, showToolbarText);
@@ -802,6 +882,49 @@ public class SummaryMeasurementTable {
             logger.error("Error writing file to {}", fileOutput, e);
         }
         return false;
+    }
+
+
+    private MenuBar createMenuBar() {
+        var menuFile = MenuTools.createMenu("File",
+                actionSave
+        );
+
+        var menuEdit = MenuTools.createMenu("Edit",
+                actionCopy
+        );
+
+        var menuView = MenuTools.createMenu("View",
+                ActionTools.createCheckMenuItem(actionShowPlots),
+                null,
+                ActionTools.createCheckMenuItem(actionShowToolbar),
+                ActionTools.createCheckMenuItem(actionToolbarText)
+        );
+
+        var menuTable = MenuTools.createMenu("Table",
+                ActionTools.createMenuItem(actionSelectAll),
+                ActionTools.createMenuItem(actionSelectNone),
+                null,
+                ActionTools.createCheckMenuItem(actionThumbnails),
+                ActionTools.createCheckMenuItem(actionId)
+        );
+
+        if (actionBindVisibility != null) {
+            MenuTools.addMenuItems(
+                    menuTable,
+                    null,
+                    ActionTools.createCheckMenuItem(actionBindVisibility)
+            );
+        }
+
+        var menubar = new MenuBar(
+                menuFile,
+                menuEdit,
+                menuView,
+                menuTable
+        );
+        SystemMenuBar.manageChildMenuBar(menubar);
+        return menubar;
     }
 
 
