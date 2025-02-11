@@ -52,7 +52,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
 
     private final IntegerProperty rngSeed = new SimpleIntegerProperty(42);
     private final DoubleProperty pointOpacity = new SimpleDoubleProperty(1);
-    private final DoubleProperty pointSize = new SimpleDoubleProperty(5);
+    private final DoubleProperty pointRadius = new SimpleDoubleProperty(5);
     private final IntegerProperty maxPoints = new SimpleIntegerProperty(10000);
 
     private final List<Data<Number, Number>> data = new ArrayList<>(); // the entire possible dataset
@@ -79,20 +79,13 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     public PathObjectScatterChart(QuPathViewer viewer) {
         super(new NumberAxis(), new NumberAxis());
         this.viewer = viewer;
-        maxPoints.addListener((obs, oldV, newV) -> {
-            if (newV.intValue() < 0) {
-                maxPoints.set(0);
-                // Don't need to resample if not actually changing
-                if (oldV.intValue() == 0)
-                    return;
-            }
-            System.err.println("Resampling!");
+        maxPoints.addListener(o -> {
             resampleAndUpdate();
         });
         pointOpacity.addListener(o -> refreshNodes());
-        pointSize.addListener(o -> refreshNodes());
+        pointRadius.addListener(o -> refreshNodes());
 
-        rngSeed.addListener((obs, oldV, newV) -> {
+        rngSeed.addListener(o -> {
             shuffleData();
             // Update if we're subsampling
             if (maxPoints.get() < data.size()) {
@@ -105,7 +98,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     }
 
     private void refreshNodes() {
-        double radius = pointSize.get();
+        double radius = pointRadius.get();
         double opacity = pointOpacity.get();
         for (var node : nodeMap.keySet()) {
            if (node instanceof Circle circle) {
@@ -124,6 +117,14 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         this.maxPoints.set(maxPoints);
     }
 
+    public IntegerProperty maxPointsProperty() {
+        return maxPoints;
+    }
+
+    public int getMaxPoints() {
+        return maxPoints.get();
+    }
+
     /**
      * Set the RNG seed for subsampling
      * @param rngSeed The random number generator seed
@@ -140,12 +141,28 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         this.pointOpacity.set(pointOpacity);
     }
 
+    public DoubleProperty pointOpacityProperty() {
+        return pointOpacity;
+    }
+
+    public double getPointOpacity() {
+        return pointOpacity.get();
+    }
+
     /**
-     * Set point size
-     * @param pointSize the point size
+     * Set point radius
+     * @param radius the point radius
      */
-    public void setPointSize(double pointSize) {
-        this.pointSize.set(pointSize);
+    public void setPointRadius(double radius) {
+        this.pointRadius.set(radius);
+    }
+
+    public double getPointRadius() {
+        return pointRadius.get();
+    }
+
+    public DoubleProperty pointRadiusProperty() {
+        return pointRadius;
     }
 
     @Override
@@ -264,7 +281,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         }
         // Ensure we are coloring properly (this might have changed)
         circle.setFill(ColorToolsFX.getDisplayedColor(pathObject));
-        circle.setRadius(pointSize.get());
+        circle.setRadius(pointRadius.get());
         circle.setOpacity(pointOpacity.get());
         return item;
     }
