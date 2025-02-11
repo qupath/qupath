@@ -16,7 +16,7 @@ import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
 
 /**
- * A wrapper around {@link ScatterPlotChart} for displaying data about PathObject measurements.
+ * A wrapper around {@link PathObjectScatterChart} for displaying data about PathObject measurements.
  */
 public class ScatterPlotDisplay implements ParameterChangeListener {
 
@@ -31,7 +31,7 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
             .addBooleanParameter("drawAxes", "Draw axes", true, "Whether to draw axis ticks on the plot")
             .addDoubleParameter("pointOpacity", "Point opacity", 1, null, 0, 1, "The opacity of points displayed on the plot.")
             .addIntParameter("pointSize", "Point size", 4, "px", 1, 10, "The point size in pixels");
-    private final ScatterPlotChart scatter;
+    private final PathObjectScatterChart scatter;
 
     /**
      * Create a scatter plot from a table of PathObject measurements.
@@ -73,15 +73,15 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
 
         BorderPane panelMain = new BorderPane();
 
-        scatter = new ScatterPlotChart(QuPathGUI.getInstance().getViewer());
-        scatter.setDataFromMeasurements(model.getItems(), comboNameX.getValue(), comboNameY.getValue());
+        scatter = new PathObjectScatterChart(QuPathGUI.getInstance().getViewer());
+        scatter.setDataFromTable(model.getItems(), model, comboNameX.getValue(), comboNameY.getValue());
         panelMain.setCenter(scatter);
 
         comboNameX.getSelectionModel().selectedItemProperty().addListener((v, o, n) ->
-            scatter.setDataFromMeasurements(model.getItems(), n, comboNameY.getValue())
+            scatter.setDataFromTable(model.getItems(), model, n, comboNameY.getValue())
         );
         comboNameY.getSelectionModel().selectedItemProperty().addListener((v, o, n) ->
-                scatter.setDataFromMeasurements(model.getItems(), comboNameX.getValue(), n)
+                scatter.setDataFromTable(model.getItems(), model, comboNameX.getValue(), n)
         );
 
         var topPane = new GridPane();
@@ -130,8 +130,8 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
     public void parameterChanged(ParameterList parameterList, String key, boolean isAdjusting) {
         // todo: add parameters: logX, logY, ...?
         switch (key) {
-            case "drawGrid" -> scatter.setDrawGrid(paramsScatter.getBooleanParameterValue("drawGrid"));
-            case "drawAxes" -> scatter.setDrawAxes(paramsScatter.getBooleanParameterValue("drawAxes"));
+            case "drawGrid" -> setDrawGrid(paramsScatter.getBooleanParameterValue("drawGrid"));
+            case "drawAxes" -> setDrawAxes(paramsScatter.getBooleanParameterValue("drawAxes"));
             case "nPoints" -> scatter.setMaxPoints(paramsScatter.getIntParameterValue("nPoints"));
             case "pointOpacity" -> scatter.setPointOpacity(paramsScatter.getDoubleParameterValue("pointOpacity"));
             case "pointSize" -> scatter.setPointSize(paramsScatter.getIntParameterValue("pointSize"));
@@ -139,12 +139,22 @@ public class ScatterPlotDisplay implements ParameterChangeListener {
         }
     }
 
+    private void setDrawGrid(boolean drawGrid) {
+        scatter.setHorizontalGridLinesVisible(drawGrid);
+        scatter.setVerticalGridLinesVisible(drawGrid);
+    }
+
+    private void setDrawAxes(boolean drawAxes) {
+        scatter.getXAxis().setTickLabelsVisible(drawAxes);
+        scatter.getYAxis().setTickLabelsVisible(drawAxes);
+    }
+
     /**
      * Refresh the scatter plot, in case the underlying data has been updated.
      */
     public void refreshScatterPlot() {
         // TODO: Fix this - it works only for values within a measurement list (e.g. not centroids or other 'live' values)
-        scatter.setDataFromMeasurements(model.getItems(), comboNameX.getValue(), comboNameY.getValue());
+        scatter.setDataFromTable(model.getItems(), model, comboNameX.getValue(), comboNameY.getValue());
     }
 
 }
