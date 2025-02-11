@@ -43,6 +43,8 @@ import java.util.WeakHashMap;
 /**
  * An interactive {@link ScatterChart} implementation for showing large(ish) numbers of {@link PathObject},
  * optionally linked to a {@link QuPathViewer}.
+ *
+ * @since v0.6.0
  */
 public class PathObjectScatterChart extends ScatterChart<Number, Number> {
 
@@ -54,6 +56,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     private final IntegerProperty maxPoints = new SimpleIntegerProperty(10000);
 
     private final List<Data<Number, Number>> data = new ArrayList<>(); // the entire possible dataset
+    private final List<Data<Number, Number>> shuffledData = new ArrayList<>(); // shuffle the data once
     private final QuPathViewer viewer;
 
     private final List<PathClass> pathClasses = new ArrayList<>();
@@ -79,13 +82,37 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         maxPoints.addListener((obs, oldV, newV) -> {
             if (newV.intValue() < 0) {
                 maxPoints.set(0);
+                // Don't need to resample if not actually changing
+                if (oldV.intValue() == 0)
+                    return;
             }
+            System.err.println("Resampling!");
             resampleAndUpdate();
         });
-        rngSeed.addListener((obs, oldV, newV) -> resampleAndUpdate());
+        pointOpacity.addListener(o -> refreshNodes());
+        pointSize.addListener(o -> refreshNodes());
+
+        rngSeed.addListener((obs, oldV, newV) -> {
+            shuffleData();
+            // Update if we're subsampling
+            if (maxPoints.get() < data.size()) {
+                resampleAndUpdate();
+            }
+        });
         setAnimated(false);
         resampleAndUpdate();
         this.setLegendVisible(true);
+    }
+
+    private void refreshNodes() {
+        double radius = pointSize.get();
+        double opacity = pointOpacity.get();
+        for (var node : nodeMap.keySet()) {
+           if (node instanceof Circle circle) {
+               circle.setRadius(radius);
+               circle.setOpacity(opacity);
+           }
+        }
     }
 
     /**
@@ -151,14 +178,18 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         }
     }
 
+    private void shuffleData() {
+        shuffledData.clear();
+        shuffledData.addAll(data);
+        Collections.shuffle(shuffledData, new Random(rngSeed.get()));
+    }
+
     private void resampleAndUpdate() {
         int n = maxPoints.get();
         var dataToSet = data;
         if (n < data.size()) {
             // Randomly subsample, if needed
-            var dataCopy = new ArrayList<>(data);
-            Collections.shuffle(dataCopy, new Random(rngSeed.get()));
-            dataToSet = dataCopy.subList(0, n);
+            dataToSet = shuffledData.subList(0, n);
         }
         List<Series<Number, Number>> allSeries = new ArrayList<>();
         for (PathClass pc : pathClasses) {
@@ -171,6 +202,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
             series.getData().setAll(data);
             allSeries.add(series);
         }
+
         // It can help to add the longest series first; when there are a lot of points, this slightly reduces
         // the risk of completely obscuring small series
         allSeries.sort(Comparator.comparingInt((Series<Number, Number> s) -> s.getData().size()).reversed());
@@ -198,6 +230,9 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
                 pathClasses.add(Objects.requireNonNullElse(pathClass, PathClass.NULL_CLASS));
             }
         }
+        // Shuffle the data now, in case it's needed later
+        shuffleData();
+
         // We don't want to store lots of unused entries in the data map, so trim it down to size
         if (dataMap.size() > newDataMap.size()) {
             dataMap.clear();
@@ -229,13 +264,15 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         }
         // Ensure we are coloring properly (this might have changed)
         circle.setFill(ColorToolsFX.getDisplayedColor(pathObject));
+        circle.setRadius(pointSize.get());
+        circle.setOpacity(pointOpacity.get());
         return item;
     }
 
     private Circle createSymbol() {
         var circle = new Circle();
-        circle.radiusProperty().bind(pointSize);
-        circle.opacityProperty().bind(pointOpacity);
+        // Binding point size & opacity here could sometimes cause trouble -
+        // adding a single listener and refreshing seems more reliably performant
         circle.addEventHandler(MouseEvent.ANY, nodeEventHandler);
         return circle;
     }
