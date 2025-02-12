@@ -27,6 +27,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import org.controlsfx.control.SearchableComboBox;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
@@ -35,16 +36,14 @@ import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 
+import java.util.Collections;
+
 /**
  * A wrapper around {@link PathObjectScatterChart} for displaying data about PathObject measurements.
  */
 public class ScatterPlotDisplay {
 
-    private final PathTableData<PathObject> model;
-    private final SearchableComboBox<String> comboNameX = new SearchableComboBox<>();
-    private final SearchableComboBox<String> comboNameY = new SearchableComboBox<>();
-    private final BorderPane pane = new BorderPane();
-    private final PathObjectScatterChart scatter;
+    private static final Logger logger = LoggerFactory.getLogger(ScatterPlotDisplay.class);
 
     private final static String KEY = "scatter.plot.";
 
@@ -76,6 +75,12 @@ public class ScatterPlotDisplay {
             KEY + "showLegend", true
     );
 
+    private final PathTableData<PathObject> model;
+    private final SearchableComboBox<String> comboNameX = new SearchableComboBox<>();
+    private final SearchableComboBox<String> comboNameY = new SearchableComboBox<>();
+    private final BorderPane pane = new BorderPane();
+    private final PathObjectScatterChart scatter;
+
     // .asObject() required so we can bind to a spinner (and can't call inline or we'll be garbage-collected)
     private final ObjectProperty<Double> pointRadius = createWeakBoundProperty(PROP_POINT_RADIUS).asObject();
     private final ObjectProperty<Double> pointOpacity = createWeakBoundProperty(PROP_POINT_OPACITY).asObject();
@@ -90,11 +95,93 @@ public class ScatterPlotDisplay {
     // Record of number of points that have been set
     private final IntegerProperty totalPoints = new SimpleIntegerProperty();
 
+
+    /**
+     * Create a scatter plot from a table of PathObject measurements.
+     * @param model The table containing measurements
+     */
+    public ScatterPlotDisplay(PathTableData<PathObject> model) {
+        this.model = model;
+        comboNameX.getItems().setAll(model.getMeasurementNames());
+        comboNameY.getItems().setAll(model.getMeasurementNames());
+
+        // Try to select the first column that isn't for 'centroids'...
+        // but, always select something
+        String selectColumnX = null, selectColumnY = null;
+        String defaultX = null, defaultY = null;
+        for (String name : model.getMeasurementNames()) {
+            if (!name.toLowerCase().startsWith("centroid")) {
+                if (selectColumnX == null) {
+                    selectColumnX = name;
+                    continue;
+                } else if (selectColumnY == null) {
+                    selectColumnY = name;
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            if (defaultX == null) {
+                defaultX = name;
+            } else if (defaultY == null) {
+                defaultY = name;
+            }
+        }
+        if (selectColumnX != null) {
+            comboNameX.getSelectionModel().select(selectColumnX);
+        }
+        if (selectColumnY != null) {
+            comboNameY.getSelectionModel().select(selectColumnY);
+        }
+
+        BorderPane panelMain = new BorderPane();
+
+        scatter = new PathObjectScatterChart(QuPathGUI.getInstance().getViewer());
+        scatter.setPointRadius(pointRadius.get());
+        scatter.setPointOpacity(pointOpacity.get());
+        scatter.setRngSeed(seed.get());
+        scatter.setMaxPoints(maxPoints.get());
+
+        panelMain.setCenter(scatter);
+
+        initProperties();
+
+        comboNameX.getSelectionModel().selectedItemProperty().addListener((v, o, n) ->
+                refreshScatterPlot()
+        );
+        comboNameY.getSelectionModel().selectedItemProperty().addListener((v, o, n) ->
+                refreshScatterPlot()
+        );
+
+        var topPane = new GridPane();
+        var labelX = new Label("X");
+        comboNameX.setTooltip(new Tooltip("X-axis measurement"));
+        labelX.setLabelFor(comboNameX);
+        topPane.addRow(0, labelX, comboNameX);
+
+        var labelY = new Label("Y");
+        comboNameY.setTooltip(new Tooltip("Y-axis measurement"));
+        labelY.setLabelFor(comboNameY);
+        topPane.addRow(1, labelY, comboNameY);
+        topPane.setHgap(5);
+
+        pane.setTop(topPane);
+        comboNameX.prefWidthProperty().bind(pane.widthProperty());
+        comboNameY.prefWidthProperty().bind(pane.widthProperty());
+        panelMain.setMinSize(200, 200);
+        panelMain.setPrefSize(400, 300);
+
+        pane.setCenter(panelMain);
+        pane.setBottom(createMainOptionsPane());
+
+        pane.setPadding(new Insets(10, 10, 10, 10));
+
+        refreshScatterPlot();
+    }
+
     private void initProperties() {
         pointOpacity.addListener((v, o, n) -> scatter.setPointOpacity(n));
         pointRadius.addListener((v, o, n) -> scatter.setPointRadius(n));
-//        scatter.pointOpacityProperty().bindBidirectional(pointOpacity);
-//        scatter.pointRadiusProperty().bindBidirectional(pointRadius);
 
         scatter.verticalGridLinesVisibleProperty().bindBidirectional(showGrid);
         scatter.horizontalGridLinesVisibleProperty().bindBidirectional(showGrid);
@@ -105,20 +192,17 @@ public class ScatterPlotDisplay {
         scatter.legendVisibleProperty().bindBidirectional(showLegend);
 
         maxPoints.addListener((v, o, n) -> scatter.setMaxPoints(n.intValue()));
-        seed.addListener((v, o, n) -> scatter.setRNG(n.intValue()));
+        seed.addListener((v, o, n) -> scatter.setRngSeed(n.intValue()));
     }
 
-
-    private Pane createControls() {
-        var box = new VBox(
-                createDisplayPane(),
-                createSamplingPane()
+    private Pane createMainOptionsPane() {
+        return new VBox(
+                createDisplayOptionsPane(),
+                createSamplingOptionPane()
         );
-//        box.setPadding(new Insets(5));
-        return box;
     }
 
-    private TitledPane createDisplayPane() {
+    private TitledPane createDisplayOptionsPane() {
         Spinner<Double> spinPointOpacity = new Spinner<>(
                 0.05, 1.0, pointOpacity.get(), 0.05);
         spinPointOpacity.getValueFactory().valueProperty().bindBidirectional(pointOpacity);
@@ -174,21 +258,7 @@ public class ScatterPlotDisplay {
         return new TitledPane("Display", hbox);
     }
 
-
-    private static TextField createIntTextField(IntegerProperty prop, String defaultText, String prompt) {
-        var textField = new TextField();
-        textField.setText(defaultText);
-        textField.setPromptText(prompt);
-        // Handle changes when user pressed enter, or focus lost (e.g. pressing tab)
-        textField.setOnAction(e -> setIntegerPropertyFromText(prop, textField.getText()));
-        textField.focusedProperty().addListener((v, o, n) -> {
-            if (!n)
-                setIntegerPropertyFromText(prop, textField.getText());
-        });
-        return textField;
-    }
-
-    private TitledPane createSamplingPane() {
+    private TitledPane createSamplingOptionPane() {
         var pane = new GridPane();
         int row = 0;
 
@@ -251,6 +321,44 @@ public class ScatterPlotDisplay {
         return new TitledPane("Sampling", hBox);
     }
 
+
+    /**
+     * Create a text field for a user to input an integer value, setting the result in a property if it is valid.
+     */
+    private static TextField createIntTextField(IntegerProperty prop, String defaultText, String prompt) {
+        var textField = new TextField();
+        textField.setText(defaultText);
+        textField.setPromptText(prompt);
+        // Handle changes when user pressed enter, or focus lost (e.g. pressing tab)
+        textField.setOnAction(e -> setIntegerPropertyFromText(prop, textField.getText()));
+        textField.focusedProperty().addListener((v, o, n) -> {
+            if (!n)
+                setIntegerPropertyFromText(prop, textField.getText());
+        });
+        return textField;
+    }
+
+    private static void setIntegerPropertyFromText(IntegerProperty prop, String text) {
+        if (text == null || text.isBlank())
+            return;
+        try {
+            int val = Integer.parseInt(text);
+            if (val < 1)
+                prop.set(0);
+            else
+                prop.set(val);
+        } catch (NumberFormatException ex) {
+            logger.warn("Can't parse integer from {}: {}",
+                    text,
+                    ex.getMessage());
+        }
+    }
+
+
+    /**
+     * Get the string used to represent the number of points being displayed.
+     * This helps clarify when subsampling has been applied.
+     */
     private String getNumPointsString() {
         int currentPoints = totalPoints.get();
         int displayedPoints = GeneralTools.clipValue(maxPoints.getValue(), 0, currentPoints);
@@ -266,23 +374,9 @@ public class ScatterPlotDisplay {
                 GeneralTools.formatNumber(displayedPoints*100.0/currentPoints, 1) + " %)";
     }
 
-    private static void setIntegerPropertyFromText(IntegerProperty prop, String text) {
-        if (text == null || text.isBlank())
-            return;
-        try {
-            int val = Integer.parseInt(text);
-            if (val < 1)
-                prop.set(0);
-            else
-                prop.set(val);
-        } catch (NumberFormatException ex) {
-            LoggerFactory.getLogger(ScatterPlotDisplay.class).warn("Can't parse integer from {}: {}",
-                    text,
-                    ex.getMessage());
-        }
-    }
-
-
+    /**
+     * Helper function to create a label for a specific node, while also setting the tooltip text for the node.
+     */
     private static Label createLabelFor(Node node, String text, String tooltip) {
         var label = new Label(text);
         label.setLabelFor(node);
@@ -290,9 +384,6 @@ public class ScatterPlotDisplay {
             Tooltip.install(node, new Tooltip(tooltip));
         return label;
     }
-
-
-
 
     private static BooleanProperty createWeakBoundProperty(BooleanProperty prop) {
         var prop2 = new SimpleBooleanProperty(prop.getValue());
@@ -312,88 +403,6 @@ public class ScatterPlotDisplay {
         return prop2;
     }
 
-    /**
-     * Create a scatter plot from a table of PathObject measurements.
-     * @param model The table containing measurements
-     */
-    public ScatterPlotDisplay(PathTableData<PathObject> model) {
-        this.model = model;
-        comboNameX.getItems().setAll(model.getMeasurementNames());
-        comboNameY.getItems().setAll(model.getMeasurementNames());
-
-        // Try to select the first column that isn't for 'centroids'...
-        // but, always select something
-        String selectColumnX = null, selectColumnY = null;
-        String defaultX = null, defaultY = null;
-        for (String name : model.getMeasurementNames()) {
-            if (!name.toLowerCase().startsWith("centroid")) {
-                if (selectColumnX == null) {
-                    selectColumnX = name;
-                    continue;
-                } else if (selectColumnY == null) {
-                    selectColumnY = name;
-                    continue;
-                } else {
-                    break;
-                }
-            }
-            if (defaultX == null) {
-                defaultX = name;
-            } else if (defaultY == null) {
-                defaultY = name;
-            }
-        }
-        if (selectColumnX != null) {
-            comboNameX.getSelectionModel().select(selectColumnX);
-        }
-        if (selectColumnY != null) {
-            comboNameY.getSelectionModel().select(selectColumnY);
-        }
-
-        BorderPane panelMain = new BorderPane();
-
-        scatter = new PathObjectScatterChart(QuPathGUI.getInstance().getViewer());
-        scatter.setPointRadius(pointRadius.get());
-        scatter.setPointOpacity(pointOpacity.get());
-        scatter.setRNG(seed.get());
-        scatter.setMaxPoints(maxPoints.get());
-
-        refreshScatterPlot();
-        panelMain.setCenter(scatter);
-
-        initProperties();
-
-        comboNameX.getSelectionModel().selectedItemProperty().addListener((v, o, n) ->
-                refreshScatterPlot()
-        );
-        comboNameY.getSelectionModel().selectedItemProperty().addListener((v, o, n) ->
-                refreshScatterPlot()
-        );
-
-        var topPane = new GridPane();
-        var labelX = new Label("X");
-        comboNameX.setTooltip(new Tooltip("X-axis measurement"));
-        labelX.setLabelFor(comboNameX);
-        topPane.addRow(0, labelX, comboNameX);
-
-        var labelY = new Label("Y");
-        comboNameY.setTooltip(new Tooltip("Y-axis measurement"));
-        labelY.setLabelFor(comboNameY);
-        topPane.addRow(1, labelY, comboNameY);
-        topPane.setHgap(5);
-
-        pane.setTop(topPane);
-        comboNameX.prefWidthProperty().bind(pane.widthProperty());
-        comboNameY.prefWidthProperty().bind(pane.widthProperty());
-        panelMain.setMinSize(200, 200);
-        panelMain.setPrefSize(400, 300);
-
-        pane.setCenter(panelMain);
-        pane.setBottom(createControls());
-
-        pane.setPadding(new Insets(10, 10, 10, 10));
-    }
-
 
     /**
      * Get the pane containing the scatter plot and associated UI components, for addition to a scene.
@@ -407,9 +416,17 @@ public class ScatterPlotDisplay {
      * Refresh the scatter plot, in case the underlying data has been updated.
      */
     public void refreshScatterPlot() {
+        if (model == null) {
+            resetScatterplot();
+            return;
+        }
         var items = model.getItems();
         scatter.setDataFromTable(items, model, comboNameX.getValue(), comboNameY.getValue());
         totalPoints.set(items.size());
+    }
+
+    private void resetScatterplot() {
+        scatter.setData(Collections.emptyList(), p -> Double.NaN, p -> Double.NaN);
     }
 
 }

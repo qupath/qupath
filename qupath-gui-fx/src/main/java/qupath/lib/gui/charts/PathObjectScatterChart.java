@@ -4,10 +4,11 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.ScatterChart;
 import javafx.scene.control.ContentDisplay;
@@ -30,22 +31,25 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
-import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.function.Function;
 
 /**
  * An interactive {@link ScatterChart} implementation for showing large(ish) numbers of {@link PathObject},
  * optionally linked to a {@link QuPathViewer}.
+ * <p>
+ * A goal of this class is to reduce expensive chart manipulations, such as adding and removing data points.
+ * Instead, data points are reused and updated where possible.
+ * <p>
+ * Additionally, the maximum number of data points can be specified, so that the chart can automatically randomly
+ * subsample points to show only some.
  *
  * @since v0.6.0
  */
@@ -53,29 +57,40 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
 
     private static final Logger logger = LoggerFactory.getLogger(PathObjectScatterChart.class);
 
-    private final IntegerProperty rngSeed = new SimpleIntegerProperty(42);
+    /**
+     * Seed value to use to specify that no shuffling should be applied before displaying the objects.
+     */
+    public static final int NO_SHUFFLE_SEED = -1;
+
+    private final WeakReference<QuPathViewer> viewer;
+
+    private final IntegerProperty rngSeed = new SimpleIntegerProperty(NO_SHUFFLE_SEED);
     private final DoubleProperty pointOpacity = new SimpleDoubleProperty(1);
     private final DoubleProperty pointRadius = new SimpleDoubleProperty(5);
     private final IntegerProperty maxPoints = new SimpleIntegerProperty(10000);
 
-    private final List<Data<Number, Number>> allData = new ArrayList<>(); // the entire possible dataset
-    private final List<Data<Number, Number>> shuffledData = new ArrayList<>(); // shuffle the data once
-    private final QuPathViewer viewer;
+    // List of all objects to display - we retain this only so that we can shuffle reproducibly if the seed changes
+    private final ObservableList<PathObject> allData = FXCollections.observableArrayList();
 
+    // Shuffled objects - this is the main list we use, in preference to allData
+    private final ObservableList<PathObject> shuffledData = FXCollections.observableArrayList();
+
+    // Represented classes - for legend
     private final List<PathClass> pathClasses = new ArrayList<>();
+
+    // Functions to calculate x and y values from object
+    private Function<PathObject, Number> xFun;
+    private Function<PathObject, Number> yFun;
 
     // Use one series for everything
     private final Series<Number, Number> series = new Series<>("All objects", FXCollections.observableArrayList());
 
-    private final Effect shadow = new DropShadow(
+    private final Effect pointHoverEffect = new DropShadow(
             BlurType.THREE_PASS_BOX,
             new Color(0, 0, 0, 0.5d),
             4, 0, 1, 1);
 
-    private final Map<Node, PathObject> nodeMap = new WeakHashMap<>();
-    private final EventHandler<MouseEvent> nodeEventHandler = this::handleMouseEvent;
-
-    private final Map<PathObject, Data<Number, Number>> dataMap = new HashMap<>();
+    private final EventHandler<MouseEvent> pointEventHandler = this::handleMouseEvent;
 
 
     /**
@@ -84,22 +99,43 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
      */
     public PathObjectScatterChart(QuPathViewer viewer) {
         super(new NumberAxis(), new NumberAxis());
-        this.viewer = viewer;
+        this.viewer = viewer == null ? null : new WeakReference<>(viewer);
         maxPoints.addListener(o -> ensureMaxPoints());
-        pointOpacity.addListener(o -> refreshNodes());
-        pointRadius.addListener(o -> refreshNodes());
+        pointOpacity.addListener(o -> updateOpacity());
+        pointRadius.addListener(o -> updateRadius());
+        rngSeed.addListener(this::handleRngSeedChange);
 
-        rngSeed.addListener((v, o, n) -> {
-            shuffleData();
-            // We need to update even if not subsampling because
-            // shuffling changes the order in which points are plotted
-            resampleAndUpdate();
-        });
+        // Animation is unlikely to go well
         setAnimated(false);
+
         // This is the *only* series we use
         getData().add(series);
         resampleAndUpdate();
-        this.setLegendVisible(true);
+    }
+
+    private void handleRngSeedChange(ObservableValue<? extends Number> val, Number oldValue, Number newValue) {
+        shuffleData();
+        // We need to update even if not subsampling because
+        // shuffling changes the order in which points are plotted
+        resampleAndUpdate();
+    }
+
+    private void updateOpacity() {
+        double opacity = pointOpacity.get();
+        for (var item : series.getData()) {
+            if (item.getNode() instanceof Circle circle) {
+                circle.setOpacity(opacity);
+            }
+        }
+    }
+
+    private void updateRadius() {
+        double radius = pointRadius.get();
+        for (var item : series.getData()) {
+            if (item.getNode() instanceof Circle circle) {
+                circle.setRadius(radius);
+            }
+        }
     }
 
     private void ensureMaxPoints() {
@@ -110,78 +146,143 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         // We want to remove or add as a bulk operation - without having to change everything
         if (n > max)
             series.getData().remove(max, n);
-        else
-            series.getData().addAll(shuffledData.subList(n, max));
-    }
-
-
-    private void refreshNodes() {
-        double radius = pointRadius.get();
-        double opacity = pointOpacity.get();
-        for (var item : shuffledData) {
-           if (item.getNode() instanceof Circle circle) {
-               circle.setRadius(radius);
-               circle.setOpacity(opacity);
-           }
+        else {
+            var toAdd = shuffledData.subList(n, max).stream().map(this::createDataItem).toList();
+            series.getData().addAll(toAdd);
         }
     }
 
+    private Data<Number, Number> createDataItem(PathObject pathObject) {
+        var item = new Data<Number, Number>();
+        updateDataItem(item, pathObject);
+        return item;
+    }
+
+    // Update a Data for the specified object.
+    // This allows us to reuse objects and avoid adding/removing objects (which is expensive)
+    private void updateDataItem(Data<Number, Number> item, PathObject pathObject) {
+        if (pathObject != item.getExtraValue())
+            item.setExtraValue(pathObject);
+        Circle circle;
+        if (item.getNode() instanceof Circle c) {
+            circle = c;
+        } else {
+            circle = createSymbol();
+            item.setNode(circle);
+        }
+        circle.setRadius(pointRadius.get());
+        circle.setOpacity(pointOpacity.get());
+        circle.setFill(ColorToolsFX.getDisplayedColor(pathObject));
+
+        // TODO: Check if this is necessary, or if there's no appreciable overhead when setting to unchanged value
+        var x = xFun.apply(pathObject);
+        if (!Objects.equals(item.getXValue(), x))
+            item.setXValue(x);
+
+        var y = yFun.apply(pathObject);
+        if (!Objects.equals(item.getYValue(), y))
+            item.setYValue(y);
+    }
+
     /**
-     * Set the maximum number of points that the plot will display.
-     * Subsampling will be used to ensure only this number of points or fewer are displayed.
-     * @param maxPoints The maximum number of elements
+     * Set the value of {@link #maxPointsProperty()}.
+     * @param maxPoints the maximum number of elements
      */
     public void setMaxPoints(int maxPoints) {
         this.maxPoints.set(maxPoints);
     }
 
+    /**
+     * Get a property representing the maximum number of points that the plot will display.
+     * Subsampling will be used to ensure only this number of points or fewer are displayed.
+     * @return the maximum number of points to show
+     */
     public IntegerProperty maxPointsProperty() {
         return maxPoints;
     }
 
+    /**
+     * Get the value of {@link #maxPointsProperty()}
+     * @return the maximum number of points to show
+     */
     public int getMaxPoints() {
         return maxPoints.get();
     }
 
     /**
-     * Set the RNG seed for subsampling
-     * @param rngSeed The random number generator seed
+     * Set the value of {@link #rngSeedProperty()}.
+     * @param rngSeed the random number generator seed to use
      */
-    public void setRNG(int rngSeed) {
+    public void setRngSeed(int rngSeed) {
         this.rngSeed.set(rngSeed);
     }
 
     /**
-     * Set point opacity
-     * @param pointOpacity the point opacity
+     * Get a property representing the random number generator's seed for subsampling.
+     * The default value is #NO_SHUFFLE_SEED which indicates no shuffling should be performed.
+     * @return the rng seed property
+     */
+    public IntegerProperty rngSeedProperty() {
+        return rngSeed;
+    }
+
+    /**
+     * Get the value of {@link #rngSeedProperty()}.
+     * @return the random number generator
+     */
+    public int getRngSeed() {
+        return this.rngSeed.get();
+    }
+
+    /**
+     * Set the value of {@link #pointOpacityProperty()}.
+     * @param pointOpacity the new point opacity
      */
     public void setPointOpacity(double pointOpacity) {
         this.pointOpacity.set(pointOpacity);
     }
 
+    /**
+     * Get a property representing the opacity of all data points.
+     * Making points translucent can be helpful when there are a lot of them.
+     * @return the point opacity property
+     */
     public DoubleProperty pointOpacityProperty() {
         return pointOpacity;
     }
 
+    /**
+     * Get the value o {@link #pointOpacityProperty()}
+     * @return the point opacity property
+     */
     public double getPointOpacity() {
         return pointOpacity.get();
     }
 
     /**
-     * Set point radius
+     * Set the value of {@link #pointOpacityProperty()}
      * @param radius the point radius
      */
     public void setPointRadius(double radius) {
         this.pointRadius.set(radius);
     }
 
+    /**
+     * Get a property representing the radius of all data points.
+     * @return the point radius property
+     */
+    public DoubleProperty pointRadiusProperty() {
+        return pointRadius;
+    }
+
+    /**
+     * Get the value of {@link #pointOpacityProperty()}
+     * @return the point radius
+     */
     public double getPointRadius() {
         return pointRadius.get();
     }
 
-    public DoubleProperty pointRadiusProperty() {
-        return pointRadius;
-    }
 
     @Override
     protected void updateLegend() {
@@ -211,17 +312,37 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     }
 
     private void shuffleData() {
-        shuffledData.clear();
-        shuffledData.addAll(allData);
-        Collections.shuffle(shuffledData, new Random(rngSeed.get()));
+        var seed = rngSeed.get();
+        if (seed == NO_SHUFFLE_SEED) {
+            shuffledData.setAll(allData);
+        } else {
+            var toShuffle = new ArrayList<>(allData);
+            Collections.shuffle(toShuffle, new Random(seed));
+            shuffledData.setAll(toShuffle);
+        }
     }
 
     private void resampleAndUpdate() {
-        int n = maxPoints.get();
-        if (n < allData.size()) {
-            series.getData().setAll(shuffledData.subList(0, n));
-        } else {
-            series.getData().setAll(shuffledData);
+        int max = maxPoints.get();
+        int n = GeneralTools.clipValue(shuffledData.size(), 0, max);
+        List<Data<Number, Number>> toAdd = new ArrayList<>();
+        var items = series.getData();
+        int nItems = items.size();
+        for (int i = 0; i < n; i++) {
+            var pathObject = shuffledData.get(i);
+            if (i < nItems) {
+                updateDataItem(items.get(i), pathObject);
+            } else {
+                toAdd.add(createDataItem(pathObject));
+            }
+        }
+        if (!toAdd.isEmpty()) {
+            // We have items to add
+            items.addAll(toAdd);
+        } else if (n < nItems) {
+            // We have items to remove
+            // Warning! This is slower than adding... but I don't see how to optimize it further
+            items.remove(n, nItems);
         }
         ensureSingleSeries();
         requestChartLayout(); // TODO: Check if this is necessary!
@@ -234,48 +355,66 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         }
     }
 
-    void setData(Collection<? extends PathObject> pathObjects,
-                 Function<PathObject, Number> xFun,
-                 Function<PathObject, Number> yFun) {
-        this.allData.clear();
-        Set<PathClass> pathClasses = new HashSet<>();
-        var newDataMap = new HashMap<PathObject, Data<Number, Number>>();
-
-        boolean sameObjects = dataMap.size() == pathObjects.size() && dataMap.keySet().containsAll(pathObjects);
-
-        for (var pathObject : pathObjects) {
-            Number x = xFun.apply(pathObject);
-            Number y = yFun.apply(pathObject);
-            var item = getItem(pathObject, x, y);
-            this.allData.add(item);
-            newDataMap.put(pathObject, item);
-            var pathClass = pathObject.getPathClass();
-            // Note that we permit nulls (which makes sorting easier)
-            pathClasses.add(pathClass);
+    /**
+     * Recalculate the values of all data points.
+     * This may be useful when measurements or classifications may have changed.
+     */
+    public void refreshData() {
+        if (xFun == null || yFun == null) {
+            series.getData().clear();
+            return;
         }
-
-        // Sort the classes so that they appear nicely in the legend
-        this.pathClasses.clear();
-        this.pathClasses.addAll(
-                pathClasses.stream()
-                        .sorted(Comparator.nullsFirst(PathClass::compareTo))
-                        .toList());
-        updateLegend();
-
-        if (!sameObjects) {
-            // Shuffle the data now, in case it's needed later
-            shuffleData();
-
-            // We don't want to store lots of unused entries in the data map, so trim it down to size
-            if (dataMap.size() > newDataMap.size()) {
-                dataMap.clear();
-                dataMap.putAll(newDataMap);
+        for (var item : series.getData()) {
+            if (item.getExtraValue() instanceof PathObject pathObject) {
+                updateDataItem(item, pathObject);
             }
-            resampleAndUpdate();
         }
     }
 
-    void setDataFromTable(Collection<? extends PathObject> pathObjects,
+    /**
+     * Set the data to display in the plot.
+     * @param pathObjects the objects to display
+     * @param xFun a function to extract the x value to plot
+     * @param yFun a function to extract the y value to plot
+     */
+    public void setData(Collection<? extends PathObject> pathObjects,
+                 Function<PathObject, Number> xFun,
+                 Function<PathObject, Number> yFun) {
+
+        // Store functions for lazy computation
+        this.xFun = xFun;
+        this.yFun = yFun;
+
+        // Find the represented classes & sort them so they appear nicely in the legend
+        var pathClasses = pathObjects
+                .stream()
+                .map(PathObject::getPathClass)
+                .distinct()
+                .sorted(Comparator.nullsFirst(PathClass::compareTo))
+                .toList();
+        this.pathClasses.clear();
+        this.pathClasses.addAll(pathClasses);
+        updateLegend();
+
+        // Set the data - we'll actually plot the shuffled data
+        this.allData.setAll(pathObjects);
+        shuffleData();
+
+        // Update
+        resampleAndUpdate();
+    }
+
+    /**
+     * Set the data to display in the plot from a table model.
+     * <p>
+     * This calls {@link #setData(Collection, Function, Function)} in addition to setting the x and y labels.
+     *
+     * @param pathObjects the objects to display
+     * @param model the table model containing the measurements
+     * @param xMeasurement the column to use for x values
+     * @param yMeasurement the column to use for y values
+     */
+    public void setDataFromTable(Collection<? extends PathObject> pathObjects,
                           PathTableData<PathObject> model,
                           String xMeasurement, String yMeasurement) {
         setData(pathObjects,
@@ -286,55 +425,51 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     }
 
 
-    private Data<Number, Number> getItem(PathObject pathObject, Number x, Number y) {
-        var item = dataMap.computeIfAbsent(pathObject, p -> new Data<>());
-        item.setXValue(x);
-        item.setYValue(y);
-        item.setExtraValue(pathObject);
-        Circle circle;
-        if (item.getNode() instanceof Circle c) {
-            circle = c;
-        } else {
-            circle = createSymbol();
-            nodeMap.put(circle, pathObject);
-            item.setNode(circle);
-        }
-        // Ensure we are coloring properly (this might have changed)
-        circle.setFill(ColorToolsFX.getDisplayedColor(pathObject));
-        circle.setRadius(pointRadius.get());
-        circle.setOpacity(pointOpacity.get());
-        return item;
-    }
-
     private Circle createSymbol() {
         var circle = new Circle();
         // Binding point size & opacity here could sometimes cause trouble -
         // adding a single listener and refreshing seems more reliably performant
-        circle.addEventHandler(MouseEvent.ANY, nodeEventHandler);
+        circle.addEventHandler(MouseEvent.ANY, pointEventHandler);
         return circle;
     }
 
+    @Override
+    protected void dataItemAdded(Series<Number,Number> series, int itemIndex, Data<Number,Number> item) {
+        var node = item.getNode();
+        if (node == null) {
+            // Make sure we create the node, not the superclass
+            item.setNode(createSymbol());
+        }
+        super.dataItemAdded(series, itemIndex, item);
+    }
 
     @Override
     protected void dataItemRemoved(Data<Number,Number> item, Series<Number,Number> series) {
-        final Node symbol = item.getNode();
-        if (symbol != null)
-            nodeMap.remove(symbol);
         super.dataItemRemoved(item, series);
     }
 
     private void handleMouseEvent(MouseEvent event) {
         if (event.getSource() instanceof Circle circle) {
             if (event.getEventType() == MouseEvent.MOUSE_ENTERED)
-                circle.setEffect(shadow);
+                circle.setEffect(pointHoverEffect);
             else if (event.getEventType() == MouseEvent.MOUSE_EXITED)
                 circle.setEffect(null);
             else if (event.getEventType() == MouseEvent.MOUSE_CLICKED && viewer != null) {
-                var pathObject = nodeMap.getOrDefault(circle, null);
-                var hierarchy = viewer.getHierarchy();
+                var viewer = this.viewer.get();
+                var hierarchy = viewer == null ? null : viewer.getHierarchy();
+                if (hierarchy == null)
+                    return;
+                // I calculate that clicks will be rare events - and it's better to save the overhead of caching nodes
+                // for the cost of iterating the list once
+                var pathObject = series
+                        .getData()
+                        .stream()
+                        .filter(d -> d.getNode() == circle && d.getExtraValue() instanceof PathObject)
+                        .map(d -> (PathObject)d.getExtraValue())
+                        .findFirst()
+                        .orElse(null);
                 // Need to make sure that the viewer hasn't changed
-                if (pathObject != null && hierarchy != null &&
-                        PathObjectTools.hierarchyContainsObject(hierarchy, pathObject)) {
+                if (pathObject != null && PathObjectTools.hierarchyContainsObject(hierarchy, pathObject)) {
                     Charts.ScatterChartBuilder.tryToSelect(
                             pathObject, viewer, viewer.getImageData(),
                             event.isShiftDown(), event.getClickCount() == 2);
