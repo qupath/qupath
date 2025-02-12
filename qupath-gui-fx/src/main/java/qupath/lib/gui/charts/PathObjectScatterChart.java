@@ -4,6 +4,7 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.collections.FXCollections;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -20,6 +21,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -55,11 +57,14 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     private final DoubleProperty pointRadius = new SimpleDoubleProperty(5);
     private final IntegerProperty maxPoints = new SimpleIntegerProperty(10000);
 
-    private final List<Data<Number, Number>> data = new ArrayList<>(); // the entire possible dataset
+    private final List<Data<Number, Number>> allData = new ArrayList<>(); // the entire possible dataset
     private final List<Data<Number, Number>> shuffledData = new ArrayList<>(); // shuffle the data once
     private final QuPathViewer viewer;
 
     private final List<PathClass> pathClasses = new ArrayList<>();
+
+    // Use one series for everything
+    private final Series<Number, Number> series = new Series<>("All objects", FXCollections.observableArrayList());
 
     private final Effect shadow = new DropShadow(
             BlurType.THREE_PASS_BOX,
@@ -79,29 +84,41 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     public PathObjectScatterChart(QuPathViewer viewer) {
         super(new NumberAxis(), new NumberAxis());
         this.viewer = viewer;
-        maxPoints.addListener(o -> {
-            resampleAndUpdate();
-        });
+        maxPoints.addListener(o -> ensureMaxPoints());
         pointOpacity.addListener(o -> refreshNodes());
         pointRadius.addListener(o -> refreshNodes());
 
-        rngSeed.addListener(o -> {
+        rngSeed.addListener((v, o, n) -> {
             shuffleData();
-            // Update if we're subsampling
-            if (maxPoints.get() < data.size()) {
-                resampleAndUpdate();
-            }
+            // We need to update even if not subsampling because
+            // shuffling changes the order in which points are plotted
+            resampleAndUpdate();
         });
         setAnimated(false);
+        // This is the *only* series we use
+        getData().add(series);
         resampleAndUpdate();
         this.setLegendVisible(true);
     }
 
+    private void ensureMaxPoints() {
+        int max = GeneralTools.clipValue(maxPoints.get(), 0, shuffledData.size());
+        int n = series.getData().size();
+        if (max == n)
+            return;
+        // We want to remove or add as a bulk operation - without having to change everything
+        if (n > max)
+            series.getData().remove(max, n);
+        else
+            series.getData().addAll(shuffledData.subList(n, max));
+    }
+
+
     private void refreshNodes() {
         double radius = pointRadius.get();
         double opacity = pointOpacity.get();
-        for (var node : nodeMap.keySet()) {
-           if (node instanceof Circle circle) {
+        for (var item : shuffledData) {
+           if (item.getNode() instanceof Circle circle) {
                circle.setRadius(radius);
                circle.setOpacity(opacity);
            }
@@ -168,15 +185,12 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     @Override
     protected void updateLegend() {
         List<Label> legendList = new ArrayList<>();
-        var series = getData();
-        int nSeries = series == null ? 0 : Math.min(series.size(), pathClasses.size());
-        for (int i = 0; i < nSeries; i++) {
-            var pathClass = pathClasses.get(i);
+        for (PathClass pathClass : pathClasses) {
             var circle = new Circle();
             // Binding to radius & opacity doesn't work great, as we might not see the colors
             circle.setRadius(5.0);
             Integer rgb;
-            if (pathClass == PathClass.NULL_CLASS)
+            if (pathClass == null)
                 rgb = PathPrefs.colorDefaultObjectsProperty().get();
             else
                 rgb = pathClass.getColor();
@@ -197,42 +211,33 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
 
     private void shuffleData() {
         shuffledData.clear();
-        shuffledData.addAll(data);
+        shuffledData.addAll(allData);
         Collections.shuffle(shuffledData, new Random(rngSeed.get()));
     }
 
     private void resampleAndUpdate() {
         int n = maxPoints.get();
-        var dataToSet = data;
-        if (n < data.size()) {
-            // Randomly subsample, if needed
-            dataToSet = shuffledData.subList(0, n);
+        if (n < allData.size()) {
+            series.getData().setAll(shuffledData.subList(0, n));
+        } else {
+            series.getData().setAll(shuffledData);
         }
-        List<Series<Number, Number>> allSeries = new ArrayList<>();
-        for (PathClass pc : pathClasses) {
-            var toCheck = pc == null ? PathClass.NULL_CLASS : pc;
-            var data = dataToSet.stream()
-                    .filter(d -> ((PathObject)d.getExtraValue()).getPathClass() == toCheck)
-                    .toList();
-            var series = new Series<Number, Number>();
-            series.setName(pc == null ? "Unclassified" : pc.toString());
-            series.getData().setAll(data);
-            allSeries.add(series);
+        ensureSingleSeries();
+
+        requestChartLayout();
+    }
+
+    private void ensureSingleSeries() {
+        if (getData().size() != 1 || getData().getFirst() != series) {
+            logger.debug("Resetting series!");
+            getData().setAll(List.of(series));
         }
-
-        // It can help to add the longest series first; when there are a lot of points, this slightly reduces
-        // the risk of completely obscuring small series
-        allSeries.sort(Comparator.comparingInt((Series<Number, Number> s) -> s.getData().size()).reversed());
-
-        getData().setAll(allSeries);
-        updateChart();
-        updateLegend();
     }
 
     void setDataFromTable(Collection<? extends PathObject> pathObjects,
                           PathTableData<PathObject> model,
                           String xMeasurement, String yMeasurement) {
-        this.data.clear();
+        this.allData.clear();
         Set<PathClass> pathClasses = new HashSet<>();
         var newDataMap = new HashMap<PathObject, Data<Number, Number>>();
         if (xMeasurement != null && yMeasurement != null) {
@@ -240,11 +245,12 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
                 double x = model.getNumericValue(pathObject, xMeasurement);
                 double y = model.getNumericValue(pathObject, yMeasurement);
                 var item = getItem(pathObject, x, y);
-                this.data.add(item);
+                this.allData.add(item);
                 newDataMap.put(pathObject, item);
 
                 var pathClass = pathObject.getPathClass();
-                pathClasses.add(Objects.requireNonNullElse(pathClass, PathClass.NULL_CLASS));
+                // Note that we permit nulls (which makes sorting easier)
+                pathClasses.add(pathClass);
             }
         }
         // Shuffle the data now, in case it's needed later
@@ -259,12 +265,14 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         this.pathClasses.clear();
         this.pathClasses.addAll(
                 pathClasses.stream()
-                        .sorted()
+                        .sorted(Comparator.nullsFirst(PathClass::compareTo))
                         .toList());
         getXAxis().setLabel(xMeasurement);
         getYAxis().setLabel(yMeasurement);
+        updateLegend();
         resampleAndUpdate();
     }
+
 
     private Data<Number, Number> getItem(PathObject pathObject, Number x, Number y) {
         var item = dataMap.computeIfAbsent(pathObject, p -> new Data<>());
@@ -292,12 +300,6 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         // adding a single listener and refreshing seems more reliably performant
         circle.addEventHandler(MouseEvent.ANY, nodeEventHandler);
         return circle;
-    }
-
-
-    private void updateChart() {
-        setLegendVisible(true);
-        requestChartLayout(); // this ensure CSS resizing is actually applied...
     }
 
 

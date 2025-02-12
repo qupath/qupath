@@ -1,7 +1,6 @@
 package qupath.lib.gui.charts;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -78,14 +77,15 @@ public class ScatterPlotDisplay {
     );
 
     // .asObject() required so we can bind to a spinner (and can't call inline or we'll be garbage-collected)
-    private final ObjectProperty<Integer> maxPoints = createWeakBoundProperty(PROP_MAX_POINTS).asObject();
-    private final ObjectProperty<Integer> seed = createWeakBoundProperty(PROP_SEED).asObject();
     private final ObjectProperty<Double> pointRadius = createWeakBoundProperty(PROP_POINT_RADIUS).asObject();
     private final ObjectProperty<Double> pointOpacity = createWeakBoundProperty(PROP_POINT_OPACITY).asObject();
 
     private final BooleanProperty showAxes = createWeakBoundProperty(SHOW_AXES);
     private final BooleanProperty showGrid = createWeakBoundProperty(SHOW_GRID);
     private final BooleanProperty showLegend = createWeakBoundProperty(SHOW_LEGEND);
+
+    private final IntegerProperty maxPoints = createWeakBoundProperty(PROP_MAX_POINTS);
+    private final IntegerProperty seed = createWeakBoundProperty(PROP_SEED);
 
     // Record of number of points that have been set
     private final IntegerProperty totalPoints = new SimpleIntegerProperty();
@@ -174,33 +174,43 @@ public class ScatterPlotDisplay {
         return new TitledPane("Display", hbox);
     }
 
+
+    private static TextField createIntTextField(IntegerProperty prop, String defaultText, String prompt) {
+        var textField = new TextField();
+        textField.setText(defaultText);
+        textField.setPromptText(prompt);
+        // Handle changes when user pressed enter, or focus lost (e.g. pressing tab)
+        textField.setOnAction(e -> setIntegerPropertyFromText(prop, textField.getText()));
+        textField.focusedProperty().addListener((v, o, n) -> {
+            if (!n)
+                setIntegerPropertyFromText(prop, textField.getText());
+        });
+        return textField;
+    }
+
     private TitledPane createSamplingPane() {
         var pane = new GridPane();
         int row = 0;
 
-        var tfMaxPoints = new TextField();
-        tfMaxPoints.setText(maxPoints.getValue().toString());
-        // Handle changes when user pressed enter, or focus lost (e.g. pressing tab)
-        tfMaxPoints.setOnAction(e -> setMaxPointsFromText(tfMaxPoints.getText()));
-        tfMaxPoints.focusedProperty().addListener((v, o, n) -> {
-            if (!n)
-                setMaxPointsFromText(tfMaxPoints.getText());
-        });
+        var tfMaxPoints = createIntTextField(maxPoints, Integer.toString(maxPoints.get()), "Type an integer > 0");
 
-        Spinner<Integer> spinSeed = new Spinner<>(
-                0, 1_000_000, seed.get(), 1);
-        spinSeed.getValueFactory().valueProperty().bindBidirectional(seed);
-        spinSeed.setEditable(true);
+        var tfSeed = createIntTextField(seed, Integer.toString(seed.get()), "Type an integer");
 
         pane.addRow(row++, createLabelFor(tfMaxPoints,
                         "Max points",
-                        "Maximum number of points to display (for performance)"),
+                        """
+                                Maximum number of points to display.
+                                Plotting very large numbers of points can be slow,\s
+                                so this helps improve performance."""),
                 tfMaxPoints);
 
-        pane.addRow(row++, createLabelFor(spinSeed,
+        pane.addRow(row++, createLabelFor(tfSeed,
                         "RNG seed",
-                        "Seed for the random number generated (RNG) when sampling"),
-                spinSeed);
+                        """
+                                Seed for the random number generator (RNG) to use when sampling.
+                                Changing this value will result in different points being displayed\s
+                                whenever 'Max points' is less than the total number of points."""),
+                tfSeed);
 
         pane.setHgap(5);
         pane.setVgap(5);
@@ -235,17 +245,18 @@ public class ScatterPlotDisplay {
                 GeneralTools.formatNumber(displayedPoints*100.0/currentPoints, 1) + " %)";
     }
 
-    private void setMaxPointsFromText(String text) {
+    private static void setIntegerPropertyFromText(IntegerProperty prop, String text) {
         if (text == null || text.isBlank())
             return;
         try {
             int val = Integer.parseInt(text);
-            if (val <= 1)
-                maxPoints.set(0);
+            if (val < 1)
+                prop.set(0);
             else
-                maxPoints.set(val);
+                prop.set(val);
         } catch (NumberFormatException ex) {
-            LoggerFactory.getLogger(ScatterPlotDisplay.class).warn("Can't parse max points: {}",
+            LoggerFactory.getLogger(ScatterPlotDisplay.class).warn("Can't parse integer from {}: {}",
+                    text,
                     ex.getMessage());
         }
     }
