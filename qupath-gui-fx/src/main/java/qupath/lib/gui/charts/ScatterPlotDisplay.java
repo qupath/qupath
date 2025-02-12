@@ -215,6 +215,13 @@ public class ScatterPlotDisplay {
         pane.setHgap(5);
         pane.setVgap(5);
 
+        var labelWarning = new Label("Large number of points can be slow!");
+        labelWarning.setWrapText(true);
+        labelWarning.setAlignment(Pos.CENTER);
+        labelWarning.setTextAlignment(TextAlignment.CENTER);
+        labelWarning.getStyleClass().add("warn-label-text");
+
+
         var labelPoints = new Label();
         labelPoints.textProperty().bind(Bindings.createStringBinding(this::getNumPointsString,
                 tfMaxPoints.textProperty(), maxPoints, totalPoints));
@@ -223,8 +230,22 @@ public class ScatterPlotDisplay {
         labelPoints.setAlignment(Pos.CENTER);
         labelPoints.setTextAlignment(TextAlignment.CENTER);
 
-        var hBox = new HBox(pane, labelPoints);
+        var vBoxLabels = new VBox();
+        vBoxLabels.setSpacing(2);
+        int nWarningPoints = 40_000;
+        vBoxLabels.getChildren().add(labelPoints);
+        if (maxPoints.get() > nWarningPoints)
+            vBoxLabels.getChildren().addFirst(labelWarning);
+        maxPoints.addListener((v, o, n) -> {
+            if (n.intValue() > nWarningPoints && !vBoxLabels.getChildren().contains(labelWarning))
+                vBoxLabels.getChildren().addFirst(labelWarning);
+            else
+                vBoxLabels.getChildren().remove(labelWarning);
+        });
+
+        var hBox = new HBox(pane, vBoxLabels);
         hBox.setSpacing(10);
+        HBox.setHgrow(labelWarning, Priority.SOMETIMES);
         HBox.setHgrow(labelPoints, Priority.SOMETIMES);
 
         return new TitledPane("Sampling", hBox);

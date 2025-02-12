@@ -27,6 +27,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 
 import java.util.ArrayList;
@@ -37,10 +38,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.Function;
 
 /**
  * An interactive {@link ScatterChart} implementation for showing large(ish) numbers of {@link PathObject},
@@ -223,8 +224,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
             series.getData().setAll(shuffledData);
         }
         ensureSingleSeries();
-
-        requestChartLayout();
+        requestChartLayout(); // TODO: Check if this is necessary!
     }
 
     private void ensureSingleSeries() {
@@ -234,43 +234,55 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         }
     }
 
-    void setDataFromTable(Collection<? extends PathObject> pathObjects,
-                          PathTableData<PathObject> model,
-                          String xMeasurement, String yMeasurement) {
+    void setData(Collection<? extends PathObject> pathObjects,
+                 Function<PathObject, Number> xFun,
+                 Function<PathObject, Number> yFun) {
         this.allData.clear();
         Set<PathClass> pathClasses = new HashSet<>();
         var newDataMap = new HashMap<PathObject, Data<Number, Number>>();
-        if (xMeasurement != null && yMeasurement != null) {
-            for (var pathObject : pathObjects) {
-                double x = model.getNumericValue(pathObject, xMeasurement);
-                double y = model.getNumericValue(pathObject, yMeasurement);
-                var item = getItem(pathObject, x, y);
-                this.allData.add(item);
-                newDataMap.put(pathObject, item);
 
-                var pathClass = pathObject.getPathClass();
-                // Note that we permit nulls (which makes sorting easier)
-                pathClasses.add(pathClass);
-            }
-        }
-        // Shuffle the data now, in case it's needed later
-        shuffleData();
+        boolean sameObjects = dataMap.size() == pathObjects.size() && dataMap.keySet().containsAll(pathObjects);
 
-        // We don't want to store lots of unused entries in the data map, so trim it down to size
-        if (dataMap.size() > newDataMap.size()) {
-            dataMap.clear();
-            dataMap.putAll(newDataMap);
+        for (var pathObject : pathObjects) {
+            Number x = xFun.apply(pathObject);
+            Number y = yFun.apply(pathObject);
+            var item = getItem(pathObject, x, y);
+            this.allData.add(item);
+            newDataMap.put(pathObject, item);
+            var pathClass = pathObject.getPathClass();
+            // Note that we permit nulls (which makes sorting easier)
+            pathClasses.add(pathClass);
         }
+
         // Sort the classes so that they appear nicely in the legend
         this.pathClasses.clear();
         this.pathClasses.addAll(
                 pathClasses.stream()
                         .sorted(Comparator.nullsFirst(PathClass::compareTo))
                         .toList());
+        updateLegend();
+
+        if (!sameObjects) {
+            // Shuffle the data now, in case it's needed later
+            shuffleData();
+
+            // We don't want to store lots of unused entries in the data map, so trim it down to size
+            if (dataMap.size() > newDataMap.size()) {
+                dataMap.clear();
+                dataMap.putAll(newDataMap);
+            }
+            resampleAndUpdate();
+        }
+    }
+
+    void setDataFromTable(Collection<? extends PathObject> pathObjects,
+                          PathTableData<PathObject> model,
+                          String xMeasurement, String yMeasurement) {
+        setData(pathObjects,
+                p -> model.getNumericValue(p, xMeasurement),
+                p -> model.getNumericValue(p, yMeasurement));
         getXAxis().setLabel(xMeasurement);
         getYAxis().setLabel(yMeasurement);
-        updateLegend();
-        resampleAndUpdate();
     }
 
 
@@ -319,7 +331,10 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
                 circle.setEffect(null);
             else if (event.getEventType() == MouseEvent.MOUSE_CLICKED && viewer != null) {
                 var pathObject = nodeMap.getOrDefault(circle, null);
-                if (pathObject != null) {
+                var hierarchy = viewer.getHierarchy();
+                // Need to make sure that the viewer hasn't changed
+                if (pathObject != null && hierarchy != null &&
+                        PathObjectTools.hierarchyContainsObject(hierarchy, pathObject)) {
                     Charts.ScatterChartBuilder.tryToSelect(
                             pathObject, viewer, viewer.getImageData(),
                             event.isShiftDown(), event.getClickCount() == 2);
