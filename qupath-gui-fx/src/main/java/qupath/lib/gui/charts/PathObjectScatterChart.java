@@ -196,7 +196,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
             else
                 rgb = pathClass.getColor();
             circle.setFill(ColorToolsFX.getCachedColor(rgb));
-            var item = new Label(pathClass.toString(), circle);
+            var item = new Label(pathClass == null ? "Unclassified" : pathClass.toString(), circle);
             item.setAlignment(Pos.CENTER_LEFT);
             item.setContentDisplay(ContentDisplay.LEFT);
             legendList.add(item);
