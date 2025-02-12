@@ -322,7 +322,7 @@ public class ScatterPlotDisplay {
         pane.setHgap(5);
         pane.setVgap(5);
 
-        var labelWarning = new Label("Large number of points can be slow!");
+        var labelWarning = new Label("Showing lots of points can be slow!");
         labelWarning.setWrapText(true);
         labelWarning.setAlignment(Pos.CENTER);
         labelWarning.setTextAlignment(TextAlignment.CENTER);

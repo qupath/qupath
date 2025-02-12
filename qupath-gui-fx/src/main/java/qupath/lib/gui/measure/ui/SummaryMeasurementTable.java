@@ -411,7 +411,7 @@ public class SummaryMeasurementTable {
 
     private void initTabPane() {
         histogramDisplay = new HistogramDisplay(model, true);
-        scatterPlotDisplay = new ScatterPlotDisplay(model);
+        scatterPlotDisplay = new ScatterPlotDisplay();
 
         Tab tabHistogram = new Tab("Histogram", histogramDisplay.getPane());
         tabHistogram.setClosable(false);
@@ -420,6 +420,14 @@ public class SummaryMeasurementTable {
         Tab tabScatter = new Tab("Scatter plot", scatterPlotDisplay.getPane());
         tabScatter.setClosable(false);
         plotTabs.getTabs().add(tabScatter);
+
+        plotTabs.getSelectionModel().selectFirst();
+
+        // We want to set the scatterpane only if it is shown
+        tabScatter.selectedProperty().addListener((v, o, n) -> {
+            if (n)
+                scatterPlotDisplay.setModel(model);
+        });
 
         FXUtils.makeTabUndockable(tabHistogram);
         FXUtils.makeTabUndockable(tabScatter);
