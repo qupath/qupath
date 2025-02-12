@@ -29,6 +29,7 @@ import java.util.function.Predicate;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.scene.Scene;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,7 +97,10 @@ public class SummaryMeasurementTableCommand {
 		stage.titleProperty().bind(title);
 
 		var pane = table.getPane();
-		Scene scene = new Scene(pane, 800, 500);
+		var screen = Screen.getPrimary();
+		Scene scene = new Scene(pane,
+				Math.min(screen.getBounds().getWidth(), 800),
+				Math.min(screen.getBounds().getHeight(), 600));
 		stage.setScene(scene);
 		stage.show();
 		return stage;

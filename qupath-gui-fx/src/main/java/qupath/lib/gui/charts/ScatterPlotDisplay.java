@@ -8,6 +8,8 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -75,7 +77,9 @@ public class ScatterPlotDisplay {
             KEY + "showLegend", true
     );
 
-    private final PathTableData<PathObject> model;
+    private boolean isUpdating = false;
+
+    private final ObjectProperty<PathTableData<PathObject>> model = new SimpleObjectProperty<>();
     private final SearchableComboBox<String> comboNameX = new SearchableComboBox<>();
     private final SearchableComboBox<String> comboNameY = new SearchableComboBox<>();
     private final BorderPane pane = new BorderPane();
@@ -95,45 +99,11 @@ public class ScatterPlotDisplay {
     // Record of number of points that have been set
     private final IntegerProperty totalPoints = new SimpleIntegerProperty();
 
-
     /**
      * Create a scatter plot from a table of PathObject measurements.
-     * @param model The table containing measurements
      */
-    public ScatterPlotDisplay(PathTableData<PathObject> model) {
-        this.model = model;
-        comboNameX.getItems().setAll(model.getMeasurementNames());
-        comboNameY.getItems().setAll(model.getMeasurementNames());
-
-        // Try to select the first column that isn't for 'centroids'...
-        // but, always select something
-        String selectColumnX = null, selectColumnY = null;
-        String defaultX = null, defaultY = null;
-        for (String name : model.getMeasurementNames()) {
-            if (!name.toLowerCase().startsWith("centroid")) {
-                if (selectColumnX == null) {
-                    selectColumnX = name;
-                    continue;
-                } else if (selectColumnY == null) {
-                    selectColumnY = name;
-                    continue;
-                } else {
-                    break;
-                }
-            }
-            if (defaultX == null) {
-                defaultX = name;
-            } else if (defaultY == null) {
-                defaultY = name;
-            }
-        }
-        if (selectColumnX != null) {
-            comboNameX.getSelectionModel().select(selectColumnX);
-        }
-        if (selectColumnY != null) {
-            comboNameY.getSelectionModel().select(selectColumnY);
-        }
-
+    public ScatterPlotDisplay() {
+        this.model.addListener(this::handleModelChange);
         BorderPane panelMain = new BorderPane();
 
         scatter = new PathObjectScatterChart(QuPathGUI.getInstance().getViewer());
@@ -175,8 +145,6 @@ public class ScatterPlotDisplay {
         pane.setBottom(createMainOptionsPane());
 
         pane.setPadding(new Insets(10, 10, 10, 10));
-
-        refreshScatterPlot();
     }
 
     private void initProperties() {
@@ -194,6 +162,75 @@ public class ScatterPlotDisplay {
         maxPoints.addListener((v, o, n) -> scatter.setMaxPoints(n.intValue()));
         seed.addListener((v, o, n) -> scatter.setRngSeed(n.intValue()));
     }
+
+    /**
+     * Set the value of {@link #modelProperty()}.
+     * @param model the new model to set
+     */
+    public void setModel(PathTableData<PathObject> model) {
+        this.model.set(model);
+    }
+
+    /**
+     * Get the value of {@link #modelProperty()}.
+     * @return the model
+     */
+    public PathTableData<PathObject> getModel() {
+        return this.model.get();
+    }
+
+    /**
+     * Get property representing the model used with this display.
+     * @return the model property
+     */
+    public ObjectProperty<PathTableData<PathObject>> modelProperty() {
+        return model;
+    }
+
+    private void handleModelChange(ObservableValue<? extends PathTableData<PathObject>> observable,
+                                   PathTableData<PathObject> oldValue, PathTableData<PathObject> newValue) {
+        isUpdating = true;
+        if (newValue != null) {
+            updateForModel(newValue);
+        }
+        isUpdating = false;
+        refreshScatterPlot();
+    }
+
+    private void updateForModel(PathTableData<PathObject> newValue) {
+        comboNameX.getItems().setAll(newValue.getMeasurementNames());
+        comboNameY.getItems().setAll(newValue.getMeasurementNames());
+
+        // Try to select the first column that isn't for 'centroids'...
+        // but, always select something
+        String selectColumnX = null, selectColumnY = null;
+        String defaultX = null, defaultY = null;
+        for (String name : newValue.getMeasurementNames()) {
+            if (!name.toLowerCase().startsWith("centroid")) {
+                if (selectColumnX == null) {
+                    selectColumnX = name;
+                    continue;
+                } else if (selectColumnY == null) {
+                    selectColumnY = name;
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            if (defaultX == null) {
+                defaultX = name;
+            } else if (defaultY == null) {
+                defaultY = name;
+            }
+        }
+        if (selectColumnX != null) {
+            comboNameX.getSelectionModel().select(selectColumnX);
+        }
+        if (selectColumnY != null) {
+            comboNameY.getSelectionModel().select(selectColumnY);
+        }
+    }
+
 
     private Pane createMainOptionsPane() {
         return new VBox(
@@ -380,6 +417,7 @@ public class ScatterPlotDisplay {
     private static Label createLabelFor(Node node, String text, String tooltip) {
         var label = new Label(text);
         label.setLabelFor(node);
+        label.setMinWidth(Label.USE_PREF_SIZE);
         if (tooltip != null)
             Tooltip.install(node, new Tooltip(tooltip));
         return label;
@@ -416,13 +454,19 @@ public class ScatterPlotDisplay {
      * Refresh the scatter plot, in case the underlying data has been updated.
      */
     public void refreshScatterPlot() {
-        if (model == null) {
+        var model = this.model.get();
+        if (model == null || isUpdating) {
             resetScatterplot();
             return;
         }
-        var items = model.getItems();
-        scatter.setDataFromTable(items, model, comboNameX.getValue(), comboNameY.getValue());
-        totalPoints.set(items.size());
+        // Awkward - but SearchableComboBox tends to set values temporarily to null
+        var x = comboNameX.getValue();
+        var y = comboNameY.getValue();
+        if (x != null && y != null) {
+            var items = model.getItems();
+            scatter.setDataFromTable(items, model, x, y);
+            totalPoints.set(items.size());
+        }
     }
 
     private void resetScatterplot() {

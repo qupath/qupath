@@ -84,8 +84,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	private static final ObservableList<PathObjectValueFactory> extraFactories = FXCollections.observableArrayList();
 
 	public ObservableMeasurementTableData() {
-		extraFactories.addListener(
-				(ListChangeListener.Change<? extends PathObjectValueFactory> c) -> updateMeasurementList());
+		// TODO: Figure out how to handle extra factories
+		// Don't add as a listener here - it can cause a massive memory leak!
+		// Especially when scatterplots get involved...
+//		extraFactories.addListener(
+//				(ListChangeListener.Change<? extends PathObjectValueFactory> c) -> updateMeasurementList());
 	}
 
 	/**

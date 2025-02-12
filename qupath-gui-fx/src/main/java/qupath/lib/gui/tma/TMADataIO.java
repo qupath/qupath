@@ -41,7 +41,6 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
-import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.viewer.OverlayOptions;
