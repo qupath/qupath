@@ -181,10 +181,10 @@ public class SummaryMeasurementTable {
 
         synchronizer = new ViewerTableSynchronizer(viewer, hierarchy, table);
 
-        model.getItems().addListener(this::handleObjectsChanged);
-
         initSplitPane();
         initTabPane();
+
+        model.getItems().addListener(this::handleObjectsChanged);
 
         initActions();
 
@@ -682,37 +682,13 @@ public class SummaryMeasurementTable {
     }
 
 
-    // TODO: Remove this context menu when we have a better way to handle visibility
+    // Minimal context menu
     private ContextMenu createContextMenu() {
         ContextMenu menu = new ContextMenu();
-        Menu menuLimitClasses = new Menu("Show classes");
-        menu.setOnShowing(e -> {
-            Set<PathClass> representedClasses = model.getBackingListEntries()
-                    .stream()
-                    .map(p -> p.getPathClass() == null ? null : p.getPathClass().getBaseClass())
-                    .collect(Collectors.toCollection(HashSet::new));
-            representedClasses.remove(null);
-            menuLimitClasses.setVisible(!representedClasses.isEmpty());
-            menuLimitClasses.getItems().clear();
-            List<PathClass> sortedClasses = new ArrayList<>(representedClasses);
-            Collections.sort(sortedClasses);
-            MenuItem miClass = new MenuItem("All");
-            miClass.setOnAction(e2 -> {
-                model.setPredicate(null);
-                histogramDisplay.refreshHistogram();
-            });
-            menuLimitClasses.getItems().add(miClass);
-            for (PathClass pathClass : sortedClasses) {
-                miClass = new MenuItem(pathClass.getName());
-                miClass.setOnAction(e2 -> {
-                    model.setPredicate(p -> pathClass.isAncestorOf(p.getPathClass()));
-                    histogramDisplay.refreshHistogram();
-                });
-                menuLimitClasses.getItems().add(miClass);
-            }
-        });
-
-        menu.getItems().add(menuLimitClasses);
+        menu.getItems().setAll(
+                ActionTools.createMenuItem(actionSelectAll),
+                ActionTools.createMenuItem(actionSelectNone)
+        );
         return menu;
     }
 
