@@ -261,22 +261,22 @@ public class ScatterPlotDisplay {
                 0.05, 1.0, pointOpacity.get(), 0.05);
         spinPointOpacity.getValueFactory().valueProperty().bindBidirectional(pointOpacity);
         spinPointOpacity.setEditable(true);
-        spinPointOpacity.setMinWidth(10);
+        spinPointOpacity.setMinWidth(80);
         FXUtils.resetSpinnerNullToPrevious(spinPointOpacity);
 
         Spinner<Double> spinPointRadius = new Spinner<>(
                 0.5, 20.0, pointRadius.get(), 0.25);
         spinPointRadius.getValueFactory().valueProperty().bindBidirectional(pointRadius);
         spinPointRadius.setEditable(true);
-        spinPointRadius.setMinWidth(10);
+        spinPointRadius.setMinWidth(80);
         FXUtils.resetSpinnerNullToPrevious(spinPointRadius);
 
-        CheckBox cbDrawGrid = new CheckBox("Draw grid");
+        CheckBox cbDrawGrid = new CheckBox("Show grid");
         cbDrawGrid.setTooltip(new Tooltip("Draw a grid on the scatterplot"));
         cbDrawGrid.selectedProperty().bindBidirectional(showGrid);
         cbDrawGrid.setMinWidth(CheckBox.USE_PREF_SIZE);
 
-        CheckBox cbDrawAxes = new CheckBox("Draw axes");
+        CheckBox cbDrawAxes = new CheckBox("Show axes");
         cbDrawAxes.setTooltip(new Tooltip("Draw axes ticks on the scatterplot"));
         cbDrawAxes.selectedProperty().bindBidirectional(showAxes);
         cbDrawAxes.setMinWidth(CheckBox.USE_PREF_SIZE);
@@ -309,25 +309,18 @@ public class ScatterPlotDisplay {
         pane.setMaxHeight(Double.MAX_VALUE);
 
         var boxCheckboxes = new VBox(
+                cbShowLegend,
                 cbDrawGrid,
-                cbDrawAxes
+                cbDrawAxes,
+                cbAutorange
         );
         boxCheckboxes.setAlignment(Pos.CENTER_LEFT);
         boxCheckboxes.setSpacing(5);
 
-        var boxCheckboxes2 = new VBox(
-                cbShowLegend,
-                cbAutorange
-                );
-        boxCheckboxes2.setAlignment(Pos.CENTER_LEFT);
-        boxCheckboxes2.setSpacing(5);
-
         var hbox = new HBox(
                 pane,
                 new Separator(Orientation.VERTICAL),
-                boxCheckboxes,
-                new Separator(Orientation.VERTICAL),
-                boxCheckboxes2
+                boxCheckboxes
         );
         hbox.setSpacing(10);
 

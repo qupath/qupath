@@ -15,7 +15,7 @@ Some things may be added, some things may be removed, and some things may look d
   * See also https://github.com/qupath/extension-manager
 * More control over showing/hiding objects by classification (https://github.com/qupath/qupath/pull/1752)
 * New ImageJ script runner (https://github.com/qupath/qupath/pull/1682)
-* Improved measurements - with tooltips & scatterplots (https://github.com/qupath/qupath/pull/1747 & https://github.com/qupath/qupath/pull/1544)
+* Improved measurements - with tooltips & scatterplots (https://github.com/qupath/qupath/pull/1747, https://github.com/qupath/qupath/pull/1544, https://github.com/qupath/qupath/pull/1768)
 * Optionally build QuPath *and* Fiji together (https://github.com/qupath/qupath/pull/1728)
 
 ### Enhancements
