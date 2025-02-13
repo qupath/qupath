@@ -16,6 +16,7 @@ import javafx.scene.control.Label;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.effect.Effect;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.TilePane;
 import javafx.scene.paint.Color;
@@ -105,7 +106,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         pointRadius.addListener(o -> updateRadius());
         rngSeed.addListener(this::handleRngSeedChange);
 
-        // Animation is unlikely to go well
+        // Animation is unlikely to go well if we have lots of points
         setAnimated(false);
 
         // This is the *only* series we use
@@ -454,7 +455,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
                 circle.setEffect(pointHoverEffect);
             else if (event.getEventType() == MouseEvent.MOUSE_EXITED)
                 circle.setEffect(null);
-            else if (event.getEventType() == MouseEvent.MOUSE_CLICKED && viewer != null) {
+            else if (event.getEventType() == MouseEvent.MOUSE_CLICKED && viewer != null && event.getButton() == MouseButton.PRIMARY) {
                 var viewer = this.viewer.get();
                 var hierarchy = viewer == null ? null : viewer.getHierarchy();
                 if (hierarchy == null)
@@ -474,6 +475,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
                             pathObject, viewer, viewer.getImageData(),
                             event.isShiftDown(), event.getClickCount() == 2);
                 }
+                event.consume();
             }
         }
     }

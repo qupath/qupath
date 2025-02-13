@@ -448,6 +448,7 @@ public class SummaryMeasurementTable {
     private Action createShowPlotsAction() {
         var action = new Action("Show plots");
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.BAR_CHART));
+        action.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN));
         action.selectedProperty().addListener((v, o, n) -> {
             if (n) {
                 splitPane.getItems().add(plotTabs);
@@ -461,14 +462,16 @@ public class SummaryMeasurementTable {
     private Action createCopyAction() {
         var action = new Action("Copy", e -> handleCopyButton());
         action.setLongText("Copy the table contents to the system clipboard");
+        action.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.CLIPBOARD));
         action.disabledProperty().bind(Bindings.isEmpty(table.getSelectionModel().getSelectedItems()));
         return action;
     }
 
     private Action createSaveAction() {
-        var action = new Action("Save", e -> handleSaveButton());
+        var action = new Action("Save...", e -> handleSaveButton());
         action.setLongText("Save the table contents");
+        action.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.SAVE));
         return action;
     }
@@ -477,6 +480,7 @@ public class SummaryMeasurementTable {
         var action = new Action("Show images");
         action.setLongText("Show or hide object thumbnail image column (usually the first column in the table)");
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.IMAGE));
+        action.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         action.selectedProperty().bindBidirectional(showThumbnailsProperty);
         return action;
     }
@@ -485,6 +489,7 @@ public class SummaryMeasurementTable {
         var action = new Action("Show object IDs");
         action.setLongText("Show or hide object ID column (usually the last column in the table)");
         action.setGraphic(IconFactory.createFontAwesome('\uf2c2'));
+        action.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         action.selectedProperty().bindBidirectional(showObjectIdsProperty);
         return action;
     }
@@ -493,6 +498,7 @@ public class SummaryMeasurementTable {
         var action = new Action("Apply class visibility");
         action.setLongText("Use class visibility settings from the viewer to filter objects for display in the table");
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.EYE));
+        action.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         action.selectedProperty().bindBidirectional(bindToOverlayOptions);
         return action;
     }
@@ -500,13 +506,14 @@ public class SummaryMeasurementTable {
     private Action createToolbarShowAction() {
         var action = new Action("Show toolbar");
         action.setLongText("Show or hide the toolbar");
+        action.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN));
         action.selectedProperty().bindBidirectional(showToolbar);
         return action;
     }
 
     private Action createToolbarTextAction() {
-        var action = new Action("Show toolbar button text");
-        action.setLongText("Show the full text for toolbar buttons (required more space)");
+        var action = new Action("Show button text");
+        action.setLongText("Show the full text for toolbar buttons (requires more space)");
         action.selectedProperty().bindBidirectional(showToolbarText);
         return action;
     }
