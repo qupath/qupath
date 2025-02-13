@@ -1,7 +1,9 @@
 package qupath.lib.gui.charts;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableValue;
@@ -70,6 +72,8 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     private final DoubleProperty pointRadius = new SimpleDoubleProperty(5);
     private final IntegerProperty maxPoints = new SimpleIntegerProperty(10000);
 
+    private final BooleanProperty autorangeToFullData = new SimpleBooleanProperty(true);
+
     // List of all objects to display - we retain this only so that we can shuffle reproducibly if the seed changes
     private final ObservableList<PathObject> allData = FXCollections.observableArrayList();
 
@@ -82,6 +86,12 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     // Functions to calculate x and y values from object
     private Function<PathObject, Number> xFun;
     private Function<PathObject, Number> yFun;
+
+    // Store extrema
+    private double xMin = Double.POSITIVE_INFINITY;
+    private double xMax = Double.NEGATIVE_INFINITY;
+    private double yMin = Double.POSITIVE_INFINITY;
+    private double yMax = Double.NEGATIVE_INFINITY;
 
     // Use one series for everything
     private final Series<Number, Number> series = new Series<>("All objects", FXCollections.observableArrayList());
@@ -105,6 +115,10 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         pointOpacity.addListener(o -> updateOpacity());
         pointRadius.addListener(o -> updateRadius());
         rngSeed.addListener(this::handleRngSeedChange);
+        autorangeToFullData.addListener((v, o, n) -> {
+            resampleAndUpdate();
+            updateAxisRange();
+        });
 
         // Animation is unlikely to go well if we have lots of points
         setAnimated(false);
@@ -183,6 +197,32 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         var y = yFun.apply(pathObject);
         if (!Objects.equals(item.getYValue(), y))
             item.setYValue(y);
+    }
+
+    /**
+     * Set the value of {@link #autorangeToFullDataProperty()}.
+     * @param useFullData whether to use the full data when setting the axis autorange
+     */
+    public void setAutorangeToFullData(boolean useFullData) {
+        this.autorangeToFullData.set(useFullData);
+    }
+
+    /**
+     * Get a property representing whether to use the entire dataset when calculating axis
+     * limits automatically.
+     * This is useful whenever we are subsampling data points.
+     * @return whether to use the full data when setting the axis autorange
+     */
+    public BooleanProperty autorangeToFullDataProperty() {
+        return autorangeToFullData;
+    }
+
+    /**
+     * Get the value of {@link #autorangeToFullDataProperty()}
+     * @return whether to use the full data when setting the axis autorange
+     */
+    public boolean getAutorangeToFullData() {
+        return autorangeToFullData.get();
     }
 
     /**
@@ -345,8 +385,44 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
             // Warning! This is slower than adding... but I don't see how to optimize it further
             items.remove(n, nItems);
         }
+        recalculateExtrema();
         ensureSingleSeries();
         requestChartLayout(); // TODO: Check if this is necessary!
+    }
+
+    private void recalculateExtrema() {
+        resetExtrema();
+        if (!autorangeToFullData.get())
+            return;
+        var data = series.getData();
+        int nItems = data.size();
+        for (int i = 0; i < shuffledData.size(); i++) {
+            double x, y;
+            if (i < nItems) {
+                var item = data.get(i);
+                x = item.getXValue().doubleValue();
+                y = item.getYValue().doubleValue();
+            } else {
+                var pathObject = shuffledData.get(i);
+                x = xFun.apply(pathObject).doubleValue();
+                y = yFun.apply(pathObject).doubleValue();
+            }
+            if (x < xMin)
+                xMin = x;
+            if (x > xMax)
+                xMax = x;
+            if (y < yMin)
+                yMin = y;
+            if (y > yMax)
+                yMax = y;
+        }
+    }
+
+    private void resetExtrema() {
+        xMin = Double.POSITIVE_INFINITY;
+        xMax = Double.NEGATIVE_INFINITY;
+        yMin = Double.POSITIVE_INFINITY;
+        yMax = Double.NEGATIVE_INFINITY;
     }
 
     private void ensureSingleSeries() {
@@ -447,6 +523,22 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     @Override
     protected void dataItemRemoved(Data<Number,Number> item, Series<Number,Number> series) {
         super.dataItemRemoved(item, series);
+    }
+
+    @Override
+    protected void updateAxisRange() {
+        if (!(autorangeToFullData.get() && xMax > xMin && yMax > yMin)) {
+            super.updateAxisRange();
+        } else {
+            var xAxis = getXAxis();
+            if (xAxis.isAutoRanging()) {
+                xAxis.invalidateRange(List.of(xMin, xMax));
+            }
+            var yAxis = getYAxis();
+            if (yAxis.isAutoRanging()) {
+                yAxis.invalidateRange(List.of(yMin, yMax));
+            }
+        }
     }
 
     private void handleMouseEvent(MouseEvent event) {

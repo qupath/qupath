@@ -16,6 +16,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Control;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Separator;
@@ -79,6 +80,10 @@ public class ScatterPlotDisplay {
             KEY + "showLegend", true
     );
 
+    private final static BooleanProperty AUTORANGE_FULL_DATA = PathPrefs.createPersistentPreference(
+            KEY + "autorangeFullData", true
+    );
+
     private boolean isUpdating = false;
 
     private final ObjectProperty<PathTableData<PathObject>> model = new SimpleObjectProperty<>();
@@ -94,6 +99,7 @@ public class ScatterPlotDisplay {
     private final BooleanProperty showAxes = createWeakBoundProperty(SHOW_AXES);
     private final BooleanProperty showGrid = createWeakBoundProperty(SHOW_GRID);
     private final BooleanProperty showLegend = createWeakBoundProperty(SHOW_LEGEND);
+    private final BooleanProperty autorangeFullData = createWeakBoundProperty(AUTORANGE_FULL_DATA);
 
     private final IntegerProperty maxPoints = createWeakBoundProperty(PROP_MAX_POINTS);
     private final IntegerProperty seed = createWeakBoundProperty(PROP_SEED);
@@ -168,6 +174,7 @@ public class ScatterPlotDisplay {
         scatter.getYAxis().tickLabelsVisibleProperty().bindBidirectional(showAxes);
 
         scatter.legendVisibleProperty().bindBidirectional(showLegend);
+        scatter.autorangeToFullDataProperty().bindBidirectional(autorangeFullData);
 
         maxPoints.addListener((v, o, n) -> scatter.setMaxPoints(n.intValue()));
         seed.addListener((v, o, n) -> scatter.setRngSeed(n.intValue()));
@@ -254,22 +261,35 @@ public class ScatterPlotDisplay {
                 0.05, 1.0, pointOpacity.get(), 0.05);
         spinPointOpacity.getValueFactory().valueProperty().bindBidirectional(pointOpacity);
         spinPointOpacity.setEditable(true);
+        spinPointOpacity.setMinWidth(10);
         FXUtils.resetSpinnerNullToPrevious(spinPointOpacity);
 
         Spinner<Double> spinPointRadius = new Spinner<>(
                 0.5, 20.0, pointRadius.get(), 0.25);
         spinPointRadius.getValueFactory().valueProperty().bindBidirectional(pointRadius);
         spinPointRadius.setEditable(true);
+        spinPointRadius.setMinWidth(10);
         FXUtils.resetSpinnerNullToPrevious(spinPointRadius);
 
         CheckBox cbDrawGrid = new CheckBox("Draw grid");
+        cbDrawGrid.setTooltip(new Tooltip("Draw a grid on the scatterplot"));
         cbDrawGrid.selectedProperty().bindBidirectional(showGrid);
+        cbDrawGrid.setMinWidth(CheckBox.USE_PREF_SIZE);
 
         CheckBox cbDrawAxes = new CheckBox("Draw axes");
+        cbDrawAxes.setTooltip(new Tooltip("Draw axes ticks on the scatterplot"));
         cbDrawAxes.selectedProperty().bindBidirectional(showAxes);
+        cbDrawAxes.setMinWidth(CheckBox.USE_PREF_SIZE);
 
         CheckBox cbShowLegend = new CheckBox("Show legend");
+        cbShowLegend.setTooltip(new Tooltip("Show a legend with class names"));
         cbShowLegend.selectedProperty().bindBidirectional(showLegend);
+        cbShowLegend.setMinWidth(CheckBox.USE_PREF_SIZE);
+
+        CheckBox cbAutorange = new CheckBox("Set axes from all points");
+        cbAutorange.setTooltip(new Tooltip("Set axes ranges using full data, even with subsampling points"));
+        cbAutorange.selectedProperty().bindBidirectional(autorangeFullData);
+        cbAutorange.setMinWidth(CheckBox.USE_PREF_SIZE);
 
         var pane = new GridPane();
         int row = 0;
@@ -290,15 +310,24 @@ public class ScatterPlotDisplay {
 
         var boxCheckboxes = new VBox(
                 cbDrawGrid,
-                cbDrawAxes,
-                cbShowLegend
+                cbDrawAxes
         );
+        boxCheckboxes.setAlignment(Pos.CENTER_LEFT);
         boxCheckboxes.setSpacing(5);
+
+        var boxCheckboxes2 = new VBox(
+                cbShowLegend,
+                cbAutorange
+                );
+        boxCheckboxes2.setAlignment(Pos.CENTER_LEFT);
+        boxCheckboxes2.setSpacing(5);
 
         var hbox = new HBox(
                 pane,
                 new Separator(Orientation.VERTICAL),
-                boxCheckboxes
+                boxCheckboxes,
+                new Separator(Orientation.VERTICAL),
+                boxCheckboxes2
         );
         hbox.setSpacing(10);
 
@@ -433,8 +462,14 @@ public class ScatterPlotDisplay {
         var label = new Label(text);
         label.setLabelFor(node);
         label.setMinWidth(Label.USE_PREF_SIZE);
-        if (tooltip != null)
-            Tooltip.install(node, new Tooltip(tooltip));
+        if (tooltip != null) {
+            var tt = new Tooltip(tooltip);
+            if (node instanceof Control control)
+                control.setTooltip(tt);
+            else
+                Tooltip.install(node, tt);
+            label.setTooltip(tt);
+        }
         return label;
     }
 
