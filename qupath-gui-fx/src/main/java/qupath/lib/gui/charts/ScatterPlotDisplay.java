@@ -15,7 +15,9 @@ import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TextField;
@@ -112,6 +114,13 @@ public class ScatterPlotDisplay {
         scatter.setRngSeed(seed.get());
         scatter.setMaxPoints(maxPoints.get());
 
+        var popup = new ContextMenu();
+        var miCopy = new MenuItem("Copy to clipboard");
+        miCopy.setOnAction(e -> SnapshotTools.copyScaledSnapshotToClipboard(scatter, 4));
+        popup.getItems().add(miCopy);
+        scatter.setOnContextMenuRequested(e -> popup.show(
+                scatter.getScene().getWindow(), e.getScreenX(), e.getScreenY()));
+
         panelMain.setCenter(scatter);
 
         initProperties();
@@ -146,6 +155,7 @@ public class ScatterPlotDisplay {
 
         pane.setPadding(new Insets(10, 10, 10, 10));
     }
+
 
     private void initProperties() {
         pointOpacity.addListener((v, o, n) -> scatter.setPointOpacity(n));
@@ -326,6 +336,7 @@ public class ScatterPlotDisplay {
         labelWarning.setWrapText(true);
         labelWarning.setAlignment(Pos.CENTER);
         labelWarning.setTextAlignment(TextAlignment.CENTER);
+        labelWarning.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
         labelWarning.getStyleClass().add("warn-label-text");
 
 
@@ -341,6 +352,10 @@ public class ScatterPlotDisplay {
         vBoxLabels.setSpacing(2);
         int nWarningPoints = 40_000;
         vBoxLabels.getChildren().add(labelPoints);
+        vBoxLabels.setAlignment(Pos.CENTER_LEFT);
+        VBox.setVgrow(labelPoints, Priority.SOMETIMES);
+        VBox.setVgrow(labelWarning, Priority.SOMETIMES);
+
         if (maxPoints.get() > nWarningPoints)
             vBoxLabels.getChildren().addFirst(labelWarning);
         maxPoints.addListener((v, o, n) -> {
