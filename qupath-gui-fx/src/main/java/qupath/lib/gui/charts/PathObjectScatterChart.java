@@ -159,9 +159,17 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         if (max == n)
             return;
         // We want to remove or add as a bulk operation - without having to change everything
-        if (n > max)
-            series.getData().remove(max, n);
-        else {
+        if (n > max) {
+            long startTime = System.currentTimeMillis();
+            // You'd think removing from the end of the list would be faster...
+            // alas, it takes more than twice as long as removing from the start of the list.
+            // This makes it well worth the cost of refreshing the data.
+//            series.getData().remove(max, n); // Simpler (slower) code
+            series.getData().remove(0, n-max);
+            refreshData();
+            long endTime = System.currentTimeMillis();
+            logger.trace("Removal time: {} ms", endTime - startTime);
+        } else {
             var toAdd = shuffledData.subList(n, max).stream().map(this::createDataItem).toList();
             series.getData().addAll(toAdd);
         }
@@ -364,11 +372,21 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     }
 
     private void resampleAndUpdate() {
+        long startTime = System.currentTimeMillis();
         int max = maxPoints.get();
         int n = GeneralTools.clipValue(shuffledData.size(), 0, max);
         List<Data<Number, Number>> toAdd = new ArrayList<>();
         var items = series.getData();
         int nItems = items.size();
+        // It's convoluted, but it's faster to remove items from the start of the list
+        // than the end
+        if (n < nItems) {
+            // We have items to remove
+            // Warning! This is slower than adding... but I don't see how to optimize it further
+            items.remove(0, nItems - n);
+            nItems = items.size();
+        }
+
         for (int i = 0; i < n; i++) {
             var pathObject = shuffledData.get(i);
             if (i < nItems) {
@@ -381,10 +399,12 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
             // We have items to add
             items.addAll(toAdd);
         } else if (n < nItems) {
-            // We have items to remove
-            // Warning! This is slower than adding... but I don't see how to optimize it further
+            // This code isn't needed any more, since we remove items at the start!
+            // It's kept for posterity... an in case removing at the end ever becomes faster
             items.remove(n, nItems);
         }
+        long endTime = System.currentTimeMillis();
+        logger.trace("Resample & update time: {} ms", endTime - startTime);
         recalculateExtrema();
         ensureSingleSeries();
         requestChartLayout(); // TODO: Check if this is necessary!
