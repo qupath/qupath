@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2023, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -36,6 +36,7 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -98,26 +99,26 @@ import qupath.lib.projects.Projects;
  */
 
 public class MeasurementExportCommand implements Runnable {
-	
-	private QuPathGUI qupath;
+
 	private static final Logger logger = LoggerFactory.getLogger(MeasurementExportCommand.class);
-	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
+
+	private final QuPathGUI qupath;
+	private final ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 	
 	private Dialog<ButtonType> dialog = null;
 	private Project<BufferedImage> project;
 	private ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView;
-	private List<ProjectImageEntry<BufferedImage>> previousImages = new ArrayList<>();
-	private String defSep = PathPrefs.tableDelimiterProperty().get();
-	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("columnName-loader", true));
+	private final List<ProjectImageEntry<BufferedImage>> previousImages = new ArrayList<>();
+	private final ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("columnName-loader", true));
 	private Class<? extends PathObject> type = PathRootObject.class;
 	
 	// GUI
-	private TextField outputText = new TextField();
+	private final TextField outputText = new TextField();
 	private ComboBox<String> pathObjectCombo;
 	private ComboBox<String> separatorCombo;
 	private CheckComboBox<String> includeCombo;
 	
-	private ButtonType btnExport = new ButtonType("Export", ButtonData.OK_DONE);
+	private final ButtonType btnExport = new ButtonType("Export", ButtonData.OK_DONE);
 	
 	/**
 	 * Creates a simple GUI for MeasurementExporter.
@@ -227,7 +228,7 @@ public class MeasurementExportCommand implements Runnable {
 
 						if (updatedEntries == listSelectionView.getTargetItems().size() - 1) {
 							Platform.runLater(() -> {
-								allColumnsForCombo.removeIf(n -> n == null);
+								allColumnsForCombo.removeIf(Objects::isNull);
 								includeCombo.getItems().setAll(allColumnsForCombo);
 								includeCombo.getCheckModel().clearChecks();
 								includeCombo.setDisable(false);
@@ -235,7 +236,7 @@ public class MeasurementExportCommand implements Runnable {
 							progressIndicator.setOpacity(0);
 						}
 					} catch (Exception ex) {
-						logger.warn("Error loading columns for entry " + entry.getImageName() + ": " + ex.getLocalizedMessage());
+                        logger.warn("Error loading columns for entry {}: {}", entry.getImageName(), ex.getLocalizedMessage());
 					}
 				});
 			}
@@ -243,7 +244,7 @@ public class MeasurementExportCommand implements Runnable {
 		});
 		
 		btnPopulateColumns.disableProperty().addListener((v, o, n) -> {
-			if (n != null && n == true)
+			if (n != null && n)
 				includeCombo.setDisable(true);
 		});
 		
@@ -313,7 +314,7 @@ public class MeasurementExportCommand implements Runnable {
 				
 		var checkedItems = includeCombo.getCheckModel().getCheckedItems();
 		String[] include = checkedItems.stream().toList().toArray(new String[checkedItems.size()]);
-		String separator = defSep;
+		String separator = PathPrefs.tableDelimiterProperty().get();
 
 		switch (separatorCombo.getSelectionModel().getSelectedItem()) {
 		case "Tab (.tsv)":
@@ -400,7 +401,7 @@ public class MeasurementExportCommand implements Runnable {
 			this.excludeColumns = exporter.getExcludeColumns();
 			this.includeOnlyColumns = exporter.getIncludeColumns();
 			if (exporter.getSeparator().isEmpty())
-				this.separator = defSep;
+				this.separator = PathPrefs.tableDelimiterProperty().get();
 			else
 				this.separator = exporter.getSeparator();
 			this.type = exporter.getType();
@@ -434,7 +435,7 @@ public class MeasurementExportCommand implements Runnable {
 					return null;
 				}
 				
-				updateProgress(counter, imageList.size()*2);
+				updateProgress(counter, imageList.size()* 2L);
 				counter++;
 				updateMessage("Calculating measurements for " + entry.getImageName() + " (" + counter + "/" + imageList.size()*2 + ")");
 				
@@ -446,7 +447,7 @@ public class MeasurementExportCommand implements Runnable {
 					
 					// Get header
 					String[] header;
-					String headerString = data.get(0);
+					String headerString = data.getFirst();
 					if (headerString.chars().filter(e -> e == '"').count() > 1)
 						header = headerString.split(separator.equals("\t") ? "\\" + separator : separator + pattern , -1);
 					else
@@ -496,17 +497,17 @@ public class MeasurementExportCommand implements Runnable {
 				int counter2 = 0;
 				for (ProjectImageEntry<?> entry: imageList) {
 					if (isQuietlyCancelled() || isCancelled()) {
-						logger.warn("Export cancelled with " + (imageList.size() - counter2) + " image(s) remaining");
+                        logger.warn("Export cancelled with {} image(s) remaining", imageList.size() - counter2);
 						return null;
 					}
 					
 					counter++;
-					updateProgress(counter, imageList.size()*2);
+					updateProgress(counter, imageList.size()* 2L);
 					updateMessage("Exporting measurements of " + entry.getImageName() + " (" + counter + "/" + imageList.size()*2 + ")");
 					
 					for (int nObject = 0; nObject < nImageEntries.get(entry); nObject++) {
 						for (int nCol = 0; nCol < allColumns.size(); nCol++) {
-							if (Arrays.stream(imageCols.get(entry)).anyMatch(allColumns.get(nCol)::equals)) {
+							if (Arrays.asList(imageCols.get(entry)).contains(allColumns.get(nCol))) {
 								String val = (String)its[nCol].next();
 									
 								// NaN values -> blank
@@ -541,7 +542,7 @@ public class MeasurementExportCommand implements Runnable {
 				time = String.format("Total processing time: %d milliseconds", timeMillis);
 			logger.info("Processed {} images", imageList.size());
 			logger.info(time);
-			logger.info("Measurements exported to " + outputText.getText());
+            logger.info("Measurements exported to {}", outputText.getText());
 			
 			Dialogs.showMessageDialog("Export completed", "Successful export!");
 			return null;
