@@ -1,3 +1,26 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+ * Contact: IP Management (ipmanagement@qub.ac.uk)
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.gui.measure.ui;
 
 import javafx.application.Platform;
@@ -81,6 +104,11 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+/**
+ * Control to show a table to view measurements and properties of {@link PathObject}.
+ *
+ * @since v0.6.0
+ */
 public class SummaryMeasurementTable {
 
     private static final Logger logger = LoggerFactory.getLogger(SummaryMeasurementTable.class);
@@ -140,6 +168,12 @@ public class SummaryMeasurementTable {
     private TableColumn<PathObject, PathObject> colThumbnails;
     private final double thumbnailPadding = 10.0;
 
+    /**
+     * Create a new measurement table.
+     * @param imageData the image data that the table should relate to (i.e. source of the objects)
+     * @param primaryFilter main filter used to extract objects (e.g. detections, annotations)
+     * @see PathObjectFilter
+     */
     public SummaryMeasurementTable(ImageData<BufferedImage> imageData,
                                    Predicate<PathObject> primaryFilter) {
         Objects.requireNonNull(imageData);

@@ -34,7 +34,6 @@ import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -86,7 +85,6 @@ public class SummaryMeasurementTableCommand {
 		var table = new SummaryMeasurementTable(imageData, filter);
 
 		Stage stage = new Stage();
-		FXUtils.addCloseWindowShortcuts(stage);
 		stage.initOwner(qupath.getStage());
 
 		String name = null;
