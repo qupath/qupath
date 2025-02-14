@@ -413,12 +413,14 @@ public class ContextHelpViewer {
 	}
 
 	private static Tooltip tryToGetTooltip(Node node) {
-		if (node instanceof Control) {
-			return ((Control)node).getTooltip();
+		if (node instanceof Control control) {
+			var tt = control.getTooltip();
+			if (tt != null)
+				return tt;
 		}
 		var tooltip = node.getProperties().get("javafx.scene.control.Tooltip");
-		if (tooltip instanceof Tooltip)
-			return (Tooltip)tooltip;
+		if (tooltip instanceof Tooltip tt)
+			return tt;
 		return null;
 	}
 	

@@ -125,7 +125,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 				logger.debug("Repaint skipped...");
 				continue;
 			} catch (InterruptedException e) {
-				logger.warn("Tile request interrupted in 'paintRegionCompletely': {}", e.getLocalizedMessage());
+				logger.debug("Tile request interrupted in 'paintRegionCompletely': {}", e.getLocalizedMessage());
 				return;
 			} catch (ExecutionException e) {
 				logger.error("Execution exception in 'paintRegionCompletely'", e);

@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 
+import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -225,11 +226,11 @@ public class MeasurementExporter {
 					pathObjects = pathObjects.stream().filter(filter).toList();
 				
 				model.setImageData(imageData, pathObjects);
-				List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, separator, excludeColumns);
+				List<String> data = SummaryMeasurementTable.getTableModelStrings(model, separator, excludeColumns);
 				
 				// Get header
 				String[] header;
-				String headerString = data.get(0);
+				String headerString = data.getFirst();
 				if (headerString.chars().filter(e -> e == '"').count() > 1)
 					header = headerString.split(separator.equals("\t") ? "\\" + separator : separator + pattern , -1);
 				else

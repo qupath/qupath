@@ -24,6 +24,7 @@
 package qupath.lib.gui.measure;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Predicate;
@@ -107,9 +108,11 @@ public interface PathTableData<T> {
 
 
 	/**
-	 * Get a list of Strings representing table data.
+	 * Get a list of Strings representing table data for all items.
 	 * <p>
 	 * Each entry in the list corresponds to a row.
+	 * <p>
+	 * This is equivalent to calling {@code getRowStrings(getItems(), delim, nDecimalPlaces, columnFilter)}.
 	 *
 	 * @param delim the delimiter to use between columns
 	 * @param nDecimalPlaces the number of decimal places to use for numeric values; if negative, the default number of decimal places is used
@@ -119,6 +122,23 @@ public interface PathTableData<T> {
 	 * @since v0.6.0
 	 */
 	default List<String> getRowStrings(final String delim, int nDecimalPlaces, Predicate<String> columnFilter) {
+		return getRowStrings(getItems(), delim, nDecimalPlaces, columnFilter);
+	}
+
+	/**
+	 * Get a list of Strings representing table data for specific items.
+	 * <p>
+	 * Each entry in the list corresponds to a row.
+	 *
+	 * @param items the items to use; one row will be returned for each
+	 * @param delim the delimiter to use between columns
+	 * @param nDecimalPlaces the number of decimal places to use for numeric values; if negative, the default number of decimal places is used
+	 * @param columnFilter a predicate to choose which columns to include; if null, all columns from the table are used
+	 * @return a list of strings, with the first item giving the column names and each additional string representing
+	 * 	       a row in the table
+	 * @since v0.6.0
+	 */
+	default List<String> getRowStrings(Collection<? extends T> items, String delim, int nDecimalPlaces, Predicate<String> columnFilter) {
 
 		var logger = LoggerFactory.getLogger(PathTableData.class);
 
@@ -146,7 +166,7 @@ public interface PathTableData<T> {
 		rows.add(sb.toString());
 		sb.setLength(0);
 
-		for (T object : getItems()) {
+		for (T object : items) {
 			for (int col = 0; col < nColumns; col++) {
 				String val = getStringValue(object, names.get(col), nDecimalPlaces);
 				if (val != null) {

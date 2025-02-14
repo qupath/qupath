@@ -91,62 +91,38 @@ public enum PathObjectFilter implements Predicate<PathObject> {
 	
 	@Override
 	public String toString() {
-		switch (this) {
-		case ANNOTATIONS:
-			return "Annotations";
-		case CELLS:
-			return "Cells";
-		case DETECTIONS:
-			return "Detections (no subtypes)";
-		case DETECTIONS_ALL:
-			return "Detections (all)";
-		case TILES:
-			return "Tiles";
-		case TMA_CORES:
-			return "TMA cores";
-		case UNLOCKED:
-			return "Unlocked";
-		case ROI:
-			return "Has ROI";
-		case ROI_LINE:
-			return "Has line ROI";
-		case ROI_AREA:
-			return "Has area ROI";
-		case ROI_POINT:
-			return "Has point ROI";
-		default:
-			throw new IllegalArgumentException();
-		}
+        return switch (this) {
+            case ANNOTATIONS -> "Annotations";
+            case CELLS -> "Cells";
+            case DETECTIONS -> "Detections (no subtypes)";
+            case DETECTIONS_ALL -> "Detections (all)";
+            case TILES -> "Tiles";
+            case TMA_CORES -> "TMA cores";
+            case UNLOCKED -> "Unlocked";
+            case ROI -> "Has ROI";
+            case ROI_LINE -> "Has line ROI";
+            case ROI_AREA -> "Has area ROI";
+            case ROI_POINT -> "Has point ROI";
+            default -> throw new IllegalArgumentException();
+        };
 	}
 
 	@Override
 	public boolean test(PathObject p) {
-		switch (this) {
-		case ANNOTATIONS:
-			return p.isAnnotation();
-		case CELLS:
-			return p.isCell();
-		case DETECTIONS_ALL:
-			return p.isDetection();
-		case DETECTIONS:
-			return p.isDetection() && PathDetectionObject.class.equals(p.getClass());
-		case TILES:
-			return p.isTile();
-		case TMA_CORES:
-			return p.isTMACore();
-		case UNLOCKED:
-			return !p.isLocked();
-		case ROI:
-			return p.hasROI();
-		case ROI_LINE:
-			return p.hasROI() && p.getROI().isLine();
-		case ROI_AREA:
-			return p.hasROI() && p.getROI().isArea();
-		case ROI_POINT:
-			return p.hasROI() && p.getROI().isPoint();
-		default:
-			throw new IllegalArgumentException();
-		}
+        return switch (this) {
+            case ANNOTATIONS -> p.isAnnotation();
+            case CELLS -> p.isCell();
+            case DETECTIONS_ALL -> p.isDetection();
+            case DETECTIONS -> p.isDetection() && PathDetectionObject.class.equals(p.getClass());
+            case TILES -> p.isTile();
+            case TMA_CORES -> p.isTMACore();
+            case UNLOCKED -> !p.isLocked();
+            case ROI -> p.hasROI();
+            case ROI_LINE -> p.hasROI() && p.getROI().isLine();
+            case ROI_AREA -> p.hasROI() && p.getROI().isArea();
+            case ROI_POINT -> p.hasROI() && p.getROI().isPoint();
+            default -> throw new IllegalArgumentException();
+        };
 	}
 	
 }

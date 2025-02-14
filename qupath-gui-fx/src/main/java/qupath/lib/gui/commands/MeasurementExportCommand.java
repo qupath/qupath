@@ -74,6 +74,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MeasurementExporter;
@@ -441,7 +442,7 @@ public class MeasurementExportCommand implements Runnable {
 					ImageData<?> imageData = entry.readImageData();
 					ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 					model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
-					List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, separator, excludeColumns);
+					List<String> data = SummaryMeasurementTable.getTableModelStrings(model, separator, excludeColumns);
 					
 					// Get header
 					String[] header;
