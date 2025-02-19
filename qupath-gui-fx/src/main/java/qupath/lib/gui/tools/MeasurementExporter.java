@@ -24,6 +24,7 @@ package qupath.lib.gui.tools;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -37,6 +38,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.DoubleConsumer;
 import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +61,9 @@ import qupath.lib.projects.ProjectImageEntry;
 public class MeasurementExporter {
 	
 	private static final Logger logger = LoggerFactory.getLogger(MeasurementExporter.class);
-	
+
+	private static final DoubleConsumer NULL_PROGRESS_MONITOR = d -> {};
+
 	private List<String> includeOnlyColumns = new ArrayList<>();
 	private List<String> excludeColumns = new ArrayList<>();
 	private Predicate<PathObject> filter;
@@ -69,14 +74,15 @@ public class MeasurementExporter {
 	private String separator = PathPrefs.tableDelimiterProperty().get();
 	
 	private List<ProjectImageEntry<BufferedImage>> imageList;
+
+	private DoubleConsumer progressMonitor = NULL_PROGRESS_MONITOR;
 	
-	@SuppressWarnings("javadoc")
 	public MeasurementExporter() {}
 	
 	/**
 	 * Specify what type of object should be exported. 
 	 * Default: image (root object).
-	 * @param type
+	 * @param type the type of object to export
 	 * @return this exporter
 	 */
 	public MeasurementExporter exportType(Class<? extends PathObject> type) {
@@ -87,8 +93,9 @@ public class MeasurementExporter {
 	/**
 	 * Specify the columns that will be included in the export.
 	 * The column names are case-sensitive.
-	 * @param includeOnlyColumns
+	 * @param includeOnlyColumns the columns to include; this takes precedence over {@link #excludeColumns(String...)}.
 	 * @return this exporter
+	 * @see #excludeColumns
 	 */
 	public MeasurementExporter includeOnlyColumns(String... includeOnlyColumns) {
 		this.includeOnlyColumns = Arrays.asList(includeOnlyColumns);
@@ -98,8 +105,9 @@ public class MeasurementExporter {
 	/**
 	 * Specify the columns that will be excluded during the export.
 	 * The column names are case-sensitive.
-	 * @param excludeColumns
+	 * @param excludeColumns the columns to exclude
 	 * @return this exporter
+	 * @see #includeOnlyColumns
 	 */
 	public MeasurementExporter excludeColumns(String... excludeColumns) {
 		this.excludeColumns = Arrays.asList(excludeColumns);
@@ -111,7 +119,7 @@ public class MeasurementExporter {
 	 * To avoid unexpected behavior, it is recommended to
 	 * use either tab ({@code \t}), comma ({@code ,}) or 
 	 * semicolon ({@code ;}).
-	 * @param sep
+	 * @param sep the column separator to use
 	 * @return this exporter
 	 */
 	public MeasurementExporter separator(String sep) {
@@ -121,17 +129,28 @@ public class MeasurementExporter {
 	
 	/**
 	 * Specify the list of images ({@code ProjectImageEntry}) to export.
-	 * @param imageList
+	 * @param imageList the images to export
 	 * @return this exporter
 	 */
 	public MeasurementExporter imageList(List<ProjectImageEntry<BufferedImage>> imageList) {
 		this.imageList = imageList;
 		return this;
 	}
+
+	/**
+	 * Set a progress monitor to be notified during export.
+	 * This is a consumer that takes a value between 0.0 (at the start) and 1.0 (export complete).
+	 * @param monitor the optional progress monitor
+	 * @return this exporter
+	 */
+	public MeasurementExporter progressMonitor(DoubleConsumer monitor) {
+		this.progressMonitor = monitor == null ? NULL_PROGRESS_MONITOR : monitor;
+		return this;
+	}
 	
 	/**
 	 * Filter the {@code PathObject}s before export (objects returning {@code true} for the predicate will be exported).
-	 * @param filter
+	 * @param filter a filter to use to select objects for export
 	 * @return this exporter
 	 * @since v0.3.2
 	 */
@@ -186,16 +205,52 @@ public class MeasurementExporter {
 	 * all the column names and values of the measurements.
 	 * Then, it loops through the maps containing the values to write
 	 * them to the given output file.
-	 * @param file
+	 * @param file the file where the data should be written
+	 * @throws IOException if the export files
 	 */
-	public void exportMeasurements(File file) {
-		try(FileOutputStream fos = new FileOutputStream(file)) {
+	public void exportMeasurements(File file) throws IOException, InterruptedException {
+		try (FileOutputStream fos = new FileOutputStream(file)) {
 			exportMeasurements(fos);
-		} catch (Exception e) {
-			logger.error(e.getLocalizedMessage(), e);
 		}
 	}
-	
+
+	private Predicate<String> createColumnPredicate() {
+		if (!includeOnlyColumns.isEmpty()) {
+			var set = Set.copyOf(includeOnlyColumns);
+			return set::contains;
+		} else if (!excludeColumns.isEmpty()) {
+			var set = Set.copyOf(excludeColumns);
+			return s -> !set.contains(s);
+		} else {
+			return s -> true;
+		}
+	}
+
+	private MeasurementTable createMeasurementTable(ProgressMonitor monitor) throws IOException, InterruptedException {
+		int nDecimalPlaces = -1;
+		var table = new MeasurementTable();
+		var columnPredicate = createColumnPredicate();
+		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+
+		for (ProjectImageEntry<?> entry: imageList) {
+			if (Thread.interrupted())
+				throw new InterruptedException();
+			try (ImageData<?> imageData = entry.readImageData()) {
+				Collection<PathObject> pathObjects = imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type);
+				if (filter != null)
+					pathObjects = pathObjects.stream().filter(filter).toList();
+				model.setImageData(imageData, pathObjects);
+				var columns = model.getAllNames().stream().filter(columnPredicate).toList();
+				table.addRows(columns, model, nDecimalPlaces);
+			} catch (IOException e) {
+				throw e;
+			} catch (Exception e) {
+				throw new IOException(e);
+			}
+			monitor.incrementProgress();
+		}
+		return table;
+	}
 	
 	/**
 	 * Exports the measurements of one or more entries in the project.
@@ -203,43 +258,18 @@ public class MeasurementExporter {
 	 * all the column names and values of the measurements.
 	 * Then, it loops through the maps containing the values to write
 	 * them to the given output stream.
-	 * @param stream
+	 * @param stream the output stream to write to
+	 * @throws IOException if the export fails
 	 */
-	public void exportMeasurements(OutputStream stream) {
+	public void exportMeasurements(OutputStream stream) throws IOException, InterruptedException {
 		long startTime = System.currentTimeMillis();
 
-		int nDecimalPlaces = -1;
-		Predicate<String> columnPredicate;
-		if (!includeOnlyColumns.isEmpty()) {
-			var set = Set.copyOf(includeOnlyColumns);
-			columnPredicate = set::contains;
-		} else if (!excludeColumns.isEmpty()) {
-			var set = Set.copyOf(excludeColumns);
-			columnPredicate = s -> !set.contains(s);
-		} else {
-			columnPredicate = s -> true;
-		}
+		int n = imageList.size();
+		var monitor = new ProgressMonitor(n+1, progressMonitor);
+		var table = createMeasurementTable(monitor);
 
 		boolean warningLogged = false;
-		var table = new MeasurementTable();
 
-		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-		for (ProjectImageEntry<?> entry: imageList) {
-			try (ImageData<?> imageData = entry.readImageData()) {
-
-				Collection<PathObject> pathObjects = imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type);
-				if (filter != null)
-					pathObjects = pathObjects.stream().filter(filter).toList();
-				
-				model.setImageData(imageData, pathObjects);
-
-				var columns = model.getAllNames().stream().filter(columnPredicate).toList();
-				table.addRows(columns, model, nDecimalPlaces);
-			} catch (Exception e) {
-				logger.error(e.getMessage(), e);
-			}
-		}
-		
 		try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8))){
 			var header = table.getHeader();
 			writeRow(writer, header, separator);
@@ -265,9 +295,9 @@ public class MeasurementExporter {
 				writeRow(writer, rowValues, separator);
 			}
 
-		} catch (Exception e) {
-            logger.error("Error writing to file: {}", e.getMessage(), e);
 		}
+		monitor.complete();
+
 		
 		long endTime = System.currentTimeMillis();
 		
@@ -323,6 +353,29 @@ public class MeasurementExporter {
 
 		public int size() {
 			return data.size();
+		}
+
+	}
+
+	private static class ProgressMonitor {
+
+		private final int n;
+		private final DoubleConsumer monitor;
+		private final AtomicInteger counter = new AtomicInteger();
+
+		private ProgressMonitor(int n, DoubleConsumer monitor) {
+			this.n = n;
+			this.monitor = monitor;
+		}
+
+		void incrementProgress() {
+			double val = (double)counter.incrementAndGet() / n;
+			monitor.accept(val);
+		}
+
+		void complete() {
+			counter.set(n);
+			monitor.accept(1.0);
 		}
 
 	}

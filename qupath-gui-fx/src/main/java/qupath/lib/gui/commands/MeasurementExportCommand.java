@@ -23,19 +23,11 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -43,13 +35,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.controlsfx.control.CheckComboBox;
-import org.controlsfx.control.ListSelectionView;
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.Multimap;
 import com.google.common.io.Files;
 
 import javafx.application.Platform;
@@ -70,17 +59,16 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MeasurementExporter;
 import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -107,7 +95,6 @@ public class MeasurementExportCommand implements Runnable {
 	
 	private Dialog<ButtonType> dialog = null;
 	private Project<BufferedImage> project;
-	private ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView;
 	private final List<ProjectImageEntry<BufferedImage>> previousImages = new ArrayList<>();
 	private final ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("columnName-loader", true));
 	private Class<? extends PathObject> type = PathRootObject.class;
@@ -122,7 +109,7 @@ public class MeasurementExportCommand implements Runnable {
 	
 	/**
 	 * Creates a simple GUI for MeasurementExporter.
-	 * @param qupath
+	 * @param qupath the main QuPath instance
 	 */
 	public MeasurementExportCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -218,13 +205,11 @@ public class MeasurementExportCommand implements Runnable {
 				ProjectImageEntry<BufferedImage> entry = listSelectionView.getTargetItems().get(i);
 				int updatedEntries = i;
 				executor.submit(() -> {
-					try {
+					try (var imageData = entry.readImageData()) {
 						progressIndicator.setOpacity(100);
-						ImageData<?> imageData = entry.readImageData();
 						ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 						model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
 						allColumnsForCombo.addAll(model.getAllNames());
-						imageData.getServer().close();
 
 						if (updatedEntries == listSelectionView.getTargetItems().size() - 1) {
 							Platform.runLater(() -> {
@@ -256,7 +241,7 @@ public class MeasurementExportCommand implements Runnable {
 		
 		// Add listener to separatorCombo
 		separatorCombo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			if (outputText == null || n == null)
+			if (n == null)
 				return;
 			String currentOut = outputText.getText();
 			if (n.equals("Tab (.tsv)") && currentOut.endsWith(".csv"))
@@ -289,11 +274,11 @@ public class MeasurementExportCommand implements Runnable {
 		
 		Optional<ButtonType> result = dialog.showAndWait();
 		
-		if (!result.isPresent() || result.get() != btnExport || result.get() == ButtonType.CANCEL)
+		if (result.isEmpty() || result.get() != btnExport || result.get() == ButtonType.CANCEL)
 			return;
 
 		String curExt = Files.getFileExtension(outputText.getText());
-		if (curExt.equals("") || (!curExt.equals("csv") && !curExt.equals("tsv"))) {
+		if (curExt.isEmpty() || (!curExt.equals("csv") && !curExt.equals("tsv"))) {
 			curExt = curExt.length() > 1 ? "." + curExt : curExt;
 			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
@@ -316,20 +301,14 @@ public class MeasurementExportCommand implements Runnable {
 		String[] include = checkedItems.stream().toList().toArray(new String[checkedItems.size()]);
 		String separator = PathPrefs.tableDelimiterProperty().get();
 
-		switch (separatorCombo.getSelectionModel().getSelectedItem()) {
-		case "Tab (.tsv)":
-			separator = "\t";
-			break;
-		case "Comma (.csv)":
-			separator = ",";
-			break;
-		case "Semicolon (.csv)":
-			separator = ";";
-			break;
-		};
+        separator = switch (separatorCombo.getSelectionModel().getSelectedItem()) {
+            case "Tab (.tsv)" -> "\t";
+            case "Comma (.csv)" -> ",";
+            case "Semicolon (.csv)" -> ";";
+            default -> separator;
+        };
 		
-		MeasurementExporter exporter;
-		exporter = new MeasurementExporter()
+		MeasurementExporter exporter = new MeasurementExporter()
 			.imageList(listSelectionView.getTargetItems())
 			.separator(separator)
 			.includeOnlyColumns(include)
@@ -346,9 +325,8 @@ public class MeasurementExportCommand implements Runnable {
 		progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 		progress.getDialogPane().lookupButton(ButtonType.CANCEL).addEventFilter(ActionEvent.ACTION, e -> {
 			if (Dialogs.showYesNoDialog("Cancel export", "Are you sure you want to stop the export after the current image?")) {
-				worker.quietCancel();
+				worker.cancel(true);
 				progress.setHeaderText("Cancelling...");
-//							worker.cancel(false);
 				progress.getDialogPane().lookupButton(ButtonType.CANCEL).setDisable(true);
 			}
 			e.consume();
@@ -377,172 +355,43 @@ public class MeasurementExportCommand implements Runnable {
 			case "TMA cores":
 				type = TMACoreObject.class;
 				break;
-			};
+			}
 		}
 	}
 	
 
-	class ExportTask extends Task<Void> {
+	static class ExportTask extends Task<Void> {
 		
-		private boolean quietCancel = false;
-		private String pathOut;
-		private List<ProjectImageEntry<BufferedImage>> imageList;
-		private List<String> excludeColumns;
-		private List<String> includeOnlyColumns;
-		private String separator;
-		
-		// Default: Exporting image
-		private Class<? extends PathObject> type = PathAnnotationObject.class;
-		
+		private final String pathOut;
+		private final MeasurementExporter exporter;
 		
 		public ExportTask(MeasurementExporter exporter, String pathOut) {
 			this.pathOut = pathOut;
-			this.imageList = exporter.getImageList();
-			this.excludeColumns = exporter.getExcludeColumns();
-			this.includeOnlyColumns = exporter.getIncludeColumns();
-			if (exporter.getSeparator().isEmpty())
-				this.separator = PathPrefs.tableDelimiterProperty().get();
-			else
-				this.separator = exporter.getSeparator();
-			this.type = exporter.getType();
-		}
-		
-		public void quietCancel() {
-			this.quietCancel = true;
+			this.exporter = exporter;
 		}
 
-		public boolean isQuietlyCancelled() {
-			return quietCancel;
-		}
-		
 
 		@Override
 		protected Void call() {
 			long startTime = System.currentTimeMillis();
-	
-			Map<ProjectImageEntry<?>, String[]> imageCols = new HashMap<>();
-			Map<ProjectImageEntry<?>, Integer> nImageEntries = new HashMap<>();
-			List<String> allColumns = new ArrayList<>();
-			Multimap<String, String> valueMap = LinkedListMultimap.create();
-			File file = new File(pathOut);
-			String pattern = "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
-			
-			int counter = 0;
-			
-			for (ProjectImageEntry<?> entry: imageList) {
-				if (isQuietlyCancelled() || isCancelled()) {
-					logger.warn("Export cancelled");
-					return null;
-				}
-				
-				updateProgress(counter, imageList.size()* 2L);
-				counter++;
-				updateMessage("Calculating measurements for " + entry.getImageName() + " (" + counter + "/" + imageList.size()*2 + ")");
-				
-				try {
-					ImageData<?> imageData = entry.readImageData();
-					ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-					model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
-					List<String> data = SummaryMeasurementTable.getTableModelStrings(model, separator, excludeColumns);
-					
-					// Get header
-					String[] header;
-					String headerString = data.getFirst();
-					if (headerString.chars().filter(e -> e == '"').count() > 1)
-						header = headerString.split(separator.equals("\t") ? "\\" + separator : separator + pattern , -1);
-					else
-						header = headerString.split(separator);
-					
-					imageCols.put(entry, header);
-					nImageEntries.put(entry, data.size()-1);
-					
-					for (String col: header) {
-						if (!allColumns.contains(col)  && !excludeColumns.contains(col))
-							allColumns.add(col);
-					}
-					
-					// To keep the same column order, just delete non-relevant columns
-					if (!includeOnlyColumns.isEmpty())
-						allColumns.removeIf(n -> !includeOnlyColumns.contains(n));
-					
-					for (int i = 1; i < data.size(); i++) {
-						String[] row;
-						String rowString = data.get(i);
-						
-						// Check if some values in the row are escaped
-						if (rowString.chars().filter(e -> e == '"').count() > 1)
-							row = rowString.split(separator.equals("\t") ? "\\" + separator : separator + pattern , -1);
-						else
-							row = rowString.split(separator);
-						
-						// Put value in map
-						for (int elem = 0; elem < row.length; elem++) {
-							if (allColumns.contains(header[elem]))
-								valueMap.put(header[elem], row[elem]);
-						}
-					}
-				} catch (Exception e) {
-					logger.error(e.getLocalizedMessage(), e);
-				}
-			}
-	
-			try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))){
-				writer.println(String.join(separator, allColumns));
-	
-				Iterator[] its = new Iterator[allColumns.size()];
-				for (int col = 0; col < allColumns.size(); col++) {
-					its[col] = valueMap.get(allColumns.get(col)).iterator();
-				}
-				
-				int counter2 = 0;
-				for (ProjectImageEntry<?> entry: imageList) {
-					if (isQuietlyCancelled() || isCancelled()) {
-                        logger.warn("Export cancelled with {} image(s) remaining", imageList.size() - counter2);
-						return null;
-					}
-					
-					counter++;
-					updateProgress(counter, imageList.size()* 2L);
-					updateMessage("Exporting measurements of " + entry.getImageName() + " (" + counter + "/" + imageList.size()*2 + ")");
-					
-					for (int nObject = 0; nObject < nImageEntries.get(entry); nObject++) {
-						for (int nCol = 0; nCol < allColumns.size(); nCol++) {
-							if (Arrays.asList(imageCols.get(entry)).contains(allColumns.get(nCol))) {
-								String val = (String)its[nCol].next();
-									
-								// NaN values -> blank
-								if (val.equals("NaN"))
-									val = "";
-								writer.print(val);
-							}
-							if (nCol < allColumns.size()-1)
-								writer.print(separator);
-						}
-						writer.println();
-					}
-					counter2++;
-				}
-			} catch (FileNotFoundException e) {
-				Dialogs.showMessageDialog("Export Failed", "Could not create output file. Export failed!");
+
+			try {
+				exporter.progressMonitor(p -> updateProgress(p, 1.0))
+						.exportMeasurements(new File(pathOut));
+			} catch (IOException e) {
+				Dialogs.showErrorMessage("Export failed", e);
 				return null;
-				
-			} catch (Exception e) {
-				logger.error(e.getLocalizedMessage(), e);
+			} catch (InterruptedException e) {
+				Dialogs.showErrorNotification("Export interrupted", "Measurement export was cancelled");
+				logger.warn(e.getMessage(), e);
+				return null;
 			}
 			
 			long endTime = System.currentTimeMillis();
 			
 			long timeMillis = endTime - startTime;
-			String time = null;
-			if (timeMillis > 1000*60)
-				time = String.format("Total processing time: %.2f minutes", timeMillis/(1000.0 * 60.0));
-			else if (timeMillis > 1000)
-				time = String.format("Total processing time: %.2f seconds", timeMillis/(1000.0));
-			else
-				time = String.format("Total processing time: %d milliseconds", timeMillis);
-			logger.info("Processed {} images", imageList.size());
-			logger.info(time);
-            logger.info("Measurements exported to {}", outputText.getText());
+            logger.info("Measurements export to {} ({} seconds)", pathOut,
+					GeneralTools.formatNumber(timeMillis / 1000.0, 2));
 			
 			Dialogs.showMessageDialog("Export completed", "Successful export!");
 			return null;
