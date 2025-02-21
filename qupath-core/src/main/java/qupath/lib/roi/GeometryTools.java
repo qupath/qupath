@@ -98,7 +98,30 @@ import qupath.lib.roi.interfaces.ROI;
 public class GeometryTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(GeometryTools.class);
-	
+
+	static {
+		/*
+		 * Use OverlayNG with Java Topology Suite by default.
+		 * This can greatly reduce TopologyExceptions.
+		 * Use -Djts.overlay=old to turn off this behavior.
+		 */
+		var propOverlay = System.getProperty("jts.overlay");
+		if (!"old".equalsIgnoreCase(propOverlay)) {
+			logger.debug("Setting -Djts.overlay=ng");
+			System.setProperty("jts.overlay", "ng");
+		}
+
+		/*
+		 * Use RelateNG with Java Topology Suite by default.
+		 * This should be considerably faster.
+		 */
+		var propRelate = System.getProperty("jts.relate");
+		if (!"old".equalsIgnoreCase(propRelate)) {
+			logger.debug("Setting -Djts.relate=ng");
+			System.setProperty("jts.relate", "ng");
+		}
+	}
+
 	private static final GeometryFactory DEFAULT_FACTORY = new GeometryFactory(
 			new PrecisionModel(-0.01), // Consider use of PrecisionModel.FLOATING_SINGLE
 			0,

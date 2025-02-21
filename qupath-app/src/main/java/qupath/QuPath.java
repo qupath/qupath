@@ -66,6 +66,7 @@ import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.scripting.QP;
 import qupath.lib.scripting.ScriptParameters;
 import qupath.lib.scripting.languages.ExecutableLanguage;
@@ -247,11 +248,8 @@ public class QuPath {
 	 * Use -Djts.overlay=old to turn off this behavior.
 	 */
 	private static void initializeJTS() {
-		var prop = System.getProperty("jts.overlay");
-		if (prop == null) {
-			logger.debug("Setting -Djts.overlay=ng");
-			System.setProperty("jts.overlay", "ng");
-		}
+		// Ensure class is loaded, to ensure OverlayNG and RelateNG properties checked
+		GeometryTools.getDefaultFactory();
 	}
 	
 	
