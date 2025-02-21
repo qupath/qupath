@@ -22,6 +22,7 @@
 package qupath.lib.io;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,9 +30,11 @@ import java.io.IOException;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
+import org.locationtech.jts.geom.Geometry;
 import qupath.lib.common.ColorTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.roi.GeometryTools;
 
 @SuppressWarnings("javadoc")
 public class TestGsonTools {
@@ -56,7 +59,7 @@ public class TestGsonTools {
 		var pathClass2 = gson.fromJson(json, PathClass.class);
 		
 		assertEquals(pathClass, pathClass2);
-		assertSame(pathClass, pathClass);
+		assertSame(pathClass, pathClass2);
 	}
 
 
@@ -108,6 +111,57 @@ public class TestGsonTools {
 		assertEquals(0.0, pathObject.getMeasurementList().get("Zero string"));
 		assertEquals(2.5, pathObject.getMeasurementList().get("Fine"));
 		assertEquals(2.5, pathObject.getMeasurementList().get("Fine string"));
+	}
+
+	@Test
+	public void test_GeoJson() {
+		String json = """
+				{
+				  "type": "Polygon",
+				  "coordinates": [
+					[
+					  [0, 80],
+					  [0, 180],
+					  [60, 180],
+					  [60, 80],
+					  [0, 80]
+					]
+				  ]
+				}
+				""";
+
+		var geom = GsonTools.getInstance().fromJson(json, Geometry.class);
+		assertTrue(geom.isValid());
+		assertTrue(geom.isRectangle());
+		assertFalse(geom.isEmpty());
+		assertEquals(60, geom.getEnvelopeInternal().getWidth());
+		assertEquals(100, geom.getEnvelopeInternal().getHeight());
+		assertEquals(geom.getFactory(), GeometryTools.getDefaultFactory());
+	}
+
+	@Test
+	public void test_TinyGeoJson() {
+		// Very small geometries can get flattened to empty because of the PrecisionModel used -
+		// but we expect them to remain valid
+		String json = """
+				{
+				  "type": "Polygon",
+				  "coordinates": [
+					[
+					  [0, 0.0000001],
+					  [0, 0.0000002],
+					  [60, 0.0000002],
+					  [60, 0.0000001],
+					  [0, 0.0000001]
+					]
+				  ]
+				}
+				""";
+
+		var geom = GsonTools.getInstance().fromJson(json, Geometry.class);
+		assertTrue(geom.isValid());
+		assertTrue(geom.isEmpty());
+		assertEquals(geom.getFactory(), GeometryTools.getDefaultFactory());
 	}
 
 	

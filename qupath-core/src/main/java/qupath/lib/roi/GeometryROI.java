@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -65,9 +65,9 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private static Logger logger = LoggerFactory.getLogger(GeometryROI.class);
+	private static final Logger logger = LoggerFactory.getLogger(GeometryROI.class);
 	
-	private Geometry geometry;
+	private final Geometry geometry;
 	private boolean checkValid = false;
 	
 	private transient GeometryStats stats = null;
@@ -393,7 +393,7 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		private final byte[] wkb;
 		private final int c, z, t;
 
-		private GeometryStats stats;
+		private final GeometryStats stats;
 
 		WKBSerializationProxy(final GeometryROI roi) {
 			this.wkb = new WKBWriter(2).write(roi.geometry);
@@ -406,7 +406,9 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		}
 
 		private Object readResolve() throws ParseException {
-			var geometry = new WKBReader().read(wkb);
+			// Assume we can use the default factory, since we wrote the ROI -
+			// although if we were decreasing precision this could be problematic
+			var geometry = new WKBReader(GeometryTools.getDefaultFactory()).read(wkb);
 			GeometryROI roi = new GeometryROI(geometry, ImagePlane.getPlaneWithChannel(c, z, t));
 			roi.stats = this.stats;
 			return roi;

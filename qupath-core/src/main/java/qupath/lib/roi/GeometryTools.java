@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -41,7 +41,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.function.Function;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
@@ -101,7 +100,7 @@ public class GeometryTools {
 	private static final Logger logger = LoggerFactory.getLogger(GeometryTools.class);
 	
 	private static final GeometryFactory DEFAULT_FACTORY = new GeometryFactory(
-			new PrecisionModel(100.0),
+			new PrecisionModel(-0.01), // Consider use of PrecisionModel.FLOATING_SINGLE
 			0,
 			PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 
@@ -881,7 +880,10 @@ public class GeometryTools {
 	        	if (pixelWidth == 1 && pixelHeight == 1)
 	        		this.factory = DEFAULT_FACTORY;
 	        	else
-	        		this.factory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE), 0, PackedCoordinateSequenceFactory.FLOAT_FACTORY);
+	        		this.factory = new GeometryFactory(
+							new PrecisionModel(PrecisionModel.FLOATING_SINGLE),
+							0,
+							PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 	    	} else
 	    		this.factory = factory;
 	        this.flatness = flatness;
