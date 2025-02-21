@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -79,7 +79,7 @@ public class GsonTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(GsonTools.class);
 	
-	private static GsonBuilder builder = new GsonBuilder()
+	private static final GsonBuilder builder = new GsonBuilder()
 			.serializeSpecialFloatingPointValues()
 			.setStrictness(Strictness.LENIENT)
 			.registerTypeAdapterFactory(new QuPathTypeAdapterFactory())

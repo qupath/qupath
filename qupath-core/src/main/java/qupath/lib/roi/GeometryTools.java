@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -41,7 +41,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.function.Function;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
@@ -99,9 +98,32 @@ import qupath.lib.roi.interfaces.ROI;
 public class GeometryTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(GeometryTools.class);
-	
+
+	static {
+		/*
+		 * Use OverlayNG with Java Topology Suite by default.
+		 * This can greatly reduce TopologyExceptions.
+		 * Use -Djts.overlay=old to turn off this behavior.
+		 */
+		var propOverlay = System.getProperty("jts.overlay");
+		if (!"old".equalsIgnoreCase(propOverlay)) {
+			logger.debug("Setting -Djts.overlay=ng");
+			System.setProperty("jts.overlay", "ng");
+		}
+
+		/*
+		 * Use RelateNG with Java Topology Suite by default.
+		 * This should be considerably faster.
+		 */
+		var propRelate = System.getProperty("jts.relate");
+		if (!"old".equalsIgnoreCase(propRelate)) {
+			logger.debug("Setting -Djts.relate=ng");
+			System.setProperty("jts.relate", "ng");
+		}
+	}
+
 	private static final GeometryFactory DEFAULT_FACTORY = new GeometryFactory(
-			new PrecisionModel(100.0),
+			new PrecisionModel(-0.01), // Consider use of PrecisionModel.FLOATING_SINGLE
 			0,
 			PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 
@@ -881,7 +903,10 @@ public class GeometryTools {
 	        	if (pixelWidth == 1 && pixelHeight == 1)
 	        		this.factory = DEFAULT_FACTORY;
 	        	else
-	        		this.factory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE), 0, PackedCoordinateSequenceFactory.FLOAT_FACTORY);
+	        		this.factory = new GeometryFactory(
+							new PrecisionModel(PrecisionModel.FLOATING_SINGLE),
+							0,
+							PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 	    	} else
 	    		this.factory = factory;
 	        this.flatness = flatness;

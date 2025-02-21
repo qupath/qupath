@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,7 @@ package qupath.lib.roi;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -381,6 +382,14 @@ public class TestGeometryTools {
 		assertNull(err);
 		assertTrue(geom.isValid());
 		assertEquals(area, geom.getArea(), eps);
+	}
+
+
+	@Test
+	public void testGeometryFactory() {
+		var factory = GeometryTools.getDefaultFactory();
+		assertFalse(factory.getPrecisionModel().isFloating());
+		assertEquals(100, factory.getPrecisionModel().getScale());
 	}
 
 }

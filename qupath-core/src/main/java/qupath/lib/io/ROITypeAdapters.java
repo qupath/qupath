@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2022, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,7 +25,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
+import com.google.gson.Strictness;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
@@ -47,6 +49,10 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.precision.GeometryPrecisionReducer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.io.GsonTools.ImagePlaneTypeAdapter;
 import qupath.lib.regions.ImagePlane;
@@ -61,18 +67,21 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  */
 class ROITypeAdapters {
-	
+
+	private static final Logger logger = LoggerFactory.getLogger(ROITypeAdapters.class);
+
 	static ROITypeAdapter ROI_ADAPTER_INSTANCE = new ROITypeAdapter();
 	static GeometryTypeAdapter GEOMETRY_ADAPTER_INSTANCE = new GeometryTypeAdapter();
-	
-	private static Gson gson = new GsonBuilder()
-			.setLenient()
+
+	private static final Gson gson = new GsonBuilder()
+			.setStrictness(Strictness.LENIENT)
 			.create();
 	
 	static class ROITypeAdapter extends TypeAdapter<ROI> {
-		
+
 		private int numDecimalPlaces = 2;
-	
+		private static final GeometryFactory factory = GeometryTools.getDefaultFactory();
+
 		@Override
 		public void write(JsonWriter out, ROI roi) throws IOException {
 			
@@ -107,7 +116,7 @@ class ROITypeAdapters {
 			
 			JsonObject obj = gson.fromJson(in, JsonObject.class);
 			
-			Geometry geometry = parseGeometry(obj, new GeometryFactory());
+			Geometry geometry = parseGeometry(obj, factory);
 			
 			if (geometry == null)
 				return null;
@@ -150,39 +159,68 @@ class ROITypeAdapters {
 		@Override
 		public Geometry read(JsonReader in) throws IOException {
 			JsonObject obj = gson.fromJson(in, JsonObject.class);
-			return parseGeometry(obj, new GeometryFactory());
+			return parseGeometry(obj, GeometryTools.getDefaultFactory());
 		}
 		
 	}
-	
-	
-	
-	static Geometry parseGeometry(JsonObject obj, GeometryFactory factory) {
+
+
+	/**
+	 * Parse a Geometry from a JsonObject.
+	 * @param obj the object containing the geometry
+	 * @param factory the factory to use for creating the geometry. Note that it
+	 * @return
+	 * @throws IllegalArgumentException if no valid GeoJSON is found in the object
+	 */
+	static Geometry parseGeometry(JsonObject obj, GeometryFactory factory) throws IllegalArgumentException {
 		if (!obj.has("type"))
 			return null;
 		
 		String type = obj.get("type").getAsString();
-		JsonArray coordinates = null;
-		if (obj.has("coordinates"))
-			coordinates = obj.getAsJsonArray("coordinates").getAsJsonArray();
-			
-		switch (type) {
-		case "Point":
-			return parsePoint(coordinates, factory);
-		case "MultiPoint":
-			return parseMultiPoint(coordinates, factory);
-		case "LineString":
-			return parseLineString(coordinates, factory);
-		case "MultiLineString":
-			return parseMultiLineString(coordinates, factory);
-		case "Polygon":
-			return parsePolygon(coordinates, factory);
-		case "MultiPolygon":
-			return parseMultiPolygon(coordinates, factory);
-		case "GeometryCollection":
-			return parseGeometryCollection(obj, factory);
+		if (obj.has("coordinates")) {
+			JsonArray coordinates = obj.getAsJsonArray("coordinates").getAsJsonArray();
+			// It's *possible* that we need to parse with a different factory, because the GeoJSON required higher
+			// precision than we suppose, and implicitly casting to lower precision could make the geometry invalid.
+			// Therefore, we make sure that we are parsing using floating point, and convert afterwards if we have to.
+			GeometryFactory parsingFactory = getGeometryFactoryFloat(factory == null ? GeometryTools.getDefaultFactory() : factory);
+			Geometry geom = switch (type) {
+				case "Point" -> parsePoint(coordinates, parsingFactory);
+				case "MultiPoint" -> parseMultiPoint(coordinates, parsingFactory);
+				case "LineString" -> parseLineString(coordinates, parsingFactory);
+				case "MultiLineString" -> parseMultiLineString(coordinates, parsingFactory);
+				case "Polygon" -> parsePolygon(coordinates, parsingFactory);
+				case "MultiPolygon" -> parseMultiPolygon(coordinates, parsingFactory);
+				case "GeometryCollection" -> parseGeometryCollection(obj, parsingFactory);
+				default -> throw new IllegalArgumentException("No Geometry type found for object " + obj);
+			};
+			if (factory != null && !Objects.equals(parsingFactory.getPrecisionModel(), factory.getPrecisionModel())) {
+				// Reduce precision; this should return a valid output if the input is valid, but may have
+				// removed parts (if they are below the supported precision).
+				boolean isEmpty = geom.isEmpty();
+				geom = GeometryPrecisionReducer.reduce(geom, factory.getPrecisionModel());
+				geom = factory.createGeometry(geom);
+				if (!isEmpty && geom.isEmpty()) {
+					logger.warn("Precision reduction resulted in empty geometry!");
+					// Not sure if it's a bug, but factory.createGeometry doesn't necessarily set the factory
+					// if the geometry is empty
+					if (geom.getFactory() != factory)
+						geom = factory.createEmpty(geom.getDimension());
+				}
+			}
+			return geom;
 		}
-		throw new IllegalArgumentException("No Geometry type found for object " + obj);
+		throw new IllegalArgumentException("Json object does not contain coordinates: " + obj);
+
+    }
+
+	private static GeometryFactory getGeometryFactoryFloat(GeometryFactory preferredFactory) {
+		if (preferredFactory.getPrecisionModel().isFloating())
+			return preferredFactory;
+		else
+			return new GeometryFactory(
+					new PrecisionModel(PrecisionModel.FLOATING),
+					preferredFactory.getSRID(),
+					preferredFactory.getCoordinateSequenceFactory());
 	}
 
 	/**
