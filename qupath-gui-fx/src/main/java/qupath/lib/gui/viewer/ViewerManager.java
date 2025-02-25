@@ -873,7 +873,7 @@ public class ViewerManager implements QuPathViewerListener {
 			// For temporarily setting selection mode, we want to grab any S key presses eagerly
 			if (e.getCode() == KeyCode.S && e.getEventType() == KeyEvent.KEY_PRESSED) {
 				PathPrefs.tempSelectionModeProperty().set(true);
-				e.consume();
+				// Don't consume the event! Doing so can break the 'Save' accelerators
 			}
 		});
 		viewer.getView().addEventHandler(KeyEvent.KEY_RELEASED, e -> {
