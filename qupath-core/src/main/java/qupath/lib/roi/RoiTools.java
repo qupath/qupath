@@ -183,7 +183,7 @@ public class RoiTools {
 			}
 			geometries.add(r.getGeometry());
 		}
-		Geometry first = geometries.remove(0);
+		Geometry first = geometries.removeFirst();
 		for (var geom : geometries)
 			first = first.intersection(geom);
 		return GeometryTools.geometryToROI(GeometryTools.homogenizeGeometryCollection(first), plane);
@@ -199,6 +199,32 @@ public class RoiTools {
 	 */
 	public static ROI intersection(ROI... rois) {
 		return intersection(Arrays.asList(rois));
+	}
+
+	/**
+	 * Create area of intersection between two area ROIs.
+	 * If the ROIs do not share the same z or t index, or are not area ROIs, 0 will be returned.
+	 * @param a first ROI
+	 * @param b second ROI
+	 * @return the area of intersection between a and b, or 0 if the ROIs do not intersect
+	 */
+	public static double intersectionArea(ROI a, ROI b) {
+		if (a.getZ() != b.getZ() || a.getT() != b.getT() || !a.isArea() || !b.isArea())
+			return 0;
+		return GeometryTools.intersectionArea(a.getGeometry(), b.getGeometry());
+	}
+
+	/**
+	 * Create intersection over union for two area ROIs.
+	 * @param a first ROI
+	 * @param b second ROI
+	 * @return the intersection over union between a and b, or 0 if the ROIs do not intersect
+	 */
+	public static double iou(ROI a, ROI b) {
+		double intersection = intersectionArea(a, b);
+		if (intersection == 0)
+			return 0;
+		return intersection / (a.getArea() + b.getArea() - intersection);
 	}
 	
 	/**

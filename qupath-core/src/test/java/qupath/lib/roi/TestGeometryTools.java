@@ -301,8 +301,8 @@ public class TestGeometryTools {
 	@Disabled
 	public void randomPolygonize() {
 		Random rng = new Random(100);
-		PrecisionModel pm = new PrecisionModel(100.0);
-		GeometryFactory factory = new GeometryFactory(pm);
+		GeometryFactory factory = GeometryTools.getDefaultFactory();
+		PrecisionModel pm = factory.getPrecisionModel();
 		// Note that increasing this to 1000 will cause the test to fail.
 		int n = 100;
 		Coordinate[] coords = new Coordinate[n];
@@ -391,5 +391,57 @@ public class TestGeometryTools {
 		assertFalse(factory.getPrecisionModel().isFloating());
 		assertEquals(100, factory.getPrecisionModel().getScale());
 	}
+
+
+	@Test
+	public void testRectangleIntersectionAreaTranslated() {
+		var a = GeometryTools.createRectangle(0, 0, 200, 100);
+		var b = GeometryTools.createRectangle(100, 0, 200, 100);
+		assertEquals(100*100, GeometryTools.intersectionArea(a, b), 1e-6);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
+	@Test
+	public void testRectangleIntersectionAreaEqual() {
+		var a = GeometryTools.createRectangle(0, 0, 200, 100);
+		var b = GeometryTools.createRectangle(0, 0, 200, 100);
+		assertEquals(200*100, GeometryTools.intersectionArea(a, b), 1e-6);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
+	@Test
+	public void testRectangleIntersectionAreaTouching() {
+		var a = GeometryTools.createRectangle(0, 0, 200, 100);
+		var b = GeometryTools.createRectangle(200, 0, 200, 100);
+		assertEquals(0, GeometryTools.intersectionArea(a, b), 1e-6);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
+
+	@Test
+	public void testEllipseIntersectionAreaTranslated() {
+		int nPoints = 100;
+		var a = GeometryTools.createEllipse(0, 0, 200, 100, nPoints);
+		var b = GeometryTools.createEllipse(100, 0, 200, 100, nPoints);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
+	@Test
+	public void testEllipseIntersectionAreaEqual() {
+		int nPoints = 100;
+		var a = GeometryTools.createEllipse(0, 0, 200, 100, nPoints);
+		var b = GeometryTools.createEllipse(0, 0, 200, 100, nPoints);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
+	@Test
+	public void testEllipseIntersectionAreaTouching() {
+		int nPoints = 100;
+		var a = GeometryTools.createEllipse(0, 0, 200, 100, nPoints);
+		var b = GeometryTools.createEllipse(200, 0, 200, 100, nPoints);
+		assertEquals(0, GeometryTools.intersectionArea(a, b), 1e-6);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
 
 }

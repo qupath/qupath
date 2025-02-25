@@ -76,6 +76,7 @@ import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.overlayng.UnaryUnionNG;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
+import org.locationtech.jts.operation.relateng.RelateNG;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.locationtech.jts.operation.valid.TopologyValidationError;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
@@ -302,15 +303,66 @@ public class GeometryTools {
 			geometry = geometry.intersection(GeometryTools.createRectangle(x, y, width, height));
 		return geometry;
 	}
+
+	/**
+	 * Calculate the intersection over union, based on geometry areas.
+	 * @param a first geometry
+	 * @param b second geometry
+	 * @return intersection over union for a and b
+	 */
+	public static double iou(Geometry a, Geometry b) {
+		double areaA = a.getArea();
+		double areaB = b.getArea();
+		double intersection = intersectionArea(a, b);
+		return intersection / (areaA + areaB - intersection);
+	}
+
+	/**
+	 * Calculate the intersection area between two polygonal geometries.
+	 * @param a first geometry
+	 * @param b second geometry
+	 * @return the intersection area, or 0 if the geometries do not intersect
+	 */
+	public static double intersectionArea(Geometry a, Geometry b) {
+		// Only non-empty polygons can have an area > 0
+		if (a.getDimension() < 2 || b.getDimension() < 2 || a.isEmpty() || b.isEmpty())
+			return 0;
+
+		// If the envelopes don't intersect, the geometries can't intersect
+		if (!a.getEnvelopeInternal().intersects(b.getEnvelopeInternal()))
+			return 0;
+
+		// Get areas
+		double areaA = a.getArea();
+		double areaB = b.getArea();
+
+		// If the areas are the same, and the geometries are the same, then the intersection is the area
+		if (areaA == areaB) {
+			if (a.equalsExact(b))
+				return areaA;
+		}
+
+		// Check relationship between geometries to handle 'easy' cases
+		var relate = a.relate(b);
+		if (relate.isCovers())
+			return areaB;
+		if (relate.isCoveredBy())
+			return areaA;
+		if (relate.isDisjoint() || relate.isTouches(a.getDimension(), b.getDimension()))
+			return 0;
+
+		// Resort to expensive intersection calculation only if we need to
+		return a.intersection(b).getArea();
+	}
 	
     
     /**
      * Create a rectangular Geometry for the specified bounding box.
-     * @param x
-     * @param y
-     * @param width
-     * @param height
-     * @return
+     * @param x x ordinate for the top left of the rectangle bounding box
+     * @param y y ordinate for the top left of the rectangle bounding box
+     * @param width width of the rectangle bounding box
+     * @param height height of the rectangle bounding box
+     * @return a polygon representing the rectangle
      */
     public static Polygon createRectangle(double x, double y, double width, double height) {
     	var shapeFactory = new GeometricShapeFactory(DEFAULT_FACTORY);
@@ -321,6 +373,26 @@ public class GeometryTools {
 				);
 		return shapeFactory.createRectangle();
     }
+
+
+	/**
+	 * Create a polygonal geometry that approximates an ellipse.
+	 * @param x x ordinate for the top left of the ellipse bounding box
+	 * @param y y ordinate for the top left of the ellipse bounding box
+	 * @param width width of the ellipse bounding box
+	 * @param height height of the ellipse bounding box
+	 * @param nPoints number of points to use for the ellipse; more points will approximate the ellipse more closely
+	 * @return a polygon representing the ellipse
+	 */
+	public static Polygon createEllipse(double x, double y, double width, double height, int nPoints) {
+		var shapeFactory = new GeometricShapeFactory(DEFAULT_FACTORY);
+		shapeFactory.setNumPoints(nPoints); // Probably 5, but should be increased automatically
+		shapeFactory.setEnvelope(
+				new Envelope(
+						x, x+width, y, y+height)
+		);
+		return shapeFactory.createEllipse();
+	}
 
 
 	/**
