@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -41,7 +41,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.function.Function;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
@@ -77,6 +76,7 @@ import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.overlayng.UnaryUnionNG;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
+import org.locationtech.jts.operation.relateng.RelateNG;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.locationtech.jts.operation.valid.TopologyValidationError;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
@@ -99,9 +99,32 @@ import qupath.lib.roi.interfaces.ROI;
 public class GeometryTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(GeometryTools.class);
-	
+
+	static {
+		/*
+		 * Use OverlayNG with Java Topology Suite by default.
+		 * This can greatly reduce TopologyExceptions.
+		 * Use -Djts.overlay=old to turn off this behavior.
+		 */
+		var propOverlay = System.getProperty("jts.overlay");
+		if (!"old".equalsIgnoreCase(propOverlay)) {
+			logger.debug("Setting -Djts.overlay=ng");
+			System.setProperty("jts.overlay", "ng");
+		}
+
+		/*
+		 * Use RelateNG with Java Topology Suite by default.
+		 * This should be considerably faster.
+		 */
+		var propRelate = System.getProperty("jts.relate");
+		if (!"old".equalsIgnoreCase(propRelate)) {
+			logger.debug("Setting -Djts.relate=ng");
+			System.setProperty("jts.relate", "ng");
+		}
+	}
+
 	private static final GeometryFactory DEFAULT_FACTORY = new GeometryFactory(
-			new PrecisionModel(100.0),
+			new PrecisionModel(-0.01), // Consider use of PrecisionModel.FLOATING_SINGLE
 			0,
 			PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 
@@ -280,15 +303,66 @@ public class GeometryTools {
 			geometry = geometry.intersection(GeometryTools.createRectangle(x, y, width, height));
 		return geometry;
 	}
+
+	/**
+	 * Calculate the intersection over union, based on geometry areas.
+	 * @param a first geometry
+	 * @param b second geometry
+	 * @return intersection over union for a and b
+	 */
+	public static double iou(Geometry a, Geometry b) {
+		double areaA = a.getArea();
+		double areaB = b.getArea();
+		double intersection = intersectionArea(a, b);
+		return intersection / (areaA + areaB - intersection);
+	}
+
+	/**
+	 * Calculate the intersection area between two polygonal geometries.
+	 * @param a first geometry
+	 * @param b second geometry
+	 * @return the intersection area, or 0 if the geometries do not intersect
+	 */
+	public static double intersectionArea(Geometry a, Geometry b) {
+		// Only non-empty polygons can have an area > 0
+		if (a.getDimension() < 2 || b.getDimension() < 2 || a.isEmpty() || b.isEmpty())
+			return 0;
+
+		// If the envelopes don't intersect, the geometries can't intersect
+		if (!a.getEnvelopeInternal().intersects(b.getEnvelopeInternal()))
+			return 0;
+
+		// Get areas
+		double areaA = a.getArea();
+		double areaB = b.getArea();
+
+		// If the areas are the same, and the geometries are the same, then the intersection is the area
+		if (areaA == areaB) {
+			if (a.equalsExact(b))
+				return areaA;
+		}
+
+		// Check relationship between geometries to handle 'easy' cases
+		var relate = a.relate(b);
+		if (relate.isCovers())
+			return areaB;
+		if (relate.isCoveredBy())
+			return areaA;
+		if (relate.isDisjoint() || relate.isTouches(a.getDimension(), b.getDimension()))
+			return 0;
+
+		// Resort to expensive intersection calculation only if we need to
+		return a.intersection(b).getArea();
+	}
 	
     
     /**
      * Create a rectangular Geometry for the specified bounding box.
-     * @param x
-     * @param y
-     * @param width
-     * @param height
-     * @return
+     * @param x x ordinate for the top left of the rectangle bounding box
+     * @param y y ordinate for the top left of the rectangle bounding box
+     * @param width width of the rectangle bounding box
+     * @param height height of the rectangle bounding box
+     * @return a polygon representing the rectangle
      */
     public static Polygon createRectangle(double x, double y, double width, double height) {
     	var shapeFactory = new GeometricShapeFactory(DEFAULT_FACTORY);
@@ -299,6 +373,26 @@ public class GeometryTools {
 				);
 		return shapeFactory.createRectangle();
     }
+
+
+	/**
+	 * Create a polygonal geometry that approximates an ellipse.
+	 * @param x x ordinate for the top left of the ellipse bounding box
+	 * @param y y ordinate for the top left of the ellipse bounding box
+	 * @param width width of the ellipse bounding box
+	 * @param height height of the ellipse bounding box
+	 * @param nPoints number of points to use for the ellipse; more points will approximate the ellipse more closely
+	 * @return a polygon representing the ellipse
+	 */
+	public static Polygon createEllipse(double x, double y, double width, double height, int nPoints) {
+		var shapeFactory = new GeometricShapeFactory(DEFAULT_FACTORY);
+		shapeFactory.setNumPoints(nPoints); // Probably 5, but should be increased automatically
+		shapeFactory.setEnvelope(
+				new Envelope(
+						x, x+width, y, y+height)
+		);
+		return shapeFactory.createEllipse();
+	}
 
 
 	/**
@@ -881,7 +975,10 @@ public class GeometryTools {
 	        	if (pixelWidth == 1 && pixelHeight == 1)
 	        		this.factory = DEFAULT_FACTORY;
 	        	else
-	        		this.factory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE), 0, PackedCoordinateSequenceFactory.FLOAT_FACTORY);
+	        		this.factory = new GeometryFactory(
+							new PrecisionModel(PrecisionModel.FLOATING_SINGLE),
+							0,
+							PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 	    	} else
 	    		this.factory = factory;
 	        this.flatness = flatness;
