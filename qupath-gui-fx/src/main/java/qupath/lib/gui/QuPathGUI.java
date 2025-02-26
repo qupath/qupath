@@ -708,14 +708,14 @@ public class QuPathGUI {
 	private void populateScriptingMenu(Menu menuScripting) {
 		Objects.requireNonNull(menuScripting);
 		ScriptEditor editor = getScriptEditor();
-		var sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), editor);
+		var sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), this::getScriptEditor);
 		
 		StringBinding projectScriptsPath = Bindings.createStringBinding(() -> {
 			var project = getProject();
 			File dir = project == null ? null : Projects.getBaseDirectory(project);
 			return dir == null ? null : new File(dir, "scripts").getAbsolutePath();
 		}, projectProperty);
-		var projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, editor);
+		var projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, this::getScriptEditor);
 		projectScriptMenuLoader.getMenu().visibleProperty().bind(
 				projectProperty.isNotNull().and(menuVisibilityManager.ignorePredicateProperty().not())
 				);
@@ -725,7 +725,7 @@ public class QuPathGUI {
 			Path path = scriptDirectoryProperty.get();
 			return path == null ? null : path.toString();
 		}, scriptDirectoryProperty);
-		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, editor);
+		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, this::getScriptEditor);
 	
 		MenuTools.addMenuItems(
 				menuScripting,
