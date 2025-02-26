@@ -184,19 +184,9 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			pane = new GridPane();
 			pane.setHgap(5.0);
 			pane.setVgap(5.0);
-			
-			
+
 			comboAbove = new ComboBox<>(qupath.getAvailablePathClasses());
 			comboBelow = new ComboBox<>(qupath.getAvailablePathClasses());
-			
-			
-//			comboMeasurements.getEditor().textProperty().addListener((v, o, n) -> {
-//				String text = n == null ? "" : n.toLowerCase().strip();
-//				if (n.isEmpty())
-//					measurementsFiltered.setPredicate(p -> true);
-//				else
-//					measurementsFiltered.setPredicate(p -> p.toLowerCase().contains(text));
-//			});
 			
 			int row = 0;
 			
@@ -255,11 +245,13 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 					pane.getColumnCount(), 0, 1, pane.getRowCount()-1);
 			
 			// Add listeners
-			comboChannels.valueProperty().addListener((v, o, n) -> updateChannelFilter());
+			comboChannels.valueProperty().addListener((v, o, n) -> {
+				updateChannelFilter();
+			});
 			comboMeasurements.valueProperty().addListener((v, o, n) -> {
 				if (o != null)
 					previousThresholds.put(o, getThreshold());
-				updateThresholdSlider();
+				updateHistogramAndThreshold();
 				maybePreview();
 			});
 			sliderThreshold.valueProperty().addListener((v, o, n) -> maybePreview());
@@ -304,8 +296,11 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		
 		void updateChannelFilter() {
 			var selected = comboChannels.getSelectionModel().getSelectedItem();
+			var selectedMeasurement = comboMeasurements.getValue();
 			if (selected == null || selected.isBlank() || NO_CHANNEL_FILTER.equals(selected)) {
 				measurementsFiltered.setPredicate(ALWAYS_TRUE);
+				// ensure the same value is selected, because combobox may retain selected index with a filtered list
+				comboMeasurements.getSelectionModel().select(selectedMeasurement);
 			} else {
 				var lowerSelected = selected.trim().toLowerCase();
 				Predicate<String> predicate = m -> m.toLowerCase().contains(lowerSelected);
@@ -313,21 +308,21 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 					measurementsFiltered.setPredicate(predicate);
 				else
 					measurementsFiltered.setPredicate(ALWAYS_TRUE);
-				
-				if (comboMeasurements.getSelectionModel().getSelectedItem() == null && !comboMeasurements.getItems().isEmpty())
-					comboMeasurements.getSelectionModel().selectFirst();
-				
+				// if the filtered list contains the previous measurement, fine. Otherwise, select nothing
+				if (comboMeasurements.getItems().contains(selectedMeasurement)) {
+					comboMeasurements.getSelectionModel().select(selectedMeasurement);
+				} else {
+					comboMeasurements.valueProperty().set(null);
+				}
+
 				var imageData = getImageData();
 				var pathClass = qupath.getAvailablePathClasses().stream()
 						.filter(p -> p.toString().toLowerCase().contains(lowerSelected))
 						.findFirst().orElse(null);
 				if (imageData != null && pathClass != null) {
-//					if (imageData.isBrightfield()) {
 					comboAbove.getSelectionModel().select(pathClass);
 					comboBelow.getSelectionModel().select(null);
-//					}
 				}
-				tfSaveName.setText(selected.trim());
 			}
 		}
 		
@@ -377,8 +372,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			dialog.setOnCloseRequest(e -> {
 				var applyClassifier = ButtonType.APPLY.equals(dialog.getResult());
 				cleanup(applyClassifier);
-			});			
-			
+			});
 			dialog.show();
 			maybePreview();
 		}
@@ -446,7 +440,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		}
 		
 		String getSelectedMeasurement() {
-			return comboMeasurements.getSelectionModel().getSelectedItem();
+			return comboMeasurements.valueProperty().get();
 		}
 		
 		double getThreshold() {
@@ -477,9 +471,8 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		void refreshOptions() {
 			refreshTitle();
 			refreshChannels();
-//			updateAvailableClasses();
 			updateAvailableMeasurements();
-			updateThresholdSlider();
+			updateHistogramAndThreshold();
 		}
 		
 		void refreshChannels() {
@@ -503,11 +496,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			if (comboChannels.getSelectionModel().getSelectedItem() == null)
 				comboChannels.getSelectionModel().selectFirst();
 		}
-		
-//		void updateAvailableClasses() {
-//			comboAbove.getItems().setAll(qupath.getAvailablePathClasses());
-//			comboBelow.getItems().setAll(qupath.getAvailablePathClasses());
-//		}
+
 		
 		void resetClassifications(PathObjectHierarchy hierarchy, Map<PathObject, PathClass> mapPrevious) {
 			// Restore classifications if the user cancelled
@@ -516,17 +505,20 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 				hierarchy.fireObjectClassificationsChangedEvent(this, changed);
 		}
 		
-		void updateThresholdSlider() {
+		void updateHistogramAndThreshold() {
 			var measurement = getSelectedMeasurement();
 			var pathObjects = getCurrentObjects();
 			if (measurement == null || pathObjects.isEmpty()) {
 				sliderThreshold.setMin(0);
 				sliderThreshold.setMax(1);
 				sliderThreshold.setValue(0);
+				histogramPane.getHistogramData().clear();
 				return;
 			}
-			double[] allValues = pathObjects.stream().mapToDouble(p -> p.getMeasurementList().get(measurement))
-					.filter(d -> Double.isFinite(d)).toArray();
+			double[] allValues = pathObjects.stream()
+					.mapToDouble(p -> p.getMeasurementList().get(measurement))
+					.filter(d -> Double.isFinite(d))
+					.toArray();
 			var stats = new DescriptiveStatistics(allValues);
 			var histogram = new Histogram(allValues, 100, stats.getMin(), stats.getMax());
 			histogramPane.getHistogramData().setAll(HistogramChart.createHistogramData(histogram, ColorTools.packARGB(100, 200, 20, 20)));
