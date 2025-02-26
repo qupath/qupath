@@ -301,7 +301,6 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 				measurementsFiltered.setPredicate(ALWAYS_TRUE);
 				// ensure the same value is selected, because combobox may retain selected index with a filtered list
 				comboMeasurements.getSelectionModel().select(selectedMeasurement);
-				tfSaveName.setText(null);
 			} else {
 				var lowerSelected = selected.trim().toLowerCase();
 				Predicate<String> predicate = m -> m.toLowerCase().contains(lowerSelected);
@@ -324,7 +323,6 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 					comboAbove.getSelectionModel().select(pathClass);
 					comboBelow.getSelectionModel().select(null);
 				}
-				tfSaveName.setText(selected.trim());
 			}
 		}
 		
@@ -374,8 +372,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			dialog.setOnCloseRequest(e -> {
 				var applyClassifier = ButtonType.APPLY.equals(dialog.getResult());
 				cleanup(applyClassifier);
-			});			
-			
+			});
 			dialog.show();
 			maybePreview();
 		}
@@ -443,7 +440,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		}
 		
 		String getSelectedMeasurement() {
-			return comboMeasurements.getSelectionModel().getSelectedItem();
+			return comboMeasurements.valueProperty().get();
 		}
 		
 		double getThreshold() {
@@ -538,9 +535,6 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		void updateAvailableMeasurements() {
 			var measurements = PathObjectTools.getAvailableFeatures(getCurrentObjects());
 			this.measurements.setAll(measurements);
-//			if (comboMeasurements.getSelectionModel().getSelectedItem() == null) {
-//				comboMeasurements.getSelectionModel().selectFirst();
-//			}
 		}
 		
 		/**
