@@ -313,7 +313,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 				if (comboMeasurements.getItems().contains(selectedMeasurement)) {
 					comboMeasurements.getSelectionModel().select(selectedMeasurement);
 				} else {
-					comboMeasurements.getSelectionModel().clearSelection();
+					comboMeasurements.valueProperty().set(null);
 				}
 
 				var imageData = getImageData();
