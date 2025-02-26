@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import javax.script.ScriptException;
 
 import org.slf4j.Logger;
@@ -66,13 +67,13 @@ class ScriptMenuLoader {
 		
 	private static final String NO_SCRIPTS_NAME = "No scripts found";
 	private MenuItem miPlaceholder = new MenuItem(NO_SCRIPTS_NAME);
+	private final Supplier<ScriptEditor> scriptEditorSupplier;
 
-	private ScriptEditor scriptEditor;
 	
-	ScriptMenuLoader(final String name, final ObservableStringValue scriptDirectory, final ScriptEditor editor) {
+	ScriptMenuLoader(final String name, final ObservableStringValue scriptDirectory, Supplier<ScriptEditor> scriptEditorSupplier) {
 		this.menu = new Menu(name);
 		this.scriptDirectory = scriptDirectory;
-		this.scriptEditor = editor;
+		this.scriptEditorSupplier = scriptEditorSupplier;
 		
 		var actionCreateScript = ActionTools.actionBuilder("New script...", e -> {
 			String dir = scriptDirectory.get();
@@ -98,6 +99,7 @@ class ScriptMenuLoader {
 					logger.error("Create script error", e1);
 				}
 			}
+			ScriptEditor scriptEditor = scriptEditorSupplier.get();
 			if (scriptEditor != null)
 				scriptEditor.showScript(scriptFile);
 			else
@@ -191,7 +193,8 @@ class ScriptMenuLoader {
 					items.add(subMenu);
 					continue;
 				}
-				
+
+				ScriptEditor scriptEditor = scriptEditorSupplier.get();
 				if (scriptEditor == null || scriptEditor.supportsFile(path.toFile())) {
 					String name = path.getFileName().toString();
 					boolean cleanName = true;
