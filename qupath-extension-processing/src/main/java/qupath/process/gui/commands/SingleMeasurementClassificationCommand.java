@@ -543,6 +543,8 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		void updateAvailableMeasurements() {
 			var measurements = PathObjectTools.getAvailableFeatures(getCurrentObjects());
 			this.measurements.setAll(measurements);
+			if (comboMeasurements.getSelectionModel().getSelectedItem() == null)
+				comboMeasurements.getSelectionModel().selectFirst();
 		}
 		
 		/**
