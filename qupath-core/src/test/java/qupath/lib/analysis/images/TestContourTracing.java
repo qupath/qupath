@@ -60,8 +60,8 @@ public class TestContourTracing {
 	private static int MAX_POINTS_FOR_VALIDITY = 50_000;
 	
 	
-	private static List<String> excludeNames = Arrays.asList(
-			"binary-noise-medium.png",
+	private static List<String> excludeNames = List.of(
+//			"binary-noise-medium.png",
 			"binary-noise-large.png"
 			);
 
