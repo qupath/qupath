@@ -32,12 +32,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
@@ -66,6 +68,8 @@ import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
+import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
+import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
@@ -783,36 +787,69 @@ public class ContourTracing {
 		return createGeometry(factory, lines, 0, 0, 1);
 	}
 
+
+	/**
+	 * Create a new collection that contains only pairs that did not have any duplicate in the input.
+	 * This is different from removing duplicates: if a pair is duplicated, all instances of it are removed.
+	 * @param lines
+	 * @return
+	 */
+	private static Collection<CoordinatePair> removeDuplicatesCompletely(Collection<CoordinatePair> lines) {
+		CoordinatePair lastPair = null;
+		List<CoordinatePair> pairs = new ArrayList<>();
+		boolean duplicate = false;
+		var comparator = Comparator.comparing(CoordinatePair::getC1).thenComparing(CoordinatePair::getC2);
+		var iterator = lines.stream().sorted(comparator).iterator();
+		while (iterator.hasNext()) {
+			var line = iterator.next();
+			if (Objects.equals(lastPair, line)) {
+				duplicate = true;
+			} else {
+				if (!duplicate && lastPair != null)
+					pairs.add(lastPair);
+				duplicate = false;
+			}
+			lastPair = line;
+		}
+		if (!duplicate)
+			pairs.add(lastPair);
+		return pairs;
+	}
+
+	// Alternative implementation: more readable, but has slightly more overhead
+//	private static Collection<CoordinatePair> removeDuplicatesCompletely(List<CoordinatePair> lines) {
+//		Set<CoordinatePair> set = HashSet.newHashSet(lines.size());
+//		Set<CoordinatePair> duplicates = HashSet.newHashSet(lines.size() / 4);
+//		for (var line : lines) {
+//			if (!set.add(line)) {
+//				duplicates.add(line);
+//			}
+//		}
+//		set.removeAll(duplicates);
+//		return List.copyOf(set);
+//	}
+
 	private static Geometry createGeometry(GeometryFactory factory, Collection<CoordinatePair> lines,
 										   double xOrigin, double yOrigin, double scale) {
 
 		if (lines.isEmpty())
 			return factory.createEmpty(2);
 
-		var set = new HashSet<CoordinatePair>();
-		var duplicates = new HashSet<CoordinatePair>();
-		for (var line : lines) {
-			if (!set.add(line)) {
-				duplicates.add(line);
-			}
-		}
-		// Duplicate lines should not appear *at all*
-		set.removeAll(duplicates);
+		var pairs = removeDuplicatesCompletely(lines);
 
-		// Lots of lines can be merged
-		System.err.println("Before: " + set.size());
 		var dissolver = new LineDissolver();
-		for (var c : set) {
-			dissolver.add(c.createLineString(factory, xOrigin, yOrigin, scale));
+		for (var p : pairs) {
+			dissolver.add(p.createLineString(factory, xOrigin, yOrigin, scale));
 		}
-		var manyLines = dissolver.getResult();
-		System.err.println("After: " + manyLines.getNumPoints());
+		var lineStrings = dissolver.getResult();
+
+		lineStrings = DouglasPeuckerSimplifier.simplify(lineStrings, 0);
 
 		var polygonizer = new Polygonizer(true);
-		polygonizer.setCheckRingsValid(true);
-		polygonizer.add(manyLines);
+		polygonizer.add(lineStrings);
 
 		var geometry = polygonizer.getGeometry();
+
 		geometry.normalize();
 		return geometry;
 	}
@@ -1065,7 +1102,10 @@ public class ContourTracing {
 				var list = entry.getValue();
 				if (list.isEmpty())
 					continue;
-				futures.put(entry.getKey(), pool.submit(() -> mergeGeometryWrappers(list)));
+				if (clipArea == null)
+					futures.put(entry.getKey(), pool.submit(() -> mergeGeometryWrappers(list)));
+				else
+					futures.put(entry.getKey(), pool.submit(() -> mergeGeometryWrappers(list).intersection(clipArea)));
 			}
 			
 			for (var entry : futures.entrySet())
@@ -1351,17 +1391,51 @@ public class ContourTracing {
 
 	private static class CoordinatePair {
 
+		private static final Comparator<Coordinate> topLeftCoordinateComparator = Comparator.comparingDouble(Coordinate::getY)
+				.thenComparingDouble(Coordinate::getX);
+
 		private final Coordinate c1;
 		private final Coordinate c2;
 
+		private final int hash;
+
 		private CoordinatePair(Coordinate c1, Coordinate c2) {
-			if (c1.compareTo(c2) < 0) {
+			var comp = topLeftCoordinateComparator.compare(c1, c2);
+			if (comp < 0) {
 				this.c1 = c1;
 				this.c2 = c2;
-			} else {
+			} else if (comp > 0) {
 				this.c1 = c2;
 				this.c2 = c1;
-			}
+			} else
+				throw new IllegalArgumentException("Coordinates should not be the same!");
+			if (!isHorizontal() && !isVertical())
+				throw new IllegalArgumentException("Coordinate pairs should be horizontal or vertical!");
+			this.hash = Objects.hash(c1, c2);
+		}
+
+		boolean isHorizontal() {
+			return c1.y == c2.y && c1.x != c2.x;
+		}
+
+		boolean isVertical() {
+			return c1.x == c2.x && c1.y != c2.y;
+		}
+
+		/**
+		 * This does <i>not</i> make a defensive copy; the caller should not modify the returned coordinate.
+		 * @return
+		 */
+		Coordinate getC1() {
+			return c1;
+		}
+
+		/**
+		 * This does <i>not</i> make a defensive copy; the caller should not modify the returned coordinate.
+		 * @return
+		 */
+		Coordinate getC2() {
+			return c2;
 		}
 
 		LineString createLineString(GeometryFactory factory) {
@@ -1388,7 +1462,7 @@ public class ContourTracing {
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(c1, c2);
+			return hash;
 		}
 	}
 
