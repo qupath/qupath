@@ -30,7 +30,7 @@ public class ZProjectionImageServer extends TransformingImageServer<BufferedImag
 
         this.projection = projection;
         this.metadata = new ImageServerMetadata.Builder(server.getMetadata())
-                .sizeZ(0)
+                .sizeZ(1)
                 .build();
     }
 
