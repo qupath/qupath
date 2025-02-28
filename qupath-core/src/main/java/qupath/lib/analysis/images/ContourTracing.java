@@ -28,6 +28,7 @@ import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,10 +50,13 @@ import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.IntFunction;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.common.collect.Table;
 import org.locationtech.jts.coverage.CoverageUnion;
 import org.locationtech.jts.dissolve.LineDissolver;
 import org.locationtech.jts.geom.Coordinate;
@@ -66,7 +70,9 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.geom.util.LineStringExtracter;
 import org.locationtech.jts.geom.util.PolygonExtracter;
+import org.locationtech.jts.operation.linemerge.LineMerger;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
@@ -829,6 +835,280 @@ public class ContourTracing {
 //		return List.copyOf(set);
 //	}
 
+	/**
+	 * Convert a collection of pairs from contour tracing into line strings for polygonization.
+	 */
+	private static Geometry linesFromPairs(GeometryFactory factory, Collection<CoordinatePair> pairs,
+											 double xOrigin, double yOrigin, double scale) {
+		var dissolver = new LineDissolver();
+		for (var p : pairs) {
+			dissolver.add(p.createLineString(factory, xOrigin, yOrigin, scale));
+		}
+		var lineStrings = dissolver.getResult();
+		return DouglasPeuckerSimplifier.simplify(lineStrings, 0);
+	}
+
+	// I know this looks awkward... but one massive HashMap<Coordinate, Integer> was *much* slower
+	private static class MinimalCoordinateMap<T> {
+
+		private final Map<Double, Map<Double, T>> map = new HashMap<>();
+
+		T put(Coordinate c, T val) {
+			return map.computeIfAbsent(c.getX(), x -> new HashMap<>()).put(c.getY(), val);
+		}
+
+		T remove(Coordinate c) {
+			return map.computeIfAbsent(c.getX(), x -> new HashMap<>()).remove(c.getY());
+		}
+
+		T get(Coordinate c) {
+			return getOrDefault(c, null);
+		}
+
+		T getOrDefault(Coordinate c, T defaultValue) {
+			return map.getOrDefault(c.getX(), Collections.emptyMap()).getOrDefault(c.getY(), defaultValue);
+		}
+
+		Collection<T> values() {
+			if (isEmpty())
+				return Collections.emptyList();
+			return map.values().stream().flatMap(m -> m.values().stream()).toList();
+		}
+
+		int size() {
+			return map.values().stream().mapToInt(Map::size).sum();
+		}
+
+		boolean isEmpty() {
+			return map.values().stream().allMatch(Map::isEmpty);
+		}
+
+	}
+
+	/**
+	 * Coordinates can only be merged in a linestring if they occur exactly twice (otherwise they must be noded).
+	 * This method finds all coordinates that can't be merged, and returns them as a set.
+	 * <p>
+	 * Note that previous implementations used a HashMap to count occurrences, but this was found to be much slower.
+	 */
+	private static Set<Coordinate> findNonMergeableCoordinates(Collection<CoordinatePair> pairList) {
+		// Extract all the coordinates
+		var allCoordinates = new ArrayList<Coordinate>(pairList.size()*2);
+		for (var p : pairList) {
+			allCoordinates.add(p.getC1());
+			allCoordinates.add(p.getC2());
+		}
+
+		// Sort the list so that we can count occurrences in a single pass
+		allCoordinates.sort(null);
+
+		// Find which that can't be merged, i.e. they don't occur exactly twice
+		var nonMergable = new HashSet<Coordinate>();
+		int count = 0;
+		Coordinate currentCoord = null;
+		for (var c : allCoordinates) {
+			if (Objects.equals(currentCoord, c)) {
+				count++;
+			} else {
+				if (count != 2 && currentCoord != null)
+					nonMergable.add(currentCoord);
+				currentCoord = c;
+				count = 1;
+			}
+		}
+		return nonMergable;
+	}
+
+	private static Geometry linesFromPairs2(GeometryFactory factory, Collection<CoordinatePair> pairs,
+										   double xOrigin, double yOrigin, double scale) {
+
+		// Sort now to avoid sorting later
+		var pairList = pairs.stream()
+				.sorted(Comparator.comparing(CoordinatePair::getC1).thenComparing(CoordinatePair::getC2))
+				.toList();
+
+		var nonMergeable = findNonMergeableCoordinates(pairs);
+
+		// Find horizontal & vertical edges, split by row and column
+		var horizontal = new TreeMap<Double, List<CoordinatePair>>();
+		var vertical = new TreeMap<Double, List<CoordinatePair>>();
+		for (var p : pairList) {
+			if (p.isHorizontal())
+				horizontal.computeIfAbsent(p.getC1().getY(), y -> new ArrayList<>()).add(p);
+			else if (p.isVertical())
+				vertical.computeIfAbsent(p.getC1().getX(), x -> new ArrayList<>()).add(p);
+		}
+
+
+		Collection<List<Coordinate>> lines = new ArrayList<>();
+		var mergeable = new MinimalCoordinateMap<List<Coordinate>>();
+//		Map<Coordinate, List<Coordinate>> mergeable = HashMap.newHashMap(pairList.size()/8);
+		for (var entry : horizontal.entrySet()) {
+			var list = entry.getValue();
+			for (var ls : buildLineStrings(list, nonMergeable::contains, factory, xOrigin, yOrigin, scale)) {
+				var c1 = ls.getFirst();
+				var c2 = ls.getLast();
+				boolean isMergable = false;
+				if (!nonMergeable.contains(c1)) {
+					if (mergeable.put(c1, ls) != null)
+						throw new RuntimeException("Horizontal mergeable already exists");
+					isMergable = true;
+				}
+				if (!nonMergeable.contains(c2)) {
+					if (mergeable.put(c2, ls) != null)
+						throw new RuntimeException("Vertical mergeable already exists");
+					isMergable = true;
+				}
+				if (!isMergable)
+					lines.add(ls);
+			}
+		}
+		for (var entry : vertical.entrySet()) {
+			var list = entry.getValue();
+			var queued = new ArrayDeque<>(buildLineStrings(list, nonMergeable::contains, factory, xOrigin, yOrigin, scale));
+			while (!queued.isEmpty()) {
+				var ls = queued.pop();
+				if (isClosed(ls)) {
+					lines.add(ls);
+					continue;
+				}
+				if (Thread.interrupted())
+					throw new RuntimeException("Interrupted");
+				var c1 = ls.getFirst();
+				var c2 = ls.getLast();
+				boolean c1Mergable = !nonMergeable.contains(c1);
+				boolean c2Mergable = !nonMergeable.contains(c2);
+				if (c1Mergable) {
+					var existing = mergeable.remove(c1);
+					if (existing != null) {
+						if (c1.equals(existing.getFirst()))
+							mergeable.remove(existing.getLast());
+						else
+							mergeable.remove(existing.getFirst());
+
+						queued.add(mergeLines(existing, ls));
+						continue;
+					}
+				}
+				if (c2Mergable) {
+					var existing = mergeable.remove(c2);
+					if (existing != null) {
+						if (c2.equals(existing.getFirst()))
+							mergeable.remove(existing.getLast());
+						else
+							mergeable.remove(existing.getFirst());
+						queued.add(mergeLines(existing, ls));
+						continue;
+					}
+				}
+				if (c1Mergable || c2Mergable) {
+					if (c1Mergable)
+						mergeable.put(c1, ls);
+					if (c2Mergable)
+						mergeable.put(c2, ls);
+				} else {
+					// Line is complete
+					lines.add(ls);
+				}
+			}
+		}
+		if (!mergeable.isEmpty())
+			logger.warn("Remaining mergable lines: {}", mergeable.size());
+		lines.addAll(mergeable.values());
+
+		var lineStrings = new ArrayList<LineString>();
+		for (var line : lines) {
+			lineStrings.add(factory.createLineString(line.toArray(Coordinate[]::new)));
+		}
+
+		return factory.buildGeometry(lineStrings);
+	}
+
+	private static boolean isClosed(List<Coordinate> coords) {
+		return coords.size() > 2 && coords.getFirst().equals(coords.getLast());
+	}
+
+	private static List<Coordinate> mergeLines(List<Coordinate> l1, List<Coordinate> l2) {
+		var c1Start = l1.getFirst();
+		var c1End = l1.getLast();
+		var c2Start = l2.getFirst();
+		var c2End = l2.getLast();
+
+		if (c1End.equals(c2Start)) {
+			return concat(l1, l2);
+		} else if (c1Start.equals(c2End)) {
+			return concat(l2, l1);
+		} else if (c1Start.equals(c2Start)) {
+			return concat(l1.reversed(), l2);
+		} else if (c1End.equals(c2End)) {
+			return concat(l1, l2.reversed());
+		} else {
+			return null;
+		}
+	}
+
+	private static List<Coordinate> concat(List<Coordinate> l1, List<Coordinate> l2) {
+//		if (!l1.getCoordinateN(l1.getNumPoints()-1).equals(l2.getCoordinateN(0))) {
+//			System.err.println("Wrong!");
+//		}
+		int n = l1.size() + l2.size() - 1;
+		var list = new ArrayList<Coordinate>(n);
+		list.addAll(l1);
+		list.addAll(l2.subList(1, l2.size()));
+
+//		var coords = new Coordinate[l1.getNumPoints() + l2.getNumPoints() - 1];
+//		int ind = 0;
+//		for (int i = 0; i < l1.getNumPoints(); i++) {
+//			coords[ind++] = l1.getCoordinateN(i);
+//		}
+//		for (int i = 1; i < l2.getNumPoints(); i++) {
+//			coords[ind++] = l2.getCoordinateN(i);
+//		}
+//		if (coords.length != Arrays.stream(coords).distinct().count() && !coords[0].equals(coords[coords.length-1])) {
+//			System.err.println(coords.length + " (unique " + Arrays.stream(coords).distinct().count() + ")");
+//		}
+		return list;
+	}
+
+
+	private static List<List<Coordinate>> buildLineStrings(List<CoordinatePair> pairs, Predicate<Coordinate> counter,
+											  GeometryFactory factory, double xOrigin, double yOrigin, double scale) {
+		if (pairs.isEmpty())
+			return List.of();
+
+		List<List<Coordinate>> lines = new ArrayList<>();
+		Coordinate firstCoord = pairs.getFirst().getC1();
+		Coordinate secondCoord = pairs.getFirst().getC2();
+		for (int i = 1; i < pairs.size(); i++) {
+			var p = pairs.get(i);
+			if (!secondCoord.equals(p.getC1()) || counter.test(secondCoord)) {
+				// Finish the line we were building & start a new one
+				lines.add(createLineString(firstCoord, secondCoord, factory, xOrigin, yOrigin, scale));
+				firstCoord = p.getC1();
+				secondCoord = p.getC2();
+				continue;
+			} else {
+				// Continue the line
+				secondCoord = p.getC2();
+			}
+		}
+		lines.add(createLineString(firstCoord, secondCoord, factory, xOrigin, yOrigin, scale));
+		return lines;
+	}
+
+	private static List<Coordinate> createLineString(Coordinate c1, Coordinate c2,
+											   GeometryFactory factory, double xOrigin, double yOrigin, double scale) {
+		if (xOrigin == 0 && yOrigin == 0 && scale == 1)
+			return List.of(c1, c2);
+		var pm = factory.getPrecisionModel();
+		double x1 = pm.makePrecise(xOrigin + c1.x * scale);
+		double x2 =  pm.makePrecise(xOrigin + c2.x * scale);
+		double y1 =  pm.makePrecise(yOrigin + c1.y * scale);
+		double y2 =  pm.makePrecise(yOrigin + c2.y * scale);
+		return List.of(new Coordinate(x1, y1), new Coordinate(x2, y2));
+	}
+
+
 	private static Geometry createGeometry(GeometryFactory factory, Collection<CoordinatePair> lines,
 										   double xOrigin, double yOrigin, double scale) {
 
@@ -837,21 +1117,21 @@ public class ContourTracing {
 
 		var pairs = removeDuplicatesCompletely(lines);
 
-		var dissolver = new LineDissolver();
-		for (var p : pairs) {
-			dissolver.add(p.createLineString(factory, xOrigin, yOrigin, scale));
+		try {
+			long startTime = System.currentTimeMillis();
+			var lineStrings = linesFromPairs2(factory, pairs, xOrigin, yOrigin, scale);
+			long endTime = System.currentTimeMillis();
+			System.err.println("From pairs time: " + (endTime - startTime));
+
+			var polygonizer = new Polygonizer(true);
+			polygonizer.add(lineStrings);
+			var geometry = polygonizer.getGeometry();
+			geometry.normalize();
+			return geometry;
+		} catch (Throwable e) {
+			System.err.println("Error in polygonization: " + e.getMessage());
+			return factory.createEmpty(2);
 		}
-		var lineStrings = dissolver.getResult();
-
-		lineStrings = DouglasPeuckerSimplifier.simplify(lineStrings, 0);
-
-		var polygonizer = new Polygonizer(true);
-		polygonizer.add(lineStrings);
-
-		var geometry = polygonizer.getGeometry();
-
-		geometry.normalize();
-		return geometry;
 	}
 	
 	/**
@@ -1368,17 +1648,14 @@ public class ContourTracing {
 		return lines;
 	}
 
+
+
 	private static Coordinate createCoordinate(PrecisionModel pm, double x, double y) {
 		return new CoordinateXY(
 				pm.makePrecise(x),
 				pm.makePrecise(y));
 	}
 
-	private static CoordinateSequence createCoordinateSequence(Coordinate... coords) {
-		for (var c : coords)
-			GeometryTools.getDefaultFactory().getPrecisionModel().makePrecise(c);
-		return new CoordinateArraySequence(coords, 3, 0);
-	}
 
 
 	private static boolean inRange(SimpleImage image, int x, int y, double min, double max) {
