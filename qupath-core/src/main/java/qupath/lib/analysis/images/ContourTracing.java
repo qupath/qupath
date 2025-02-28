@@ -28,21 +28,15 @@ import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,32 +44,17 @@ import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.IntFunction;
-import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.google.common.collect.Table;
-import org.locationtech.jts.coverage.CoverageUnion;
-import org.locationtech.jts.dissolve.LineDissolver;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
-import org.locationtech.jts.geom.impl.CoordinateArraySequence;
-import org.locationtech.jts.geom.util.AffineTransformation;
-import org.locationtech.jts.geom.util.LineStringExtracter;
-import org.locationtech.jts.geom.util.PolygonExtracter;
-import org.locationtech.jts.operation.linemerge.LineMerger;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
-import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
-import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
@@ -112,7 +91,7 @@ public class ContourTracing {
 	public static List<PathObject> labelsToDetections(Collection<Path> paths, boolean mergeByLabel) throws IOException {
 		var list = paths.parallelStream().flatMap(p -> labelsToDetectionsStream(p)).toList();
 		if (mergeByLabel)
-			return mergeByName(list);
+			return mergeObjectsByName(list);
 		return list;
 	}
 	
@@ -126,11 +105,11 @@ public class ContourTracing {
 	public static List<PathObject> labelsToCells(Collection<Path> paths, boolean mergeByLabel) throws IOException {
 		var list = paths.parallelStream().flatMap(ContourTracing::labelsToCellsStream).toList();
 		if (mergeByLabel)
-			return mergeByName(list);
+			return mergeObjectsByName(list);
 		return list;
 	}
 	
-	private static <K> List<PathObject> mergeByName(Collection<? extends PathObject> pathObjects) {
+	private static <K> List<PathObject> mergeObjectsByName(Collection<? extends PathObject> pathObjects) {
 		return PathObjectTools.mergeObjects(pathObjects, PathObject::getName);
 	}
 	
@@ -196,7 +175,7 @@ public class ContourTracing {
 	public static List<PathObject> labelsToAnnotations(Collection<Path> paths, boolean mergeByLabel) throws IOException {
 		var list = paths.parallelStream().flatMap(p -> labelsToAnnotationsStream(p)).toList();
 		if (mergeByLabel)
-			return mergeByName(list);
+			return mergeObjectsByName(list);
 		return list;
 	}
 	
@@ -794,320 +773,6 @@ public class ContourTracing {
 	}
 
 
-	/**
-	 * Create a new collection that contains only pairs that did not have any duplicate in the input.
-	 * This is different from removing duplicates: if a pair is duplicated, all instances of it are removed.
-	 * @param lines
-	 * @return
-	 */
-	private static Collection<CoordinatePair> removeDuplicatesCompletely(Collection<CoordinatePair> lines) {
-		CoordinatePair lastPair = null;
-		List<CoordinatePair> pairs = new ArrayList<>();
-		boolean duplicate = false;
-		var comparator = Comparator.comparing(CoordinatePair::getC1).thenComparing(CoordinatePair::getC2);
-		var iterator = lines.stream().sorted(comparator).iterator();
-		while (iterator.hasNext()) {
-			var line = iterator.next();
-			if (Objects.equals(lastPair, line)) {
-				duplicate = true;
-			} else {
-				if (!duplicate && lastPair != null)
-					pairs.add(lastPair);
-				duplicate = false;
-			}
-			lastPair = line;
-		}
-		if (!duplicate)
-			pairs.add(lastPair);
-		return pairs;
-	}
-
-	// Alternative implementation: more readable, but has slightly more overhead
-//	private static Collection<CoordinatePair> removeDuplicatesCompletely(List<CoordinatePair> lines) {
-//		Set<CoordinatePair> set = HashSet.newHashSet(lines.size());
-//		Set<CoordinatePair> duplicates = HashSet.newHashSet(lines.size() / 4);
-//		for (var line : lines) {
-//			if (!set.add(line)) {
-//				duplicates.add(line);
-//			}
-//		}
-//		set.removeAll(duplicates);
-//		return List.copyOf(set);
-//	}
-
-	/**
-	 * Convert a collection of pairs from contour tracing into line strings for polygonization.
-	 */
-	private static Geometry linesFromPairs(GeometryFactory factory, Collection<CoordinatePair> pairs,
-											 double xOrigin, double yOrigin, double scale) {
-		var dissolver = new LineDissolver();
-		for (var p : pairs) {
-			dissolver.add(p.createLineString(factory, xOrigin, yOrigin, scale));
-		}
-		var lineStrings = dissolver.getResult();
-		return DouglasPeuckerSimplifier.simplify(lineStrings, 0);
-	}
-
-	// I know this looks awkward... but one massive HashMap<Coordinate, Integer> was *much* slower
-	private static class MinimalCoordinateMap<T> {
-
-		private final Map<Double, Map<Double, T>> map = new HashMap<>();
-
-		T put(Coordinate c, T val) {
-			return map.computeIfAbsent(c.getX(), x -> new HashMap<>()).put(c.getY(), val);
-		}
-
-		T remove(Coordinate c) {
-			return map.computeIfAbsent(c.getX(), x -> new HashMap<>()).remove(c.getY());
-		}
-
-		T get(Coordinate c) {
-			return getOrDefault(c, null);
-		}
-
-		T getOrDefault(Coordinate c, T defaultValue) {
-			return map.getOrDefault(c.getX(), Collections.emptyMap()).getOrDefault(c.getY(), defaultValue);
-		}
-
-		Collection<T> values() {
-			if (isEmpty())
-				return Collections.emptyList();
-			return map.values().stream().flatMap(m -> m.values().stream()).toList();
-		}
-
-		int size() {
-			return map.values().stream().mapToInt(Map::size).sum();
-		}
-
-		boolean isEmpty() {
-			return map.values().stream().allMatch(Map::isEmpty);
-		}
-
-	}
-
-	/**
-	 * Coordinates can only be merged in a linestring if they occur exactly twice (otherwise they must be noded).
-	 * This method finds all coordinates that can't be merged, and returns them as a set.
-	 * <p>
-	 * Note that previous implementations used a HashMap to count occurrences, but this was found to be much slower.
-	 */
-	private static Set<Coordinate> findNonMergeableCoordinates(Collection<CoordinatePair> pairList) {
-		// Extract all the coordinates
-		var allCoordinates = new ArrayList<Coordinate>(pairList.size()*2);
-		for (var p : pairList) {
-			allCoordinates.add(p.getC1());
-			allCoordinates.add(p.getC2());
-		}
-
-		// Sort the list so that we can count occurrences in a single pass
-		allCoordinates.sort(null);
-
-		// Find which that can't be merged, i.e. they don't occur exactly twice
-		var nonMergable = new HashSet<Coordinate>();
-		int count = 0;
-		Coordinate currentCoord = null;
-		for (var c : allCoordinates) {
-			if (Objects.equals(currentCoord, c)) {
-				count++;
-			} else {
-				if (count != 2 && currentCoord != null)
-					nonMergable.add(currentCoord);
-				currentCoord = c;
-				count = 1;
-			}
-		}
-		return nonMergable;
-	}
-
-	private static Geometry linesFromPairs2(GeometryFactory factory, Collection<CoordinatePair> pairs,
-										   double xOrigin, double yOrigin, double scale) {
-
-		// Sort now to avoid sorting later
-		var pairList = pairs.stream()
-				.sorted(Comparator.comparing(CoordinatePair::getC1).thenComparing(CoordinatePair::getC2))
-				.toList();
-
-		var nonMergeable = findNonMergeableCoordinates(pairs);
-
-		// Find horizontal & vertical edges, split by row and column
-		var horizontal = new TreeMap<Double, List<CoordinatePair>>();
-		var vertical = new TreeMap<Double, List<CoordinatePair>>();
-		for (var p : pairList) {
-			if (p.isHorizontal())
-				horizontal.computeIfAbsent(p.getC1().getY(), y -> new ArrayList<>()).add(p);
-			else if (p.isVertical())
-				vertical.computeIfAbsent(p.getC1().getX(), x -> new ArrayList<>()).add(p);
-		}
-
-
-		Collection<List<Coordinate>> lines = new ArrayList<>();
-		var mergeable = new MinimalCoordinateMap<List<Coordinate>>();
-//		Map<Coordinate, List<Coordinate>> mergeable = HashMap.newHashMap(pairList.size()/8);
-		for (var entry : horizontal.entrySet()) {
-			var list = entry.getValue();
-			for (var ls : buildLineStrings(list, nonMergeable::contains, factory, xOrigin, yOrigin, scale)) {
-				var c1 = ls.getFirst();
-				var c2 = ls.getLast();
-				boolean isMergable = false;
-				if (!nonMergeable.contains(c1)) {
-					if (mergeable.put(c1, ls) != null)
-						throw new RuntimeException("Horizontal mergeable already exists");
-					isMergable = true;
-				}
-				if (!nonMergeable.contains(c2)) {
-					if (mergeable.put(c2, ls) != null)
-						throw new RuntimeException("Vertical mergeable already exists");
-					isMergable = true;
-				}
-				if (!isMergable)
-					lines.add(ls);
-			}
-		}
-		for (var entry : vertical.entrySet()) {
-			var list = entry.getValue();
-			var queued = new ArrayDeque<>(buildLineStrings(list, nonMergeable::contains, factory, xOrigin, yOrigin, scale));
-			while (!queued.isEmpty()) {
-				var ls = queued.pop();
-				if (isClosed(ls)) {
-					lines.add(ls);
-					continue;
-				}
-				if (Thread.interrupted())
-					throw new RuntimeException("Interrupted");
-				var c1 = ls.getFirst();
-				var c2 = ls.getLast();
-				boolean c1Mergable = !nonMergeable.contains(c1);
-				boolean c2Mergable = !nonMergeable.contains(c2);
-				if (c1Mergable) {
-					var existing = mergeable.remove(c1);
-					if (existing != null) {
-						if (c1.equals(existing.getFirst()))
-							mergeable.remove(existing.getLast());
-						else
-							mergeable.remove(existing.getFirst());
-
-						queued.add(mergeLines(existing, ls));
-						continue;
-					}
-				}
-				if (c2Mergable) {
-					var existing = mergeable.remove(c2);
-					if (existing != null) {
-						if (c2.equals(existing.getFirst()))
-							mergeable.remove(existing.getLast());
-						else
-							mergeable.remove(existing.getFirst());
-						queued.add(mergeLines(existing, ls));
-						continue;
-					}
-				}
-				if (c1Mergable || c2Mergable) {
-					if (c1Mergable)
-						mergeable.put(c1, ls);
-					if (c2Mergable)
-						mergeable.put(c2, ls);
-				} else {
-					// Line is complete
-					lines.add(ls);
-				}
-			}
-		}
-		if (!mergeable.isEmpty())
-			logger.warn("Remaining mergable lines: {}", mergeable.size());
-		lines.addAll(mergeable.values());
-
-		var lineStrings = new ArrayList<LineString>();
-		for (var line : lines) {
-			lineStrings.add(factory.createLineString(line.toArray(Coordinate[]::new)));
-		}
-
-		return factory.buildGeometry(lineStrings);
-	}
-
-	private static boolean isClosed(List<Coordinate> coords) {
-		return coords.size() > 2 && coords.getFirst().equals(coords.getLast());
-	}
-
-	private static List<Coordinate> mergeLines(List<Coordinate> l1, List<Coordinate> l2) {
-		var c1Start = l1.getFirst();
-		var c1End = l1.getLast();
-		var c2Start = l2.getFirst();
-		var c2End = l2.getLast();
-
-		if (c1End.equals(c2Start)) {
-			return concat(l1, l2);
-		} else if (c1Start.equals(c2End)) {
-			return concat(l2, l1);
-		} else if (c1Start.equals(c2Start)) {
-			return concat(l1.reversed(), l2);
-		} else if (c1End.equals(c2End)) {
-			return concat(l1, l2.reversed());
-		} else {
-			return null;
-		}
-	}
-
-	private static List<Coordinate> concat(List<Coordinate> l1, List<Coordinate> l2) {
-//		if (!l1.getCoordinateN(l1.getNumPoints()-1).equals(l2.getCoordinateN(0))) {
-//			System.err.println("Wrong!");
-//		}
-		int n = l1.size() + l2.size() - 1;
-		var list = new ArrayList<Coordinate>(n);
-		list.addAll(l1);
-		list.addAll(l2.subList(1, l2.size()));
-
-//		var coords = new Coordinate[l1.getNumPoints() + l2.getNumPoints() - 1];
-//		int ind = 0;
-//		for (int i = 0; i < l1.getNumPoints(); i++) {
-//			coords[ind++] = l1.getCoordinateN(i);
-//		}
-//		for (int i = 1; i < l2.getNumPoints(); i++) {
-//			coords[ind++] = l2.getCoordinateN(i);
-//		}
-//		if (coords.length != Arrays.stream(coords).distinct().count() && !coords[0].equals(coords[coords.length-1])) {
-//			System.err.println(coords.length + " (unique " + Arrays.stream(coords).distinct().count() + ")");
-//		}
-		return list;
-	}
-
-
-	private static List<List<Coordinate>> buildLineStrings(List<CoordinatePair> pairs, Predicate<Coordinate> counter,
-											  GeometryFactory factory, double xOrigin, double yOrigin, double scale) {
-		if (pairs.isEmpty())
-			return List.of();
-
-		List<List<Coordinate>> lines = new ArrayList<>();
-		Coordinate firstCoord = pairs.getFirst().getC1();
-		Coordinate secondCoord = pairs.getFirst().getC2();
-		for (int i = 1; i < pairs.size(); i++) {
-			var p = pairs.get(i);
-			if (!secondCoord.equals(p.getC1()) || counter.test(secondCoord)) {
-				// Finish the line we were building & start a new one
-				lines.add(createLineString(firstCoord, secondCoord, factory, xOrigin, yOrigin, scale));
-				firstCoord = p.getC1();
-				secondCoord = p.getC2();
-				continue;
-			} else {
-				// Continue the line
-				secondCoord = p.getC2();
-			}
-		}
-		lines.add(createLineString(firstCoord, secondCoord, factory, xOrigin, yOrigin, scale));
-		return lines;
-	}
-
-	private static List<Coordinate> createLineString(Coordinate c1, Coordinate c2,
-											   GeometryFactory factory, double xOrigin, double yOrigin, double scale) {
-		if (xOrigin == 0 && yOrigin == 0 && scale == 1)
-			return List.of(c1, c2);
-		var pm = factory.getPrecisionModel();
-		double x1 = pm.makePrecise(xOrigin + c1.x * scale);
-		double x2 =  pm.makePrecise(xOrigin + c2.x * scale);
-		double y1 =  pm.makePrecise(yOrigin + c1.y * scale);
-		double y2 =  pm.makePrecise(yOrigin + c2.y * scale);
-		return List.of(new Coordinate(x1, y1), new Coordinate(x2, y2));
-	}
-
 
 	private static Geometry createGeometry(GeometryFactory factory, Collection<CoordinatePair> lines,
 										   double xOrigin, double yOrigin, double scale) {
@@ -1115,13 +780,13 @@ public class ContourTracing {
 		if (lines.isEmpty())
 			return factory.createEmpty(2);
 
-		var pairs = removeDuplicatesCompletely(lines);
+		var pairs = ContourTracingUtils.removeDuplicatesCompletely(lines);
 
 		try {
 			long startTime = System.currentTimeMillis();
-			var lineStrings = linesFromPairs2(factory, pairs, xOrigin, yOrigin, scale);
+			var lineStrings = ContourTracingUtils.linesFromPairsFast(factory, pairs, xOrigin, yOrigin, scale);
 			long endTime = System.currentTimeMillis();
-			System.err.println("From pairs time: " + (endTime - startTime));
+			logger.debug("Creating lines from pair time: {} ms", endTime - startTime);
 
 			var polygonizer = new Polygonizer(true);
 			polygonizer.add(lineStrings);
@@ -1370,22 +1035,22 @@ public class ContourTracing {
 
 		var pool = Executors.newFixedThreadPool(ThreadTools.getParallelism());
 		try {
-			List<List<GeometryWrapper>> wrappers = invokeAll(pool, tiles, t -> traceGeometries(server, t, clipArea, thresholds));
-			var geometryMap =  wrappers.stream()
+			List<List<LabeledCoordinatePairs>> labeledCoords = invokeAll(pool, tiles, t -> traceGeometries(server, t, clipArea, thresholds));
+			var coordMap =  labeledCoords.stream()
 					.flatMap(p -> p.stream())
-					.collect(Collectors.groupingBy(g -> g.label));
+					.collect(Collectors.groupingBy(LabeledCoordinatePairs::getLabel));
 			
 			var futures = new LinkedHashMap<Integer, Future<Geometry>>();
 			
 			// Merge objects with the same classification
-			for (var entry : geometryMap.entrySet()) {
+			for (var entry : coordMap.entrySet()) {
 				var list = entry.getValue();
 				if (list.isEmpty())
 					continue;
 				if (clipArea == null)
-					futures.put(entry.getKey(), pool.submit(() -> mergeGeometryWrappers(list)));
+					futures.put(entry.getKey(), pool.submit(() -> coordsToGeometry(list)));
 				else
-					futures.put(entry.getKey(), pool.submit(() -> mergeGeometryWrappers(list).intersection(clipArea)));
+					futures.put(entry.getKey(), pool.submit(() -> coordsToGeometry(list).intersection(clipArea)));
 			}
 			
 			for (var entry : futures.entrySet())
@@ -1401,13 +1066,13 @@ public class ContourTracing {
 	
 	
 	/**
-	 * Merge together geometries.
-	 * @param list
+	 * Merge labeled coordinate pairs together to create geometry objects.
+	 * @param list the coordinate pairs to merge
 	 * @param xBounds x tile boundaries; unioning is only applied over boundaries
 	 * @param yBounds y tile boundaries; unioning is only applied over boundaries
 	 * @return
 	 */
-	private static Geometry mergeGeometryWrappers(List<GeometryWrapper> list) {
+	private static Geometry coordsToGeometry(List<LabeledCoordinatePairs> list) {
 
 		var factory = GeometryTools.getDefaultFactory();
 
@@ -1423,7 +1088,7 @@ public class ContourTracing {
 
 
 
-	private static List<GeometryWrapper> traceGeometries(ImageServer<BufferedImage> server, TileRequest tile, Geometry clipArea, ChannelThreshold... thresholds) {
+	private static List<LabeledCoordinatePairs> traceGeometries(ImageServer<BufferedImage> server, TileRequest tile, Geometry clipArea, ChannelThreshold... thresholds) {
 		try {
 			return traceGeometriesImpl(server, tile, clipArea, thresholds);
 		} catch (Exception e) {
@@ -1432,12 +1097,12 @@ public class ContourTracing {
 	}
 	
 	
-	private static List<GeometryWrapper> traceGeometriesImpl(ImageServer<BufferedImage> server, TileRequest tile, Geometry clipArea, ChannelThreshold... thresholds) throws IOException {
+	private static List<LabeledCoordinatePairs> traceGeometriesImpl(ImageServer<BufferedImage> server, TileRequest tile, Geometry clipArea, ChannelThreshold... thresholds) throws IOException {
 		if (thresholds.length == 0)
 			return Collections.emptyList();
 		
 		var request = tile.getRegionRequest();
-		var list = new ArrayList<GeometryWrapper>();
+		var list = new ArrayList<LabeledCoordinatePairs>();
 
 		var img = server.readRegion(request);
 		// Get an image to threshold
@@ -1480,7 +1145,7 @@ public class ContourTracing {
 			for (var threshold : thresholds) {
 				int c = threshold.getChannel();
 				var geometry = ContourTracing.createTracedGeometry(image, c, c, tile, null);
-				list.add(new GeometryWrapper(geometry, c));
+				list.add(new LabeledCoordinatePairs(geometry, c));
 			}
 		} else {
 			// Apply the provided threshold to all channels
@@ -1498,7 +1163,7 @@ public class ContourTracing {
 						raster, threshold.getMinThreshold(), threshold.getMaxThreshold(), threshold.getChannel(), tile, envelopes.getOrDefault(threshold, null));
 				if (!geometry.isEmpty()) {
 					// Exclude lines/points that can sometimes arise
-					list.add(new GeometryWrapper(geometry, threshold.getChannel()));
+					list.add(new LabeledCoordinatePairs(geometry, threshold.getChannel()));
 				}
 			}
 		}
@@ -1546,16 +1211,32 @@ public class ContourTracing {
 	
 
 	/**
-	 * Simple wrapper for a geometry and a label (usually a channel number or classification).
+	 * Simple wrapper for a list of coordinate pairs and a label (usually a channel number or classification).
 	 */
-	private static class GeometryWrapper {
+	private static class LabeledCoordinatePairs {
 		
-		final List<CoordinatePair> coordinates;
-		final int label;
+		private final List<CoordinatePair> coordinates;
+		private final int label;
 		
-		private GeometryWrapper(List<CoordinatePair> coordinates, int label) {
-			this.coordinates = coordinates;
+		private LabeledCoordinatePairs(List<CoordinatePair> coordinates, int label) {
+			this.coordinates = List.copyOf(coordinates);
 			this.label = label;
+		}
+
+		/**
+		 * Get an unmodifiable list of the coordinate pairs.
+		 * @return
+		 */
+		List<CoordinatePair> getCoordinates() {
+			return coordinates;
+		}
+
+		/**
+		 * Get the label.
+		 * @return
+		 */
+		int getLabel() {
+			return label;
 		}
 		
 	}
@@ -1665,82 +1346,5 @@ public class ContourTracing {
 		return val >= min && val <= max;
 	}
 
-
-	private static class CoordinatePair {
-
-		private static final Comparator<Coordinate> topLeftCoordinateComparator = Comparator.comparingDouble(Coordinate::getY)
-				.thenComparingDouble(Coordinate::getX);
-
-		private final Coordinate c1;
-		private final Coordinate c2;
-
-		private final int hash;
-
-		private CoordinatePair(Coordinate c1, Coordinate c2) {
-			var comp = topLeftCoordinateComparator.compare(c1, c2);
-			if (comp < 0) {
-				this.c1 = c1;
-				this.c2 = c2;
-			} else if (comp > 0) {
-				this.c1 = c2;
-				this.c2 = c1;
-			} else
-				throw new IllegalArgumentException("Coordinates should not be the same!");
-			if (!isHorizontal() && !isVertical())
-				throw new IllegalArgumentException("Coordinate pairs should be horizontal or vertical!");
-			this.hash = Objects.hash(c1, c2);
-		}
-
-		boolean isHorizontal() {
-			return c1.y == c2.y && c1.x != c2.x;
-		}
-
-		boolean isVertical() {
-			return c1.x == c2.x && c1.y != c2.y;
-		}
-
-		/**
-		 * This does <i>not</i> make a defensive copy; the caller should not modify the returned coordinate.
-		 * @return
-		 */
-		Coordinate getC1() {
-			return c1;
-		}
-
-		/**
-		 * This does <i>not</i> make a defensive copy; the caller should not modify the returned coordinate.
-		 * @return
-		 */
-		Coordinate getC2() {
-			return c2;
-		}
-
-		LineString createLineString(GeometryFactory factory) {
-			return factory.createLineString(new Coordinate[] {c1, c2});
-		}
-
-		LineString createLineString(GeometryFactory factory, double xOrigin, double yOrigin, double scale) {
-			var pm = factory.getPrecisionModel();
-			double x1 = pm.makePrecise(xOrigin + c1.x * scale);
-			double x2 =  pm.makePrecise(xOrigin + c2.x * scale);
-			double y1 =  pm.makePrecise(yOrigin + c1.y * scale);
-			double y2 =  pm.makePrecise(yOrigin + c2.y * scale);
-			return factory.createLineString(new Coordinate[] {
-					new Coordinate(x1, y1), new Coordinate(x2, y2)});
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (o == null || getClass() != o.getClass())
-				return false;
-			CoordinatePair that = (CoordinatePair) o;
-			return Objects.equals(c1, that.c1) && Objects.equals(c2, that.c2);
-		}
-
-		@Override
-		public int hashCode() {
-			return hash;
-		}
-	}
 
 }
