@@ -45,7 +45,7 @@ public class ZProjectionImageServer extends TransformingImageServer<BufferedImag
 
     @Override
     protected String createID() {
-        return getClass().getName() + ": + " + getWrappedServer().getPath();
+        return getClass().getName() + ": + " + getWrappedServer().getPath() + projection;
     }
 
     @Override
