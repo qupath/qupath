@@ -122,7 +122,7 @@ class ContourTracingUtils {
         allCoordinates.sort(null);
 
         // Find which that can't be merged, i.e. they don't occur exactly twice
-        var nonMergable = new HashSet<Coordinate>();
+        var nonMergeable = new HashSet<Coordinate>();
         int count = 0;
         Coordinate currentCoord = null;
         for (var c : allCoordinates) {
@@ -130,12 +130,12 @@ class ContourTracingUtils {
                 count++;
             } else {
                 if (count != 2 && currentCoord != null)
-                    nonMergable.add(currentCoord);
+                    nonMergeable.add(currentCoord);
                 currentCoord = c;
                 count = 1;
             }
         }
-        return nonMergable;
+        return nonMergeable;
     }
 
     /**
@@ -165,29 +165,34 @@ class ContourTracingUtils {
                 vertical.computeIfAbsent(p.getC1().getX(), x -> new ArrayList<>()).add(p);
         }
 
+        // May not really matter if we start with horizontal or vertical
+        var firstDirection = horizontal.size() <= vertical.size() ? horizontal : vertical;
+        var secondDirection = firstDirection == horizontal ? vertical : horizontal;
+
         Collection<List<Coordinate>> lines = new ArrayList<>();
         var mergeable = new MinimalCoordinateMap<List<Coordinate>>();
-        for (var entry : horizontal.entrySet()) {
+        for (var entry : firstDirection.entrySet()) {
             var list = entry.getValue();
             for (var ls : buildLineStrings(list, nonMergeable::contains, factory, xOrigin, yOrigin, scale)) {
                 var c1 = ls.getFirst();
                 var c2 = ls.getLast();
-                boolean isMergable = false;
+                boolean isMergeable = false;
                 if (!nonMergeable.contains(c1)) {
                     if (mergeable.put(c1, ls) != null)
-                        throw new RuntimeException("Horizontal mergeable already exists");
-                    isMergable = true;
+                        throw new RuntimeException("Unexpected mergeable already exists");
+                    isMergeable = true;
                 }
                 if (!nonMergeable.contains(c2)) {
                     if (mergeable.put(c2, ls) != null)
-                        throw new RuntimeException("Vertical mergeable already exists");
-                    isMergable = true;
+                        throw new RuntimeException("Unexpected mergeable already exists");
+                    isMergeable = true;
                 }
-                if (!isMergable)
+                if (!isMergeable)
                     lines.add(ls);
             }
         }
-        for (var entry : vertical.entrySet()) {
+
+        for (var entry : secondDirection.entrySet()) {
             var list = entry.getValue();
             var queued = new ArrayDeque<>(buildLineStrings(list, nonMergeable::contains, factory, xOrigin, yOrigin, scale));
             while (!queued.isEmpty()) {
@@ -200,9 +205,9 @@ class ContourTracingUtils {
                     throw new RuntimeException("Interrupted");
                 var c1 = ls.getFirst();
                 var c2 = ls.getLast();
-                boolean c1Mergable = !nonMergeable.contains(c1);
-                boolean c2Mergable = !nonMergeable.contains(c2);
-                if (c1Mergable) {
+                boolean c1Mergeable = !nonMergeable.contains(c1);
+                boolean c2Mergeable = !nonMergeable.contains(c2);
+                if (c1Mergeable) {
                     var existing = mergeable.remove(c1);
                     if (existing != null) {
                         if (c1.equals(existing.getFirst()))
@@ -214,7 +219,7 @@ class ContourTracingUtils {
                         continue;
                     }
                 }
-                if (c2Mergable) {
+                if (c2Mergeable) {
                     var existing = mergeable.remove(c2);
                     if (existing != null) {
                         if (c2.equals(existing.getFirst()))
@@ -225,10 +230,10 @@ class ContourTracingUtils {
                         continue;
                     }
                 }
-                if (c1Mergable || c2Mergable) {
-                    if (c1Mergable)
+                if (c1Mergeable || c2Mergeable) {
+                    if (c1Mergeable)
                         mergeable.put(c1, ls);
-                    if (c2Mergable)
+                    if (c2Mergeable)
                         mergeable.put(c2, ls);
                 } else {
                     // Line is complete
@@ -236,6 +241,7 @@ class ContourTracingUtils {
                 }
             }
         }
+
         if (!mergeable.isEmpty())
             logger.warn("Remaining mergeable lines: {}", mergeable.size());
         lines.addAll(mergeable.values());
