@@ -58,15 +58,15 @@ public class ZProjectionImageServer extends TransformingImageServer<BufferedImag
                 .map(BufferedImage::getRaster)
                 .toList();
 
-        WritableRaster projectionRaster = zStacks.get(0).copyData(null);
+        WritableRaster projectionRaster = zStacks.getFirst().copyData(null);
         List<double[]> existingValues = IntStream.range(0, getWrappedServer().getMetadata().getSizeZ())
                 .mapToObj(z -> new double[nChannels()])
                 .toList();
         double[] existingZValues = new double[getWrappedServer().getMetadata().getSizeZ()];
         double[] newValues = new double[nChannels()];
 
-        for (int y = 0; y < getHeight(); y++) {
-            for (int x = 0; x < getWidth(); x++) {
+        for (int y = 0; y < zStacks.getFirst().getHeight(); y++) {
+            for (int x = 0; x < zStacks.getFirst().getWidth(); x++) {
                 for (int z=0; z < getWrappedServer().getMetadata().getSizeZ(); z++) {
                     zStackRasters.get(z).getPixel(x, y, existingValues.get(z));
                 }
