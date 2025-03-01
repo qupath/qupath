@@ -30,13 +30,16 @@ import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Helper class for managing simplified versions of a shape for rendering shapes at lower resolutions.
  * @since v0.6.0
  */
-class DownsampledShapeCache {
+public class DownsampledShapeCache {
 
     // No simplification for any shape with fewer points than this
     private static final int pointCountThreshold = 1000;
@@ -48,16 +51,54 @@ class DownsampledShapeCache {
     private static final double downsampleStep = 1.25;
 
     private final DownsampledShape shape;
-    private final List<DownsampledShape> downsampledShapes = new ArrayList<>();
+    private final boolean canSimplify;
+    private final List<DownsampledShape> downsampledShapes;
 
-    DownsampledShapeCache(ROI roi) {
-        // The basic shape
-        // Rather than count the points, just set to a very high value
-        this.shape = new DownsampledShape(roi.getShape(), 1.0, Integer.MAX_VALUE);
+    // (Only if shape simplification is often used for detection objects)
+    private static final Map<ROI, DownsampledShapeCache> shapeCache = Collections.synchronizedMap(new WeakHashMap<>());
+
+    /**
+     * Get the instance of the cache for a particular ROI.
+     * Note that this method should generally only be called for ROI objects that are likely to be reused,
+     * and which have sufficiently many points to benefit from simplification.
+     * @param roi
+     * @return
+     */
+    private static DownsampledShapeCache getInstance(ROI roi) {
+        return shapeCache.computeIfAbsent(roi, DownsampledShapeCache::new);
     }
 
-    Shape getForDownsample(double downsample) {
-        if (downsample <= minDownsample) {
+    /**
+     * Get the shape for a particular downsample.
+     * <b>Important!</b> Because the purpose of this class is efficiency, the returned shape must not be modified.
+     * Also, it is permitted to return {@link ROI#getShape()} for simple shapes that can already be rendered
+     * efficiently.
+     * @param roi the roi for which to get the shape
+     * @param downsample the downsample factor
+     * @return the shape to render at the specified downsample
+     */
+    public static Shape getShapeForDownsample(ROI roi, double downsample) {
+        if (roi.isArea() && roi.getNumPoints() > pointCountThreshold) {
+            return DownsampledShapeCache.getInstance(roi).getForDownsample(downsample);
+        } else {
+            return roi.getShape();
+        }
+    }
+
+    private DownsampledShapeCache(ROI roi) {
+        // The basic shape
+        // Rather than count the points, just set to a very high value
+        int nPoints = roi.getNumPoints();
+        this.shape = new DownsampledShape(roi.getShape(), 1.0, nPoints);
+        this.canSimplify = nPoints > pointCountThreshold && roi.isArea();
+        if (canSimplify)
+            downsampledShapes = new ArrayList<>();
+        else
+            downsampledShapes = Collections.emptyList();
+    }
+
+    private Shape getForDownsample(double downsample) {
+        if (!canSimplify || downsample <= minDownsample) {
             return shape.shape();
         }
         DownsampledShape lastShape = shape;
@@ -85,7 +126,7 @@ class DownsampledShapeCache {
     }
 
 
-    record DownsampledShape(Shape shape, double downsample, int nPoints) {}
+    private record DownsampledShape(Shape shape, double downsample, int nPoints) {}
 
     private static DownsampledShape downsampleShape(Shape shape, double downsample) {
 

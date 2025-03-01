@@ -695,10 +695,6 @@ public class PathObjectPainter {
 		private final EllipsePool ellipsePool = new EllipsePool();
 		private final LinePool linePool = new LinePool();
 
-		// TODO: Consider if it makes sense to map to PathHierarchyImageServer preferred downsamples
-		// (Only if shape simplification is often used for detection objects)
-		private Map<ROI, DownsampledShapeCache> shapeCache = Collections.synchronizedMap(new WeakHashMap<>());
-
 		// Note: this relies upon the fact that the ROI is immutable shapes are cached
 		private final Map<Area, GriddedArea> areaMap = Collections.synchronizedMap(new WeakHashMap<>());
 
@@ -733,20 +729,7 @@ public class PathObjectPainter {
 				return line;
 			}
 
-			DownsampledShapeCache cache = shapeCache.computeIfAbsent(roi, this::createShapeCache);
-			if (cache == null)
-				return roi.getShape();
-			else
-				return cache.getForDownsample(downsample);
-		}
-
-		private DownsampledShapeCache createShapeCache(ROI roi) {
-			if (!roi.isArea())
-				return null;
-			int nVertices = roi.getNumPoints();
-			if (nVertices < MIN_SIMPLIFY_VERTICES)
-				return null;
-			return new DownsampledShapeCache(roi);
+			return DownsampledShapeCache.getShapeForDownsample(roi, downsample);
 		}
 
     }
