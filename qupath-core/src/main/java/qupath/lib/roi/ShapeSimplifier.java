@@ -31,9 +31,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.PriorityQueue;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
@@ -49,7 +50,9 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class ShapeSimplifier {
-	
+
+	private static final Logger logger = LoggerFactory.getLogger(ShapeSimplifier.class);
+
 	/**
 	 * 
 	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam's Algorithm.
@@ -234,10 +237,10 @@ public class ShapeSimplifier {
 	 * @param path
 	 * @param altitudeThreshold
 	 * @return
-	 * @see #simplifyPath(Path2D, double, int)
+	 * @see #simplifyPath(Path2D, double, int, double)
 	 */
 	public static Path2D simplifyPath(Path2D path, double altitudeThreshold) {
-		return simplifyPath(path, altitudeThreshold, -1);
+		return simplifyPath(path, altitudeThreshold, -1, -1);
 	}
 
 	/**
@@ -258,11 +261,15 @@ public class ShapeSimplifier {
 	 * @param altitudeThreshold the altitude threshold
 	 * @param segmentPointThreshold the minimum number of points in a closed segment for simplification to be applied;
 	 *                              segments with fewer points (after removing duplicates) will be retained unchanged.
-	 * @return
+	 * @param discardBoundsLength discard segments if bounding box dimensions are both smaller than this value;
+	 *                            if &leq; 0, no segments are discarded based on bounding box size.
+	 *                            This can be important when simplification is use to help render very large shapes at
+	 *                            a low resolution.
+	 * @return the path with vertices (and possibly some segments) removed
 	 * @see #simplifyPath(Path2D, double)
 	 * @since v0.6.0
 	 */
-	public static Path2D simplifyPath(Path2D path, double altitudeThreshold, int segmentPointThreshold) {
+	public static Path2D simplifyPath(Path2D path, double altitudeThreshold, int segmentPointThreshold, double discardBoundsLength) {
 
 		List<Point2> points = new ArrayList<>();
 		PathIterator iter = path.getPathIterator(null, 0.5);
@@ -276,6 +283,27 @@ public class ShapeSimplifier {
 //			nVerticesBefore += points.size();
 			if (points.isEmpty())
 				break;
+
+			// Do bounding box check
+			if (discardBoundsLength > 0 && Double.isFinite(discardBoundsLength)) {
+				double minX = Double.POSITIVE_INFINITY;
+				double minY = Double.POSITIVE_INFINITY;
+				double maxX = Double.NEGATIVE_INFINITY;
+				double maxY = Double.NEGATIVE_INFINITY;
+				for (var p : points) {
+					double x = p.getX();
+					double y = p.getY();
+					minX = Math.min(minX, x);
+					minY = Math.min(minY, y);
+					maxX = Math.max(maxX, x);
+					maxY = Math.max(maxY, y);
+				}
+				if (maxX - minX < discardBoundsLength && maxY - minY < discardBoundsLength) {
+					logger.trace("Discarding small segment based on bounding box: {} x {} ({} points)",
+							maxX - minX, maxY - minY, points.size());
+					continue;
+				}
+			}
 
 			boolean doSimplify = true;
 			if (segmentPointThreshold >= 0) {
