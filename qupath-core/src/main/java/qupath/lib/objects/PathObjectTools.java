@@ -67,10 +67,8 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PointsROI;
-import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.ROI;
 
 /**

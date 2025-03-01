@@ -715,10 +715,10 @@ public class ContourTracing {
 	 * @param envelope
 	 * @return
 	 */
-	private static List<CoordinatePair> createTracedGeometry(Raster raster, double minThresholdInclusive, double maxThresholdInclusive,
-												 int band, TileRequest request, Envelope envelope) {
+	private static List<CoordinatePair> createCoordinatePairs(Raster raster, double minThresholdInclusive, double maxThresholdInclusive,
+															  int band, TileRequest request, Envelope envelope) {
 		var image = extractBand(raster, band);
-		return createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request, envelope);
+		return createCoordinatePairs(image, minThresholdInclusive, maxThresholdInclusive, request, envelope);
 	}
 	
 	
@@ -734,7 +734,7 @@ public class ContourTracing {
 	 * @param envelope
 	 * @return
 	 */
-	private static List<CoordinatePair> createTracedGeometry(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, TileRequest tile, Envelope envelope) {
+	private static List<CoordinatePair> createCoordinatePairs(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, TileRequest tile, Envelope envelope) {
 		
 		// If we are translating but not rescaling, we can do this during tracing
 		double xOffset = 0;
@@ -745,7 +745,7 @@ public class ContourTracing {
 			xOffset = tile.getTileX() * scale;
 			yOffset = tile.getTileY() * scale;
 		}
-		return traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, scale, envelope);
+		return traceCoordinates(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, scale, envelope);
 	}
 
 	private static Geometry createGeometry(GeometryFactory factory, Collection<CoordinatePair> lines, RegionRequest request) {
@@ -824,7 +824,7 @@ public class ContourTracing {
 			yOffset = request.getY();
 		}
 
-		var lines = traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, scale, envelope);
+		var lines = traceCoordinates(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, scale, envelope);
 
 		return createGeometry(GeometryTools.getDefaultFactory(), lines);
 	}
@@ -1144,7 +1144,7 @@ public class ContourTracing {
 			}
 			for (var threshold : thresholds) {
 				int c = threshold.getChannel();
-				var geometry = ContourTracing.createTracedGeometry(image, c, c, tile, null);
+				var geometry = ContourTracing.createCoordinatePairs(image, c, c, tile, null);
 				list.add(new LabeledCoordinatePairs(geometry, c));
 			}
 		} else {
@@ -1159,11 +1159,11 @@ public class ContourTracing {
 			}
 
 			for (var threshold : thresholds) {
-				var geometry = ContourTracing.createTracedGeometry(
+				var coords = ContourTracing.createCoordinatePairs(
 						raster, threshold.getMinThreshold(), threshold.getMaxThreshold(), threshold.getChannel(), tile, envelopes.getOrDefault(threshold, null));
-				if (!geometry.isEmpty()) {
+				if (!coords.isEmpty()) {
 					// Exclude lines/points that can sometimes arise
-					list.add(new LabeledCoordinatePairs(geometry, threshold.getChannel()));
+					list.add(new LabeledCoordinatePairs(coords, threshold.getChannel()));
 				}
 			}
 		}
@@ -1269,8 +1269,8 @@ public class ContourTracing {
 	 *                 This is useful to avoid searching the entire image when only a small region is needed.
 	 * @return
 	 */
-	private static List<CoordinatePair> traceGeometry(SimpleImage image, double min, double max, double xOffset,
-													  double yOffset, double scale, Envelope envelope) {
+	private static List<CoordinatePair> traceCoordinates(SimpleImage image, double min, double max, double xOffset,
+														 double yOffset, double scale, Envelope envelope) {
 
 		var factory = GeometryTools.getDefaultFactory();
 		var pm = factory.getPrecisionModel();
