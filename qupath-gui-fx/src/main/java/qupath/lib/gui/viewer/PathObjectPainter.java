@@ -748,9 +748,9 @@ public class PathObjectPainter {
 				return null;
 			// TODO: Consider a better way to figure out the downsampling levels
 			if (nVertices < 100_000)
-				return new DownsampledShapeCache(roi.getShape(), 4, 16, 64);
+				return new DownsampledShapeCache(roi, 4, 16, 64);
 			else {
-				return new DownsampledShapeCache(roi.getShape(), 4, 8, 16, 24, 32, 48, 64, 128, 256);
+				return new DownsampledShapeCache(roi, 4, 8, 16, 24, 32, 48, 64, 128, 256, 512, 1024);
 			}
 		}
 
