@@ -746,12 +746,7 @@ public class PathObjectPainter {
 			int nVertices = roi.getNumPoints();
 			if (nVertices < MIN_SIMPLIFY_VERTICES)
 				return null;
-			// TODO: Consider a better way to figure out the downsampling levels
-			if (nVertices < 100_000)
-				return new DownsampledShapeCache(roi, 4, 16, 64);
-			else {
-				return new DownsampledShapeCache(roi, 4, 8, 16, 24, 32, 48, 64, 128, 256, 512, 1024);
-			}
+			return new DownsampledShapeCache(roi);
 		}
 
     }

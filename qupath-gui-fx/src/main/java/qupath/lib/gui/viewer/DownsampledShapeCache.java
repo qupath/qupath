@@ -21,19 +21,16 @@
 
 package qupath.lib.gui.viewer;
 
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.LinearRing;
-import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.PrecisionModel;
-import org.locationtech.jts.precision.GeometryPrecisionReducer;
-import qupath.lib.roi.GeometryTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.geom.Point2;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.Shape;
+import java.awt.geom.Path2D;
+import java.awt.geom.PathIterator;
+import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Helper class for managing simplified versions of a shape for rendering shapes at lower resolutions.
@@ -41,120 +38,165 @@ import java.util.Objects;
  */
 class DownsampledShapeCache {
 
-    private static final int pointCountThreshold = 10;
+    // No simplification for any shape with fewer points than this
+    private static final int pointCountThreshold = 1000;
 
-    private final GeometryAndShape shape;
+    // No simplification for any downsample less than this
+    private static final double minDownsample = 4.0;
 
-    private final List<Double> downsamples = new ArrayList<>();
-    private final List<GeometryAndShape> downsampledShapes = new ArrayList<>();
+    // Downsamples calculated as multiples of this value
+    private static final double downsampleStep = 1.25;
 
-    DownsampledShapeCache(ROI roi, double... downsamples) {
-        this.shape = new GeometryAndShape(roi.getGeometry(), roi.getShape(), 1);
-        for (double downsample : downsamples) {
-            this.downsamples.add(downsample);
-            this.downsampledShapes.add(null);
-        }
+    private final DownsampledShape shape;
+    private final List<DownsampledShape> downsampledShapes = new ArrayList<>();
+
+    DownsampledShapeCache(ROI roi) {
+        // The basic shape
+        // Rather than count the points, just set to a very high value
+        this.shape = new DownsampledShape(roi.getShape(), 1.0, Integer.MAX_VALUE);
     }
 
     Shape getForDownsample(double downsample) {
-        GeometryAndShape lastShape = shape;
-        double lastDownsample = lastShape.getDownsample();
-        for (int i = 0; i < downsamples.size(); i++) {
-            if (downsamples.get(i) > downsample)
-                return lastShape.getShape();
-            var currentShape = downsampledShapes.get(i);
-            if (currentShape == null) {
-                // Progressively simplify the shape for downsamples
-                currentShape = computeForDownsample(lastShape, downsamples.get(i));
-                downsampledShapes.set(i, currentShape);
+        if (downsample <= minDownsample) {
+            return shape.shape();
+        }
+        DownsampledShape lastShape = shape;
+        double lastDownsample = minDownsample;
+        int ind = 0;
+        while (true) {
+            if (lastShape.nPoints() < pointCountThreshold || lastDownsample > downsample) {
+                return lastShape.shape();
+            }
+            DownsampledShape currentShape;
+            if (ind >= downsampledShapes.size()) {
+                // Progressively simplify the shape for downsamples.
+                // For this to work, it's important that downsamples are fixed multiples - otherwise we can have
+                // weird effects when we downsample a shape that has already been rounded to other values.
+                currentShape = downsampleShape(lastShape.shape(),
+                        ind == 0 ? minDownsample : lastDownsample * downsampleStep);
+                downsampledShapes.add(currentShape);
+            } else {
+                currentShape = downsampledShapes.get(ind);
             }
             lastShape = currentShape;
+            lastDownsample = currentShape.downsample();
+            ind++;
         }
-        return lastShape.getShape();
     }
 
-    private static GeometryAndShape computeForDownsample(GeometryAndShape shape, double downsample) {
-        var reducer = new GeometryPrecisionReducer(new PrecisionModel(-downsample));
-        reducer.setRemoveCollapsedComponents(true);
-        reducer.setPointwise(true);
-        reducer.setChangePrecisionModel(true);
-        var geometry = reducer.reduce(shape.getGeometry());
-        geometry = reducer.reduce(geometry);
-        var geoms = new ArrayList<>();
-        for (int i = 0; i < geometry.getNumGeometries(); i++) {
-            var g = geometry.getGeometryN(i);
-            if (g instanceof Polygon polygon) {
-                var env = g.getEnvelopeInternal();
-                if (env.getWidth() <= downsample || env.getHeight() <= downsample)
-                    continue;
-                var exterior = removeDuplicatePoints(polygon.getExteriorRing());
 
-                int nHoles = polygon.getNumInteriorRing();
-                var holes = new ArrayList<LinearRing>();
-                for (var h = 0; h < nHoles; h++) {
-                    var hole = polygon.getInteriorRingN(h);
-                    var hEnv = hole.getEnvelopeInternal();
-                    if (hEnv.getWidth() <= downsample || hEnv.getHeight() <= downsample)
-                        continue;
-                    holes.add(removeDuplicatePoints(hole));
+    record DownsampledShape(Shape shape, double downsample, int nPoints) {}
+
+    private static DownsampledShape downsampleShape(Shape shape, double downsample) {
+
+        List<Point2> points = new ArrayList<>();
+        var path = shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape);
+        var bounds = shape.getBounds2D();
+
+        PathIterator iter = path.getPathIterator(null, downsample/2.0);
+
+        Path2D pathNew = new Path2D.Float();
+        Rectangle2D segmentBounds = new Rectangle2D.Double();
+
+        int n = 0;
+        while (!iter.isDone()) {
+            points.clear();
+            getNextClosedSegment(iter, points, downsample, bounds);
+            if (points.isEmpty())
+                break;
+
+            if (points.size() < 3)
+                continue;
+
+            // Check the segment bounds are sufficient to include
+            getBounds(points, segmentBounds);
+            if (segmentBounds.getWidth() < downsample || segmentBounds.getHeight() < downsample)
+                continue;
+
+            boolean firstPoint = true;
+            for (Point2 p : points) {
+                double xx = p.getX();
+                double yy = p.getY();
+                if (firstPoint) {
+                    firstPoint = false;
+                    pathNew.moveTo(xx, yy);
+                } else {
+                    pathNew.lineTo(xx, yy);
                 }
-                polygon = polygon.getFactory()
-                        .createPolygon(exterior, holes.toArray(new LinearRing[0]));
-                geoms.add(polygon);
             }
-        }
-        geometry = geometry.getFactory().buildGeometry(geoms);
-        return new GeometryAndShape(geometry, GeometryTools.geometryToShape(geometry), downsample);
-    }
+            pathNew.closePath();
 
-    private static LinearRing removeDuplicatePoints(LinearRing linearRing) {
-        var coords = new ArrayList<Coordinate>();
-        Coordinate lastCoord = null;
-        for (int i = 0; i < linearRing.getNumPoints(); i++) {
-            var coord = linearRing.getCoordinateN(i);
-            if (!Objects.equals(lastCoord, coord)) {
-                coords.add(coord);
-            }
+            n += points.size();
         }
-        if (coords.size() < 3)
-            return linearRing;
-        else if (coords.size() == linearRing.getNumPoints())
-            return linearRing;
+
+        if (n == 0)
+            return new DownsampledShape(bounds, downsample, 4);
         else
-            return linearRing.getFactory().createLinearRing(coords.toArray(new Coordinate[0]));
+            return new DownsampledShape(pathNew, downsample, n);
     }
 
 
-    private static class GeometryAndShape {
-
-        private final Geometry geometry;
-        private final Shape shape;
-        private final double downsample;
-        private final int nPoints;
-
-        GeometryAndShape(Geometry geometry, Shape shape, double downsample) {
-            this.geometry = geometry;
-            this.shape = shape;
-            this.downsample = downsample;
-            this.nPoints = geometry.getNumPoints();
+    private static Rectangle2D getBounds(List<Point2> points, Rectangle2D bounds) {
+        if (bounds == null)
+            bounds = new Rectangle2D.Double();
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+        for (var p : points) {
+            minX = Math.min(minX, p.getX());
+            minY = Math.min(minY, p.getY());
+            maxX = Math.max(maxX, p.getX());
+            maxY = Math.max(maxY, p.getY());
         }
+        bounds.setFrame(minX, minY, maxX - minX, maxY - minY);
+        return bounds;
+    }
 
-        int getNumPoints() {
-            return nPoints;
+
+    private static void getNextClosedSegment(PathIterator iter, List<Point2> points, double downsample, Rectangle2D bounds) {
+        double[] seg = new double[6];
+        Point2 point = null;
+
+        double minX = bounds.getMinX();
+        double maxX = bounds.getMaxX();
+        double minY = bounds.getMinY();
+        double maxY = bounds.getMaxY();
+        double eps = 1e-3;
+
+        while (!iter.isDone()) {
+            switch(iter.currentSegment(seg)) {
+                case PathIterator.SEG_MOVETO:
+                    // Fall through
+                case PathIterator.SEG_LINETO:
+                    double x = seg[0];
+                    double y = seg[1];
+
+                    // We want to retain the bounding box, so don't downsample the edges
+                    // (This isn't necessary... I just thought it when investigating another bug...)
+                    if (!GeneralTools.almostTheSame(x, minX, eps) && !GeneralTools.almostTheSame(x, maxX, eps))
+                        x = GeneralTools.clipValue(minX + roundToDownsample(x-minX, downsample), minX, maxX);
+
+                    if (!GeneralTools.almostTheSame(y, minY, eps) && !GeneralTools.almostTheSame(y, maxY, eps))
+                        y = GeneralTools.clipValue(minY + roundToDownsample(y-minY, downsample), minY, maxY);
+
+                    if (point == null || point.getX() != x || point.getY() != y) {
+                        point = new Point2(x, y);
+                        points.add(point);
+                    }
+                    break;
+                case PathIterator.SEG_CLOSE:
+                    iter.next();
+                    return;
+                default:
+                    throw new RuntimeException("Invalid path iterator " + iter + " - only line connections are allowed");
+            };
+            iter.next();
         }
+    }
 
-        double getDownsample() {
-            return downsample;
-        }
-
-        Shape getShape() {
-            return shape;
-        }
-
-        Geometry getGeometry() {
-            return geometry;
-        }
-
+    private static double roundToDownsample(double value, double downsample) {
+        return Math.round(value / downsample) * downsample;
     }
 
 }
