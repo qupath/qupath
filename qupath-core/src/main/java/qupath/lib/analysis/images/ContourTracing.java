@@ -59,6 +59,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServers;
@@ -735,7 +736,6 @@ public class ContourTracing {
 	 * @return
 	 */
 	private static List<CoordinatePair> createCoordinatePairs(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, TileRequest tile, Envelope envelope) {
-		
 		// If we are translating but not rescaling, we can do this during tracing
 		double xOffset = 0;
 		double yOffset = 0;
@@ -1144,8 +1144,8 @@ public class ContourTracing {
 			}
 			for (var threshold : thresholds) {
 				int c = threshold.getChannel();
-				var geometry = ContourTracing.createCoordinatePairs(image, c, c, tile, null);
-				list.add(new LabeledCoordinatePairs(geometry, c));
+				var coords = ContourTracing.createCoordinatePairs(image, c, c, tile, null);
+				list.add(new LabeledCoordinatePairs(coords, c));
 			}
 		} else {
 			// Apply the provided threshold to all channels
@@ -1288,8 +1288,8 @@ public class ContourTracing {
 		}
 
 		List<CoordinatePair> lines = new ArrayList<>();
-		Coordinate lastHorizontalEdgeCoord = null;
-		Coordinate[] lastVerticalEdgeCoords = new Coordinate[xEnd-xStart+1];
+		Point2 lastHorizontalEdgeCoord = null;
+		Point2[] lastVerticalEdgeCoords = new Point2[xEnd-xStart+1];
 		for (int y = yStart; y <= yEnd; y++) {
 			for (int x = xStart; x <= xEnd; x++) {
 				boolean isOn = inRange(image, x, y, min, max);
@@ -1330,11 +1330,11 @@ public class ContourTracing {
 	}
 
 
-
-	private static Coordinate createCoordinate(PrecisionModel pm, double x, double y) {
-		return new CoordinateXY(
-				pm.makePrecise(x),
-				pm.makePrecise(y));
+	private static Point2 createCoordinate(PrecisionModel pm, double x, double y) {
+		// TODO: Could consider returning a singleton Point2 instance
+		double x2 = pm.makePrecise(x);
+		double y2 = pm.makePrecise(y);
+		return new Point2(x2, y2);
 	}
 
 

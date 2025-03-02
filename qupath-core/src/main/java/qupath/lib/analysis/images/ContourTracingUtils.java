@@ -8,12 +8,12 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.geom.Point2;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,6 +35,7 @@ class ContourTracingUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(ContourTracingUtils.class);
 
+
     /**
      * Create a new collection that contains only pairs that did not have any duplicate in the input.
      * This is different from removing duplicates: if a pair is duplicated, all instances of it are removed.
@@ -45,8 +46,7 @@ class ContourTracingUtils {
         CoordinatePair lastPair = null;
         List<CoordinatePair> pairs = new ArrayList<>();
         boolean duplicate = false;
-        var comparator = Comparator.comparing(CoordinatePair::getC1).thenComparing(CoordinatePair::getC2);
-        var iterator = lines.stream().sorted(comparator).iterator();
+        var iterator = lines.stream().sorted().iterator();
         while (iterator.hasNext()) {
             var line = iterator.next();
             if (Objects.equals(lastPair, line)) {
@@ -110,9 +110,9 @@ class ContourTracingUtils {
      * <p>
      * Note that previous implementations used a HashMap to count occurrences, but this was found to be much slower.
      */
-    private static Set<Coordinate> findNonMergeableCoordinates(Collection<CoordinatePair> pairList) {
+    private static Set<Point2> findNonMergeableCoordinates(Collection<CoordinatePair> pairList) {
         // Extract all the coordinates
-        var allCoordinates = new ArrayList<Coordinate>(pairList.size()*2);
+        var allCoordinates = new ArrayList<Point2>(pairList.size()*2);
         for (var p : pairList) {
             allCoordinates.add(p.getC1());
             allCoordinates.add(p.getC2());
@@ -122,9 +122,10 @@ class ContourTracingUtils {
         allCoordinates.sort(null);
 
         // Find which that can't be merged, i.e. they don't occur exactly twice
-        var nonMergeable = new HashSet<Coordinate>();
         int count = 0;
-        Coordinate currentCoord = null;
+        Point2 currentCoord = null;
+//        long startTime = System.currentTimeMillis();
+        Set<Point2> nonMergeable = HashSet.newHashSet(allCoordinates.size()/10);
         for (var c : allCoordinates) {
             if (Objects.equals(currentCoord, c)) {
                 count++;
@@ -135,6 +136,8 @@ class ContourTracingUtils {
                 count = 1;
             }
         }
+//        long endTime = System.currentTimeMillis();
+//        System.err.println("Time to find non-mergeable coordinates: " + (endTime - startTime) + " ms");
         return nonMergeable;
     }
 
@@ -150,7 +153,7 @@ class ContourTracingUtils {
 
         // Sort now to avoid sorting later
         var pairList = pairs.stream()
-                .sorted(Comparator.comparing(CoordinatePair::getC1).thenComparing(CoordinatePair::getC2))
+                .sorted()
                 .toList();
 
         var nonMergeable = findNonMergeableCoordinates(pairs);
@@ -169,8 +172,9 @@ class ContourTracingUtils {
         var firstDirection = horizontal.size() <= vertical.size() ? horizontal : vertical;
         var secondDirection = firstDirection == horizontal ? vertical : horizontal;
 
-        Collection<List<Coordinate>> lines = new ArrayList<>();
-        var mergeable = new MinimalCoordinateMap<List<Coordinate>>();
+        Collection<List<Point2>> lines = new ArrayList<>(pairs.size()/10);
+//        Map<Point2, List<Point2>> mergeable = HashMap.newHashMap(pairs.size());
+        var mergeable = new MinimalCoordinateMap<List<Point2>>(Math.max(100, (int)Math.sqrt(pairList.size())));
         for (var entry : firstDirection.entrySet()) {
             var list = entry.getValue();
             for (var ls : buildLineStrings(list, nonMergeable::contains, factory, xOrigin, yOrigin, scale)) {
@@ -192,9 +196,10 @@ class ContourTracingUtils {
             }
         }
 
+        var queued = new ArrayDeque<List<Point2>>();
         for (var entry : secondDirection.entrySet()) {
             var list = entry.getValue();
-            var queued = new ArrayDeque<>(buildLineStrings(list, nonMergeable::contains, factory, xOrigin, yOrigin, scale));
+            queued.addAll(buildLineStrings(list, nonMergeable::contains, factory, xOrigin, yOrigin, scale));
             while (!queued.isEmpty()) {
                 var ls = queued.pop();
                 if (isClosed(ls)) {
@@ -248,17 +253,28 @@ class ContourTracingUtils {
 
         var lineStrings = new ArrayList<LineString>();
         for (var line : lines) {
-            lineStrings.add(factory.createLineString(line.toArray(Coordinate[]::new)));
+            var coords = new Coordinate[line.size()];
+            for (int i = 0; i < line.size(); i++) {
+                var c = line.get(i);
+                coords[i] = new Coordinate(c.getX(), c.getY());
+            }
+            lineStrings.add(factory.createLineString(coords));
         }
 
         return factory.buildGeometry(lineStrings);
     }
 
-    private static boolean isClosed(List<Coordinate> coords) {
+    private static boolean isClosed(List<Point2> coords) {
         return coords.size() > 2 && coords.getFirst().equals(coords.getLast());
     }
 
-    private static List<Coordinate> mergeLines(List<Coordinate> l1, List<Coordinate> l2) {
+    /**
+     * Merge two lines.
+     * Important! It is assumed that neither line is required after merging.
+     * This method is therefore permitted to reuse either list for the output, if it is mutable.
+     */
+    private static List<Point2> mergeLines(List<Point2> l1, List<Point2> l2) {
+        // TODO: This could be optimized by ensuring lists are mutable, and reusing an existing list
         var c1Start = l1.getFirst();
         var c1End = l1.getLast();
         var c2Start = l2.getFirst();
@@ -273,27 +289,35 @@ class ContourTracingUtils {
         } else if (c1End.equals(c2End)) {
             return concat(l1, l2.reversed());
         } else {
-            return null;
+            throw new IllegalArgumentException("Lines are not mergeable");
         }
     }
 
-    private static List<Coordinate> concat(List<Coordinate> l1, List<Coordinate> l2) {
+    private static List<Point2> concat(List<Point2> l1, List<Point2> l2) {
         int n = l1.size() + l2.size() - 1;
-        var list = new ArrayList<Coordinate>(n);
+        // ArrayLists are mutable - so we can just add to them
+        if (l1 instanceof ArrayList<Point2> list) {
+            list.addAll(l2);
+            return list;
+        } else if (l2 instanceof ArrayList<Point2> list) {
+            list.addAll(0, l1);
+            return list;
+        }
+        var list = new ArrayList<Point2>(n);
         list.addAll(l1);
         list.addAll(l2.subList(1, l2.size()));
         return list;
     }
 
 
-    private static List<List<Coordinate>> buildLineStrings(List<CoordinatePair> pairs, Predicate<Coordinate> counter,
+    private static List<List<Point2>> buildLineStrings(List<CoordinatePair> pairs, Predicate<Point2> counter,
                                                            GeometryFactory factory, double xOrigin, double yOrigin, double scale) {
         if (pairs.isEmpty())
             return List.of();
 
-        List<List<Coordinate>> lines = new ArrayList<>();
-        Coordinate firstCoord = pairs.getFirst().getC1();
-        Coordinate secondCoord = pairs.getFirst().getC2();
+        List<List<Point2>> lines = new ArrayList<>();
+        Point2 firstCoord = pairs.getFirst().getC1();
+        Point2 secondCoord = pairs.getFirst().getC2();
         for (int i = 1; i < pairs.size(); i++) {
             var p = pairs.get(i);
             if (!secondCoord.equals(p.getC1()) || counter.test(secondCoord)) {
@@ -311,16 +335,17 @@ class ContourTracingUtils {
         return lines;
     }
 
-    private static List<Coordinate> createLineString(Coordinate c1, Coordinate c2,
+    private static List<Point2> createLineString(Point2 c1, Point2 c2,
                                                      GeometryFactory factory, double xOrigin, double yOrigin, double scale) {
-        if (xOrigin == 0 && yOrigin == 0 && scale == 1)
+        if (xOrigin == 0 && yOrigin == 0 && scale == 1) {
             return List.of(c1, c2);
+        }
         var pm = factory.getPrecisionModel();
-        double x1 = pm.makePrecise(xOrigin + c1.x * scale);
-        double x2 =  pm.makePrecise(xOrigin + c2.x * scale);
-        double y1 =  pm.makePrecise(yOrigin + c1.y * scale);
-        double y2 =  pm.makePrecise(yOrigin + c2.y * scale);
-        return List.of(new Coordinate(x1, y1), new Coordinate(x2, y2));
+        double x1 = pm.makePrecise(xOrigin + c1.getX() * scale);
+        double x2 =  pm.makePrecise(xOrigin + c2.getX() * scale);
+        double y1 =  pm.makePrecise(yOrigin + c1.getY() * scale);
+        double y2 =  pm.makePrecise(yOrigin + c2.getY() * scale);
+        return List.of(new Point2(x1, y1), new Point2(x2, y2));
     }
 
 
@@ -331,21 +356,27 @@ class ContourTracingUtils {
      */
     private static class MinimalCoordinateMap<T> {
 
-        private final Map<Double, Map<Double, T>> map = new HashMap<>();
+        private final int numMappings;
+        private final Map<Double, Map<Double, T>> map;
 
-        T put(Coordinate c, T val) {
-            return map.computeIfAbsent(c.getX(), x -> new HashMap<>()).put(c.getY(), val);
+        MinimalCoordinateMap(int numMappings) {
+            this.numMappings = numMappings;
+            this.map = HashMap.newHashMap(numMappings);
         }
 
-        T remove(Coordinate c) {
-            return map.computeIfAbsent(c.getX(), x -> new HashMap<>()).remove(c.getY());
+        T put(Point2 c, T val) {
+            return map.computeIfAbsent(c.getX(), x -> HashMap.newHashMap(numMappings)).put(c.getY(), val);
         }
 
-        T get(Coordinate c) {
+        T remove(Point2 c) {
+            return map.computeIfAbsent(c.getX(), x -> HashMap.newHashMap(numMappings)).remove(c.getY());
+        }
+
+        T get(Point2 c) {
             return getOrDefault(c, null);
         }
 
-        T getOrDefault(Coordinate c, T defaultValue) {
+        T getOrDefault(Point2 c, T defaultValue) {
             return map.getOrDefault(c.getX(), Collections.emptyMap()).getOrDefault(c.getY(), defaultValue);
         }
 

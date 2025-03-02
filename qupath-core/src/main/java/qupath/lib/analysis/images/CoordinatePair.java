@@ -1,21 +1,22 @@
 package qupath.lib.analysis.images;
 
-import org.locationtech.jts.geom.Coordinate;
+import qupath.lib.geom.Point2;
 
 import java.util.Comparator;
 import java.util.Objects;
 
-class CoordinatePair {
+class CoordinatePair implements Comparable<CoordinatePair> {
 
-    private static final Comparator<Coordinate> topLeftCoordinateComparator = Comparator.comparingDouble(Coordinate::getY)
-            .thenComparingDouble(Coordinate::getX);
+    private static final Comparator<Point2> topLeftCoordinateComparator = Comparator.comparingDouble(Point2::getY)
+            .thenComparingDouble(Point2::getX);
 
-    private final Coordinate c1;
-    private final Coordinate c2;
+
+    private final Point2 c1;
+    private final Point2 c2;
 
     private final int hash;
 
-    CoordinatePair(Coordinate c1, Coordinate c2) {
+    CoordinatePair(Point2 c1, Point2 c2) {
         var comp = topLeftCoordinateComparator.compare(c1, c2);
         if (comp < 0) {
             this.c1 = c1;
@@ -31,11 +32,11 @@ class CoordinatePair {
     }
 
     boolean isHorizontal() {
-        return c1.y == c2.y && c1.x != c2.x;
+        return c1.getY() == c2.getY() && c1.getX() != c2.getX();
     }
 
     boolean isVertical() {
-        return c1.x == c2.x && c1.y != c2.y;
+        return c1.getX() == c2.getX() && c1.getY() != c2.getY();
     }
 
     /**
@@ -43,7 +44,7 @@ class CoordinatePair {
      *
      * @return
      */
-    Coordinate getC1() {
+    Point2 getC1() {
         return c1;
     }
 
@@ -52,7 +53,7 @@ class CoordinatePair {
      *
      * @return
      */
-    Coordinate getC2() {
+    Point2 getC2() {
         return c2;
     }
 
@@ -67,5 +68,17 @@ class CoordinatePair {
     @Override
     public int hashCode() {
         return hash;
+    }
+
+    @Override
+    public int compareTo(CoordinatePair other) {
+        if (this.equals(other))
+            return 0;
+        int comp = c1.compareTo(other.c1);
+        if (comp == 0) {
+            return c2.compareTo(other.c2);
+        } else {
+            return comp;
+        }
     }
 }

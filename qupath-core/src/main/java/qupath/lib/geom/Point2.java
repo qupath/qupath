@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -37,44 +37,22 @@ import org.slf4j.LoggerFactory;
  * @author Pete Bankhead
  *
  */
-public class Point2 extends AbstractPoint implements Externalizable {
-	
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		long temp;
-		temp = Double.doubleToLongBits(x);
-		result = prime * result + (int) (temp ^ (temp >>> 32));
-		temp = Double.doubleToLongBits(y);
-		result = prime * result + (int) (temp ^ (temp >>> 32));
-		return result;
-	}
+public class Point2 extends AbstractPoint implements Externalizable, Comparable<Point2> {
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Point2 other = (Point2) obj;
-		if (Double.doubleToLongBits(x) != Double.doubleToLongBits(other.x))
-			return false;
-		if (Double.doubleToLongBits(y) != Double.doubleToLongBits(other.y))
-			return false;
-		return true;
-	}
+	private static final Logger logger = LoggerFactory.getLogger(Point2.class);
 
-	static Logger logger = LoggerFactory.getLogger(Point2.class);
-	
-	private double x, y;
-	
+	private double x;
+	private double y;
+
+	// Transient to avoid serializing the hashcode
+	private transient int hashCode = 0;
+
 	/**
 	 * Default constructor for a point at location (0,0).
 	 */
-	public Point2() {}
+	public Point2() {
+		this(0, 0);
+	}
 	
 	/**
 	 * Point constructor.
@@ -152,7 +130,32 @@ public class Point2 extends AbstractPoint implements Externalizable {
 	public String toString() {
 		return "Point: " + x + ", " + y;
 	}
-	
+
+	@Override
+	public int hashCode() {
+		// Conceivably the hashcode *could* be zero, but it's unlikely
+		if (hashCode == 0)
+			hashCode = computeHashCode();
+		return hashCode;
+	}
+
+	private int computeHashCode() {
+		final int prime = 31;
+		int result = Double.hashCode(x);
+		result = prime * result + Double.hashCode(y);
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj instanceof Point2 p) {
+			return x == p.x && y == p.y;
+		} else {
+			return false;
+		}
+	}
 
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
@@ -168,4 +171,16 @@ public class Point2 extends AbstractPoint implements Externalizable {
 		y = in.readDouble();
 	}
 
+	@Override
+	public int compareTo(Point2 other) {
+		if (y < other.y)
+			return -1;
+		if (y > other.y)
+			return 1;
+		if (x < other.x)
+			return -1;
+		if (x > other.x)
+			return 1;
+		return 0;
+	}
 }
