@@ -784,14 +784,24 @@ public class ContourTracing {
 
 		try {
 			long startTime = System.currentTimeMillis();
+			int nPairs = pairs.size();
+			if (nPairs > 10_000_000) {
+				// About 7 million pairs has been relatively fast in tests... whereas 33 million proved too much
+				logger.warn("Attempting to trace {} coordinate pairs (consider using a smaller region if this fails)",
+						nPairs);
+			} else {
+				logger.debug("Attempting to trace {} coordinate pairs", nPairs);
+			}
 			var lineStrings = ContourTracingUtils.linesFromPairsFast(factory, pairs, xOrigin, yOrigin, scale);
 			long endTime = System.currentTimeMillis();
-			logger.debug("Creating lines from pair time: {} ms", endTime - startTime);
+			logger.debug("Created {} lines from {} coordinate pairs in {} ms", lineStrings.getNumGeometries(), nPairs, endTime - startTime);
 
 			var polygonizer = new Polygonizer(true);
 			polygonizer.add(lineStrings);
 			var geometry = polygonizer.getGeometry();
 			geometry.normalize();
+
+			logger.debug("Created {} with {} coordinates", geometry.getGeometryType(), geometry.getNumPoints());
 			return geometry;
 		} catch (Throwable e) {
 			System.err.println("Error in polygonization: " + e.getMessage());

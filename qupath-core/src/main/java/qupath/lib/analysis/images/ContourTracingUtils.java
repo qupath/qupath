@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -110,7 +111,7 @@ class ContourTracingUtils {
      * <p>
      * Note that previous implementations used a HashMap to count occurrences, but this was found to be much slower.
      */
-    private static Set<Point2> findNonMergeableCoordinates(Collection<CoordinatePair> pairList) {
+    private static MinimalCoordinateSet findNonMergeableCoordinates(Collection<CoordinatePair> pairList) {
         // Extract all the coordinates
         var allCoordinates = new ArrayList<Point2>(pairList.size()*2);
         for (var p : pairList) {
@@ -125,7 +126,7 @@ class ContourTracingUtils {
         int count = 0;
         Point2 currentCoord = null;
 //        long startTime = System.currentTimeMillis();
-        Set<Point2> nonMergeable = HashSet.newHashSet(allCoordinates.size()/10);
+        var nonMergeable = new MinimalCoordinateSet(allCoordinates.size()/10);
         for (var c : allCoordinates) {
             if (Objects.equals(currentCoord, c)) {
                 count++;
@@ -136,6 +137,8 @@ class ContourTracingUtils {
                 count = 1;
             }
         }
+
+        nonMergeable.rebuild();
 //        long endTime = System.currentTimeMillis();
 //        System.err.println("Time to find non-mergeable coordinates: " + (endTime - startTime) + " ms");
         return nonMergeable;
@@ -392,6 +395,57 @@ class ContourTracingUtils {
 
         boolean isEmpty() {
             return map.values().stream().allMatch(Map::isEmpty);
+        }
+
+    }
+
+
+    /**
+     * A minimal set-like class to store coordinates.
+     * This tries to be at least slightly faster than using a HashSet only (which is a bottleneck for main coordinates),
+     * and is a placeholder for future optimizations.
+     */
+    private static class MinimalCoordinateSet {
+
+        private Set<Point2> set;
+
+        private Point2 lastContained;
+        private Point2 lastNotContained;
+
+        private final Map<Point2, Boolean> recentQueries = new LinkedHashMap<>(512, 0.75f, false) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Point2, Boolean> eldest) {
+                return size() > 256;
+            }
+        };
+
+        MinimalCoordinateSet(int numElements) {
+            set = HashSet.newHashSet(numElements);
+//            set = new TreeSet<>();
+        }
+
+        boolean add(Point2 p) {
+            return set.add(p);
+        }
+
+        void rebuild() {
+            this.set = new HashSet<>(set);
+        }
+
+        boolean contains(Point2 p) {
+            // Querying the same points soon after each other is likely (due to how we scan the image),
+            // so storing the last result can reduce at least some queries.
+            if (Objects.equals(lastContained, p))
+                return true;
+            if (Objects.equals(lastNotContained, p))
+                return false;
+            if (set.contains(p)) {
+                lastContained = p;
+                return true;
+            } else {
+                lastNotContained = p;
+                return false;
+            }
         }
 
     }
