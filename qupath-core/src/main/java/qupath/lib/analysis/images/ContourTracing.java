@@ -59,6 +59,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServers;
@@ -735,7 +736,6 @@ public class ContourTracing {
 	 * @return
 	 */
 	private static List<CoordinatePair> createCoordinatePairs(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, TileRequest tile, Envelope envelope) {
-		
 		// If we are translating but not rescaling, we can do this during tracing
 		double xOffset = 0;
 		double yOffset = 0;
@@ -784,14 +784,24 @@ public class ContourTracing {
 
 		try {
 			long startTime = System.currentTimeMillis();
+			int nPairs = pairs.size();
+			if (nPairs > 10_000_000) {
+				// About 7 million pairs has been relatively fast in tests... whereas 33 million proved too much
+				logger.warn("Attempting to trace {} coordinate pairs (consider using a smaller region if this fails)",
+						nPairs);
+			} else {
+				logger.debug("Attempting to trace {} coordinate pairs", nPairs);
+			}
 			var lineStrings = ContourTracingUtils.linesFromPairsFast(factory, pairs, xOrigin, yOrigin, scale);
 			long endTime = System.currentTimeMillis();
-			logger.debug("Creating lines from pair time: {} ms", endTime - startTime);
+			logger.debug("Created {} lines from {} coordinate pairs in {} ms", lineStrings.getNumGeometries(), nPairs, endTime - startTime);
 
 			var polygonizer = new Polygonizer(true);
 			polygonizer.add(lineStrings);
 			var geometry = polygonizer.getGeometry();
 			geometry.normalize();
+
+			logger.debug("Created {} with {} coordinates", geometry.getGeometryType(), geometry.getNumPoints());
 			return geometry;
 		} catch (Throwable e) {
 			System.err.println("Error in polygonization: " + e.getMessage());
@@ -1144,8 +1154,8 @@ public class ContourTracing {
 			}
 			for (var threshold : thresholds) {
 				int c = threshold.getChannel();
-				var geometry = ContourTracing.createCoordinatePairs(image, c, c, tile, null);
-				list.add(new LabeledCoordinatePairs(geometry, c));
+				var coords = ContourTracing.createCoordinatePairs(image, c, c, tile, null);
+				list.add(new LabeledCoordinatePairs(coords, c));
 			}
 		} else {
 			// Apply the provided threshold to all channels
@@ -1288,8 +1298,9 @@ public class ContourTracing {
 		}
 
 		List<CoordinatePair> lines = new ArrayList<>();
-		Coordinate lastHorizontalEdgeCoord = null;
-		Coordinate[] lastVerticalEdgeCoords = new Coordinate[xEnd-xStart+1];
+		Point2 lastHorizontalEdgeCoord = null;
+		Point2[] lastVerticalEdgeCoords = new Point2[xEnd-xStart+1];
+		Map<Point2, Point2> pointCache = new HashMap<>();
 		for (int y = yStart; y <= yEnd; y++) {
 			for (int x = xStart; x <= xEnd; x++) {
 				boolean isOn = inRange(image, x, y, min, max);
@@ -1297,14 +1308,14 @@ public class ContourTracing {
 				boolean onVerticalEdge = isOn != inRange(image, x-1, y, min, max);
 				// Check if on a horizontal edge with the previous row
 				if (onHorizontalEdge) {
-					var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale);
+					var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale, pointCache);
 					if (lastHorizontalEdgeCoord != null) {
 						lines.add(new CoordinatePair(lastHorizontalEdgeCoord, nextEdgeCoord));
 					}
 					lastHorizontalEdgeCoord = nextEdgeCoord;
 				} else {
 					if (lastHorizontalEdgeCoord != null) {
-						var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale);
+						var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale, pointCache);
 						lines.add(new CoordinatePair(lastHorizontalEdgeCoord, nextEdgeCoord));
 						lastHorizontalEdgeCoord = null;
 					}
@@ -1312,14 +1323,14 @@ public class ContourTracing {
 				// Check if on a vertical edge with the previous column
 				var lastVerticalEdgeCoord = lastVerticalEdgeCoords[x - xStart];
 				if (onVerticalEdge) {
-					var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale);
+					var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale, pointCache);
 					if (lastVerticalEdgeCoord != null) {
 						lines.add(new CoordinatePair(lastVerticalEdgeCoord, nextEdgeCoord));
 					}
 					lastVerticalEdgeCoords[x - xStart] = nextEdgeCoord;
 				} else {
 					if (lastVerticalEdgeCoord != null) {
-						var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale);
+						var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale, pointCache);
 						lines.add(new CoordinatePair(lastVerticalEdgeCoord, nextEdgeCoord));
 						lastVerticalEdgeCoords[x - xStart] = null;
 					}
@@ -1329,12 +1340,18 @@ public class ContourTracing {
 		return lines;
 	}
 
-
-
-	private static Coordinate createCoordinate(PrecisionModel pm, double x, double y) {
-		return new CoordinateXY(
-				pm.makePrecise(x),
-				pm.makePrecise(y));
+	/**
+	 * Get a point with the specified precision model.
+	 * It pointCache is provided, then the point will be cached and reused if it already exists.
+	 * This is intended to slightly reduce overhead by effectively making points singletons (at least where the cache
+	 * is shared).
+	 */
+	private static Point2 createCoordinate(PrecisionModel pm, double x, double y, Map<Point2, Point2> pointCache) {
+		double x2 = pm.makePrecise(x);
+		double y2 = pm.makePrecise(y);
+		// We don't avoid the overhead of *creating* the point, but at least it can be immediately garbage collected
+		var point = new Point2(x2, y2);
+		return pointCache == null ? point : pointCache.computeIfAbsent(point, p -> p);
 	}
 
 
