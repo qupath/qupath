@@ -33,12 +33,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -51,17 +49,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
-import org.locationtech.jts.geom.impl.CoordinateArraySequence;
-import org.locationtech.jts.geom.util.AffineTransformation;
-import org.locationtech.jts.geom.util.PolygonExtracter;
-import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,7 +91,7 @@ public class ContourTracing {
 	public static List<PathObject> labelsToDetections(Collection<Path> paths, boolean mergeByLabel) throws IOException {
 		var list = paths.parallelStream().flatMap(p -> labelsToDetectionsStream(p)).toList();
 		if (mergeByLabel)
-			return mergeByName(list);
+			return mergeObjectsByName(list);
 		return list;
 	}
 	
@@ -111,14 +103,14 @@ public class ContourTracing {
 	 * @throws IOException if there is an error reading the images
 	 */
 	public static List<PathObject> labelsToCells(Collection<Path> paths, boolean mergeByLabel) throws IOException {
-		var list = paths.parallelStream().flatMap(p -> labelsToCellsStream(p)).toList();
+		var list = paths.parallelStream().flatMap(ContourTracing::labelsToCellsStream).toList();
 		if (mergeByLabel)
-			return mergeByName(list);
+			return mergeObjectsByName(list);
 		return list;
 	}
 	
-	private static <K> List<PathObject> mergeByName(Collection<? extends PathObject> pathObjects) {
-		return PathObjectTools.mergeObjects(pathObjects, p -> p.getName());
+	private static <K> List<PathObject> mergeObjectsByName(Collection<? extends PathObject> pathObjects) {
+		return PathObjectTools.mergeObjects(pathObjects, PathObject::getName);
 	}
 	
 	private static Stream<PathObject> labelsToDetectionsStream(Path path) {
@@ -183,7 +175,7 @@ public class ContourTracing {
 	public static List<PathObject> labelsToAnnotations(Collection<Path> paths, boolean mergeByLabel) throws IOException {
 		var list = paths.parallelStream().flatMap(p -> labelsToAnnotationsStream(p)).toList();
 		if (mergeByLabel)
-			return mergeByName(list);
+			return mergeObjectsByName(list);
 		return list;
 	}
 	
@@ -246,8 +238,8 @@ public class ContourTracing {
 	
 	private static class RequestImage {
 		
-		private RegionRequest request;
-		private BufferedImage img;
+		private final RegionRequest request;
+		private final BufferedImage img;
 		
 		public RequestImage(RegionRequest request, BufferedImage img) {
 			this.request = request;
@@ -723,10 +715,10 @@ public class ContourTracing {
 	 * @param envelope
 	 * @return
 	 */
-	private static Geometry createTracedGeometry(Raster raster, double minThresholdInclusive, double maxThresholdInclusive,
-												 int band, TileRequest request, Envelope envelope) {
+	private static List<CoordinatePair> createCoordinatePairs(Raster raster, double minThresholdInclusive, double maxThresholdInclusive,
+															  int band, TileRequest request, Envelope envelope) {
 		var image = extractBand(raster, band);
-		return createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request, envelope);
+		return createCoordinatePairs(image, minThresholdInclusive, maxThresholdInclusive, request, envelope);
 	}
 	
 	
@@ -742,29 +734,69 @@ public class ContourTracing {
 	 * @param envelope
 	 * @return
 	 */
-	private static Geometry createTracedGeometry(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, TileRequest tile, Envelope envelope) {
+	private static List<CoordinatePair> createCoordinatePairs(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, TileRequest tile, Envelope envelope) {
 		
 		// If we are translating but not rescaling, we can do this during tracing
 		double xOffset = 0;
 		double yOffset = 0;
-		if (tile != null && tile.getDownsample() == 1) {
-			xOffset = tile.getTileX() * tile.getDownsample();
-			yOffset = tile.getTileY() * tile.getDownsample();
+		double scale = 1.0;
+		if (tile != null) {
+			scale = tile.getDownsample();
+			xOffset = tile.getTileX() * scale;
+			yOffset = tile.getTileY() * scale;
 		}
-		
-		var geom = traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, envelope);
-		
-		// Handle rescaling if needed
-		if (tile != null && tile.getDownsample() != 1 && geom != null) {
-			double scale = tile.getDownsample();
-			var transform = AffineTransformation.scaleInstance(scale, scale);
-			transform = transform.translate(tile.getTileX() * tile.getDownsample(), tile.getTileY() * tile.getDownsample());
-			if (!transform.isIdentity())
-				geom = transform.transform(geom);
+		return traceCoordinates(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, scale, envelope);
+	}
+
+	private static Geometry createGeometry(GeometryFactory factory, Collection<CoordinatePair> lines, RegionRequest request) {
+		if (request == null)
+			return createGeometry(factory, lines);
+		double scale = request.getDownsample();
+		return createGeometry(factory, lines,
+				request.getX(),
+				request.getY(),
+				scale);
+	}
+
+	private static Geometry createGeometry(GeometryFactory factory, Collection<CoordinatePair> lines, TileRequest tile) {
+		if (tile == null)
+			return createGeometry(factory, lines);
+		double scale = tile.getDownsample();
+		return createGeometry(factory, lines,
+				tile.getTileX() * scale,
+				tile.getTileY() * scale,
+				scale);
+	}
+
+	private static Geometry createGeometry(GeometryFactory factory, Collection<CoordinatePair> lines) {
+		return createGeometry(factory, lines, 0, 0, 1);
+	}
+
+
+
+	private static Geometry createGeometry(GeometryFactory factory, Collection<CoordinatePair> lines,
+										   double xOrigin, double yOrigin, double scale) {
+
+		if (lines.isEmpty())
+			return factory.createEmpty(2);
+
+		var pairs = ContourTracingUtils.removeDuplicatesCompletely(lines);
+
+		try {
+			long startTime = System.currentTimeMillis();
+			var lineStrings = ContourTracingUtils.linesFromPairsFast(factory, pairs, xOrigin, yOrigin, scale);
+			long endTime = System.currentTimeMillis();
+			logger.debug("Creating lines from pair time: {} ms", endTime - startTime);
+
+			var polygonizer = new Polygonizer(true);
+			polygonizer.add(lineStrings);
+			var geometry = polygonizer.getGeometry();
+			geometry.normalize();
+			return geometry;
+		} catch (Throwable e) {
+			System.err.println("Error in polygonization: " + e.getMessage());
+			return factory.createEmpty(2);
 		}
-		
-		return geom;
-		
 	}
 	
 	/**
@@ -785,23 +817,16 @@ public class ContourTracing {
 		// If we are translating but not rescaling, we can do this during tracing
 		double xOffset = 0;
 		double yOffset = 0;
-		if (request != null && request.getDownsample() == 1) {
+		double scale = 1.0;
+		if (request != null) {
+			scale = request.getDownsample();
 			xOffset = request.getX();
 			yOffset = request.getY();
 		}
 
-		var geom = traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, envelope);
+		var lines = traceCoordinates(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, scale, envelope);
 
-		// Handle rescaling if needed
-		if (request != null && request.getDownsample() != 1 && geom != null) {
-			double scale = request.getDownsample();
-			var transform = AffineTransformation.scaleInstance(scale, scale);
-			transform = transform.translate(request.getX(), request.getY());
-			if (!transform.isIdentity())
-				geom = transform.transform(geom);
-		}
-
-		return geom;
+		return createGeometry(GeometryTools.getDefaultFactory(), lines);
 	}
 	
 	
@@ -1008,37 +1033,24 @@ public class ContourTracing {
 				
 		Map<Integer, Geometry> output = new LinkedHashMap<>();
 
-		
 		var pool = Executors.newFixedThreadPool(ThreadTools.getParallelism());
 		try {
-			
-			List<List<GeometryWrapper>> wrappers = invokeAll(pool, tiles, t -> traceGeometries(server, t, clipArea, thresholds));
-			var geometryMap =  wrappers.stream()
+			List<List<LabeledCoordinatePairs>> labeledCoords = invokeAll(pool, tiles, t -> traceGeometries(server, t, clipArea, thresholds));
+			var coordMap =  labeledCoords.stream()
 					.flatMap(p -> p.stream())
-					.collect(Collectors.groupingBy(g -> g.label));
-			
-			
-			// Determine 'inter-tile boundaries' - union operations can be very slow, so we want to restrict them 
-			// only to geometries that really require them.
-			var xBoundsSet = new TreeSet<Integer>();
-			var yBoundsSet = new TreeSet<Integer>();
-			for (var t : tiles) {
-				xBoundsSet.add(t.getImageX());
-				xBoundsSet.add(t.getImageX() + t.getImageWidth());
-				yBoundsSet.add(t.getImageY());
-				yBoundsSet.add(t.getImageY() + t.getImageHeight());
-			}
-			int[] xBounds = xBoundsSet.stream().mapToInt(x -> x).toArray(); 
-			int[] yBounds = yBoundsSet.stream().mapToInt(y -> y).toArray(); 
+					.collect(Collectors.groupingBy(LabeledCoordinatePairs::getLabel));
 			
 			var futures = new LinkedHashMap<Integer, Future<Geometry>>();
 			
 			// Merge objects with the same classification
-			for (var entry : geometryMap.entrySet()) {
+			for (var entry : coordMap.entrySet()) {
 				var list = entry.getValue();
 				if (list.isEmpty())
 					continue;
-				futures.put(entry.getKey(), pool.submit(() -> mergeGeometryWrappers(list, xBounds, yBounds)));
+				if (clipArea == null)
+					futures.put(entry.getKey(), pool.submit(() -> coordsToGeometry(list)));
+				else
+					futures.put(entry.getKey(), pool.submit(() -> coordsToGeometry(list).intersection(clipArea)));
 			}
 			
 			for (var entry : futures.entrySet())
@@ -1049,88 +1061,34 @@ public class ContourTracing {
 		} finally {
 			pool.shutdown();
 		}
-		
 		return output;
 	}
 	
 	
 	/**
-	 * Merge together geometries.
-	 * @param list
+	 * Merge labeled coordinate pairs together to create geometry objects.
+	 * @param list the coordinate pairs to merge
 	 * @param xBounds x tile boundaries; unioning is only applied over boundaries
 	 * @param yBounds y tile boundaries; unioning is only applied over boundaries
 	 * @return
 	 */
-	private static Geometry mergeGeometryWrappers(List<GeometryWrapper> list, int[] xBounds, int[] yBounds) {
-		
-		// Shouldn't happy (since we should have filtered out empty lists before calling this)
+	private static Geometry coordsToGeometry(List<LabeledCoordinatePairs> list) {
+
+		var factory = GeometryTools.getDefaultFactory();
+
+		// Shouldn't happen (since we should have filtered out empty lists before calling this)
 		if (list.isEmpty())
-			return GeometryTools.getDefaultFactory().createEmpty(2);
+			return factory.createEmpty(2);
 		
 		// If we just have one tile, that's what we need
-		if (list.size() == 1)
-			return list.get(0).geometry;
-		
-		var factory = list.get(0).geometry.getFactory();
-		
-		// Merge everything quickly into a single geometry
-		var allPolygons = new ArrayList<Polygon>();
-		for (var temp : list)
-			PolygonExtracter.getPolygons(temp.geometry, allPolygons);
-		
-		// TODO: Explore where buffering is faster than union; if we can get rules for this it can be used instead
-		boolean onlyBuffer = false;
-		
-		Geometry geometry;
-		
-		if (onlyBuffer) {
-			var singleGeometry = factory.buildGeometry(allPolygons);
-			geometry = singleGeometry.buffer(0);
-		} else {
-			
-			// Unioning is expensive, so we just want to do it where really needed
-			var tree = new Quadtree();
-			for (var p : allPolygons) {
-				tree.insert(p.getEnvelopeInternal(), p);
-			}
-			var env = new Envelope();
-			
-			var toMerge = new HashSet<Polygon>();
-			for (int yi = 1; yi < yBounds.length-1; yi++) {
-				env.init(xBounds[0]-1, xBounds[xBounds.length-1]+1, yBounds[yi]-1, yBounds[yi]+1);
-				var items = tree.query(env);
-				if (items.size() > 1)
-					toMerge.addAll(items);
-			}
-			for (int xi = 1; xi < xBounds.length-1; xi++) {
-				env.init(xBounds[xi]-1, xBounds[xi]+1, yBounds[0]-1, yBounds[yBounds.length-1]+1);
-				var items = tree.query(env);
-				if (items.size() > 1)
-					toMerge.addAll(items);
-			}
-			if (!toMerge.isEmpty()) {
-				logger.debug("Computing union for {}/{} polygons", toMerge.size(), allPolygons.size());
-				var mergedGeometry = GeometryTools.union(toMerge);
+		var coords = list.stream().flatMap(g -> g.coordinates.stream()).toList();
 
-				var iter = allPolygons.iterator();
-				while (iter.hasNext()) {
-					if (toMerge.contains(iter.next()))
-						iter.remove();
-				}
-				allPolygons.removeAll(toMerge);
-				var newPolygons = new ArrayList<Polygon>();
-				PolygonExtracter.getPolygons(mergedGeometry, newPolygons);
-				allPolygons.addAll(newPolygons);
-			}
-			geometry = factory.buildGeometry(allPolygons);				
-			geometry.normalize();
-		}
-		return geometry;
+		return createGeometry(factory, coords);
 	}
-	
-	
 
-	private static List<GeometryWrapper> traceGeometries(ImageServer<BufferedImage> server, TileRequest tile, Geometry clipArea, ChannelThreshold... thresholds) {
+
+
+	private static List<LabeledCoordinatePairs> traceGeometries(ImageServer<BufferedImage> server, TileRequest tile, Geometry clipArea, ChannelThreshold... thresholds) {
 		try {
 			return traceGeometriesImpl(server, tile, clipArea, thresholds);
 		} catch (Exception e) {
@@ -1139,12 +1097,12 @@ public class ContourTracing {
 	}
 	
 	
-	private static List<GeometryWrapper> traceGeometriesImpl(ImageServer<BufferedImage> server, TileRequest tile, Geometry clipArea, ChannelThreshold... thresholds) throws IOException {
+	private static List<LabeledCoordinatePairs> traceGeometriesImpl(ImageServer<BufferedImage> server, TileRequest tile, Geometry clipArea, ChannelThreshold... thresholds) throws IOException {
 		if (thresholds.length == 0)
 			return Collections.emptyList();
 		
 		var request = tile.getRegionRequest();
-		var list = new ArrayList<GeometryWrapper>();
+		var list = new ArrayList<LabeledCoordinatePairs>();
 
 		var img = server.readRegion(request);
 		// Get an image to threshold
@@ -1186,17 +1144,8 @@ public class ContourTracing {
 			}
 			for (var threshold : thresholds) {
 				int c = threshold.getChannel();
-				Geometry geometry = ContourTracing.createTracedGeometry(image, c, c, tile, null);
-				if (geometry != null && !geometry.isEmpty()) {
-					if (clipArea != null) {
-						geometry = GeometryTools.attemptOperation(geometry, g -> g.intersection(clipArea));
-						geometry = GeometryTools.homogenizeGeometryCollection(geometry);
-					}
-					if (!geometry.isEmpty() && geometry.getArea() > 0) {
-						// Exclude lines/points that can sometimes arise
-						list.add(new GeometryWrapper(geometry, c));
-					}
-				}
+				var geometry = ContourTracing.createCoordinatePairs(image, c, c, tile, null);
+				list.add(new LabeledCoordinatePairs(geometry, c));
 			}
 		} else {
 			// Apply the provided threshold to all channels
@@ -1204,26 +1153,19 @@ public class ContourTracing {
 
 			// Precompute envelopes if we have multiple thresholds, to avoid needing to iterate all pixels many times
 			Map<ChannelThreshold, Envelope> envelopes = new HashMap<>();
-			if (thresholds.length > -1) {
+			if (thresholds.length > 1) {
 				logger.info("Populating envelopes!");
 				populateEnvelopes(raster, envelopes, thresholds);
 			}
 
 			for (var threshold : thresholds) {
-				Geometry geometry = ContourTracing.createTracedGeometry(
+				var coords = ContourTracing.createCoordinatePairs(
 						raster, threshold.getMinThreshold(), threshold.getMaxThreshold(), threshold.getChannel(), tile, envelopes.getOrDefault(threshold, null));
-				if (geometry != null) {
-					if (clipArea != null) {
-						geometry = GeometryTools.attemptOperation(geometry, g -> g.intersection(clipArea));
-						geometry = GeometryTools.homogenizeGeometryCollection(geometry);
-					}
-					if (!geometry.isEmpty() && geometry.getArea() > 0) {
-						// Exclude lines/points that can sometimes arise
-						list.add(new GeometryWrapper(geometry, threshold.getChannel()));
-					}
+				if (!coords.isEmpty()) {
+					// Exclude lines/points that can sometimes arise
+					list.add(new LabeledCoordinatePairs(coords, threshold.getChannel()));
 				}
 			}
-			
 		}
 		return list;
 	}
@@ -1269,16 +1211,32 @@ public class ContourTracing {
 	
 
 	/**
-	 * Simple wrapper for a geometry and a label (usually a channel number or classification).
+	 * Simple wrapper for a list of coordinate pairs and a label (usually a channel number or classification).
 	 */
-	private static class GeometryWrapper {
+	private static class LabeledCoordinatePairs {
 		
-		final Geometry geometry;
-		final int label;
+		private final List<CoordinatePair> coordinates;
+		private final int label;
 		
-		private GeometryWrapper(Geometry geometry, int label) {
-			this.geometry = geometry;
+		private LabeledCoordinatePairs(List<CoordinatePair> coordinates, int label) {
+			this.coordinates = List.copyOf(coordinates);
 			this.label = label;
+		}
+
+		/**
+		 * Get an unmodifiable list of the coordinate pairs.
+		 * @return
+		 */
+		List<CoordinatePair> getCoordinates() {
+			return coordinates;
+		}
+
+		/**
+		 * Get the label.
+		 * @return
+		 */
+		int getLabel() {
+			return label;
 		}
 		
 	}
@@ -1311,7 +1269,8 @@ public class ContourTracing {
 	 *                 This is useful to avoid searching the entire image when only a small region is needed.
 	 * @return
 	 */
-	private static Geometry traceGeometry(SimpleImage image, double min, double max, double xOffset, double yOffset, Envelope envelope) {
+	private static List<CoordinatePair> traceCoordinates(SimpleImage image, double min, double max, double xOffset,
+														 double yOffset, double scale, Envelope envelope) {
 
 		var factory = GeometryTools.getDefaultFactory();
 		var pm = factory.getPrecisionModel();
@@ -1328,7 +1287,7 @@ public class ContourTracing {
 			yEnd = Math.min(yEnd, (int)Math.ceil(envelope.getMaxY())+1);
 		}
 
-		List<LineString> lines = new ArrayList<>();
+		List<CoordinatePair> lines = new ArrayList<>();
 		Coordinate lastHorizontalEdgeCoord = null;
 		Coordinate[] lastVerticalEdgeCoords = new Coordinate[xEnd-xStart+1];
 		for (int y = yStart; y <= yEnd; y++) {
@@ -1338,42 +1297,39 @@ public class ContourTracing {
 				boolean onVerticalEdge = isOn != inRange(image, x-1, y, min, max);
 				// Check if on a horizontal edge with the previous row
 				if (onHorizontalEdge) {
-					var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y);
+					var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale);
 					if (lastHorizontalEdgeCoord != null) {
-						lines.add(factory.createLineString(createCoordinateSequence(lastHorizontalEdgeCoord, nextEdgeCoord)));
+						lines.add(new CoordinatePair(lastHorizontalEdgeCoord, nextEdgeCoord));
 					}
 					lastHorizontalEdgeCoord = nextEdgeCoord;
 				} else {
 					if (lastHorizontalEdgeCoord != null) {
-						var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y);
-						lines.add(factory.createLineString(createCoordinateSequence(lastHorizontalEdgeCoord, nextEdgeCoord)));
+						var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale);
+						lines.add(new CoordinatePair(lastHorizontalEdgeCoord, nextEdgeCoord));
 						lastHorizontalEdgeCoord = null;
 					}
 				}
 				// Check if on a vertical edge with the previous column
 				var lastVerticalEdgeCoord = lastVerticalEdgeCoords[x - xStart];
 				if (onVerticalEdge) {
-					var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y);
+					var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale);
 					if (lastVerticalEdgeCoord != null) {
-						lines.add(factory.createLineString(createCoordinateSequence(lastVerticalEdgeCoord, nextEdgeCoord)));
+						lines.add(new CoordinatePair(lastVerticalEdgeCoord, nextEdgeCoord));
 					}
 					lastVerticalEdgeCoords[x - xStart] = nextEdgeCoord;
 				} else {
 					if (lastVerticalEdgeCoord != null) {
-						var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y);
-						lines.add(factory.createLineString(createCoordinateSequence(lastVerticalEdgeCoord, nextEdgeCoord)));
+						var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale);
+						lines.add(new CoordinatePair(lastVerticalEdgeCoord, nextEdgeCoord));
 						lastVerticalEdgeCoords[x - xStart] = null;
 					}
 				}
 			}
 		}
-
-		// This passes the test and is fast... but beware https://github.com/locationtech/jts/issues/874
-		var polygonizer = new Polygonizer(true);
-		polygonizer.add(lines);
-		var originalPolygon = polygonizer.getGeometry();
-		return originalPolygon;
+		return lines;
 	}
+
+
 
 	private static Coordinate createCoordinate(PrecisionModel pm, double x, double y) {
 		return new CoordinateXY(
@@ -1381,11 +1337,6 @@ public class ContourTracing {
 				pm.makePrecise(y));
 	}
 
-	private static CoordinateSequence createCoordinateSequence(Coordinate... coords) {
-		for (var c : coords)
-			GeometryTools.getDefaultFactory().getPrecisionModel().makePrecise(c);
-		return new CoordinateArraySequence(coords, 3, 0);
-	}
 
 
 	private static boolean inRange(SimpleImage image, int x, int y, double min, double max) {
@@ -1394,5 +1345,6 @@ public class ContourTracing {
 		double val = image.getValue(x, y);
 		return val >= min && val <= max;
 	}
+
 
 }

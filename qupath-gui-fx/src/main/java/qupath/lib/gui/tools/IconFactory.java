@@ -81,6 +81,7 @@ import javafx.scene.text.Text;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.viewer.DownsampledShapeCache;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.roi.EllipseROI;
@@ -821,7 +822,7 @@ public class IconFactory {
 	public static Node createPathObjectIcon(PathObject pathObject, int width, int height) {
 		var color = ColorToolsFX.getDisplayedColor(pathObject);
 		var roi = pathObject.getROI();
-		var roiNucleus = PathObjectTools.getROI(pathObject, true);
+		var roiNucleus = PathObjectTools.getNucleusROI(pathObject);
 		if (roi == null)
 			roi = roiNucleus;
 		if (roi == null)
@@ -881,30 +882,31 @@ public class IconFactory {
 			return line;
 		} else if (roi.isPoint()) {
 			// Just show generic points
-			var node = drawPointsIcon(Math.min(width, height), color);
-			return node;
+			return drawPointsIcon(Math.min(width, height), color);
 		} else {
-			var path = pathCache.getOrDefault(roi, null);
-			if (path == null) {
-				var shape = RoiTools.getShape(roi);
-//				var shape = roi.isArea() ? RoiTools.getArea(roi) : RoiTools.getShape(roi);
-				if (shape != null) {
-					var transform = new AffineTransform();
-					transform.translate(-roi.getBoundsX(), -roi.getBoundsY());
-					transform.scale(scale, scale);
-					PathIterator iterator = shape.getPathIterator(transform, Math.max(0.5, 1.0/scale));
-					path = createShapeIcon(iterator, color);
-					pathCache.put(roi, path);
-				}
-			} else {
+			var path = pathCache.computeIfAbsent(roi, r -> createPath(r, scale, color));
+			if (path != null) {
 				path = new Path(path.getElements());
 				path.setStroke(color);
-			}
-			if (path != null)
 				return path;
+			}
 		}
 		logger.warn("Unable to create icon for ROI: {}", roi);
 		return null;
+	}
+
+	private static Path createPath(ROI roi, double scale, Color color) {
+		double downsample = 1.0/(scale * 2);
+		var shape = roi.isArea() && roi.getNumPoints() > 100 ?
+				DownsampledShapeCache.getShapeForDownsample(roi, downsample) :
+				RoiTools.getShape(roi);
+		if (shape == null)
+			return null;
+		var transform = new AffineTransform();
+		transform.translate(-roi.getBoundsX(), -roi.getBoundsY());
+		transform.scale(scale, scale);
+		PathIterator iterator = shape.getPathIterator(transform, Math.max(0.5, 1.0/scale));
+		return createShapeIcon(iterator, color);
 	}
 	
 	private static Path createShapeIcon(PathIterator iterator, Color color) {

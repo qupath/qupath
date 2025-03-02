@@ -1410,7 +1410,9 @@ public class GeometryTools {
 	
 	
 	    private ShapeWriter getShapeWriter() {
-	    	return new ShapeWriter(transformer);
+	    	var writer = new ShapeWriter(transformer);
+	    	writer.setRemoveDuplicatePoints(true);
+	    	return writer;
 	    }
 	
 

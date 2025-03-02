@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -27,11 +27,14 @@ import java.awt.Shape;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.PriorityQueue;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
@@ -47,7 +50,9 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class ShapeSimplifier {
-	
+
+	private static final Logger logger = LoggerFactory.getLogger(ShapeSimplifier.class);
+
 	/**
 	 * 
 	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam's Algorithm.
@@ -69,15 +74,16 @@ public class ShapeSimplifier {
 		
 		// Remove duplicates first
 		removeDuplicates(points);
-		
+
 		if (points.size() <= 3)
 			return;
 		
 		int n = points.size();
 		
 		// Populate the priority queue
-		PriorityQueue<PointWithArea> queue = new PriorityQueue<>(points.size()+8);
-		
+		var queue = new MinimalPriorityQueue(points.size()+8);
+//		var queue = new PriorityQueue<PointWithArea>(points.size()+8);
+
 		Point2 pPrevious = points.getLast();
 		Point2 pCurrent = points.getFirst();
 		PointWithArea pwaPrevious = null;
@@ -104,7 +110,7 @@ public class ShapeSimplifier {
 		
 		double maxArea = 0;
 		int minSize = Math.max(n / 100, 3);
-		Set<Point2> toRemove = new HashSet<>();
+		Set<Point2> toRemove = HashSet.newHashSet(queue.size()/4);
 		while (queue.size() > minSize) {
 			PointWithArea pwa = queue.poll();
 //			logger.info("BEFORE: " + pwa + " (counter " + counter + ")");
@@ -122,23 +128,78 @@ public class ShapeSimplifier {
 			// Remove the point & update accordingly
 //			points.remove(pwa.getPoint());
 			toRemove.add(pwa.getPoint());
-			
+
 			pwaPrevious = pwa.getPrevious();
 			PointWithArea pwaNext = pwa.getNext();
+
+			queue.remove(pwaPrevious);
+			queue.remove(pwaNext);
+
 			pwaPrevious.setNext(pwaNext);
 			pwaPrevious.updateArea();
 			pwaNext.setPrevious(pwaPrevious);
 			pwaNext.updateArea();
 			
 			// Reinsert into priority queue
-			queue.remove(pwaPrevious);
-			queue.remove(pwaNext);
 			queue.add(pwaPrevious);
 			queue.add(pwaNext);
 			
 //			logger.info(pwa);
 		}
 		points.removeAll(toRemove);
+	}
+
+	/**
+	 * Alternative to Java's PriorityQueue that does just enough for what we need here.
+	 * The purpose is to overcome the slow (O(n)) removal of elements from the middle of a PriorityQueue,
+	 * which was a bottleneck when simplifying polygons with many points.
+	 */
+	private static class MinimalPriorityQueue {
+
+		private final Comparator<PointWithArea> comparator = Comparator.reverseOrder();
+		private final List<PointWithArea> list;
+		private boolean initializing = true;
+
+		private MinimalPriorityQueue(int capacity) {
+			list = new ArrayList<>(capacity);
+		}
+
+		void add(PointWithArea pwa) {
+			if (initializing)
+				list.add(pwa);
+			else
+				insert(pwa);
+		}
+
+		void remove(PointWithArea pwa) {
+			int ind = Collections.binarySearch(list, pwa, comparator);
+			if (ind < 0) {
+				throw new IllegalArgumentException("PointWithArea is not in the queue");
+			}
+			list.remove(ind);
+		}
+
+		void insert(PointWithArea pwa) {
+			int ind = Collections.binarySearch(list, pwa, comparator);
+			if (ind < 0)
+				ind = -ind - 1;
+			else if (list.get(ind) == pwa)
+				throw new IllegalArgumentException("PointWithArea is already in the queue");
+			list.add(ind, pwa);
+		}
+
+		int size() {
+			return list.size();
+		}
+
+		PointWithArea poll() {
+			if (initializing) {
+				list.sort(comparator);
+				initializing = false;
+			}
+			return list.isEmpty() ? null : list.removeLast();
+		}
+
 	}
 
 
@@ -176,10 +237,10 @@ public class ShapeSimplifier {
 	 * @param path
 	 * @param altitudeThreshold
 	 * @return
-	 * @see #simplifyPath(Path2D, double, int)
+	 * @see #simplifyPath(Path2D, double, int, double)
 	 */
 	public static Path2D simplifyPath(Path2D path, double altitudeThreshold) {
-		return simplifyPath(path, altitudeThreshold, -1);
+		return simplifyPath(path, altitudeThreshold, -1, -1);
 	}
 
 	/**
@@ -200,11 +261,15 @@ public class ShapeSimplifier {
 	 * @param altitudeThreshold the altitude threshold
 	 * @param segmentPointThreshold the minimum number of points in a closed segment for simplification to be applied;
 	 *                              segments with fewer points (after removing duplicates) will be retained unchanged.
-	 * @return
+	 * @param discardBoundsLength discard segments if bounding box dimensions are both smaller than this value;
+	 *                            if &leq; 0, no segments are discarded based on bounding box size.
+	 *                            This can be important when simplification is use to help render very large shapes at
+	 *                            a low resolution.
+	 * @return the path with vertices (and possibly some segments) removed
 	 * @see #simplifyPath(Path2D, double)
 	 * @since v0.6.0
 	 */
-	public static Path2D simplifyPath(Path2D path, double altitudeThreshold, int segmentPointThreshold) {
+	public static Path2D simplifyPath(Path2D path, double altitudeThreshold, int segmentPointThreshold, double discardBoundsLength) {
 
 		List<Point2> points = new ArrayList<>();
 		PathIterator iter = path.getPathIterator(null, 0.5);
@@ -218,6 +283,27 @@ public class ShapeSimplifier {
 //			nVerticesBefore += points.size();
 			if (points.isEmpty())
 				break;
+
+			// Do bounding box check
+			if (discardBoundsLength > 0 && Double.isFinite(discardBoundsLength)) {
+				double minX = Double.POSITIVE_INFINITY;
+				double minY = Double.POSITIVE_INFINITY;
+				double maxX = Double.NEGATIVE_INFINITY;
+				double maxY = Double.NEGATIVE_INFINITY;
+				for (var p : points) {
+					double x = p.getX();
+					double y = p.getY();
+					minX = Math.min(minX, x);
+					minY = Math.min(minY, y);
+					maxX = Math.max(maxX, x);
+					maxY = Math.max(maxY, y);
+				}
+				if (maxX - minX < discardBoundsLength && maxY - minY < discardBoundsLength) {
+					logger.trace("Discarding small segment based on bounding box: {} x {} ({} points)",
+							maxX - minX, maxY - minY, points.size());
+					continue;
+				}
+			}
 
 			boolean doSimplify = true;
 			if (segmentPointThreshold >= 0) {
@@ -265,7 +351,6 @@ public class ShapeSimplifier {
 	}
 
 	/**
-	 *
 	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam's Algorithm.
 	 * <p>
 	 * See references:
@@ -294,6 +379,9 @@ public class ShapeSimplifier {
 		if (roi instanceof PolygonROI polygonROI) {
 			out = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
 		} else {
+			// TODO: Handle GeometryROI as a special case (so we don't need to go through java.awt.Shape) -
+			// 		 conversion back to Geometry can be slow.
+			//		 But need to be cautious, because we could easily make invalid geometries...
 			out = ShapeSimplifier.simplifyShape(roi, altitudeThreshold);
 		}
 		return out;
@@ -333,7 +421,12 @@ public class ShapeSimplifier {
 	}
 
 	static class PointWithArea implements Comparable<PointWithArea> {
-		
+
+		private static final Comparator<PointWithArea> comparator = Comparator.comparingDouble(PointWithArea::getArea)
+				.reversed()
+				.thenComparingDouble(PointWithArea::getX)
+				.thenComparingDouble(PointWithArea::getY);
+
 		private PointWithArea pPrevious;
 		private PointWithArea pNext;
 		private Point2 p;
@@ -386,7 +479,21 @@ public class ShapeSimplifier {
 
 		@Override
 		public int compareTo(PointWithArea p) {
-			return (area < p.area) ? -1 : (area == p.area ? 0 : 1);
+			if (area < p.area)
+				return -1;
+			else if (area > p.area)
+				return 1;
+			else if (getX() < p.getX())
+				return -1;
+			else if (getX() > p.getX())
+				return 1;
+			else if (getY() < p.getY())
+				return -1;
+			else if (getY() > p.getY())
+				return 1;
+			else
+				return 0;
+//			return comparator.compare(this, p);
 		}
 		
 		@Override

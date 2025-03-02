@@ -13,6 +13,7 @@ Some things may be added, some things may be removed, and some things may look d
   * Use *File → Export images... → OME-Zarr* to export images from the user interface
 * Add, remove & upgrade extensions easily with *Extensions → Manage extensions* (https://github.com/qupath/qupath/pull/1716)
   * See also https://github.com/qupath/extension-manager
+* _Much_ improved performance when creating & viewing very complex annotations (https://github.com/qupath/qupath/pull/1777)
 * More control over showing/hiding objects by classification (https://github.com/qupath/qupath/pull/1752)
 * New ImageJ script runner (https://github.com/qupath/qupath/pull/1682)
 * Improved measurements - with tooltips & scatterplots (https://github.com/qupath/qupath/pull/1747, https://github.com/qupath/qupath/pull/1544, https://github.com/qupath/qupath/pull/1768)

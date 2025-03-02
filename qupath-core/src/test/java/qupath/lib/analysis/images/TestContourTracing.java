@@ -59,9 +59,8 @@ public class TestContourTracing {
 	
 	private static int MAX_POINTS_FOR_VALIDITY = 50_000;
 	
-	
-	private static List<String> excludeNames = Arrays.asList(
-			"binary-noise-medium.png",
+	// Don't to the large random image by default... it's a bit slow
+	private static List<String> excludeNames = List.of(
 			"binary-noise-large.png"
 			);
 

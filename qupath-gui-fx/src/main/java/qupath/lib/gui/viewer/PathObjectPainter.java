@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -85,7 +85,6 @@ import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
-import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -99,16 +98,16 @@ public class PathObjectPainter {
 
 	private static final Logger logger = LoggerFactory.getLogger(PathObjectPainter.class);
 
-	private static ShapeProvider shapeProvider = new ShapeProvider();
+	private static final ShapeProvider shapeProvider = new ShapeProvider();
 
-	private static Map<Object, Double> doubleCache = new HashMap<>();
+	private static final Map<Object, Double> doubleCache = new HashMap<>();
 
-	private static Map<Number, Stroke> strokeMap = new HashMap<>();
-	private static Map<Number, Stroke> dashedStrokeMap = new HashMap<>();
+	private static final Map<Number, Stroke> strokeMap = new HashMap<>();
+	private static final Map<Number, Stroke> dashedStrokeMap = new HashMap<>();
 
-	private static ThreadLocal<Path2D> localPath2D = ThreadLocal.withInitial(Path2D.Double::new);
-	private static ThreadLocal<Rectangle2D> localRect2D = ThreadLocal.withInitial(Rectangle2D.Double::new);
-	private static ThreadLocal<Ellipse2D> localEllipse2D = ThreadLocal.withInitial(Ellipse2D.Double::new);
+	private static final ThreadLocal<Path2D> localPath2D = ThreadLocal.withInitial(Path2D.Double::new);
+	private static final ThreadLocal<Rectangle2D> localRect2D = ThreadLocal.withInitial(Rectangle2D.Double::new);
+	private static final ThreadLocal<Ellipse2D> localEllipse2D = ThreadLocal.withInitial(Ellipse2D.Double::new);
 
 	private PathObjectPainter() {}
 
@@ -692,50 +691,13 @@ public class PathObjectPainter {
 
 		static final int MIN_SIMPLIFY_VERTICES = 250;
 
-		private RectanglePool rectanglePool = new RectanglePool();
-		private EllipsePool ellipsePool = new EllipsePool();
-		private LinePool linePool = new LinePool();
-
-		// TODO: Consider if it makes sense to map to PathHierarchyImageServer preferred downsamples
-		// (Only if shape simplification is often used for detection objects)
-		private Map<ROI, Shape> map50 = Collections.synchronizedMap(new WeakHashMap<>());
-		private Map<ROI, Shape> map20 = Collections.synchronizedMap(new WeakHashMap<>());
-		private Map<ROI, Shape> map10 = Collections.synchronizedMap(new WeakHashMap<>());
-		private Map<ROI, Shape> map = Collections.synchronizedMap(new WeakHashMap<>());
+		private final RectanglePool rectanglePool = new RectanglePool();
+		private final EllipsePool ellipsePool = new EllipsePool();
+		private final LinePool linePool = new LinePool();
 
 		// Note: this relies upon the fact that the ROI is immutable shapes are cached
-		private Map<Area, GriddedArea> areaMap = Collections.synchronizedMap(new WeakHashMap<>());
+		private final Map<Area, GriddedArea> areaMap = Collections.synchronizedMap(new WeakHashMap<>());
 
-		private Map<ROI, Shape> getMap(final ROI shape, final double downsample) {
-			// If we don't have many vertices, just return the main map - no need to simplify
-			int nVertices = shape.getNumPoints();
-			if (nVertices < MIN_SIMPLIFY_VERTICES || !shape.isArea())
-				return map;
-
-			if (downsample > 50)
-				return map50;
-			if (downsample > 20)
-				return map20;
-			if (downsample > 10)
-				return map10;
-			return map;
-		}
-
-		private static Shape simplifyByDownsample(final Shape shape, final double downsample) {
-			try {
-				int pointCountThreshold = 10;
-				if (downsample > 50)
-					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50, pointCountThreshold);
-				if (downsample > 20)
-					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20, pointCountThreshold);
-				if (downsample > 10)
-					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10, pointCountThreshold);
-			} catch (Exception e) {
-				logger.warn("Unable to simplify path: {}", e.getLocalizedMessage());
-				logger.debug("", e);
-			}
-			return shape;
-		}
 
 		public Shape getShape(final ROI roi, final double downsample, final Rectangle clip) {
 			var shape = getShape(roi, downsample);
@@ -761,33 +723,16 @@ public class PathObjectPainter {
 				return ellipse;
 			}
 
-			if (roi instanceof LineROI) {
+			if (roi instanceof LineROI l) {
 				Line2D line = linePool.getShape();
-				LineROI l = (LineROI)roi;
-				line.setLine(l.getX1(), l.getY1(), l.getX2(), l.getY2());
+                line.setLine(l.getX1(), l.getY1(), l.getX2(), l.getY2());
 				return line;
 			}
 
-			Map<ROI, Shape> map = getMap(roi, downsample);
-			Shape shape = map.get(roi);
-			if (shape == null) {
-				shape = RoiTools.getShape(roi);
-				// Downsample if we have to
-				if (map != this.map) {
-					// JTS methods are much slower
-					//					var simplifier = new DouglasPeuckerSimplifier(roi.getGeometry());
-					//					var simplifier = new VWSimplifier(roi.getGeometry());
-					//					simplifier.setDistanceTolerance(downsample);
-					//					simplifier.setEnsureValid(false);
-					//					shape = GeometryTools.geometryToShape(simplifier.getResultGeometry());
-					shape = simplifyByDownsample(shape, downsample);
-				}
-				map.put(roi, shape);
-			}
-			return shape;
+			return DownsampledShapeCache.getShapeForDownsample(roi, downsample);
 		}
 
-	}
+    }
 
 	/**
 	 * Helper class for working with <i>very</i> complex Areas (e.g. over 10_000 path segments).
