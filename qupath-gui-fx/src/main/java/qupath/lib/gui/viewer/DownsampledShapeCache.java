@@ -48,7 +48,7 @@ public class DownsampledShapeCache {
     private static final double minDownsample = 4.0;
 
     // Downsamples calculated as multiples of this value
-    private static final double downsampleStep = 1.25;
+    private final double downsampleStep;
 
     private final DownsampledShape shape;
     private final boolean canSimplify;
@@ -91,10 +91,20 @@ public class DownsampledShapeCache {
         int nPoints = roi.getNumPoints();
         this.shape = new DownsampledShape(roi.getShape(), 1.0, nPoints);
         this.canSimplify = nPoints > pointCountThreshold && roi.isArea();
-        if (canSimplify)
+        if (canSimplify) {
+            // If we have an astronomically large number of points, we want to simplify for fewer steps
+            // (because it can be time-consuming and memory-intensive)
+            if (nPoints < 5_000_000)
+                downsampleStep = 1.25;
+            else if (nPoints < 10_000_000)
+                downsampleStep = 1.5;
+            else
+                downsampleStep = 2.0;
             downsampledShapes = new ArrayList<>();
-        else
+        } else {
+            downsampleStep = 2; // Not relevant
             downsampledShapes = Collections.emptyList();
+        }
     }
 
     private Shape getForDownsample(double downsample) {

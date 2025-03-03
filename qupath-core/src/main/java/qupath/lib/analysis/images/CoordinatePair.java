@@ -1,22 +1,20 @@
 package qupath.lib.analysis.images;
 
-import qupath.lib.geom.Point2;
-
 import java.util.Comparator;
 import java.util.Objects;
 
 class CoordinatePair implements Comparable<CoordinatePair> {
 
-    private static final Comparator<Point2> topLeftCoordinateComparator = Comparator.comparingDouble(Point2::getY)
-            .thenComparingDouble(Point2::getX);
+    private static final Comparator<IntPoint> topLeftCoordinateComparator = Comparator.comparingDouble(IntPoint::getY)
+            .thenComparingDouble(IntPoint::getX);
 
 
-    private final Point2 c1;
-    private final Point2 c2;
+    private final IntPoint c1;
+    private final IntPoint c2;
 
     private final int hash;
 
-    CoordinatePair(Point2 c1, Point2 c2) {
+    CoordinatePair(IntPoint c1, IntPoint c2) {
         var comp = topLeftCoordinateComparator.compare(c1, c2);
         if (comp < 0) {
             this.c1 = c1;
@@ -44,7 +42,7 @@ class CoordinatePair implements Comparable<CoordinatePair> {
      *
      * @return
      */
-    Point2 getC1() {
+    IntPoint getC1() {
         return c1;
     }
 
@@ -53,16 +51,17 @@ class CoordinatePair implements Comparable<CoordinatePair> {
      *
      * @return
      */
-    Point2 getC2() {
+    IntPoint getC2() {
         return c2;
     }
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass())
+        if (o instanceof CoordinatePair pair) {
+            return c1.equals(pair.c1) && c2.equals(pair.c2);
+        } else {
             return false;
-        CoordinatePair that = (CoordinatePair) o;
-        return Objects.equals(c1, that.c1) && Objects.equals(c2, that.c2);
+        }
     }
 
     @Override

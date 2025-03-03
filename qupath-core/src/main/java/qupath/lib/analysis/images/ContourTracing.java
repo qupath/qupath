@@ -48,18 +48,14 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
-import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServers;
@@ -1299,9 +1295,9 @@ public class ContourTracing {
 		}
 
 		List<CoordinatePair> lines = new ArrayList<>();
-		Point2 lastHorizontalEdgeCoord = null;
-		Point2[] lastVerticalEdgeCoords = new Point2[xEnd-xStart+1];
-		Map<Point2, Point2> pointCache = new HashMap<>();
+		IntPoint lastHorizontalEdgeCoord = null;
+		IntPoint[] lastVerticalEdgeCoords = new IntPoint[xEnd-xStart+1];
+		Map<IntPoint, IntPoint> pointCache = new HashMap<>();
 		for (int y = yStart; y <= yEnd; y++) {
 			for (int x = xStart; x <= xEnd; x++) {
 				boolean isOn = inRange(image, x, y, min, max);
@@ -1309,14 +1305,14 @@ public class ContourTracing {
 				boolean onVerticalEdge = isOn != inRange(image, x-1, y, min, max);
 				// Check if on a horizontal edge with the previous row
 				if (onHorizontalEdge) {
-					var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y, pointCache);
+					var nextEdgeCoord = createCoordinate( xOffset + x, yOffset + y, pointCache);
 					if (lastHorizontalEdgeCoord != null) {
 						lines.add(new CoordinatePair(lastHorizontalEdgeCoord, nextEdgeCoord));
 					}
 					lastHorizontalEdgeCoord = nextEdgeCoord;
 				} else {
 					if (lastHorizontalEdgeCoord != null) {
-						var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y, pointCache);
+						var nextEdgeCoord = createCoordinate(xOffset + x, yOffset + y, pointCache);
 						lines.add(new CoordinatePair(lastHorizontalEdgeCoord, nextEdgeCoord));
 						lastHorizontalEdgeCoord = null;
 					}
@@ -1324,14 +1320,14 @@ public class ContourTracing {
 				// Check if on a vertical edge with the previous column
 				var lastVerticalEdgeCoord = lastVerticalEdgeCoords[x - xStart];
 				if (onVerticalEdge) {
-					var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y, pointCache);
+					var nextEdgeCoord = createCoordinate( xOffset + x, yOffset + y, pointCache);
 					if (lastVerticalEdgeCoord != null) {
 						lines.add(new CoordinatePair(lastVerticalEdgeCoord, nextEdgeCoord));
 					}
 					lastVerticalEdgeCoords[x - xStart] = nextEdgeCoord;
 				} else {
 					if (lastVerticalEdgeCoord != null) {
-						var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y, pointCache);
+						var nextEdgeCoord = createCoordinate( xOffset + x, yOffset + y, pointCache);
 						lines.add(new CoordinatePair(lastVerticalEdgeCoord, nextEdgeCoord));
 						lastVerticalEdgeCoords[x - xStart] = null;
 					}
@@ -1347,11 +1343,9 @@ public class ContourTracing {
 	 * This is intended to slightly reduce overhead by effectively making points singletons (at least where the cache
 	 * is shared).
 	 */
-	private static Point2 createCoordinate(PrecisionModel pm, double x, double y, Map<Point2, Point2> pointCache) {
-		double x2 = pm.makePrecise(x);
-		double y2 = pm.makePrecise(y);
+	private static IntPoint createCoordinate(int x, int y, Map<IntPoint, IntPoint> pointCache) {
 		// We don't avoid the overhead of *creating* the point, but at least it can be immediately garbage collected
-		var point = new Point2(x2, y2);
+		var point = new IntPoint(x, y);
 		return pointCache == null ? point : pointCache.computeIfAbsent(point, p -> p);
 	}
 
