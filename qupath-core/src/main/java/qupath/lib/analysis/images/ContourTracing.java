@@ -1011,6 +1011,13 @@ public class ContourTracing {
 			server = ImageServers.pyramidalize(server, downsample);
 			tiles = server.getTileRequestManager().getTileRequests(region);
 		}
+
+		// If we have a clip area, make sure we skip as many tiles as we can
+		if (clipArea != null && !clipArea.isRectangle()) {
+			tiles = tiles.stream().filter(
+					t -> clipArea.intersects(GeometryTools.regionToGeometry(t.getRegionRequest())))
+					.toList();
+		}
 		
 		return traceGeometriesImpl(server, tiles, clipArea, thresholds);
 	}
@@ -1041,7 +1048,7 @@ public class ContourTracing {
 		try {
 			List<List<LabeledCoordinatePairs>> labeledCoords = invokeAll(pool, tiles, t -> traceGeometries(server, t, clipArea, thresholds));
 			var coordMap =  labeledCoords.stream()
-					.flatMap(p -> p.stream())
+					.flatMap(List::stream)
 					.collect(Collectors.groupingBy(LabeledCoordinatePairs::getLabel));
 			
 			var futures = new LinkedHashMap<Integer, Future<Geometry>>();
@@ -1057,7 +1064,7 @@ public class ContourTracing {
 				if (clipArea == null)
 					futures.put(entry.getKey(), pool.submit(() -> coordsToGeometry(list, 0, 0, scale)));
 				else
-					futures.put(entry.getKey(), pool.submit(() -> coordsToGeometry(list, 0, 0, scale).intersection(clipArea)));
+					futures.put(entry.getKey(), pool.submit(() -> areaIntersection(clipArea, coordsToGeometry(list, 0, 0, scale))));
 			}
 			
 			for (var entry : futures.entrySet())
@@ -1070,13 +1077,25 @@ public class ContourTracing {
 		}
 		return output;
 	}
+
+	private static Geometry areaIntersection(Geometry a, Geometry b) {
+		Geometry result;
+		if (a.getNumGeometries() < b.getNumGeometries()) {
+			result = b.intersection(a);
+		} else {
+			result = a.intersection(b);
+		}
+		// Strip out any non-polygonal pieces
+		return GeometryTools.ensurePolygonal(result);
+	}
 	
 	
 	/**
-	 * Merge labeled coordinate pairs together to create geometry objects.
+	 * Merge labeled coordinate pairs together to create geometry objects.c
 	 * @param list the coordinate pairs to merge
-	 * @param xBounds x tile boundaries; unioning is only applied over boundaries
-	 * @param yBounds y tile boundaries; unioning is only applied over boundaries
+	 * @param xOrigin offset to add to all x coordinates
+	 * @param yOrigin offset to add to all y coordinates
+	 * @param scale multiplication factor for coordinates
 	 * @return
 	 */
 	private static Geometry coordsToGeometry(List<LabeledCoordinatePairs> list, double xOrigin, double yOrigin, double scale) {

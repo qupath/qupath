@@ -129,10 +129,11 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 				.concurrencyLevel(concurrencyLevel)
 //				.recordStats()
 				.removalListener(n -> {
-					if (n.getCause() == RemovalCause.COLLECTED)
-						logger.debug("Cached tile collected" + n.getKey() + " (cache size=" + cache.size()+")");
-					})
-				.build();
+					if (n.getCause() == RemovalCause.COLLECTED) {
+                        logger.debug("Cached tile collected: {} (cache size={})", n.getKey(), cache.size());
+					} else {
+						logger.trace("Cached tile removed due to {}: {} (cache size={})", n.getCause(), n.getKey(), cache.size());
+					}}).build();
 		cache = originalCache.asMap();
 
 		Cache<RegionRequest, T> originalThumbnailCache = CacheBuilder.newBuilder()

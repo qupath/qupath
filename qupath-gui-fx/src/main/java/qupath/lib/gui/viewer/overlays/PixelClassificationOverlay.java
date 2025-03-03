@@ -38,7 +38,6 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -90,7 +89,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
     private Map<RegionRequest, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
     private Set<TileRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
     private Set<TileRequest> currentRequests = Collections.synchronizedSet(new HashSet<>());
-    
+
     private int maxThreads = ThreadTools.getParallelism();
     private ThreadPoolExecutor pool;
     

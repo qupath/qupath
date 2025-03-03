@@ -22,6 +22,8 @@
 package qupath.lib.gui.viewer;
 
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.Objects;
 import java.util.function.BiPredicate;
 
 import qupath.lib.images.ImageData;
@@ -29,6 +31,8 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Define the area of an image to which pixel classification should be applied.
@@ -70,59 +74,47 @@ public interface RegionFilter extends BiPredicate<ImageData<?>, RegionRequest> {
 		
 		@Override
 		public String toString() {
-			switch(this) {
-			case EVERYWHERE:
-				return "Everywhere";
-			case IMAGE:
-				return "Image (non-empty regions)";
-			case ANY_OBJECTS:
-				return "Any object ROI";
-			case ANY_ANNOTATIONS:
-				return "Any annotation ROI";
-			case ANY_OBJECTS_BOUNDS:
-				return "Any object bounds (fast)";
-			case ANY_ANNOTATIONS_BOUNDS:
-				return "Any annotation bounds (fast)";
-			default:
-				return "Unknown";
-			}
+            return switch (this) {
+                case EVERYWHERE -> "Everywhere";
+                case IMAGE -> "Image (non-empty regions)";
+                case ANY_OBJECTS -> "Any object ROI";
+                case ANY_ANNOTATIONS -> "Any annotation ROI";
+                case ANY_OBJECTS_BOUNDS -> "Any object bounds (fast)";
+                case ANY_ANNOTATIONS_BOUNDS -> "Any annotation bounds (fast)";
+                default -> "Unknown";
+            };
 		}
 
 		@Override
 		public boolean test(ImageData<?> imageData, RegionRequest region) {
-			switch (this) {
-			case ANY_ANNOTATIONS:
-				var annotations = imageData.getHierarchy().getAnnotationsForRegion(region, null);
-				return overlapsObjects(annotations, region);
-			case ANY_OBJECTS:
-				var pathObjects = imageData.getHierarchy().getAllObjectsForRegion(region, null);
-				return overlapsObjects(pathObjects, region);
-			case IMAGE:
-				return !imageData.getServer().isEmptyRegion(region);
-			case ANY_OBJECTS_BOUNDS:
-				return imageData.getHierarchy().hasObjectsForRegion(null, region);
-			case ANY_ANNOTATIONS_BOUNDS:
-				return imageData.getHierarchy().hasObjectsForRegion(PathAnnotationObject.class, region);
-			default:
-				return true;
-			}
+            return switch (this) {
+                case ANY_ANNOTATIONS -> {
+                    var annotations = imageData.getHierarchy().getAnnotationsForRegion(region, null);
+                    yield overlapsObjects(annotations, region);
+                }
+                case ANY_OBJECTS -> {
+                    var pathObjects = imageData.getHierarchy().getAllObjectsForRegion(region, null);
+                    yield overlapsObjects(pathObjects, region);
+                }
+                case IMAGE -> !imageData.getServer().isEmptyRegion(region);
+                case ANY_OBJECTS_BOUNDS -> imageData.getHierarchy().hasObjectsForRegion(null, region);
+                case ANY_ANNOTATIONS_BOUNDS ->
+                        imageData.getHierarchy().hasObjectsForRegion(PathAnnotationObject.class, region);
+                default -> true;
+            };
 		}
 		
 	}
 	
 	private static boolean overlapsObjects(Collection<? extends PathObject> pathObjects, ImageRegion region) {
-		for (var pathObject : pathObjects) {
-			var roi = pathObject.getROI();
-			if (roi == null)
-				continue;
-			if (roi.isPoint()) {
-				for (var p : roi.getAllPoints()) {
-					if (region.contains((int)p.getX(), (int)p.getY(), roi.getZ(), roi.getT()))
-						return true;
-				}
-			} else if (roi.intersects(region)) {
+		var rois = pathObjects.stream()
+				.map(PathObject::getROI)
+				.filter(Objects::nonNull)
+				.sorted(Comparator.comparingInt(ROI::getNumPoints))
+				.toList();
+		for (var r : rois) {
+			if (r.intersects(region))
 				return true;
-			}
 		}
 		return false;
 	}
