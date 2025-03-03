@@ -94,8 +94,8 @@ class ContourTracingUtils {
 
     private static LineString createLineString(CoordinatePair pair, GeometryFactory factory, double xOrigin, double yOrigin, double scale) {
         var pm = factory.getPrecisionModel();
-        var c1 = pair.getC1();
-        var c2 = pair.getC2();
+        var c1 = pair.c1();
+        var c2 = pair.c2();
         double x1 = pm.makePrecise(xOrigin + c1.getX() * scale);
         double x2 =  pm.makePrecise(xOrigin + c2.getX() * scale);
         double y1 =  pm.makePrecise(yOrigin + c1.getY() * scale);
@@ -114,8 +114,8 @@ class ContourTracingUtils {
         // Extract all the coordinates
         var allCoordinates = new ArrayList<IntPoint>(pairList.size()*2);
         for (var p : pairList) {
-            allCoordinates.add(p.getC1());
-            allCoordinates.add(p.getC2());
+            allCoordinates.add(p.c1());
+            allCoordinates.add(p.c2());
         }
 
         // Sort the list so that we can count occurrences in a single pass
@@ -165,9 +165,9 @@ class ContourTracingUtils {
         var vertical = new TreeMap<Integer, List<CoordinatePair>>();
         for (var p : pairList) {
             if (p.isHorizontal())
-                horizontal.computeIfAbsent(p.getC1().getY(), y -> new ArrayList<>()).add(p);
+                horizontal.computeIfAbsent(p.c1().getY(), y -> new ArrayList<>()).add(p);
             else if (p.isVertical())
-                vertical.computeIfAbsent(p.getC1().getX(), x -> new ArrayList<>()).add(p);
+                vertical.computeIfAbsent(p.c2().getX(), x -> new ArrayList<>()).add(p);
         }
 
         // May not really matter if we start with horizontal or vertical
@@ -320,19 +320,19 @@ class ContourTracingUtils {
             return List.of();
 
         List<List<IntPoint>> lines = new ArrayList<>();
-        IntPoint firstCoord = pairs.getFirst().getC1();
-        IntPoint secondCoord = pairs.getFirst().getC2();
+        IntPoint firstCoord = pairs.getFirst().c1();
+        IntPoint secondCoord = pairs.getFirst().c2();
         for (int i = 1; i < pairs.size(); i++) {
             var p = pairs.get(i);
-            if (!secondCoord.equals(p.getC1()) || counter.test(secondCoord)) {
+            if (!secondCoord.equals(p.c1()) || counter.test(secondCoord)) {
                 // Finish the line we were building & start a new one
                 lines.add(createLineString(firstCoord, secondCoord));
-                firstCoord = p.getC1();
-                secondCoord = p.getC2();
+                firstCoord = p.c1();
+                secondCoord = p.c2();
                 continue;
             } else {
                 // Continue the line
-                secondCoord = p.getC2();
+                secondCoord = p.c2();
             }
         }
         lines.add(createLineString(firstCoord, secondCoord));

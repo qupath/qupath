@@ -5,16 +5,10 @@ package qupath.lib.analysis.images;
  * Value is stored in a packed long to try to maximize efficiency.
  * See https://github.com/qupath/qupath/issues/1780
  */
-final class IntPoint implements Comparable<IntPoint> {
-
-    private final long value;
+record IntPoint(long value) implements Comparable<IntPoint> {
 
     public IntPoint(int x, int y) {
         this(packLong(x, y));
-    }
-
-    public IntPoint(long packedValue) {
-        this.value = packedValue;
     }
 
     public static long packLong(int x, int y) {
@@ -39,19 +33,6 @@ final class IntPoint implements Comparable<IntPoint> {
 
     public long getLongValue() {
         return value;
-    }
-
-    @Override
-    public boolean equals(Object other) {
-        if (other instanceof IntPoint p)
-           return this.value == p.value;
-        else
-            return false;
-    }
-
-    @Override
-    public int hashCode() {
-        return Long.hashCode(value);
     }
 
     @Override

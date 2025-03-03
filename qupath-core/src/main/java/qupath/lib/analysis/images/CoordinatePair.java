@@ -1,18 +1,12 @@
 package qupath.lib.analysis.images;
 
 import java.util.Comparator;
-import java.util.Objects;
 
-class CoordinatePair implements Comparable<CoordinatePair> {
+record CoordinatePair(IntPoint c1, IntPoint c2) implements Comparable<CoordinatePair> {
 
     private static final Comparator<IntPoint> topLeftCoordinateComparator = Comparator.comparingDouble(IntPoint::getY)
             .thenComparingDouble(IntPoint::getX);
 
-
-    private final IntPoint c1;
-    private final IntPoint c2;
-
-    private final int hash;
 
     CoordinatePair(IntPoint c1, IntPoint c2) {
         var comp = topLeftCoordinateComparator.compare(c1, c2);
@@ -26,7 +20,6 @@ class CoordinatePair implements Comparable<CoordinatePair> {
             throw new IllegalArgumentException("Coordinates should not be the same!");
         if (!isHorizontal() && !isVertical())
             throw new IllegalArgumentException("Coordinate pairs should be horizontal or vertical!");
-        this.hash = Objects.hash(c1, c2);
     }
 
     boolean isHorizontal() {
@@ -35,38 +28,6 @@ class CoordinatePair implements Comparable<CoordinatePair> {
 
     boolean isVertical() {
         return c1.getX() == c2.getX() && c1.getY() != c2.getY();
-    }
-
-    /**
-     * This does <i>not</i> make a defensive copy; the caller should not modify the returned coordinate.
-     *
-     * @return
-     */
-    IntPoint getC1() {
-        return c1;
-    }
-
-    /**
-     * This does <i>not</i> make a defensive copy; the caller should not modify the returned coordinate.
-     *
-     * @return
-     */
-    IntPoint getC2() {
-        return c2;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (o instanceof CoordinatePair pair) {
-            return c1.equals(pair.c1) && c2.equals(pair.c2);
-        } else {
-            return false;
-        }
-    }
-
-    @Override
-    public int hashCode() {
-        return hash;
     }
 
     @Override
