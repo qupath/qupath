@@ -268,7 +268,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		// Make a defensive copy, since the cache is critical
 		var cache = getCache();
 		var currentPath = request.getPath();
-		if (request.getPath().equals(currentPath)) {
+		if (request.getPath().equals(currentPath) && cache != null) {
 			BufferedImage img = cache.getOrDefault(request, null);
 			if (img != null)
 				return BufferedImageTools.duplicate(img);
