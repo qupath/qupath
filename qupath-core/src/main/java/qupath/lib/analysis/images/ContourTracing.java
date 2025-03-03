@@ -798,7 +798,7 @@ public class ContourTracing {
 			logger.debug("Created {} with {} coordinates", geometry.getGeometryType(), geometry.getNumPoints());
 			return geometry;
 		} catch (Throwable e) {
-			logger.error("Error in polygonization: {}", e.getMessage());
+			logger.error("Error in polygonization: {}", e.getMessage(), e);
 			return factory.createEmpty(2);
 		}
 	}
