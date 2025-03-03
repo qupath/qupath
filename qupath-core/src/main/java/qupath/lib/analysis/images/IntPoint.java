@@ -31,10 +31,6 @@ record IntPoint(long value) implements Comparable<IntPoint> {
         return unpackY(value);
     }
 
-    public long getLongValue() {
-        return value;
-    }
-
     @Override
     public int compareTo(IntPoint o) {
         return Long.compare(value, o.value);
