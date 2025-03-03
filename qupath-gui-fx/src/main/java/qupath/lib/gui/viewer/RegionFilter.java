@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -41,7 +41,7 @@ public interface RegionFilter extends BiPredicate<ImageData<?>, RegionRequest> {
 	/**
 	 * Standard classification regions (hopefully all you will ever need).
 	 */
-	public enum StandardRegionFilters implements RegionFilter {
+	enum StandardRegionFilters implements RegionFilter {
 	
 		/**
 		 * Accept all requests
@@ -120,10 +120,8 @@ public interface RegionFilter extends BiPredicate<ImageData<?>, RegionRequest> {
 					if (region.contains((int)p.getX(), (int)p.getY(), roi.getZ(), roi.getT()))
 						return true;
 				}
-			} else {
-				var shape = roi.getShape();
-				if (shape.intersects(region.getX(), region.getY(), region.getWidth(), region.getHeight()))
-					return true;
+			} else if (roi.intersects(region)) {
+				return true;
 			}
 		}
 		return false;

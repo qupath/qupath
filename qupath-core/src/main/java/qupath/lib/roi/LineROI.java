@@ -25,6 +25,7 @@ package qupath.lib.roi;
 
 import java.awt.Shape;
 import java.awt.geom.Line2D;
+import java.awt.geom.Rectangle2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -210,10 +211,15 @@ public class LineROI extends AbstractPathROI implements Serializable {
 		return Arrays.asList(new Point2(x, y),
 				new Point2(x2, y2));
 	}
-	
-	
+
 	@Override
 	public Shape getShape() {
+		// Create a new line (it isn't expensive)
+		return createShape();
+	}
+
+	@Override
+	protected Line2D createShape() {
 		return new Line2D.Double(x, y, x2, y2);
 	}
 	
@@ -305,6 +311,13 @@ public class LineROI extends AbstractPathROI implements Serializable {
 	@Override
 	public boolean contains(double x, double y) {
 		return false;
+	}
+
+	@Override
+	public boolean intersects(double x, double y, double width, double height) {
+		if (!intersectsBounds(x, y, width, height))
+			return false;
+		return new Rectangle2D.Double(x, y, width, height).intersectsLine(getX1(), getY1(), getX2(), getY2());
 	}
 
 	@Override

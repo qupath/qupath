@@ -31,6 +31,7 @@ import org.locationtech.jts.geom.Geometry;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 
 /**
  * Base interface for defining regions of interest (ROIs) within QuPath.
@@ -339,7 +340,35 @@ public interface ROI {
 	 * @return
 	 */
 	boolean contains(double x, double y);
-	
+
+	/**
+	 * Test if the ROI intersects a specified image region.
+	 * <p>
+	 * Note that this test is intended as a fast initial filter; a more detailed test using
+	 * {@link #getGeometry()} is recommended when exact results are needed.
+	 *
+	 * @param region the region to test
+	 * @return true if the ROI intersects the region, false otherwise
+	 */
+	default boolean intersects(ImageRegion region) {
+		return getZ() == region.getZ() && getT() == region.getT() &&
+				intersects(region.getX(), region.getY(), region.getWidth(), region.getHeight());
+	}
+
+	/**
+	 * Test if the ROI intersects a specified region.
+	 * <p>
+	 * Note that this test is intended as a fast initial filter; a more detailed test using
+	 * {@link #getGeometry()} is recommended when exact results are needed.
+	 *
+	 * @param x the x coordinate of the region bounding box
+	 * @param y the y coordinate of the region bounding box
+	 * @param width the width of the region bounding box
+	 * @param height the height of the region bounding box
+	 * @return true if the ROI intersects the region, false otherwise
+	 */
+	boolean intersects(double x, double y, double width, double height);
+
 	/**
 	 * Create a new ROI defining the same region on a different {@link ImagePlane}.
 	 * The original ROI is unchanged.

@@ -41,6 +41,7 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKBWriter;
+import org.locationtech.jts.operation.predicate.RectangleIntersects;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +72,6 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	private boolean checkValid = false;
 	
 	private transient GeometryStats stats = null;
-	private transient Shape shape = null;
 
 	/**
 	 * Cache a locator for faster 'contains' checks.
@@ -174,17 +174,16 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 
 	@Override
 	public Shape getShape() {
-		if (shape == null) {
-			// Cache complex shapes
-			if (getNumPoints() < 10000)
-				return GeometryTools.geometryToShape(geometry);
-			else
-				shape = GeometryTools.geometryToShape(geometry);
-		}
+		var shape = getShapeInternal();
 		if (shape instanceof Area)
 			return new Area(shape);
 		else
 			return new Path2D.Float(shape);
+	}
+
+	@Override
+	public Shape createShape() {
+		return GeometryTools.geometryToShape(geometry);
 	}
 
 	@Override
@@ -234,6 +233,14 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		} else
 			return false;
 	}
+
+	@Override
+	public boolean intersects(double x, double y, double width, double height) {
+		if (!intersectsBounds(x, y, width, height))
+			return false;
+		return RectangleIntersects.intersects(GeometryTools.createRectangle(x, y, width, height), geometry);
+	}
+
 
 	@Override
 	public ROI translate(double dx, double dy) {

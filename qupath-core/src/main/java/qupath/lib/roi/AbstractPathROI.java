@@ -29,6 +29,9 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.GeometryTools.GeometryConverter;
 import qupath.lib.roi.interfaces.ROI;
 
+import java.awt.Shape;
+import java.lang.ref.SoftReference;
+
 /**
  * Abstract implementation of a ROI.
  * 
@@ -36,14 +39,19 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 abstract class AbstractPathROI implements ROI {
-	
+
+	private static final GeometryConverter converter = new GeometryConverter.Builder().build();
+
 	// Dimension variables
 	int c = -1; // Defaults to -1, indicating all channels
 	int t = 0;  // Defaults to 0, indicating first time point
 	int z = 0;  // Defaults to 0, indicating first z-slice
 	
 	private transient ImagePlane plane;
-	
+
+	private transient SoftReference<Shape> cachedShape;
+
+
 	public AbstractPathROI() {
 		this(null);
 	}
@@ -91,6 +99,26 @@ abstract class AbstractPathROI implements ROI {
 	public int getC() {
 		return c;
 	}
+
+	/**
+	 * Get a (possibly cached) shape representation of the ROI.
+	 * This may be mutable, and so should not be passed outside the class.
+	 * @return
+	 */
+	protected Shape getShapeInternal() {
+		var shape = cachedShape == null ? null : cachedShape.get();
+		if (shape == null) {
+			shape = createShape();
+			cachedShape = new SoftReference<>(shape);
+		}
+		return shape;
+	}
+
+	/**
+	 * Create a {@link Shape} object to represent the ROI.
+	 * @return a new Shape object
+	 */
+	protected abstract Shape createShape();
 	
 	/**
 	 * True if the bounding box has zero area
@@ -105,6 +133,24 @@ abstract class AbstractPathROI implements ROI {
 		if (isLine())
 			return getLength() == 0;
 		return false;
+	}
+
+	/**
+	 * Quick check whether the specified rectangle intersects with the bounds of this ROI.
+	 * This can be used to avoid a more expensive intersection check.
+	 * @param x x coordinate of the rectangle to test
+	 * @param y y coordinate of the rectangle to test
+	 * @param width width of the rectangle to test
+	 * @param height height of the rectangle to test
+	 * @return true if the bounds intersect, false otherwise
+	 */
+	protected boolean intersectsBounds(double x, double y, double width, double height) {
+		if (isEmpty() || width <= 0 || height <= 0)
+			return false;
+		return x + width > getBoundsX() &&
+				y + height > getBoundsY() &&
+				x < getBoundsX() + getBoundsWidth() &&
+				y < getBoundsY() + getBoundsHeight();
 	}
 	
 	@Override
@@ -126,19 +172,6 @@ abstract class AbstractPathROI implements ROI {
 			sb.append(", c=").append(getC());
 		sb.append(")");
 		return sb.toString();
-		
-//		Rectangle bounds = getBounds();
-//		return String.format("%s (%.0f, %.0f, %.0f, %.0f, z=%d, t=%d, c=%d)",
-//				getRoiName(),
-//				getBoundsX(), getBoundsY(), getBoundsWidth(), getBoundsHeight(),
-//				getZ(), getT(), getC());
-//		String name = getName();
-//		if (name != null)
-////			return name;			
-//			return name + " - " + getROIType();			
-//		return getRoiName();
-//		return String.format("%s (%.1f, %.1f)", getROIType(), getCentroidX(), getCentroidY());
-//		return "Me";
 	}
 	
 	private transient int nPoints =  -1;
@@ -170,9 +203,7 @@ abstract class AbstractPathROI implements ROI {
 	public boolean isPoint() {
 		return getRoiType() == RoiType.POINT;
 	}
-	
-	private static GeometryConverter converter = new GeometryConverter.Builder().build();
-	
+
 	@Override
 	public Geometry getGeometry() {
 		return converter.roiToGeometry(this);
@@ -200,25 +231,5 @@ abstract class AbstractPathROI implements ROI {
 	public double getSolidity() {
 		return isArea() ? getArea() / getConvexHull().getArea() : Double.NaN;
 	}
-	
-//	@Override
-//	public double getMaxDiameter() {
-//		return getScaledMaxDiameter(1, 1);		
-//	}
-//	
-//	@Override
-//	public double getMinDiameter() {
-//		return getScaledMinDiameter(1, 1);
-//	}
-//	
-//	@Override
-//	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight) {
-//		return GeometryROI.computeGeometryStats(getGeometry(), pixelWidth, pixelHeight, false).getMaxDiameter();
-//	}
-//	
-//	@Override
-//	public double getScaledMinDiameter(double pixelWidth, double pixelHeight) {
-//		return GeometryROI.computeGeometryStats(getGeometry(), pixelWidth, pixelHeight, false).getMinDiameter();
-//	}
 	
 }
