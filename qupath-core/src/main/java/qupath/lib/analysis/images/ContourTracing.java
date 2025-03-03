@@ -737,15 +737,13 @@ public class ContourTracing {
 	 */
 	private static List<CoordinatePair> createCoordinatePairs(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, TileRequest tile, Envelope envelope) {
 		// If we are translating but not rescaling, we can do this during tracing
-		double xOffset = 0;
-		double yOffset = 0;
-		double scale = 1.0;
+		int xOffset = 0;
+		int yOffset = 0;
 		if (tile != null) {
-			scale = tile.getDownsample();
-			xOffset = tile.getTileX() * scale;
-			yOffset = tile.getTileY() * scale;
+			xOffset = tile.getTileX();
+			yOffset = tile.getTileY();
 		}
-		return traceCoordinates(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, scale, envelope);
+		return traceCoordinates(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, envelope);
 	}
 
 	private static Geometry createGeometry(GeometryFactory factory, Collection<CoordinatePair> lines, RegionRequest request) {
@@ -804,7 +802,7 @@ public class ContourTracing {
 			logger.debug("Created {} with {} coordinates", geometry.getGeometryType(), geometry.getNumPoints());
 			return geometry;
 		} catch (Throwable e) {
-			System.err.println("Error in polygonization: " + e.getMessage());
+			logger.error("Error in polygonization: {}", e.getMessage());
 			return factory.createEmpty(2);
 		}
 	}
@@ -834,9 +832,9 @@ public class ContourTracing {
 			yOffset = request.getY();
 		}
 
-		var lines = traceCoordinates(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset, scale, envelope);
+		var lines = traceCoordinates(image, minThresholdInclusive, maxThresholdInclusive, 0, 0, envelope);
 
-		return createGeometry(GeometryTools.getDefaultFactory(), lines);
+		return createGeometry(GeometryTools.getDefaultFactory(), lines, xOffset, yOffset, scale);
 	}
 	
 	
@@ -1057,10 +1055,13 @@ public class ContourTracing {
 				var list = entry.getValue();
 				if (list.isEmpty())
 					continue;
+				// At this point, we have traced using tile offsets but without scaling to the full image coordinates.
+				// We need to apply the downsampling to correct for this.
+				double scale = tiles.iterator().next().getDownsample();
 				if (clipArea == null)
-					futures.put(entry.getKey(), pool.submit(() -> coordsToGeometry(list)));
+					futures.put(entry.getKey(), pool.submit(() -> coordsToGeometry(list, 0, 0, scale)));
 				else
-					futures.put(entry.getKey(), pool.submit(() -> coordsToGeometry(list).intersection(clipArea)));
+					futures.put(entry.getKey(), pool.submit(() -> coordsToGeometry(list, 0, 0, scale).intersection(clipArea)));
 			}
 			
 			for (var entry : futures.entrySet())
@@ -1082,7 +1083,7 @@ public class ContourTracing {
 	 * @param yBounds y tile boundaries; unioning is only applied over boundaries
 	 * @return
 	 */
-	private static Geometry coordsToGeometry(List<LabeledCoordinatePairs> list) {
+	private static Geometry coordsToGeometry(List<LabeledCoordinatePairs> list, double xOrigin, double yOrigin, double scale) {
 
 		var factory = GeometryTools.getDefaultFactory();
 
@@ -1093,7 +1094,7 @@ public class ContourTracing {
 		// If we just have one tile, that's what we need
 		var coords = list.stream().flatMap(g -> g.coordinates.stream()).toList();
 
-		return createGeometry(factory, coords);
+		return createGeometry(factory, coords, xOrigin, yOrigin, scale);
 	}
 
 
@@ -1279,8 +1280,8 @@ public class ContourTracing {
 	 *                 This is useful to avoid searching the entire image when only a small region is needed.
 	 * @return
 	 */
-	private static List<CoordinatePair> traceCoordinates(SimpleImage image, double min, double max, double xOffset,
-														 double yOffset, double scale, Envelope envelope) {
+	private static List<CoordinatePair> traceCoordinates(SimpleImage image, double min, double max, int xOffset,
+														 int yOffset, Envelope envelope) {
 
 		var factory = GeometryTools.getDefaultFactory();
 		var pm = factory.getPrecisionModel();
@@ -1308,14 +1309,14 @@ public class ContourTracing {
 				boolean onVerticalEdge = isOn != inRange(image, x-1, y, min, max);
 				// Check if on a horizontal edge with the previous row
 				if (onHorizontalEdge) {
-					var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale, pointCache);
+					var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y, pointCache);
 					if (lastHorizontalEdgeCoord != null) {
 						lines.add(new CoordinatePair(lastHorizontalEdgeCoord, nextEdgeCoord));
 					}
 					lastHorizontalEdgeCoord = nextEdgeCoord;
 				} else {
 					if (lastHorizontalEdgeCoord != null) {
-						var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale, pointCache);
+						var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y, pointCache);
 						lines.add(new CoordinatePair(lastHorizontalEdgeCoord, nextEdgeCoord));
 						lastHorizontalEdgeCoord = null;
 					}
@@ -1323,14 +1324,14 @@ public class ContourTracing {
 				// Check if on a vertical edge with the previous column
 				var lastVerticalEdgeCoord = lastVerticalEdgeCoords[x - xStart];
 				if (onVerticalEdge) {
-					var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale, pointCache);
+					var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y, pointCache);
 					if (lastVerticalEdgeCoord != null) {
 						lines.add(new CoordinatePair(lastVerticalEdgeCoord, nextEdgeCoord));
 					}
 					lastVerticalEdgeCoords[x - xStart] = nextEdgeCoord;
 				} else {
 					if (lastVerticalEdgeCoord != null) {
-						var nextEdgeCoord = createCoordinate(pm, xOffset + x * scale, yOffset + y * scale, pointCache);
+						var nextEdgeCoord = createCoordinate(pm, xOffset + x, yOffset + y, pointCache);
 						lines.add(new CoordinatePair(lastVerticalEdgeCoord, nextEdgeCoord));
 						lastVerticalEdgeCoords[x - xStart] = null;
 					}

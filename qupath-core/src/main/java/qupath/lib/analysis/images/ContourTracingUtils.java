@@ -180,7 +180,7 @@ class ContourTracingUtils {
         var mergeable = new MinimalCoordinateMap<List<Point2>>(Math.max(100, (int)Math.sqrt(pairList.size())));
         for (var entry : firstDirection.entrySet()) {
             var list = entry.getValue();
-            for (var ls : buildLineStrings(list, nonMergeable::contains, factory, xOrigin, yOrigin, scale)) {
+            for (var ls : buildLineStrings(list, nonMergeable::contains, factory, 0, 0, 1)) {
                 var c1 = ls.getFirst();
                 var c2 = ls.getLast();
                 boolean isMergeable = false;
@@ -202,7 +202,7 @@ class ContourTracingUtils {
         var queued = new ArrayDeque<List<Point2>>();
         for (var entry : secondDirection.entrySet()) {
             var list = entry.getValue();
-            queued.addAll(buildLineStrings(list, nonMergeable::contains, factory, xOrigin, yOrigin, scale));
+            queued.addAll(buildLineStrings(list, nonMergeable::contains, factory, 0, 0, 1));
             while (!queued.isEmpty()) {
                 var ls = queued.pop();
                 if (isClosed(ls)) {
@@ -255,11 +255,14 @@ class ContourTracingUtils {
         lines.addAll(mergeable.values());
 
         var lineStrings = new ArrayList<LineString>();
+        var pm = factory.getPrecisionModel();
         for (var line : lines) {
             var coords = new Coordinate[line.size()];
             for (int i = 0; i < line.size(); i++) {
                 var c = line.get(i);
-                coords[i] = new Coordinate(c.getX(), c.getY());
+                double x = pm.makePrecise(xOrigin + c.getX() * scale);
+                double y = pm.makePrecise(yOrigin + c.getY() * scale);
+                coords[i] = new Coordinate(x, y);
             }
             lineStrings.add(factory.createLineString(coords));
         }
