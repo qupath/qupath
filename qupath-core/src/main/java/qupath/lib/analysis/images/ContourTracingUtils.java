@@ -423,7 +423,7 @@ class ContourTracingUtils {
         }
 
         void rebuild() {
-            // Performance of hashset seems to degrate a lot when it's huge - so revert to binary search instead
+            // Performance of hashset seems to degrade a lot when it's huge - so revert to binary search instead
             if (set.size() > 1_000_000) {
                 this.values = set.stream().mapToLong(IntPoint::value).sorted().toArray();
             }

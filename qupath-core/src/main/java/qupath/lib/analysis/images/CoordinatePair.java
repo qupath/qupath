@@ -1,15 +1,9 @@
 package qupath.lib.analysis.images;
 
-import java.util.Comparator;
-
 record CoordinatePair(IntPoint c1, IntPoint c2) implements Comparable<CoordinatePair> {
 
-    private static final Comparator<IntPoint> topLeftCoordinateComparator = Comparator.comparingDouble(IntPoint::getY)
-            .thenComparingDouble(IntPoint::getX);
-
-
     CoordinatePair(IntPoint c1, IntPoint c2) {
-        var comp = topLeftCoordinateComparator.compare(c1, c2);
+        var comp = c1.compareTo(c2);
         if (comp < 0) {
             this.c1 = c1;
             this.c2 = c2;
