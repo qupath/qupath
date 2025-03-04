@@ -1,7 +1,5 @@
 package qupath.lib.lazy.interfaces;
 
-import qupath.lib.common.GeneralTools;
-
 import java.util.function.Function;
 
 /**
@@ -13,6 +11,12 @@ import java.util.function.Function;
  * @param <T> type of the output value
  */
 public interface LazyValue<S, T> {
+
+    /**
+     * Constant representing that the default number of decimal places should be used to convert floating
+     * point numbers to strings.
+     */
+    int DEFAULT_DECIMAL_PLACES = Integer.MIN_VALUE;
 
     /**
      * Create a {@link LazyValue} with specified name and help text.
@@ -117,11 +121,7 @@ public interface LazyValue<S, T> {
      */
     default String getStringValue(final S input, final int decimalPlaces) {
         var val = getValue(input);
-        return switch (val) {
-            case null -> null;
-            case Number num -> formatNumber(num.doubleValue(), decimalPlaces);
-            default -> val.toString();
-        };
+        return ValueFormatter.getStringValue(val, decimalPlaces);
     }
 
     /**
@@ -133,7 +133,7 @@ public interface LazyValue<S, T> {
      * @see #getValue(S)
      */
     default String getStringValue(final S input) {
-        return getStringValue(input, -1);
+        return getStringValue(input, DEFAULT_DECIMAL_PLACES);
     }
 
     /**
@@ -142,26 +142,5 @@ public interface LazyValue<S, T> {
      * @return the help text, or null if no help text is available
      */
     String getHelpText();
-
-
-    private static String formatNumber(double val, int decimalPlaces) {
-        if (Double.isNaN(val))
-            return "NaN";
-        if (decimalPlaces == 0)
-            return Long.toString(Math.round(val));
-        int dp = decimalPlaces;
-        // Format in some sensible way
-        if (decimalPlaces < 0) {
-            if (val > 1000)
-                dp = 1;
-            else if (val > 10)
-                dp = 2;
-            else if (val > 1)
-                dp = 3;
-            else
-                dp = 4;
-        }
-        return GeneralTools.formatNumber(val, dp);
-    }
 
 }
