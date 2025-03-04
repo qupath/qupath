@@ -214,11 +214,20 @@ public class QP {
 	/**
 	 * Placeholder for the path to the current project.
 	 * May be used as follows:
-	 * <pre>
+	 * {@snippet :
 	 *   var path = buildFilePath(PROJECT_BASE_DIR, 'subdir', 'name.txt')
-	 * </pre>
+	 * }
 	 */
 	public static final String PROJECT_BASE_DIR = "{%PROJECT}";
+
+	/**
+	 * The user's home directory, as obtained from {@code System.getProperty("user.home")}.
+	 * May be used as follows:
+	 * {@snippet :
+	 *   var path = buildFilePath(USER_HOME, "Desktop", "file-on-desktop.txt")
+	 * }
+	 */
+	public static final String USER_HOME = System.getProperty("user.home");
 	
 	
 	/**
@@ -751,14 +760,13 @@ public class QP {
 	 */
 	public static String buildFilePath(String first, String... more) throws IllegalArgumentException {
 		File file = new File(resolvePath(first));
-		for (int i = 0; i < more.length; i++) {
-			var part = more[i];
-			if (part == null)
-				throw new IllegalArgumentException("Part of the file path given to buildFilePath() is null!");
-			else if (PROJECT_BASE_DIR.equals(part))
-				throw new IllegalArgumentException("PROJECT_BASE_DIR must be the first element given to buildFilePath()");
-			file = new File(file, part);
-		}
+        for (String part : more) {
+            if (part == null)
+                throw new IllegalArgumentException("Part of the file path given to buildFilePath() is null!");
+            else if (PROJECT_BASE_DIR.equals(part))
+                throw new IllegalArgumentException("PROJECT_BASE_DIR must be the first element given to buildFilePath()");
+            file = new File(file, part);
+        }
 		var path = file.getAbsolutePath();
 		// TODO: Consider checking for questionable characters
 		return path;
@@ -768,43 +776,89 @@ public class QP {
 	 * Build a file or directory path relative to the current project, but do not make 
 	 * any changes on the file system.
 	 * This is equivalent to calling
-	 * <pre>{@code
+	 * {@snippet :
 	 *   String path = buildFilePath(PROJECT_BASE_DIR, more);
-	 * }</pre>
-	 * <p>
-	 * If you want to additionally create the directory, see {@link #makePathInProject(String...)}
+	 * }
+	 * If you want to additionally create the directory, see {@link #makePathInProject(String...)}
 	 * 
-	 * @param more additional path components to append
+	 * @param parts additional path components to append
 	 * @return
 	 * @throws IllegalArgumentException if no project path is available
 	 * @since v0.4.0
 	 * @see #makePathInProject(String...)
 	 * @see #makeFileInProject(String...)
 	 */
-	public static String buildPathInProject(String... more) throws IllegalArgumentException {
-		return buildFilePath(PROJECT_BASE_DIR, more);
+	public static String buildPathInProject(String... parts) throws IllegalArgumentException {
+		return buildFilePath(PROJECT_BASE_DIR, parts);
+	}
+
+	/**
+	 * Build a path to a directory, and create the directory if it does not already exist.
+	 * <p>
+	 * This is an alternative to calling
+	 * {@snippet :
+	 *     var path = buildFilePath("first", "second");
+	 *     mkdirs(path);
+	 * }
+	 * Note that the path that is returned will end with a separator, e.g. {@code "/path/to/dir/"} rather than
+	 * {@code "/path/to/dir"}.
+	 * This is to permit string concatenation as a way to create a full file path.
+	 * @param first the first component of the file path
+	 * @param more additional path components to append
+	 * @return a path to the directory, ending with a suitable separator
+	 * @see #buildFilePath(String, String...) 
+	 * @see #createDirectoryInProject(String...)
+	 * @since v0.6.0
+	 */
+	public static String createDirectory(String first, String... more) {
+		var path = buildFilePath(first, more);
+		if (!path.endsWith(File.separator) && !path.endsWith("/"))
+			path += "/";
+		mkdirs(path);
+		return path;
+	}
+
+	/**
+	 * Build a path to a directory, and create the directory if it does not already exist.
+	 * <p>
+	 * This is an alternative to calling
+	 * {@snippet :
+	 *     var path = buildFilePath("first", "second");
+	 *     mkdirs(path);
+	 * }
+	 * Note that the path that is returned will end with a separator, e.g. {@code "/path/to/dir/"} rather than
+	 * {@code "/path/to/dir"}.
+	 * This is to permit string concatenation as a way to create a full file path.
+	 * @param parts additional path components to append
+	 * @return a path to the directory, ending with a suitable separator
+	 * @see #createDirectory(String, String...)
+	 * @see #buildPathInProject(String...)
+	 * @since v0.6.0
+	 */
+	public static String createDirectoryInProject(String... parts) {
+		return createDirectory(PROJECT_BASE_DIR, parts);
 	}
 	
 	/**
 	 * Build a file or directory path relative to the current project, and ensure that it exists.
 	 * If it does not, an attempt will be made to create a directory with the specified name, 
 	 * and all necessary parent directories.
-	 * <p>
 	 * This is equivalent to calling
-	 * <pre>{@code
+	 * {@snippet :
 	 *   String path = buildPathInProject(PROJECT_BASE_DIR, more);
 	 *   mkdirs(path);
-	 * }</pre>
-	 * <p>
+	 * }
 	 * Note that if you need a file and not a directory, see {@link #makeFileInProject(String...)}.
 	 *  
 	 * @param more additional path components to append
-	 * @return
+	 * @return a string representing the path
 	 * @throws IllegalArgumentException if no project path is available
 	 * @since v0.4.0
 	 * @see #buildPathInProject(String...)
 	 * @see #makeFileInProject(String...)
+	 * @deprecated v0.6.0, use {@link #createDirectoryInProject(String...)} instead.
 	 */
+	@Deprecated
 	public static String makePathInProject(String... more) throws IllegalArgumentException {
 		String path = buildPathInProject(more);
 		mkdirs(path);
@@ -817,13 +871,12 @@ public class QP {
 	 * <p>
 	 * The purpose is to reduce the lines of code needed to build a usable file in a QuPath 
 	 * script. 
-	 * A Groovy script showing this method in action:
-	 * <pre>
-	 *   File file = makeFileInProject("export", "file.txt")
-	 *   file.text = "Some text here"
-	 * </pre>
-	 * <p>
-	 * Note that, if the file does not already exist, it will not be created by this method - 
+	 * An example of this method in action:
+	 * {@snippet :
+	 *   File file = makeFileInProject("export", "file.txt");
+	 *   file.text = "Some text here";
+	 * }
+	 * Note that, if the file does not already exist, it will not be created by this method -
 	 * only the directories leading to it.
 	 * Additionally, if the file refers to an existing directory then the directory will be 
 	 * returned - and will not be writable as a file.
@@ -837,10 +890,9 @@ public class QP {
 	 */
 	public static File makeFileInProject(String... more) throws IllegalArgumentException {
 		if (more.length == 0)
-			return new File(makePathInProject());
-		String basePath = makePathInProject(Arrays.copyOfRange(more, 0, more.length-1));
-		Path path = Paths.get(basePath, more[more.length-1]);
-		return path.toFile();
+			return new File(createDirectoryInProject());
+		String basePath = createDirectoryInProject(Arrays.copyOfRange(more, 0, more.length-1));
+		return new File(basePath, more[more.length-1]);
 	}
 	
 	/**
