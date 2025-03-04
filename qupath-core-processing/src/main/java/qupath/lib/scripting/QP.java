@@ -214,11 +214,20 @@ public class QP {
 	/**
 	 * Placeholder for the path to the current project.
 	 * May be used as follows:
-	 * <pre>
+	 * {@snippet :
 	 *   var path = buildFilePath(PROJECT_BASE_DIR, 'subdir', 'name.txt')
-	 * </pre>
+	 * }
 	 */
 	public static final String PROJECT_BASE_DIR = "{%PROJECT}";
+
+	/**
+	 * The user's home directory, as obtained from {@code System.getProperty("user.home")}.
+	 * May be used as follows:
+	 * {@snippet :
+	 *   var path = buildFilePath(USER_HOME, "Desktop", "file-on-desktop.txt")
+	 * }
+	 */
+	public static final String USER_HOME = System.getProperty("user.home");
 	
 	
 	/**
