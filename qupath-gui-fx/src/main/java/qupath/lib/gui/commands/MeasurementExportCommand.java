@@ -31,15 +31,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+
+import javafx.scene.control.ProgressBar;
 import org.controlsfx.control.CheckComboBox;
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.io.Files;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -83,12 +82,12 @@ import qupath.lib.projects.Projects;
  * Dialog box to export measurements
  * 
  * @author Melvin Gelbard
- *
  */
-
 public class MeasurementExportCommand implements Runnable {
 
 	private static final Logger logger = LoggerFactory.getLogger(MeasurementExportCommand.class);
+
+	private static final String title = "Export Measurements";
 
 	private final QuPathGUI qupath;
 	private final ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
@@ -96,7 +95,6 @@ public class MeasurementExportCommand implements Runnable {
 	private Dialog<ButtonType> dialog = null;
 	private Project<BufferedImage> project;
 	private final List<ProjectImageEntry<BufferedImage>> previousImages = new ArrayList<>();
-	private final ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("columnName-loader", true));
 	private Class<? extends PathObject> type = PathRootObject.class;
 	
 	// GUI
@@ -123,7 +121,7 @@ public class MeasurementExportCommand implements Runnable {
 	private void createAndShowDialog() {
 		project = qupath.getProject();
 		if (project == null) {
-			GuiTools.showNoProjectError("Export measurements");
+			GuiTools.showNoProjectError(title);
 			return;
 		}
 		
@@ -187,46 +185,26 @@ public class MeasurementExportCommand implements Runnable {
 		
 		
 		Label includeLabel = new Label("Columns to include (Optional)");
+		includeLabel.setMinWidth(Label.USE_PREF_SIZE);
 		includeLabel.setLabelFor(includeCombo);
+		includeCombo.setShowCheckedCount(true);
 		FXUtils.installSelectAllOrNoneMenu(includeCombo);
 		
-		Button btnPopulateColumns = new Button("Populate\t");
-		ProgressIndicator progressIndicator = new ProgressIndicator();
-		progressIndicator.setPrefSize(20, 20);
-		progressIndicator.setMinSize(20, 20);
+		Button btnPopulateColumns = new Button("Populate");
+		ProgressBar progressIndicator = new ProgressBar();
+		progressIndicator.setPrefHeight(10);
+		progressIndicator.setMaxWidth(Double.MAX_VALUE);
+//		progressIndicator.setMinSize(50, 50);
+		progressIndicator.setProgress(0);
 		progressIndicator.setOpacity(0);
 		Button btnResetColumns = new Button("Reset");
-		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose the specific column(s) to include (default: all)", includeLabel, includeCombo, btnPopulateColumns, progressIndicator, btnResetColumns);
-		btnPopulateColumns.setOnAction(e -> {
-			includeCombo.setDisable(true);
-			Set<String> allColumnsForCombo = Collections.synchronizedSet(new LinkedHashSet<>());
-			setType(pathObjectCombo.getSelectionModel().getSelectedItem());
-			for (int i = 0; i < listSelectionView.getTargetItems().size(); i++) {
-				ProjectImageEntry<BufferedImage> entry = listSelectionView.getTargetItems().get(i);
-				int updatedEntries = i;
-				executor.submit(() -> {
-					try (var imageData = entry.readImageData()) {
-						progressIndicator.setOpacity(100);
-						ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-						model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
-						allColumnsForCombo.addAll(model.getAllNames());
-
-						if (updatedEntries == listSelectionView.getTargetItems().size() - 1) {
-							Platform.runLater(() -> {
-								allColumnsForCombo.removeIf(Objects::isNull);
-								includeCombo.getItems().setAll(allColumnsForCombo);
-								includeCombo.getCheckModel().clearChecks();
-								includeCombo.setDisable(false);
-							});
-							progressIndicator.setOpacity(0);
-						}
-					} catch (Exception ex) {
-                        logger.warn("Error loading columns for entry {}: {}", entry.getImageName(), ex.getLocalizedMessage());
-					}
-				});
-			}
-			btnResetColumns.fire();
-		});
+		GridPaneUtils.addGridRow(optionPane, row++, 0,
+				"Choose the specific column(s) to include (default: all)",
+				includeLabel, includeCombo, btnPopulateColumns, btnResetColumns);
+		optionPane.add(progressIndicator, 1, row++);
+		btnPopulateColumns.setOnAction(e ->
+				populateColumns(List.copyOf(listSelectionView.getTargetItems()), progressIndicator)
+		);
 		
 		btnPopulateColumns.disableProperty().addListener((v, o, n) -> {
 			if (n != null && n)
@@ -252,11 +230,11 @@ public class MeasurementExportCommand implements Runnable {
 
 		FXUtils.getContentsOfType(optionPane, Label.class, false).forEach(e -> e.setMinWidth(160));
 		GridPaneUtils.setToExpandGridPaneWidth(outputText, pathObjectCombo, separatorCombo, includeCombo);
-		btnPopulateColumns.setMinWidth(100);
+		btnPopulateColumns.setMinWidth(75);
 		btnResetColumns.setMinWidth(75);
 		
 		dialog = Dialogs.builder()
-				.title("Export measurements")
+				.title(title)
 				.resizable()
 				.buttons(btnExport, ButtonType.CANCEL)
 				.content(mainPane)
@@ -277,16 +255,16 @@ public class MeasurementExportCommand implements Runnable {
 		if (result.isEmpty() || result.get() != btnExport || result.get() == ButtonType.CANCEL)
 			return;
 
-		String curExt = Files.getFileExtension(outputText.getText());
-		if (curExt.isEmpty() || (!curExt.equals("csv") && !curExt.equals("tsv"))) {
-			curExt = curExt.length() > 1 ? "." + curExt : curExt;
+		String curExt = GeneralTools.getExtension(outputText.getText()).orElse("");
+		if (!curExt.equals(".csv") && !curExt.equals(".tsv")) {
+			// Fix extension, if required
 			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
 			outputText.setText(outputText.getText().substring(0, outputText.getText().length() - curExt.length()) + ext);
 		}
 		
 		if (new File(outputText.getText()).getParent() == null) {
-			String ext = Files.getFileExtension(outputText.getText()).equals("tsv") ? ".tsv": ".csv";
+			String ext = GeneralTools.getExtension(outputText.getText()).orElse("").equals(".tsv") ? ".tsv": ".csv";
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
 			File pathOut = FileChoosers.promptToSaveFile("Output file",
 					new File(Projects.getBaseDirectory(project), outputText.getText()),
@@ -319,8 +297,8 @@ public class MeasurementExportCommand implements Runnable {
 		ProgressDialog progress = new ProgressDialog(worker);
 		progress.setWidth(600);
 		progress.initOwner(qupath.getStage());
-		progress.setTitle("Export measurements...");
-		progress.getDialogPane().setHeaderText("Export measurements");
+		progress.setTitle(title);
+		progress.getDialogPane().setHeaderText("Exporting measurements...");
 		progress.getDialogPane().setGraphic(null);
 		progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 		progress.getDialogPane().lookupButton(ButtonType.CANCEL).addEventFilter(ActionEvent.ACTION, e -> {
@@ -335,6 +313,40 @@ public class MeasurementExportCommand implements Runnable {
 		// Create & run task
 		runningTask.set(qupath.getThreadPoolManager().getSingleThreadExecutor(this).submit(worker));
 		progress.show();
+	}
+
+	private void populateColumns(List<ProjectImageEntry<BufferedImage>> imageList, ProgressIndicator progressIndicator) {
+		includeCombo.setDisable(true);
+		Set<String> allColumnsForCombo = Collections.synchronizedSet(new LinkedHashSet<>());
+		setType(pathObjectCombo.getSelectionModel().getSelectedItem());
+		progressIndicator.setProgress(0);
+		progressIndicator.setOpacity(1.0);
+		CompletableFuture.runAsync(() -> {
+				int n = imageList.size();
+				int counter = 0;
+				for (var entry : imageList) {
+					try (var imageData = entry.readImageData()) {
+						double progress = (double)counter / n;
+						Platform.runLater(() -> progressIndicator.setProgress(progress));
+						counter++;
+						ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+						model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
+						allColumnsForCombo.addAll(model.getAllNames());
+					} catch (Exception ex) {
+						logger.warn("Error loading columns for entry {}: {}", entry.getImageName(), ex.getMessage());
+						logger.debug("{}", ex.getMessage(), ex);
+					}
+				}
+			}).thenRunAsync(() -> {
+				allColumnsForCombo.removeIf(Objects::isNull);
+				includeCombo.getItems().setAll(allColumnsForCombo);
+				includeCombo.getCheckModel().clearChecks();
+				includeCombo.setDisable(false);
+				progressIndicator.setOpacity(0.0);
+				progressIndicator.setProgress(1);
+		}, Platform::runLater);
+		// Reset the checks
+		includeCombo.getCheckModel().clearChecks();
 	}
 	
 	private void setType(String typeString){
@@ -393,7 +405,7 @@ public class MeasurementExportCommand implements Runnable {
             logger.info("Measurements export to {} ({} seconds)", pathOut,
 					GeneralTools.formatNumber(timeMillis / 1000.0, 2));
 			
-			Dialogs.showMessageDialog("Export completed", "Successful export!");
+			Dialogs.showInfoNotification(title, "Export complete!");
 			return null;
 		}
 	}
