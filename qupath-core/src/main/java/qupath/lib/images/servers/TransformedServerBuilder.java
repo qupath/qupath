@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Function;
 
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
@@ -96,6 +97,93 @@ public class TransformedServerBuilder {
 	 */
 	public TransformedServerBuilder slice(int zStart, int zEnd, int zStep, int tStart, int tEnd, int tStep) {
 		server = new SlicedImageServer(server, zStart, zEnd, zStep, tStart, tEnd, tStep);
+		return this;
+	}
+
+	/**
+	 * Apply an average intensity Z-projection.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectWithAverageIntensity() {
+		return zProject(zValues -> Arrays.stream(zValues).average().orElse(0));
+	}
+
+	/**
+	 * Apply a max intensity Z-projection.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectWithMaxIntensity() {
+		return zProject(zValues -> Arrays.stream(zValues).max().orElse(0));
+	}
+
+	/**
+	 * Apply a min intensity Z-projection.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectWithMinIntensity() {
+		return zProject(zValues -> Arrays.stream(zValues).min().orElse(0));
+	}
+
+	/**
+	 * Apply a sum slices Z-projection.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectWithSum() {
+		return zProject(zValues -> Arrays.stream(zValues).sum());
+	}
+
+	/**
+	 * Apply a standard deviation Z-projection.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectWithStandardDeviation() {
+		return zProject(zValues -> {
+			if (zValues.length == 0) {
+				return 0d;
+			}
+
+			double mean = Arrays.stream(zValues).average().orElse(0);
+			return Math.sqrt((1d / zValues.length) * Arrays.stream(zValues)
+					.map(z -> Math.pow(z - mean, 2))
+					.sum());
+		});
+	}
+
+	/**
+	 * Apply a median Z-projection.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectWithMedian() {
+		return zProject(zValues -> {
+			if (zValues.length == 0) {
+				return 0d;
+			}
+
+			Arrays.sort(zValues);
+
+			if (zValues.length % 2 == 0) {
+				return (zValues[zValues.length / 2] + zValues[zValues.length / 2 - 1]) / 2;
+			} else {
+				return zValues[zValues.length / 2];
+			}
+		});
+	}
+
+	/**
+	 * Apply a Z-projection.
+	 *
+	 * @param projection a function that maps z values to a single value (i.e. a projection from multiple z-stacks
+	 *                   into one)
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProject(Function<double[], Double> projection) {
+		server = new ZProjectionImageServer(server, projection);
 		return this;
 	}
 	

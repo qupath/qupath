@@ -590,7 +590,47 @@ public class ImageServers {
 				);
 			}
 		}
+	}
 
+	static class ZProjectionImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+
+		private final ServerBuilder<BufferedImage> builder;
+		private final Function<double[], Double> projection;
+
+		public ZProjectionImageServerBuilder(
+				ImageServerMetadata metadata,
+				ServerBuilder<BufferedImage> builder,
+				Function<double[], Double> projection
+		) {
+			super(metadata);
+
+			this.builder = builder;
+			this.projection = projection;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new ZProjectionImageServer(builder.build(), projection);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder) {
+				return this;
+			} else {
+				return new ZProjectionImageServerBuilder(
+						getMetadata().orElse(null),
+						newBuilder,
+						projection
+				);
+			}
+		}
 	}
 	
 	static class AffineTransformImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
