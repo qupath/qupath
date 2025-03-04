@@ -229,7 +229,7 @@ public class MeasurementExporter {
 	 * @return this exporter
 	 */
 	public MeasurementExporter imageList(List<ProjectImageEntry<BufferedImage>> imageList) {
-		this.imageList = imageList;
+		this.imageList = List.copyOf(imageList);
 		return this;
 	}
 
@@ -385,6 +385,11 @@ public class MeasurementExporter {
 
 
 	private void doExport(OutputStream stream, String separator) throws IOException, InterruptedException {
+		if (imageList == null || imageList.isEmpty()) {
+			logger.warn("No images selected for export!");
+			return;
+		}
+
 		long startTime = System.currentTimeMillis();
 
 		int n = imageList.size();
