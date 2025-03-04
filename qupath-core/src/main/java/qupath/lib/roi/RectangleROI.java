@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -31,6 +31,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
+import org.locationtech.jts.operation.predicate.RectangleIntersects;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
@@ -61,7 +62,12 @@ public class RectangleROI extends AbstractPathBoundedROI implements Serializable
 	public boolean contains(double x, double y) {
 		return x >= this.x && x < x2 && y >= this.y && y < y2;
 	}
-	
+
+	@Override
+	public boolean intersects(double x, double y, double width, double height) {
+		return intersectsBounds(x, y, width, height);
+	}
+
 	@Override
 	public String getRoiName() {
 		return "Rectangle";
@@ -108,14 +114,13 @@ public class RectangleROI extends AbstractPathBoundedROI implements Serializable
 				new Point2(x, y2));
 	}
 
-//	@Override
-//	public Rectangle2D getShape() {
-//		return new Rectangle2D.Double(getBoundsX(), getBoundsY(), getBoundsWidth(), getBoundsHeight());
-//	}
-	
-	
 	@Override
 	public Shape getShape() {
+		return createShape();
+	}
+
+	@Override
+	protected Shape createShape() {
 		return new Rectangle2D.Double(x, y, x2-x, y2-y);
 	}
 	

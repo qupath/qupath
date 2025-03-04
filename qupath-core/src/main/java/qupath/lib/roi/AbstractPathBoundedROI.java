@@ -76,44 +76,6 @@ abstract class AbstractPathBoundedROI extends AbstractPathROI {
 		}
 	}
 	
-	
-//	public void updateAdjustment(double xx, double yy, boolean shiftDown) {
-//		if (isAdjusting) {
-//			// Update x & y
-//			// If pressing shift, constrain to be square
-//			if (shiftDown) {
-//				double w = x - xx;
-//				double h = y - yy;
-//				if (w != 0 && h != 0) {
-//					double len = Math.min(Math.abs(w), Math.abs(h));
-//					w = Math.signum(w) * len;
-//					h = Math.signum(h) * len;
-//				}
-//				x2 = x - w;
-//				y2 = y - h;		
-//			} else {
-//				x2 = xx;
-//				y2 = yy;
-//			}
-//		}
-//	}
-	
-	
-//	public void finishAdjusting(double x, double y, boolean shiftDown) {
-//		super.finishAdjusting(x, y, shiftDown);
-//		ensureOrder();
-//	}
-	
-	
-//	public boolean translate(double dx, double dy) {
-//		// Shift the bounds
-//		x += dx;
-//		y += dy;
-//		x2 += dx;
-//		y2 += dy;
-//		return dx != 0 || dy != 0;
-//	}
-	
 	@Override
 	public double getCentroidX() {
 		return (x + x2) * 0.5;
@@ -134,12 +96,12 @@ abstract class AbstractPathBoundedROI extends AbstractPathROI {
 	
 	@Override
 	public double getBoundsX() {
-		return x < x2 ? x : x2;
+		return Math.min(x, x2);
 	}
 	
 	@Override
 	public double getBoundsY() {
-		return y < y2 ? y : y2;
+		return Math.min(y, y2);
 	}
 	
 	@Override

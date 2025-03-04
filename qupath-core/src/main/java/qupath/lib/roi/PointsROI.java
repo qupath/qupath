@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -44,7 +44,7 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private List<Point2> points = new ArrayList<>();
+	private final List<Point2> points = new ArrayList<>();
 	
 //	// Point radius no longer sorted internally (it's really a display thing)
 //	@Deprecated
@@ -58,7 +58,7 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	PointsROI() {
 		this(Double.NaN, Double.NaN);
 	}
-	
+
 	private PointsROI(double x, double y) {
 		this(x, y, null);
 	}
@@ -387,7 +387,11 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	public Shape getShape() throws UnsupportedOperationException {
 		throw new UnsupportedOperationException("PointROI does not support getShape()!");
 	}
-	
+
+	@Override
+	protected Shape createShape() {
+		throw new UnsupportedOperationException("PointROI does not support createShape()!");
+	}
 	
 //	/**
 //	 * throws UnsupportedOperationException
@@ -474,6 +478,19 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	
 	@Override
 	public boolean contains(double x, double y) {
+		return false;
+	}
+
+	@Override
+	public boolean intersects(double x, double y, double width, double height) {
+		for (var p : points) {
+			double px = p.getX();
+			double py = p.getY();
+			// Note that other classes (e.g. Rectangle, Polygon) exclude on boundaries
+			if (px > x && py > y && px < x + width && py < y + height) {
+				return true;
+			}
+		}
 		return false;
 	}
 

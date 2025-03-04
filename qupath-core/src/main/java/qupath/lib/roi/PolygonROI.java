@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -32,6 +32,7 @@ import java.lang.ref.SoftReference;
 import java.util.List;
 import org.locationtech.jts.geom.Geometry;
 
+import org.locationtech.jts.operation.predicate.RectangleIntersects;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
@@ -133,6 +134,13 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 
 	@Override
 	public Geometry getGeometry() {
+		return getGeometryInternal().copy();
+	}
+
+	/**
+	 * Get a Geometry for internal use. This will <i>not</i> be copied, so shouldn't be leaked to consumers.
+	 */
+	private Geometry getGeometryInternal() {
 		// Cache a soft reference because converting polygons to
 		// (valid) geometries can be expensive
 		var geom = cachedGeometry == null ? null : cachedGeometry.get();
@@ -140,7 +148,7 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 			geom = super.getGeometry();
 			cachedGeometry = new SoftReference<>(geom);
 		}
-		return geom.copy();
+		return geom;
 	}
 	
 	/**
@@ -191,7 +199,15 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	public boolean contains(double x, double y) {
 		return WindingTest.getWindingNumber(vertices, x, y) != 0;
 	}
-	
+
+	@Override
+	public boolean intersects(double x, double y, double width, double height) {
+		if (!intersectsBounds(x, y, width, height))
+			return false;
+		// Use the Geometry because it should be more reliable than the shape
+		return RectangleIntersects.intersects(GeometryTools.createRectangle(x, y, width, height), getGeometryInternal());
+	}
+
 	/* (non-Javadoc)
 	 * @see qupath.lib.rois.PolygonROI#translate(double, double)
 	 */
@@ -263,9 +279,13 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 //		return getScaledArea(pixelWidth, pixelHeight) / getScaledConvexArea(pixelWidth, pixelHeight);
 //	}
 
-	
 	@Override
 	public Shape getShape() {
+		return new Path2D.Float(getShapeInternal());
+	}
+
+	@Override
+	public Shape createShape() {
 		Path2D path = new Path2D.Float();
 		Vertices vertices = getVertices();
 		for (int i = 0; i <  vertices.size(); i++) {

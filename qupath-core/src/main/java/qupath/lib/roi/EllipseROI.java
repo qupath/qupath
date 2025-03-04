@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -63,7 +63,14 @@ public class EllipseROI extends AbstractPathBoundedROI implements Serializable {
 		double ry = getBoundsHeight() * 0.5;
 		return (dx*dx/(rx*rx) + dy*dy/(ry*ry)) <= 1;
 	}
-	
+
+	@Override
+	public boolean intersects(double x, double y, double width, double height) {
+		if (!intersectsBounds(x, y, width, height))
+			return false;
+		return getShapeInternal().intersects(x, y, width, height);
+	}
+
 	@Override
 	public String getRoiName() {
 		return "Ellipse";
@@ -158,28 +165,13 @@ public class EllipseROI extends AbstractPathBoundedROI implements Serializable {
 	
 	@Override
 	public Shape getShape() {
+		return createShape();
+	}
+
+	@Override
+	protected Shape createShape() {
 		return new Ellipse2D.Double(x, y, x2-x, y2-y);
 	}
-	
-//	@Override
-//	public double getMaxDiameter() {
-//		return Math.max(getBoundsWidth(), getBoundsHeight());
-//	}
-//	
-//	@Override
-//	public double getMinDiameter() {
-//		return Math.min(getBoundsWidth(), getBoundsHeight());
-//	}
-//	
-//	@Override
-//	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight) {
-//		return Math.max(getBoundsWidth()*pixelWidth, getBoundsHeight()*pixelHeight);
-//	}
-//	
-//	@Override
-//	public double getScaledMinDiameter(double pixelWidth, double pixelHeight) {
-//		return Math.min(getBoundsWidth()*pixelWidth, getBoundsHeight()*pixelHeight);
-//	}
 	
 	private Object writeReplace() {
 		return new SerializationProxy(this);

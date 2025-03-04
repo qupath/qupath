@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,6 +24,8 @@
 package qupath.lib.roi;
 
 import java.awt.Shape;
+import java.awt.geom.Area;
+import java.awt.geom.Path2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -33,6 +35,7 @@ import java.util.List;
 
 import org.locationtech.jts.geom.Geometry;
 
+import org.locationtech.jts.operation.predicate.RectangleIntersects;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
@@ -65,7 +68,7 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 	
 	transient List<MutableVertices> vertices;
 
-	transient Geometry geometry;
+	transient volatile Geometry geometry;
 
 	// We potentially spend a lot of time drawing polygons & assessing whether or not to draw them...
 	// By caching the bounds this can be speeded up
@@ -176,6 +179,13 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 			sum += WindingTest.getWindingNumber(v, x, y);
 		}
 		return sum != 0;
+	}
+
+	@Override
+	public boolean intersects(double x, double y, double width, double height) {
+		if (!intersectsBounds(x, y, width, height))
+			return false;
+		return RectangleIntersects.intersects(GeometryTools.createRectangle(x, y, width, height), getGeometry());
 	}
 
 	@Override
@@ -363,9 +373,18 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 		return geometry;
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
 	public Shape getShape() {
+		var shape = getShapeInternal();
+		if (shape instanceof Area)
+			return new Area(shape);
+		else
+			return new Path2D.Float(getShapeInternal());
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	protected Shape createShape() {
 		return new AWTAreaROI(this).getShape();
 	}
 

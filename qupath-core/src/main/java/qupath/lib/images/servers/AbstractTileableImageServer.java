@@ -164,7 +164,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	/**
 	 * Map of tiles currently being requested, so avoid duplicate requests (wait instead for the first request to return).
 	 */
-	private Map<TileRequest, TileTask> pendingTiles = new ConcurrentHashMap<>();
+	private final Map<TileRequest, TileTask> pendingTiles = new ConcurrentHashMap<>();
 	
 	/**
 	 * Count of how many duplicate requests are received for a pending tile.
@@ -267,10 +267,13 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		// Check if we already have a tile for precisely this occasion - with the right server path
 		// Make a defensive copy, since the cache is critical
 		var cache = getCache();
-		BufferedImage img = request.getPath().equals(getPath()) && cache != null ? cache.get(request) : null;
-		if (img != null)
-			return BufferedImageTools.duplicate(img);
-		
+		var currentPath = request.getPath();
+		if (request.getPath().equals(currentPath) && cache != null) {
+			BufferedImage img = cache.getOrDefault(request, null);
+			if (img != null)
+				return BufferedImageTools.duplicate(img);
+		}
+
 		// Figure out which tiles we need
 		Collection<TileRequest> tiles = getTileRequestManager().getTileRequests(request);
 		
@@ -417,7 +420,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			imgResult = resizeIfNeeded(imgResult, width, height);
 
 			long endTime = System.currentTimeMillis();
-			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
+            logger.trace("Requested {} tiles in {} ms (non-RGB)", tiles.size(), endTime - startTime);
 			return imgResult;
 		}
 	}

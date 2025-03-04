@@ -32,13 +32,13 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
+import qupath.lib.gui.viewer.RegionFilter;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -60,8 +60,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Function;
@@ -87,10 +89,10 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
     private ObjectProperty<ImageRenderer> renderer = new SimpleObjectProperty<>();
     private long rendererLastTimestamp = 0L;
 
-    private Map<RegionRequest, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
+    private Map<RegionRequest, BufferedImage> cacheRGB = new ConcurrentHashMap<>();
     private Set<TileRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
     private Set<TileRequest> currentRequests = Collections.synchronizedSet(new HashSet<>());
-    
+
     private int maxThreads = ThreadTools.getParallelism();
     private ThreadPoolExecutor pool;
     
@@ -102,6 +104,9 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
     
     private ObservableBooleanValue showOverlay;
 
+	private RegionFilter lastRegionFilter;
+	private Map<RegionRequest, Boolean> acceptedTiles = new HashMap<>();
+	private long lastHierarchyEventCount = -1L;
     
     private PixelClassificationOverlay(final OverlayOptions options, final int nThreads, final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun) {
         super(options);
@@ -351,8 +356,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
      */
     public ImageServer<BufferedImage> getPixelClassificationServer(ImageData<BufferedImage> imageData) {
     	// TODO: Support not caching servers (e.g. if the caching is performed externally) - probably by accepting a map in a create method (so the map becomes the cache)
-//    	return imageData == null ? null : createPixelClassificationServer(imageData);
-    	return imageData == null ? null : cachedServers.computeIfAbsent(imageData, data -> createPixelClassificationServer(data));
+    	return imageData == null ? null : cachedServers.computeIfAbsent(imageData, this::createPixelClassificationServer);
     }
     
     @Override
@@ -385,9 +389,11 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 
         // If we have a filter, we might not need to do anything
     	var filter = getOverlayOptions().getPixelClassificationRegionFilter();
-    	// Avoid this check; it causes confusion when zoomed in
-//    	if (!filter.test(imageData, fullRequest))
-//    		return;
+		if (!Objects.equals(filter, lastRegionFilter)) {
+			resetAcceptedTiles();
+			lastRegionFilter = filter;
+		}
+
         
     	var renderer = this.renderer.get();
         if (renderer != null && rendererLastTimestamp != renderer.getLastChangeTimestamp()) {
@@ -440,8 +446,21 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         	
         	var request = tile.getRegionRequest();
         	
-        	if (filter != null && !filter.test(imageData, request))
-        		continue;
+        	if (filter != null) {
+				// For very complex geometries, computing intersections can be very expensive -
+				// so this allows us to reduce those calculations slightly
+				if (lastHierarchyEventCount != imageData.getHierarchy().getEventCount()) {
+					// Technically we might have the same event count but a different image...
+					// however we still shouldn't find tiles in the cache wrongly, because the TileRequest
+					// won't correspond (based on the server having a unique path)
+					resetAcceptedTiles();
+					lastHierarchyEventCount = imageData.getHierarchy().getEventCount();
+				}
+				// Apply the test
+				if (!acceptedTiles.computeIfAbsent(request, r -> filter.test(imageData, r))) {
+					continue;
+				}
+			}
         	
         	// Try to get an RGB image, supplying a server that can be queried for a corresponding non-RGB cached tile if needed
             BufferedImage imgRGB = getCachedTileRGB(tile, server);
@@ -462,6 +481,11 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         }
         gCopy.dispose();
     }
+
+	private void resetAcceptedTiles() {
+		acceptedTiles.clear();
+		lastHierarchyEventCount = -1;
+	}
     
     /**
      * Get a cached RGB image if we have one.  If we don't, optionally supply a server that may be 

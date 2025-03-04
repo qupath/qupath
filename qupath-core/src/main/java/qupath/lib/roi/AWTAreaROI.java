@@ -110,6 +110,16 @@ class AWTAreaROI extends AreaROI implements Serializable {
 
 	@Override
 	public Shape getShape() {
+		return createShape();
+	}
+
+	@Override
+	protected Shape getShapeInternal() {
+		return shape;
+	}
+
+	@Override
+	protected Shape createShape() {
 		return new Path2D.Float(shape);
 	}
 	

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -29,6 +29,7 @@ import java.awt.geom.Path2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.lang.ref.SoftReference;
 import java.util.List;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
@@ -52,6 +53,8 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 	private Vertices vertices;
 	
 	private transient PolylineStats stats;
+
+	private transient SoftReference<Shape> shape;
 	
 	PolylineROI(List<Point2> points, ImagePlane plane) {
 		super(plane);
@@ -251,10 +254,14 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 	public RoiType getRoiType() {
 		return RoiType.LINE;
 	}
-	
-	
+
 	@Override
 	public Shape getShape() {
+		return new Path2D.Float(getShapeInternal());
+	}
+
+	@Override
+	public Shape createShape() {
 		Path2D path = new Path2D.Float();
 		Vertices vertices = getVertices();
 		for (int i = 0; i <  vertices.size(); i++) {
@@ -277,8 +284,15 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 	public boolean contains(double x, double y) {
 		return false;
 	}
-	
-	
+
+	@Override
+	public boolean intersects(double x, double y, double width, double height) {
+		if (!intersectsBounds(x, y, width, height))
+			return false;
+		return getShapeInternal().intersects(x, y, width, height);
+	}
+
+
 	private Object writeReplace() {
 		return new SerializationProxy(this);
 	}

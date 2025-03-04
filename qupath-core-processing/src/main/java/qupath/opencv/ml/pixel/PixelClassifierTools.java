@@ -364,7 +364,7 @@ public class PixelClassifierTools {
 		if (labels == null)
 			labels = parseClassificationLabels(server.getMetadata().getClassificationLabels(), false);
 		
-		if (labels == null || labels.isEmpty())
+		if (labels.isEmpty())
 			throw new IllegalArgumentException("Cannot create objects for server - no classification labels are available!");
 		
 		ChannelThreshold[] thresholds;
@@ -390,9 +390,9 @@ public class PixelClassifierTools {
 			default:
 				probabilityThreshold = 0.5;
 			}
-			thresholds = labels.entrySet().stream().map(e -> ChannelThreshold.createAbove(e.getKey(), probabilityThreshold)).toArray(ChannelThreshold[]::new);
+			thresholds = labels.keySet().stream().map(pathClass -> ChannelThreshold.createAbove(pathClass, probabilityThreshold)).toArray(ChannelThreshold[]::new);
 		} else
-			thresholds = labels.entrySet().stream().map(e -> ChannelThreshold.create(e.getKey())).toArray(ChannelThreshold[]::new);
+			thresholds = labels.keySet().stream().map(ChannelThreshold::create).toArray(ChannelThreshold[]::new);
 			
 
 		if (roi != null && !roi.isArea()) {
