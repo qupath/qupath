@@ -75,6 +75,7 @@ import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.MeasurementExporter;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -123,6 +124,8 @@ public class QPEx extends QP {
 			GridPaneUtils.class,
 			
 			LabeledImageServer.class,
+
+			MeasurementExporter.class,
 			
 			PathPrefs.class,
 			

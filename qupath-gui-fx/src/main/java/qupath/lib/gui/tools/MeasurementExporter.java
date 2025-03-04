@@ -46,10 +46,15 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
+import qupath.lib.lazy.interfaces.LazyValue;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.TMACoreObject;
 import qupath.lib.projects.ProjectImageEntry;
 
 
@@ -62,34 +67,125 @@ public class MeasurementExporter {
 	
 	private static final Logger logger = LoggerFactory.getLogger(MeasurementExporter.class);
 
+	/**
+	 * Constant representing that the number of decimal places to use when exporting measurements can be chosen
+	 * automatically.
+	 */
+	public static final int DECIMAL_PLACES_DEFAULT = LazyValue.DEFAULT_DECIMAL_PLACES;
+
+	/**
+	 * Default separator to use if none is specified, and we can't determine one from a file extension.
+	 */
+	private static final String DEFAULT_SEPARATOR = "\t";
+
 	private static final DoubleConsumer NULL_PROGRESS_MONITOR = d -> {};
 
 	private List<String> includeOnlyColumns = new ArrayList<>();
 	private List<String> excludeColumns = new ArrayList<>();
 	private Predicate<PathObject> filter;
+
+	private int nDecimalPlaces = DECIMAL_PLACES_DEFAULT;
 	
-	// Default: Exporting annotations
+	// Default: Export for the entire image
 	private Class<? extends PathObject> type = PathRootObject.class;
-	
-	private String separator = PathPrefs.tableDelimiterProperty().get();
+
+	// In v0.6.0 this moved away from the value in PathPrefs so that it doesn't have an indirect JavaFX dependency
+	private String separator;
 	
 	private List<ProjectImageEntry<BufferedImage>> imageList;
 
 	private DoubleConsumer progressMonitor = NULL_PROGRESS_MONITOR;
 	
 	public MeasurementExporter() {}
-	
+
+	/**
+	 * Specify how many decimal places to use for numeric output.
+	 * Default value is {@link #DECIMAL_PLACES_DEFAULT}, which will adapt the number of decimal places based on
+	 * the magnitude of the number being export.
+	 * @param decimalPlaces the number of decimal places to use
+	 * @return this export
+	 */
+	public MeasurementExporter decimalPlaces(int decimalPlaces) {
+		nDecimalPlaces = decimalPlaces;
+		return this;
+	}
+
 	/**
 	 * Specify what type of object should be exported. 
 	 * Default: image (root object).
 	 * @param type the type of object to export
 	 * @return this exporter
+	 * @see #annotations()
+	 * @see #allDetections()
+	 * @see #cells()
+	 * @see #tiles()
+	 * @see #image()
 	 */
 	public MeasurementExporter exportType(Class<? extends PathObject> type) {
 		this.type = type;
 		return this;
 	}
-	
+
+	/**
+	 * Specify that annotation measurements (only) should be export.
+	 * This will override any other object type that might previously have been set.
+	 * @return this exporter
+	 * @since v0.6.0
+	 */
+	public MeasurementExporter annotations() {
+		return exportType(PathAnnotationObject.class);
+	}
+
+	/**
+	 * Specify that detection measurements (only) should be export.
+	 * This will override any other object type that might previously have been set.
+	 * @return this exporter
+	 * @since v0.6.0
+	 */
+	public MeasurementExporter allDetections() {
+		return exportType(PathDetectionObject.class);
+	}
+
+	/**
+	 * Specify that whole-image measurements (only) should be export.
+	 * This will override any other object type that might previously have been set.
+	 * @return this exporter
+	 * @since v0.6.0
+	 */
+	public MeasurementExporter image() {
+		return exportType(PathRootObject.class);
+	}
+
+	/**
+	 * Specify that cell measurements (only) should be export.
+	 * This will override any other object type that might previously have been set.
+	 * @return this exporter
+	 * @since v0.6.0
+	 */
+	public MeasurementExporter cells() {
+		return exportType(PathCellObject.class);
+	}
+
+	/**
+	 * Specify that tile measurements (only) should be export.
+	 * This will override any other object type that might previously have been set.
+	 * @return this exporter
+	 * @since v0.6.0
+	 */
+	public MeasurementExporter tiles() {
+		return exportType(PathTileObject.class);
+	}
+
+	/**
+	 * Specify that TMA core measurements (only) should be export.
+	 * This will override any other object type that might previously have been set.
+	 * @return this exporter
+	 * @since v0.6.0
+	 */
+	public MeasurementExporter tmaCores() {
+		return exportType(TMACoreObject.class);
+	}
+
 	/**
 	 * Specify the columns that will be included in the export.
 	 * The column names are case-sensitive.
@@ -149,7 +245,9 @@ public class MeasurementExporter {
 	}
 	
 	/**
-	 * Filter the {@code PathObject}s before export (objects returning {@code true} for the predicate will be exported).
+	 * Filter the {@code PathObject}s before export (objects returning {@code true} for the predicate will be included).
+	 * This can be used as a secondary filter after the object type, e.g. to select annotations with a specific
+	 * names, or detections with specific classifications.
 	 * @param filter a filter to use to select objects for export
 	 * @return this exporter
 	 * @since v0.3.2
@@ -210,7 +308,7 @@ public class MeasurementExporter {
 	 */
 	public void exportMeasurements(File file) throws IOException, InterruptedException {
 		try (FileOutputStream fos = new FileOutputStream(file)) {
-			exportMeasurements(fos);
+			doExport(fos, getSeparatorToUse(file.getName()));
 		}
 	}
 
@@ -227,16 +325,18 @@ public class MeasurementExporter {
 	}
 
 	private MeasurementTable createMeasurementTable(ProgressMonitor monitor) throws IOException, InterruptedException {
-		int nDecimalPlaces = -1;
 		var table = new MeasurementTable();
 		var columnPredicate = createColumnPredicate();
+		// TODO: Make the kind of PathTableModel<PathObject> something customizable - a caller might want to reuse
+		//       the code to export different measurements.
 		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 
 		for (ProjectImageEntry<?> entry: imageList) {
 			if (Thread.interrupted())
 				throw new InterruptedException();
 			try (ImageData<?> imageData = entry.readImageData()) {
-				Collection<PathObject> pathObjects = imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type);
+				Collection<PathObject> pathObjects = imageData == null ? Collections.emptyList() :
+						imageData.getHierarchy().getObjects(null, type);
 				if (filter != null)
 					pathObjects = pathObjects.stream().filter(filter).toList();
 				model.setImageData(imageData, pathObjects);
@@ -251,6 +351,24 @@ public class MeasurementExporter {
 		}
 		return table;
 	}
+
+	/**
+	 * Get the separator to use.
+	 * This always returns any separator that was explicitly requested, otherwise it determines a suitable separator
+	 * from a filename, if available, or returns the default separator.
+	 */
+	private String getSeparatorToUse(String filename) {
+		if (separator != null)
+			return separator;
+		if (filename != null) {
+			var lower = filename.toLowerCase();
+			if (lower.endsWith(".csv"))
+				return ",";
+			else if (lower.endsWith(".tsv"))
+				return "\t";
+		}
+		return DEFAULT_SEPARATOR;
+	}
 	
 	/**
 	 * Exports the measurements of one or more entries in the project.
@@ -262,6 +380,11 @@ public class MeasurementExporter {
 	 * @throws IOException if the export fails
 	 */
 	public void exportMeasurements(OutputStream stream) throws IOException, InterruptedException {
+		doExport(stream, getSeparatorToUse(null));
+	}
+
+
+	private void doExport(OutputStream stream, String separator) throws IOException, InterruptedException {
 		long startTime = System.currentTimeMillis();
 
 		int n = imageList.size();
