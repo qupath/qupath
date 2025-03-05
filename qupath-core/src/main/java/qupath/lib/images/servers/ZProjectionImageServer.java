@@ -35,7 +35,7 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
          * A mean projection on the z-stacks. If the image uses the integer format, the mean
          * will be rounded up to the nearest integer.
          */
-        AVERAGE,
+        MEAN,
         /**
          * A minimum projection on the z-stacks.
          */
@@ -147,7 +147,7 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
 
                     for (int i=0; i<numberOfPixels; i++) {
                         array[c][i] = switch (projection) {
-                            case AVERAGE -> {
+                            case MEAN -> {
                                 int sum = 0;
                                 for (int z=0; z<sizeZ; z++) {
                                     sum += samples[z][i];
@@ -221,7 +221,7 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
 
                     for (int i=0; i<numberOfPixels; i++) {
                         array[c][i] = switch (projection) {
-                            case AVERAGE -> {
+                            case MEAN -> {
                                 float sum = 0;
                                 for (int z=0; z<sizeZ; z++) {
                                     sum += samples[z][i];
@@ -295,7 +295,7 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
 
                     for (int i=0; i<numberOfPixels; i++) {
                         array[c][i] = switch (projection) {
-                            case AVERAGE -> {
+                            case MEAN -> {
                                 double sum = 0;
                                 for (int z=0; z<sizeZ; z++) {
                                     sum += samples[z][i];

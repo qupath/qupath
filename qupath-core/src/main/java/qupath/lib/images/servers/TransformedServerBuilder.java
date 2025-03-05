@@ -100,12 +100,12 @@ public class TransformedServerBuilder {
 	}
 
 	/**
-	 * Apply an average Z-projection to the image.
+	 * Apply a mean Z-projection to the image.
 	 *
 	 * @return this builder
 	 */
-	public TransformedServerBuilder zProjectAverage() {
-		return zProject(ZProjectionImageServer.Projection.AVERAGE);
+	public TransformedServerBuilder zProjectMean() {
+		return zProject(ZProjectionImageServer.Projection.MEAN);
 	}
 
 	/**

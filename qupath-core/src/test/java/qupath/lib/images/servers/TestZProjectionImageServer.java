@@ -34,7 +34,7 @@ public class TestZProjectionImageServer {
         void Check_Number_Of_Z_Slices() throws Exception {
             int expectedNumberOfZSlices = 1;
 
-            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(sampleServer, ZProjectionImageServer.Projection.AVERAGE);
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(sampleServer, ZProjectionImageServer.Projection.MEAN);
 
             Assertions.assertEquals(expectedNumberOfZSlices, zProjectedServer.nZSlices());
 
@@ -45,7 +45,7 @@ public class TestZProjectionImageServer {
         void Check_Pixel_Type() throws Exception {
             PixelType expectedPixelType = getPixelType();
 
-            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(sampleServer, ZProjectionImageServer.Projection.AVERAGE);
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(sampleServer, ZProjectionImageServer.Projection.MEAN);
 
             Assertions.assertEquals(expectedPixelType, zProjectedServer.getMetadata().getPixelType());
 
@@ -53,7 +53,7 @@ public class TestZProjectionImageServer {
         }
 
         @Test
-        void Check_Average_Projection() throws Exception {
+        void Check_Mean_Projection() throws Exception {
             BufferedImage expectedImage = createImageFromPixels(
                     getAveragePixels(),
                     sampleServer.getMetadata()
@@ -61,7 +61,7 @@ public class TestZProjectionImageServer {
 
             ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(
                     sampleServer,
-                    ZProjectionImageServer.Projection.AVERAGE
+                    ZProjectionImageServer.Projection.MEAN
             );
 
             assertBufferedImagesEqual(
