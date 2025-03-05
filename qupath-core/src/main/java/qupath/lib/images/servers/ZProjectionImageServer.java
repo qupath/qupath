@@ -222,48 +222,58 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
                         rasters.get(z).getSamples(0, 0, width, height, c, samples[z]);
                     }
 
-                    for (int i=0; i<numberOfPixels; i++) {
-                        if (projection.equals(Projection.MEAN)) {
+                    if (projection.equals(Projection.MEAN)) {
+                        for (int i=0; i<numberOfPixels; i++) {
                             float sum = 0;
                             for (int z=0; z<sizeZ; z++) {
                                 sum += samples[z][i];
                             }
                             array[c][i] = sum / sizeZ;
-                        } else if (projection.equals(Projection.MIN)) {
+                        }
+                    } else if (projection.equals(Projection.MIN)) {
+                        for (int i=0; i<numberOfPixels; i++) {
                             float min = Float.MAX_VALUE;
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 min = Math.min(min, samples[z][i]);
                             }
                             array[c][i] = min;
-                        } else if (projection.equals(Projection.MAX)) {
+                        }
+                    } else if (projection.equals(Projection.MAX)) {
+                        for (int i=0; i<numberOfPixels; i++) {
                             float max = Float.MIN_VALUE;
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 max = Math.max(max, samples[z][i]);
                             }
                             array[c][i] = max;
-                        } else if (projection.equals(Projection.SUM)) {
+                        }
+                    } else if (projection.equals(Projection.SUM)) {
+                        for (int i=0; i<numberOfPixels; i++) {
                             float sum = 0;
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 sum += samples[z][i];
                             }
                             array[c][i] = sum;
-                        } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
+                        }
+                    } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
+                        for (int i=0; i<numberOfPixels; i++) {
                             float sum = 0;
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 sum += samples[z][i];
                             }
                             float mean = sum / sizeZ;
 
                             float variance = 0;
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 variance += (float) Math.pow(samples[z][i] - mean, 2);
                             }
-                            variance *= 1f/sizeZ;
+                            variance *= 1f / sizeZ;
 
                             array[c][i] = (float) Math.sqrt(variance);
-                        } else {
+                        }
+                    } else {
+                        for (int i=0; i<numberOfPixels; i++) {
                             float[] zValues = new float[sizeZ];
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 zValues[z] = samples[z][i];
                             }
 
@@ -289,48 +299,58 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
                         rasters.get(z).getSamples(0, 0, width, height, c, samples[z]);
                     }
 
-                    for (int i=0; i<numberOfPixels; i++) {
-                        if (projection.equals(Projection.MEAN)) {
+                    if (projection.equals(Projection.MEAN)) {
+                        for (int i=0; i<numberOfPixels; i++) {
                             double sum = 0;
                             for (int z=0; z<sizeZ; z++) {
                                 sum += samples[z][i];
                             }
                             array[c][i] = sum / sizeZ;
-                        } else if (projection.equals(Projection.MIN)) {
+                        }
+                    } else if (projection.equals(Projection.MIN)) {
+                        for (int i=0; i<numberOfPixels; i++) {
                             double min = Double.MAX_VALUE;
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 min = Math.min(min, samples[z][i]);
                             }
                             array[c][i] = min;
-                        } else if (projection.equals(Projection.MAX)) {
+                        }
+                    } else if (projection.equals(Projection.MAX)) {
+                        for (int i=0; i<numberOfPixels; i++) {
                             double max = Double.MIN_VALUE;
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 max = Math.max(max, samples[z][i]);
                             }
                             array[c][i] = max;
-                        } else if (projection.equals(Projection.SUM)) {
+                        }
+                    } else if (projection.equals(Projection.SUM)) {
+                        for (int i=0; i<numberOfPixels; i++) {
                             double sum = 0;
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 sum += samples[z][i];
                             }
                             array[c][i] = sum;
-                        } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
+                        }
+                    } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
+                        for (int i=0; i<numberOfPixels; i++) {
                             double sum = 0;
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 sum += samples[z][i];
                             }
                             double mean = sum / sizeZ;
 
                             double variance = 0;
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 variance += Math.pow(samples[z][i] - mean, 2);
                             }
-                            variance *= 1d/sizeZ;
+                            variance *= 1d / sizeZ;
 
                             array[c][i] = Math.sqrt(variance);
-                        } else {
+                        }
+                    } else {
+                        for (int i=0; i<numberOfPixels; i++) {
                             double[] zValues = new double[sizeZ];
-                            for (int z=0; z<sizeZ; z++) {
+                            for (int z = 0; z < sizeZ; z++) {
                                 zValues[z] = samples[z][i];
                             }
 
