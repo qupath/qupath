@@ -145,66 +145,69 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
                         rasters.get(z).getSamples(0, 0, width, height, c, samples[z]);
                     }
 
-                    for (int i=0; i<numberOfPixels; i++) {
-                        array[c][i] = switch (projection) {
-                            case MEAN -> {
-                                int sum = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    sum += samples[z][i];
-                                }
-                                yield Math.round((float) sum / sizeZ);
+                    if (projection.equals(Projection.MEAN)) {
+                        for (int i=0; i<numberOfPixels; i++) {
+                            int sum = 0;
+                            for (int z=0; z<sizeZ; z++) {
+                                sum += samples[z][i];
                             }
-                            case MIN -> {
-                                int min = Integer.MAX_VALUE;
-                                for (int z=0; z<sizeZ; z++) {
-                                    min = Math.min(min, samples[z][i]);
-                                }
-                                yield min;
+                            array[c][i] = Math.round((float) sum / sizeZ);
+                        }
+                    } else if (projection.equals(Projection.MIN)) {
+                        for (int i=0; i<numberOfPixels; i++) {
+                            int min = Integer.MAX_VALUE;
+                            for (int z = 0; z < sizeZ; z++) {
+                                min = Math.min(min, samples[z][i]);
                             }
-                            case MAX -> {
-                                int max = Integer.MIN_VALUE;
-                                for (int z=0; z<sizeZ; z++) {
-                                    max = Math.max(max, samples[z][i]);
-                                }
-                                yield max;
+                            array[c][i] = min;
+                        }
+                    } else if (projection.equals(Projection.MAX)) {
+                        for (int i=0; i<numberOfPixels; i++) {
+                            int max = Integer.MIN_VALUE;
+                            for (int z = 0; z < sizeZ; z++) {
+                                max = Math.max(max, samples[z][i]);
                             }
-                            case SUM -> {
-                                int sum = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    sum += samples[z][i];
-                                }
-                                yield sum;
+                            array[c][i] = max;
+                        }
+                    } else if (projection.equals(Projection.SUM)) {
+                        for (int i=0; i<numberOfPixels; i++) {
+                            int sum = 0;
+                            for (int z = 0; z < sizeZ; z++) {
+                                sum += samples[z][i];
                             }
-                            case STANDARD_DEVIATION -> {
-                                int sum = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    sum += samples[z][i];
-                                }
-                                float mean = (float) sum / sizeZ;
+                            array[c][i] = sum;
+                        }
+                    } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
+                        for (int i=0; i<numberOfPixels; i++) {
+                            int sum = 0;
+                            for (int z = 0; z < sizeZ; z++) {
+                                sum += samples[z][i];
+                            }
+                            float mean = (float) sum / sizeZ;
 
-                                float variance = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    variance += (float) Math.pow(samples[z][i] - mean, 2);
-                                }
-                                variance *= 1f/sizeZ;
-
-                                yield Math.round((float) Math.sqrt(variance));
+                            float variance = 0;
+                            for (int z = 0; z < sizeZ; z++) {
+                                variance += (float) Math.pow(samples[z][i] - mean, 2);
                             }
-                            case MEDIAN -> {
-                                int[] zValues = new int[sizeZ];
-                                for (int z=0; z<sizeZ; z++) {
-                                    zValues[z] = samples[z][i];
-                                }
+                            variance *= 1f / sizeZ;
 
-                                Arrays.sort(zValues);
-
-                                if (zValues.length % 2 == 0) {
-                                    yield (zValues[zValues.length / 2] + zValues[zValues.length / 2 - 1]) / 2;
-                                } else {
-                                    yield zValues[zValues.length / 2];
-                                }
+                            array[c][i] = Math.round((float) Math.sqrt(variance));
+                        }
+                    } else {
+                        for (int i=0; i<numberOfPixels; i++) {
+                            int[] zValues = new int[sizeZ];
+                            for (int z = 0; z < sizeZ; z++) {
+                                zValues[z] = samples[z][i];
                             }
-                        };
+
+                            Arrays.sort(zValues);
+
+                            if (zValues.length % 2 == 0) {
+                                array[c][i] = (zValues[zValues.length / 2] + zValues[zValues.length / 2 - 1]) / 2;
+                            } else {
+                                array[c][i] = zValues[zValues.length / 2];
+                            }
+                        }
                     }
                 }
 
@@ -220,65 +223,58 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
                     }
 
                     for (int i=0; i<numberOfPixels; i++) {
-                        array[c][i] = switch (projection) {
-                            case MEAN -> {
-                                float sum = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    sum += samples[z][i];
-                                }
-                                yield sum / sizeZ;
+                        if (projection.equals(Projection.MEAN)) {
+                            float sum = 0;
+                            for (int z=0; z<sizeZ; z++) {
+                                sum += samples[z][i];
                             }
-                            case MIN -> {
-                                float min = Float.MAX_VALUE;
-                                for (int z=0; z<sizeZ; z++) {
-                                    min = Math.min(min, samples[z][i]);
-                                }
-                                yield min;
+                            array[c][i] = sum / sizeZ;
+                        } else if (projection.equals(Projection.MIN)) {
+                            float min = Float.MAX_VALUE;
+                            for (int z=0; z<sizeZ; z++) {
+                                min = Math.min(min, samples[z][i]);
                             }
-                            case MAX -> {
-                                float max = Float.MIN_VALUE;
-                                for (int z=0; z<sizeZ; z++) {
-                                    max = Math.max(max, samples[z][i]);
-                                }
-                                yield max;
+                            array[c][i] = min;
+                        } else if (projection.equals(Projection.MAX)) {
+                            float max = Float.MIN_VALUE;
+                            for (int z=0; z<sizeZ; z++) {
+                                max = Math.max(max, samples[z][i]);
                             }
-                            case SUM -> {
-                                float sum = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    sum += samples[z][i];
-                                }
-                                yield sum;
+                            array[c][i] = max;
+                        } else if (projection.equals(Projection.SUM)) {
+                            float sum = 0;
+                            for (int z=0; z<sizeZ; z++) {
+                                sum += samples[z][i];
                             }
-                            case STANDARD_DEVIATION -> {
-                                float sum = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    sum += samples[z][i];
-                                }
-                                float mean = sum / sizeZ;
+                            array[c][i] = sum;
+                        } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
+                            float sum = 0;
+                            for (int z=0; z<sizeZ; z++) {
+                                sum += samples[z][i];
+                            }
+                            float mean = sum / sizeZ;
 
-                                float variance = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    variance += (float) Math.pow(samples[z][i] - mean, 2);
-                                }
-                                variance *= 1f/sizeZ;
-
-                                yield (float) Math.sqrt(variance);
+                            float variance = 0;
+                            for (int z=0; z<sizeZ; z++) {
+                                variance += (float) Math.pow(samples[z][i] - mean, 2);
                             }
-                            case MEDIAN -> {
-                                float[] zValues = new float[sizeZ];
-                                for (int z=0; z<sizeZ; z++) {
-                                    zValues[z] = samples[z][i];
-                                }
+                            variance *= 1f/sizeZ;
 
-                                Arrays.sort(zValues);
-
-                                if (zValues.length % 2 == 0) {
-                                    yield (zValues[zValues.length / 2] + zValues[zValues.length / 2 - 1]) / 2;
-                                } else {
-                                    yield zValues[zValues.length / 2];
-                                }
+                            array[c][i] = (float) Math.sqrt(variance);
+                        } else {
+                            float[] zValues = new float[sizeZ];
+                            for (int z=0; z<sizeZ; z++) {
+                                zValues[z] = samples[z][i];
                             }
-                        };
+
+                            Arrays.sort(zValues);
+
+                            if (zValues.length % 2 == 0) {
+                                array[c][i] = (zValues[zValues.length / 2] + zValues[zValues.length / 2 - 1]) / 2;
+                            } else {
+                                array[c][i] = zValues[zValues.length / 2];
+                            }
+                        }
                     }
                 }
 
@@ -294,65 +290,58 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
                     }
 
                     for (int i=0; i<numberOfPixels; i++) {
-                        array[c][i] = switch (projection) {
-                            case MEAN -> {
-                                double sum = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    sum += samples[z][i];
-                                }
-                                yield sum / sizeZ;
+                        if (projection.equals(Projection.MEAN)) {
+                            double sum = 0;
+                            for (int z=0; z<sizeZ; z++) {
+                                sum += samples[z][i];
                             }
-                            case MIN -> {
-                                double min = Double.MAX_VALUE;
-                                for (int z=0; z<sizeZ; z++) {
-                                    min = Math.min(min, samples[z][i]);
-                                }
-                                yield min;
+                            array[c][i] = sum / sizeZ;
+                        } else if (projection.equals(Projection.MIN)) {
+                            double min = Double.MAX_VALUE;
+                            for (int z=0; z<sizeZ; z++) {
+                                min = Math.min(min, samples[z][i]);
                             }
-                            case MAX -> {
-                                double max = Double.MIN_VALUE;
-                                for (int z=0; z<sizeZ; z++) {
-                                    max = Math.max(max, samples[z][i]);
-                                }
-                                yield max;
+                            array[c][i] = min;
+                        } else if (projection.equals(Projection.MAX)) {
+                            double max = Double.MIN_VALUE;
+                            for (int z=0; z<sizeZ; z++) {
+                                max = Math.max(max, samples[z][i]);
                             }
-                            case SUM -> {
-                                double sum = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    sum += samples[z][i];
-                                }
-                                yield sum;
+                            array[c][i] = max;
+                        } else if (projection.equals(Projection.SUM)) {
+                            double sum = 0;
+                            for (int z=0; z<sizeZ; z++) {
+                                sum += samples[z][i];
                             }
-                            case STANDARD_DEVIATION -> {
-                                double sum = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    sum += samples[z][i];
-                                }
-                                double mean = sum / sizeZ;
+                            array[c][i] = sum;
+                        } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
+                            double sum = 0;
+                            for (int z=0; z<sizeZ; z++) {
+                                sum += samples[z][i];
+                            }
+                            double mean = sum / sizeZ;
 
-                                double variance = 0;
-                                for (int z=0; z<sizeZ; z++) {
-                                    variance += Math.pow(samples[z][i] - mean, 2);
-                                }
-                                variance *= 1d/sizeZ;
-
-                                yield Math.sqrt(variance);
+                            double variance = 0;
+                            for (int z=0; z<sizeZ; z++) {
+                                variance += Math.pow(samples[z][i] - mean, 2);
                             }
-                            case MEDIAN -> {
-                                double[] zValues = new double[sizeZ];
-                                for (int z=0; z<sizeZ; z++) {
-                                    zValues[z] = samples[z][i];
-                                }
+                            variance *= 1d/sizeZ;
 
-                                Arrays.sort(zValues);
-
-                                if (zValues.length % 2 == 0) {
-                                    yield (zValues[zValues.length / 2] + zValues[zValues.length / 2 - 1]) / 2;
-                                } else {
-                                    yield zValues[zValues.length / 2];
-                                }
+                            array[c][i] = Math.sqrt(variance);
+                        } else {
+                            double[] zValues = new double[sizeZ];
+                            for (int z=0; z<sizeZ; z++) {
+                                zValues[z] = samples[z][i];
                             }
-                        };
+
+                            Arrays.sort(zValues);
+
+                            if (zValues.length % 2 == 0) {
+                                array[c][i] = (zValues[zValues.length / 2] + zValues[zValues.length / 2 - 1]) / 2;
+                            } else {
+                                array[c][i] = zValues[zValues.length / 2];
+                            }
+                        }
                     }
                 }
 
