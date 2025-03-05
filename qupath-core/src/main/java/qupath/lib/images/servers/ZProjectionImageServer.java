@@ -1,7 +1,6 @@
 package qupath.lib.images.servers;
 
 import qupath.lib.color.ColorModelFactory;
-import qupath.lib.regions.RegionRequest;
 
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
@@ -12,8 +11,10 @@ import java.awt.image.DataBufferInt;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -21,8 +22,9 @@ import java.util.List;
  * If the z-stack image uses the integer format with a bits depth of less than 32,
  * the projection image server will use the {@link PixelType#INT32} to prevent overflows.
  */
-public class ZProjectionImageServer extends TransformingImageServer<BufferedImage> {
+public class ZProjectionImageServer extends AbstractTileableImageServer {
 
+    private final ImageServer<BufferedImage> server;
     private final Projection projection;
     private final ImageServerMetadata metadata;
     /**
@@ -64,8 +66,7 @@ public class ZProjectionImageServer extends TransformingImageServer<BufferedImag
      * @param projection the type of projection to use
      */
     ZProjectionImageServer(ImageServer<BufferedImage> server, Projection projection) {
-        super(server);
-
+        this.server = server;
         this.projection = projection;
         this.metadata = new ImageServerMetadata.Builder(server.getMetadata())
                 .pixelType(switch (server.getMetadata().getPixelType()) {
@@ -81,21 +82,21 @@ public class ZProjectionImageServer extends TransformingImageServer<BufferedImag
     protected ImageServerBuilder.ServerBuilder<BufferedImage> createServerBuilder() {
         return new ImageServers.ZProjectionImageServerBuilder(
                 getMetadata(),
-                getWrappedServer().getBuilder(),
+                server.getBuilder(),
                 projection
         );
     }
 
     @Override
     protected String createID() {
-        return String.format("%s with %s projection on %s", getClass().getName(), projection, getWrappedServer().getPath());
+        return String.format("%s with %s projection on %s", getClass().getName(), projection, server.getPath());
     }
 
     @Override
-    public BufferedImage readRegion(RegionRequest request) throws IOException {
+    protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
         List<WritableRaster> zStacks = new ArrayList<>();
-        for (int z=0; z<getWrappedServer().getMetadata().getSizeZ(); z++) {
-            zStacks.add(getWrappedServer().readRegion(request.updateZ(z)).getRaster());
+        for (int z=0; z<server.getMetadata().getSizeZ(); z++) {
+            zStacks.add(server.readRegion(tileRequest.getRegionRequest().updateZ(z)).getRaster());
         }
 
         DataBuffer dataBuffer = createDataBuffer(zStacks);
@@ -109,6 +110,11 @@ public class ZProjectionImageServer extends TransformingImageServer<BufferedImag
                 false,
                 null
         );
+    }
+
+    @Override
+    public Collection<URI> getURIs() {
+        return server.getURIs();
     }
 
     @Override
@@ -126,7 +132,7 @@ public class ZProjectionImageServer extends TransformingImageServer<BufferedImag
         int height = rasters.getFirst().getHeight();
         int numberOfPixels = width * height;
         int nChannels = nChannels();
-        int sizeZ = getWrappedServer().nZSlices();
+        int sizeZ = server.nZSlices();
         PixelType pixelType = getMetadata().getPixelType();
 
         return switch (pixelType) {
