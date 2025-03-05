@@ -100,6 +100,60 @@ public class TransformedServerBuilder {
 	}
 
 	/**
+	 * Apply an average Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectAverage() {
+		return zProject(ZProjectionImageServer.Projection.AVERAGE);
+	}
+
+	/**
+	 * Apply a minimum Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMin() {
+		return zProject(ZProjectionImageServer.Projection.MIN);
+	}
+
+	/**
+	 * Apply a maximum Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMax() {
+		return zProject(ZProjectionImageServer.Projection.MAX);
+	}
+
+	/**
+	 * Apply a sum Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectSum() {
+		return zProject(ZProjectionImageServer.Projection.SUM);
+	}
+
+	/**
+	 * Apply a standard deviation Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectStandardDeviation() {
+		return zProject(ZProjectionImageServer.Projection.STANDARD_DEVIATION);
+	}
+
+	/**
+	 * Apply a median Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMedian() {
+		return zProject(ZProjectionImageServer.Projection.MEDIAN);
+	}
+
+	/**
 	 * Apply a Z-projection.
 	 *
 	 * @param projection a type of projection to convert the multiple z-stacks into one
