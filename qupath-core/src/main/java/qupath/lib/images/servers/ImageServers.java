@@ -595,12 +595,12 @@ public class ImageServers {
 	static class ZProjectionImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 
 		private final ServerBuilder<BufferedImage> builder;
-		private final Function<double[], Double> projection;
+		private final ZProjectionImageServer.Projection projection;
 
 		public ZProjectionImageServerBuilder(
 				ImageServerMetadata metadata,
 				ServerBuilder<BufferedImage> builder,
-				Function<double[], Double> projection
+				ZProjectionImageServer.Projection projection
 		) {
 			super(metadata);
 
