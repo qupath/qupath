@@ -98,6 +98,17 @@ public class TransformedServerBuilder {
 		server = new SlicedImageServer(server, zStart, zEnd, zStep, tStart, tEnd, tStep);
 		return this;
 	}
+
+	/**
+	 * Apply a Z-projection.
+	 *
+	 * @param projection a type of projection to convert the multiple z-stacks into one
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProject(ZProjectionImageServer.Projection projection) {
+		server = new ZProjectionImageServer(server, projection);
+		return this;
+	}
 	
 	/**
 	 * Apply an {@link AffineTransform} to the server. 
