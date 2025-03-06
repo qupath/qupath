@@ -575,7 +575,7 @@ public final class GeneralTools {
 	/**
 	 * Cache of NumberFormat objects
 	 */
-	private static Map<Locale, NumberFormat> formatters = new HashMap<>();
+	private static final Map<Locale, NumberFormat> formatters = new HashMap<>();
 	
 	/**
 	 * Format a value with a maximum number of decimal places, using the default Locale.
