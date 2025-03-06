@@ -1,6 +1,6 @@
 [versions]
 
-bioformats      = "8.1.0"
+bioformats      = "8.1.1"
 bioimageIoSpec  = "0.2.0-SNAPSHOT"
 omeZarrReader   = "0.5.2"
 blosc           = "1.21.6+01"
