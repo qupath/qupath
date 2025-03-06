@@ -30,6 +30,7 @@ import java.util.Locale;
 import java.util.function.Predicate;
 
 import org.slf4j.LoggerFactory;
+import qupath.lib.lazy.interfaces.LazyValue;
 import qupath.lib.objects.PathObject;
 
 /**
@@ -46,7 +47,19 @@ import qupath.lib.objects.PathObject;
  *
  */
 public interface PathTableData<T> {
-	
+
+	/**
+	 * The default number of decimal places when converting floating point values to strings.
+	 * This is permitted to change the number of decimal places based upon the magnitude of the value.
+	 */
+	int DEFAULT_DECIMAL_PLACES = LazyValue.DEFAULT_DECIMAL_PLACES;
+
+	/**
+	 * The default delimiter to use.
+	 * This is a tab, to avoid confusion between decimal separators in different locales.
+	 */
+	String DEFAULT_DELIMITER = "\t";
+
 	/**
 	 * Return an ordered list of all names, including both numeric measurements and {@link String} values.
 	 * 
@@ -110,12 +123,25 @@ public interface PathTableData<T> {
 	/**
 	 * Get a list of Strings representing table data for all items.
 	 * <p>
+	 * This will use {@link #DEFAULT_DELIMITER} and {@link #DEFAULT_DECIMAL_PLACES},
+	 * with no column filter.
+	 * @return a list of strings, with the first item giving the column names and each additional string representing
+	 * 	       a row in the table
+	 * @since v0.6.0
+	 */
+	default List<String> getRowStrings() {
+		return getRowStrings(DEFAULT_DELIMITER, DEFAULT_DECIMAL_PLACES, null);
+	}
+
+	/**
+	 * Get a list of Strings representing table data for all items.
+	 * <p>
 	 * Each entry in the list corresponds to a row.
 	 * <p>
 	 * This is equivalent to calling {@code getRowStrings(getItems(), delim, nDecimalPlaces, columnFilter)}.
 	 *
 	 * @param delim the delimiter to use between columns
-	 * @param nDecimalPlaces the number of decimal places to use for numeric values; if negative, the default number of decimal places is used
+	 * @param nDecimalPlaces the number of decimal places to use for numeric values
 	 * @param columnFilter a predicate to choose which columns to include; if null, all columns from the table are used
 	 * @return a list of strings, with the first item giving the column names and each additional string representing
 	 * 	       a row in the table
