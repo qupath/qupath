@@ -362,6 +362,10 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 		// Perform sanity check for missing features
 		logger.info("Running classifier: {}", selectedClassifiersNames);
 		var pathObjects = classifier.getCompatibleObjects(imageData);
+		if (pathObjects.isEmpty()) {
+			Dialogs.showWarningNotification(title, "No compatible objects found for " + selectedClassifiersNames);
+			return;
+		}
 		var missingCounts = classifier.getMissingFeatures(imageData, pathObjects);
 		if (!missingCounts.isEmpty()) {
 			var sb = new StringBuilder("There are missing features!");
@@ -385,6 +389,8 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 			imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
 			if (logWorkflow)
 				imageData.getHistoryWorkflow().addStep(createObjectClassifierStep(selectedClassifiersNames));
+		} else {
+			Dialogs.showWarningNotification(title, "No objects could be classified for " + selectedClassifiersNames);
 		}
 	}
 
