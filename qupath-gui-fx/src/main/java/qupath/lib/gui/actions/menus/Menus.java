@@ -53,6 +53,7 @@ public class Menus {
 				new TMAMenuActions(qupath),
 				new ClassifyMenuActions(qupath),
 				new ExtensionsMenuActions(qupath),
+				new WindowMenuActions(qupath),
 				new HelpMenuActions(qupath)
 		)) {
 			actions.addAll(builder.getActions());

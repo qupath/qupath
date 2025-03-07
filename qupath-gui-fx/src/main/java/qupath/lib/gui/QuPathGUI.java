@@ -684,6 +684,7 @@ public class QuPathGUI {
 						"Menu.Analyze",
 						"Menu.Classify",
 						"Menu.Extensions",
+						"Menu.Window",
 						"Menu.Help")
 				.stream()
 				.map(QuPathGUI::createMenuFromKey)
