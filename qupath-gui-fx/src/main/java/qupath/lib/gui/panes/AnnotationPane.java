@@ -280,7 +280,15 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 			}
 		});
 
+		
 		var titled = GuiTools.createLeftRightTitledPane("Annotation list", btnProperties);
+		titled.textProperty().bind(Bindings.createStringBinding(() -> {
+			int n = allAnnotations.size();
+			if (n == 0)
+				return "Annotation list";
+			else
+				return "Annotation list (" + n + ")";
+				}, allAnnotations));
 		// TODO: Consider additional buttons (e.g. to delete)
 
 		titled.setContent(panelObjects);
