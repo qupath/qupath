@@ -186,7 +186,7 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
             zStacks.add(server.readRegion(tileRequest.getRegionRequest().updateZ(z)).getRaster());
         }
 
-        DataBuffer dataBuffer = createDataBuffer(zStacks);
+        var dataBuffer = createDataBuffer(zStacks);
         return new BufferedImage(
                 ColorModelFactory.createColorModel(getMetadata().getPixelType(), getMetadata().getChannels()),
                 WritableRaster.createWritableRaster(
@@ -420,6 +420,17 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
         return argb;
     }
 
+    private Projector getProjector(Projection projection) {
+        return switch (projection) {
+            case MEAN -> new MeanProjector();
+            case MIN -> new MinProjector();
+            case MAX -> new MaxProjector();
+            case SUM -> new SumProjector();
+            case STANDARD_DEVIATION -> new StdDevProjector();
+            case MEDIAN -> new MedianProjector();
+        };
+    }
+
     private DataBuffer createDataBuffer(List<? extends Raster> rasters) {
         int width = rasters.getFirst().getWidth();
         int height = rasters.getFirst().getHeight();
@@ -428,338 +439,188 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
         int sizeZ = server.nZSlices();
         PixelType pixelType = getMetadata().getPixelType();
 
-        return switch (pixelType) {
-            case UINT8 -> {
-                byte[][] array = new byte[nChannels][numberOfPixels];
-                int[][] samples = new int[sizeZ][numberOfPixels];
-
-                for (int c = 0; c < nChannels; c++) {
-                    for (int z=0;z<sizeZ; z++) {
-                        rasters.get(z).getSamples(0, 0, width, height, c, samples[z]);
-                    }
-
-                    if (projection.equals(Projection.MEAN)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (byte) getMean(samples, i);
-                        }
-                    } else if (projection.equals(Projection.MIN)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (byte) getMin(samples, i);
-                        }
-                    } else if (projection.equals(Projection.MAX)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (byte) getMax(samples, i);
-                        }
-                    } else if (projection.equals(Projection.SUM)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (byte) getSum(samples, i);
-                        }
-                    } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (byte) getStandardDeviation(samples, i);
-                        }
-                    } else {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (byte) getMedian(samples, i);
-                        }
-                    }
-                }
-
-                yield new DataBufferByte(array, numberOfPixels);
-            }
-            case UINT16, INT16 -> {
-                short[][] array = new short[nChannels][numberOfPixels];
-                int[][] samples = new int[sizeZ][numberOfPixels];
-
-                for (int c = 0; c < nChannels; c++) {
-                    for (int z=0;z<sizeZ; z++) {
-                        rasters.get(z).getSamples(0, 0, width, height, c, samples[z]);
-                    }
-
-                    if (projection.equals(Projection.MEAN)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (short) getMean(samples, i);
-                        }
-                    } else if (projection.equals(Projection.MIN)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (short) getMin(samples, i);
-                        }
-                    } else if (projection.equals(Projection.MAX)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (short) getMax(samples, i);
-                        }
-                    } else if (projection.equals(Projection.SUM)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (short) getSum(samples, i);
-                        }
-                    } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (short) getStandardDeviation(samples, i);
-                        }
-                    } else {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = (short) getMedian(samples, i);
-                        }
-                    }
-                }
-
-                yield pixelType == PixelType.UINT16 ?
-                        new DataBufferUShort(array, numberOfPixels / 2) :
-                        new DataBufferShort(array, numberOfPixels / 2);
-            }
-            case INT32 -> {
-                int[][] array = new int[nChannels][numberOfPixels];
-                int[][] samples = new int[sizeZ][numberOfPixels];
-
-                for (int c = 0; c < nChannels; c++) {
-                    for (int z=0;z<sizeZ; z++) {
-                        rasters.get(z).getSamples(0, 0, width, height, c, samples[z]);
-                    }
-
-                    if (projection.equals(Projection.MEAN)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = getMean(samples, i);
-                        }
-                    } else if (projection.equals(Projection.MIN)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = getMin(samples, i);
-                        }
-                    } else if (projection.equals(Projection.MAX)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = getMax(samples, i);
-                        }
-                    } else if (projection.equals(Projection.SUM)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = getSum(samples, i);
-                        }
-                    } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = getStandardDeviation(samples, i);
-                        }
-                    } else {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            array[c][i] = getMedian(samples, i);
-                        }
-                    }
-                }
-
-                yield new DataBufferInt(array, numberOfPixels / 4);
-            }
-            case FLOAT32 -> {
-                float[][] array = new float[nChannels][numberOfPixels];
-                float[][] samples = new float[sizeZ][numberOfPixels];
-
-                for (int c = 0; c < nChannels; c++) {
-                    for (int z=0;z<sizeZ; z++) {
-                        rasters.get(z).getSamples(0, 0, width, height, c, samples[z]);
-                    }
-
-                    if (projection.equals(Projection.MEAN)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            float sum = 0;
-                            for (int z=0; z<sizeZ; z++) {
-                                sum += samples[z][i];
-                            }
-                            array[c][i] = sum / sizeZ;
-                        }
-                    } else if (projection.equals(Projection.MIN)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            float min = Float.MAX_VALUE;
-                            for (int z = 0; z < sizeZ; z++) {
-                                min = Math.min(min, samples[z][i]);
-                            }
-                            array[c][i] = min;
-                        }
-                    } else if (projection.equals(Projection.MAX)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            float max = Float.MIN_VALUE;
-                            for (int z = 0; z < sizeZ; z++) {
-                                max = Math.max(max, samples[z][i]);
-                            }
-                            array[c][i] = max;
-                        }
-                    } else if (projection.equals(Projection.SUM)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            float sum = 0;
-                            for (int z = 0; z < sizeZ; z++) {
-                                sum += samples[z][i];
-                            }
-                            array[c][i] = sum;
-                        }
-                    } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            float sum = 0;
-                            for (int z = 0; z < sizeZ; z++) {
-                                sum += samples[z][i];
-                            }
-                            float mean = sum / sizeZ;
-
-                            float variance = 0;
-                            for (int z = 0; z < sizeZ; z++) {
-                                variance += (float) Math.pow(samples[z][i] - mean, 2);
-                            }
-                            variance *= 1f / sizeZ;
-
-                            array[c][i] = (float) Math.sqrt(variance);
-                        }
-                    } else {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            float[] zValues = new float[sizeZ];
-                            for (int z = 0; z < sizeZ; z++) {
-                                zValues[z] = samples[z][i];
-                            }
-
-                            Arrays.sort(zValues);
-
-                            if (zValues.length % 2 == 0) {
-                                array[c][i] = (zValues[zValues.length / 2] + zValues[zValues.length / 2 - 1]) / 2;
-                            } else {
-                                array[c][i] = zValues[zValues.length / 2];
-                            }
-                        }
-                    }
-                }
-
-                yield new DataBufferFloat(array, numberOfPixels / 4);
-            }
-            case FLOAT64 -> {
-                double[][] array = new double[nChannels][numberOfPixels];
-                double[][] samples = new double[sizeZ][numberOfPixels];
-
-                for (int c = 0; c < nChannels; c++) {
-                    for (int z=0;z<sizeZ; z++) {
-                        rasters.get(z).getSamples(0, 0, width, height, c, samples[z]);
-                    }
-
-                    if (projection.equals(Projection.MEAN)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            double sum = 0;
-                            for (int z=0; z<sizeZ; z++) {
-                                sum += samples[z][i];
-                            }
-                            array[c][i] = sum / sizeZ;
-                        }
-                    } else if (projection.equals(Projection.MIN)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            double min = Double.MAX_VALUE;
-                            for (int z = 0; z < sizeZ; z++) {
-                                min = Math.min(min, samples[z][i]);
-                            }
-                            array[c][i] = min;
-                        }
-                    } else if (projection.equals(Projection.MAX)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            double max = Double.MIN_VALUE;
-                            for (int z = 0; z < sizeZ; z++) {
-                                max = Math.max(max, samples[z][i]);
-                            }
-                            array[c][i] = max;
-                        }
-                    } else if (projection.equals(Projection.SUM)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            double sum = 0;
-                            for (int z = 0; z < sizeZ; z++) {
-                                sum += samples[z][i];
-                            }
-                            array[c][i] = sum;
-                        }
-                    } else if (projection.equals(Projection.STANDARD_DEVIATION)) {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            double sum = 0;
-                            for (int z = 0; z < sizeZ; z++) {
-                                sum += samples[z][i];
-                            }
-                            double mean = sum / sizeZ;
-
-                            double variance = 0;
-                            for (int z = 0; z < sizeZ; z++) {
-                                variance += Math.pow(samples[z][i] - mean, 2);
-                            }
-                            variance *= 1d / sizeZ;
-
-                            array[c][i] = Math.sqrt(variance);
-                        }
-                    } else {
-                        for (int i=0; i<numberOfPixels; i++) {
-                            double[] zValues = new double[sizeZ];
-                            for (int z = 0; z < sizeZ; z++) {
-                                zValues[z] = samples[z][i];
-                            }
-
-                            Arrays.sort(zValues);
-
-                            if (zValues.length % 2 == 0) {
-                                array[c][i] = (zValues[zValues.length / 2] + zValues[zValues.length / 2 - 1]) / 2;
-                            } else {
-                                array[c][i] = zValues[zValues.length / 2];
-                            }
-                        }
-                    }
-                }
-
-                yield new DataBufferDouble(array, numberOfPixels / 8);
-            }
-            case INT8, UINT32 -> throw new UnsupportedOperationException(String.format(
-                    "Unsupported pixel type: %s", pixelType
-            ));
+        DataBuffer dataBuffer = switch (pixelType) {
+            case UINT8 -> new DataBufferByte(numberOfPixels, nChannels);
+            case UINT16 -> new DataBufferUShort(numberOfPixels, nChannels);
+            case INT16 -> new DataBufferShort(numberOfPixels, nChannels);
+            case INT32 -> new DataBufferInt(numberOfPixels, nChannels);
+            case FLOAT32 -> new DataBufferFloat(numberOfPixels, nChannels);
+            case FLOAT64 -> new DataBufferDouble(numberOfPixels, nChannels);
+            default -> throw new UnsupportedOperationException("Unsupported pixel type: " + pixelType);
         };
-    }
 
-    private static int getMean(int[][] samples, int pixelIndex) {
-        return Math.round((float) getSum(samples, pixelIndex) / samples.length);
-    }
-
-    private static int getMin(int[][] samples, int pixelIndex) {
-        int min = Integer.MAX_VALUE;
-        for (int[] sample : samples) {
-            min = Math.min(min, sample[pixelIndex]);
+        double[] samples = new double[numberOfPixels];
+        for (int c = 0; c < nChannels; c++) {
+            var projector = getProjector(projection);
+            for (int z=0;z<sizeZ; z++) {
+                rasters.get(z).getSamples(0, 0, width, height, c, samples);
+                projector.accumulate(samples);
+            }
+            if (pixelType.isFloatingPoint()) {
+                for (int i = 0; i < numberOfPixels; i++) {
+                    dataBuffer.setElemDouble(c, i, projector.getResult(i));
+                }
+            } else {
+                for (int i = 0; i < numberOfPixels; i++) {
+                    dataBuffer.setElemDouble(c, i, Math.round(projector.getResult(i)));
+                }
+            }
         }
-        return min;
+        return dataBuffer;
     }
 
-    private static int getMax(int[][] samples, int pixelIndex) {
-        int max = Integer.MIN_VALUE;
-        for (int[] sample : samples) {
-            max = Math.max(max, sample[pixelIndex]);
-        }
-        return max;
+
+    private interface Projector {
+
+        void accumulate(double[] values);
+
+        double getResult(int i);
+
     }
 
-    private static int getSum(int[][] samples, int pixelIndex) {
-        int sum = 0;
-        for (int[] sample : samples) {
-            sum += sample[pixelIndex];
-        }
-        return sum;
-    }
+    private static class SumProjector implements Projector {
 
-    private static int getStandardDeviation(int[][] samples, int pixelIndex) {
-        int sum = getSum(samples, pixelIndex);
-        float mean = (float) sum / samples.length;
+        private double[] results;
 
-        float variance = 0;
-        for (int[] sample : samples) {
-            variance += (float) Math.pow(sample[pixelIndex] - mean, 2);
-        }
-        variance *= 1f / samples.length;
-
-        return Math.round((float) Math.sqrt(variance));
-    }
-
-    private static int getMedian(int[][] samples, int pixelIndex) {
-        int[] zValues = new int[samples.length];
-        for (int z = 0; z < samples.length; z++) {
-            zValues[z] = samples[z][pixelIndex];
+        @Override
+        public void accumulate(double[] values) {
+            if (results == null) {
+                results = values.clone();
+            } else {
+                for (int i=0; i<values.length; i++) {
+                    results[i] += values[i];
+                }
+            }
         }
 
-        Arrays.sort(zValues);
-
-        if (zValues.length % 2 == 0) {
-            return Math.round(
-                    (float) (zValues[zValues.length / 2] + zValues[zValues.length / 2 - 1]) / 2
-            );
-        } else {
-            return zValues[zValues.length / 2];
+        @Override
+        public double getResult(int i) {
+            return results[i];
         }
+
     }
+
+    private static class MeanProjector extends SumProjector {
+
+        private int n = 0;
+
+        @Override
+        public void accumulate(double[] values) {
+            n++;
+            super.accumulate(values);
+        }
+
+        @Override
+        public double getResult(int i) {
+            return super.getResult(i) / n;
+        }
+
+    }
+
+    private static class MinProjector implements Projector {
+
+        private double[] results;
+
+        @Override
+        public void accumulate(double[] values) {
+            if (results == null) {
+                results = values.clone();
+            } else {
+                for (int i=0; i<values.length; i++) {
+                    results[i] = Math.min(results[i], values[i]);
+                }
+            }
+        }
+
+        @Override
+        public double getResult(int i) {
+            return results[i];
+        }
+
+    }
+
+    private static class MaxProjector implements Projector {
+
+        private double[] results;
+
+        @Override
+        public void accumulate(double[] values) {
+            if (results == null) {
+                results = values.clone();
+            } else {
+                for (int i=0; i<values.length; i++) {
+                    results[i] = Math.max(results[i], values[i]);
+                }
+            }
+        }
+
+        @Override
+        public double getResult(int i) {
+            return results[i];
+        }
+
+    }
+
+    private static class MedianProjector implements Projector {
+
+        private final List<double[]> allValues = new ArrayList<>();
+        private double[] cache;
+
+        @Override
+        public void accumulate(double[] values) {
+            allValues.add(values.clone());
+        }
+
+        @Override
+        public double getResult(int i) {
+            int n = allValues.size();
+            if (cache == null || cache.length != n) {
+                cache = new double[n];
+            }
+            for (int j=0; j<n; j++) {
+                cache[j] = allValues.get(j)[i];
+            }
+            Arrays.sort(cache);
+            if (n % 2 == 0) {
+                return (cache[n / 2] + cache[n / 2 - 1]) / 2;
+            } else {
+                return cache[n / 2];
+            }
+        }
+
+    }
+
+    private static class StdDevProjector extends SumProjector {
+
+        private double[] sum;
+        private double[] sumOfSquares;
+        private int n;
+
+        @Override
+        public void accumulate(double[] values) {
+            n++;
+            if (sum == null) {
+                sum = values.clone();
+                sumOfSquares = new double[values.length];
+                for (int i=0; i<values.length; i++) {
+                    double v = values[i];
+                    sumOfSquares[i] += v*v;
+                }
+            } else {
+                for (int i=0; i<values.length; i++) {
+                    double v = values[i];
+                    sum[i] += v;
+                    sumOfSquares[i] += v*v;
+                }
+            }
+        }
+
+        @Override
+        public double getResult(int i) {
+            double mean = sum[i] / n;
+            return Math.sqrt(sumOfSquares[i] / n - mean*mean);
+        }
+
+    }
+
 }
