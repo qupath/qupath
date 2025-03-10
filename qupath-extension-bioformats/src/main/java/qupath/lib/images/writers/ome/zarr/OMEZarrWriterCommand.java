@@ -88,10 +88,10 @@ public class OMEZarrWriterCommand implements Runnable {
             return;
         }
 
-        OMEZarrWriter.Builder builder = createBuilder(parameters, imageData, fileOutput);
+        OMEZarrWriter.Builder builder = createBuilder(parameters, imageData);
 
         task = executor.submit(() -> {
-            try (OMEZarrWriter writer = builder.build()) {
+            try (OMEZarrWriter writer = builder.build(fileOutput.getAbsolutePath())) {
                 Dialogs.showInfoNotification(
                         QuPathResources.getString("Action.BioFormats.omeZarrWriter"),
                         MessageFormat.format(
@@ -198,8 +198,8 @@ public class OMEZarrWriterCommand implements Runnable {
         }
     }
 
-    private OMEZarrWriter.Builder createBuilder(ParameterList parameters, ImageData<BufferedImage> imageData, File fileOutput) {
-        OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(imageData.getServer(), fileOutput.getAbsolutePath())
+    private OMEZarrWriter.Builder createBuilder(ParameterList parameters, ImageData<BufferedImage> imageData) {
+        OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(imageData.getServer())
                 .parallelize(parameters.getIntParameterValue("numberOfThreads"))
                 .tileSize(parameters.getIntParameterValue("tileSize"))
                 .downsamples(DoubleStream.iterate(

@@ -266,7 +266,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 					builder.build().writeSeries(outputFile.getAbsolutePath());
 				}
 				case ZARR -> {
-					OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(server, outputFile.getAbsolutePath())
+					OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(server)
 							.tileSize(tileWidth, tileHeight)
 							.region(boundingBox.orElse(null))
 							.zSlices(zSlicesRange.start(), zSlicesRange.end())
@@ -290,7 +290,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 						).toArray());
 					}
 
-					try (OMEZarrWriter writer = builder.build()) {
+					try (OMEZarrWriter writer = builder.build(outputFile.getAbsolutePath())) {
 						writer.writeImage();
 					}
 				}

@@ -49,7 +49,7 @@ public class OMEZarrWriter implements AutoCloseable {
     private final Map<Integer, ZarrArray> levelArrays;
     private final ExecutorService executorService;
 
-    private OMEZarrWriter(Builder builder) throws IOException {
+    private OMEZarrWriter(Builder builder, String path) throws IOException {
         TransformedServerBuilder transformedServerBuilder = new TransformedServerBuilder(ImageServers.pyramidalizeTiled(
                 builder.server,
                 getChunkSize(
@@ -80,11 +80,11 @@ public class OMEZarrWriter implements AutoCloseable {
         OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(server.getMetadata());
 
         ZarrGroup root = ZarrGroup.create(
-                builder.path,
+                path,
                 attributes.getGroupAttributes()
         );
 
-        OMEXMLCreator.create(server.getMetadata()).ifPresent(omeXML -> createOmeSubGroup(root, builder.path, omeXML));
+        OMEXMLCreator.create(server.getMetadata()).ifPresent(omeXML -> createOmeSubGroup(root, path, omeXML));
         levelArrays = createLevelArrays(
                 server,
                 root,
@@ -136,7 +136,7 @@ public class OMEZarrWriter implements AutoCloseable {
      * return before the tile is actually written.
      * <p>
      * Note that the image server used internally by this writer may not be the one given in
-     * {@link Builder#Builder(ImageServer, String)}. Therefore, the {@link ImageServer#getTileRequestManager() TileRequestManager}
+     * {@link Builder#Builder(ImageServer)}. Therefore, the {@link ImageServer#getTileRequestManager() TileRequestManager}
      * of the internal image server may be different from the one of the provided image server,
      * so functions like {@link TileRequestManager#getAllTileRequests()} may not return the expected tiles.
      * Use the {@link ImageServer#getTileRequestManager() TileRequestManager} of {@link #getReaderServer()}
@@ -160,7 +160,7 @@ public class OMEZarrWriter implements AutoCloseable {
 
     /**
      * Get the image server used internally by this writer to read the tiles. It can be
-     * different from the one given in {@link Builder#Builder(ImageServer, String)}.
+     * different from the one given in {@link Builder#Builder(ImageServer)}.
      * <p>
      * This function can be useful to get information like the tiles used by this server
      * (for example when using the {@link #writeTile(TileRequest)} function).
@@ -178,7 +178,6 @@ public class OMEZarrWriter implements AutoCloseable {
 
         private static final String FILE_EXTENSION = ".ome.zarr";
         private final ImageServer<BufferedImage> server;
-        private final String path;
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = 12;
         private double[] downsamples = new double[0];
@@ -195,19 +194,9 @@ public class OMEZarrWriter implements AutoCloseable {
          * Create the builder.
          *
          * @param server the image to write
-         * @param path the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
-         * @throws IllegalArgumentException when the provided path doesn't end with ".ome.zarr" or a file/directory already exists at this location
          */
-        public Builder(ImageServer<BufferedImage> server, String path) {
-            if (!path.endsWith(FILE_EXTENSION)) {
-                throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
-            }
-            if (Files.exists(Paths.get(path))) {
-                throw new IllegalArgumentException(String.format("The provided path (%s) already exists", path));
-            }
-
+        public Builder(ImageServer<BufferedImage> server) {
             this.server = server;
-            this.path = path;
             this.zEnd = this.server.nZSlices();
             this.tEnd = this.server.nTimepoints();
         }
@@ -343,12 +332,22 @@ public class OMEZarrWriter implements AutoCloseable {
          * Create a new instance of {@link OMEZarrWriter}. This will also
          * create an empty image on the provided path.
          *
+         * @param path the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
          * @return the new {@link OMEZarrWriter}
-         * @throws IOException when the empty image cannot be created. This can happen
-         * if the provided path is incorrect or if the user doesn't have enough permissions
+         * @throws IOException when the empty image cannot be created. This can happen if the provided path is incorrect
+         * or if the user doesn't have enough permissions
+         * @throws IllegalArgumentException when the provided path doesn't end with ".ome.zarr" or a file/directory already
+         * exists at this location
          */
-        public OMEZarrWriter build() throws IOException {
-            return new OMEZarrWriter(this);
+        public OMEZarrWriter build(String path) throws IOException {
+            if (!path.endsWith(FILE_EXTENSION)) {
+                throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
+            }
+            if (Files.exists(Paths.get(path))) {
+                throw new IllegalArgumentException(String.format("The provided path (%s) already exists", path));
+            }
+
+            return new OMEZarrWriter(this, path);
         }
     }
 

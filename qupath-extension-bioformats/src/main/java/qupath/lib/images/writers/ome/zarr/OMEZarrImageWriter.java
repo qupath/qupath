@@ -69,9 +69,9 @@ public class OMEZarrImageWriter implements ImageWriter<BufferedImage> {
     @Override
     public void writeImage(ImageServer<BufferedImage> server, RegionRequest region, String pathOutput) throws IOException {
         try (
-                OMEZarrWriter writer = new OMEZarrWriter.Builder(server, pathOutput)
+                OMEZarrWriter writer = new OMEZarrWriter.Builder(server)
                         .region(region)
-                        .build()
+                        .build(pathOutput)
         ) {
             writer.writeImage();
         } catch (InterruptedException e) {
