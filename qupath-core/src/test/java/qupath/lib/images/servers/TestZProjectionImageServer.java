@@ -6,7 +6,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.lib.color.ColorModelFactory;
-import qupath.lib.common.ColorTools;
 import qupath.lib.regions.RegionRequest;
 
 import java.awt.image.BandedSampleModel;
@@ -43,10 +42,21 @@ public class TestZProjectionImageServer {
         }
 
         @Test
-        void Check_Pixel_Type() throws Exception {
-            PixelType expectedPixelType = getPixelType();
+        void Check_Pixel_Type_With_Mean() throws Exception {
+            PixelType expectedPixelType = sampleServer.getMetadata().getPixelType();
 
             ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(sampleServer, ZProjectionImageServer.Projection.MEAN);
+
+            Assertions.assertEquals(expectedPixelType, zProjectedServer.getMetadata().getPixelType());
+
+            zProjectedServer.close();
+        }
+
+        @Test
+        void Check_Pixel_Type_With_Sum() throws Exception {
+            PixelType expectedPixelType = getPixelTypeWithSum();
+
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(sampleServer, ZProjectionImageServer.Projection.SUM);
 
             Assertions.assertEquals(expectedPixelType, zProjectedServer.getMetadata().getPixelType());
 
@@ -173,7 +183,7 @@ public class TestZProjectionImageServer {
             zProjectedServer.close();
         }
 
-        protected abstract PixelType getPixelType();
+        protected abstract PixelType getPixelTypeWithSum();
 
         protected abstract Object getAveragePixels();
 
@@ -197,7 +207,7 @@ public class TestZProjectionImageServer {
         }
 
         @Override
-        protected PixelType getPixelType() {
+        protected PixelType getPixelTypeWithSum() {
             return PixelType.FLOAT64;
         }
 
@@ -306,7 +316,7 @@ public class TestZProjectionImageServer {
         }
 
         @Override
-        protected PixelType getPixelType() {
+        protected PixelType getPixelTypeWithSum() {
             return PixelType.INT32;
         }
 
@@ -415,7 +425,7 @@ public class TestZProjectionImageServer {
         }
 
         @Override
-        protected PixelType getPixelType() {
+        protected PixelType getPixelTypeWithSum() {
             return PixelType.UINT8;
         }
 
