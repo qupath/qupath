@@ -105,7 +105,7 @@ public class TransformedServerBuilder {
 	 * @return this builder
 	 */
 	public TransformedServerBuilder zProjectMean() {
-		return zProject(ZProjectionImageServer.Projection.MEAN);
+		return zProject(ZProjectedImageServer.Projection.MEAN);
 	}
 
 	/**
@@ -114,7 +114,7 @@ public class TransformedServerBuilder {
 	 * @return this builder
 	 */
 	public TransformedServerBuilder zProjectMin() {
-		return zProject(ZProjectionImageServer.Projection.MIN);
+		return zProject(ZProjectedImageServer.Projection.MIN);
 	}
 
 	/**
@@ -123,7 +123,7 @@ public class TransformedServerBuilder {
 	 * @return this builder
 	 */
 	public TransformedServerBuilder zProjectMax() {
-		return zProject(ZProjectionImageServer.Projection.MAX);
+		return zProject(ZProjectedImageServer.Projection.MAX);
 	}
 
 	/**
@@ -132,7 +132,7 @@ public class TransformedServerBuilder {
 	 * @return this builder
 	 */
 	public TransformedServerBuilder zProjectSum() {
-		return zProject(ZProjectionImageServer.Projection.SUM);
+		return zProject(ZProjectedImageServer.Projection.SUM);
 	}
 
 	/**
@@ -141,7 +141,7 @@ public class TransformedServerBuilder {
 	 * @return this builder
 	 */
 	public TransformedServerBuilder zProjectStandardDeviation() {
-		return zProject(ZProjectionImageServer.Projection.STANDARD_DEVIATION);
+		return zProject(ZProjectedImageServer.Projection.STANDARD_DEVIATION);
 	}
 
 	/**
@@ -150,7 +150,7 @@ public class TransformedServerBuilder {
 	 * @return this builder
 	 */
 	public TransformedServerBuilder zProjectMedian() {
-		return zProject(ZProjectionImageServer.Projection.MEDIAN);
+		return zProject(ZProjectedImageServer.Projection.MEDIAN);
 	}
 
 	/**
@@ -159,8 +159,8 @@ public class TransformedServerBuilder {
 	 * @param projection a type of projection to convert the multiple z-stacks into one
 	 * @return this builder
 	 */
-	public TransformedServerBuilder zProject(ZProjectionImageServer.Projection projection) {
-		server = new ZProjectionImageServer(server, projection);
+	public TransformedServerBuilder zProject(ZProjectedImageServer.Projection projection) {
+		server = new ZProjectedImageServer(server, projection);
 		return this;
 	}
 	

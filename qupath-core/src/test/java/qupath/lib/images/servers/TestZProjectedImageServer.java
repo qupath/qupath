@@ -19,7 +19,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
-public class TestZProjectionImageServer {
+public class TestZProjectedImageServer {
 
     abstract static class GenericImage {
 
@@ -34,7 +34,7 @@ public class TestZProjectionImageServer {
         void Check_Number_Of_Z_Slices() throws Exception {
             int expectedNumberOfZSlices = 1;
 
-            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(sampleServer, ZProjectionImageServer.Projection.MEAN);
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(sampleServer, ZProjectedImageServer.Projection.MEAN);
 
             Assertions.assertEquals(expectedNumberOfZSlices, zProjectedServer.nZSlices());
 
@@ -45,7 +45,7 @@ public class TestZProjectionImageServer {
         void Check_Pixel_Type_With_Mean() throws Exception {
             PixelType expectedPixelType = sampleServer.getMetadata().getPixelType();
 
-            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(sampleServer, ZProjectionImageServer.Projection.MEAN);
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(sampleServer, ZProjectedImageServer.Projection.MEAN);
 
             Assertions.assertEquals(expectedPixelType, zProjectedServer.getMetadata().getPixelType());
 
@@ -56,7 +56,7 @@ public class TestZProjectionImageServer {
         void Check_Pixel_Type_With_Sum() throws Exception {
             PixelType expectedPixelType = getPixelTypeWithSum();
 
-            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(sampleServer, ZProjectionImageServer.Projection.SUM);
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(sampleServer, ZProjectedImageServer.Projection.SUM);
 
             Assertions.assertEquals(expectedPixelType, zProjectedServer.getMetadata().getPixelType());
 
@@ -70,9 +70,9 @@ public class TestZProjectionImageServer {
                     sampleServer.getMetadata()
             );
 
-            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
-                    ZProjectionImageServer.Projection.MEAN
+                    ZProjectedImageServer.Projection.MEAN
             );
 
             assertBufferedImagesEqual(
@@ -90,9 +90,9 @@ public class TestZProjectionImageServer {
                     sampleServer.getMetadata()
             );
 
-            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
-                    ZProjectionImageServer.Projection.MIN
+                    ZProjectedImageServer.Projection.MIN
             );
 
             assertBufferedImagesEqual(
@@ -110,9 +110,9 @@ public class TestZProjectionImageServer {
                     sampleServer.getMetadata()
             );
 
-            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
-                    ZProjectionImageServer.Projection.MAX
+                    ZProjectedImageServer.Projection.MAX
             );
 
             assertBufferedImagesEqual(
@@ -130,9 +130,9 @@ public class TestZProjectionImageServer {
                     sampleServer.getMetadata()
             );
 
-            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
-                    ZProjectionImageServer.Projection.SUM
+                    ZProjectedImageServer.Projection.SUM
             );
 
             assertBufferedImagesEqual(
@@ -150,9 +150,9 @@ public class TestZProjectionImageServer {
                     sampleServer.getMetadata()
             );
 
-            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
-                    ZProjectionImageServer.Projection.STANDARD_DEVIATION
+                    ZProjectedImageServer.Projection.STANDARD_DEVIATION
             );
 
             assertBufferedImagesEqual(
@@ -170,9 +170,9 @@ public class TestZProjectionImageServer {
                     sampleServer.getMetadata()
             );
 
-            ImageServer<BufferedImage> zProjectedServer = new ZProjectionImageServer(
+            ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
-                    ZProjectionImageServer.Projection.MEDIAN
+                    ZProjectedImageServer.Projection.MEDIAN
             );
 
             assertBufferedImagesEqual(

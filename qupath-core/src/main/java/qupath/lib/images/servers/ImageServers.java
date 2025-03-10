@@ -102,7 +102,7 @@ public class ImageServers {
 			.registerSubtype(NormalizedImageServerBuilder.class, "normalized")
 			.registerSubtype(TypeConvertImageServerBuilder.class, "typeConvert")
 			.registerSubtype(SlicedImageServerBuilder.class, "sliced")
-			.registerSubtype(ZProjectionImageServerBuilder.class, "z_projection")
+			.registerSubtype(ZProjectedImageServerBuilder.class, "z_projection")
 			;
 
 	private static GsonTools.SubTypeAdapterFactory<BufferedImageNormalizer> normalizerFactory =
@@ -593,15 +593,15 @@ public class ImageServers {
 		}
 	}
 
-	static class ZProjectionImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+	static class ZProjectedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 
 		private final ServerBuilder<BufferedImage> builder;
-		private final ZProjectionImageServer.Projection projection;
+		private final ZProjectedImageServer.Projection projection;
 
-		public ZProjectionImageServerBuilder(
+		public ZProjectedImageServerBuilder(
 				ImageServerMetadata metadata,
 				ServerBuilder<BufferedImage> builder,
-				ZProjectionImageServer.Projection projection
+				ZProjectedImageServer.Projection projection
 		) {
 			super(metadata);
 
@@ -611,7 +611,7 @@ public class ImageServers {
 
 		@Override
 		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
-			return new ZProjectionImageServer(builder.build(), projection);
+			return new ZProjectedImageServer(builder.build(), projection);
 		}
 
 		@Override
@@ -625,7 +625,7 @@ public class ImageServers {
 			if (newBuilder == builder) {
 				return this;
 			} else {
-				return new ZProjectionImageServerBuilder(
+				return new ZProjectedImageServerBuilder(
 						getMetadata().orElse(null),
 						newBuilder,
 						projection

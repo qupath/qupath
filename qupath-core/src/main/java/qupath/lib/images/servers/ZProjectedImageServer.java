@@ -27,7 +27,7 @@ import java.util.List;
  * Note that if the z-stack has the RGB format, transparency is not taken into account
  * (all alpha values will be set to 255).
  */
-public class ZProjectionImageServer extends AbstractTileableImageServer {
+public class ZProjectedImageServer extends AbstractTileableImageServer {
 
     private final ImageServer<BufferedImage> server;
     private final Projection projection;
@@ -76,7 +76,7 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
      * @throws IllegalArgumentException if the pixel type of the provided server is {@link PixelType#INT8}
      * or {@link PixelType#UINT32}
      */
-    ZProjectionImageServer(ImageServer<BufferedImage> server, Projection projection) {
+    ZProjectedImageServer(ImageServer<BufferedImage> server, Projection projection) {
         if (List.of(PixelType.INT8, PixelType.UINT32).contains(server.getMetadata().getPixelType())) {
             throw new IllegalArgumentException(String.format(
                     "The provided pixel type %s is not supported", server.getMetadata().getPixelType()
@@ -103,7 +103,7 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
 
     @Override
     protected ImageServerBuilder.ServerBuilder<BufferedImage> createServerBuilder() {
-        return new ImageServers.ZProjectionImageServerBuilder(
+        return new ImageServers.ZProjectedImageServerBuilder(
                 getMetadata(),
                 server.getBuilder(),
                 projection
