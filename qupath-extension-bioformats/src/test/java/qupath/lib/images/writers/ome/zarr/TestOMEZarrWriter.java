@@ -251,7 +251,7 @@ public class TestOMEZarrWriter {
         double[] expectedDownsamples = sampleImageServer.getPreferredDownsamples();
 
         try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setDownsamples()
+                .downsamples()
                 .build()
         ) {
             writer.writeImage();
@@ -275,7 +275,7 @@ public class TestOMEZarrWriter {
         double[] expectedDownsamples = new double[] {1, 2, 4};
 
         try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setDownsamples(expectedDownsamples)
+                .downsamples(expectedDownsamples)
                 .build()
         ) {
             writer.writeImage();
@@ -299,7 +299,7 @@ public class TestOMEZarrWriter {
         int expectedTileWidth = sampleImageServer.getMetadata().getPreferredTileWidth();
 
         try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTileWidth(-1)
+                .tileSize(-1)
                 .build()
         ) {
             writer.writeImage();
@@ -323,7 +323,7 @@ public class TestOMEZarrWriter {
         int expectedTileWidth = 64;
 
         try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTileWidth(expectedTileWidth)
+                .tileSize(expectedTileWidth)
                 .build()
         ) {
             writer.writeImage();
@@ -347,7 +347,7 @@ public class TestOMEZarrWriter {
         int expectedTileHeight = sampleImageServer.getMetadata().getPreferredTileHeight();
 
         try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTileHeight(-1)
+                .tileSize(-1)
                 .build()
         ) {
             writer.writeImage();
@@ -371,7 +371,7 @@ public class TestOMEZarrWriter {
         int expectedTileHeight = 64;
 
         try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTileHeight(expectedTileHeight)
+                .tileSize(expectedTileHeight)
                 .build()
         ) {
             writer.writeImage();
@@ -398,7 +398,7 @@ public class TestOMEZarrWriter {
         BufferedImage expectedImage = sampleImageServer.readRegion(RegionRequest.createInstance(sampleImageServer.getPath(), 1, boundingBox));
 
         try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setBoundingBox(boundingBox)
+                .region(boundingBox)
                 .build()
         ) {
             writer.writeImage();
@@ -424,7 +424,7 @@ public class TestOMEZarrWriter {
         int expectedNumberOfZStacks = zEnd - zStart;
 
         try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setZSlices(zStart, zEnd)
+                .zSlices(zStart, zEnd)
                 .build()
         ) {
             writer.writeImage();
@@ -461,7 +461,7 @@ public class TestOMEZarrWriter {
         ));
 
         try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setZSlices(zStart, zEnd)
+                .zSlices(zStart, zEnd)
                 .build()
         ) {
             writer.writeImage();
@@ -487,7 +487,7 @@ public class TestOMEZarrWriter {
         int expectedNumberOfTimepoints = tEnd - tStart;
 
         try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTimepoints(tStart, tEnd)
+                .timePoints(tStart, tEnd)
                 .build()
         ) {
             writer.writeImage();
@@ -524,7 +524,7 @@ public class TestOMEZarrWriter {
         ));
 
         try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTimepoints(tStart, tEnd)
+                .timePoints(tStart, tEnd)
                 .build()
         ) {
             writer.writeImage();

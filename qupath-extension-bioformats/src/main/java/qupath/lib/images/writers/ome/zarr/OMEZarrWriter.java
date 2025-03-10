@@ -32,20 +32,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Create an OME-Zarr file writer as described by version 0.4 of the specifications of the
+ * <a href="https://ngff.openmicroscopy.org/0.4/index.html">Next-generation file formats (NGFF)</a>.
+ * The transitional "bioformats2raw.layout" and "omero" metadata are also considered.
  * <p>
- *     Create an OME-Zarr file writer as described by version 0.4 of the specifications of the
- *     <a href="https://ngff.openmicroscopy.org/0.4/index.html">Next-generation file formats (NGFF)</a>.
- *     The transitional "bioformats2raw.layout" and "omero" metadata are also considered.
- * </p>
+ * Use a {@link Builder} to create an instance of this class.
  * <p>
- *     Use a {@link Builder} to create an instance of this class.
- * </p>
+ * This class is thread-safe but already uses concurrency internally to write tiles.
  * <p>
- *     This class is thread-safe but already uses concurrency internally to write tiles.
- * </p>
- * <p>
- *     This writer has to be {@link #close() closed} once no longer used.
- * </p>
+ * This writer has to be {@link #close() closed} once no longer used.
  */
 public class OMEZarrWriter implements AutoCloseable {
 
@@ -107,7 +102,7 @@ public class OMEZarrWriter implements AutoCloseable {
      * If this function is interrupted, all pending and active tasks
      * are cancelled.
      *
-     * @throws InterruptedException when the waiting is interrupted
+     * @throws InterruptedException if the waiting is interrupted
      */
     @Override
     public void close() throws InterruptedException {
@@ -123,13 +118,10 @@ public class OMEZarrWriter implements AutoCloseable {
     }
 
     /**
+     * Write the entire image in a background thread.
      * <p>
-     *     Write the entire image in a background thread.
-     * </p>
-     * <p>
-     *     The image will be written from an internal pool of thread, so this function may
-     *     return before the image is actually written.
-     * </p>
+     * The image will be written from an internal pool of thread, so this function may
+     * return before the image is actually written.
      */
     public void writeImage() {
         for (TileRequest tileRequest: server.getTileRequestManager().getAllTileRequests()) {
@@ -138,23 +130,19 @@ public class OMEZarrWriter implements AutoCloseable {
     }
 
     /**
+     * Write the provided tile in a background thread.
      * <p>
-     *     Write the provided tile in a background thread.
-     * </p>
+     * The tile will be written from an internal pool of thread, so this function may
+     * return before the tile is actually written.
      * <p>
-     *     The tile will be written from an internal pool of thread, so this function may
-     *     return before the tile is actually written.
-     * </p>
-     * <p>
-     *     Note that the image server used internally by this writer may not be the one given in
-     *     {@link Builder#Builder(ImageServer, String)}. Therefore, the {@link ImageServer#getTileRequestManager() TileRequestManager}
-     *     of the internal image server may be different from the one of the provided image server,
-     *     so functions like {@link TileRequestManager#getAllTileRequests()} may not return the expected tiles.
-     *     Use the {@link ImageServer#getTileRequestManager() TileRequestManager} of {@link #getReaderServer()}
-     *     to get accurate tiles.
-     * </p>
+     * Note that the image server used internally by this writer may not be the one given in
+     * {@link Builder#Builder(ImageServer, String)}. Therefore, the {@link ImageServer#getTileRequestManager() TileRequestManager}
+     * of the internal image server may be different from the one of the provided image server,
+     * so functions like {@link TileRequestManager#getAllTileRequests()} may not return the expected tiles.
+     * Use the {@link ImageServer#getTileRequestManager() TileRequestManager} of {@link #getReaderServer()}
+     * to get accurate tiles.
      *
-     * @param tileRequest  the tile to write
+     * @param tileRequest the tile to write
      */
     public void writeTile(TileRequest tileRequest) {
         executorService.execute(() -> {
@@ -171,15 +159,11 @@ public class OMEZarrWriter implements AutoCloseable {
     }
 
     /**
-     *
+     * Get the image server used internally by this writer to read the tiles. It can be
+     * different from the one given in {@link Builder#Builder(ImageServer, String)}.
      * <p>
-     *     Get the image server used internally by this writer to read the tiles. It can be
-     *     different from the one given in {@link Builder#Builder(ImageServer, String)}.
-     * </p>
-     * <p>
-     *     This function can be useful to get information like the tiles used by this server
-     *     (for example when using the {@link #writeTile(TileRequest)} function).
-     * </p>
+     * This function can be useful to get information like the tiles used by this server
+     * (for example when using the {@link #writeTile(TileRequest)} function).
      *
      * @return the image server used internally by this writer to read the tiles
      */
@@ -210,8 +194,8 @@ public class OMEZarrWriter implements AutoCloseable {
         /**
          * Create the builder.
          *
-         * @param server  the image to write
-         * @param path  the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
+         * @param server the image to write
+         * @param path the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
          * @throws IllegalArgumentException when the provided path doesn't end with ".ome.zarr" or a file/directory already exists at this location
          */
         public Builder(ImageServer<BufferedImage> server, String path) {
@@ -231,10 +215,10 @@ public class OMEZarrWriter implements AutoCloseable {
         /**
          * Set the compressor to use when writing tiles. By default, the blocs compression is used.
          *
-         * @param compressor  the compressor to use when writing tiles
+         * @param compressor the compressor to use when writing tiles
          * @return this builder
          */
-        public Builder setCompressor(Compressor compressor) {
+        public Builder compression(Compressor compressor) {
             this.compressor = compressor;
             return this;
         }
@@ -244,42 +228,36 @@ public class OMEZarrWriter implements AutoCloseable {
          * specifies the number of threads to use. By default, 12 threads are
          * used.
          *
-         * @param numberOfThreads  the number of threads to use when writing tiles
+         * @param numberOfThreads the number of threads to use when writing tiles
          * @return this builder
          */
-        public Builder setNumberOfThreads(int numberOfThreads) {
+        public Builder parallelize(int numberOfThreads) {
             this.numberOfThreads = numberOfThreads;
             return this;
         }
 
         /**
+         * Enable the creation of a pyramidal image with the provided downsamples. The levels corresponding
+         * to the provided downsamples will be automatically generated.
          * <p>
-         *     Enable the creation of a pyramidal image with the provided downsamples. The levels corresponding
-         *     to the provided downsamples will be automatically generated.
-         * </p>
-         * <p>
-         *     If this function is not called (or if it is called with no parameters), the downsamples of
-         *     the provided image server will be used instead.
-         * </p>
+         * If this function is not called (or if it is called with no parameters), the downsamples of
+         * the provided image server will be used instead.
          *
-         * @param downsamples  the downsamples of the pyramid to generate
+         * @param downsamples the downsamples of the pyramid to generate
          * @return this builder
          */
-        public Builder setDownsamples(double... downsamples) {
+        public Builder downsamples(double... downsamples) {
             this.downsamples = downsamples;
             return this;
         }
 
         /**
+         * In Zarr files, data is stored in chunks. This parameter defines the maximum number
+         * of chunks on the x,y, and z dimensions. By default, this value is set to 50.
          * <p>
-         *     In Zarr files, data is stored in chunks. This parameter defines the maximum number
-         *     of chunks on the x,y, and z dimensions. By default, this value is set to 50.
-         * </p>
-         * <p>
-         *     Use a negative value to not define any maximum number of chunks.
-         * </p>
+         * Use a negative value to not define any maximum number of chunks.
          *
-         * @param maxNumberOfChunks  the maximum number of chunks on the x,y, and z dimensions
+         * @param maxNumberOfChunks the maximum number of chunks on the x,y, and z dimensions
          * @return this builder
          */
         public Builder setMaxNumberOfChunksOnEachSpatialDimension(int maxNumberOfChunks) {
@@ -288,43 +266,36 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         /**
+         * In Zarr files, data is stored in chunks. This parameter defines the size
+         * of chunks on the x and y dimensions. By default, these values are set to 512.
          * <p>
-         *     In Zarr files, data is stored in chunks. This parameter defines the size
-         *     of chunks on the x dimension. By default, this value is set to 512.
-         * </p>
+         * Use a negative value to use the tile width/height of the provided image server.
          * <p>
-         *     Use a negative value to use the tile width of the provided image server.
-         * </p>
-         * <p>
-         *     The provided tile width may not be used if this implies creating more chunks
-         *     than the value given in {@link #setMaxNumberOfChunksOnEachSpatialDimension(int)}.
-         * </p>
+         * The provided tile width/height may not be used if this implies creating more chunks
+         * than the value given in {@link #setMaxNumberOfChunksOnEachSpatialDimension(int)}.
          *
-         * @param tileWidth  the width each chunk should have
+         * @param tileSize the width/height each chunk should have
          * @return this builder
          */
-        public Builder setTileWidth(int tileWidth) {
-            this.tileWidth = tileWidth;
-            return this;
+        public Builder tileSize(int tileSize) {
+            return tileSize(tileSize, tileSize);
         }
 
         /**
+         * In Zarr files, data is stored in chunks. This parameter defines the size
+         * of chunks on the x and y dimensions. By default, these values are set to 512.
          * <p>
-         *     In Zarr files, data is stored in chunks. This parameter defines the size
-         *     of chunks on the y dimension. By default, this value is set to 512.
-         * </p>
+         * Use a negative value to use the tile width/height of the provided image server.
          * <p>
-         *     Use a negative value to use the tile height of the provided image server.
-         * </p>
-         * <p>
-         *     The provided tile height may not be used if this implies creating more chunks
-         *     than the value given in {@link #setMaxNumberOfChunksOnEachSpatialDimension(int)}.
-         * </p>
+         * The provided tile width/height may not be used if this implies creating more chunks
+         * than the value given in {@link #setMaxNumberOfChunksOnEachSpatialDimension(int)}.
          *
-         * @param tileHeight  the height each chunk should have
+         * @param tileWidth the width each chunk should have
+         * @param tileHeight the height each chunk should have
          * @return this builder
          */
-        public Builder setTileHeight(int tileHeight) {
+        public Builder tileSize(int tileWidth, int tileHeight) {
+            this.tileWidth = tileWidth;
             this.tileHeight = tileHeight;
             return this;
         }
@@ -337,7 +308,7 @@ public class OMEZarrWriter implements AutoCloseable {
          *                    the entire image
          * @return this builder
          */
-        public Builder setBoundingBox(ImageRegion boundingBox) {
+        public Builder region(ImageRegion boundingBox) {
             this.boundingBox = boundingBox;
             return this;
         }
@@ -349,7 +320,7 @@ public class OMEZarrWriter implements AutoCloseable {
          * @param zEnd the 0-based exclusive index of the last z-slice to consider
          * @return this builder
          */
-        public Builder setZSlices(int zStart, int zEnd) {
+        public Builder zSlices(int zStart, int zEnd) {
             this.zStart = zStart;
             this.zEnd = zEnd;
             return this;
@@ -362,7 +333,7 @@ public class OMEZarrWriter implements AutoCloseable {
          * @param tEnd the 0-based exclusive index of the last timepoint to consider
          * @return this builder
          */
-        public Builder setTimepoints(int tStart, int tEnd) {
+        public Builder timePoints(int tStart, int tEnd) {
             this.tStart = tStart;
             this.tEnd = tEnd;
             return this;
