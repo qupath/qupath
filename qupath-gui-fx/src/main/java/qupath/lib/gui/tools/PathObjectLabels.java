@@ -139,7 +139,7 @@ public class PathObjectLabels {
 
 	private static class PathObjectListCell extends ListCell<PathObject> {
 		
-		private PathObjectMiniPane miniPane;
+		private final PathObjectMiniPane miniPane;
 		
 		PathObjectListCell(Function<PathObject, String> stringExtractor) {
 			super();
