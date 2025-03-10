@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.ColorTools;
 import qupath.lib.regions.RegionRequest;
 
 import java.awt.image.BandedSampleModel;
@@ -405,48 +406,179 @@ public class TestZProjectionImageServer {
         }
     }
 
-    private static BufferedImage createImageFromPixels(Object pixels, ImageServerMetadata metadata) {
-        DataBuffer dataBuffer = switch (pixels) {
-            case double[][] doublePixels -> {
-                double[][] array = new double[1][metadata.getWidth() * metadata.getHeight()];
+    @Nested
+    class RgbImage extends GenericImage {
 
-                for (int y = 0; y < metadata.getHeight(); y++) {
-                    System.arraycopy(doublePixels[y], 0, array[0], y * metadata.getWidth(), metadata.getWidth());
-                }
-                yield new DataBufferDouble(array, metadata.getWidth() * metadata.getHeight() / 8);
-            }
-            case int[][] intPixels -> {
-                int[][] array = new int[1][metadata.getWidth() * metadata.getHeight()];
-
-                for (int y = 0; y < metadata.getHeight(); y++) {
-                    System.arraycopy(intPixels[y], 0, array[0], y * metadata.getWidth(), metadata.getWidth());
-                }
-                yield new DataBufferInt(array, metadata.getWidth() * metadata.getHeight() / 4);
-            }
-            case short[][] shortPixels -> {
-                short[][] array = new short[1][metadata.getWidth() * metadata.getHeight()];
-
-                for (int y = 0; y < metadata.getHeight(); y++) {
-                    System.arraycopy(shortPixels[y], 0, array[0], y * metadata.getWidth(), metadata.getWidth());
-                }
-                yield new DataBufferShort(array, metadata.getWidth() * metadata.getHeight() / 2);
-            }
-            case null, default -> null;
-        };
-
-        if (dataBuffer == null) {
-            throw new IllegalArgumentException(String.format("Unexpected pixel type: %s", pixels));
+        @BeforeAll
+        static void createSampleServer() {
+            sampleServer = new RgbSampleServer();
         }
-        return new BufferedImage(
-                ColorModelFactory.createColorModel(metadata.getPixelType(), metadata.getChannels()),
-                WritableRaster.createWritableRaster(
-                        new BandedSampleModel(dataBuffer.getDataType(), metadata.getWidth(), metadata.getHeight(), metadata.getSizeC()),
-                        dataBuffer,
-                        null
-                ),
-                false,
-                null
-        );
+
+        @Override
+        protected PixelType getPixelType() {
+            return PixelType.UINT8;
+        }
+
+        @Override
+        protected Object getAveragePixels() {
+            return new int[][][] {
+                    {{112, 88, 170}, {77, 85, 163}, {229, 49, 126}},
+                    {{123, 156, 103}, {159, 177, 56}, {65, 121, 123}}
+            };
+        }
+
+        @Override
+        protected Object getMinPixels() {
+            return new int[][][] {
+                    {{39, 27, 91}, {43, 45, 76}, {211, 36, 38}},
+                    {{38, 60, 71}, {98, 117, 48}, {11, 106, 2}}
+            };
+        }
+
+        @Override
+        protected Object getMaxPixels() {
+            return new int[][][] {
+                    {{185, 148, 248}, {110, 124, 250}, {246, 61, 214}},
+                    {{208, 252, 134}, {219, 236, 63}, {118, 136, 244}}
+            };
+        }
+
+        @Override
+        protected Object getSumPixels() {
+            return new int[][][] {
+                    {{224, 175, 255}, {153, 169, 255}, {255, 97, 252}},
+                    {{246, 255, 205}, {255, 255, 111}, {129, 242, 246}}
+            };
+        }
+
+        @Override
+        protected Object getStandardDeviationPixels() {
+            return new int[][][] {
+                    {{73, 61, 79}, {34, 40, 87}, {18, 13, 88}},
+                    {{85, 96, 32}, {61, 60, 8}, {54, 15, 121}}
+            };
+        }
+
+        @Override
+        protected Object getMedianPixels() {
+            return new int[][][] {
+                    {{112, 88, 170}, {77, 85, 163}, {229, 49, 126}},
+                    {{123, 156, 103}, {159, 177, 56}, {65, 121, 123}}
+            };
+        }
+
+        private static class RgbSampleServer extends AbstractTileableImageServer {
+
+            private final int[][][][] pixels = {{
+                    {{39, 148, 248}, {43, 45, 250}, {246, 61, 214}},
+                    {{208, 252, 134}, {219, 117, 48}, {118, 136, 2}},
+            }, {
+                    {{185, 27, 91}, {110, 124, 76}, {211, 36, 38}},
+                    {{38, 60, 71}, {98, 236, 63}, {11, 106, 244}},
+            }}; // z, y, x, c
+
+            @Override
+            protected BufferedImage readTile(TileRequest tileRequest) {
+                return createImageFromPixels(pixels[tileRequest.getZ()], getMetadata());
+            }
+
+            @Override
+            protected ImageServerBuilder.ServerBuilder<BufferedImage> createServerBuilder() {
+                return null;
+            }
+
+            @Override
+            protected String createID() {
+                return RgbSampleServer.class.getName();
+            }
+
+            @Override
+            public Collection<URI> getURIs() {
+                return List.of();
+            }
+
+            @Override
+            public String getServerType() {
+                return "RGB sample server";
+            }
+
+            @Override
+            public ImageServerMetadata getOriginalMetadata() {
+                return new ImageServerMetadata.Builder()
+                        .width(pixels[0][0].length)
+                        .height(pixels[0].length)
+                        .sizeZ(pixels.length)
+                        .channels(ImageChannel.getDefaultRGBChannels())
+                        .pixelType(PixelType.UINT8)
+                        .rgb(true)
+                        .build();
+            }
+        }
+    }
+
+    private static BufferedImage createImageFromPixels(Object pixels, ImageServerMetadata metadata) {
+        if (metadata.isRGB()) {
+            int[][][] rgbPixels = (int[][][]) pixels;
+
+            int[] rgb = new int[metadata.getWidth() * metadata.getHeight()];
+            for (int y=0; y<metadata.getHeight(); y++) {
+                for (int x=0; x<metadata.getWidth(); x++) {
+                    rgb[x + y*metadata.getWidth()] = (255 << 24) |
+                            (rgbPixels[y][x][0] & 0xFF) << 16 |
+                            (rgbPixels[y][x][1] & 0xFF) << 8 |
+                            (rgbPixels[y][x][2] & 0xFF);
+                }
+            }
+            BufferedImage image = new BufferedImage(
+                    metadata.getWidth(),
+                    metadata.getHeight(),
+                    BufferedImage.TYPE_INT_RGB
+            );
+            image.setRGB(0, 0, metadata.getWidth(), metadata.getHeight(), rgb, 0, metadata.getWidth());
+            return image;
+        } else {
+            DataBuffer dataBuffer = switch (pixels) {
+                case double[][] doublePixels -> {
+                    double[][] array = new double[1][metadata.getWidth() * metadata.getHeight()];
+
+                    for (int y = 0; y < metadata.getHeight(); y++) {
+                        System.arraycopy(doublePixels[y], 0, array[0], y * metadata.getWidth(), metadata.getWidth());
+                    }
+                    yield new DataBufferDouble(array, metadata.getWidth() * metadata.getHeight() / 8);
+                }
+                case int[][] intPixels -> {
+                    int[][] array = new int[1][metadata.getWidth() * metadata.getHeight()];
+
+                    for (int y = 0; y < metadata.getHeight(); y++) {
+                        System.arraycopy(intPixels[y], 0, array[0], y * metadata.getWidth(), metadata.getWidth());
+                    }
+                    yield new DataBufferInt(array, metadata.getWidth() * metadata.getHeight() / 4);
+                }
+                case short[][] shortPixels -> {
+                    short[][] array = new short[1][metadata.getWidth() * metadata.getHeight()];
+
+                    for (int y = 0; y < metadata.getHeight(); y++) {
+                        System.arraycopy(shortPixels[y], 0, array[0], y * metadata.getWidth(), metadata.getWidth());
+                    }
+                    yield new DataBufferShort(array, metadata.getWidth() * metadata.getHeight() / 2);
+                }
+                case null, default -> null;
+            };
+
+            if (dataBuffer == null) {
+                throw new IllegalArgumentException(String.format("Unexpected pixel type: %s", pixels));
+            }
+            return new BufferedImage(
+                    ColorModelFactory.createColorModel(metadata.getPixelType(), metadata.getChannels()),
+                    WritableRaster.createWritableRaster(
+                            new BandedSampleModel(dataBuffer.getDataType(), metadata.getWidth(), metadata.getHeight(), metadata.getSizeC()),
+                            dataBuffer,
+                            null
+                    ),
+                    false,
+                    null
+            );
+        }
     }
 
     private static void assertBufferedImagesEqual(BufferedImage expectedImage, BufferedImage actualImage) {
