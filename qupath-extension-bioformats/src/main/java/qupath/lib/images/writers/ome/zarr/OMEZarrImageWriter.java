@@ -13,9 +13,14 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * An {@link ImageWriter} for writing OME-zarr files. Use an {@link OMEZarrWriter} if
+ * you need greater control.
+ */
 public class OMEZarrImageWriter implements ImageWriter<BufferedImage> {
 
     private static final Logger logger = LoggerFactory.getLogger(OMEZarrImageWriter.class);
+
     @Override
     public String getName() {
         return "OME zarr";
