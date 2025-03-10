@@ -23,6 +23,9 @@ import java.util.List;
 
 /**
  * An image server that converts a z-stack into a 2D image with a projection.
+ * <p>
+ * Note that if the z-stack has the RGB format, transparency is not taken into account
+ * (all alpha values will be set to 255).
  */
 public class ZProjectionImageServer extends AbstractTileableImageServer {
 
@@ -48,7 +51,7 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
         MAX,
         /**
          * A sum projection on the z-stacks. If the z-stack image uses the integer format with a bits
-         * depth of less than 32, the projection image server will use the {@link PixelType#INT32}
+         * depth of less than 32, the projection image server will use the {@link PixelType#FLOAT32}
          * to prevent overflows, unless the z-stack image has the RGB format, in which case overflowing
          * values will be set to 255.
          */
@@ -86,8 +89,8 @@ public class ZProjectionImageServer extends AbstractTileableImageServer {
         PixelType pixelType;
         if (projection.equals(Projection.SUM) &&
                 !server.getMetadata().isRGB() &&
-                List.of(PixelType.UINT8, PixelType.INT8, PixelType.UINT16, PixelType.INT16, PixelType.UINT32, PixelType.INT32).contains(server.getMetadata().getPixelType())) {
-            pixelType = PixelType.INT32;
+                List.of(PixelType.UINT8, PixelType.INT8, PixelType.UINT16, PixelType.INT16).contains(server.getMetadata().getPixelType())) {
+            pixelType = PixelType.FLOAT32;
         } else {
             pixelType = server.getMetadata().getPixelType();
         }

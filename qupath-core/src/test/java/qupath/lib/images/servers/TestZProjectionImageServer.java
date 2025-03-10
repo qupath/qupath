@@ -317,7 +317,7 @@ public class TestZProjectionImageServer {
 
         @Override
         protected PixelType getPixelTypeWithSum() {
-            return PixelType.INT32;
+            return PixelType.FLOAT32;
         }
 
         @Override
