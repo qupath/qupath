@@ -7,11 +7,32 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 
+/**
+ * An image server that combine similar images into a z-stack.
+ */
 public class ZConcatenatedImageServer extends AbstractTileableImageServer {
 
     private final List<ImageServer<BufferedImage>> servers;
     private final ImageServerMetadata metadata;
 
+    /**
+     * Create an image server that combine the provided images into a single z-stack.
+     * <p>
+     * The provided images must be similar: same {@link ImageServerMetadata#getWidth() width},
+     * {@link ImageServerMetadata#getHeight() height}, {@link ImageServerMetadata#getPixelCalibration() pixel calibration},
+     * {@link ImageServerMetadata#isRGB() RGB format}, {@link ImageServerMetadata#getPixelType() pixel type},
+     * {@link ImageServerMetadata#getSizeT() number of time points}, {@link ImageServerMetadata#getChannels() channels},
+     * {@link ImageServerMetadata#getChannelType() channel type}, {@link ImageServerMetadata#getClassificationLabels() classification labels},
+     * and {@link ImageServerMetadata#getMagnification() magnification}.
+     * <p>
+     * The provided images must have only one {@link ImageServerMetadata#getSizeZ() z-slice}.
+     *
+     * @param servers the images that should be combined
+     * @param zSpacingMicrons the spacing in microns there should be between the combined images. Can be null to use the
+     *                        default value
+     * @throws IllegalArgumentException if no image is provided, the provided images are not similar (see above), or one of
+     * them have more than one z-stack
+     */
     public ZConcatenatedImageServer(List<ImageServer<BufferedImage>> servers, Number zSpacingMicrons) {
         if (servers.isEmpty()) {
             throw new IllegalArgumentException("The provided list of image servers is empty");
