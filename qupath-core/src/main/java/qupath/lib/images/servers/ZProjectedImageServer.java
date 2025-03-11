@@ -69,7 +69,19 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
     }
 
     /**
-     * Create an image server that converts a z-stack into a 2D image.
+     * Constant indicating that a full z-projection should be made using all slices, rather than a running z-projection
+     * made across a group of adjacent slices.
+     */
+    public static final int NO_RUNNING_OFFSET = -1;
+
+    /**
+     * Optional offset to apply to calculate a grouped z-projection.
+     * This is a projection between z-runningOffset and z+runningOffset slices (inclusive, 2 x runningOffset + 1 slices in total).
+     */
+    private final int runningOffset;
+
+    /**
+     * Create an image server that converts a z-stack into a 2D image using a z-projection.
      *
      * @param server the input server to create the projection from
      * @param projection the type of projection to use
@@ -77,6 +89,25 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
      * or {@link PixelType#UINT32}
      */
     ZProjectedImageServer(ImageServer<BufferedImage> server, Projection projection) {
+        this(server, projection, NO_RUNNING_OFFSET);
+    }
+
+    /**
+     * Create an image server that converts a z-stack into a 2D image using a full z-projection (all z-slices)
+     * or a running z-projection (adjacent slices).
+     *
+     * @param server the input server to create the projection from
+     * @param projection the type of projection to use
+     * @param runningOffset optional offset to apply to calculate a z-projection using adjacent slices.
+     *                      If the offset is &lt; 0, the projection will be made using only the current slice.
+     *                      If the offset is 0, the projection will be made using {@code runningOffset} slices above
+     *                      and below the current slice (2 x runningOffset + 1 slices in total, truncated to the
+     *                      available number of slices).
+     *                      An offset of 0 is not supported, as this would indicate a projection from one slice only.
+     * @throws IllegalArgumentException if the pixel type of the provided server is {@link PixelType#INT8}
+     * or {@link PixelType#UINT32}, or if the runningOffset is 0
+     */
+    ZProjectedImageServer(ImageServer<BufferedImage> server, Projection projection, int runningOffset) {
         if (List.of(PixelType.INT8, PixelType.UINT32).contains(server.getMetadata().getPixelType())) {
             throw new IllegalArgumentException(String.format(
                     "The provided pixel type %s is not supported", server.getMetadata().getPixelType()
@@ -85,6 +116,7 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
 
         this.server = server;
         this.projection = projection;
+        this.runningOffset = runningOffset;
 
         PixelType pixelType;
         if (projection.equals(Projection.SUM) &&
@@ -97,7 +129,7 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
 
         this.metadata = new ImageServerMetadata.Builder(server.getMetadata())
                 .pixelType(pixelType)
-                .sizeZ(1)
+                .sizeZ(runningOffset >= 0 ? server.nZSlices() : 1)
                 .build();
     }
 
@@ -106,13 +138,15 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
         return new ImageServers.ZProjectedImageServerBuilder(
                 getMetadata(),
                 server.getBuilder(),
-                projection
+                projection,
+                runningOffset
         );
     }
 
     @Override
     protected String createID() {
-        return String.format("%s with %s projection on %s", getClass().getName(), projection, server.getPath());
+        return String.format("%s with %s projection on %s (group offset=%d)", getClass().getName(),
+                projection, server.getPath(), runningOffset);
     }
 
     @Override
@@ -144,9 +178,11 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
         int height = tileRequest.getTileHeight();
 
         List<int[]> zStacks = new ArrayList<>();
+        // Updating the path is important to avoid inadvertently pulling the wrong tile from the cache
+        var region = tileRequest.getRegionRequest().updatePath(server.getPath());
         for (int z=0; z<server.getMetadata().getSizeZ(); z++) {
             zStacks.add(server
-                    .readRegion(tileRequest.getRegionRequest().updateZ(z))
+                    .readRegion(region.updateZ(z))
                     .getRGB(0, 0, width, height, null, 0, width)
             );
         }
@@ -182,8 +218,19 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
 
     private BufferedImage getNonRgbTile(TileRequest tileRequest) throws IOException {
         List<WritableRaster> zStacks = new ArrayList<>();
-        for (int z=0; z<server.getMetadata().getSizeZ(); z++) {
-            zStacks.add(server.readRegion(tileRequest.getRegionRequest().updateZ(z)).getRaster());
+
+        // Figure out which slices we need to read
+        int zStart = 0;
+        int zEnd = server.nZSlices();
+        if (runningOffset >= 0) {
+            zStart = Math.max(0, tileRequest.getZ()-runningOffset);
+            zEnd = Math.min(server.nZSlices(), tileRequest.getZ()+runningOffset+1);
+        }
+
+        // Updating the path is important to avoid inadvertently pulling the wrong tile from the cache
+        var region = tileRequest.getRegionRequest().updatePath(server.getPath());
+        for (int z=zStart; z<zEnd; z++) {
+            zStacks.add(server.readRegion(region.updateZ(z)).getRaster());
         }
 
         var dataBuffer = createDataBuffer(zStacks);
@@ -436,7 +483,7 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
         int height = rasters.getFirst().getHeight();
         int numberOfPixels = width * height;
         int nChannels = nChannels();
-        int sizeZ = server.nZSlices();
+        int sizeZ = rasters.size();
         PixelType pixelType = getMetadata().getPixelType();
 
         DataBuffer dataBuffer = switch (pixelType) {

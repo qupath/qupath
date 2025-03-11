@@ -597,21 +597,24 @@ public class ImageServers {
 
 		private final ServerBuilder<BufferedImage> builder;
 		private final ZProjectedImageServer.Projection projection;
+		private final int runningOffset;
 
 		public ZProjectedImageServerBuilder(
 				ImageServerMetadata metadata,
 				ServerBuilder<BufferedImage> builder,
-				ZProjectedImageServer.Projection projection
+				ZProjectedImageServer.Projection projection,
+				int runningOffset
 		) {
 			super(metadata);
 
 			this.builder = builder;
 			this.projection = projection;
+			this.runningOffset = runningOffset;
 		}
 
 		@Override
 		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
-			return new ZProjectedImageServer(builder.build(), projection);
+			return new ZProjectedImageServer(builder.build(), projection, runningOffset);
 		}
 
 		@Override
@@ -628,7 +631,8 @@ public class ImageServers {
 				return new ZProjectedImageServerBuilder(
 						getMetadata().orElse(null),
 						newBuilder,
-						projection
+						projection,
+						runningOffset
 				);
 			}
 		}
