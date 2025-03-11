@@ -23,7 +23,7 @@ public class OMEZarrImageWriter implements ImageWriter<BufferedImage> {
 
     @Override
     public String getName() {
-        return "OME zarr";
+        return "OME-Zarr";
     }
 
     @Override
@@ -63,7 +63,7 @@ public class OMEZarrImageWriter implements ImageWriter<BufferedImage> {
 
     @Override
     public String getDetails() {
-        return "Write image as an OME-zarr image. Format is flexible, preserving most image metadata.";
+        return "Write image as an OME-Zarr image. Format is flexible, preserving most image metadata.";
     }
 
     @Override
