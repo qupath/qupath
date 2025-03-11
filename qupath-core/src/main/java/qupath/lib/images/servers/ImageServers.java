@@ -102,7 +102,8 @@ public class ImageServers {
 			.registerSubtype(NormalizedImageServerBuilder.class, "normalized")
 			.registerSubtype(TypeConvertImageServerBuilder.class, "typeConvert")
 			.registerSubtype(SlicedImageServerBuilder.class, "sliced")
-			.registerSubtype(ZProjectedImageServerBuilder.class, "z_projection")
+			.registerSubtype(ZProjectedImageServerBuilder.class, "z_projected")
+			.registerSubtype(ZConcatenatedImageServerBuilder.class, "z_concatenated")
 			;
 
 	private static GsonTools.SubTypeAdapterFactory<BufferedImageNormalizer> normalizerFactory =
