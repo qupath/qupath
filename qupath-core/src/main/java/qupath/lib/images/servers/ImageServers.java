@@ -633,6 +633,58 @@ public class ImageServers {
 			}
 		}
 	}
+
+	static class ZConcatenatedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+
+		private final List<ServerBuilder<BufferedImage>> builders;
+		private final Number zSpacingMicrons;
+
+		public ZConcatenatedImageServerBuilder(
+				ImageServerMetadata metadata,
+				List<ServerBuilder<BufferedImage>> builders,
+				Number zSpacingMicrons
+		) {
+			super(metadata);
+
+			this.builders = builders;
+			this.zSpacingMicrons = zSpacingMicrons;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			List<ImageServer<BufferedImage>> servers = new ArrayList<>();
+			for (var builder: builders) {
+				servers.add(builder.build());
+			}
+
+			return new ZConcatenatedImageServer(servers, zSpacingMicrons);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builders.stream()
+					.map(ServerBuilder::getURIs)
+					.flatMap(Collection::stream)
+					.toList();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			List<ServerBuilder<BufferedImage>> newBuilders = builders.stream()
+					.map(builder -> builder.updateURIs(updateMap))
+					.toList();
+
+			if (newBuilders.equals(builders)) {
+				return this;
+			} else {
+				return new ZConcatenatedImageServerBuilder(
+						getMetadata().orElse(null),
+						newBuilders,
+						zSpacingMicrons
+				);
+			}
+		}
+	}
 	
 	static class AffineTransformImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 		
