@@ -65,6 +65,13 @@ public class ZConcatenatedImageServer extends AbstractTileableImageServer {
                 .build();
     }
 
+    /**
+     * Same as {@link #ZConcatenatedImageServer(List, Number)}, but without specifying a z-spacing.
+     */
+    public ZConcatenatedImageServer(List<ImageServer<BufferedImage>> servers) {
+        this(servers, null);
+    }
+
     @Override
     protected ImageServerBuilder.ServerBuilder<BufferedImage> createServerBuilder() {
         return new ImageServers.ZConcatenatedImageServerBuilder(

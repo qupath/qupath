@@ -25,7 +25,7 @@ public class TestZConcatenatedImageServer {
     void Check_No_Image_Provided() {
         List<ImageServer<BufferedImage>> servers = List.of();
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
     }
 
     @Test
@@ -39,7 +39,7 @@ public class TestZConcatenatedImageServer {
                 )
         );
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
 
         for (var server: servers) {
             server.close();
@@ -57,7 +57,7 @@ public class TestZConcatenatedImageServer {
                 )
         );
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
 
         for (var server: servers) {
             server.close();
@@ -75,7 +75,7 @@ public class TestZConcatenatedImageServer {
                 )
         );
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
 
         for (var server: servers) {
             server.close();
@@ -93,7 +93,7 @@ public class TestZConcatenatedImageServer {
                 )
         );
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
 
         for (var server: servers) {
             server.close();
@@ -111,7 +111,7 @@ public class TestZConcatenatedImageServer {
                 )
         );
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
 
         for (var server: servers) {
             server.close();
@@ -129,7 +129,7 @@ public class TestZConcatenatedImageServer {
                 )
         );
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
 
         for (var server: servers) {
             server.close();
@@ -147,7 +147,7 @@ public class TestZConcatenatedImageServer {
                 )
         );
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
 
         for (var server: servers) {
             server.close();
@@ -165,7 +165,7 @@ public class TestZConcatenatedImageServer {
                 )
         );
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
 
         for (var server: servers) {
             server.close();
@@ -183,7 +183,7 @@ public class TestZConcatenatedImageServer {
                 )
         );
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
 
         for (var server: servers) {
             server.close();
@@ -201,7 +201,7 @@ public class TestZConcatenatedImageServer {
                 )
         );
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
 
         for (var server: servers) {
             server.close();
@@ -218,7 +218,7 @@ public class TestZConcatenatedImageServer {
                 new SampleServer(sampleMetadata)
         );
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers, null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ZConcatenatedImageServer(servers));
 
         for (var server: servers) {
             server.close();
@@ -234,7 +234,7 @@ public class TestZConcatenatedImageServer {
         );
         int expectedSizeZ = servers.size();
 
-        ImageServer<BufferedImage> zConcatenatedServer = new ZConcatenatedImageServer(servers, null);
+        ImageServer<BufferedImage> zConcatenatedServer = new ZConcatenatedImageServer(servers);
 
         Assertions.assertEquals(expectedSizeZ, zConcatenatedServer.getMetadata().getSizeZ());
 
@@ -287,7 +287,7 @@ public class TestZConcatenatedImageServer {
                 {{185, 27, 91}, {110, 124, 76}, {211, 36, 38}},
                 {{38, 60, 71}, {98, 236, 63}, {11, 106, 244}}
         };
-        ImageServer<BufferedImage> zConcatenatedServer = new ZConcatenatedImageServer(servers, null);
+        ImageServer<BufferedImage> zConcatenatedServer = new ZConcatenatedImageServer(servers);
         BufferedImage expectedImage = createImageFromPixels(
                 expectedPixels,
                 servers.getFirst().getMetadata()
@@ -327,7 +327,7 @@ public class TestZConcatenatedImageServer {
                 {{95, 212, 104}, {10, 7, 213}, {35, 238, 213}},
                 {{225, 14, 173}, {63, 160, 0}, {196, 70, 228}}
         };
-        ImageServer<BufferedImage> zConcatenatedServer = new ZConcatenatedImageServer(servers, null);
+        ImageServer<BufferedImage> zConcatenatedServer = new ZConcatenatedImageServer(servers);
         BufferedImage expectedImage = createImageFromPixels(
                 expectedPixels,
                 servers.getFirst().getMetadata()
@@ -367,7 +367,7 @@ public class TestZConcatenatedImageServer {
                 {5.74, 5.28, 3.825},
                 {7.83, 6.225, 3.995}
         };
-        ImageServer<BufferedImage> zConcatenatedServer = new ZConcatenatedImageServer(servers, null);
+        ImageServer<BufferedImage> zConcatenatedServer = new ZConcatenatedImageServer(servers);
         BufferedImage expectedImage = createImageFromPixels(
                 expectedPixels,
                 servers.getFirst().getMetadata()
@@ -407,7 +407,7 @@ public class TestZConcatenatedImageServer {
                 {8.34, 2.71, 6.42},
                 {5.67, 11.89, 3.21}
         };
-        ImageServer<BufferedImage> zConcatenatedServer = new ZConcatenatedImageServer(servers, null);
+        ImageServer<BufferedImage> zConcatenatedServer = new ZConcatenatedImageServer(servers);
         BufferedImage expectedImage = createImageFromPixels(
                 expectedPixels,
                 servers.getFirst().getMetadata()
