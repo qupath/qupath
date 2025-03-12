@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -27,9 +27,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -228,14 +226,16 @@ public class PixelClassifierUI {
 		for (var w : allWriters)
 			filters.add(FileChoosers.createExtensionFilter(w.getName(), w.getDefaultExtension()));
 
-		var file = FileChoosers.promptToSaveFile("Save prediction", new File(classifierName),
+		var originalFile = classifierName == null ? null : new File(classifierName);
+		var file = FileChoosers.promptToSaveFile("Save prediction", originalFile,
 				filters.toArray(FileChooser.ExtensionFilter[]::new));
+
 		if (file == null)
 			return false;
 		try {
 			var path = file.getAbsolutePath();
 			ImageWriterTools.writeImage(server, path);
-			if (!classifierName.isBlank()) {
+			if (classifierName != null && !classifierName.isBlank()) {
 				imageData.getHistoryWorkflow().addStep(
 						new DefaultScriptableWorkflowStep("Write prediction image",
 								String.format("writePredictionImage(\"%s\", \"%s\")", classifierName, path)
