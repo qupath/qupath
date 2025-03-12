@@ -1,13 +1,13 @@
 package qupath.lib.gui.commands;
 
-import javafx.scene.Scene;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Group;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.TilePane;
-import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.ZProjectOverlay;
 import qupath.lib.images.servers.ZProjectedImageServer;
 
@@ -41,7 +41,7 @@ public class ZProjectOverlayCommand {
                 ZProjectedImageServer.Projection.MIN,
                 ZProjectedImageServer.Projection.STANDARD_DEVIATION
                 )) {
-            var btn = createButton(projection, overlay, viewer);
+            var btn = createButton(projection);
             tilePane.getChildren().add(btn);
             toggles.getToggles().add(btn);
             if (overlay.getProjection() == projection) {
@@ -49,7 +49,7 @@ public class ZProjectOverlayCommand {
             }
         }
         toggles.selectedToggleProperty().addListener((v, o, n) -> {
-            var proj = n == null ? n : n.getUserData();
+            var proj = n == null ? null : n.getUserData();
             if (proj instanceof ZProjectedImageServer.Projection zp) {
                 overlay.setProjection(zp);
             } else {
@@ -61,22 +61,22 @@ public class ZProjectOverlayCommand {
             selected.setSelected(true);
         }
 
-        var stage = new Stage();
-        var pane = new BorderPane(tilePane);
-        stage.setScene(new Scene(pane));
-        stage.setResizable(true);
-        stage.setOnCloseRequest(e -> {
-            viewer.getCustomOverlayLayers().remove(overlay);
-        });
-        stage.initOwner(qupath.getStage());
-        stage.setTitle("Z-project overlay");
+        var pane = new Group(tilePane);
+        pane.getProperties().put("z-project-overlay", Boolean.TRUE);
 
-        viewer.getCustomOverlayLayers().add(overlay);
-        stage.show();
+        viewer.getView()
+                .getChildren()
+                .removeIf(n -> n.getProperties().getOrDefault("z-project-overlay", Boolean.FALSE).equals(Boolean.TRUE));
+
+        StackPane.setAlignment(pane, Pos.TOP_CENTER);
+        StackPane.setMargin(pane, new Insets(10));
+
+        viewer.getView().getChildren().add(pane);
+
+        viewer.getCustomOverlayLayers().setAll(overlay);
     }
 
-    private ToggleButton createButton(ZProjectedImageServer.Projection projection,
-                                      ZProjectOverlay overlay, QuPathViewer viewer) {
+    private static ToggleButton createButton(ZProjectedImageServer.Projection projection) {
         var btn = new ToggleButton(getName(projection));
         btn.setUserData(projection);
         btn.setMaxWidth(Double.MAX_VALUE);

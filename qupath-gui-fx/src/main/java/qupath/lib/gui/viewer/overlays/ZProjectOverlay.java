@@ -27,6 +27,9 @@ public class ZProjectOverlay extends AbstractImageOverlay {
 
     private DefaultImageRegionStore store;
 
+    // If set, the overlay will attempt to paint the entire region in one go - rather than limited to cached tiles
+    private long paintCompletelyTimeout = 250;
+
     private final Map<ImageServer<BufferedImage>, ImageServer<BufferedImage>> map = new WeakHashMap<>();
 
     protected ZProjectOverlay(OverlayOptions options) {
@@ -65,6 +68,14 @@ public class ZProjectOverlay extends AbstractImageOverlay {
     }
 
     /**
+     * Set the {@link ImageRenderer} property used with this overlay.
+     * @return
+     */
+    public void setRenderer(ImageRenderer renderer) {
+        this.renderer.set(renderer);
+    }
+
+    /**
      * Get the {@link ImageRenderer} used with this overlay, which may be null.
      * @return
      */
@@ -99,9 +110,21 @@ public class ZProjectOverlay extends AbstractImageOverlay {
             return;
 
         var zProjServer = getProjection(imageData.getServer());
-        getStore().paintRegion(
-                zProjServer, g2d, g2d.getClip(), 0, imageRegion.getT(), downsampleFactor,
+        int z = 0;
+        if (zProjServer.nZSlices() > 1) {
+            z = imageRegion.getZ();
+        }
+
+        var store = getStore();
+        if (paintCompletelyTimeout > 0) {
+            store.paintRegionCompletely(
+                zProjServer, g2d, g2d.getClip(), z, imageRegion.getT(), downsampleFactor,
+                null, renderer.get(), paintCompletelyTimeout);
+        } else {
+            store.paintRegion(
+                zProjServer, g2d, g2d.getClip(), z, imageRegion.getT(), downsampleFactor,
                 null, null, renderer.get());
+        }
     }
 
 }
