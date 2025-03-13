@@ -40,7 +40,7 @@ public class TestOMEZarrWriter {
 
         Assertions.assertThrows(
                 IllegalArgumentException.class,
-                () -> new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
+                () -> new OMEZarrWriter.Builder(sampleImageServer).build(outputImagePath)
         );
 
         sampleImageServer.close();
@@ -56,7 +56,7 @@ public class TestOMEZarrWriter {
 
         Assertions.assertThrows(
                 IllegalArgumentException.class,
-                () -> new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
+                () -> new OMEZarrWriter.Builder(sampleImageServer).build(outputImagePath)
         );
 
         sampleImageServer.close();
@@ -69,7 +69,7 @@ public class TestOMEZarrWriter {
         String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer).build(outputImagePath)) {
             writer.writeImage();
         }
 
@@ -86,7 +86,7 @@ public class TestOMEZarrWriter {
         SampleImageServer sampleImageServer = new SampleImageServer();
         PixelType expectedPixelType = sampleImageServer.getMetadata().getPixelType();
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer).build(outputImagePath)) {
             writer.writeImage();
         }
 
@@ -107,7 +107,7 @@ public class TestOMEZarrWriter {
         SampleImageServer sampleImageServer = new SampleImageServer();
         PixelCalibration expectedPixelCalibration = sampleImageServer.getMetadata().getPixelCalibration();
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer).build(outputImagePath)) {
             writer.writeImage();
         }
 
@@ -128,7 +128,7 @@ public class TestOMEZarrWriter {
         SampleImageServer sampleImageServer = new SampleImageServer();
         List<ImageChannel> expectedChannels = sampleImageServer.getMetadata().getChannels();
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer).build(outputImagePath)) {
             writer.writeImage();
         }
 
@@ -149,7 +149,7 @@ public class TestOMEZarrWriter {
         SampleImageServer sampleImageServer = new SampleImageServer();
         double expectedMagnification = sampleImageServer.getMetadata().getMagnification();
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer).build(outputImagePath)) {
             writer.writeImage();
         }
 
@@ -181,7 +181,7 @@ public class TestOMEZarrWriter {
                 t
         );
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer).build(outputImagePath)) {
             writer.writeImage();
         }
 
@@ -221,7 +221,7 @@ public class TestOMEZarrWriter {
                 t
         );
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath).build()) {
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer).build(outputImagePath)) {
             writer.writeImage();
         }
 
@@ -250,9 +250,9 @@ public class TestOMEZarrWriter {
         SampleImageServer sampleImageServer = new SampleImageServer();
         double[] expectedDownsamples = sampleImageServer.getPreferredDownsamples();
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setDownsamples()
-                .build()
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .downsamples()
+                .build(outputImagePath)
         ) {
             writer.writeImage();
         }
@@ -274,9 +274,9 @@ public class TestOMEZarrWriter {
         SampleImageServer sampleImageServer = new SampleImageServer();
         double[] expectedDownsamples = new double[] {1, 2, 4};
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setDownsamples(expectedDownsamples)
-                .build()
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .downsamples(expectedDownsamples)
+                .build(outputImagePath)
         ) {
             writer.writeImage();
         }
@@ -298,9 +298,9 @@ public class TestOMEZarrWriter {
         SampleImageServer sampleImageServer = new SampleImageServer();
         int expectedTileWidth = sampleImageServer.getMetadata().getPreferredTileWidth();
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTileWidth(-1)
-                .build()
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .tileSize(-1)
+                .build(outputImagePath)
         ) {
             writer.writeImage();
         }
@@ -322,9 +322,9 @@ public class TestOMEZarrWriter {
         SampleImageServer sampleImageServer = new SampleImageServer();
         int expectedTileWidth = 64;
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTileWidth(expectedTileWidth)
-                .build()
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .tileSize(expectedTileWidth)
+                .build(outputImagePath)
         ) {
             writer.writeImage();
         }
@@ -346,9 +346,9 @@ public class TestOMEZarrWriter {
         SampleImageServer sampleImageServer = new SampleImageServer();
         int expectedTileHeight = sampleImageServer.getMetadata().getPreferredTileHeight();
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTileHeight(-1)
-                .build()
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .tileSize(-1)
+                .build(outputImagePath)
         ) {
             writer.writeImage();
         }
@@ -370,9 +370,9 @@ public class TestOMEZarrWriter {
         SampleImageServer sampleImageServer = new SampleImageServer();
         int expectedTileHeight = 64;
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTileHeight(expectedTileHeight)
-                .build()
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .tileSize(expectedTileHeight)
+                .build(outputImagePath)
         ) {
             writer.writeImage();
         }
@@ -397,9 +397,9 @@ public class TestOMEZarrWriter {
         ImageRegion boundingBox = ImageRegion.createInstance(5, 5, 20, 25, z, t);
         BufferedImage expectedImage = sampleImageServer.readRegion(RegionRequest.createInstance(sampleImageServer.getPath(), 1, boundingBox));
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setBoundingBox(boundingBox)
-                .build()
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .region(boundingBox)
+                .build(outputImagePath)
         ) {
             writer.writeImage();
         }
@@ -423,9 +423,9 @@ public class TestOMEZarrWriter {
         int zEnd = 3;
         int expectedNumberOfZStacks = zEnd - zStart;
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setZSlices(zStart, zEnd)
-                .build()
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .zSlices(zStart, zEnd)
+                .build(outputImagePath)
         ) {
             writer.writeImage();
         }
@@ -460,9 +460,9 @@ public class TestOMEZarrWriter {
                 t
         ));
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setZSlices(zStart, zEnd)
-                .build()
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .zSlices(zStart, zEnd)
+                .build(outputImagePath)
         ) {
             writer.writeImage();
         }
@@ -486,9 +486,9 @@ public class TestOMEZarrWriter {
         int tEnd = 2;
         int expectedNumberOfTimepoints = tEnd - tStart;
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTimepoints(tStart, tEnd)
-                .build()
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .timePoints(tStart, tEnd)
+                .build(outputImagePath)
         ) {
             writer.writeImage();
         }
@@ -523,9 +523,9 @@ public class TestOMEZarrWriter {
                 t
         ));
 
-        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer, outputImagePath)
-                .setTimepoints(tStart, tEnd)
-                .build()
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .timePoints(tStart, tEnd)
+                .build(outputImagePath)
         ) {
             writer.writeImage();
         }

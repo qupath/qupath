@@ -37,11 +37,20 @@ import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
-import javafx.scene.text.Text;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.shape.Rectangle;
+import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,9 +73,12 @@ import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableRow;
 import qupath.fx.controls.PredicateTextField;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
@@ -164,6 +176,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		col1.setCellValueFactory(this::tableKeyColumnValueFactory);
 		TableColumn<String, String> col2 = new TableColumn<>("Value");
 		col2.setCellValueFactory(this::tableValueColumnValueFactory);
+		col2.setCellFactory(c -> new ValueTableCell());
 
 		tableMeasurements.getColumns().addAll(col1, col2);
 		tableMeasurements.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
@@ -355,6 +368,107 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	@Override
 	public void propertyChange(PropertyChangeEvent evt) {
 		updateTableModel();
+	}
+
+
+	private class ValueTableCell extends TableCell<String, String> {
+
+		private final Label label = new Label();
+		private final HBox pane = new HBox(label);
+
+		private final static int ICON_SIZE = 12;
+		private final Node measurementListIcon = createMeasurementListIcon(ICON_SIZE);
+		private final Node metadataIcon = createMetadataIcon(ICON_SIZE);
+		private final Node objectIdIcon = createObjectIdIcon(ICON_SIZE);
+		private final Rectangle classIcon = new Rectangle(ICON_SIZE-2, ICON_SIZE-2);
+
+		private ValueTableCell() {
+			setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+			pane.setAlignment(Pos.CENTER);
+			HBox.setHgrow(label, Priority.ALWAYS);
+			label.setMaxWidth(Double.MAX_VALUE);
+		}
+
+		@Override
+		public void updateItem(String item, boolean empty) {
+			super.updateItem(item, empty);
+			if (item == null || empty) {
+				setText(null);
+				setGraphic(null);
+				return;
+			}
+			var measurement = getTableRow().getItem();
+			Node icon = null;
+			setGraphic(pane);
+			label.setText(item);
+			if ("Classification".equals(measurement)) {
+				if (!item.isBlank()) {
+					var color = ColorToolsFX.getPathClassColor(PathClass.fromString(item));
+					classIcon.setFill(color);
+					icon = classIcon;
+				}
+			} else if ("Object ID".equals(measurement)) {
+				icon = objectIdIcon;
+			} else if ("Object type".equals(measurement)) {
+				icon = createObjectTypeIcon(item, ICON_SIZE);
+			} else if (tableModel.isNumericMeasurement(measurement)) {
+				var selected = getSelectedObject();
+				if (selected != null && selected.getMeasurementList().containsKey(measurement)) {
+					icon = measurementListIcon;
+				}
+			} else {
+				var selected = getSelectedObject();
+				if (selected != null && selected.getMetadata().containsKey(measurement)) {
+					icon = metadataIcon;
+				}
+			}
+
+			if (icon == null) {
+				pane.getChildren().setAll(label);
+			} else {
+				pane.getChildren().setAll(label, ensureMinWidth(icon));
+			}
+		}
+
+	}
+
+	private static Node ensureMinWidth(Node node) {
+		if (node instanceof Region region) {
+			region.setMinWidth(Region.USE_PREF_SIZE);
+			return region;
+		} else {
+			return ensureMinWidth(new BorderPane(node));
+		}
+	}
+
+	private static Node createObjectIdIcon(int size) {
+		var icon = IconFactory.createFontAwesome('\uf2c2', size);
+		icon.setOpacity(0.4);
+		return icon;
+	}
+
+	private static Node createObjectTypeIcon(String name, int size) {
+		return switch (name.toLowerCase()) {
+			case "annotation" -> IconFactory.createNode(size, size, IconFactory.PathIcons.ANNOTATIONS);
+			case "tma core" -> IconFactory.createNode(size, size, IconFactory.PathIcons.TMA_GRID);
+			case "detection", "cell", "tile" -> IconFactory.createNode(size, size, IconFactory.PathIcons.DETECTIONS);
+			default -> null;
+		};
+	}
+
+	private static Node createMeasurementListIcon(int size) {
+		var icon = IconFactory.createNode(FontAwesome.Glyph.LIST_OL, size);
+		icon.setOpacity(0.4);
+		Tooltip.install(icon, new Tooltip("Value stored in the object's measurement list.\n" +
+				"May be used as a feature for an object classifier."));
+		return icon;
+	}
+
+	private static Node createMetadataIcon(int size) {
+		var icon = IconFactory.createNode(FontAwesome.Glyph.LIST_UL, size);
+		icon.setOpacity(0.4);
+		Tooltip.install(icon, new Tooltip("Value is stored in the object's metadata map."));
+		return icon;
 	}
 
 

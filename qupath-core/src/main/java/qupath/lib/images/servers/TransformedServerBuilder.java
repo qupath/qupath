@@ -98,6 +98,71 @@ public class TransformedServerBuilder {
 		server = new SlicedImageServer(server, zStart, zEnd, zStep, tStart, tEnd, tStep);
 		return this;
 	}
+
+	/**
+	 * Apply a mean Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMean() {
+		return zProject(ZProjectedImageServer.Projection.MEAN);
+	}
+
+	/**
+	 * Apply a minimum Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMin() {
+		return zProject(ZProjectedImageServer.Projection.MIN);
+	}
+
+	/**
+	 * Apply a maximum Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMax() {
+		return zProject(ZProjectedImageServer.Projection.MAX);
+	}
+
+	/**
+	 * Apply a sum Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectSum() {
+		return zProject(ZProjectedImageServer.Projection.SUM);
+	}
+
+	/**
+	 * Apply a standard deviation Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectStandardDeviation() {
+		return zProject(ZProjectedImageServer.Projection.STANDARD_DEVIATION);
+	}
+
+	/**
+	 * Apply a median Z-projection to the image.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMedian() {
+		return zProject(ZProjectedImageServer.Projection.MEDIAN);
+	}
+
+	/**
+	 * Apply a Z-projection.
+	 *
+	 * @param projection a type of projection to convert the multiple z-stacks into one
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProject(ZProjectedImageServer.Projection projection) {
+		server = new ZProjectedImageServer(server, projection);
+		return this;
+	}
 	
 	/**
 	 * Apply an {@link AffineTransform} to the server. 
