@@ -149,24 +149,34 @@ public class QuPathViewerPlus extends QuPathViewer {
 
 		spinnerZ.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1));
 		spinnerZ.getValueFactory().valueProperty().addListener((v, o, n) -> zPositionProperty().set(n));
-		zPositionProperty().addListener((v, o, n) -> {
-			spinnerZ.getValueFactory().setValue((Integer) n);
-		});
+		zPositionProperty().addListener((v, o, n) -> spinnerZ.getValueFactory().setValue((Integer) n));
 		spinnerZ.setPrefWidth(70);
 		spinnerZ.setEditable(true);
 		FXUtils.resetSpinnerNullToPrevious(spinnerZ);
 
 		spinnerZHBox.setAlignment(Pos.CENTER_RIGHT);
 		spinnerZHBox.setVisible(false);
+		var tooltipZ = new Tooltip("Change z-slice");
+		tooltipZ.textProperty().bind(
+				Bindings.createStringBinding(
+						() -> "Z-slice (" + zPositionProperty().get() + "/" + getNZSlices() + ")",
+						zPositionProperty()
+		));
+
+		spinnerZ.setTooltip(tooltipZ);
 
 		spinnerT.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1));
-		spinnerT.getValueFactory().valueProperty().addListener((v, o, n) -> {
-			tPositionProperty().set(n);
-		});
-		tPositionProperty().addListener((v, o, n) -> {
-			spinnerT.getValueFactory().setValue((Integer) n);
-		});
+		spinnerT.getValueFactory().valueProperty().addListener((v, o, n) -> tPositionProperty().set(n));
+		tPositionProperty().addListener((v, o, n) -> spinnerT.getValueFactory().setValue((Integer) n));
 		spinnerT.setPrefWidth(70);
+		var tooltipT = new Tooltip("Change time point");
+		tooltipT.textProperty().bind(
+				Bindings.createStringBinding(
+						() -> "Time point (" + tPositionProperty().get() + "/" + getNTimepoints() + ")",
+						tPositionProperty()
+		));
+		spinnerT.setTooltip(tooltipT);
+
 
 		spinnerTHBox.setAlignment(Pos.CENTER_RIGHT);
 		spinnerTHBox.setVisible(false);
@@ -195,6 +205,14 @@ public class QuPathViewerPlus extends QuPathViewer {
 		viewerDisplayOptions.showLocationProperty().addListener(locationListener);
 		viewerDisplayOptions.showOverviewProperty().addListener(overviewListener);
 		viewerDisplayOptions.showScalebarProperty().addListener(scalebarListener);
+	}
+
+	private int getNTimepoints() {
+		return getServer() == null ? 0 : getServer().nTimepoints();
+	}
+
+	private int getNZSlices() {
+		return getServer() == null ? 0 : getServer().nZSlices();
 	}
 
 	private void updateSpinners() {
