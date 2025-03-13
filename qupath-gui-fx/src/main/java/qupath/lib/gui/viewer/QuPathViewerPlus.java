@@ -44,6 +44,7 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
@@ -61,8 +62,11 @@ public class QuPathViewerPlus extends QuPathViewer {
 
 	private final Spinner<Integer> spinnerZ = new Spinner<>();
 	private final Spinner<Integer> spinnerT = new Spinner<>();
-	private final HBox spinnerZHBox;
-	private final HBox spinnerTHBox;
+	private final Label labelZ = new Label("Z: ");
+	private final Label labelT = new Label("Time: ");
+	private final HBox spinnerZHBox = new HBox(labelZ, spinnerZ);
+	private final HBox spinnerTHBox = new HBox(labelT, spinnerT);
+	private final VBox spinnersVBox = new VBox(spinnerZHBox, spinnerTHBox);
 	private ViewerPlusDisplayOptions viewerDisplayOptions;
 	
 	private ChangeListener<Boolean> locationListener = (v, o, n) -> setLocationVisible(n);
@@ -148,8 +152,6 @@ public class QuPathViewerPlus extends QuPathViewer {
 			spinnerZ.getValueFactory().setValue((Integer) n);
 		});
 		spinnerZ.setPrefWidth(70);
-		Label labelZ = new Label("Z: ");
-		spinnerZHBox = new HBox(labelZ, spinnerZ);
 		spinnerZHBox.setAlignment(Pos.CENTER_RIGHT);
 		spinnerZHBox.setVisible(false);
 
@@ -161,8 +163,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 			spinnerT.getValueFactory().setValue((Integer) n);
 		});
 		spinnerT.setPrefWidth(70);
-		Label labelT = new Label("Time: ");
-		spinnerTHBox = new HBox(labelT, spinnerT);
+
 		spinnerTHBox.setAlignment(Pos.CENTER_RIGHT);
 		spinnerTHBox.setVisible(false);
 
@@ -171,7 +172,9 @@ public class QuPathViewerPlus extends QuPathViewer {
 		var commandBarDisplay = CommandFinderTools.commandBarDisplayProperty().getValue();
 		setSpinnersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
 
-		basePane.getChildren().addAll(spinnerZHBox, spinnerTHBox);
+		spinnersVBox.setSpacing(padding);
+		spinnersVBox.setAlignment(Pos.CENTER_RIGHT);
+		basePane.getChildren().addAll(spinnersVBox);
 
 		updateSpinners();
 		
@@ -272,13 +275,16 @@ public class QuPathViewerPlus extends QuPathViewer {
 	public void setSpinnersPosition(boolean down) {
 		double spinnersTopPadding = (double)padding + (down ? 20 : 0);
 
-		// Set Z spinner' position
-		AnchorPane.setTopAnchor(spinnerZHBox, (double)padding*3 + spinnersTopPadding);
-		AnchorPane.setLeftAnchor(spinnerZHBox, (double)padding);
+		AnchorPane.setTopAnchor(spinnersVBox, spinnersTopPadding);
+		AnchorPane.setLeftAnchor(spinnersVBox, (double) padding);
 
-		// Set T spinner' position
-		AnchorPane.setTopAnchor(spinnerTHBox, spinnersTopPadding);
-		AnchorPane.setLeftAnchor(spinnerTHBox, (double)padding*3);
+//		// Set Z spinner' position
+//		AnchorPane.setTopAnchor(spinnerZHBox, (double)padding*3 + spinnersTopPadding);
+//		AnchorPane.setLeftAnchor(spinnerZHBox, (double)padding);
+//
+//		// Set T spinner' position
+//		AnchorPane.setTopAnchor(spinnerTHBox, spinnersTopPadding);
+//		AnchorPane.setLeftAnchor(spinnerTHBox, (double)padding);
 	}
 	
 	@Override
