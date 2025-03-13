@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -44,7 +44,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
@@ -83,7 +82,10 @@ public class QuPathViewerPlus extends QuPathViewer {
 	private BooleanProperty useCalibratedLocationString = PathPrefs.useCalibratedLocationStringProperty();
 
 	private int padding = 10;
-	
+
+
+
+
 	
 	/**
 	 * Create a new viewer.
@@ -113,15 +115,13 @@ public class QuPathViewerPlus extends QuPathViewer {
 		AnchorPane.setRightAnchor(overviewNode, (double)padding);
 
 		// Add the location label
-		labelLocation.setTextFill(Color.WHITE);
 		labelLocation.setTextAlignment(TextAlignment.CENTER);
 		var fontBinding = Bindings.createStringBinding(() -> {
 				var temp = PathPrefs.locationFontSizeProperty().get();
 				return temp == null ? null : "-fx-font-size: " + temp.getFontSize();
 		}, PathPrefs.locationFontSizeProperty());
 		labelLocation.styleProperty().bind(fontBinding);
-//		labelLocation.setStyle("-fx-font-size: 0.8em;");
-		panelLocation.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4);");
+		panelLocation.getStyleClass().add("viewer-overlay");
 		panelLocation.setMinSize(140, 40);
 		panelLocation.setCenter(labelLocation);
 		panelLocation.setPadding(new Insets(5));
@@ -156,9 +156,8 @@ public class QuPathViewerPlus extends QuPathViewer {
 		spinnerZ.setTooltip(tooltipZ);
 		var progressZ = new ProgressBar();
 		progressZ.visibleProperty().bind(spinnerZHBox.visibleProperty());
+		progressZ.setMaxWidth(Double.MAX_VALUE);
 		progressZ.setPrefHeight(10);
-		progressZ.prefWidthProperty().bind(spinnerZHBox.widthProperty());
-		progressZ.translateXProperty().bind(spinnerZHBox.layoutXProperty());
 		if (spinnerZ.getValueFactory() instanceof SpinnerValueFactory.IntegerSpinnerValueFactory f) {
 			progressZ.progressProperty().bind(Bindings.createDoubleBinding(() -> {
 				return f.getValue().doubleValue() / (f.getMax() - 1);
@@ -184,8 +183,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		var progressT = new ProgressBar();
 		progressT.visibleProperty().bind(spinnerTHBox.visibleProperty());
 		progressT.setPrefHeight(10);
-		progressT.prefWidthProperty().bind(spinnerTHBox.widthProperty());
-		progressT.translateXProperty().bind(spinnerTHBox.layoutXProperty());
+		progressZ.setMaxWidth(Double.MAX_VALUE);
 		if (spinnerT.getValueFactory() instanceof SpinnerValueFactory.IntegerSpinnerValueFactory f) {
 			progressT.progressProperty().bind(Bindings.createDoubleBinding(() -> {
 				return f.getValue().doubleValue() / (f.getMax() - 1);
@@ -197,6 +195,8 @@ public class QuPathViewerPlus extends QuPathViewer {
 		var commandBarDisplay = CommandFinderTools.commandBarDisplayProperty().getValue();
 		setSpinnersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
 
+		spinnersVBox.getStyleClass().addAll("viewer-overlay", "viewer-dims");
+		spinnersVBox.setPadding(new Insets(10));
 		spinnersVBox.getChildren().setAll(spinnerZHBox, progressZ, spinnerTHBox, progressT);
 		spinnersVBox.setSpacing(padding);
 		spinnersVBox.setAlignment(Pos.CENTER_RIGHT);
@@ -309,17 +309,8 @@ public class QuPathViewerPlus extends QuPathViewer {
 	 */
 	public void setSpinnersPosition(boolean down) {
 		double spinnersTopPadding = (double)padding + (down ? 20 : 0);
-
 		AnchorPane.setTopAnchor(spinnersVBox, spinnersTopPadding);
 		AnchorPane.setLeftAnchor(spinnersVBox, (double) padding);
-
-//		// Set Z spinner' position
-//		AnchorPane.setTopAnchor(spinnerZHBox, (double)padding*3 + spinnersTopPadding);
-//		AnchorPane.setLeftAnchor(spinnerZHBox, (double)padding);
-//
-//		// Set T spinner' position
-//		AnchorPane.setTopAnchor(spinnerTHBox, spinnersTopPadding);
-//		AnchorPane.setLeftAnchor(spinnerTHBox, (double)padding);
 	}
 	
 	@Override
@@ -336,7 +327,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		String s = null;
 		if (labelLocation != null && hasServer())
 			s = getFullLocationString(useCalibratedLocationString());
-		if (s != null && s.length() > 0) {
+		if (s != null && !s.isEmpty()) {
 			labelLocation.setText(s);
 //			labelLocation.setTextAlignment(TextAlignment.CENTER);
 			panelLocation.setOpacity(1);
