@@ -29,28 +29,15 @@ import java.awt.image.BufferedImage;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.Separator;
-import javafx.scene.control.Spinner;
-import javafx.scene.control.SpinnerValueFactory;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.TextAlignment;
-import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -64,7 +51,7 @@ import qupath.lib.images.servers.ImageServer;
  */
 public class QuPathViewerPlus extends QuPathViewer {
 
-	private final DimensionControls dimensionControls;
+	private final ViewerDimensionControls dimensionControls;
 	private final ViewerPlusDisplayOptions viewerDisplayOptions;
 	
 	private final ChangeListener<Boolean> locationListener = (v, o, n) -> setLocationVisible(n);
@@ -93,7 +80,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 			final ViewerPlusDisplayOptions viewerDisplayOptions) {
 		super(regionStore, overlayOptions);
 
-		dimensionControls = new DimensionControls();
+		dimensionControls = new ViewerDimensionControls();
 		dimensionControls.zPositionProperty().bindBidirectional(zPositionProperty());
 		dimensionControls.tPositionProperty().bindBidirectional(tPositionProperty());
 
@@ -287,131 +274,12 @@ public class QuPathViewerPlus extends QuPathViewer {
 		}
 	}
 
-	
+
 	@Override
 	public void repaintEntireImage() {
 		super.repaintEntireImage();
 		if (overview != null)
 			overview.repaint();
 	}
-
-
-
-	private static class DimensionControls {
-
-		private final IntegerProperty zPositionProperty = new SimpleIntegerProperty();
-		private final IntegerProperty zMaxProperty = new SimpleIntegerProperty();
-
-		private final IntegerProperty tPositionProperty = new SimpleIntegerProperty();
-		private final IntegerProperty tMaxProperty = new SimpleIntegerProperty();
-
-		private final DoubleProperty contentOpacityProperty = new SimpleDoubleProperty(1.0);
-
-		private final Spinner<Integer> spinnerZ = createSpinner(zPositionProperty, zMaxProperty, "Z-slice");
-		private final Spinner<Integer> spinnerT = createSpinner(tPositionProperty, tMaxProperty, "Time point");
-
-		private final ProgressBar progressZ = createProgressBar(zPositionProperty, zMaxProperty);
-		private final ProgressBar progressT = createProgressBar(tPositionProperty, tMaxProperty);
-
-		private final Label labelZ = createLabel("Z: ", spinnerZ);
-		private final Label labelT = createLabel("Time: ", spinnerT);
-
-		private final GridPane pane = new GridPane();
-
-		private DimensionControls() {
-			pane.getStyleClass().addAll("viewer-overlay", "viewer-dims");
-			pane.setOnMouseEntered(e -> contentOpacityProperty.set(1.0));
-			pane.setOnMouseExited(e -> contentOpacityProperty.set(0.5));
-			pane.setVgap(4);
-
-			zMaxProperty.addListener(this::handleChange);
-			tMaxProperty.addListener(this::handleChange);
-			updateContents();
-		}
-
-		private ProgressBar createProgressBar(IntegerProperty property, IntegerProperty maxProperty) {
-			var progress = new ProgressBar();
-			progress.setMaxWidth(Double.MAX_VALUE);
-			progress.setPrefHeight(10);
-			progress.progressProperty().bind(Bindings.createDoubleBinding(() -> property.doubleValue() / (maxProperty.get() - 1),
-				property, maxProperty));
-			progress.opacityProperty().bind(contentOpacityProperty);
-			return progress;
-		}
-
-		private Spinner<Integer> createSpinner(IntegerProperty property, IntegerProperty maxProperty,
-													  String name) {
-			var factory = new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1);
-			factory.maxProperty().bind(maxProperty);
-			var spinner = new Spinner<>(factory);
-			factory.valueProperty().addListener((v, o, n) -> property.setValue(n));
-			property.addListener((v, o, n) -> factory.setValue((Integer) n));
-			spinner.setPrefWidth(70);
-			spinner.setEditable(true);
-			FXUtils.resetSpinnerNullToPrevious(spinner);
-
-			var tooltip = new Tooltip();
-			tooltip.textProperty().bind(
-					Bindings.createStringBinding(
-							() -> name + " (" + property.get() + "/" + maxProperty.get() + ")",
-							property, maxProperty
-					));
-			spinner.setTooltip(tooltip);
-
-			spinner.opacityProperty().bind(contentOpacityProperty);
-			return spinner;
-		}
-
-		private Label createLabel(String text, Node node) {
-			var label = new Label(text);
-			label.setLabelFor(node);
-			label.setContentDisplay(ContentDisplay.RIGHT);
-			label.opacityProperty().bind(contentOpacityProperty);
-			return label;
-		}
-
-		private void handleChange(ObservableValue<? extends Number> val, Number oldValue, Number newValue) {
-			updateContents();
-		}
-
-		private void updateContents() {
-			pane.getChildren().clear();
-			int row = 0;
-			if (tMaxProperty.get() > 1) {
-				pane.addRow(row++, labelT, spinnerT);
-				pane.add(progressT, 0, row++, 2, 1);
-			}
-			if (zMaxProperty.get() > 1) {
-				if (row > 0)
-					pane.add(new Separator(), 0, row++, 2, 1);
-				pane.addRow(row++, labelZ, spinnerZ);
-				pane.add(progressZ, 0, row++, 2, 1);
-			}
-			pane.setVisible(!pane.getChildren().isEmpty());
-		}
-
-		IntegerProperty zMaxProperty() {
-			return zMaxProperty;
-		}
-
-		IntegerProperty tMaxProperty() {
-			return tMaxProperty;
-		}
-
-		IntegerProperty zPositionProperty() {
-			return zPositionProperty;
-		}
-
-		IntegerProperty tPositionProperty() {
-			return tPositionProperty;
-		}
-
-
-		Pane getPane() {
-			return pane;
-		}
-
-	}
-
 
 }
