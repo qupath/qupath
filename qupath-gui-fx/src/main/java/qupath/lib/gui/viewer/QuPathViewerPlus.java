@@ -36,7 +36,11 @@ import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
@@ -137,6 +141,28 @@ public class QuPathViewerPlus extends QuPathViewer {
 		sliderZ.valueProperty().bindBidirectional(zPositionProperty());
 //		sliderZ.setOpaque(false);
 		sliderZ.setVisible(false);
+
+		TextField numberFieldZ = new TextField(String.valueOf(zPositionProperty().get()));
+		numberFieldZ.setPrefWidth(30);
+		numberFieldZ.setVisible(false);
+		numberFieldZ.focusedProperty().addListener((v, o, n) -> {
+			if (!n) numberFieldZ.setVisible(false);
+		});
+		sliderZ.setOnMouseClicked(e -> {
+			sliderClickHandler(e, sliderZ, numberFieldZ, true);
+		});
+
+		TextField numberFieldT = new TextField(String.valueOf(tPositionProperty().get()));
+		numberFieldT.setPrefWidth(30);
+		numberFieldT.setVisible(false);
+		numberFieldT.focusedProperty().addListener((v, o, n) -> {
+			if (!n) numberFieldT.setVisible(false);
+		});
+		sliderT.setOnMouseClicked(e -> {
+			sliderClickHandler(e, sliderT, numberFieldT, false);
+		});
+
+		basePane.getChildren().addAll(numberFieldZ, numberFieldT);
 		var tooltipZ = new Tooltip("Change z-slice");
 		tooltipZ.textProperty().bind(Bindings.createStringBinding(() -> {
 			return "Z-slice (" + zPositionProperty().get() + ")";
@@ -179,8 +205,44 @@ public class QuPathViewerPlus extends QuPathViewer {
 		viewerDisplayOptions.showOverviewProperty().addListener(overviewListener);
 		viewerDisplayOptions.showScalebarProperty().addListener(scalebarListener);
 	}
-	
-	
+
+	private static void sliderClickHandler(MouseEvent e, Slider slider, TextField numberField, boolean isVertical) {
+		if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() > 1) {
+			if (!isVertical) {
+				System.out.println(">");
+			}
+			// todo: create text box
+			setSliderTextFieldPosition(slider, numberField, isVertical);
+			numberField.setVisible(true);
+			numberField.requestFocus();
+			numberField.setOnKeyPressed(ee -> {
+				if (ee.getCode() == KeyCode.ENTER) {
+					slider.setValue(Integer.parseInt(numberField.getText()));
+					numberField.setVisible(false);
+				}
+			});
+
+		}
+	}
+
+	private static void setSliderTextFieldPosition(Slider slider, TextField textField, boolean isVertical) {
+		double sliderMin = slider.getMin();
+		double sliderMax = slider.getMax();
+		double val = slider.getValue();
+
+		if (isVertical) {
+			// vertical: position textField to the right of the current slider position
+			double thumbPos = ((sliderMax - val) / (sliderMax - sliderMin)) * (slider.getHeight() - 20);
+			textField.setLayoutX(slider.getLayoutX() + slider.getWidth() + 10); // 10px spacing to the right
+			textField.setLayoutY(slider.getLayoutY() + thumbPos - textField.getPrefHeight() / 2);
+		} else {
+			// horizontal: position textField below the current slider position
+			double thumbPos = ((val - sliderMin) / (sliderMax - sliderMin)) * (slider.getWidth() - 20);
+			textField.setLayoutX(slider.getLayoutX() + thumbPos - textField.getPrefWidth() / 2);
+			textField.setLayoutY(slider.getLayoutY() + slider.getHeight() + 5);
+		}
+	}
+
 	private void updateSliders() {
 		if (sliderZ == null || sliderT == null)
 			return;

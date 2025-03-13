@@ -3148,7 +3148,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			KeyCode code = event.getCode();
 						
 			// Handle backspace/delete to remove selected object
-			if (event.getEventType() == KeyEvent.KEY_RELEASED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
+			if (canvas.isFocused() && event.getEventType() == KeyEvent.KEY_RELEASED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
 				if (getROIEditor().hasActiveHandle() || getROIEditor().isTranslating()) {
 					logger.debug("Cannot delete object - ROI being edited");
 					return;
