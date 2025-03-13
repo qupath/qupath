@@ -102,6 +102,7 @@ public class ImageServers {
 			.registerSubtype(NormalizedImageServerBuilder.class, "normalized")
 			.registerSubtype(TypeConvertImageServerBuilder.class, "typeConvert")
 			.registerSubtype(SlicedImageServerBuilder.class, "sliced")
+			.registerSubtype(ZProjectedImageServerBuilder.class, "z_projection")
 			;
 
 	private static GsonTools.SubTypeAdapterFactory<BufferedImageNormalizer> normalizerFactory =
@@ -590,7 +591,47 @@ public class ImageServers {
 				);
 			}
 		}
+	}
 
+	static class ZProjectedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+
+		private final ServerBuilder<BufferedImage> builder;
+		private final ZProjectedImageServer.Projection projection;
+
+		public ZProjectedImageServerBuilder(
+				ImageServerMetadata metadata,
+				ServerBuilder<BufferedImage> builder,
+				ZProjectedImageServer.Projection projection
+		) {
+			super(metadata);
+
+			this.builder = builder;
+			this.projection = projection;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new ZProjectedImageServer(builder.build(), projection);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder) {
+				return this;
+			} else {
+				return new ZProjectedImageServerBuilder(
+						getMetadata().orElse(null),
+						newBuilder,
+						projection
+				);
+			}
+		}
 	}
 	
 	static class AffineTransformImageServerBuilder extends AbstractServerBuilder<BufferedImage> {

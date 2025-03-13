@@ -1,6 +1,6 @@
 [versions]
 
-bioformats      = "8.1.0"
+bioformats      = "8.1.1"
 bioimageIoSpec  = "0.2.0-SNAPSHOT"
 omeZarrReader   = "0.5.2"
 blosc           = "1.21.6+01"
@@ -10,7 +10,7 @@ commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.1.2"
 
-deepJavaLibrary = "0.31.1"
+deepJavaLibrary = "0.32.0"
 
 groovy          = "4.0.25"
 gson            = "2.12.1"

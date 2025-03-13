@@ -1487,7 +1487,9 @@ public class GuiTools {
 		label.setAlignment(Pos.CENTER_LEFT);
 		label.setPadding(new Insets(0, 2, 0, 0));
 		var right = rightNodes.length == 1 ? rightNodes[0] : new HBox(rightNodes);
-		return createLeftRightTitledPane(label, right);
+		var pane = createLeftRightTitledPane(label, right);
+		pane.textProperty().bindBidirectional(label.textProperty());
+		return pane;
 	}
 
 	/**

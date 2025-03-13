@@ -63,7 +63,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 	
-	private static Logger logger = LoggerFactory.getLogger(BrushToolEventHandler.class);
+	private static final Logger logger = LoggerFactory.getLogger(BrushToolEventHandler.class);
 	
 	/**
 	 * A collection of classes that should be ignored when
@@ -503,8 +503,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 	private boolean creatingTiledROI = false;
 	
 	protected GeometryFactory getGeometryFactory() {
-		var factory = GeometryTools.getDefaultFactory();
-		return factory;
+        return GeometryTools.getDefaultFactory();
 	}
 
 	@Override

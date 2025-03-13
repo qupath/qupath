@@ -46,7 +46,7 @@ public class TestConvertCommand {
 
             try (
                     ImageServer<BufferedImage> sampleServer = new SampleImageServer();
-                    OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleServer, inputImagePath).build()
+                    OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleServer).build(inputImagePath)
             ) {
                 writer.writeImage();
             }

@@ -58,7 +58,7 @@
 
 /* Adapt menu icon colors */
 .qupath-icon {
-  -fx-text-fill: -fx-text-background-color;;
+  -fx-text-fill: -fx-text-base-color;
 }
 
 /* Used in command finder for help text */
@@ -71,6 +71,11 @@
 .minimal-color-picker {
   -fx-color-label-visible: false;
   -fx-background-color: null;
+  -fx-color: -fx-base;
+}
+
+.minimal-color-picker .color-palette {
+  -fx-background: -fx-base;
 }
 
 .minimal-color-picker > .color-picker-label {
@@ -78,7 +83,7 @@
 }
 
 .minimal-color-picker:hover {
-  -fx-effect: dropshadow(two-pass-box , rgba(0, 0, 0, 0.2), 5, 0.0 , 0, 2);
+  -fx-effect: dropshadow(two-pass-box, rgba(0, 0, 0, 0.2), 5, 0.0 , 0, 2);
 }
 
 .minimal-color-picker:focused {
