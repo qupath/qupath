@@ -35,6 +35,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.Tooltip;
@@ -153,6 +154,16 @@ public class QuPathViewerPlus extends QuPathViewer {
 		));
 
 		spinnerZ.setTooltip(tooltipZ);
+		var progressZ = new ProgressBar();
+		progressZ.visibleProperty().bind(spinnerZHBox.visibleProperty());
+		progressZ.setPrefHeight(10);
+		progressZ.prefWidthProperty().bind(spinnerZHBox.widthProperty());
+		progressZ.translateXProperty().bind(spinnerZHBox.layoutXProperty());
+		if (spinnerZ.getValueFactory() instanceof SpinnerValueFactory.IntegerSpinnerValueFactory f) {
+			progressZ.progressProperty().bind(Bindings.createDoubleBinding(() -> {
+				return f.getValue().doubleValue() / (f.getMax() - 1);
+			}, f.valueProperty(), f.maxProperty()));
+		}
 
 		spinnerT.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1));
 		spinnerT.getValueFactory().valueProperty().addListener((v, o, n) -> tPositionProperty().set(n));
@@ -170,12 +181,23 @@ public class QuPathViewerPlus extends QuPathViewer {
 		spinnerTHBox.setAlignment(Pos.CENTER_RIGHT);
 		spinnerTHBox.setVisible(false);
 		spinnerT.setEditable(true);
+		var progressT = new ProgressBar();
+		progressT.visibleProperty().bind(spinnerTHBox.visibleProperty());
+		progressT.setPrefHeight(10);
+		progressT.prefWidthProperty().bind(spinnerTHBox.widthProperty());
+		progressT.translateXProperty().bind(spinnerTHBox.layoutXProperty());
+		if (spinnerT.getValueFactory() instanceof SpinnerValueFactory.IntegerSpinnerValueFactory f) {
+			progressT.progressProperty().bind(Bindings.createDoubleBinding(() -> {
+				return f.getValue().doubleValue() / (f.getMax() - 1);
+			}, f.valueProperty(), f.maxProperty()));
+		}
 		FXUtils.resetSpinnerNullToPrevious(spinnerT);
 		
 		// Set spinners' position so they make space for command bar (only if needed!)
 		var commandBarDisplay = CommandFinderTools.commandBarDisplayProperty().getValue();
 		setSpinnersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
 
+		spinnersVBox.getChildren().setAll(spinnerZHBox, progressZ, spinnerTHBox, progressT);
 		spinnersVBox.setSpacing(padding);
 		spinnersVBox.setAlignment(Pos.CENTER_RIGHT);
 		basePane.getChildren().addAll(spinnersVBox);
@@ -228,7 +250,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		vf.setMax(min);
 		vf.setMax(max);
 		vf.setValue(position);
-		hbox.setOpacity(0.25);
+		hbox.setOpacity(0.5);
 		hbox.setOnMouseEntered(e -> {
 			hbox.setOpacity(1);
 		});
