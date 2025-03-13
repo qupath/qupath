@@ -33,12 +33,16 @@ import javafx.beans.value.ChangeListener;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
@@ -55,6 +59,10 @@ import qupath.lib.images.servers.ImageServer;
  */
 public class QuPathViewerPlus extends QuPathViewer {
 
+	private final Spinner<Integer> spinnerZ = new Spinner<>();
+	private final Spinner<Integer> spinnerT = new Spinner<>();
+	private final HBox spinnerZHBox;
+	private final HBox spinnerTHBox;
 	private ViewerPlusDisplayOptions viewerDisplayOptions;
 	
 	private ChangeListener<Boolean> locationListener = (v, o, n) -> setLocationVisible(n);
@@ -86,11 +94,11 @@ public class QuPathViewerPlus extends QuPathViewer {
 		super(regionStore, overlayOptions);
 		
 		
-		sliderZ.setOrientation(Orientation.VERTICAL);
-		sliderT.setOrientation(Orientation.HORIZONTAL);
-		
-		sliderT.setSnapToTicks(true);
-		sliderZ.setSnapToTicks(true);
+//		sliderZ.setOrientation(Orientation.VERTICAL);
+//		sliderT.setOrientation(Orientation.HORIZONTAL);
+//
+//		sliderT.setSnapToTicks(true);
+//		sliderZ.setSnapToTicks(true);
 		
 		useCalibratedLocationString.addListener(v -> updateLocationString());
 		
@@ -132,39 +140,40 @@ public class QuPathViewerPlus extends QuPathViewer {
 		basePane.getChildren().add(scalebarNode);
 		AnchorPane.setBottomAnchor(scalebarNode, (double)padding);
 		AnchorPane.setLeftAnchor(scalebarNode, (double)padding);
+
+
+		spinnerZ.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1));
+		spinnerZ.getValueFactory().valueProperty().addListener((v, o, n) -> zPositionProperty().set(n));
+		zPositionProperty().addListener((v, o, n) -> {
+			spinnerZ.getValueFactory().setValue((Integer) n);
+		});
+		spinnerZ.setPrefWidth(70);
+		Label labelZ = new Label("Z: ");
+		spinnerZHBox = new HBox(labelZ, spinnerZ);
+		spinnerZHBox.setAlignment(Pos.CENTER_RIGHT);
+		spinnerZHBox.setVisible(false);
+
+		spinnerT.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1));
+		spinnerT.getValueFactory().valueProperty().addListener((v, o, n) -> {
+			tPositionProperty().set(n);
+		});
+		tPositionProperty().addListener((v, o, n) -> {
+			spinnerT.getValueFactory().setValue((Integer) n);
+		});
+		spinnerT.setPrefWidth(70);
+		Label labelT = new Label("Time: ");
+		spinnerTHBox = new HBox(labelT, spinnerT);
+		spinnerTHBox.setAlignment(Pos.CENTER_RIGHT);
+		spinnerTHBox.setVisible(false);
+
 		
-		// Add the z-slider
-		sliderZ.valueProperty().bindBidirectional(zPositionProperty());
-//		sliderZ.setOpaque(false);
-		sliderZ.setVisible(false);
-		var tooltipZ = new Tooltip("Change z-slice");
-		tooltipZ.textProperty().bind(Bindings.createStringBinding(() -> {
-			return "Z-slice (" + zPositionProperty().get() + ")";
-		}, zPositionProperty()));
-		sliderZ.setTooltip(tooltipZ);
-		sliderZ.rotateProperty().bind(Bindings.createDoubleBinding(() -> {
-			if (PathPrefs.invertZSliderProperty().get())
-				return 180.0;
-			return 0.0;
-		}, PathPrefs.invertZSliderProperty()));
-		
-		// Add the t-slider
-		sliderT.valueProperty().bindBidirectional(tPositionProperty());
-//		sliderT.setOpaque(false);
-		sliderT.setVisible(false);
-		var tooltipT = new Tooltip("Change time point");
-		tooltipT.textProperty().bind(Bindings.createStringBinding(() -> {
-			return "Time point (" + tPositionProperty().get() + ")";
-		}, tPositionProperty()));
-		sliderT.setTooltip(tooltipT);
-		
-		// Set sliders' position so they make space for command bar (only if needed!)
+		// Set spinners' position so they make space for command bar (only if needed!)
 		var commandBarDisplay = CommandFinderTools.commandBarDisplayProperty().getValue();
-		setSlidersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
+		setSpinnersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
 
-		basePane.getChildren().addAll(sliderZ, sliderT);
+		basePane.getChildren().addAll(spinnerZHBox, spinnerTHBox);
 
-		updateSliders();
+		updateSpinners();
 		
 		zPositionProperty().addListener(v -> updateLocationString());
 		tPositionProperty().addListener(v -> updateLocationString());
@@ -179,43 +188,36 @@ public class QuPathViewerPlus extends QuPathViewer {
 		viewerDisplayOptions.showOverviewProperty().addListener(overviewListener);
 		viewerDisplayOptions.showScalebarProperty().addListener(scalebarListener);
 	}
-	
-	
-	private void updateSliders() {
-		if (sliderZ == null || sliderT == null)
+
+	private void updateSpinners() {
+		if (spinnerZ == null || spinnerT == null)
 			return;
 		ImageServer<?> server = getServer();
 		if (server != null && server.nZSlices() > 1) {
-			setSliderRange(sliderZ, getZPosition(), 0, server.nZSlices()-1);
-			sliderZ.setVisible(true);
+			setSpinnerRange(spinnerZ, getZPosition(), 0, server.nZSlices()-1, spinnerZHBox);
+			spinnerZHBox.setVisible(true);
 		} else
-			sliderZ.setVisible(false);	
-				
+			spinnerZHBox.setVisible(false);
+
 		if (server != null && server.nTimepoints() > 1) {
-			setSliderRange(sliderT, getTPosition(), 0, server.nTimepoints()-1);
-			sliderT.setVisible(true);
+			setSpinnerRange(spinnerT, getTPosition(), 0, server.nTimepoints()-1, spinnerTHBox);
+			spinnerTHBox.setVisible(true);
 		} else
-			sliderT.setVisible(false);
+			spinnerTHBox.setVisible(false);
+
 	}
-	
-	
-	static void setSliderRange(final Slider slider, double position, double min, double max) {
-		slider.setMin(min);
-		slider.setMax(max);
-		slider.setMajorTickUnit(1);
-		slider.setMinorTickCount(0);
-		slider.setSnapToTicks(true);
-		slider.setShowTickMarks(false);
-		slider.setShowTickLabels(false);
-		slider.setValue(position);
-		slider.setOpacity(0.25);
-		slider.setBlockIncrement(1.0);
-		
-		slider.setOnMouseEntered(e -> {
-			slider.setOpacity(1);			
+
+	private void setSpinnerRange(Spinner<Integer> spinner, int position, int min, int max, HBox hbox) {
+		var vf = (SpinnerValueFactory.IntegerSpinnerValueFactory) spinner.getValueFactory();
+		vf.setMax(min);
+		vf.setMax(max);
+		vf.setValue(position);
+		hbox.setOpacity(0.25);
+		hbox.setOnMouseEntered(e -> {
+			hbox.setOpacity(1);
 		});
-		slider.setOnMouseExited(e -> {
-			slider.setOpacity(0.5);			
+		hbox.setOnMouseExited(e -> {
+			hbox.setOpacity(0.5);
 		});
 	}
 	
@@ -223,7 +225,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 	@Override
 	public void initializeForServer(ImageServer<BufferedImage> server) {
 		super.initializeForServer(server);
-		updateSliders();
+		updateSpinners();
 	}
 
 
@@ -262,21 +264,21 @@ public class QuPathViewerPlus extends QuPathViewer {
 	public boolean isOverviewVisible() {
 		return overview.isVisible();
 	}
-	
+
 	/**
-	 * Sets the Z and T sliders' position to allow space for command bar
+	 * Sets the Z and T spinner' position to allow space for command bar
 	 * @param down
 	 */
-	public void setSlidersPosition(boolean down) {
-		double slidersTopPadding = (double)padding + (down ? 20 : 0);
-		
-		// Set Z sliders' position
-		AnchorPane.setTopAnchor(sliderZ, (double)padding + slidersTopPadding);
-		AnchorPane.setLeftAnchor(sliderZ, (double)padding);
+	public void setSpinnersPosition(boolean down) {
+		double spinnersTopPadding = (double)padding + (down ? 20 : 0);
 
-		// Set T sliders' position
-		AnchorPane.setTopAnchor(sliderT, slidersTopPadding);
-		AnchorPane.setLeftAnchor(sliderT, (double)padding*2);
+		// Set Z spinner' position
+		AnchorPane.setTopAnchor(spinnerZHBox, (double)padding*3 + spinnersTopPadding);
+		AnchorPane.setLeftAnchor(spinnerZHBox, (double)padding);
+
+		// Set T spinner' position
+		AnchorPane.setTopAnchor(spinnerTHBox, spinnersTopPadding);
+		AnchorPane.setLeftAnchor(spinnerTHBox, (double)padding*3);
 	}
 	
 	@Override

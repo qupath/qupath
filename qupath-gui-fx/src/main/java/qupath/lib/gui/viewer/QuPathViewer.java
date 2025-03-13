@@ -56,6 +56,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javafx.beans.property.Property;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
@@ -3090,6 +3091,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	/**
 	 * Current z-position for the z-slice currently visible in the viewer.
+	 *
 	 * @return
 	 */
 	public IntegerProperty zPositionProperty() {
