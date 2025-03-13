@@ -35,7 +35,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.Tooltip;
@@ -81,8 +80,6 @@ public class QuPathViewerPlus extends QuPathViewer {
 	private BorderPane panelLocation = new BorderPane();
 	private Label labelLocation = new Label(" ");
 	private BooleanProperty useCalibratedLocationString = PathPrefs.useCalibratedLocationStringProperty();
-	private Slider sliderZ = new Slider(0, 1, 0);
-	private Slider sliderT = new Slider(0, 1, 0);
 
 	private int padding = 10;
 	
@@ -96,13 +93,6 @@ public class QuPathViewerPlus extends QuPathViewer {
 	public QuPathViewerPlus(final DefaultImageRegionStore regionStore, final OverlayOptions overlayOptions,
 			final ViewerPlusDisplayOptions viewerDisplayOptions) {
 		super(regionStore, overlayOptions);
-		
-		
-//		sliderZ.setOrientation(Orientation.VERTICAL);
-//		sliderT.setOrientation(Orientation.HORIZONTAL);
-//
-//		sliderT.setSnapToTicks(true);
-//		sliderZ.setSnapToTicks(true);
 		
 		useCalibratedLocationString.addListener(v -> updateLocationString());
 		
