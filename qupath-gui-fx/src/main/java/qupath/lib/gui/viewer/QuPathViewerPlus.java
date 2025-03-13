@@ -29,21 +29,26 @@ import java.awt.image.BufferedImage;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.Separator;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
@@ -59,32 +64,23 @@ import qupath.lib.images.servers.ImageServer;
  */
 public class QuPathViewerPlus extends QuPathViewer {
 
-	private final Spinner<Integer> spinnerZ = new Spinner<>();
-	private final Spinner<Integer> spinnerT = new Spinner<>();
-	private final Label labelZ = new Label("Z: ");
-	private final Label labelT = new Label("Time: ");
-	private final HBox spinnerZHBox = new HBox(labelZ, spinnerZ);
-	private final HBox spinnerTHBox = new HBox(labelT, spinnerT);
-	private final VBox spinnersVBox = new VBox(spinnerZHBox, spinnerTHBox);
-	private ViewerPlusDisplayOptions viewerDisplayOptions;
+	private final DimensionControls dimensionControls;
+	private final ViewerPlusDisplayOptions viewerDisplayOptions;
 	
-	private ChangeListener<Boolean> locationListener = (v, o, n) -> setLocationVisible(n);
-	private ChangeListener<Boolean> overviewListener = (v, o, n) -> setOverviewVisible(n);
-	private ChangeListener<Boolean> scalebarListener = (v, o, n) -> setScalebarVisible(n);
+	private final ChangeListener<Boolean> locationListener = (v, o, n) -> setLocationVisible(n);
+	private final ChangeListener<Boolean> overviewListener = (v, o, n) -> setOverviewVisible(n);
+	private final ChangeListener<Boolean> scalebarListener = (v, o, n) -> setScalebarVisible(n);
 
 	private AnchorPane basePane = new AnchorPane();
 	
-	private ImageOverview overview = new ImageOverview(this);
-	private Scalebar scalebar = new Scalebar(this);
+	private final ImageOverview overview = new ImageOverview(this);
+	private final Scalebar scalebar = new Scalebar(this);
 
-	private BorderPane panelLocation = new BorderPane();
-	private Label labelLocation = new Label(" ");
-	private BooleanProperty useCalibratedLocationString = PathPrefs.useCalibratedLocationStringProperty();
+	private final BorderPane panelLocation = new BorderPane();
+	private final Label labelLocation = new Label(" ");
+	private final BooleanProperty useCalibratedLocationString = PathPrefs.useCalibratedLocationStringProperty();
 
-	private int padding = 10;
-
-
-
+	private final int padding = 10;
 
 	
 	/**
@@ -96,7 +92,11 @@ public class QuPathViewerPlus extends QuPathViewer {
 	public QuPathViewerPlus(final DefaultImageRegionStore regionStore, final OverlayOptions overlayOptions,
 			final ViewerPlusDisplayOptions viewerDisplayOptions) {
 		super(regionStore, overlayOptions);
-		
+
+		dimensionControls = new DimensionControls();
+		dimensionControls.zPositionProperty().bindBidirectional(zPositionProperty());
+		dimensionControls.tPositionProperty().bindBidirectional(tPositionProperty());
+
 		useCalibratedLocationString.addListener(v -> updateLocationString());
 		
 		Pane view = super.getView();
@@ -136,71 +136,12 @@ public class QuPathViewerPlus extends QuPathViewer {
 		AnchorPane.setBottomAnchor(scalebarNode, (double)padding);
 		AnchorPane.setLeftAnchor(scalebarNode, (double)padding);
 
-
-		spinnerZ.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1));
-		spinnerZ.getValueFactory().valueProperty().addListener((v, o, n) -> zPositionProperty().set(n));
-		zPositionProperty().addListener((v, o, n) -> spinnerZ.getValueFactory().setValue((Integer) n));
-		spinnerZ.setPrefWidth(70);
-		spinnerZ.setEditable(true);
-		FXUtils.resetSpinnerNullToPrevious(spinnerZ);
-
-		spinnerZHBox.setAlignment(Pos.CENTER_RIGHT);
-		spinnerZHBox.setVisible(false);
-		var tooltipZ = new Tooltip("Change z-slice");
-		tooltipZ.textProperty().bind(
-				Bindings.createStringBinding(
-						() -> "Z-slice (" + zPositionProperty().get() + "/" + getNZSlices() + ")",
-						zPositionProperty()
-		));
-
-		spinnerZ.setTooltip(tooltipZ);
-		var progressZ = new ProgressBar();
-		progressZ.visibleProperty().bind(spinnerZHBox.visibleProperty());
-		progressZ.setMaxWidth(Double.MAX_VALUE);
-		progressZ.setPrefHeight(10);
-		if (spinnerZ.getValueFactory() instanceof SpinnerValueFactory.IntegerSpinnerValueFactory f) {
-			progressZ.progressProperty().bind(Bindings.createDoubleBinding(() -> {
-				return f.getValue().doubleValue() / (f.getMax() - 1);
-			}, f.valueProperty(), f.maxProperty()));
-		}
-
-		spinnerT.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1));
-		spinnerT.getValueFactory().valueProperty().addListener((v, o, n) -> tPositionProperty().set(n));
-		tPositionProperty().addListener((v, o, n) -> spinnerT.getValueFactory().setValue((Integer) n));
-		spinnerT.setPrefWidth(70);
-		var tooltipT = new Tooltip("Change time point");
-		tooltipT.textProperty().bind(
-				Bindings.createStringBinding(
-						() -> "Time point (" + tPositionProperty().get() + "/" + getNTimepoints() + ")",
-						tPositionProperty()
-		));
-		spinnerT.setTooltip(tooltipT);
-
-
-		spinnerTHBox.setAlignment(Pos.CENTER_RIGHT);
-		spinnerTHBox.setVisible(false);
-		spinnerT.setEditable(true);
-		var progressT = new ProgressBar();
-		progressT.visibleProperty().bind(spinnerTHBox.visibleProperty());
-		progressT.setPrefHeight(10);
-		progressZ.setMaxWidth(Double.MAX_VALUE);
-		if (spinnerT.getValueFactory() instanceof SpinnerValueFactory.IntegerSpinnerValueFactory f) {
-			progressT.progressProperty().bind(Bindings.createDoubleBinding(() -> {
-				return f.getValue().doubleValue() / (f.getMax() - 1);
-			}, f.valueProperty(), f.maxProperty()));
-		}
-		FXUtils.resetSpinnerNullToPrevious(spinnerT);
 		
 		// Set spinners' position so they make space for command bar (only if needed!)
 		var commandBarDisplay = CommandFinderTools.commandBarDisplayProperty().getValue();
 		setSpinnersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
 
-		spinnersVBox.getStyleClass().addAll("viewer-overlay", "viewer-dims");
-		spinnersVBox.setPadding(new Insets(10));
-		spinnersVBox.getChildren().setAll(spinnerZHBox, progressZ, spinnerTHBox, progressT);
-		spinnersVBox.setSpacing(padding);
-		spinnersVBox.setAlignment(Pos.CENTER_RIGHT);
-		basePane.getChildren().addAll(spinnersVBox);
+		basePane.getChildren().addAll(dimensionControls.getPane());
 
 		updateSpinners();
 		
@@ -218,47 +159,23 @@ public class QuPathViewerPlus extends QuPathViewer {
 		viewerDisplayOptions.showScalebarProperty().addListener(scalebarListener);
 	}
 
-	private int getNTimepoints() {
-		return getServer() == null ? 0 : getServer().nTimepoints();
-	}
-
-	private int getNZSlices() {
-		return getServer() == null ? 0 : getServer().nZSlices();
-	}
-
 	private void updateSpinners() {
-		if (spinnerZ == null || spinnerT == null)
+		if (dimensionControls == null)
 			return;
 
 		ImageServer<?> server = getServer();
-		if (server != null && server.nZSlices() > 1) {
-			setSpinnerRange(spinnerZ, getZPosition(), 0, server.nZSlices()-1, spinnerZHBox);
-			spinnerZHBox.setVisible(true);
-		} else
-			spinnerZHBox.setVisible(false);
+		if (server != null) {
+			dimensionControls.zMaxProperty().set(server.nZSlices());
+			dimensionControls.zPositionProperty().set(server.nZSlices() / 2);
 
-		if (server != null && server.nTimepoints() > 1) {
-			setSpinnerRange(spinnerT, getTPosition(), 0, server.nTimepoints()-1, spinnerTHBox);
-			spinnerTHBox.setVisible(true);
-		} else
-			spinnerTHBox.setVisible(false);
-
+			dimensionControls.tMaxProperty().set(server.nTimepoints());
+			dimensionControls.tPositionProperty().set(server.nTimepoints() / 2);
+		} else {
+			dimensionControls.zMaxProperty().set(0);
+			dimensionControls.tMaxProperty().set(0);
+		}
 	}
 
-	private void setSpinnerRange(Spinner<Integer> spinner, int position, int min, int max, HBox hbox) {
-		var vf = (SpinnerValueFactory.IntegerSpinnerValueFactory) spinner.getValueFactory();
-		vf.setMax(min);
-		vf.setMax(max);
-		vf.setValue(position);
-		hbox.setOpacity(0.5);
-		hbox.setOnMouseEntered(e -> {
-			hbox.setOpacity(1);
-		});
-		hbox.setOnMouseExited(e -> {
-			hbox.setOpacity(0.5);
-		});
-	}
-	
 	
 	@Override
 	public void initializeForServer(ImageServer<BufferedImage> server) {
@@ -309,8 +226,9 @@ public class QuPathViewerPlus extends QuPathViewer {
 	 */
 	public void setSpinnersPosition(boolean down) {
 		double spinnersTopPadding = (double)padding + (down ? 20 : 0);
-		AnchorPane.setTopAnchor(spinnersVBox, spinnersTopPadding);
-		AnchorPane.setLeftAnchor(spinnersVBox, (double) padding);
+		var pane = dimensionControls.getPane();
+		AnchorPane.setTopAnchor(pane, spinnersTopPadding);
+		AnchorPane.setLeftAnchor(pane, (double) padding);
 	}
 	
 	@Override
@@ -376,5 +294,124 @@ public class QuPathViewerPlus extends QuPathViewer {
 		if (overview != null)
 			overview.repaint();
 	}
+
+
+
+	private static class DimensionControls {
+
+		private final IntegerProperty zPositionProperty = new SimpleIntegerProperty();
+		private final IntegerProperty zMaxProperty = new SimpleIntegerProperty();
+
+		private final IntegerProperty tPositionProperty = new SimpleIntegerProperty();
+		private final IntegerProperty tMaxProperty = new SimpleIntegerProperty();
+
+		private final DoubleProperty contentOpacityProperty = new SimpleDoubleProperty(1.0);
+
+		private final Spinner<Integer> spinnerZ = createSpinner(zPositionProperty, zMaxProperty, "Z-slice");
+		private final Spinner<Integer> spinnerT = createSpinner(tPositionProperty, tMaxProperty, "Time point");
+
+		private final ProgressBar progressZ = createProgressBar(zPositionProperty, zMaxProperty);
+		private final ProgressBar progressT = createProgressBar(tPositionProperty, tMaxProperty);
+
+		private final Label labelZ = createLabel("Z: ", spinnerZ);
+		private final Label labelT = createLabel("Time: ", spinnerT);
+
+		private final GridPane pane = new GridPane();
+
+		private DimensionControls() {
+			pane.getStyleClass().addAll("viewer-overlay", "viewer-dims");
+			pane.setOnMouseEntered(e -> contentOpacityProperty.set(1.0));
+			pane.setOnMouseExited(e -> contentOpacityProperty.set(0.5));
+			pane.setVgap(4);
+
+			zMaxProperty.addListener(this::handleChange);
+			tMaxProperty.addListener(this::handleChange);
+			updateContents();
+		}
+
+		private ProgressBar createProgressBar(IntegerProperty property, IntegerProperty maxProperty) {
+			var progress = new ProgressBar();
+			progress.setMaxWidth(Double.MAX_VALUE);
+			progress.setPrefHeight(10);
+			progress.progressProperty().bind(Bindings.createDoubleBinding(() -> property.doubleValue() / (maxProperty.get() - 1),
+				property, maxProperty));
+			progress.opacityProperty().bind(contentOpacityProperty);
+			return progress;
+		}
+
+		private Spinner<Integer> createSpinner(IntegerProperty property, IntegerProperty maxProperty,
+													  String name) {
+			var factory = new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1);
+			factory.maxProperty().bind(maxProperty);
+			var spinner = new Spinner<>(factory);
+			factory.valueProperty().addListener((v, o, n) -> property.setValue(n));
+			property.addListener((v, o, n) -> factory.setValue((Integer) n));
+			spinner.setPrefWidth(70);
+			spinner.setEditable(true);
+			FXUtils.resetSpinnerNullToPrevious(spinner);
+
+			var tooltip = new Tooltip();
+			tooltip.textProperty().bind(
+					Bindings.createStringBinding(
+							() -> name + " (" + property.get() + "/" + maxProperty.get() + ")",
+							property, maxProperty
+					));
+			spinner.setTooltip(tooltip);
+
+			spinner.opacityProperty().bind(contentOpacityProperty);
+			return spinner;
+		}
+
+		private Label createLabel(String text, Node node) {
+			var label = new Label(text);
+			label.setLabelFor(node);
+			label.setContentDisplay(ContentDisplay.RIGHT);
+			label.opacityProperty().bind(contentOpacityProperty);
+			return label;
+		}
+
+		private void handleChange(ObservableValue<? extends Number> val, Number oldValue, Number newValue) {
+			updateContents();
+		}
+
+		private void updateContents() {
+			pane.getChildren().clear();
+			int row = 0;
+			if (tMaxProperty.get() > 1) {
+				pane.addRow(row++, labelT, spinnerT);
+				pane.add(progressT, 0, row++, 2, 1);
+			}
+			if (zMaxProperty.get() > 1) {
+				if (row > 0)
+					pane.add(new Separator(), 0, row++, 2, 1);
+				pane.addRow(row++, labelZ, spinnerZ);
+				pane.add(progressZ, 0, row++, 2, 1);
+			}
+			pane.setVisible(!pane.getChildren().isEmpty());
+		}
+
+		IntegerProperty zMaxProperty() {
+			return zMaxProperty;
+		}
+
+		IntegerProperty tMaxProperty() {
+			return tMaxProperty;
+		}
+
+		IntegerProperty zPositionProperty() {
+			return zPositionProperty;
+		}
+
+		IntegerProperty tPositionProperty() {
+			return tPositionProperty;
+		}
+
+
+		Pane getPane() {
+			return pane;
+		}
+
+	}
+
 
 }

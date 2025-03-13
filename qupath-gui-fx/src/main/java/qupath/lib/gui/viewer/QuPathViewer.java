@@ -1394,8 +1394,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 
-	private IntegerProperty tPosition = new SimpleIntegerProperty(0);
-	private IntegerProperty zPosition = new SimpleIntegerProperty(0);
+	private final IntegerProperty tPosition = new SimpleIntegerProperty(0);
+	private final IntegerProperty zPosition = new SimpleIntegerProperty(0);
 
 	/**
 	 * Set the requested z-slice to be visible.
