@@ -47,6 +47,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -152,6 +153,9 @@ public class QuPathViewerPlus extends QuPathViewer {
 			spinnerZ.getValueFactory().setValue((Integer) n);
 		});
 		spinnerZ.setPrefWidth(70);
+		spinnerZ.setEditable(true);
+		FXUtils.resetSpinnerNullToPrevious(spinnerZ);
+
 		spinnerZHBox.setAlignment(Pos.CENTER_RIGHT);
 		spinnerZHBox.setVisible(false);
 
@@ -166,7 +170,8 @@ public class QuPathViewerPlus extends QuPathViewer {
 
 		spinnerTHBox.setAlignment(Pos.CENTER_RIGHT);
 		spinnerTHBox.setVisible(false);
-
+		spinnerT.setEditable(true);
+		FXUtils.resetSpinnerNullToPrevious(spinnerT);
 		
 		// Set spinners' position so they make space for command bar (only if needed!)
 		var commandBarDisplay = CommandFinderTools.commandBarDisplayProperty().getValue();
@@ -195,6 +200,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 	private void updateSpinners() {
 		if (spinnerZ == null || spinnerT == null)
 			return;
+
 		ImageServer<?> server = getServer();
 		if (server != null && server.nZSlices() > 1) {
 			setSpinnerRange(spinnerZ, getZPosition(), 0, server.nZSlices()-1, spinnerZHBox);
