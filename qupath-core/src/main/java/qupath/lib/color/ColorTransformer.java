@@ -24,12 +24,15 @@
 package qupath.lib.color;
 
 import java.awt.Color;
+import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.IndexColorModel;
+import java.awt.image.WritableRaster;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 
@@ -310,7 +313,78 @@ public class ColorTransformer {
 	public static float[] getSimpleTransformedPixels(final int[] buf, final ColorTransformMethod method, float[] pixels) {
 		return getTransformedPixels(buf, method, pixels, null);
 	}
-	
+
+
+	public static float[] colorDeconvolve(BufferedImage img, final ColorDeconvolutionStains stains, int stainNumber, float[] pixels) {
+		if (BufferedImageTools.is8bitColorType(img.getType())) {
+			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+			ColorTransformMethod method;
+			if (stainNumber == 0)
+				method = ColorTransformMethod.Stain_1;
+			else if (stainNumber == 1)
+				method = ColorTransformMethod.Stain_2;
+			else if (stainNumber == 2)
+				method = ColorTransformMethod.Stain_3;
+			else
+				throw new IllegalArgumentException("Unsupported stain number: " + stainNumber);
+			return getTransformedPixels(rgb, method, pixels, stains);
+		} else {
+			var raster = img.getRaster();
+			var r = getChannelOpticalDensity(raster, 0, stains.getMaxRed());
+			var g = getChannelOpticalDensity(raster, 1, stains.getMaxGreen());
+			var b = getChannelOpticalDensity(raster, 2, stains.getMaxBlue());
+
+			var invMat = stains.getMatrixInverse();
+			double rScale = invMat[0][stainNumber];
+			double gScale = invMat[1][stainNumber];
+			double bScale = invMat[2][stainNumber];
+			if (pixels == null || pixels.length < r.length)
+				pixels = new float[r.length];
+			for (int i = 0; i < pixels.length; i++) {
+				pixels[i] = (float)(r[i] * rScale + g[i] * gScale + b[i] * bScale);
+			}
+			return pixels;
+		}
+	}
+
+	/**
+	 * Apply color deconvolution in-place for RGB channels.
+	 * @param red
+	 * @param green
+	 * @param blue
+	 * @param stains
+	 */
+	public static void colorDeconvolve(float[] red, float[] green, float[] blue, final ColorDeconvolutionStains stains) {
+		convertToOpticalDensity(red, stains.getMaxRed());
+		convertToOpticalDensity(green, stains.getMaxGreen());
+		convertToOpticalDensity(blue, stains.getMaxBlue());
+
+		var invMat = stains.getMatrixInverse();
+		int n = red.length;
+		for (int i = 0; i < n; i++) {
+			double r = red[i];
+			double g = green[i];
+			double b = blue[i];
+
+			red[i] = (float)(r * invMat[0][0] + g * invMat[1][0] + b * invMat[2][0]);
+			green[i] = (float)(r * invMat[0][1] + g * invMat[1][1] + b * invMat[2][1]);
+			blue[i] = (float)(r * invMat[0][2] + g * invMat[1][2] + b * invMat[2][2]);
+		}
+	}
+
+	private static float[] getChannelOpticalDensity(WritableRaster raster, int channel, double max) {
+		float[] arr = raster.getSamples(0, 0, raster.getWidth(), raster.getHeight(), channel, (float[]) null);
+		convertToOpticalDensity(arr, max);
+		return arr;
+	}
+
+	public static void convertToOpticalDensity(float[] pixels, double max) {
+		double minValue = 1.0/255.0; // Mimic 8-bit calculation
+		for (int i = 0; i < pixels.length; i++) {
+			pixels[i] = (float)-Math.log10(Math.max(pixels[i] / max, minValue));
+		}
+	}
+
 
 	/**
 	 * Apply a color transform to all pixels in a packed (A)RGB array.

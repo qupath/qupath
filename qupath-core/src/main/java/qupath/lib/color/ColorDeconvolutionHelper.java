@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,7 @@
 
 package qupath.lib.color;
 
+import java.awt.image.Raster;
 import java.util.Arrays;
 
 import org.slf4j.Logger;
@@ -141,6 +142,43 @@ public class ColorDeconvolutionHelper {
 		for (int i = 0; i < px.length; i++)
 			px[i] = (float)makeODByLUT(ColorTools.red(rgb[i]), od_lut);
 		return px;
+	}
+
+
+	/**
+	 * Extract a band from a raster and convert the pixel values to optical densities, using the specified maximum value.
+	 *
+	 * @param raster the input image
+	 * @param band the band (channel) to extract
+	 * @param maxValue the maximum value used for normalization whe calculating optical densities
+	 * @param px optional array used for output
+	 * @return a float array containing the optical density values (may be the same as {@code px})
+	 */
+	public static float[] getOpticalDensities(Raster raster, int band, double maxValue, float[] px) {
+		px = getPixels(raster, band, px);
+		ColorTransformer.convertToOpticalDensity(px, maxValue);
+		return px;
+	}
+
+	/**
+	 * Extract a band from a raster and return the values in a float array.
+	 * @param raster the input raster
+	 * @param band the band (channel) to extract
+	 * @param px optional array used for output
+	 * @return a float array containing the pixel values (may be the same as {@code px})
+	 */
+	public static float[] getPixels(Raster raster, int band, float[] px) {
+		return raster.getSamples(0, 0, raster.getWidth(), raster.getHeight(), band, px);
+	}
+
+	/**
+	 * Extract a band from a raster and return the values in a float array.
+	 * @param raster the input raster
+	 * @param band the band (channel) to extract
+	 * @return a new float array containing the pixel values
+	 */
+	public static float[] getPixels(Raster raster, int band) {
+		return getPixels(raster, band, null);
 	}
 
 	/**

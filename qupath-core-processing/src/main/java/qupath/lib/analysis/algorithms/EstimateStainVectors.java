@@ -36,8 +36,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
+import qupath.lib.analysis.stats.Histogram;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 
@@ -81,21 +84,28 @@ public class EstimateStainVectors {
 	 * @return
 	 */
 	public static ColorDeconvolutionStains estimateStains(final BufferedImage img, final ColorDeconvolutionStains stainsOriginal, final double minStain, final double maxStain, final double ignorePercentage, final boolean checkColors) {
-		int[] buf = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
-		int[] rgb = buf;
-		
-		float[] red = ColorDeconvolutionHelper.getRedOpticalDensities(rgb, stainsOriginal.getMaxRed(), null);
-		float[] green = ColorDeconvolutionHelper.getGreenOpticalDensities(rgb, stainsOriginal.getMaxGreen(), null);
-		float[] blue = ColorDeconvolutionHelper.getBlueOpticalDensities(rgb, stainsOriginal.getMaxBlue(), null);
-		
-		return estimateStains(buf, red, green, blue, stainsOriginal, minStain, maxStain, ignorePercentage, checkColors);
+		float[] red, green, blue;
+		if (BufferedImageTools.is8bitColorType(img.getType())) {
+			int[] buf = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+			red = ColorDeconvolutionHelper.getRedOpticalDensities(buf, stainsOriginal.getMaxRed(), null);
+			green = ColorDeconvolutionHelper.getGreenOpticalDensities(buf, stainsOriginal.getMaxGreen(), null);
+			blue = ColorDeconvolutionHelper.getBlueOpticalDensities(buf, stainsOriginal.getMaxBlue(), null);
+		} else {
+			var raster = img.getRaster();
+			red = raster.getSamples(0, 0, raster.getWidth(), raster.getHeight(), 0, (float[])null);
+			green = raster.getSamples(0, 0, raster.getWidth(), raster.getHeight(), 1, (float[])null);
+			blue = raster.getSamples(0, 0, raster.getWidth(), raster.getHeight(), 2, (float[])null);
+			ColorTransformer.convertToOpticalDensity(red, stainsOriginal.getMaxRed());
+			ColorTransformer.convertToOpticalDensity(green, stainsOriginal.getMaxGreen());
+			ColorTransformer.convertToOpticalDensity(blue, stainsOriginal.getMaxBlue());
+		}
+		return estimateStains(red, green, blue, stainsOriginal, minStain, maxStain, ignorePercentage, checkColors);
 	}
 	
 	/**
 	 * 
 	 * Check colors only currently applies to H&amp;E.
 	 * 
-	 * @param rgbPacked
 	 * @param redOD
 	 * @param greenOD
 	 * @param blueOD
@@ -106,14 +116,14 @@ public class EstimateStainVectors {
 	 * @param checkColors
 	 * @return
 	 */
-	public static ColorDeconvolutionStains estimateStains(final int[] rgbPacked, final float[] redOD, final float[] greenOD, final float[] blueOD, final ColorDeconvolutionStains stainsOriginal, final double minStain, final double maxStain, final double ignorePercentage, final boolean checkColors) {
-		
+	public static ColorDeconvolutionStains estimateStains(final float[] redOD, final float[] greenOD, final float[] blueOD, final ColorDeconvolutionStains stainsOriginal, final double minStain, final double maxStain, final double ignorePercentage, final boolean checkColors) {
+		// v0.6.0 removed unnecessary rgb int[] array to enable support for non-8-bit images
+
 		double alpha = ignorePercentage / 100;
 		
-		int n = rgbPacked.length;
-		if (redOD.length != n || greenOD.length != n || blueOD.length != n)
+		int n = redOD.length;
+		if (greenOD.length != n || blueOD.length != n)
 			throw new IllegalArgumentException("All pixel arrays must be the same length!");
-		int[] rgb = Arrays.copyOf(rgbPacked, n);
 		float[] red = Arrays.copyOf(redOD, n);
 		float[] green = Arrays.copyOf(greenOD, n);
 		float[] blue = Arrays.copyOf(blueOD, n);
@@ -128,7 +138,7 @@ public class EstimateStainVectors {
 		// Loop through and discard pixels that are too faintly or densely stained
 		int keepCount = 0;
 		double maxStainSq = maxStain*maxStain;
-		for (int i = 0; i < rgb.length; i++) {
+		for (int i = 0; i < n; i++) {
 			float r = red[i];
 			float g = green[i];
 			float b = blue[i];
@@ -151,18 +161,16 @@ public class EstimateStainVectors {
 			red[keepCount] = r;
 			green[keepCount] = g;
 			blue[keepCount] = b;
-			rgb[keepCount] = rgb[i];
 			keepCount++;
 		}
 		if (keepCount <= 1)
 			throw new IllegalArgumentException("Not enough pixels remain after applying stain thresholds!");
 		
 		// Trim the arrays
-		if (keepCount < rgb.length) {
+		if (keepCount < n) {
 			red = Arrays.copyOf(red, keepCount);
 			green = Arrays.copyOf(green, keepCount);
 			blue = Arrays.copyOf(blue, keepCount);
-			rgb = Arrays.copyOf(rgb, keepCount);
 		}
 		
 		
@@ -186,8 +194,8 @@ public class EstimateStainVectors {
 		int[] eigenOrder = rank(eigenValues);
 		double[] eigen1= eigen.getEigenvector(eigenOrder[2]).toArray();
 		double[] eigen2 = eigen.getEigenvector(eigenOrder[1]).toArray();
-		logger.debug("First eigenvector: " + getVectorAsString(eigen1));
-		logger.debug("Second eigenvector: " + getVectorAsString(eigen2));
+        logger.debug("First eigenvector: {}", getVectorAsString(eigen1));
+        logger.debug("Second eigenvector: {}", getVectorAsString(eigen2));
 		
 		double[] phi = new double[keepCount];
 		for (int i = 0; i < keepCount; i++) {
@@ -231,12 +239,8 @@ public class EstimateStainVectors {
 				s2 = StainVector.createStainVector(stainsOriginal.getStain(2).getName(), red[ind1], green[ind1], blue[ind1]);
 			}			
 		}
-		
-		ColorDeconvolutionStains stains = new ColorDeconvolutionStains(stainsOriginal.getName(), s1, s2, stainsOriginal.getMaxRed(), stainsOriginal.getMaxGreen(), stainsOriginal.getMaxBlue());
-		
-		
-		return stains;
-		
+
+        return new ColorDeconvolutionStains(stainsOriginal.getName(), s1, s2, stainsOriginal.getMaxRed(), stainsOriginal.getMaxGreen(), stainsOriginal.getMaxBlue());
 	}
 	
 	
@@ -250,18 +254,13 @@ public class EstimateStainVectors {
 		final Integer[] indexes = new Integer[n];
 		final Double[] data = new Double[n];
 		for (int i=0; i<n; i++) {
-			indexes[i] = Integer.valueOf(i);
-			data[i] = Double.valueOf(values[i]);
+			indexes[i] = i;
+			data[i] = values[i];
 		}
-		Arrays.sort(indexes, new Comparator<>() {
-            @Override
-            public int compare(final Integer o1, final Integer o2) {
-                return data[o1].compareTo(data[o2]);
-            }
-        });
+		Arrays.sort(indexes, Comparator.comparing(o -> data[o]));
 		int[] indexes2 = new int[n];
 		for (int i=0; i<n; i++)
-			indexes2[i] = indexes[i].intValue();
+			indexes2[i] = indexes[i];
 		return indexes2;
 	}
 	
@@ -396,6 +395,48 @@ public class EstimateStainVectors {
 			}
 		}
 		return new int[]{rMax, gMax, bMax};
+	}
+
+
+	/**
+	 * Estimate the mode from an array of floats.
+	 * These are expected to be pixel values, and some binning will be applied in the calculation.
+	 * @param values the input values
+	 * @param nBins the maximum number of histogram bins to use
+	 * @return an estimate of the mode
+	 */
+	public static float getMode(final float[] values, int nBins) {
+		float min = Float.MAX_VALUE;
+		float max = Float.MIN_VALUE;
+		boolean allInt = true;
+		for (float v : values) {
+			if (Float.isFinite(v)) {
+				min = Math.min(min, v);
+				max = Math.max(max, v);
+				if (!allInt || v != Math.rint(v))
+					allInt = false;
+			}
+		}
+		if (min == max)
+			return min;
+		Histogram hist;
+		boolean useBinsDirectly = false;
+		if (allInt && (max - min) <= nBins) {
+			nBins = (int)(max - min);
+			useBinsDirectly = true;
+		}
+		hist = new Histogram(values, nBins, min, max);
+		long maxCount = hist.getMaxCount();
+		for (int i = nBins-1; i >= 0; i--) {
+			if (hist.getCountsForBin(i) == maxCount) {
+				if (useBinsDirectly)
+					return (float)hist.getBinLeftEdge(i);
+				else
+					return (float)((hist.getBinLeftEdge(i) + hist.getBinRightEdge(i))/2);
+			}
+		}
+		logger.warn("No mode found for histogram!");
+		return (min + max) / 2;
 	}
 
 }

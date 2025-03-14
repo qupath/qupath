@@ -1214,4 +1214,19 @@ public class IJTools {
 		return new FloatProcessor[] {fpStain1, fpStain2, fpStain3};
 	}
 
+	public static FloatProcessor[] colorDeconvolve(ImageProcessor ipRed, ImageProcessor ipGreen, ImageProcessor ipBlue, ColorDeconvolutionStains stains) {
+		// convertToFloatProcessor makes a copy if the input is already a FloatProcessor
+		int w = ipRed.getWidth();
+		int h = ipRed.getHeight();
+		var red = (float[])ipRed.convertToFloatProcessor().getPixels();
+		var green = (float[])ipGreen.convertToFloatProcessor().getPixels();
+		var blue = (float[])ipBlue.convertToFloatProcessor().getPixels();
+		ColorTransformer.colorDeconvolve(red, green, blue, stains);
+		return new FloatProcessor[] {
+				new FloatProcessor(w, h, red),
+				new FloatProcessor(w, h, green),
+				new FloatProcessor(w, h, blue)
+		};
+	}
+
 }

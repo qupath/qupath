@@ -232,8 +232,20 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			Roi roi = null;
 			if (pathROI != null)
 				roi = IJTools.convertToIJRoi(pathROI, pathImage);
-			if (ip instanceof ColorProcessor && stains != null && isBrightfield) {
-				FloatProcessor[] fps = IJTools.colorDeconvolve((ColorProcessor)ip, stains);
+			if (stains != null && isBrightfield) {
+				FloatProcessor[] fps;
+				if (ip instanceof ColorProcessor cp) {
+					fps = IJTools.colorDeconvolve(cp, stains);
+				} else if (pathImage.getImage().getNChannels() == 3) {
+					var imp = pathImage.getImage();
+					fps = IJTools.colorDeconvolve(
+							imp.getStack().getProcessor(1),
+							imp.getStack().getProcessor(2),
+							imp.getStack().getProcessor(3),
+							stains);
+				} else {
+					throw new IllegalArgumentException("Unsupported image for color deconvolution: " + pathImage.getImage());
+				}
 				for (int i = 0; i < 3; i++) {
 					StainVector stain = stains.getStain(i+1);
 					if (!stain.isResidual()) {

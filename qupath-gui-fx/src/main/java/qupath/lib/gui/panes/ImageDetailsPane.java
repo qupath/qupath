@@ -379,7 +379,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 	public static boolean promptToSetImageType(ImageData<BufferedImage> imageData, ImageType defaultType) {
 		double size = 32;
 		var group = new ToggleGroup();
-		boolean isRGB = imageData.getServer().isRGB();
+		boolean isRGB = imageData.getServerMetadata().getChannels().size() == 3; // v0.6.0 supports non-8-bit color deconvolution
 		if (defaultType == null)
 			defaultType = ImageType.UNSET;
 		var buttonMap = new LinkedHashMap<ImageType, ToggleButton>();
