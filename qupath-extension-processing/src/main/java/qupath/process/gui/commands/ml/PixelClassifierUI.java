@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -27,12 +27,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -131,7 +130,7 @@ public class PixelClassifierUI {
 		BooleanBinding disableButtons = imageData.isNull()
 				.or(classifier.isNull())
 				.or(classifierName.isEmpty().and(allowWithoutSaving.not()));
-		
+
 		
 		var btnCreateObjects = new Button("Create objects");
 		btnCreateObjects.disableProperty().bind(disableButtons);
@@ -203,15 +202,7 @@ public class PixelClassifierUI {
 				.title(title)
 				.build();
 	}
-	
-	
-//	public static Pane createSaveObjectClassifierPane(ObjectExpression<Project<BufferedImage>> project, ObjectExpression<ObjectClassifier<BufferedImage>> classifier, StringProperty savedName) {
-//		return new SaveResourcePaneBuilder<>(ObjectClassifier.class, classifier)
-//				.project(project)
-//				.savedName(savedName)
-//				.title("Object classifier")
-//				.build();
-//	}
+
 	
 	private static boolean promptToSavePredictionImage(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
 		Objects.requireNonNull(imageData);
@@ -219,31 +210,31 @@ public class PixelClassifierUI {
 		
 		var server = PixelClassifierTools.createPixelClassificationServer(imageData, classifier);
 		ImageWriter<BufferedImage> writer;
-		var allWriters = ImageWriterTools.getCompatibleWriters(server, "ome.tif");
-		if (allWriters == null || allWriters.isEmpty()) {
-			allWriters = ImageWriterTools.getCompatibleWriters(server, null);
+		// Get writers that support pyramidal images first
+		List<ImageWriter<BufferedImage>> allWriters = new ArrayList<>();
+		allWriters.addAll(ImageWriterTools.getCompatibleWriters(server, "ome.tif"));
+		allWriters.addAll(ImageWriterTools.getCompatibleWriters(server, "ome.zarr"));
+		// Resort to any compatible writer if no pyramidal writer is available
+		if (allWriters.isEmpty()) {
+			allWriters.addAll(ImageWriterTools.getCompatibleWriters(server, null));
 		}
 		if (allWriters.isEmpty()) {
 			Dialogs.showErrorMessage("Save prediction", "Sorry, I could not find any compatible image writers!");
 			return false;
-		} else if (allWriters.size() > 1) {
-			Map<String, ImageWriter<BufferedImage>> map = new LinkedHashMap<>();
-			for (var w : allWriters)
-				map.put(w.getName(), w);
-			var choice = Dialogs.showChoiceDialog("Save prediction", "Choose image writer", map.keySet(), map.keySet().iterator().next());
-			writer = choice == null ? null : map.get(choice);
-			if (writer == null)
-				return false;
-		} else
-			writer = allWriters.iterator().next();
+		}
+		List<FileChooser.ExtensionFilter> filters = new ArrayList<>();
+		for (var w : allWriters)
+			filters.add(FileChoosers.createExtensionFilter(w.getName(), w.getDefaultExtension()));
 
-		var file = FileChoosers.promptToSaveFile("Save prediction", new File(classifierName),
-				FileChoosers.createExtensionFilter(writer.getName(), writer.getDefaultExtension()));
+		var originalFile = classifierName == null ? null : new File(classifierName);
+		var file = FileChoosers.promptToSaveFile("Save prediction", originalFile,
+				filters.toArray(FileChooser.ExtensionFilter[]::new));
+
 		if (file == null)
 			return false;
 		try {
 			var path = file.getAbsolutePath();
-			writer.writeImage(server, path);
+			ImageWriterTools.writeImage(server, path);
 			if (classifierName != null && !classifierName.isBlank()) {
 				imageData.getHistoryWorkflow().addStep(
 						new DefaultScriptableWorkflowStep("Write prediction image",
