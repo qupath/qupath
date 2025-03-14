@@ -56,6 +56,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javafx.beans.property.Property;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
@@ -1393,8 +1394,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 
-	private IntegerProperty tPosition = new SimpleIntegerProperty(0);
-	private IntegerProperty zPosition = new SimpleIntegerProperty(0);
+	private final IntegerProperty tPosition = new SimpleIntegerProperty(0);
+	private final IntegerProperty zPosition = new SimpleIntegerProperty(0);
 
 	/**
 	 * Set the requested z-slice to be visible.
@@ -3090,6 +3091,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	/**
 	 * Current z-position for the z-slice currently visible in the viewer.
+	 *
 	 * @return
 	 */
 	public IntegerProperty zPositionProperty() {
@@ -3148,7 +3150,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			KeyCode code = event.getCode();
 						
 			// Handle backspace/delete to remove selected object
-			if (event.getEventType() == KeyEvent.KEY_RELEASED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
+			if (event.getEventType() == KeyEvent.KEY_PRESSED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
 				if (getROIEditor().hasActiveHandle() || getROIEditor().isTranslating()) {
 					logger.debug("Cannot delete object - ROI being edited");
 					return;

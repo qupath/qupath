@@ -250,7 +250,7 @@ public class CommandFinderTools {
 			var viewers = qupath.getAllViewers();
 			for (var viewer: viewers) {
 				if (viewer instanceof QuPathViewerPlus) {
-					((QuPathViewerPlus)viewer).setSlidersPosition(!n.equals(CommandBarDisplay.NEVER));
+					((QuPathViewerPlus)viewer).setSpinnersPosition(!n.equals(CommandBarDisplay.NEVER));
 				}
 			}
 		});

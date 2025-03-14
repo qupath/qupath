@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -32,15 +32,11 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
-import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -55,25 +51,24 @@ import qupath.lib.images.servers.ImageServer;
  */
 public class QuPathViewerPlus extends QuPathViewer {
 
-	private ViewerPlusDisplayOptions viewerDisplayOptions;
+	private final ViewerDimensionControls dimensionControls;
+	private final ViewerPlusDisplayOptions viewerDisplayOptions;
 	
-	private ChangeListener<Boolean> locationListener = (v, o, n) -> setLocationVisible(n);
-	private ChangeListener<Boolean> overviewListener = (v, o, n) -> setOverviewVisible(n);
-	private ChangeListener<Boolean> scalebarListener = (v, o, n) -> setScalebarVisible(n);
+	private final ChangeListener<Boolean> locationListener = (v, o, n) -> setLocationVisible(n);
+	private final ChangeListener<Boolean> overviewListener = (v, o, n) -> setOverviewVisible(n);
+	private final ChangeListener<Boolean> scalebarListener = (v, o, n) -> setScalebarVisible(n);
 
 	private AnchorPane basePane = new AnchorPane();
 	
-	private ImageOverview overview = new ImageOverview(this);
-	private Scalebar scalebar = new Scalebar(this);
+	private final ImageOverview overview = new ImageOverview(this);
+	private final Scalebar scalebar = new Scalebar(this);
 
-	private BorderPane panelLocation = new BorderPane();
-	private Label labelLocation = new Label(" ");
-	private BooleanProperty useCalibratedLocationString = PathPrefs.useCalibratedLocationStringProperty();
-	private Slider sliderZ = new Slider(0, 1, 0);
-	private Slider sliderT = new Slider(0, 1, 0);
+	private final BorderPane panelLocation = new BorderPane();
+	private final Label labelLocation = new Label(" ");
+	private final BooleanProperty useCalibratedLocationString = PathPrefs.useCalibratedLocationStringProperty();
 
-	private int padding = 10;
-	
+	private final int padding = 10;
+
 	
 	/**
 	 * Create a new viewer.
@@ -84,14 +79,11 @@ public class QuPathViewerPlus extends QuPathViewer {
 	public QuPathViewerPlus(final DefaultImageRegionStore regionStore, final OverlayOptions overlayOptions,
 			final ViewerPlusDisplayOptions viewerDisplayOptions) {
 		super(regionStore, overlayOptions);
-		
-		
-		sliderZ.setOrientation(Orientation.VERTICAL);
-		sliderT.setOrientation(Orientation.HORIZONTAL);
-		
-		sliderT.setSnapToTicks(true);
-		sliderZ.setSnapToTicks(true);
-		
+
+		dimensionControls = new ViewerDimensionControls();
+		dimensionControls.zPositionProperty().bindBidirectional(zPositionProperty());
+		dimensionControls.tPositionProperty().bindBidirectional(tPositionProperty());
+
 		useCalibratedLocationString.addListener(v -> updateLocationString());
 		
 		Pane view = super.getView();
@@ -110,15 +102,13 @@ public class QuPathViewerPlus extends QuPathViewer {
 		AnchorPane.setRightAnchor(overviewNode, (double)padding);
 
 		// Add the location label
-		labelLocation.setTextFill(Color.WHITE);
 		labelLocation.setTextAlignment(TextAlignment.CENTER);
 		var fontBinding = Bindings.createStringBinding(() -> {
 				var temp = PathPrefs.locationFontSizeProperty().get();
 				return temp == null ? null : "-fx-font-size: " + temp.getFontSize();
 		}, PathPrefs.locationFontSizeProperty());
 		labelLocation.styleProperty().bind(fontBinding);
-//		labelLocation.setStyle("-fx-font-size: 0.8em;");
-		panelLocation.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4);");
+		panelLocation.getStyleClass().add("viewer-overlay");
 		panelLocation.setMinSize(140, 40);
 		panelLocation.setCenter(labelLocation);
 		panelLocation.setPadding(new Insets(5));
@@ -132,39 +122,15 @@ public class QuPathViewerPlus extends QuPathViewer {
 		basePane.getChildren().add(scalebarNode);
 		AnchorPane.setBottomAnchor(scalebarNode, (double)padding);
 		AnchorPane.setLeftAnchor(scalebarNode, (double)padding);
+
 		
-		// Add the z-slider
-		sliderZ.valueProperty().bindBidirectional(zPositionProperty());
-//		sliderZ.setOpaque(false);
-		sliderZ.setVisible(false);
-		var tooltipZ = new Tooltip("Change z-slice");
-		tooltipZ.textProperty().bind(Bindings.createStringBinding(() -> {
-			return "Z-slice (" + zPositionProperty().get() + ")";
-		}, zPositionProperty()));
-		sliderZ.setTooltip(tooltipZ);
-		sliderZ.rotateProperty().bind(Bindings.createDoubleBinding(() -> {
-			if (PathPrefs.invertZSliderProperty().get())
-				return 180.0;
-			return 0.0;
-		}, PathPrefs.invertZSliderProperty()));
-		
-		// Add the t-slider
-		sliderT.valueProperty().bindBidirectional(tPositionProperty());
-//		sliderT.setOpaque(false);
-		sliderT.setVisible(false);
-		var tooltipT = new Tooltip("Change time point");
-		tooltipT.textProperty().bind(Bindings.createStringBinding(() -> {
-			return "Time point (" + tPositionProperty().get() + ")";
-		}, tPositionProperty()));
-		sliderT.setTooltip(tooltipT);
-		
-		// Set sliders' position so they make space for command bar (only if needed!)
+		// Set spinners' position so they make space for command bar (only if needed!)
 		var commandBarDisplay = CommandFinderTools.commandBarDisplayProperty().getValue();
-		setSlidersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
+		setSpinnersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
 
-		basePane.getChildren().addAll(sliderZ, sliderT);
+		basePane.getChildren().addAll(dimensionControls.getPane());
 
-		updateSliders();
+		updateSpinners();
 		
 		zPositionProperty().addListener(v -> updateLocationString());
 		tPositionProperty().addListener(v -> updateLocationString());
@@ -179,51 +145,29 @@ public class QuPathViewerPlus extends QuPathViewer {
 		viewerDisplayOptions.showOverviewProperty().addListener(overviewListener);
 		viewerDisplayOptions.showScalebarProperty().addListener(scalebarListener);
 	}
-	
-	
-	private void updateSliders() {
-		if (sliderZ == null || sliderT == null)
+
+	private void updateSpinners() {
+		if (dimensionControls == null)
 			return;
+
 		ImageServer<?> server = getServer();
-		if (server != null && server.nZSlices() > 1) {
-			setSliderRange(sliderZ, getZPosition(), 0, server.nZSlices()-1);
-			sliderZ.setVisible(true);
-		} else
-			sliderZ.setVisible(false);	
-				
-		if (server != null && server.nTimepoints() > 1) {
-			setSliderRange(sliderT, getTPosition(), 0, server.nTimepoints()-1);
-			sliderT.setVisible(true);
-		} else
-			sliderT.setVisible(false);
+		if (server != null) {
+			dimensionControls.zMaxProperty().set(server.nZSlices());
+			dimensionControls.zPositionProperty().set(server.nZSlices() / 2);
+
+			dimensionControls.tMaxProperty().set(server.nTimepoints());
+			dimensionControls.tPositionProperty().set(server.nTimepoints() / 2);
+		} else {
+			dimensionControls.zMaxProperty().set(0);
+			dimensionControls.tMaxProperty().set(0);
+		}
 	}
-	
-	
-	static void setSliderRange(final Slider slider, double position, double min, double max) {
-		slider.setMin(min);
-		slider.setMax(max);
-		slider.setMajorTickUnit(1);
-		slider.setMinorTickCount(0);
-		slider.setSnapToTicks(true);
-		slider.setShowTickMarks(false);
-		slider.setShowTickLabels(false);
-		slider.setValue(position);
-		slider.setOpacity(0.25);
-		slider.setBlockIncrement(1.0);
-		
-		slider.setOnMouseEntered(e -> {
-			slider.setOpacity(1);			
-		});
-		slider.setOnMouseExited(e -> {
-			slider.setOpacity(0.5);			
-		});
-	}
-	
+
 	
 	@Override
 	public void initializeForServer(ImageServer<BufferedImage> server) {
 		super.initializeForServer(server);
-		updateSliders();
+		updateSpinners();
 	}
 
 
@@ -262,21 +206,16 @@ public class QuPathViewerPlus extends QuPathViewer {
 	public boolean isOverviewVisible() {
 		return overview.isVisible();
 	}
-	
+
 	/**
-	 * Sets the Z and T sliders' position to allow space for command bar
+	 * Sets the Z and T spinner' position to allow space for command bar
 	 * @param down
 	 */
-	public void setSlidersPosition(boolean down) {
-		double slidersTopPadding = (double)padding + (down ? 20 : 0);
-		
-		// Set Z sliders' position
-		AnchorPane.setTopAnchor(sliderZ, (double)padding + slidersTopPadding);
-		AnchorPane.setLeftAnchor(sliderZ, (double)padding);
-
-		// Set T sliders' position
-		AnchorPane.setTopAnchor(sliderT, slidersTopPadding);
-		AnchorPane.setLeftAnchor(sliderT, (double)padding*2);
+	public void setSpinnersPosition(boolean down) {
+		double spinnersTopPadding = (double)padding + (down ? 20 : 0);
+		var pane = dimensionControls.getPane();
+		AnchorPane.setTopAnchor(pane, spinnersTopPadding);
+		AnchorPane.setLeftAnchor(pane, (double) padding);
 	}
 	
 	@Override
@@ -293,7 +232,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		String s = null;
 		if (labelLocation != null && hasServer())
 			s = getFullLocationString(useCalibratedLocationString());
-		if (s != null && s.length() > 0) {
+		if (s != null && !s.isEmpty()) {
 			labelLocation.setText(s);
 //			labelLocation.setTextAlignment(TextAlignment.CENTER);
 			panelLocation.setOpacity(1);
@@ -335,7 +274,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		}
 	}
 
-	
+
 	@Override
 	public void repaintEntireImage() {
 		super.repaintEntireImage();
