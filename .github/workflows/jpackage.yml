@@ -45,7 +45,7 @@ jobs:
         path: qupath
 
     - name: Clone extensions
-      if: ${{ github.events.inputs.extensions != '' }}
+      if: ${{ github.event.inputs.extensions != '' }}
       run: |
         IFS=',' read -ra EXT <<< "${{ inputs.extensions }}"
         for i in "${EXT[@]}"; do
