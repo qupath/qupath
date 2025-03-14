@@ -882,8 +882,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 		int nImages = server.nTimepoints() * server.nZSlices();
 		// Try to get the first image 'normally', so that if there is an exception it can be handled
 		var list = new ArrayList<BufferedImage>();
-		list.add(server.getDefaultThumbnail(0, 0));
-		if (nImages > 1) {
+		list.add(server.getDefaultThumbnail(server.nZSlices()/2, 0));
+		// Ideally, we'd like to build the histogram from all pixels -
+		// but we can't if our image is too big... and shouldn't if it's slow to access (e.g. via OMERO)
+		// So this is a *very* rough way to decide when to accept just a single plane
+		double maxDownsample = server.getDownsampleForResolution(server.nResolutions()-1);
+		double totalBytes = Math.round(server.getWidth()/maxDownsample) * Math.round(server.getHeight()/maxDownsample)
+				* nImages * server.nChannels() * server.getMetadata().getPixelType().getBytesPerPixel();
+		if (nImages > 1 && totalBytes <= 1024*1024*50) {
 			// If we have multiple images, we want to parallelize & return as much as we can
 			IntStream.range(1, nImages).parallel().mapToObj(i -> {
 				int z = i % server.nZSlices();
@@ -894,7 +900,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 					logger.error("Error requesting thumbnail for {} (z={}, t={})", server.getPath(), z, t, e);
 					return null;
 				}
-			}).filter(img -> img != null).forEach(list::add);
+			}).filter(Objects::nonNull).forEach(list::add);
 		}
 		return list;
 	}
