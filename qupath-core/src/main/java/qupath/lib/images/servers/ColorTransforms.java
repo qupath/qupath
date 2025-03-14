@@ -628,13 +628,13 @@ public class ColorTransforms {
 				int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
 				return ColorTransformer.getTransformedPixels(rgb, method, pixels, stains);
 			} else {
-				throw new UnsupportedOperationException("Unsupported image type: " + img);
+				return ColorTransformer.colorDeconvolve(img, stains, stainNumber-1, null);
 			}
 		}
 
 		@Override
 		public boolean supportsImage(ImageServer<BufferedImage> server) {
-			return server.isRGB() && server.getPixelType() == PixelType.UINT8;
+			return server.nChannels() == 3;
 		}
 
 		@Override
