@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -32,21 +32,12 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.Spinner;
-import javafx.scene.control.SpinnerValueFactory;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
-import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -60,30 +51,24 @@ import qupath.lib.images.servers.ImageServer;
  */
 public class QuPathViewerPlus extends QuPathViewer {
 
-	private final Spinner<Integer> spinnerZ = new Spinner<>();
-	private final Spinner<Integer> spinnerT = new Spinner<>();
-	private final Label labelZ = new Label("Z: ");
-	private final Label labelT = new Label("Time: ");
-	private final HBox spinnerZHBox = new HBox(labelZ, spinnerZ);
-	private final HBox spinnerTHBox = new HBox(labelT, spinnerT);
-	private final VBox spinnersVBox = new VBox(spinnerZHBox, spinnerTHBox);
-	private ViewerPlusDisplayOptions viewerDisplayOptions;
+	private final ViewerDimensionControls dimensionControls;
+	private final ViewerPlusDisplayOptions viewerDisplayOptions;
 	
-	private ChangeListener<Boolean> locationListener = (v, o, n) -> setLocationVisible(n);
-	private ChangeListener<Boolean> overviewListener = (v, o, n) -> setOverviewVisible(n);
-	private ChangeListener<Boolean> scalebarListener = (v, o, n) -> setScalebarVisible(n);
+	private final ChangeListener<Boolean> locationListener = (v, o, n) -> setLocationVisible(n);
+	private final ChangeListener<Boolean> overviewListener = (v, o, n) -> setOverviewVisible(n);
+	private final ChangeListener<Boolean> scalebarListener = (v, o, n) -> setScalebarVisible(n);
 
 	private AnchorPane basePane = new AnchorPane();
 	
-	private ImageOverview overview = new ImageOverview(this);
-	private Scalebar scalebar = new Scalebar(this);
+	private final ImageOverview overview = new ImageOverview(this);
+	private final Scalebar scalebar = new Scalebar(this);
 
-	private BorderPane panelLocation = new BorderPane();
-	private Label labelLocation = new Label(" ");
-	private BooleanProperty useCalibratedLocationString = PathPrefs.useCalibratedLocationStringProperty();
+	private final BorderPane panelLocation = new BorderPane();
+	private final Label labelLocation = new Label(" ");
+	private final BooleanProperty useCalibratedLocationString = PathPrefs.useCalibratedLocationStringProperty();
 
-	private int padding = 10;
-	
+	private final int padding = 10;
+
 	
 	/**
 	 * Create a new viewer.
@@ -94,7 +79,11 @@ public class QuPathViewerPlus extends QuPathViewer {
 	public QuPathViewerPlus(final DefaultImageRegionStore regionStore, final OverlayOptions overlayOptions,
 			final ViewerPlusDisplayOptions viewerDisplayOptions) {
 		super(regionStore, overlayOptions);
-		
+
+		dimensionControls = new ViewerDimensionControls();
+		dimensionControls.zPositionProperty().bindBidirectional(zPositionProperty());
+		dimensionControls.tPositionProperty().bindBidirectional(tPositionProperty());
+
 		useCalibratedLocationString.addListener(v -> updateLocationString());
 		
 		Pane view = super.getView();
@@ -113,15 +102,13 @@ public class QuPathViewerPlus extends QuPathViewer {
 		AnchorPane.setRightAnchor(overviewNode, (double)padding);
 
 		// Add the location label
-		labelLocation.setTextFill(Color.WHITE);
 		labelLocation.setTextAlignment(TextAlignment.CENTER);
 		var fontBinding = Bindings.createStringBinding(() -> {
 				var temp = PathPrefs.locationFontSizeProperty().get();
 				return temp == null ? null : "-fx-font-size: " + temp.getFontSize();
 		}, PathPrefs.locationFontSizeProperty());
 		labelLocation.styleProperty().bind(fontBinding);
-//		labelLocation.setStyle("-fx-font-size: 0.8em;");
-		panelLocation.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4);");
+		panelLocation.getStyleClass().add("viewer-overlay");
 		panelLocation.setMinSize(140, 40);
 		panelLocation.setCenter(labelLocation);
 		panelLocation.setPadding(new Insets(5));
@@ -136,71 +123,12 @@ public class QuPathViewerPlus extends QuPathViewer {
 		AnchorPane.setBottomAnchor(scalebarNode, (double)padding);
 		AnchorPane.setLeftAnchor(scalebarNode, (double)padding);
 
-
-		spinnerZ.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1));
-		spinnerZ.getValueFactory().valueProperty().addListener((v, o, n) -> zPositionProperty().set(n));
-		zPositionProperty().addListener((v, o, n) -> spinnerZ.getValueFactory().setValue((Integer) n));
-		spinnerZ.setPrefWidth(70);
-		spinnerZ.setEditable(true);
-		FXUtils.resetSpinnerNullToPrevious(spinnerZ);
-
-		spinnerZHBox.setAlignment(Pos.CENTER_RIGHT);
-		spinnerZHBox.setVisible(false);
-		var tooltipZ = new Tooltip("Change z-slice");
-		tooltipZ.textProperty().bind(
-				Bindings.createStringBinding(
-						() -> "Z-slice (" + zPositionProperty().get() + "/" + getNZSlices() + ")",
-						zPositionProperty()
-		));
-
-		spinnerZ.setTooltip(tooltipZ);
-		var progressZ = new ProgressBar();
-		progressZ.visibleProperty().bind(spinnerZHBox.visibleProperty());
-		progressZ.setPrefHeight(10);
-		progressZ.prefWidthProperty().bind(spinnerZHBox.widthProperty());
-		progressZ.translateXProperty().bind(spinnerZHBox.layoutXProperty());
-		if (spinnerZ.getValueFactory() instanceof SpinnerValueFactory.IntegerSpinnerValueFactory f) {
-			progressZ.progressProperty().bind(Bindings.createDoubleBinding(() -> {
-				return f.getValue().doubleValue() / (f.getMax() - 1);
-			}, f.valueProperty(), f.maxProperty()));
-		}
-
-		spinnerT.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1));
-		spinnerT.getValueFactory().valueProperty().addListener((v, o, n) -> tPositionProperty().set(n));
-		tPositionProperty().addListener((v, o, n) -> spinnerT.getValueFactory().setValue((Integer) n));
-		spinnerT.setPrefWidth(70);
-		var tooltipT = new Tooltip("Change time point");
-		tooltipT.textProperty().bind(
-				Bindings.createStringBinding(
-						() -> "Time point (" + tPositionProperty().get() + "/" + getNTimepoints() + ")",
-						tPositionProperty()
-		));
-		spinnerT.setTooltip(tooltipT);
-
-
-		spinnerTHBox.setAlignment(Pos.CENTER_RIGHT);
-		spinnerTHBox.setVisible(false);
-		spinnerT.setEditable(true);
-		var progressT = new ProgressBar();
-		progressT.visibleProperty().bind(spinnerTHBox.visibleProperty());
-		progressT.setPrefHeight(10);
-		progressT.prefWidthProperty().bind(spinnerTHBox.widthProperty());
-		progressT.translateXProperty().bind(spinnerTHBox.layoutXProperty());
-		if (spinnerT.getValueFactory() instanceof SpinnerValueFactory.IntegerSpinnerValueFactory f) {
-			progressT.progressProperty().bind(Bindings.createDoubleBinding(() -> {
-				return f.getValue().doubleValue() / (f.getMax() - 1);
-			}, f.valueProperty(), f.maxProperty()));
-		}
-		FXUtils.resetSpinnerNullToPrevious(spinnerT);
 		
 		// Set spinners' position so they make space for command bar (only if needed!)
 		var commandBarDisplay = CommandFinderTools.commandBarDisplayProperty().getValue();
 		setSpinnersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
 
-		spinnersVBox.getChildren().setAll(spinnerZHBox, progressZ, spinnerTHBox, progressT);
-		spinnersVBox.setSpacing(padding);
-		spinnersVBox.setAlignment(Pos.CENTER_RIGHT);
-		basePane.getChildren().addAll(spinnersVBox);
+		basePane.getChildren().addAll(dimensionControls.getPane());
 
 		updateSpinners();
 		
@@ -218,47 +146,23 @@ public class QuPathViewerPlus extends QuPathViewer {
 		viewerDisplayOptions.showScalebarProperty().addListener(scalebarListener);
 	}
 
-	private int getNTimepoints() {
-		return getServer() == null ? 0 : getServer().nTimepoints();
-	}
-
-	private int getNZSlices() {
-		return getServer() == null ? 0 : getServer().nZSlices();
-	}
-
 	private void updateSpinners() {
-		if (spinnerZ == null || spinnerT == null)
+		if (dimensionControls == null)
 			return;
 
 		ImageServer<?> server = getServer();
-		if (server != null && server.nZSlices() > 1) {
-			setSpinnerRange(spinnerZ, getZPosition(), 0, server.nZSlices()-1, spinnerZHBox);
-			spinnerZHBox.setVisible(true);
-		} else
-			spinnerZHBox.setVisible(false);
+		if (server != null) {
+			dimensionControls.zMaxProperty().set(server.nZSlices());
+			dimensionControls.zPositionProperty().set(server.nZSlices() / 2);
 
-		if (server != null && server.nTimepoints() > 1) {
-			setSpinnerRange(spinnerT, getTPosition(), 0, server.nTimepoints()-1, spinnerTHBox);
-			spinnerTHBox.setVisible(true);
-		} else
-			spinnerTHBox.setVisible(false);
-
+			dimensionControls.tMaxProperty().set(server.nTimepoints());
+			dimensionControls.tPositionProperty().set(server.nTimepoints() / 2);
+		} else {
+			dimensionControls.zMaxProperty().set(0);
+			dimensionControls.tMaxProperty().set(0);
+		}
 	}
 
-	private void setSpinnerRange(Spinner<Integer> spinner, int position, int min, int max, HBox hbox) {
-		var vf = (SpinnerValueFactory.IntegerSpinnerValueFactory) spinner.getValueFactory();
-		vf.setMax(min);
-		vf.setMax(max);
-		vf.setValue(position);
-		hbox.setOpacity(0.5);
-		hbox.setOnMouseEntered(e -> {
-			hbox.setOpacity(1);
-		});
-		hbox.setOnMouseExited(e -> {
-			hbox.setOpacity(0.5);
-		});
-	}
-	
 	
 	@Override
 	public void initializeForServer(ImageServer<BufferedImage> server) {
@@ -309,17 +213,9 @@ public class QuPathViewerPlus extends QuPathViewer {
 	 */
 	public void setSpinnersPosition(boolean down) {
 		double spinnersTopPadding = (double)padding + (down ? 20 : 0);
-
-		AnchorPane.setTopAnchor(spinnersVBox, spinnersTopPadding);
-		AnchorPane.setLeftAnchor(spinnersVBox, (double) padding);
-
-//		// Set Z spinner' position
-//		AnchorPane.setTopAnchor(spinnerZHBox, (double)padding*3 + spinnersTopPadding);
-//		AnchorPane.setLeftAnchor(spinnerZHBox, (double)padding);
-//
-//		// Set T spinner' position
-//		AnchorPane.setTopAnchor(spinnerTHBox, spinnersTopPadding);
-//		AnchorPane.setLeftAnchor(spinnerTHBox, (double)padding);
+		var pane = dimensionControls.getPane();
+		AnchorPane.setTopAnchor(pane, spinnersTopPadding);
+		AnchorPane.setLeftAnchor(pane, (double) padding);
 	}
 	
 	@Override
@@ -336,7 +232,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		String s = null;
 		if (labelLocation != null && hasServer())
 			s = getFullLocationString(useCalibratedLocationString());
-		if (s != null && s.length() > 0) {
+		if (s != null && !s.isEmpty()) {
 			labelLocation.setText(s);
 //			labelLocation.setTextAlignment(TextAlignment.CENTER);
 			panelLocation.setOpacity(1);
@@ -378,7 +274,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		}
 	}
 
-	
+
 	@Override
 	public void repaintEntireImage() {
 		super.repaintEntireImage();
