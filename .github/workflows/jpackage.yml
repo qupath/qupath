@@ -48,9 +48,15 @@ jobs:
       if: ${{ github.event.inputs.extensions != '' }}
       run: |
         IFS=',' read -ra EXT <<< "${{ inputs.extensions }}"
+        echo "[includeBuild]" > qupath/include-extra
         for i in "${EXT[@]}"; do
-          echo $i
+          echo "../$i" >> qupath/include-extra
         done
+        echo "[dependencies]" >> qupath/include-extra
+        for i in "${EXT[@]}"; do
+          echo "io.github.qupath:$i" >> qupath/include-extra
+        done
+        cat qupath/include-extra
 
     - name: Set QuPath version
       run: |
@@ -69,28 +75,31 @@ jobs:
       run: ./gradlew assembleJavadocs
 
     - name: Build with Gradle
-      run: ./gradlew jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums -P toolchain=21
+      run: |
+        pushd qupath
+        ./gradlew jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums -P toolchain=21
+        popd
 
     - name: Make Linux tar.xz
       if: matrix.name == 'Linux'
       run: |
-        tar -c -C build/dist/ QuPath | xz > build/dist/QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}.tar.xz
-        rm -r build/dist/QuPath/
+        tar -c -C qupath/build/dist/ QuPath | xz > qupath/build/dist/QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}.tar.xz
+        rm -r qupath/build/dist/QuPath/
 
     - name: Clean windows artifact
       if: matrix.name == 'Windows'
       run: |
-        rm -r build/dist/QuPath-${{ env.QUPATH_VERSION }}
+        rm -r qupath/build/dist/QuPath-${{ env.QUPATH_VERSION }}
 
     - uses: actions/upload-artifact@v4
       with:
         name: QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}
-        path: build/dist/QuPath*
+        path: qupath/build/dist/QuPath*
         retention-days: 1
 
     - uses: actions/upload-artifact@v4
       if: matrix.name == 'Mac-arm64'
       with:
         name: javadoc-QuPath-v${{ env.QUPATH_VERSION }}
-        path: build/docs-merged/javadoc
+        path: qupath/build/docs-merged/javadoc
         retention-days: 7
