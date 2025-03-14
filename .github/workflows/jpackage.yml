@@ -47,14 +47,15 @@ jobs:
     - name: Clone extensions
       if: ${{ github.event.inputs.extensions != '' }}
       run: |
-        IFS=',' read -ra EXT <<< "${{ inputs.extensions }}"
+        IFS=',' read -ra EXTENSIONS <<< "${{ inputs.extensions }}"
         echo "[includeBuild]" > qupath/include-extra
-        for i in "${EXT[@]}"; do
-          echo "../$i" >> qupath/include-extra
+        for $EXTENSION in "${EXTENSIONS[@]}"; do
+          git clone "https://github.com/qupath/$EXTENSION"
+          echo "../$EXTENSION" >> qupath/include-extra
         done
         echo "[dependencies]" >> qupath/include-extra
-        for i in "${EXT[@]}"; do
-          echo "io.github.qupath:$i" >> qupath/include-extra
+        for EXTENSION in "${EXTENSIONS[@]}"; do
+          echo "io.github.qupath:$EXTENSION" >> qupath/include-extra
         done
         cat qupath/include-extra
         ls -lah
