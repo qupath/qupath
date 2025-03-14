@@ -49,7 +49,7 @@ jobs:
       run: |
         IFS=',' read -ra EXTENSIONS <<< "${{ inputs.extensions }}"
         echo "[includeBuild]" > qupath/include-extra
-        for $EXTENSION in "${EXTENSIONS[@]}"; do
+        for EXTENSION in "${EXTENSIONS[@]}"; do
           git clone "https://github.com/qupath/$EXTENSION"
           echo "../$EXTENSION" >> qupath/include-extra
         done
