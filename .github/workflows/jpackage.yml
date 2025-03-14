@@ -18,8 +18,10 @@ on:
         required: false
         type: string
 
+
+
 jobs:
-   build:
+  build:
     defaults:
       run:
         shell: bash
@@ -51,7 +53,6 @@ jobs:
         done
 
     - name: Set QuPath version
-      shell: bash
       run: |
         echo "QUPATH_VERSION=$(cat VERSION)" >> $GITHUB_ENV
 
@@ -72,14 +73,12 @@ jobs:
 
     - name: Make Linux tar.xz
       if: matrix.name == 'Linux'
-      shell: bash
       run: |
         tar -c -C build/dist/ QuPath | xz > build/dist/QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}.tar.xz
         rm -r build/dist/QuPath/
 
     - name: Clean windows artifact
       if: matrix.name == 'Windows'
-      shell: bash
       run: |
         rm -r build/dist/QuPath-${{ env.QUPATH_VERSION }}
 
