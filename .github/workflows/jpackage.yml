@@ -74,7 +74,7 @@ jobs:
     - name: Assemble javadocs
       run: |
         pushd qupath
-        ./qupath/gradlew assembleJavadocs
+        ./gradlew assembleJavadocs
         popd
 
     - name: Build with Gradle
