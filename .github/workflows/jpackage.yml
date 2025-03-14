@@ -1,15 +1,29 @@
 # This workflow will build a Java project with Gradle, then create an image with jpackage
 # For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
 
- name: Build packages with jpackage
+name: Build packages with jpackage
 
- on: 
-  - workflow_dispatch
-  - workflow_call
+on:
+  workflow_dispatch:
+    inputs:
+      extensions:
+        description: Comma-separated list of extensions to build with.
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      extensions:
+        description: Comma-separated list of extensions to build with.
+        required: false
+        type: string
 
- jobs:
-   build:
 
+
+jobs:
+  build:
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -26,9 +40,17 @@
     steps:
 
     - uses: actions/checkout@v4
+      with:
+        path: qupath
 
+    - name: Clone extensions
+      if: ${{ github.events.inputs.extensions }}
+      run: |
+        IFS=',' read -ra EXT <<< "${{ inputs.extensions }}"
+        for i in "${EXT[@]}"; do
+          echo $i
+        done
     - name: Set QuPath version
-      shell: bash
       run: |
         echo "QUPATH_VERSION=$(cat VERSION)" >> $GITHUB_ENV
 
@@ -49,14 +71,12 @@
 
     - name: Make Linux tar.xz
       if: matrix.name == 'Linux'
-      shell: bash
       run: |
         tar -c -C build/dist/ QuPath | xz > build/dist/QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}.tar.xz
         rm -r build/dist/QuPath/
 
     - name: Clean windows artifact
       if: matrix.name == 'Windows'
-      shell: bash
       run: |
         rm -r build/dist/QuPath-${{ env.QUPATH_VERSION }}
 
