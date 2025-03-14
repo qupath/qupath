@@ -57,6 +57,7 @@ jobs:
           echo "io.github.qupath:$i" >> qupath/include-extra
         done
         cat qupath/include-extra
+        ls -lah
 
     - name: Set QuPath version
       run: |
