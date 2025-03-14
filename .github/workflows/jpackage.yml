@@ -60,7 +60,7 @@ jobs:
 
     - name: Set QuPath version
       run: |
-        echo "QUPATH_VERSION=$(cat VERSION)" >> $GITHUB_ENV
+        echo "QUPATH_VERSION=$(cat qupath/VERSION)" >> $GITHUB_ENV
 
     - name: Set up JDK 21
       uses: actions/setup-java@v4
