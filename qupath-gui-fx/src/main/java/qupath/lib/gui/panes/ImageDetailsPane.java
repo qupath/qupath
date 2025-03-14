@@ -45,7 +45,6 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import javafx.scene.control.TitledPane;
-import javafx.scene.text.Text;
 import org.controlsfx.control.MasterDetailPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +88,7 @@ import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.TextAlignment;
 import qupath.fx.utils.FXUtils;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
@@ -949,7 +949,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 				}
 				num = stains.getStainNumber(stainVector);
 				if (num <= 0) {
-					logger.error("Could not identify stain vector " + stainVector + " inside " + stains);
+                    logger.error("Could not identify stain vector {} inside {}", stainVector, stains);
 					return;
 				}
 				name = stainVector.getName();
@@ -973,10 +973,10 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 						} catch (IOException e) {
 							Dialogs.showErrorMessage("Set stain vector", "Unable to read image region");
 							logger.error("Unable to read region", e);
+							return;
 						}
-						int rgb = ColorDeconvolutionHelper.getMedianRGB(img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
 						if (num >= 0) {
-							StainVector vectorValue = ColorDeconvolutionHelper.generateMedianStainVectorFromPixels(name, img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
+							StainVector vectorValue = ColorDeconvolutionHelper.generateMedianStainVectorFromPixels(name, img, stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
 							if (!Double.isFinite(vectorValue.getRed() + vectorValue.getGreen() + vectorValue.getBlue())) {
 								Dialogs.showErrorMessage("Set stain vector",
 										"Cannot set stains for the current ROI!\n"
@@ -986,7 +986,15 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 							value = vectorValue;
 						} else {
 							// Update the background
-							value = new double[] {ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb)};
+							if (BufferedImageTools.is8bitColorType(img.getType())) {
+								int rgb = ColorDeconvolutionHelper.getMedianRGB(img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
+								value = new double[]{ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb)};
+							} else {
+								double r = ColorDeconvolutionHelper.getMedian(ColorDeconvolutionHelper.getPixels(img.getRaster(), 0));
+								double g = ColorDeconvolutionHelper.getMedian(ColorDeconvolutionHelper.getPixels(img.getRaster(), 1));
+								double b = ColorDeconvolutionHelper.getMedian(ColorDeconvolutionHelper.getPixels(img.getRaster(), 2));
+								value = new double[]{r, g, b};
+							}
 						}
 						wasChanged = true;
 					}

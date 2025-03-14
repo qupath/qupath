@@ -23,12 +23,14 @@
 
 package qupath.lib.color;
 
+import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.common.ColorTools;
 
 
@@ -215,6 +217,21 @@ public class ColorDeconvolutionHelper {
 		return px;
 	}
 
+	public static StainVector generateMedianStainVectorFromPixels(String name, BufferedImage img, double redMax, double greenMax, double blueMax) {
+		if (BufferedImageTools.is8bitColorType(img.getType())) {
+			var rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+			return generateMedianStainVectorFromPixels(name, rgb, redMax, greenMax, blueMax);
+		} else {
+			float[] red = getPixels(img.getRaster(), 0);
+			float[] green = getPixels(img.getRaster(), 1);
+			float[] blue = getPixels(img.getRaster(), 2);
+			ColorTransformer.convertToOpticalDensity(red, redMax);
+			ColorTransformer.convertToOpticalDensity(green, greenMax);
+			ColorTransformer.convertToOpticalDensity(blue, blueMax);
+			return generateMedianStainVector(name, red, green, blue);
+		}
+	}
+
 
 	/**
 	 * Determine median RGB optical densities for an array of pixels (packed RGB), and combine these into a StainVector with the specified name.
@@ -228,7 +245,7 @@ public class ColorDeconvolutionHelper {
 	 */
 	public static StainVector generateMedianStainVectorFromPixels(String name, int[] rgb, double redMax, double greenMax, double blueMax) {
 
-		// TODO: Use getMedianRGB!  Should be no need to compute all optical densities...?
+		// TODO: Consider using getMedianRGB!  May be no need to compute all optical densities...?
 
 		// Extract the optical densities
 		int n = rgb.length;
@@ -239,9 +256,14 @@ public class ColorDeconvolutionHelper {
 		convertPixelsToOpticalDensities(green, greenMax, n > 500); //J
 		convertPixelsToOpticalDensities(blue, blueMax, n > 500);
 
+		return generateMedianStainVector(name, red, green, blue);
+	}
+
+	private static StainVector generateMedianStainVector(String name, float[] red, float[] green, float[] blue) {
+
 		// Normalize to unit length
-//J		int counter = 0;
-		for (int i = 0; i < n; i++) {	
+		int n = red.length;
+		for (int i = 0; i < n; i++) {
 			double r = red[i];
 			double g = green[i];
 			double b = blue[i];
@@ -298,7 +320,24 @@ public class ColorDeconvolutionHelper {
 
 	private static int getMedian(int[] array) {
 		Arrays.sort(array);
-		return array[array.length/2];
+		if (array.length % 2 == 0)
+			return array[array.length / 2 - 1] + array[array.length / 2];
+		else
+			return array[array.length / 2];
+	}
+
+	/**
+	 * Get the median value from a float array.
+	 * Note that the array will be sorted in-place; you need to pass a clone of the array if this is problematic.
+	 * @param array
+	 * @return
+	 */
+	public static float getMedian(float[] array) {
+		Arrays.sort(array);
+		if (array.length % 2 == 0)
+			return (array[array.length / 2 - 1] + array[array.length / 2]) / 2;
+		else
+			return array[array.length / 2];
 	}
 
 
