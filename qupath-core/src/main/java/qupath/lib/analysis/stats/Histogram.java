@@ -334,6 +334,16 @@ public class Histogram { // implements Serializable {
 		this(values, nBins, Double.NaN, Double.NaN);
 	}
 
+	/**
+	 * Create histogram from an array wrapper, using a specified number of bins and the data min/max as the min/max edges.
+	 * @param values
+	 * @param nBins
+	 * @param minEdge
+	 * @param maxEdge
+	 */
+	public Histogram(ArrayWrappers.ArrayWrapper values, int nBins, double minEdge, double maxEdge) {
+		buildHistogram(values, nBins, minEdge, maxEdge);
+	}
 
 	
 	private void buildHistogram(final ArrayWrappers.ArrayWrapper values, int nBins, double minEdge, double maxEdge) {
@@ -346,7 +356,7 @@ public class Histogram { // implements Serializable {
 		isInteger = values.isIntegerWrapper();
 		boolean maybeInteger = !isInteger;
 		stats = new RunningStatistics();
-		int n = values.size();
+		long n = values.size();
 		for (int i = 0; i < n; i++) {
 			double v = values.getDouble(i);
 			stats.addValue(v);
