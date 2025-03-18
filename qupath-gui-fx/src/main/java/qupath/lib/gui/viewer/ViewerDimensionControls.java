@@ -97,7 +97,7 @@ class ViewerDimensionControls {
     private Spinner<Integer> createSpinner(IntegerProperty property, IntegerProperty maxProperty,
                                            String name) {
         var factory = new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 1);
-        factory.maxProperty().bind(maxProperty);
+        maxProperty.addListener((v, o, n) -> factory.setMax(Math.max(0, n.intValue() - 1)));
         var spinner = new Spinner<>(factory);
         factory.valueProperty().addListener((v, o, n) -> property.setValue(n));
         property.addListener((v, o, n) -> factory.setValue((Integer) n));
