@@ -518,14 +518,14 @@ public class BrightnessContrastCommand implements Runnable {
 			oldValue.useInvertedBackgroundProperty().unbindBidirectional(invertBackground);
 			oldValue.switchToGrayscaleChannelProperty().unbind();
 
-			oldValue.changeTimestampProperty().removeListener(timestampChangeListener);
+			oldValue.eventCountProperty().removeListener(timestampChangeListener);
 		}
 		if (newValue != null) {
 			showGrayscale.bindBidirectional(newValue.useGrayscaleLutProperty());
 			invertBackground.bindBidirectional(newValue.useInvertedBackgroundProperty());
 
 			newValue.switchToGrayscaleChannelProperty().bind(currentChannelProperty);
-			newValue.changeTimestampProperty().addListener(timestampChangeListener);
+			newValue.eventCountProperty().addListener(timestampChangeListener);
 
 		}
 		settingsPane.imageDisplayObjectProperty().set(newValue);

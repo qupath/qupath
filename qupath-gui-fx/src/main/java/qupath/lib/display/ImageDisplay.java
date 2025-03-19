@@ -32,13 +32,13 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -60,7 +60,6 @@ import javafx.beans.property.SimpleLongProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.ListChangeListener;
-import qupath.lib.analysis.stats.ArrayWrappers;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
@@ -69,7 +68,9 @@ import qupath.lib.display.ChannelDisplayInfo.ModifiableChannelDisplayInfo;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
 
@@ -126,7 +127,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 	private final ObservableList<ChannelDisplayInfo> selectedChannels = FXCollections.observableArrayList();
 	private ChannelDisplayInfo lastSelectedChannel = null;
 
-	private final LongProperty changeTimestamp = new SimpleLongProperty(System.currentTimeMillis());
+	private final AtomicLong eventCount = new AtomicLong(0L);
+	private final LongProperty eventCountProperty = new SimpleLongProperty(eventCount.get());
 	
 	private final ObjectBinding<ChannelDisplayMode> displayMode = Bindings.createObjectBinding(this::calculateDisplayMode,
 			useGrayscaleLutProperty(), useInvertedBackgroundProperty());
@@ -229,7 +231,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 	/**
 	 * Set the {@link ImageData} to a new value
-	 * @param imageData image data that should how be displayed
+	 * @param imageData image data that should be displayed
 	 * @param retainDisplaySettings if true, retain the same display settings as for the previous image if possible 
 	 *                              (i.e. the images have similar channels)
 	 */
@@ -271,12 +273,18 @@ public class ImageDisplay extends AbstractImageRenderer {
 			}
 		} finally {
 			settingImageData = false;
-			changeTimestamp.set(System.currentTimeMillis());
+			incrementEventCount();
 		}
 	}
+
+	/**
+	 * Increment the event count. Listeners may then respond, e.g. to fire a repaint operation.
+	 */
+	private void incrementEventCount() {
+		eventCountProperty.set(eventCount.incrementAndGet());
+	}
 	
-	
-	
+
 	/**
 	 * Get the current image data
 	 * @return
@@ -363,25 +371,24 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 
 	/**
-	 * Get a timestamp the last known changes for the object.
-	 * 
-	 * This is useful to abort painting if the display changes during a paint run.
-	 * 
+	 * Get the event count, which is here used as an alternative to a timestamp.
 	 * @return
 	 */
 	@Override
 	public long getLastChangeTimestamp() {
-		return changeTimestamp.get();
+		return eventCountProperty.get();
 	}
 	
 	/**
-	 * Timestamp for the most recent change.  This can be used to listen for 
-	 * display changes.
-	 * 
+	 * Counter for the number of display changes that have been made.
+	 * <p>
+	 * Note: This replaces a timestamp property used before v0.6.0.
+	 *       It should be more reliable, because changes occurring in quick succession can still be captured -
+	 *       whereas previously any changes that were faster than the millisecond close might get lost.
 	 * @return
 	 */
-	public LongProperty changeTimestampProperty() {
-		return changeTimestamp;
+	public LongProperty eventCountProperty() {
+		return eventCountProperty;
 	}
 	
 	
@@ -646,7 +653,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		// Store the current display settings in the ImageData
 		imageData.setProperty(PROPERTY_DISPLAY, toJSON(false));
-		changeTimestamp.set(System.currentTimeMillis());
+		incrementEventCount();
 	}
 
 
@@ -874,12 +881,15 @@ public class ImageDisplay extends AbstractImageRenderer {
 		
 		histogramManager = cachedHistograms.get(server.getPath());
 		if (histogramManager == null) {
-			histogramManager = new HistogramManager(0L);
-			histogramManager.ensureChannels(server, channelOptions, getImagesForHistograms());
+			histogramManager = new HistogramManager();
+			histogramManager.updateChannels(server, channelOptions, getImagesForHistograms());
 			if (server.getPixelType() == PixelType.UINT8) {
-				channelOptions.parallelStream().filter(c -> !(c instanceof DirectServerChannelInfo)).forEach(channel -> autoSetDisplayRange(channel, false));								
+				channelOptions.parallelStream()
+						.filter(c -> !(c instanceof DirectServerChannelInfo))
+						.forEach(channel -> autoSetDisplayRange(channel, false));
 			} else {
-				channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));				
+				channelOptions.parallelStream()
+						.forEach(channel -> autoSetDisplayRange(channel, false));
 			}
 			cachedHistograms.put(server.getPath(), histogramManager);
 		} else {
@@ -1017,6 +1027,21 @@ public class ImageDisplay extends AbstractImageRenderer {
 				images.put(tile.getRegionRequest(), img);
 			}
 		}
+
+		// If we don't have anything, search the main cache
+		if (images.isEmpty()) {
+			double downsample = server.getDownsampleForResolution(server.nResolutions()-1);
+			if (server instanceof AbstractImageServer<BufferedImage> abstractImageServer) {
+				var cache = ImageServerProvider.getCache(BufferedImage.class);
+				cache.entrySet()
+						.stream()
+						.filter(e -> e.getKey().getPath().equals(server.getPath()) &&
+								e.getKey().getDownsample() == downsample)
+						.forEach(e -> images.put(e.getKey(), e.getValue()));
+			}
+		}
+
+
 		// Get the original histogram pixels
 		long nPixelsBackup = 0;
 		for (var img : imagesForHistograms.values()) {
@@ -1126,7 +1151,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 						changes = true;
 					}
 					// Store whether the channel is selected
-					if (Boolean.TRUE.equals(helper.selected)) {
+					if (helper.isSelected()) {
 						newSelectedChannels.add(info);
 					}
 				}
@@ -1138,210 +1163,5 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		return changes;
 	}
-	
-	/**
-	 * Class to help with deserializing JSON representation.
-	 */
-	static class JsonHelperChannelInfo {
-
-		private String name;
-		private Class<?> cls;
-		private  Float minDisplay;
-		private Float maxDisplay;
-		private Integer color;
-		private Boolean selected;
-		
-		/**
-		 * Check if we match the info.
-		 * That means the names must be the same, and the classes must either match or 
-		 * the class here needs to be <code>null</code>.
-		 * 
-		 * @param info
-		 * @return
-		 */
-		boolean matches(final ChannelDisplayInfo info) {
-			if (name == null)
-				return false;
-			return name.equals(info.getName()) && (cls == null || cls.equals(info.getClass()));
-		}
-		
-		/**
-		 * Check is this helper <code>matches</code> the info, and set its properties if so.
-		 * 
-		 * @param info
-		 * @return true if changes were made, false otherwise
-		 */
-		boolean updateInfo(final ChannelDisplayInfo info) {
-			if (!matches(info))
-				return false;
-			boolean changes = false;
-			if (info instanceof ModifiableChannelDisplayInfo modifiableInfo) {
-				if (minDisplay != null && minDisplay != modifiableInfo.getMinDisplay()) {
-					modifiableInfo.setMinDisplay(minDisplay);
-					changes = true;
-				}
-				if (maxDisplay != null && maxDisplay != modifiableInfo.getMaxDisplay()) {
-					modifiableInfo.setMaxDisplay(maxDisplay);
-					changes = true;
-				}
-			}
-			if (color != null && info instanceof DirectServerChannelInfo directInfo) {
-				if (!Objects.equals(color, directInfo.getColor())) {
-					directInfo.setLUTColor(color);
-					changes = true;
-				}
-			}
-			return changes;
-		}
-	}
-	
-	private static class HistogramForRegions {
-
-		private final Histogram histogram;
-		private final Set<RegionRequest> regions;
-
-		private HistogramForRegions(final Histogram histogram, final Set<RegionRequest> regions) {
-			this.histogram = histogram;
-			this.regions = Set.copyOf(regions);
-		}
-
-	}
-	
-	static class HistogramManager {
-		
-		private static int NUM_BINS = 1024;
-		
-		private final Map<String, HistogramForRegions> map = Collections.synchronizedMap(new HashMap<>());
-
-		private final long timestamp;
-		
-		HistogramManager(long timestamp) {
-			this.timestamp = timestamp;
-		}
-		
-		long getTimestamp() {
-			return timestamp;
-		}
-		
-		String getKey(final ChannelDisplayInfo channel) {
-			return channel.getClass().getName() + "::" + channel.getName();
-		}
-		
-		void ensureChannels(final ImageServer<BufferedImage> server, final List<ChannelDisplayInfo> channels,
-							final Map<RegionRequest, BufferedImage> imgList) {
-
-			// Check what we might need to process
-			List<SingleChannelDisplayInfo> channelsToProcess = new ArrayList<>();
-			float serverMin = server.getMetadata().getMinValue().floatValue();
-			float serverMax = server.getMetadata().getMaxValue().floatValue();
-			
-			for (ChannelDisplayInfo channel : channels) {
-				var histogramForRegions = map.get(getKey(channel));
-				if (histogramForRegions != null && histogramForRegions.regions.equals(imgList.keySet())) {
-					 // We have the histogram
-					if (channel instanceof ModifiableChannelDisplayInfo modifiableChannel) {
-						var histogram = histogramForRegions.histogram;
-						modifiableChannel.setMinMaxAllowed(
-								(float)Math.min(0, histogram.getMinValue()), (float)histogram.getMaxValue());
-					}
-					continue;
-				} else if (channel instanceof SingleChannelDisplayInfo singleChannel) {
-					// We don't have the histogram, but we can compute it
-					channelsToProcess.add(singleChannel);
-					if (channel instanceof ModifiableChannelDisplayInfo modifiableChannel) {
-						modifiableChannel.setMinMaxAllowed(serverMin, serverMax);
-					}
-				} else {
-					// A histogram doesn't exist for the channel, and we can't compute one
-					map.put(getKey(channel), null);
-				}
-			}
-
-			if (channelsToProcess.isEmpty() || imgList == null || imgList.isEmpty())
-				return;
-			
-			logger.debug("Building {} histograms for {}", channelsToProcess.size(), server.getPath());
-			long startTime = System.currentTimeMillis();
-
-			// Count number of pixels
-			int imgWidth, imgHeight;
-			long nPixels = 0;
-			for (var img : imgList.values()) {
-				imgWidth = img.getWidth();
-				imgHeight = img.getHeight();
-				long n = (long)imgWidth * imgHeight;
-				nPixels += n;
-			}
-
-			// Determine stride so that we subsample to have no more than about 10_000_000 values
-			int stride = (int)Math.max(Math.ceil(nPixels / 1e7), 1);
-			
-			for (SingleChannelDisplayInfo channel : channelsToProcess) {
-				List<ArrayWrappers.ArrayWrapper> wrappers = new ArrayList<>();
-				double minValue = Double.POSITIVE_INFINITY;
-				double maxValue = Double.NEGATIVE_INFINITY;
-				long size = 0;
-				for (BufferedImage img : imgList.values()) {
-					var vals = channel.getValues(img, 0, 0, img.getWidth(), img.getHeight(), null);
-					size += vals.length;
-					if (size >= Integer.MAX_VALUE)
-						break;
-					if (stride == 1) {
-						// Use the entire array
-						wrappers.add(ArrayWrappers.makeFloatArrayWrapper(vals));
-					} else {
-						// Subsample the array to speed things up - and reduce memory requirements
-						wrappers.add(ArrayWrappers.makeFloatArrayWrapper(subsample(vals, stride)));
-					}
-					// Calculate min/max from the full array
-					for (var val : vals) {
-						if (val < minValue)
-							minValue = val;
-						if (val > maxValue)
-							maxValue = val;
-					}
-				}
-				Histogram histogram = new Histogram(ArrayWrappers.concatenate(wrappers), NUM_BINS, minValue, maxValue);
-				
-				// If we have more than an 8-bit image, set the display range according to actual values - with additional scaling if we downsampled
-				if (channel instanceof ModifiableChannelDisplayInfo modifiableChannelDisplayInfo) {
-					float scale = server.getDownsampleForResolution(server.nResolutions()-1) < 2 ? 1 : 1.5f;
-					if (!histogram.isInteger() || Math.max(Math.abs(channel.getMaxAllowed()), Math.abs(channel.getMinAllowed())) > 4096) {
-						modifiableChannelDisplayInfo.setMinMaxAllowed(
-								(float)Math.min(0, minValue) * scale, (float)Math.max(0, maxValue) * scale);
-					}
-				}
-				
-				map.put(getKey(channel), new HistogramForRegions(histogram, imgList.keySet()));
-			}
-			long endTime = System.currentTimeMillis();
-			logger.debug("Histograms built in {} ms", (endTime - startTime));
-		}
-		
-		Histogram getHistogram(final ImageServer<BufferedImage> server, final ChannelDisplayInfo channel, final Map<RegionRequest, BufferedImage> images) {
-			String key = getKey(channel);
-			if (channel instanceof SingleChannelDisplayInfo singleChannel) {
-				// Always recompute histogram for mutable channels
-				if (singleChannel.isMutable()) {
-					map.remove(key);
-				}
-			}
-			ensureChannels(server, Collections.singletonList(channel), images);
-			var histogramForRegions = map.get(key);
-			return histogramForRegions == null ? null : histogramForRegions.histogram;
-		}
-		
-	}
-
-	private static float[] subsample(float[] values, int stride) {
-		if (stride <= 1)
-			return values;
-		float[] arr2 = new float[values.length / stride];
-		for (int i = 0; i < arr2.length; i++) {
-			arr2[i] = values[i * stride];
-		}
-		return arr2;
-	}
-	
 
 }

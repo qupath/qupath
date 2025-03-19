@@ -30,12 +30,18 @@ import java.util.List;
 
 /**
  * Simple wrappers for primitive arrays that returns values as doubles.
+ * <p>
+ * This is intended for cases where we don't want to write different code to handle different primitive array
+ * types, and we also don't want to have to convert the entire arrays.
  * 
  * @author Pete Bankhead
  *
  */
 public class ArrayWrappers {
 
+	/**
+	 * Immutable empty wrapper.
+	 */
 	private static final ArrayWrapper EMPTY = new EmptyWrapper();
 
 	/**
@@ -98,11 +104,6 @@ public class ArrayWrappers {
 	 * @return a concatenated wrapper, or the original wrapper if only one is provided
 	 */
 	public static ArrayWrapper concatenate(ArrayWrapper... wrappers) {
-		if (wrappers.length == 0)
-			return EMPTY;
-		if (wrappers.length == 1) {
-			return wrappers[0];
-		}
 		return concatenate(Arrays.asList(wrappers));
 	}
 
