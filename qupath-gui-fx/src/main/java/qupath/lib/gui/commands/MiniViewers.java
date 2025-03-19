@@ -776,7 +776,7 @@ public class MiniViewers {
 		 */
 		class ImageDisplaySingleChannelRenderer extends AbstractImageRenderer {
 			
-			private int channel;
+			private final int channel;
 			
 			ImageDisplaySingleChannelRenderer(int channel) {
 				super();
