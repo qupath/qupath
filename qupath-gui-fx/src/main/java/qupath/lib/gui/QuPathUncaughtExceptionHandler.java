@@ -68,7 +68,7 @@ class QuPathUncaughtExceptionHandler implements UncaughtExceptionHandler {
 
 			if (e instanceof OutOfMemoryError) {
 				// Try to reclaim any memory we can
-				qupath.getImageRegionStore().clearCache(true, true);
+				qupath.getImageRegionStore().clearCache(true);
 				Dialogs.showErrorNotification("Out of memory error",
 						"Out of memory! You may need to decrease the 'Number of parallel threads' in the preferences, "
 						+ "then restart QuPath.");
