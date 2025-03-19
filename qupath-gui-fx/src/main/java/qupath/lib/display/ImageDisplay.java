@@ -62,14 +62,13 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.ListChangeListener;
 import qupath.lib.analysis.stats.Histogram;
-import qupath.lib.color.ColorTransformer;
-import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;
 import qupath.lib.display.ChannelDisplayInfo.ModifiableChannelDisplayInfo;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
@@ -101,27 +100,13 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 */
 	private static final String PROPERTY_DISPLAY = ImageDisplay.class.getName();
 
-	// Lists to store the different kinds of channels we might need
-	// Pack RGB (all channels in one image, only adjustable together)
-	private RGBDirectChannelInfo rgbDirectChannelInfo;
-	// Normalized optical density channels; useful to find the 'predominant' color when selecting stain vectors
-	private RGBNormalizedChannelInfo rgbNormalizedChannelInfo;
-	// Direct (editable) RGB channels
-	private final List<ChannelDisplayInfo> rgbDirectChannels = new ArrayList<>();
-	// Split (uneditable) RGB channels
-	private final List<ChannelDisplayInfo> rgbSplitChannels = new ArrayList<>();
-	// Hue, Saturation, Value
-	private final List<ChannelDisplayInfo> rgbHsvChannels = new ArrayList<>();
-	// Color-deconvolved channels
-	private final List<ChannelDisplayInfo> rgbBrightfieldChannels = new ArrayList<>();
-	// Chromaticity channels
-	private final List<ChannelDisplayInfo> rgbChromaticityChannels = new ArrayList<>();
-
 	// Image & color transform-related variables
 	private final BooleanProperty useGrayscaleLuts = new SimpleBooleanProperty();
 	private final BooleanProperty useInvertedBackground = new SimpleBooleanProperty(false);
 
 	private ImageData<BufferedImage> imageData;
+	private ChannelManager channelManager = null;
+
 	private final ObservableList<ChannelDisplayInfo> availableChannels = FXCollections.observableArrayList();
 	private final ObservableList<ChannelDisplayInfo> availableChannelsReadOnly = FXCollections.unmodifiableObservableList(availableChannels);
 
@@ -167,9 +152,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 	/**
 	 * Create a new image display, and set the specified image data.
-	 * @param imageData
-	 * @return
-	 * @throws IOException
+	 * @param imageData the image to set initially; may be null
+	 * @return a new instance
+	 * @throws IOException if an exception occurs when trying to set the image
 	 */
 	public static ImageDisplay create(ImageData<BufferedImage> imageData) throws IOException {
 		var display = new ImageDisplay();
@@ -224,6 +209,11 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 			this.imageData = imageData;
 			this.imagesForHistograms = imageData == null ? Collections.emptyMap() : getImagesForHistogram(imageData.getServer());
+			if (imageData != null)
+				channelManager = new ChannelManager(imageData);
+			else
+				channelManager = null;
+
 			updateChannelOptions(true);
 			updateHistogramMap();
 			if (imageData != null) {
@@ -241,12 +231,12 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 
 	/**
-	 * Increment the event count. Listeners may then respond, e.g. to fire a repaint operation.
+	 * Increment the event count property.
+	 * Listeners may then respond, e.g. to fire a repaint operation.
 	 */
 	private void incrementEventCount() {
 		eventCountProperty.set(eventCount.incrementAndGet());
 	}
-	
 
 	/**
 	 * Get the current image data
@@ -391,48 +381,6 @@ public class ImageDisplay extends AbstractImageRenderer {
 	public LongProperty eventCountProperty() {
 		return eventCountProperty;
 	}
-	
-	
-	private void createRGBChannels(final ImageData<BufferedImage> imageData) {
-		
-		rgbDirectChannelInfo = null;
-		rgbNormalizedChannelInfo = null;
-
-		rgbSplitChannels.clear();
-		rgbDirectChannels.clear();
-		rgbHsvChannels.clear();
-		rgbBrightfieldChannels.clear();
-		rgbChromaticityChannels.clear();
-		
-		if (imageData == null)
-			return;
-		
-		rgbDirectChannelInfo = new RGBDirectChannelInfo(imageData);
-		rgbNormalizedChannelInfo = new RGBNormalizedChannelInfo(imageData);
-
-		// Add simple channel separation (changed for v0.6.0)
-		rgbSplitChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Red, false));
-		rgbSplitChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Green, false));
-		rgbSplitChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Blue, false));
-
-		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 0));
-		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 1));
-		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 2));
-
-		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Hue, false));
-		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Saturation, false));
-		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean, false));
-
-		// Add optical density & color deconvolution options for brightfield images
-		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_1));
-		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_2));
-		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_3));
-		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Optical_density_sum));
-
-		rgbChromaticityChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Red_chromaticity, false));		
-		rgbChromaticityChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Green_chromaticity, false));		
-		rgbChromaticityChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Blue_chromaticity, false));		
-	}
 
 	/**
 	 * Refresh the channel options. This may be used if an underlying property of the image has changed, such 
@@ -478,13 +426,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 		
 		logger.trace("Updating channel options (serverChanged={})", serverChanged);
 		
-		// If the server has changed, reset the RGB channels that we have cached
-		if (serverChanged) {
-			createRGBChannels(null);
-		}
-
-		ImageServer<BufferedImage> server = imageData == null ? null : imageData.getServer();
-		if (server == null) {
+		var metadata = imageData == null ? null : imageData.getServerMetadata();
+		if (metadata == null || channelManager == null) {
 			selectedChannels.clear();
 			availableChannels.clear();
 			if (!switchToGrayscaleChannel.isBound())
@@ -492,76 +435,32 @@ public class ImageDisplay extends AbstractImageRenderer {
 			return;
 		}
 		
-		List<ChannelDisplayInfo> tempChannelOptions = new ArrayList<>();
-		List<ChannelDisplayInfo> tempSelectedChannels = new ArrayList<>(this.selectedChannels);
-		if (server.isRGB()) {
-			createRGBChannels(imageData);
-			if (imageData.isFluorescence()) {
-				tempChannelOptions.addAll(rgbDirectChannels);
-			} else {
-				// Remove joint RGB display as an option for fluorescence
-				tempChannelOptions.add(rgbDirectChannelInfo);
-				// Add color deconvolution options if we have a brightfield image
-				if (imageData.isBrightfield()) {
-					tempChannelOptions.addAll(rgbBrightfieldChannels);
-					tempChannelOptions.add(rgbNormalizedChannelInfo);
-				}
-				tempChannelOptions.addAll(rgbSplitChannels);
-				if (showAllRGBTransforms.get()) {
-					// Change v0.6.0 - don't show all channels for fluorescence (as they are more distracting than helpful)
-					// If they are needed, using ImageType.OTHER
-					tempChannelOptions.addAll(rgbHsvChannels);
-					tempChannelOptions.addAll(rgbChromaticityChannels);
-				}
-			}
-			// Remove any invalid channels
-			tempSelectedChannels.retainAll(tempChannelOptions);
-			// Select the original channel (RGB)
-			if (tempSelectedChannels.isEmpty()) {
-				// Default to all channels
-				if (!useGrayscaleLuts.get() && tempChannelOptions.stream().allMatch(c -> c instanceof DirectServerChannelInfo))
-					tempSelectedChannels.addAll(tempChannelOptions);
-				else
-					tempSelectedChannels.add(tempChannelOptions.getFirst());
-			}
-		} else if (serverChanged) {
-			if (server.nChannels() == 1) {
-				tempChannelOptions.add(new DirectServerChannelInfo(imageData, 0));
-			}
-			else {
-				for (int c = 0; c < server.nChannels(); c++) {
-					tempChannelOptions.add(new DirectServerChannelInfo(imageData, c));
-				}
-			}
-		} else {
-			// Ensure channel colors are set
-			boolean colorsUpdated = false;
-			for (int c = 0; c < availableChannels.size(); c++) {
-				var option = availableChannels.get(c);
-				if (option instanceof DirectServerChannelInfo directChannel && c < server.nChannels()) {
-					var channel = server.getChannel(c);
-					if (!Objects.equals(option.getColor(), channel.getColor())) {
-						directChannel.setLUTColor(channel.getColor());
-						colorsUpdated = true;
-					}
-				}
-			}
-			tempChannelOptions.addAll(availableChannels);
-			if (colorsUpdated)
-				saveChannelColorProperties();
-		}
-		
+		List<ChannelDisplayInfo> tempChannelOptions = channelManager.getAvailableChannels(showAllRGBTransforms.get());
+		List<ChannelDisplayInfo> tempSelectedChannels;
 		// Select all the channels
 		if (serverChanged) {
-			tempSelectedChannels.clear();
-			if (server.isRGB() || !useColorLUTs())
+			tempSelectedChannels = new ArrayList<>();
+			if (metadata.isRGB() || !useColorLUTs())
 				tempSelectedChannels.add(tempChannelOptions.getFirst());
 			else if (useColorLUTs())
-				tempSelectedChannels.addAll(tempChannelOptions);
-			selectedChannels.clear();
+				tempSelectedChannels.addAll(
+						tempChannelOptions.stream()
+						.filter(c -> c instanceof DirectServerChannelInfo).toList());
+		} else {
+			tempSelectedChannels = selectedChannels.stream()
+					.filter(tempChannelOptions::contains)
+					.toList();
 		}
-		availableChannels.setAll(tempChannelOptions);
-		selectedChannels.setAll(tempSelectedChannels);
+
+		if (!availableChannels.equals(tempSelectedChannels)) {
+			availableChannels.setAll(tempChannelOptions);
+		}
+		if (!selectedChannels.equals(tempSelectedChannels)) {
+			selectedChannels.setAll(tempSelectedChannels);
+		}
+
+		// Ensure channel colors are set
+		ensureChannelColorsUpdated(imageData.getServerMetadata());
 
 		// Attempt to preserve the switchToGrayscaleChannel, if possible
 		if (!switchToGrayscaleChannel.isBound()) {
@@ -572,6 +471,22 @@ public class ImageDisplay extends AbstractImageRenderer {
 							availableChannels.stream().filter(c -> Objects.equals(c.getName(), switchToGrayscale.getName())).findFirst().orElse(null)
 					);
 			}
+		}
+	}
+
+	private void ensureChannelColorsUpdated(ImageServerMetadata metadata) {
+		boolean colorsUpdated = false;
+		for (var option : availableChannels) {
+			if (option instanceof DirectServerChannelInfo directChannel) {
+				var channel = metadata.getChannel(directChannel.getChannel());
+				if (!Objects.equals(option.getColor(), channel.getColor())) {
+					directChannel.setLUTColor(channel.getColor());
+					colorsUpdated = true;
+				}
+			}
+		}
+		if (colorsUpdated) {
+			saveChannelColorProperties();
 		}
 	}
 
