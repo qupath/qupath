@@ -857,7 +857,7 @@ class DefaultProject implements Project<BufferedImage> {
 				if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH)) {
 					// See https://github.com/qupath/qupath/issues/1738
 					// It's not clear if this will help, but Desktop sometimes cares about the event dispatch thread
-					if (SwingUtilities.isEventDispatchThread()) {
+					if (SwingUtilities.isEventDispatchThread() || !GeneralTools.isWindows()) {
 						if (desktop.moveToTrash(path.toFile()))
 							return;
 					} else {
