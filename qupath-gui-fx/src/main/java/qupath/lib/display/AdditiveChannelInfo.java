@@ -30,18 +30,20 @@ import java.util.stream.Collectors;
 
 /**
  * Class for combining channels additively, then providing controls on the resulting RGB image.
- * This is useful for non-RGB images that need to be modified as if they are RGB.
- * 
- * @author Pete Bankhead
+ * <p>
+ * This was created to support the display of non-8-bit brightfield images in a similar way to
+ * RGB images.
+ *
+ * @since v0.6.0
  */
-class AdditiveChannelInfo extends AbstractChannelInfo {
+public class AdditiveChannelInfo extends AbstractChannelInfo {
 
 	private final List<DirectServerChannelInfo> channels;
 
 	public AdditiveChannelInfo(final ImageData<BufferedImage> imageData,
 							   final List<DirectServerChannelInfo> channels) {
 		super(imageData);
-		this.channels = List.copyOf(channels);
+		this.channels = channels == null ? List.of() : List.copyOf(channels);
 		setMinMaxAllowed(0, 255);
 		setClipToAllowed(true);
 	}
@@ -102,6 +104,14 @@ class AdditiveChannelInfo extends AbstractChannelInfo {
 	@Override
 	public Integer getColor() {
 		return null;
+	}
+
+	/**
+	 * Get an unmodifiable list of the channels that are merged here for display.
+	 * @return a list of channels
+	 */
+	public List<DirectServerChannelInfo> getChannels() {
+		return channels;
 	}
 
 }
