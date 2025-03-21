@@ -197,6 +197,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			
 			ImageProcessor[] ipColor;
 			if (imp.getType() == ImagePlus.COLOR_RGB) {
+				// TODO: Consider adding support for non-8-bit color deconvolution
 				ColorProcessor cp = (ColorProcessor)imp.getProcessor();
 				if (doDeconvolve && imageData.isBrightfield() && imageData.getColorDeconvolutionStains() != null) {
 					ipColor = IJTools.colorDeconvolve(cp, imageData.getColorDeconvolutionStains());

@@ -37,14 +37,11 @@ import java.util.Objects;
  */
 class ChannelManager {
 
-    private final ImageData<BufferedImage> imageData;
-
     private final RgbChannels rgbChannels;
     private final DirectChannels directChannels;
 
     ChannelManager(ImageData<BufferedImage> imageData) {
         Objects.requireNonNull(imageData);
-        this.imageData = imageData;
 
         if (imageData.getServerMetadata().isRGB()) {
             rgbChannels = new RgbChannels(imageData);
@@ -70,17 +67,34 @@ class ChannelManager {
 
     private static class DirectChannels {
 
-        private final List<ChannelDisplayInfo> availableChannels = new ArrayList<>();
+        private final ImageData<BufferedImage> imageData;
+
+        private final List<DirectServerChannelInfo> availableChannels = new ArrayList<>();
+        private final List<ChannelDisplayInfo> brightfieldChannels = new ArrayList<>();
 
         private DirectChannels(ImageData<BufferedImage> imageData) {
+            this.imageData = imageData;
             var channels = imageData.getServerMetadata().getChannels();
             for (int c = 0; c < channels.size(); c++) {
                 availableChannels.add(new DirectServerChannelInfo(imageData, c));
             }
+            if (imageData.getServerMetadata().getChannels().size() == 3) {
+                brightfieldChannels.add(new AdditiveChannelInfo(imageData, availableChannels));
+                brightfieldChannels.add(new ColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Stain_1));
+                brightfieldChannels.add(new ColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Stain_2));
+                brightfieldChannels.add(new ColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Stain_3));
+                brightfieldChannels.add(new ColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Optical_density_sum));
+            }
         }
 
         private List<ChannelDisplayInfo> getAvailableChannels() {
-            return List.copyOf(availableChannels);
+            if (imageData.isBrightfield()) {
+                var list = new ArrayList<>(brightfieldChannels);
+                list.addAll(availableChannels);
+                return list;
+            } else {
+                return List.copyOf(availableChannels);
+            }
         }
 
     }
@@ -126,10 +140,10 @@ class ChannelManager {
             rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean, false));
 
             // Add optical density & color deconvolution options for brightfield images
-            rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Stain_1));
-            rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Stain_2));
-            rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Stain_3));
-            rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Optical_density_sum));
+            rgbBrightfieldChannels.add(new ColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Stain_1));
+            rgbBrightfieldChannels.add(new ColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Stain_2));
+            rgbBrightfieldChannels.add(new ColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Stain_3));
+            rgbBrightfieldChannels.add(new ColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Optical_density_sum));
 
             rgbChromaticityChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Red_chromaticity, false));
             rgbChromaticityChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Green_chromaticity, false));

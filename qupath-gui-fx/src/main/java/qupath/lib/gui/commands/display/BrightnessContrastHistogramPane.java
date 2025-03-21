@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.ColorTools;
+import qupath.lib.display.AdditiveChannelInfo;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.charts.ChartThresholdPane;
@@ -174,6 +175,21 @@ public class BrightnessContrastHistogramPane extends BorderPane {
                     "original".equalsIgnoreCase(channelSelected.getName())) {
                 var allHistograms = getRGBHistograms(imageDisplay);
                 histogramChart.getHistogramData().setAll(allHistograms);
+            } else if (channelSelected instanceof AdditiveChannelInfo additive){
+                // The following code is commented out because it doesn't work as expected...
+                // The problem is that the histogram can exceed the 8-bit range that we use to control
+                // the min/max values for this image.
+                // This means that the histogram might be clipped in a confusing way.
+//                var newHistograms = new ArrayList<HistogramChart.HistogramData>();
+//                for (var channel : additive.getChannels()) {
+//                    var hist = imageDisplay.getHistogram(channel);
+//                    if (hist != null) {
+//                        var histogramData = HistogramChart.createHistogramData(hist, getColor(channel));
+//                        newHistograms.add(histogramData);
+//                    }
+//                }
+//                histogramChart.getHistogramData().setAll(newHistograms);
+                histogramChart.getHistogramData().clear();
             } else {
                 histogramChart.getHistogramData().clear();
             }

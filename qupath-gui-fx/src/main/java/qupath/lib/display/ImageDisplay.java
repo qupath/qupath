@@ -168,7 +168,12 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 */
 	public ImageDisplay() {
 		useGrayscaleLuts.addListener(this::handleUseGrayscaleLutsChange);
+		useInvertedBackground.addListener(this::handleInvertedBackgroundChange);
 		selectedChannels.addListener(this::handleSelectedChannelsChange);
+	}
+
+	private void handleInvertedBackgroundChange(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
+		saveChannelColorProperties();
 	}
 
 	private void handleSelectedChannelsChange(ListChangeListener.Change<? extends ChannelDisplayInfo> change) {
@@ -452,7 +457,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 					.toList();
 		}
 
-		if (!availableChannels.equals(tempSelectedChannels)) {
+		if (!availableChannels.equals(tempChannelOptions)) {
 			availableChannels.setAll(tempChannelOptions);
 		}
 		if (!selectedChannels.equals(tempSelectedChannels)) {

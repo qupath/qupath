@@ -331,7 +331,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		if (this.type == type)
 			return;
 
-		if (isBrightfield(type) && !getServerMetadata().isRGB()) {
+		if (isBrightfield(type) && !(getServerMetadata().isRGB() || getServerMetadata().getChannels().size() == 3)) {
 			throw new IllegalArgumentException("Type for non-RGB image cannot be set to " + type);
 		}
 

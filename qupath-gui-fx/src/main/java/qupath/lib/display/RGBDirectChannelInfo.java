@@ -69,31 +69,38 @@ class RGBDirectChannelInfo extends AbstractChannelInfo {
 		return null;
 	}
 
-
 	@Override
 	public int[] getRGB(BufferedImage img, int[] rgb, ChannelDisplayMode mode) {
-		
-		// TODO: Add support for ChannelDisplayMode (if it makes sense!)
-		boolean doInvert = mode == ChannelDisplayMode.INVERTED_COLOR || mode == ChannelDisplayMode.INVERTED_GRAYSCALE;
-		boolean doGrayscale = mode == ChannelDisplayMode.GRAYSCALE || mode == ChannelDisplayMode.INVERTED_GRAYSCALE;
-		
 		// Try to get a data buffer directly, if possible
 		int[] buffer = getRGBIntBuffer(img);
 		if (buffer == null) {
 			// If we wouldn't get a buffer, ask for the RGB values the slow way
 			rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), rgb, 0, img.getWidth());
 			buffer = rgb;
-		} else if (rgb == null || rgb.length < buffer.length) {
-			rgb = new int[img.getWidth() * img.getHeight()];
 		}
 
 		// Rescale only if we must
 		float offset = getOffset();
 		float scale = getScaleToByte();
+
+		return transformRGB(buffer, rgb, mode, offset, scale);
+	}
+
+	static int[] transformRGB(int[] rgbInput, int[] rgbOutput, ChannelDisplayMode mode, float offset, float scale) {
+
+		if (rgbOutput == null || rgbOutput.length < rgbInput.length) {
+			rgbOutput = new int[rgbInput.length];
+		}
+
+		// TODO: Add support for ChannelDisplayMode (if it makes sense!)
+		boolean doInvert = mode == ChannelDisplayMode.INVERTED_COLOR || mode == ChannelDisplayMode.INVERTED_GRAYSCALE;
+		boolean doGrayscale = mode == ChannelDisplayMode.GRAYSCALE || mode == ChannelDisplayMode.INVERTED_GRAYSCALE;
+
+
 		//			ColorTransformer.transformImage(buffer, buffer, ColorTransformMethod.OD_Normalized, offset, scale, false);
 		if (offset != 0 || scale != 1 || doInvert || doGrayscale) {
 			int ind = 0;
-			for (int v : buffer) {
+			for (int v : rgbInput) {
 				if (doGrayscale) {
 					// We convert to grayscale using weighted RGB values
 					double r = ((ColorTools.red(v) - offset) * scale);
@@ -103,7 +110,7 @@ class RGBDirectChannelInfo extends AbstractChannelInfo {
 //					int value = ColorTools.do8BitRangeCheck((r + g + b) / 3.0);
 					// Using weighting
 					int value = ColorTools.do8BitRangeCheck((0.299 * r + 0.587 * g + 0.114 * b));
-					rgb[ind] = ColorTools.packRGB(value, value, value);
+					rgbOutput[ind] = ColorTools.packRGB(value, value, value);
 				} else if (doInvert) {
 					// Get the original RGB values
 					double r = ((ColorTools.red(v) - offset) * scale);
@@ -122,19 +129,19 @@ class RGBDirectChannelInfo extends AbstractChannelInfo {
 //					int g2 = ColorTools.do8BitRangeCheck((r + b));
 //					int b2 = ColorTools.do8BitRangeCheck((r + g));
 
-					rgb[ind] = (r2 << 16) + (g2 << 8) + b2;
+					rgbOutput[ind] = (r2 << 16) + (g2 << 8) + b2;
 				} else {
 					int r = ColorTools.do8BitRangeCheck((ColorTools.red(v) - offset) * scale);
 					int g = ColorTools.do8BitRangeCheck((ColorTools.green(v) - offset) * scale);
 					int b = ColorTools.do8BitRangeCheck((ColorTools.blue(v) - offset) * scale);
-					rgb[ind] = (r << 16) + (g << 8) + b;
+					rgbOutput[ind] = (r << 16) + (g << 8) + b;
 				}
 				ind++;
 			}
-		} else if (buffer != rgb) {
-			System.arraycopy(buffer, 0, rgb, 0, rgb.length);
+		} else if (rgbInput != rgbOutput) {
+			System.arraycopy(rgbInput, 0, rgbOutput, 0, rgbOutput.length);
 		}
-		return rgb;
+		return rgbOutput;
 	}
 
 	@Override
