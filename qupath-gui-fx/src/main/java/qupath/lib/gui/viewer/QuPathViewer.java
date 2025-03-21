@@ -56,7 +56,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javafx.beans.property.Property;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
@@ -777,7 +776,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		this.imageDisplay = imageDisplay;
 		if (imageDisplay != null)
-			imageDisplay.changeTimestampProperty().addListener(repainterEntire);
+			imageDisplay.eventCountProperty().addListener(repainterEntire);
 
 		// Prepare overlay layers
 		customOverlayLayers.addListener((Change<? extends PathOverlay> e) -> refreshAllOverlayLayers());

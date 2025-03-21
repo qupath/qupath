@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -29,17 +29,20 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.IntStream;
+import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,15 +62,16 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.ListChangeListener;
 import qupath.lib.analysis.stats.Histogram;
-import qupath.lib.color.ColorTransformer;
-import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;
 import qupath.lib.display.ChannelDisplayInfo.ModifiableChannelDisplayInfo;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.regions.RegionRequest;
 
 /**
  * Class used to look after the color transforms that may be applied to an image,
@@ -96,114 +100,61 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 */
 	private static final String PROPERTY_DISPLAY = ImageDisplay.class.getName();
 
-	// Lists to store the different kinds of channels we might need
-	// Pack RGB (all channels in one image, only adjustable together)
-	private RGBDirectChannelInfo rgbDirectChannelInfo;
-	// Normalized optical density channels; useful to find the 'predominant' color when selecting stain vectors
-	private RGBNormalizedChannelInfo rgbNormalizedChannelInfo;
-	// Direct (editable) RGB channels
-	private List<ChannelDisplayInfo> rgbDirectChannels = new ArrayList<>();
-	// Split (uneditable) RGB channels
-	private List<ChannelDisplayInfo> rgbSplitChannels = new ArrayList<>();
-	// Hue, Saturation, Value
-	private List<ChannelDisplayInfo> rgbHsvChannels = new ArrayList<>();
-	// Color-deconvolved channels
-	private List<ChannelDisplayInfo> rgbBrightfieldChannels = new ArrayList<>();
-	// Chromaticity channels
-	private List<ChannelDisplayInfo> rgbChromaticityChannels = new ArrayList<>();
-
 	// Image & color transform-related variables
-	private BooleanProperty useGrayscaleLuts = new SimpleBooleanProperty();
-	private BooleanProperty useInvertedBackground = new SimpleBooleanProperty(false);
+	private final BooleanProperty useGrayscaleLuts = new SimpleBooleanProperty();
+	private final BooleanProperty useInvertedBackground = new SimpleBooleanProperty(false);
 
 	private ImageData<BufferedImage> imageData;
-	private ObservableList<ChannelDisplayInfo> channelOptions = FXCollections.observableArrayList();
+	private ChannelManager channelManager = null;
 
-	private ObservableList<ChannelDisplayInfo> selectedChannels = FXCollections.observableArrayList();
+	private final ObservableList<ChannelDisplayInfo> availableChannels = FXCollections.observableArrayList();
+	private final ObservableList<ChannelDisplayInfo> availableChannelsReadOnly = FXCollections.unmodifiableObservableList(availableChannels);
+
+	private final ObservableList<ChannelDisplayInfo> selectedChannels = FXCollections.observableArrayList();
+	private final ObservableList<ChannelDisplayInfo> selectedChannelsReadOnly = FXCollections.unmodifiableObservableList(selectedChannels);
 	private ChannelDisplayInfo lastSelectedChannel = null;
 
-	private LongProperty changeTimestamp = new SimpleLongProperty(System.currentTimeMillis());
+	private final AtomicLong eventCount = new AtomicLong(0L);
+	private final LongProperty eventCountProperty = new SimpleLongProperty(eventCount.get());
 	
-	private ObjectBinding<ChannelDisplayMode> displayMode = Bindings.createObjectBinding(() -> calculateDisplayMode(),
+	private final ObjectBinding<ChannelDisplayMode> displayMode = Bindings.createObjectBinding(this::calculateDisplayMode,
 			useGrayscaleLutProperty(), useInvertedBackgroundProperty());
 
-	private static Map<String, HistogramManager> cachedHistograms = Collections.synchronizedMap(new HashMap<>());
+	private static final Map<String, HistogramManager> cachedHistograms = Collections.synchronizedMap(new HashMap<>());
 	private HistogramManager histogramManager = null;
-	private List<BufferedImage> imagesForHistograms = new ArrayList<>(); // Cache images needed to recompute histograms
 
-	private static BooleanProperty showAllRGBTransforms = PathPrefs.createPersistentPreference("showAllRGBTransforms", true);
+	private static final Comparator<RegionRequest> regionComparator = Comparator.comparing(RegionRequest::getPath)
+			.thenComparingInt(RegionRequest::getZ)
+			.thenComparingInt(RegionRequest::getT)
+			.thenComparingInt(RegionRequest::getX)
+			.thenComparingInt(RegionRequest::getY)
+			.thenComparingInt(RegionRequest::getWidth)
+			.thenComparingInt(RegionRequest::getHeight)
+			.thenComparingDouble(RegionRequest::getDownsample);
+
+	private Map<RegionRequest, BufferedImage> imagesForHistograms = new TreeMap<>(regionComparator); // Cache images needed to recompute histograms
+
+	private static final BooleanProperty showAllRGBTransforms = PathPrefs.createPersistentPreference("showAllRGBTransforms", true);
 
 	// Used to store the channel colors before switching to grayscale, so this can be restored later
 	// We use the names rather than the actual channels so that the colors are preserved if the image is changed,
 	// and we still do our best to preserve the matching channels
-	private transient Set<String> beforeGrayscaleChannels = new HashSet<>();
+	private final transient Set<String> beforeGrayscaleChannels = new HashSet<>();
 
 	// Used to store the channel that should be selected when switching to grayscale (optional).
 	// This is useful to develop more intuitive interfaces & prevent surprises when switching to grayscale mode.
 	// For example, this could be in the selected item in a list or table (independent of whether the channel is
 	// shown or hidden).
-	private transient ObjectProperty<ChannelDisplayInfo> switchToGrayscaleChannel = new SimpleObjectProperty<>();
+	private final transient ObjectProperty<ChannelDisplayInfo> switchToGrayscaleChannel = new SimpleObjectProperty<>();
 
 	// Flag when the image data is being set, to prevent other changes or events being processed
 	private boolean settingImageData = false;
 
 	/**
-	 * Constructor.
-	 */
-	public ImageDisplay() {
-		useGrayscaleLuts.addListener((v, o, n) -> {
-			if (n) {
-				// Snapshot the names of channels active before switching to grayscale
-				selectedChannels.stream().map(ChannelDisplayInfo::getName).forEach(beforeGrayscaleChannels::add);
-				var switchToGrayscale = switchToGrayscaleChannel.get();
-				if (switchToGrayscale != null) {
-					if (!availableChannels.contains(switchToGrayscale)) {
-						// If we have a different object to represent the channel, search for it by name -
-						// because we need to be careful not to select a channel that isn't 'available'
-						// See https://github.com/qupath/qupath/pull/1482
-						String switchToGrayscaleChannelName = switchToGrayscale.getName();
-						switchToGrayscale = availableChannels.stream()
-								.filter(c -> Objects.equals(c.getName(), switchToGrayscaleChannelName))
-								.findFirst().orElse(null);
-					}
-					if (switchToGrayscale != null)
-						setChannelSelected(switchToGrayscale, true);
-				}
-				if (lastSelectedChannel != null)
-					setChannelSelected(lastSelectedChannel, true);
-				else if (!selectedChannels.isEmpty())
-					setChannelSelected(selectedChannels.get(0), true);
-				else if (!availableChannels.isEmpty()) {
-					setChannelSelected(availableChannels.get(0), true);
-				}
-			} else {
-				// Restore the channels that were active before switching to grayscale, if possible
-				if (!beforeGrayscaleChannels.isEmpty()) {
-					var channelsToSelect = availableChannels().stream().filter(c -> beforeGrayscaleChannels.contains(c.getName())).toList();
-					if (!channelsToSelect.isEmpty()) {
-						selectedChannels.setAll(channelsToSelect);
-					}
-				}
-				beforeGrayscaleChannels.clear();
-			}
-			saveChannelColorProperties();
-		});
-		useInvertedBackground.addListener((v, o, n) -> {
-			saveChannelColorProperties();
-		});
-
-		selectedChannels.addListener((ListChangeListener<ChannelDisplayInfo>) c -> {
-			if (c.getList().contains(null)) {
-				logger.warn("Null channel selected");
-			}
-		});
-	}
-
-	/**
 	 * Create a new image display, and set the specified image data.
-	 * @param imageData
-	 * @return
-	 * @throws IOException
+	 * @param imageData the image to set initially; may be null
+	 * @return a new instance
+	 * @throws IOException if an exception occurs when trying to set the image
 	 */
 	public static ImageDisplay create(ImageData<BufferedImage> imageData) throws IOException {
 		var display = new ImageDisplay();
@@ -212,10 +163,23 @@ public class ImageDisplay extends AbstractImageRenderer {
 		return display;
 	}
 
+	/**
+	 * Constructor.
+	 */
+	public ImageDisplay() {
+		useGrayscaleLuts.addListener(this::handleUseGrayscaleLutsChange);
+		selectedChannels.addListener(this::handleSelectedChannelsChange);
+	}
+
+	private void handleSelectedChannelsChange(ListChangeListener.Change<? extends ChannelDisplayInfo> change) {
+		if (change.getList().contains(null)) {
+			logger.warn("Null channel selected");
+		}
+	}
 
 	/**
 	 * Set the {@link ImageData} to a new value
-	 * @param imageData image data that should how be displayed
+	 * @param imageData image data that should be displayed
 	 * @param retainDisplaySettings if true, retain the same display settings as for the previous image if possible 
 	 *                              (i.e. the images have similar channels)
 	 */
@@ -227,7 +191,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 		try {
 			// Retain display settings if requested *and* we have two similar images
 			// (i.e. same bit depth, same number and names for channels)
-			String lastDisplayJSON = null;
+			String lastDisplayJSON;
 			if (retainDisplaySettings && this.imageData != null && imageData != null) {
 				ImageServer<?> lastServer = this.imageData.getServer();
 				ImageServer<?> nextServer = imageData.getServer();
@@ -244,7 +208,12 @@ public class ImageDisplay extends AbstractImageRenderer {
 			lastDisplayJSON = retainDisplaySettings ? toJSON() : null;
 
 			this.imageData = imageData;
-			this.imagesForHistograms = imageData == null ? Collections.emptyList() : getImagesForHistogram(imageData.getServer());
+			this.imagesForHistograms = imageData == null ? Collections.emptyMap() : getImagesForHistogram(imageData.getServer());
+			if (imageData != null)
+				channelManager = new ChannelManager(imageData);
+			else
+				channelManager = null;
+
 			updateChannelOptions(true);
 			updateHistogramMap();
 			if (imageData != null) {
@@ -257,12 +226,18 @@ public class ImageDisplay extends AbstractImageRenderer {
 			}
 		} finally {
 			settingImageData = false;
-			changeTimestamp.set(System.currentTimeMillis());
+			incrementEventCount();
 		}
 	}
-	
-	
-	
+
+	/**
+	 * Increment the event count property.
+	 * Listeners may then respond, e.g. to fire a repaint operation.
+	 */
+	private void incrementEventCount() {
+		eventCountProperty.set(eventCount.incrementAndGet());
+	}
+
 	/**
 	 * Get the current image data
 	 * @return
@@ -293,6 +268,44 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 */
 	public void setUseGrayscaleLuts(boolean useGrayscaleLuts) {
 		this.useGrayscaleLuts.set(useGrayscaleLuts);
+	}
+
+	private void handleUseGrayscaleLutsChange(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
+		if (newValue) {
+			// Snapshot the names of channels active before switching to grayscale
+			selectedChannels.stream().map(ChannelDisplayInfo::getName).forEach(beforeGrayscaleChannels::add);
+			var switchToGrayscale = switchToGrayscaleChannel.get();
+			if (switchToGrayscale != null) {
+				if (!availableChannelsReadOnly.contains(switchToGrayscale)) {
+					// If we have a different object to represent the channel, search for it by name -
+					// because we need to be careful not to select a channel that isn't 'available'
+					// See https://github.com/qupath/qupath/pull/1482
+					String switchToGrayscaleChannelName = switchToGrayscale.getName();
+					switchToGrayscale = availableChannelsReadOnly.stream()
+							.filter(c -> Objects.equals(c.getName(), switchToGrayscaleChannelName))
+							.findFirst().orElse(null);
+				}
+				if (switchToGrayscale != null)
+					setChannelSelected(switchToGrayscale, true);
+			}
+			if (lastSelectedChannel != null)
+				setChannelSelected(lastSelectedChannel, true);
+			else if (!selectedChannels.isEmpty())
+				setChannelSelected(selectedChannels.getFirst(), true);
+			else if (!availableChannelsReadOnly.isEmpty()) {
+				setChannelSelected(availableChannelsReadOnly.getFirst(), true);
+			}
+		} else {
+			// Restore the channels that were active before switching to grayscale, if possible
+			if (!beforeGrayscaleChannels.isEmpty()) {
+				var channelsToSelect = availableChannels().stream().filter(c -> beforeGrayscaleChannels.contains(c.getName())).toList();
+				if (!channelsToSelect.isEmpty()) {
+					selectedChannels.setAll(channelsToSelect);
+				}
+			}
+			beforeGrayscaleChannels.clear();
+		}
+		saveChannelColorProperties();
 	}
 	
 	/**
@@ -349,67 +362,24 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 
 	/**
-	 * Get a timestamp the last known changes for the object.
-	 * 
-	 * This is useful to abort painting if the display changes during a paint run.
-	 * 
+	 * Get the event count, which is here used as an alternative to a timestamp.
 	 * @return
 	 */
 	@Override
 	public long getLastChangeTimestamp() {
-		return changeTimestamp.get();
+		return eventCountProperty.get();
 	}
 	
 	/**
-	 * Timestamp for the most recent change.  This can be used to listen for 
-	 * display changes.
-	 * 
+	 * Counter for the number of display changes that have been made.
+	 * <p>
+	 * Note: This replaces a timestamp property used before v0.6.0.
+	 *       It should be more reliable, because changes occurring in quick succession can still be captured -
+	 *       whereas previously any changes that were faster than the millisecond close might get lost.
 	 * @return
 	 */
-	public LongProperty changeTimestampProperty() {
-		return changeTimestamp;
-	}
-	
-	
-	private void createRGBChannels(final ImageData<BufferedImage> imageData) {
-		
-		rgbDirectChannelInfo = null;
-		rgbNormalizedChannelInfo = null;
-
-		rgbSplitChannels.clear();
-		rgbDirectChannels.clear();
-		rgbHsvChannels.clear();
-		rgbBrightfieldChannels.clear();
-		rgbChromaticityChannels.clear();
-		
-		if (imageData == null)
-			return;
-		
-		rgbDirectChannelInfo = new RGBDirectChannelInfo(imageData);
-		rgbNormalizedChannelInfo = new RGBNormalizedChannelInfo(imageData);
-
-		// Add simple channel separation (changed for v0.6.0)
-		rgbSplitChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Red, false));
-		rgbSplitChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Green, false));
-		rgbSplitChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Blue, false));
-
-		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 0));
-		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 1));
-		rgbDirectChannels.add(new DirectServerChannelInfo(imageData, 2));
-
-		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Hue, false));
-		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Saturation, false));
-		rgbHsvChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean, false));
-
-		// Add optical density & color deconvolution options for brightfield images
-		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_1));
-		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_2));
-		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_3));
-		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Optical_density_sum));
-
-		rgbChromaticityChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Red_chromaticity, false));		
-		rgbChromaticityChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Green_chromaticity, false));		
-		rgbChromaticityChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Blue_chromaticity, false));		
+	public LongProperty eventCountProperty() {
+		return eventCountProperty;
 	}
 
 	/**
@@ -456,100 +426,67 @@ public class ImageDisplay extends AbstractImageRenderer {
 		
 		logger.trace("Updating channel options (serverChanged={})", serverChanged);
 		
-		// If the server has changed, reset the RGB channels that we have cached
-		if (serverChanged) {
-			createRGBChannels(null);
-		}
-
-		ImageServer<BufferedImage> server = imageData == null ? null : imageData.getServer();
-		if (server == null) {
+		var metadata = imageData == null ? null : imageData.getServerMetadata();
+		if (metadata == null || channelManager == null) {
 			selectedChannels.clear();
-			channelOptions.clear();
+			availableChannels.clear();
 			if (!switchToGrayscaleChannel.isBound())
 				switchToGrayscaleChannel.set(null);
 			return;
 		}
 		
-		List<ChannelDisplayInfo> tempChannelOptions = new ArrayList<>();
-		List<ChannelDisplayInfo> tempSelectedChannels = new ArrayList<>(this.selectedChannels);
-		if (server.isRGB()) {
-			createRGBChannels(imageData);
-			if (imageData.isFluorescence()) {
-				tempChannelOptions.addAll(rgbDirectChannels);
-			} else {
-				// Remove joint RGB display as an option for fluorescence
-				tempChannelOptions.add(rgbDirectChannelInfo);
-				// Add color deconvolution options if we have a brightfield image
-				if (imageData.isBrightfield()) {
-					tempChannelOptions.addAll(rgbBrightfieldChannels);
-					tempChannelOptions.add(rgbNormalizedChannelInfo);
-				}
-				tempChannelOptions.addAll(rgbSplitChannels);
-				if (showAllRGBTransforms.get()) {
-					// Change v0.6.0 - don't show all channels for fluorescence (as they are more distracting than helpful)
-					// If they are needed, using ImageType.OTHER
-					tempChannelOptions.addAll(rgbHsvChannels);
-					tempChannelOptions.addAll(rgbChromaticityChannels);
-				}
-			}
-			// Remove any invalid channels
-			tempSelectedChannels.retainAll(tempChannelOptions);
-			// Select the original channel (RGB)
-			if (tempSelectedChannels.isEmpty()) {
-				// Default to all channels
-				if (!useGrayscaleLuts.get() && tempChannelOptions.stream().allMatch(c -> c instanceof DirectServerChannelInfo))
-					tempSelectedChannels.addAll(tempChannelOptions);
-				else
-					tempSelectedChannels.add(tempChannelOptions.getFirst());
-			}
-		} else if (serverChanged) {
-			if (server.nChannels() == 1) {
-				tempChannelOptions.add(new DirectServerChannelInfo(imageData, 0));
-			}
-			else {
-				for (int c = 0; c < server.nChannels(); c++) {
-					tempChannelOptions.add(new DirectServerChannelInfo(imageData, c));
-				}
-			}
-		} else {
-			// Ensure channel colors are set
-			boolean colorsUpdated = false;
-			for (int c = 0; c < channelOptions.size(); c++) {
-				var option = channelOptions.get(c);
-				if (option instanceof DirectServerChannelInfo directChannel && c < server.nChannels()) {
-					var channel = server.getChannel(c);
-					if (!Objects.equals(option.getColor(), channel.getColor())) {
-						directChannel.setLUTColor(channel.getColor());
-						colorsUpdated = true;
-					}
-				}
-			}
-			tempChannelOptions.addAll(channelOptions);
-			if (colorsUpdated)
-				saveChannelColorProperties();
-		}
-		
+		List<ChannelDisplayInfo> tempChannelOptions = channelManager.getAvailableChannels(showAllRGBTransforms.get());
+		List<ChannelDisplayInfo> tempSelectedChannels;
 		// Select all the channels
 		if (serverChanged) {
-			tempSelectedChannels.clear();
-			if (server.isRGB() || !useColorLUTs())
+			tempSelectedChannels = new ArrayList<>();
+			if (metadata.isRGB() || !useColorLUTs())
 				tempSelectedChannels.add(tempChannelOptions.getFirst());
 			else if (useColorLUTs())
-				tempSelectedChannels.addAll(tempChannelOptions);
-			selectedChannels.clear();
+				tempSelectedChannels.addAll(
+						tempChannelOptions.stream()
+						.filter(c -> c instanceof DirectServerChannelInfo).toList());
+		} else {
+			tempSelectedChannels = selectedChannels.stream()
+					.filter(tempChannelOptions::contains)
+					.toList();
 		}
-		channelOptions.setAll(tempChannelOptions);
-		selectedChannels.setAll(tempSelectedChannels);
+
+		if (!availableChannels.equals(tempSelectedChannels)) {
+			availableChannels.setAll(tempChannelOptions);
+		}
+		if (!selectedChannels.equals(tempSelectedChannels)) {
+			selectedChannels.setAll(tempSelectedChannels);
+		}
+
+		// Ensure channel colors are set
+		ensureChannelColorsUpdated(imageData.getServerMetadata());
 
 		// Attempt to preserve the switchToGrayscaleChannel, if possible
 		if (!switchToGrayscaleChannel.isBound()) {
 			var switchToGrayscale = switchToGrayscaleChannel.get();
 			if (switchToGrayscale != null) {
-				if (!channelOptions.contains(switchToGrayscale))
+				if (!availableChannels.contains(switchToGrayscale))
 					switchToGrayscaleChannel.set(
-							channelOptions.stream().filter(c -> Objects.equals(c.getName(), switchToGrayscale.getName())).findFirst().orElse(null)
+							availableChannels.stream().filter(c -> Objects.equals(c.getName(), switchToGrayscale.getName())).findFirst().orElse(null)
 					);
 			}
+		}
+	}
+
+	private void ensureChannelColorsUpdated(ImageServerMetadata metadata) {
+		boolean colorsUpdated = false;
+		for (var option : availableChannels) {
+			if (option instanceof DirectServerChannelInfo directChannel) {
+				var channel = metadata.getChannel(directChannel.getChannel());
+				if (!Objects.equals(option.getColor(), channel.getColor())) {
+					directChannel.setLUTColor(channel.getColor());
+					colorsUpdated = true;
+				}
+			}
+		}
+		if (colorsUpdated) {
+			saveChannelColorProperties();
 		}
 	}
 
@@ -576,7 +513,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 		
 		// Legacy code for the old color-only-storing property approach
 		int n = 0;
-		for (ChannelDisplayInfo info : channelOptions) {
+		for (ChannelDisplayInfo info : availableChannels) {
 			if (info instanceof DirectServerChannelInfo multiInfo) {
 				Integer colorOld = multiInfo.getColor();
 				Object colorNew = imageData.getProperty("COLOR_CHANNEL:" + info.getName());
@@ -596,7 +533,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	
 	/**
 	 * Set the min/max display values for a specified ChannelDisplayInfo.
-	 * 
+	 * <p>
 	 * The benefit of calling this method is that it will update the ImageData metadata if appropriate.
 	 * 
 	 * @param info
@@ -607,14 +544,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 		setMinMaxDisplay(info, minDisplay, maxDisplay, true);
 	}
 	
-	void setMinMaxDisplay(final ChannelDisplayInfo info , float minDisplay, float maxDisplay, boolean fireUpdate) {
+	private void setMinMaxDisplay(final ChannelDisplayInfo info , float minDisplay, float maxDisplay, boolean fireUpdate) {
 		if (info instanceof ModifiableChannelDisplayInfo modifiableInfo) {
 			if (modifiableInfo.getMinDisplay() == minDisplay && modifiableInfo.getMaxDisplay() == maxDisplay)
 				return;
 			modifiableInfo.setMinDisplay(minDisplay);
 			modifiableInfo.setMaxDisplay(maxDisplay);
 		}
-		if (fireUpdate && channelOptions.contains(info))
+		if (fireUpdate && availableChannels.contains(info))
 			saveChannelColorProperties();		
 	}
 	
@@ -632,41 +569,37 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		// Store the current display settings in the ImageData
 		imageData.setProperty(PROPERTY_DISPLAY, toJSON(false));
-		changeTimestamp.set(System.currentTimeMillis());
+		incrementEventCount();
 	}
 
 
-	private ObservableList<ChannelDisplayInfo> selectedChannelsReadOnly = FXCollections.unmodifiableObservableList(selectedChannels);	
-	
 	/**
-	 * {@link ObservableList} containing the channels currently selected for display.
-	 * @return
+	 * Read-only observable list containing the channels currently selected for display.
+	 * @return the selected channels
 	 * @see #availableChannels()
 	 */
 	public ObservableList<ChannelDisplayInfo> selectedChannels() {
 		return selectedChannelsReadOnly;
 	}
-	
-	private ObservableList<ChannelDisplayInfo> availableChannels = FXCollections.unmodifiableObservableList(channelOptions);
-	
+
 	/**
-	 * {@link ObservableList} containing the channels currently available for display.
-	 * @return
+	 * Read-only observable list containing the channels currently available for display.
+	 * @return the available channels
 	 * @see #selectedChannels()
 	 */
 	public ObservableList<ChannelDisplayInfo> availableChannels() {
-		return availableChannels;
+		return availableChannelsReadOnly;
 	}
 
 
 	/**
 	 * Set the selection of a channel on or off.
-	 * 
+	 * <p>
 	 * If a channel's isAdditive() method returns false, all other selected channels will be cleared.
 	 * Otherwise, other selected channels will be cleared if they are non-additive - but kept if they are additive
 	 * (and therefore can be sensibly displayed in combination with this channel).
 	 * 
-	 * @param channel
+	 * @param channel the channel
 	 * @param selected true if the channel should be selected, false if it should not
 	 */
 	public void setChannelSelected(ChannelDisplayInfo channel, boolean selected) {
@@ -674,7 +607,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 		List<ChannelDisplayInfo> tempSelectedChannels = new ArrayList<>(selectedChannels);
 		if (selected) {
 			// If this channel can't be combined with existing channels, clear the existing ones
-			if (!useColorLUTs() || !channel.isAdditive() || (!tempSelectedChannels.isEmpty()) && !tempSelectedChannels.get(0).isAdditive())
+			if (!useColorLUTs() || !channel.isAdditive() || (!tempSelectedChannels.isEmpty()) && !tempSelectedChannels.getFirst().isAdditive())
 				tempSelectedChannels.clear();
 			if (!tempSelectedChannels.contains(channel))
 				tempSelectedChannels.add(channel);
@@ -685,12 +618,12 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		// For a brightfield image, revert to the original if all channels are turned off
 		if (tempSelectedChannels.isEmpty() && imageData.isBrightfield()) {
-			channel = channelOptions.get(0);
+			channel = availableChannels.getFirst();
 			tempSelectedChannels.add(channel);
 			lastSelectedChannel = channel;
 		}
 		if (lastSelectedChannel == null && !tempSelectedChannels.isEmpty())
-			lastSelectedChannel = tempSelectedChannels.get(0);
+			lastSelectedChannel = tempSelectedChannels.getFirst();
 		
 		selectedChannels.setAll(tempSelectedChannels);
 		saveChannelColorProperties();
@@ -701,38 +634,19 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 	/**
 	 * Apply the required transforms to a BufferedImage to get the appropriate display.
-	 * imgOutput should always be an RGB image (of some kind), or null if a new image should be created.
-	 * 
-	 * imgInput should always be an image of the kind that matches the imgData, e.g. RGB/non-RGB, same number of channels,
-	 * same bit-depth.
-	 * 
+	 * <p>
 	 * Warning: This is not thread-safe.
-	 * Warning #2: imgOutput should be TYPE_INT_RGB
-	 * 
-	 * @param imgInput
-	 * @param imgOutput
-	 * @return
+	 * @param imgInput the input image; this should not be null, and should be of a type that matches the {@code ImageData}
+	 *                 (i.e. same number of channels, same bit-depth).
+	 * @param imgOutput the output image (optional); if not null, this should be an RGB image
+	 *                  (usually {@code TYPE_INT_RGB}).
+	 * @return the transformed image; this may be the same as {@code imgOutput}, if provided
 	 */
 	@Override
 	public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
-		BufferedImage imgResult = applyTransforms(imgInput, imgOutput, selectedChannels, displayMode().getValue());
-		return imgResult;
+        return applyTransforms(imgInput, imgOutput, selectedChannels, displayMode().getValue());
 	}
-	
-	/**
-	 * Convert an image to RGB by applying the specified {@linkplain ChannelDisplayInfo ChannelDisplayInfos}.
-	 * 
-	 * @param imgInput
-	 * @param imgOutput
-	 * @param selectedChannels
-	 * @param useGrayscaleLuts
-	 * @return
-	 * @deprecated use instead {@link #applyTransforms(BufferedImage, BufferedImage, List, ChannelDisplayMode)}
-	 */
-	@Deprecated
-	public static BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput, List<? extends ChannelDisplayInfo> selectedChannels, boolean useGrayscaleLuts) {
-		return applyTransforms(imgInput, imgOutput, selectedChannels, useGrayscaleLuts ? ChannelDisplayMode.GRAYSCALE : ChannelDisplayMode.COLOR);
-	}
+
 	
 	/**
 	 * Convert an image to RGB by applying the specified {@linkplain ChannelDisplayInfo ChannelDisplayInfos} and {@link ChannelDisplayMode}.
@@ -743,12 +657,13 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * @param mode the mode used to determine RGB colors for each channel
 	 * @return an RGB image determined by transforming the input image using the specified channels
 	 */
-	public static BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput, List<? extends ChannelDisplayInfo> selectedChannels, ChannelDisplayMode mode) {
+	public static BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput,
+												List<? extends ChannelDisplayInfo> selectedChannels,
+												ChannelDisplayMode mode) {
 		int width = imgInput.getWidth();
 		int height = imgInput.getHeight();
 
 		if (imgOutput == null || imgOutput.getWidth() != width || imgOutput.getHeight() != height) {
-			//			imgOutput = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().createCompatibleImage(width, height);
 			imgOutput = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 		}
 		
@@ -761,7 +676,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 				
 		// Check if we have any changes to make - if not, just copy the image
 		// Sometimes the first entry of selectedChannels was null... not sure why... this test is therefore to paper over the cracks...
-		if (selectedChannels.size() == 1 && (selectedChannels.get(0) == null || !selectedChannels.get(0).doesSomething()) && !invertBackground && !isGrayscale) {
+		if (selectedChannels.size() == 1 && (selectedChannels.getFirst() == null || !selectedChannels.getFirst().doesSomething()) && !invertBackground && !isGrayscale) {
 			if (imgInput == imgOutput) {
 				return imgOutput;
 			}
@@ -827,32 +742,20 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * @return a String representation of the pixel's transformed value
 	 */
 	public String getTransformedValueAsString(BufferedImage img, int x, int y) {
-		if (selectedChannels == null || selectedChannels.isEmpty() || selectedChannels.get(0) == null)
+		if (selectedChannels.isEmpty() || selectedChannels.getFirst() == null)
 			return "";
 		if (selectedChannels.size() == 1)
-			return selectedChannels.get(0).getValueAsString(img, x, y);
-		
-		String s = null;
-		for (ChannelDisplayInfo channel : channelOptions) {
-			if (selectedChannels.contains(channel) ) {
-				if (s == null)
-					s = channel.getValueAsString(img, x, y);
-				else
-					s += (", " + channel.getValueAsString(img, x, y));
-			}
-		}
-//		String s = selectedChannels.get(0).getValueAsString(img, x, y);
-//		for (int i = 1; i < selectedChannels.size(); i++) {
-//			s += (", " + selectedChannels.get(i).getValueAsString(img, x, y));
-//		}
-		return s;
+			return selectedChannels.getFirst().getValueAsString(img, x, y);
+
+		return availableChannels.stream()
+				.filter(selectedChannels::contains)
+				.map(c -> c.getValueAsString(img, x, y))
+				.collect(Collectors.joining(","));
 	}
 
 
 
-
-
-	private void updateHistogramMap() throws IOException {
+	private void updateHistogramMap() {
 		ImageServer<BufferedImage> server = imageData == null ? null : imageData.getServer();
 		if (server == null) {
 			histogramManager = null;
@@ -861,42 +764,36 @@ public class ImageDisplay extends AbstractImageRenderer {
 		
 		histogramManager = cachedHistograms.get(server.getPath());
 		if (histogramManager == null) {
-			histogramManager = new HistogramManager(0L);
-			histogramManager.ensureChannels(server, channelOptions, imagesForHistograms);
+			histogramManager = new HistogramManager();
+			histogramManager.updateChannels(server, availableChannels, getImagesForHistograms());
 			if (server.getPixelType() == PixelType.UINT8) {
-				channelOptions.parallelStream().filter(c -> !(c instanceof DirectServerChannelInfo)).forEach(channel -> autoSetDisplayRange(channel, false));								
+				availableChannels.parallelStream()
+						.filter(c -> !(c instanceof DirectServerChannelInfo))
+						.forEach(this::autoSetDisplayRangeWithoutUpdate);
 			} else {
-				channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));				
+				availableChannels.parallelStream()
+						.forEach(this::autoSetDisplayRangeWithoutUpdate);
 			}
 			cachedHistograms.put(server.getPath(), histogramManager);
 		} else {
-			channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));
+			availableChannels.parallelStream().forEach(this::autoSetDisplayRangeWithoutUpdate);
 		}
 	}
 
 
-	private List<BufferedImage> getImagesForHistogram(final ImageServer<BufferedImage> server) throws IOException {
+	private Map<RegionRequest, BufferedImage> getImagesForHistogram(final ImageServer<BufferedImage> server) throws IOException {
 		if (server == null)
-			return Collections.emptyList();
-		// Request default thumbnails (at lowest available resolution)
-		int nImages = server.nTimepoints() * server.nZSlices();
+			return Collections.emptyMap();
 		// Try to get the first image 'normally', so that if there is an exception it can be handled
-		var list = new ArrayList<BufferedImage>();
-		list.add(server.getDefaultThumbnail(0, 0));
-		if (nImages > 1) {
-			// If we have multiple images, we want to parallelize & return as much as we can
-			IntStream.range(1, nImages).parallel().mapToObj(i -> {
-				int z = i % server.nZSlices();
-				int t = i / server.nZSlices();
-				try {
-					return server.getDefaultThumbnail(z, t);
-				} catch (IOException e) {
-					logger.error("Error requesting thumbnail for {} (z={}, t={})", server.getPath(), z, t, e);
-					return null;
-				}
-			}).filter(img -> img != null).forEach(list::add);
-		}
-		return list;
+		Map<RegionRequest, BufferedImage> map = new TreeMap<>(regionComparator);
+		// Request the central slice at the lowest resolution
+		double downsample = server.getDownsampleForResolution(server.nResolutions()-1);
+		var request = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(),
+				server.nZSlices()/2, server.nTimepoints()/2);
+		map.put(request, server.readRegion(request));
+		// Before v0.6.0 we tried to read all z-slices and time points - but this could be much too expensive
+		// (and also require too much memory)
+		return map;
 	}
 
 
@@ -959,8 +856,12 @@ public class ImageDisplay extends AbstractImageRenderer {
 		setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay, fireUpdate);
 	}
 
-	void autoSetDisplayRange(ChannelDisplayInfo info, boolean fireUpdate) {
-		autoSetDisplayRange(info, getHistogram(info), PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0, fireUpdate);
+	private static double getDefaultSaturationProportion() {
+		return PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0;
+	}
+
+	private void autoSetDisplayRangeWithoutUpdate(ChannelDisplayInfo info) {
+		autoSetDisplayRange(info, getHistogram(info), getDefaultSaturationProportion(), false);
 	}
 
 	/**
@@ -968,7 +869,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * @param info channel to update
 	 */
 	public void autoSetDisplayRange(ChannelDisplayInfo info) {
-		autoSetDisplayRange(info, getHistogram(info), PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0, true);
+		autoSetDisplayRange(info, getHistogram(info), getDefaultSaturationProportion(), true);
 	}
 	
 	/**
@@ -981,20 +882,59 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 
 	
-	ImageServer<BufferedImage> getServer() {
+	private ImageServer<BufferedImage> getServer() {
 		return imageData == null ? null : imageData.getServer();
 	}
 	
 
 	/**
-	 * Returns a histogram for a ChannelInfo, or none if no histogram is available (e.g. the channel is RGB)
-	 * @param info
-	 * @return
+	 * Returns a histogram for a channel of the current image.
+	 * @param channel the channel
+	 * @return the histogram for the specified channel, or null if no histogram is available (e.g. the channel is a
+	 * 		   packed RGB representation that can't have a single histogram associated with it)
 	 */
-	public Histogram getHistogram(ChannelDisplayInfo info) {
-		if (info == null || histogramManager == null)
+	public Histogram getHistogram(ChannelDisplayInfo channel) {
+		if (channel == null || histogramManager == null)
 			return null;
-		return histogramManager.getHistogram(getServer(), info, imagesForHistograms);
+		return histogramManager.getHistogram(getServer(), channel, getImagesForHistograms());
+	}
+
+	private Map<RegionRequest, BufferedImage> getImagesForHistograms() {
+		var server = getServer();
+		if (server == null || server.nZSlices() * server.nTimepoints() == imagesForHistograms.size())
+			return imagesForHistograms;
+
+		// Get all the cached tiles we can
+		Map<RegionRequest, BufferedImage> images = new TreeMap<>(regionComparator);
+		int level = server.nResolutions()-1;
+		long nPixelsCached = 0;
+		for (var tile : server.getTileRequestManager().getTileRequestsForLevel(level)) {
+			var img = server.getCachedTile(tile);
+			if (img != null) {
+				nPixelsCached += (long) img.getWidth() * img.getHeight();
+				images.put(tile.getRegionRequest(), img);
+			}
+		}
+
+		// If we don't have anything, search the main cache
+		if (images.isEmpty()) {
+			double downsample = server.getDownsampleForResolution(server.nResolutions()-1);
+			var cache = ImageServerProvider.getCache(BufferedImage.class);
+			cache.entrySet()
+					.stream()
+					.filter(e -> e.getKey().getPath().equals(server.getPath()) &&
+							e.getKey().getDownsample() == downsample)
+					.forEach(e -> images.put(e.getKey(), e.getValue()));
+		}
+
+		// Get the original histogram pixels
+		long nPixelsBackup = 0;
+		for (var img : imagesForHistograms.values()) {
+			nPixelsBackup += (long) img.getWidth() * img.getHeight();
+		}
+
+		// Return whichever images gives us the most pixels to work with
+		return nPixelsBackup >= nPixelsCached ? imagesForHistograms : images;
 	}
 
 	
@@ -1009,15 +949,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 	
 	/**
 	 * Create a JSON representation of the main components of the current display.
-	 * 
-	 * @param prettyPrint 
-	 * @return
+	 * @param prettyPrint optionally request pretty printing
+	 * @return the Json representation, or null if no image has been set
 	 */
 	public String toJSON(final boolean prettyPrint) {
 		if (this.imageData == null)
 			return null;
 		JsonArray array = new JsonArray();
-		for (ChannelDisplayInfo info : channelOptions) {
+		for (ChannelDisplayInfo info : availableChannels) {
 			JsonObject obj = new JsonObject();
 			obj.addProperty("name", info.getName());
 			obj.addProperty("class", info.getClass().getName());
@@ -1037,9 +976,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 	/**
 	 * Check if an image display is 'compatible' with this one.
 	 * Compatible means that they have the same number of channels, and the same channel names.
-	 * This may be used p
-	 * @param display
-	 * @return
+	 * @param display the other display with which to check compatibility
+	 * @return true if the display is compatible, false otherwise
 	 */
 	public boolean isCompatible(ImageDisplay display) {
 		var available = availableChannels();
@@ -1082,7 +1020,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * @param json
 	 * @return true if changes were made, false otherwise
 	 */
-	boolean updateFromJSON(final String json) {
+	private boolean updateFromJSON(final String json) {
 		Gson gson = new Gson();
 		Type type = new TypeToken<List<JsonHelperChannelInfo>>(){}.getType();
 		List<JsonHelperChannelInfo> helperList = gson.fromJson(json, type);
@@ -1090,14 +1028,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 		List<ChannelDisplayInfo> newSelectedChannels = new ArrayList<>();
 		boolean changes = false;
 		for (JsonHelperChannelInfo helper : helperList) {
-			for (ChannelDisplayInfo info : channelOptions) {
+			for (ChannelDisplayInfo info : availableChannels) {
 				if (helper.matches(info)) {
 					// Set the min/max display & color if needed
 					if (helper.updateInfo(info)) {
 						changes = true;
 					}
 					// Store whether the channel is selected
-					if (Boolean.TRUE.equals(helper.selected)) {
+					if (helper.isSelected()) {
 						newSelectedChannels.add(info);
 					}
 				}
@@ -1109,182 +1047,5 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		return changes;
 	}
-	
-	/**
-	 * Class to help with deserializing JSON representation.
-	 */
-	static class JsonHelperChannelInfo {
-
-		private String name;
-		private Class<?> cls;
-		private Float minDisplay;
-		private Float maxDisplay;
-		private Integer color;
-		private Boolean selected;
-		
-		/**
-		 * Check if we match the info.
-		 * That means the names must be the same, and the classes must either match or 
-		 * the class here needs to be <code>null</code>.
-		 * 
-		 * @param info
-		 * @return
-		 */
-		boolean matches(final ChannelDisplayInfo info) {
-			if (name == null)
-				return false;
-			return name.equals(info.getName()) && (cls == null || cls.equals(info.getClass()));
-		}
-		
-		/**
-		 * Check is this helper <code>matches</code> the info, and set its properties if so.
-		 * 
-		 * @param info
-		 * @return true if changes were made, false otherwise
-		 */
-		boolean updateInfo(final ChannelDisplayInfo info) {
-			if (!matches(info))
-				return false;
-			boolean changes = false;
-			if (info instanceof ModifiableChannelDisplayInfo modifiableInfo) {
-				if (minDisplay != null && minDisplay != modifiableInfo.getMinDisplay()) {
-					modifiableInfo.setMinDisplay(minDisplay);
-					changes = true;
-				}
-				if (maxDisplay != null && maxDisplay != modifiableInfo.getMaxDisplay()) {
-					modifiableInfo.setMaxDisplay(maxDisplay);
-					changes = true;
-				}
-			}
-			if (color != null && info instanceof DirectServerChannelInfo directInfo) {
-				if (!Objects.equals(color, directInfo.getColor())) {
-					directInfo.setLUTColor(color);
-					changes = true;
-				}
-			}
-			return changes;
-		}
-	}
-	
-	
-	
-	static class HistogramManager {
-		
-		private static int NUM_BINS = 1024;
-		
-		private Map<String, Histogram> map = Collections.synchronizedMap(new LinkedHashMap<>());
-
-		private List<BufferedImage> requiredImages;
-		
-		private long timestamp;
-		
-		HistogramManager(long timestamp) {
-			this.timestamp = timestamp;
-		}
-		
-		long getTimestamp() {
-			return timestamp;
-		}
-		
-		String getKey(final ChannelDisplayInfo channel) {
-			return channel.getClass().getName() + "::" + channel.getName();
-		}
-		
-		void ensureChannels(final ImageServer<BufferedImage> server, final List<ChannelDisplayInfo> channels, final List<BufferedImage> imgList) {
-
-			// Check what we might need to process
-			List<SingleChannelDisplayInfo> channelsToProcess = new ArrayList<>();
-			float serverMin = server.getMetadata().getMinValue().floatValue();
-			float serverMax = server.getMetadata().getMaxValue().floatValue();
-			
-			for (ChannelDisplayInfo channel : channels) {
-				Histogram histogram = map.get(getKey(channel));
-				if (histogram != null) {
-					 // We have the histogram
-					if (channel instanceof ModifiableChannelDisplayInfo modifiableChannel) {
-						modifiableChannel.setMinMaxAllowed(
-								(float)Math.min(0, histogram.getMinValue()), (float)histogram.getMaxValue());
-					}
-					continue;
-				} else if (channel instanceof SingleChannelDisplayInfo singleChannel) {
-					// We need to compute the histogram
-					channelsToProcess.add(singleChannel);
-					if (channel instanceof ModifiableChannelDisplayInfo modifiableChannel) {
-						modifiableChannel.setMinMaxAllowed(serverMin, serverMax);
-					}
-				} else {
-					// A histogram doesn't exist for the channel, and we can't compute one
-					map.put(getKey(channel), null);
-				}
-			}
-
-			if (channelsToProcess.isEmpty() || imgList == null || imgList.isEmpty())
-				return;
-			
-			logger.debug("Building {} histograms for {}", channelsToProcess.size(), server.getPath());
-			long startTime = System.currentTimeMillis();
-
-			// Count number of pixels & estimate downsample factor
-			int imgWidth, imgHeight;
-			long nPixels = 0;
-			double approxDownsample = 1;
-			for (var img : imgList) {
-				imgWidth = img.getWidth();
-				imgHeight = img.getHeight();
-				approxDownsample = (double)server.getWidth() / imgWidth;
-				nPixels += ((long)imgWidth * (long)imgHeight);
-			}
-			
-			if (nPixels > Integer.MAX_VALUE) {
-				logger.warn("Too many pixels required for histogram ({})!  Will truncate to the first {} values", nPixels, Integer.MAX_VALUE);
-				nPixels = Integer.MAX_VALUE;
-			}
-			float[] values = null; // Array needed for values for a particular channel
-			float[] pixels = null; // Array needed for all values if there are multiple thumbnails
-			if (imgList.isEmpty())
-				values = new float[0];
-			else if (imgList.size() > 1)
-				pixels = new float[(int)nPixels];
-			for (SingleChannelDisplayInfo channel : channelsToProcess) {
-				int counter = 0;
-				for (BufferedImage img : imgList) {
-					values = channel.getValues(img, 0, 0, img.getWidth(), img.getHeight(), values);
-					if (pixels != null) {
-						System.arraycopy(values, 0, pixels, counter, Math.min(values.length, Integer.MAX_VALUE-counter));
-					}
-					counter += values.length;
-					if (counter >= Integer.MAX_VALUE)
-						break;
-				}
-				Histogram histogram = new Histogram(pixels == null ? values : pixels, NUM_BINS);
-				
-				// If we have more than an 8-bit image, set the display range according to actual values - with additional scaling if we downsampled
-				if (channel instanceof ModifiableChannelDisplayInfo) {
-					float scale = approxDownsample < 2 ? 1 : 1.5f;
-					if (!histogram.isInteger() || Math.max(Math.abs(channel.getMaxAllowed()), Math.abs(channel.getMinAllowed())) > 4096) {
-						((ModifiableChannelDisplayInfo)channel).setMinMaxAllowed(
-								(float)Math.min(0, histogram.getMinValue()) * scale, (float)Math.max(0, histogram.getMaxValue()) * scale);
-					}
-				}
-				
-				map.put(getKey(channel), histogram);
-			}
-			long endTime = System.currentTimeMillis();
-			logger.debug("Histograms built in {} ms", (endTime - startTime));
-		}
-		
-		Histogram getHistogram(final ImageServer<BufferedImage> server, final ChannelDisplayInfo channel, final List<BufferedImage> images) {
-			if (channel instanceof SingleChannelDisplayInfo singleChannel) {
-				// Always recompute histogram for mutable channels
-				if (singleChannel.isMutable()) {
-					map.remove(getKey(channel));
-				}
-			}
-			ensureChannels(server, Collections.singletonList(channel), images);
-			return map.get(getKey(channel));
-		}
-		
-	}
-	
 
 }
