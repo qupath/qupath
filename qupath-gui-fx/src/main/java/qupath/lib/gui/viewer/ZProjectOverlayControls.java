@@ -1,35 +1,55 @@
-package qupath.lib.gui.commands;
+package qupath.lib.gui.viewer;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.TilePane;
-import qupath.lib.gui.QuPathGUI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.viewer.overlays.ZProjectOverlay;
 import qupath.lib.images.servers.ZProjectedImageServer;
 
 import java.util.List;
 
-public class ZProjectOverlayCommand {
+class ZProjectOverlayControls {
 
-    private final QuPathGUI qupath;
+    private static final Logger logger = LoggerFactory.getLogger(ZProjectOverlayControls.class);
 
-    public ZProjectOverlayCommand(QuPathGUI qupath) {
-        this.qupath = qupath;
+    private final QuPathViewer viewer;
+    private final ZProjectOverlay overlay;
+    private final Node node;
+
+    private final BooleanProperty showControls = new SimpleBooleanProperty(false);
+
+    ZProjectOverlayControls(QuPathViewer viewer, BooleanProperty showControls) {
+        this.viewer = viewer;
+        this.overlay = ZProjectOverlay.create(viewer);
+        this.node = createNode();
+        this.showControls.bind(Bindings.createBooleanBinding(() -> {
+            return showControls.get() && viewer.getServer() != null && viewer.getServer().nZSlices() > 1;
+        }, viewer.imageDataProperty(), showControls));
+        this.showControls.addListener(this::handleShowControlsChange);
+        handleShowControlsChange(this.showControls, false, this.showControls.get());
     }
 
-    public void run() {
-        var viewer = qupath.getViewer();
-        if (viewer == null) {
-            return;
-        }
+    private void handleShowControlsChange(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
+        if (newValue)
+            showControls();
+        else
+            hideControls();
+    }
 
-        var overlay = ZProjectOverlay.create(viewer);
+    private Node createNode() {
+
         var tilePane = new TilePane();
-
         var toggles = new ToggleGroup();
         ToggleButton selected = null;
 
@@ -51,8 +71,10 @@ public class ZProjectOverlayCommand {
         toggles.selectedToggleProperty().addListener((v, o, n) -> {
             var proj = n == null ? null : n.getUserData();
             if (proj instanceof ZProjectedImageServer.Projection zp) {
+                logger.debug("Setting projection to {}", proj);
                 overlay.setProjection(zp);
             } else {
+                logger.debug("Resetting z-projection {}", proj);
                 overlay.setProjection(null);
             }
             viewer.repaint();
@@ -64,16 +86,24 @@ public class ZProjectOverlayCommand {
         var pane = new Group(tilePane);
         pane.getProperties().put("z-project-overlay", Boolean.TRUE);
 
-        viewer.getView()
-                .getChildren()
-                .removeIf(n -> n.getProperties().getOrDefault("z-project-overlay", Boolean.FALSE).equals(Boolean.TRUE));
-
         StackPane.setAlignment(pane, Pos.TOP_CENTER);
         StackPane.setMargin(pane, new Insets(10));
 
-        viewer.getView().getChildren().add(pane);
+        return pane;
+    }
 
+    private void showControls() {
+        logger.debug("Showing z-projection overlay control");
+        viewer.getView().getChildren().add(node);
         viewer.getCustomOverlayLayers().setAll(overlay);
+    }
+
+    private void hideControls() {
+        logger.debug("Hiding z-projection overlay control");
+        viewer.getView()
+                .getChildren()
+                .remove(node);
+        viewer.getCustomOverlayLayers().remove(overlay);
     }
 
     private static ToggleButton createButton(ZProjectedImageServer.Projection projection) {
