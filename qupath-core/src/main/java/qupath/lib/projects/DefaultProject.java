@@ -43,8 +43,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -443,7 +445,7 @@ class DefaultProject implements Project<BufferedImage> {
 		 * Map of associated metadata for the entry.
 		 */
 		private Map<String, String> metadata = Collections.synchronizedMap(new LinkedHashMap<>());
-		private final List<String> tags = Collections.synchronizedList(new ArrayList<>());
+		private final Set<String> tags = Collections.synchronizedSet(new LinkedHashSet<>());
 
 		/**
 		 * Store a soft reference to the thumbnail, so that it can be garbage collected if necessary.
@@ -846,15 +848,15 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 
 		/**
-		 * Returns a thread-safe (see {@link Collections#synchronizedList(List)}) and modifiable list containing the tags
+		 * Returns a thread-safe (see {@link Collections#synchronizedSet(Set)}) and modifiable set containing the tags
 		 * of this entry.
 		 * <p>
-		 * Modifications to this list are saved when calling {@link #syncChanges()}.
+		 * Modifications to this set are saved when calling {@link #syncChanges()}.
 		 *
-		 * @return the list of tags of this entry
+		 * @return the set of tags of this entry
 		 */
 		@Override
-		public List<String> getTags() {
+		public Set<String> getTags() {
 			return tags;
 		}
 

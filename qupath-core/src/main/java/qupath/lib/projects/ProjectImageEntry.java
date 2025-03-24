@@ -27,9 +27,9 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -291,12 +291,12 @@ public interface ProjectImageEntry<T> extends UriResource, MinimalMetadataStore 
 	Manager<ImageServer<T>> getImages();
 
 	/**
-	 * Returns a modifiable list containing tag values.
+	 * Returns a modifiable set containing tag values.
 	 * <p>
-	 * The returned list may or may not be thread-safe. Implementing classes must
-	 * document the thread-safeness of the list.
+	 * The returned set may or may not be thread-safe. Implementing classes must
+	 * document the thread-safeness of the set.
 	 *
-	 * @return the list of tags of this entry
+	 * @return the set of tags of this entry
 	 */
-	List<String> getTags();
+	Set<String> getTags();
 }
