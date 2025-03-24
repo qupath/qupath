@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,6 +25,7 @@ import java.awt.image.BufferedImage;
 import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import qupath.lib.display.ChannelDisplayMode;
 import qupath.lib.display.DirectServerChannelInfo;
@@ -37,9 +38,11 @@ import qupath.lib.regions.RegionRequest;
 
 class FeatureRenderer extends AbstractImageRenderer {
 		
-		private DefaultImageRegionStore store;
+		private final DefaultImageRegionStore store;
 		private DirectServerChannelInfo selectedChannel = null;
 		private WeakReference<ImageData<BufferedImage>> currentData;
+
+		private final AtomicLong eventCount = new AtomicLong();
 		
 		FeatureRenderer(DefaultImageRegionStore store) {
 			this.store = store;
@@ -55,14 +58,14 @@ class FeatureRenderer extends AbstractImageRenderer {
 			selectedChannel.setLUTColor(255, 255, 255);
 //			autoSetDisplayRange();
 			setRange(min, max);
-			this.timestamp = System.currentTimeMillis();
+			eventCount.incrementAndGet();
 		}
 		
 		public void setRange(double min, double max) {
 			if (selectedChannel != null) {
 				selectedChannel.setMinDisplay((float)min);
-				selectedChannel.setMaxDisplay((float)max);			
-				this.timestamp = System.currentTimeMillis();
+				selectedChannel.setMaxDisplay((float)max);
+				eventCount.incrementAndGet();
 			}
 		}
 		
@@ -102,7 +105,7 @@ class FeatureRenderer extends AbstractImageRenderer {
 				selectedChannel.setMinDisplay(minVal);
 			else
 				selectedChannel.setMinDisplay(0.0f);
-			this.timestamp = System.currentTimeMillis();
+			eventCount.incrementAndGet();
 		}
 
 		@Override
@@ -111,5 +114,10 @@ class FeatureRenderer extends AbstractImageRenderer {
 					Collections.singletonList(selectedChannel),
 					ChannelDisplayMode.GRAYSCALE);
 		}
-				
+
+	@Override
+	public long getLastChangeTimestamp() {
+		return eventCount.get();
 	}
+
+}

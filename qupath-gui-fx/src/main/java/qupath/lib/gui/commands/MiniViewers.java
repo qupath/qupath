@@ -411,7 +411,7 @@ public class MiniViewers {
 			mainViewer.zPositionProperty().addListener(changeListener);
 			mainViewer.tPositionProperty().addListener(changeListener);
 			mainViewer.repaintTimestamp().addListener(fastChangeListener);
-			mainViewer.getImageDisplay().changeTimestampProperty().addListener(changeListener);
+			mainViewer.getImageDisplay().eventCountProperty().addListener(changeListener);
 			showCursor.addListener(invalidationListener);
 			showOverlays.addListener(invalidationListener);
 			showChannelNames.addListener(invalidationListener);
@@ -426,7 +426,7 @@ public class MiniViewers {
 			mainViewer.zPositionProperty().removeListener(changeListener);
 			mainViewer.tPositionProperty().removeListener(changeListener);
 			mainViewer.repaintTimestamp().removeListener(fastChangeListener);
-			mainViewer.getImageDisplay().changeTimestampProperty().removeListener(changeListener);
+			mainViewer.getImageDisplay().eventCountProperty().removeListener(changeListener);
 			showCursor.removeListener(invalidationListener);
 			showOverlays.removeListener(invalidationListener);
 			showChannelNames.removeListener(invalidationListener);
@@ -627,7 +627,7 @@ public class MiniViewers {
 						}
 						return null;
 						},
-						mainViewer.imageDataProperty(), mainViewer.getImageDisplay().changeTimestampProperty()));
+						mainViewer.imageDataProperty(), mainViewer.getImageDisplay().eventCountProperty()));
 			}
 			
 			void close() {
@@ -776,7 +776,7 @@ public class MiniViewers {
 		 */
 		class ImageDisplaySingleChannelRenderer extends AbstractImageRenderer {
 			
-			private int channel;
+			private final int channel;
 			
 			ImageDisplaySingleChannelRenderer(int channel) {
 				super();

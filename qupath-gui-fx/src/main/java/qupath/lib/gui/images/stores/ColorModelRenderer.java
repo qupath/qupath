@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2021, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,6 +24,7 @@ package qupath.lib.gui.images.stores;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * An {@link ImageRenderer} that uses a {@link ColorModel}.
@@ -33,12 +34,12 @@ import java.util.UUID;
 public class ColorModelRenderer implements ImageRenderer {
 	
 	private ColorModel colorModel;
-	private String id = UUID.randomUUID().toString();
-	private long timestamp;
+	private final String id = UUID.randomUUID().toString();
+	private final AtomicLong counter = new AtomicLong();
 	
 	/**
 	 * Constructor.
-	 * @param colorModel
+	 * @param colorModel the color model to use for converting images to RGB.
 	 */
 	public ColorModelRenderer(ColorModel colorModel) {
 		setColorModel(colorModel);
@@ -62,7 +63,7 @@ public class ColorModelRenderer implements ImageRenderer {
 	 */
 	public void setColorModel(ColorModel model) {
 		this.colorModel = model;
-		this.timestamp = System.currentTimeMillis();
+		counter.incrementAndGet();
 	}
 	
 	/**
@@ -75,7 +76,7 @@ public class ColorModelRenderer implements ImageRenderer {
 
 	@Override
 	public long getLastChangeTimestamp() {
-		return timestamp;
+		return counter.get();
 	}
 
 	@Override

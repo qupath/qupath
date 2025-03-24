@@ -310,7 +310,7 @@ public class ColorTransformer {
 	public static float[] getSimpleTransformedPixels(final int[] buf, final ColorTransformMethod method, float[] pixels) {
 		return getTransformedPixels(buf, method, pixels, null);
 	}
-	
+
 
 	/**
 	 * Apply a color transform to all pixels in a packed (A)RGB array.
