@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -288,7 +289,14 @@ public interface ProjectImageEntry<T> extends UriResource, MinimalMetadataStore 
 	 * @return
 	 */
 	Manager<ImageServer<T>> getImages();
-	
-	
 
+	/**
+	 * Returns a modifiable list containing tag values.
+	 * <p>
+	 * The returned list may or may not be thread-safe. Implementing classes must
+	 * document the thread-safeness of the list.
+	 *
+	 * @return the list of tags of this entry
+	 */
+	List<String> getTags();
 }

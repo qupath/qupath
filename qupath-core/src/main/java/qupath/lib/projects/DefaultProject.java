@@ -443,6 +443,7 @@ class DefaultProject implements Project<BufferedImage> {
 		 * Map of associated metadata for the entry.
 		 */
 		private Map<String, String> metadata = Collections.synchronizedMap(new LinkedHashMap<>());
+		private final List<String> tags = Collections.synchronizedList(new ArrayList<>());
 
 		/**
 		 * Store a soft reference to the thumbnail, so that it can be garbage collected if necessary.
@@ -481,9 +482,13 @@ class DefaultProject implements Project<BufferedImage> {
 			this.entryID = entry.entryID;
 			this.imageName = entry.imageName;
 			this.description = entry.description;
-			if (entry.metadata != null)
+			if (entry.metadata != null) {
 				this.metadata.putAll(entry.metadata);
-		}
+			}
+			if (entry.tags != null) {
+				this.tags.addAll(entry.tags);
+			}
+        }
 		
 		/**
 		 * Copy the image data from another entry.
@@ -528,7 +533,7 @@ class DefaultProject implements Project<BufferedImage> {
 			}
 			return imageManager;
 		}
-		
+
 		private String getFullProjectEntryID() {
 			return file.getAbsolutePath() + "::" + getID();
 		}
@@ -838,6 +843,19 @@ class DefaultProject implements Project<BufferedImage> {
 					ImageIO.write(img, "JPEG", stream);
 				}
 			}
+		}
+
+		/**
+		 * Returns a thread-safe (see {@link Collections#synchronizedList(List)}) and modifiable list containing the tags
+		 * of this entry.
+		 * <p>
+		 * Modifications to this list are saved when calling {@link #syncChanges()}.
+		 *
+		 * @return the list of tags of this entry
+		 */
+		@Override
+		public List<String> getTags() {
+			return tags;
 		}
 
 		/**
