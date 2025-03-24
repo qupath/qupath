@@ -157,7 +157,7 @@ class ColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 				}
 				return array;
 			} else {
-				return ColorTransformer.colorDeconvolve(img, stains, stainNumber - 1, array);
+				return ColorDeconvolutionHelper.colorDeconvolve(img, stains, stainNumber - 1, array);
 			}
 		}
 	}

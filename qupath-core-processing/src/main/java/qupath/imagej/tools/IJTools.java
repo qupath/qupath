@@ -1198,11 +1198,12 @@ public class IJTools {
 	}
 
 	/**
-	 * Apply color deconvolution, outputting 3 'stain' images in the same order as the stain vectors.
+	 * Apply color deconvolution to an RGB image, outputting 3 'stain' images in the same order as the stain vectors.
 	 * 
 	 * @param cp      input RGB color image
 	 * @param stains  color deconvolution stain vectors
 	 * @return array containing three {@code FloatProcessor}s, representing the deconvolved stains
+	 * @see #colorDeconvolve(ImageProcessor, ImageProcessor, ImageProcessor, ColorDeconvolutionStains)
 	 */
 	public static FloatProcessor[] colorDeconvolve(ColorProcessor cp, ColorDeconvolutionStains stains) {
 		int width = cp.getWidth();
@@ -1214,14 +1215,26 @@ public class IJTools {
 		return new FloatProcessor[] {fpStain1, fpStain2, fpStain3};
 	}
 
-	public static FloatProcessor[] colorDeconvolve(ImageProcessor ipRed, ImageProcessor ipGreen, ImageProcessor ipBlue, ColorDeconvolutionStains stains) {
+	/**
+	 * Apply color deconvolution to RGB channels, outputting 3 'stain' images in the same order as the stain vectors.
+	 * This exists to support color deconvolution of non-RGB images.
+	 *
+	 * @param ipRed   input red channel
+	 * @param ipGreen input green channel
+	 * @param ipBlue  input blue channel
+	 * @param stains  color deconvolution stain vectors
+	 * @return array containing three {@code FloatProcessor}s, representing the deconvolved stains
+	 * @see #colorDeconvolve(ColorProcessor, ColorDeconvolutionStains)
+	 */
+	public static FloatProcessor[] colorDeconvolve(ImageProcessor ipRed, ImageProcessor ipGreen, ImageProcessor ipBlue,
+												   ColorDeconvolutionStains stains) {
 		// convertToFloatProcessor makes a copy if the input is already a FloatProcessor
 		int w = ipRed.getWidth();
 		int h = ipRed.getHeight();
 		var red = (float[])ipRed.convertToFloatProcessor().getPixels();
 		var green = (float[])ipGreen.convertToFloatProcessor().getPixels();
 		var blue = (float[])ipBlue.convertToFloatProcessor().getPixels();
-		ColorTransformer.colorDeconvolve(red, green, blue, stains);
+		ColorDeconvolutionHelper.colorDeconvolve(red, green, blue, stains);
 		return new FloatProcessor[] {
 				new FloatProcessor(w, h, red),
 				new FloatProcessor(w, h, green),

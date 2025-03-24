@@ -95,9 +95,9 @@ public class EstimateStainVectors {
 			red = raster.getSamples(0, 0, raster.getWidth(), raster.getHeight(), 0, (float[])null);
 			green = raster.getSamples(0, 0, raster.getWidth(), raster.getHeight(), 1, (float[])null);
 			blue = raster.getSamples(0, 0, raster.getWidth(), raster.getHeight(), 2, (float[])null);
-			ColorTransformer.convertToOpticalDensity(red, stainsOriginal.getMaxRed());
-			ColorTransformer.convertToOpticalDensity(green, stainsOriginal.getMaxGreen());
-			ColorTransformer.convertToOpticalDensity(blue, stainsOriginal.getMaxBlue());
+			ColorDeconvolutionHelper.convertToOpticalDensity(red, stainsOriginal.getMaxRed());
+			ColorDeconvolutionHelper.convertToOpticalDensity(green, stainsOriginal.getMaxGreen());
+			ColorDeconvolutionHelper.convertToOpticalDensity(blue, stainsOriginal.getMaxBlue());
 		}
 		return estimateStains(red, green, blue, stainsOriginal, minStain, maxStain, ignorePercentage, checkColors);
 	}

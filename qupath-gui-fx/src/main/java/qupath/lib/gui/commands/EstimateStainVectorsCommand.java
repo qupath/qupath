@@ -232,9 +232,9 @@ class EstimateStainVectorsCommand {
 				rgb[i] = ColorTools.packRGB(r, g, b);
 			}
 
-			ColorTransformer.convertToOpticalDensity(red, stains.getMaxRed());
-			ColorTransformer.convertToOpticalDensity(green, stains.getMaxGreen());
-			ColorTransformer.convertToOpticalDensity(blue, stains.getMaxBlue());
+			ColorDeconvolutionHelper.convertToOpticalDensity(red, stains.getMaxRed());
+			ColorDeconvolutionHelper.convertToOpticalDensity(green, stains.getMaxGreen());
+			ColorDeconvolutionHelper.convertToOpticalDensity(blue, stains.getMaxBlue());
 		}
 
 		

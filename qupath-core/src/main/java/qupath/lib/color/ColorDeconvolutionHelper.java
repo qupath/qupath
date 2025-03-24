@@ -25,6 +25,7 @@ package qupath.lib.color;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
+import java.awt.image.WritableRaster;
 import java.util.Arrays;
 
 import org.slf4j.Logger;
@@ -50,7 +51,7 @@ public class ColorDeconvolutionHelper {
 	 * @param max
 	 * @return
 	 */
-	public static final double makeOD(double val, double max) {
+	public static double makeOD(double val, double max) {
 		return Math.max(0, -Math.log10(Math.max(val, 1)/max));
 	}
 	
@@ -63,7 +64,7 @@ public class ColorDeconvolutionHelper {
 	 * 
 	 * @see #makeOD(double, double)
 	 */
-	public static final double makeODByLUT(int val, double[] OD_LUT) {
+	public static double makeODByLUT(int val, double[] OD_LUT) {
 		if (val >= 0 && val < OD_LUT.length)
 			return OD_LUT[val];
 		return Double.NaN;
@@ -79,7 +80,7 @@ public class ColorDeconvolutionHelper {
 	 * 
 	 * @see #makeOD(double, double)
 	 */
-	public static final double makeODByLUT(float val, double[] OD_LUT) {
+	public static double makeODByLUT(float val, double[] OD_LUT) {
         return ColorDeconvolutionHelper.makeODByLUT((int)Math.round(val), OD_LUT);
     }	
 	
@@ -158,8 +159,95 @@ public class ColorDeconvolutionHelper {
 	 */
 	public static float[] getOpticalDensities(Raster raster, int band, double maxValue, float[] px) {
 		px = getPixels(raster, band, px);
-		ColorTransformer.convertToOpticalDensity(px, maxValue);
+		convertToOpticalDensity(px, maxValue);
 		return px;
+	}
+
+	/**
+	 * Apply color deconvolution to an input image, extracting a single channel as output and returning as a float array.
+	 * @param img input image, which should have 3 (non-alpha) channels
+	 * @param stains the color deconvolution stains to apply
+	 * @param stainNumber zero-based stain number (i.e. 0 for the first stain, 1 for the second stain, 2 for the third)
+	 * @param pixels optional array to store the output
+	 * @return an array of optical density values after color deconvolution (possibly the same as {@code pixels}).
+	 */
+	public static float[] colorDeconvolve(BufferedImage img, final ColorDeconvolutionStains stains, int stainNumber, float[] pixels) {
+		if (BufferedImageTools.is8bitColorType(img.getType())) {
+			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+			ColorTransformer.ColorTransformMethod method;
+			if (stainNumber == 0)
+				method = ColorTransformer.ColorTransformMethod.Stain_1;
+			else if (stainNumber == 1)
+				method = ColorTransformer.ColorTransformMethod.Stain_2;
+			else if (stainNumber == 2)
+				method = ColorTransformer.ColorTransformMethod.Stain_3;
+			else
+				throw new IllegalArgumentException("Unsupported stain number: " + stainNumber);
+			return ColorTransformer.getTransformedPixels(rgb, method, pixels, stains);
+		} else {
+			var raster = img.getRaster();
+			var r = getChannelOpticalDensity(raster, 0, stains.getMaxRed());
+			var g = getChannelOpticalDensity(raster, 1, stains.getMaxGreen());
+			var b = getChannelOpticalDensity(raster, 2, stains.getMaxBlue());
+
+			var invMat = stains.getMatrixInverse();
+			double rScale = invMat[0][stainNumber];
+			double gScale = invMat[1][stainNumber];
+			double bScale = invMat[2][stainNumber];
+			if (pixels == null || pixels.length < r.length)
+				pixels = new float[r.length];
+			for (int i = 0; i < pixels.length; i++) {
+				pixels[i] = (float)(r[i] * rScale + g[i] * gScale + b[i] * bScale);
+			}
+			return pixels;
+		}
+	}
+
+	/**
+	 * Apply color deconvolution in-place for RGB channels.
+	 * This can be used to apply color deconvolution to get all 3 output stains, without needing to allocate new
+	 * arrays to store the result.
+	 *
+	 * @param red the red input channel
+	 * @param green the green input channel
+	 * @param blue the blue input channel
+	 * @param stains the stains to use
+	 */
+	public static void colorDeconvolve(float[] red, float[] green, float[] blue, final ColorDeconvolutionStains stains) {
+		convertToOpticalDensity(red, stains.getMaxRed());
+		convertToOpticalDensity(green, stains.getMaxGreen());
+		convertToOpticalDensity(blue, stains.getMaxBlue());
+
+		var invMat = stains.getMatrixInverse();
+		int n = red.length;
+		for (int i = 0; i < n; i++) {
+			double r = red[i];
+			double g = green[i];
+			double b = blue[i];
+
+			red[i] = (float)(r * invMat[0][0] + g * invMat[1][0] + b * invMat[2][0]);
+			green[i] = (float)(r * invMat[0][1] + g * invMat[1][1] + b * invMat[2][1]);
+			blue[i] = (float)(r * invMat[0][2] + g * invMat[1][2] + b * invMat[2][2]);
+		}
+	}
+
+	private static float[] getChannelOpticalDensity(WritableRaster raster, int channel, double max) {
+		float[] arr = raster.getSamples(0, 0, raster.getWidth(), raster.getHeight(), channel, (float[]) null);
+		convertToOpticalDensity(arr, max);
+		return arr;
+	}
+
+	/**
+	 * Convert an array of pixel values to optical densities in-place, normalizing using the specified maximum.
+	 * Note that very small, zero and negative input values will be clipped.
+	 * @param pixels the input pixel values
+	 * @param max the maximum used in the calculation of optical densities
+	 */
+	public static void convertToOpticalDensity(float[] pixels, double max) {
+		double minValue = 1.0/255.0; // Mimic 8-bit calculation
+		for (int i = 0; i < pixels.length; i++) {
+			pixels[i] = (float)-Math.log10(Math.max(pixels[i] / max, minValue));
+		}
 	}
 
 	/**
@@ -217,6 +305,16 @@ public class ColorDeconvolutionHelper {
 		return px;
 	}
 
+	/**
+	 * Generate a stain vector by taking the median optical densities from an input image.
+	 * @param name name of the output stain vector
+	 * @param img input image containing pixels
+	 * @param redMax maximum value for red channel to use when calculating optical densities
+	 * @param greenMax maximum value for green channel to use when calculating optical densities
+	 * @param blueMax maximum value for blue channel to use when calculating optical densities
+	 * @return the estimated stain vector
+	 * @see #generateMedianStainVectorFromPixels(String, int[], double, double, double) 
+	 */
 	public static StainVector generateMedianStainVectorFromPixels(String name, BufferedImage img, double redMax, double greenMax, double blueMax) {
 		if (BufferedImageTools.is8bitColorType(img.getType())) {
 			var rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
@@ -225,9 +323,9 @@ public class ColorDeconvolutionHelper {
 			float[] red = getPixels(img.getRaster(), 0);
 			float[] green = getPixels(img.getRaster(), 1);
 			float[] blue = getPixels(img.getRaster(), 2);
-			ColorTransformer.convertToOpticalDensity(red, redMax);
-			ColorTransformer.convertToOpticalDensity(green, greenMax);
-			ColorTransformer.convertToOpticalDensity(blue, blueMax);
+			convertToOpticalDensity(red, redMax);
+			convertToOpticalDensity(green, greenMax);
+			convertToOpticalDensity(blue, blueMax);
 			return generateMedianStainVector(name, red, green, blue);
 		}
 	}
@@ -235,13 +333,14 @@ public class ColorDeconvolutionHelper {
 
 	/**
 	 * Determine median RGB optical densities for an array of pixels (packed RGB), and combine these into a StainVector with the specified name.
-	 * 
-	 * @param name
-	 * @param rgb
-	 * @param redMax
-	 * @param greenMax
-	 * @param blueMax
-	 * @return
+	 *
+	 * @param name name of the output stain vector
+	 * @param rgb packed RGB array of pixels
+	 * @param redMax maximum value for red channel to use when calculating optical densities
+	 * @param greenMax maximum value for green channel to use when calculating optical densities
+	 * @param blueMax maximum value for blue channel to use when calculating optical densities
+	 * @return the estimated stain vector
+	 * @see #generateMedianStainVectorFromPixels(String, BufferedImage, double, double, double) 
 	 */
 	public static StainVector generateMedianStainVectorFromPixels(String name, int[] rgb, double redMax, double greenMax, double blueMax) {
 
@@ -597,6 +696,5 @@ public class ColorDeconvolutionHelper {
 		}
 
 		return new double[]{modeRed, modeGreen, modeBlue};
-
 	}
 }

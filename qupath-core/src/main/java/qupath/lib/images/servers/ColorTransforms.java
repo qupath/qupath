@@ -41,6 +41,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
 import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
@@ -628,7 +629,7 @@ public class ColorTransforms {
 				int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
 				return ColorTransformer.getTransformedPixels(rgb, method, pixels, stains);
 			} else {
-				return ColorTransformer.colorDeconvolve(img, stains, stainNumber-1, null);
+				return ColorDeconvolutionHelper.colorDeconvolve(img, stains, stainNumber-1, null);
 			}
 		}
 

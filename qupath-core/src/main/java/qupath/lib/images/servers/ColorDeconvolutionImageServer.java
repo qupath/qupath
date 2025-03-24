@@ -186,7 +186,7 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 		} else {
 			float[] pixels = new float[w * h];
 			for (int b = 0; b < methods.size(); b++) {
-				ColorTransformer.colorDeconvolve(img, stains, stainNumbers[b], pixels);
+				ColorDeconvolutionHelper.colorDeconvolve(img, stains, stainNumbers[b]-1, pixels);
 				raster.setSamples(0, 0, img.getWidth(), img.getHeight(), b, pixels);
 			}
 		}
