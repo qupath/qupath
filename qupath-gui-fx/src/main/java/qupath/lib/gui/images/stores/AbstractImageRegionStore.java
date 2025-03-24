@@ -336,6 +336,11 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		// Start a worker & add to the list
 		TileWorker<T> worker = null;
 		worker = (TileWorker<T>)waitingMap.get(request); // TODO: Consider if this is a bad idea...
+		if (worker != null && worker.isCancelled()) {
+			// Try to fix a bug with z-projection overlays where the projection was lost when the cache filled up
+			workers.remove(worker);
+			worker = null;
+		}
 		if (worker == null) {
 			worker = createTileWorker(server, request, cache, ensureTileReturned);
 			workers.add(worker);
