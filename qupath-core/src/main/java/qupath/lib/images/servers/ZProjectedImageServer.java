@@ -1,3 +1,24 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2025 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.images.servers;
 
 import qupath.lib.color.ColorModelFactory;
@@ -20,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.IntStream;
 
 /**
  * An image server that converts a z-stack into a 2D image with a projection.
@@ -214,36 +236,6 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
         );
         
         return image;
-    }
-
-    private BufferedImage getNonRgbTile(TileRequest tileRequest) throws IOException {
-        List<WritableRaster> zStacks = new ArrayList<>();
-
-        // Figure out which slices we need to read
-        int zStart = 0;
-        int zEnd = server.nZSlices();
-        if (runningOffset >= 0) {
-            zStart = Math.max(0, tileRequest.getZ()-runningOffset);
-            zEnd = Math.min(server.nZSlices(), tileRequest.getZ()+runningOffset+1);
-        }
-
-        // Updating the path is important to avoid inadvertently pulling the wrong tile from the cache
-        var region = tileRequest.getRegionRequest().updatePath(server.getPath());
-        for (int z=zStart; z<zEnd; z++) {
-            zStacks.add(server.readRegion(region.updateZ(z)).getRaster());
-        }
-
-        var dataBuffer = createDataBuffer(zStacks);
-        return new BufferedImage(
-                ColorModelFactory.createColorModel(getMetadata().getPixelType(), getMetadata().getChannels()),
-                WritableRaster.createWritableRaster(
-                        new BandedSampleModel(dataBuffer.getDataType(), getWidth(), getHeight(), nChannels()),
-                        dataBuffer,
-                        null
-                ),
-                false,
-                null
-        );
     }
 
     private static int[] getRgbMeanProjection(int numberOfPixels, int sizeZ, List<int[]> zStacks) {
@@ -478,12 +470,35 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
         };
     }
 
-    private DataBuffer createDataBuffer(List<? extends Raster> rasters) {
-        int width = rasters.getFirst().getWidth();
-        int height = rasters.getFirst().getHeight();
+    private BufferedImage getNonRgbTile(TileRequest tileRequest) throws IOException {
+        List<WritableRaster> zStacks = new ArrayList<>();
+
+        // Figure out which slices we need to read
+        int zStart = 0;
+        int zEnd = server.nZSlices();
+        if (runningOffset >= 0) {
+            zStart = Math.max(0, tileRequest.getZ()-runningOffset);
+            zEnd = Math.min(server.nZSlices(), tileRequest.getZ()+runningOffset+1);
+        }
+
+        var dataBuffer = createDataBuffer(tileRequest, zStart, zEnd);
+        return new BufferedImage(
+                ColorModelFactory.createColorModel(getMetadata().getPixelType(), getMetadata().getChannels()),
+                WritableRaster.createWritableRaster(
+                        new BandedSampleModel(dataBuffer.getDataType(), getWidth(), getHeight(), nChannels()),
+                        dataBuffer,
+                        null
+                ),
+                false,
+                null
+        );
+    }
+
+    private DataBuffer createDataBuffer(TileRequest tile, int zStart, int zEnd) throws IOException{
+        int width = tile.getTileWidth();
+        int height = tile.getTileHeight();
         int numberOfPixels = width * height;
         int nChannels = nChannels();
-        int sizeZ = rasters.size();
         PixelType pixelType = getMetadata().getPixelType();
 
         DataBuffer dataBuffer = switch (pixelType) {
@@ -495,14 +510,26 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
             case FLOAT64 -> new DataBufferDouble(numberOfPixels, nChannels);
             default -> throw new UnsupportedOperationException("Unsupported pixel type: " + pixelType);
         };
+        // Updating the path is important to avoid inadvertently pulling the wrong tile from the cache
+        var region = tile.getRegionRequest().updatePath(server.getPath());
 
+        // Loop through z-slices and updated projectors for each channel.
+        // We use this approach so that we don't have to store all tiles in memory, which could be expensive for
+        // large, untiled z-stacks.
         double[] samples = new double[numberOfPixels];
-        for (int c = 0; c < nChannels; c++) {
-            var projector = getProjector(projection);
-            for (int z=0;z<sizeZ; z++) {
-                rasters.get(z).getSamples(0, 0, width, height, c, samples);
+        Projector[] projectors = IntStream.range(0, nChannels).mapToObj(c -> getProjector(projection)).toArray(Projector[]::new);
+        for (int z=zStart; z<zEnd; z++) {
+            var raster = server.readRegion(region.updateZ(z)).getRaster();
+            for (int c = 0; c < nChannels; c++) {
+                var projector = projectors[c];
+                raster.getSamples(0, 0, width, height, c, samples);
                 projector.accumulate(samples);
             }
+        }
+
+        // Loop through projectors to set pixels
+        for (int c = 0; c < nChannels; c++) {
+            var projector = projectors[c];
             if (pixelType.isFloatingPoint()) {
                 for (int i = 0; i < numberOfPixels; i++) {
                     dataBuffer.setElemDouble(c, i, projector.getResult(i));
