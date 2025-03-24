@@ -1,3 +1,24 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2025 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.gui.viewer;
 
 import javafx.beans.binding.Bindings;
@@ -32,6 +53,7 @@ class ZProjectOverlayControls {
     ZProjectOverlayControls(QuPathViewer viewer, BooleanProperty showControls) {
         this.viewer = viewer;
         this.overlay = ZProjectOverlay.create(viewer);
+        this.overlay.setProjection(null);
         this.node = createNode();
         this.showControls.bind(Bindings.createBooleanBinding(() -> {
             return showControls.get() && viewer.getServer() != null && viewer.getServer().nZSlices() > 1;
@@ -110,6 +132,13 @@ class ZProjectOverlayControls {
         var btn = new ToggleButton(getName(projection));
         btn.setUserData(projection);
         btn.setMaxWidth(Double.MAX_VALUE);
+        // Try to make selection status more prominent
+        btn.selectedProperty().addListener((v, o, n) -> {
+            if (n)
+                btn.setStyle("-fx-font-weight: bold;");
+            else
+                btn.setStyle(null);
+        });
         return btn;
     }
 
