@@ -33,7 +33,7 @@ public class ZConcatenatedImageServer extends AbstractTileableImageServer {
      * @throws IllegalArgumentException if no image is provided, the provided images are not similar (see above), or one of
      * them have more than one z-stack
      */
-    public ZConcatenatedImageServer(List<ImageServer<BufferedImage>> servers, Number zSpacingMicrons) {
+    ZConcatenatedImageServer(List<ImageServer<BufferedImage>> servers, Number zSpacingMicrons) {
         if (servers.isEmpty()) {
             throw new IllegalArgumentException("The provided list of image servers is empty");
         }
@@ -63,13 +63,6 @@ public class ZConcatenatedImageServer extends AbstractTileableImageServer {
                 .zSpacingMicrons(zSpacingMicrons)
                 .sizeZ(servers.size())
                 .build();
-    }
-
-    /**
-     * Same as {@link #ZConcatenatedImageServer(List, Number)}, but without specifying a z-spacing.
-     */
-    public ZConcatenatedImageServer(List<ImageServer<BufferedImage>> servers) {
-        this(servers, null);
     }
 
     @Override
