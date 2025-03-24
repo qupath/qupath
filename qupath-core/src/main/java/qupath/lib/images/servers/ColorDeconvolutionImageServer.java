@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2022, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -38,6 +38,8 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.color.ColorTransformer;
@@ -173,19 +175,22 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 		float[][] bytes = new float[nChannels][w*h];
 		DataBufferFloat buffer = new DataBufferFloat(bytes, w*h);
 		WritableRaster raster = Raster.createWritableRaster(model, buffer, null);
-		
-		int[] rgb = img.getRGB(0, 0, w, h, null, 0, img.getWidth());
-		float[] pixels = new float[w * h];
-		for (int b = 0; b < methods.size(); b++) {
-			ColorTransformer.getTransformedPixels(rgb, methods.get(b), pixels, stains);			
-			raster.setSamples(0, 0, img.getWidth(), img.getHeight(), b, pixels);
+
+		if (BufferedImageTools.is8bitColorType(img.getType())) {
+			int[] rgb = img.getRGB(0, 0, w, h, null, 0, img.getWidth());
+			float[] pixels = new float[w * h];
+			for (int b = 0; b < methods.size(); b++) {
+				ColorTransformer.getTransformedPixels(rgb, methods.get(b), pixels, stains);
+				raster.setSamples(0, 0, img.getWidth(), img.getHeight(), b, pixels);
+			}
+		} else {
+			float[] pixels = new float[w * h];
+			for (int b = 0; b < methods.size(); b++) {
+				ColorDeconvolutionHelper.colorDeconvolve(img, stains, stainNumbers[b]-1, pixels);
+				raster.setSamples(0, 0, img.getWidth(), img.getHeight(), b, pixels);
+			}
 		}
 		return new BufferedImage(getColorModel(), Raster.createWritableRaster(model, buffer, null), false, null);
-		
-//		WritableRaster raster = WritableRaster.createInterleavedRaster(DataBuffer.TYPE_FLOAT, img.getWidth(), img.getHeight(), 1, null);
-//		ColorTransformer.getTransformedPixels(rgb, method, pixels, stains);
-//		raster.setSamples(0, 0, img.getWidth(), img.getHeight(), 0, pixels);
-//		return new BufferedImage(colorModel, raster, false, null);
 	}
 
 	@Override
