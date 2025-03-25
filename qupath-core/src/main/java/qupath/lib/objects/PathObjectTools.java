@@ -38,6 +38,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.Map.Entry;
@@ -52,6 +53,7 @@ import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.ColorTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -1025,6 +1027,36 @@ public class PathObjectTools {
 			.stream()
 			.filter(p -> supportedClasses.stream().anyMatch(s -> s.isInstance(p)))
 			.toList();
+	}
+
+	/**
+	 * Reset the color to null for the specified objects.
+	 * @param pathObjects the objects whose color should be reset
+	 */
+	public static void resetColors(Collection<? extends PathObject> pathObjects) {
+		pathObjects.forEach(p -> p.setColor(null));
+	}
+
+	/**
+	 * Set each of the specified objects to have a random color.
+	 * @param pathObjects the objects whose color should be set
+	 */
+	public static void setRandomColors(Collection<? extends PathObject> pathObjects) {
+		setRandomColors(pathObjects, new Random());
+	}
+
+	/**
+	 * Set each of the specified objects to have a random color.
+	 * @param pathObjects the objects whose color should be set
+	 * @param rng optional random number generator; if null, a new generator will be created.
+	 */
+	public static void setRandomColors(Collection<? extends PathObject> pathObjects, Random rng) {
+		var rng2 = rng == null ? new Random() : rng;
+		pathObjects.forEach(p -> p.setColor(
+				rng2.nextInt(255),
+				rng2.nextInt(255),
+				rng2.nextInt(255)
+		));
 	}
 
 	/**
