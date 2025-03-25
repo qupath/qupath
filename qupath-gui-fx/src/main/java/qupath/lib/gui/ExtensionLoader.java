@@ -33,7 +33,7 @@ class ExtensionLoader {
     private final QuPathGUI quPathGUI;
 
     private ExtensionLoader(ExtensionCatalogManager extensionCatalogManager, QuPathGUI quPathGUI) {
-        this.extensionClassLoader = extensionCatalogManager.getClassLoader();
+        this.extensionClassLoader = extensionCatalogManager.getExtensionClassLoader();
         this.quPathGUI = quPathGUI;
 
         loadExtensions(false);

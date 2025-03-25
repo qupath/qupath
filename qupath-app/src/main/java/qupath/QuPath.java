@@ -360,8 +360,8 @@ class ScriptCommand implements Runnable {
 			createTileCache();
 
 			// Load image server builders from extensions
-			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, QuPathGUI.getExtensionCatalogManager().getClassLoader()));
-			Thread.currentThread().setContextClassLoader(QuPathGUI.getExtensionCatalogManager().getClassLoader());
+			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader()));
+			Thread.currentThread().setContextClassLoader(QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader());
 			
 			// Unfortunately necessary to force initialization (including GsonTools registration of some classes)
 			QP.getCoreClasses();

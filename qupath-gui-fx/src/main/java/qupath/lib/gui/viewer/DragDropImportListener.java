@@ -330,7 +330,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		if (nJars == list.size()) {
 			ExtensionManager.promptToCopyFilesToExtensionDirectory(
 					list,
-					qupath.getExtensionCatalogManager().getExtensionDirectoryPath(),
+					QuPathGUI.getExtensionCatalogManager().getExtensionDirectoryPath(),
 					() -> Commands.requestUserDirectory(true)
 			);
 			return;

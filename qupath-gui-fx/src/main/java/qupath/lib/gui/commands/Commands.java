@@ -635,7 +635,7 @@ public class Commands {
 	 * @param qupath the QuPath instance
 	 */
 	public static void showScriptInterpreter(QuPathGUI qupath) {
-		var scriptInterpreter = new ScriptInterpreter(qupath, qupath.getExtensionCatalogManager().getClassLoader());
+		var scriptInterpreter = new ScriptInterpreter(qupath, QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader());
 		scriptInterpreter.getStage().initOwner(qupath.getStage());
 		scriptInterpreter.getStage().show();
 	}
