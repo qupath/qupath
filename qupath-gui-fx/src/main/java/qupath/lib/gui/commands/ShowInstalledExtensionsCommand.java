@@ -77,7 +77,7 @@ class ShowInstalledExtensionsCommand {
 
 		try {
 			dialog = new ExtensionManager(
-					qupath.getExtensionCatalogManager(),
+					QuPathGUI.getExtensionCatalogManager(),
 					() -> Commands.requestUserDirectory(true)
 			);
 
