@@ -69,8 +69,7 @@ public class ZConcatenatedImageServer extends AbstractTileableImageServer {
     protected ImageServerBuilder.ServerBuilder<BufferedImage> createServerBuilder() {
         return new ImageServers.ZConcatenatedImageServerBuilder(
                 getMetadata(),
-                servers.stream().map(ImageServer::getBuilder).toList(),
-                metadata.getPixelCalibration().getZSpacing()
+                servers.stream().map(ImageServer::getBuilder).toList()
         );
     }
 

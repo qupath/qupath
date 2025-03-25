@@ -638,17 +638,14 @@ public class ImageServers {
 	static class ZConcatenatedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 
 		private final List<ServerBuilder<BufferedImage>> builders;
-		private final Number zSpacingMicrons;
 
 		public ZConcatenatedImageServerBuilder(
 				ImageServerMetadata metadata,
-				List<ServerBuilder<BufferedImage>> builders,
-				Number zSpacingMicrons
+				List<ServerBuilder<BufferedImage>> builders
 		) {
 			super(metadata);
 
 			this.builders = builders;
-			this.zSpacingMicrons = zSpacingMicrons;
 		}
 
 		@Override
@@ -658,7 +655,7 @@ public class ImageServers {
 				servers.add(builder.build());
 			}
 
-			return new ZConcatenatedImageServer(servers, zSpacingMicrons);
+			return new ZConcatenatedImageServer(servers, getMetadata().map(ImageServerMetadata::getZSpacingMicrons).orElse(null));
 		}
 
 		@Override
@@ -680,8 +677,7 @@ public class ImageServers {
 			} else {
 				return new ZConcatenatedImageServerBuilder(
 						getMetadata().orElse(null),
-						newBuilders,
-						zSpacingMicrons
+						newBuilders
 				);
 			}
 		}
