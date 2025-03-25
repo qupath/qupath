@@ -35,29 +35,29 @@ import qupath.lib.geom.Point2;
  */
 interface Vertices {
 
-	public abstract boolean isEmpty();
+	boolean isEmpty();
 
-	public abstract int size();
+	int size();
 
-	public abstract float[] getX(float[] xArray);
+	float[] getX(float[] xArray);
 
-	public abstract float[] getY(float[] yArray);
+	float[] getY(float[] yArray);
 
-	public abstract Point2 get(int idx);
+	Point2 get(int idx);
 
-	public abstract float getX(int idx);
+	float getX(int idx);
 
-	public abstract float getY(int idx);
+	float getY(int idx);
 
-	public abstract List<Point2> getPoints();
+	List<Point2> getPoints();
 	
-	public Vertices duplicate();
+	Vertices duplicate();
 
 	/**
 	 * Compact the storage if possible, e.g. by trimming arrays used internally.
 	 */
-	public abstract void compact();
+	abstract void compact();
 		
-//	public VerticesIterator getIterator();
+//	VerticesIterator getIterator();
 
 }

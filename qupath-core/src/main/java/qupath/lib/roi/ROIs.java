@@ -89,6 +89,7 @@ public class ROIs {
 	 * @param height height of the rectangle
 	 * @return a new rectangle ROI
 	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
 	 */
 	public static ROI createRectangleROI(double x, double y, double width, double height) {
 		return createRectangleROI(x, y, width, height, ImagePlane.getDefaultPlane());
@@ -126,6 +127,7 @@ public class ROIs {
 	 * @param height height of the ellipse bounding box
 	 * @return a new ellipse ROI
 	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
 	 */
 	public static ROI createEllipseROI(double x, double y, double width, double height) {
 		return createEllipseROI(x, y, width, height, ImagePlane.getDefaultPlane());
@@ -164,6 +166,7 @@ public class ROIs {
 	 * @param y2 the end y coordinate
 	 * @return a new line ROI
 	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
 	 */
 	public static ROI createLineROI(double x, double y, double x2, double y2) {
 		return createLineROI(x, y, x2, y2, ImagePlane.getDefaultPlane());
@@ -194,6 +197,7 @@ public class ROIs {
 	 * Create an empty points ROI on the default image plane.
 	 * @return a new points ROI
 	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
 	 */
 	public static ROI createPointsROI() {
 		return createPointsROI(ImagePlane.getDefaultPlane());
@@ -216,6 +220,7 @@ public class ROIs {
 	 * @param y y coordinate of the point
 	 * @return a new point ROI
 	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
 	 */
 	public static ROI createPointsROI(double x, double y) {
 		return createPointsROI(x, y, ImagePlane.getDefaultPlane());
@@ -236,6 +241,7 @@ public class ROIs {
 	 * @param points a list of points to include
 	 * @return a new points ROI
 	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
 	 */
 	public static ROI createPointsROI(List<? extends Point2> points) {
 		return createPointsROI(points, ImagePlane.getDefaultPlane());
@@ -259,6 +265,19 @@ public class ROIs {
 	}
 
 	/**
+	 * Create a points ROI from an array of x and y coordinates on the default image plane.
+	 * @param x x coordinates for the points
+	 * @param y y coordinates for the points
+	 * @return a new points ROI
+	 * @throws IllegalArgumentException if x and y have a different length
+	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
+	 */
+	public static ROI createPointsROI(double[] x, double[] y) throws IllegalArgumentException {
+		return createPointsROI(x, y, ImagePlane.getDefaultPlane());
+	}
+
+	/**
 	 * Create a closed polygon ROI from a list of points.
 	 * @param points the vertices of the polygon
 	 * @param plane the plane containing the ROI
@@ -273,6 +292,7 @@ public class ROIs {
 	 * @param points the vertices of the polygon
 	 * @return a new polygon ROI
 	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
 	 */
 	public static PolygonROI createPolygonROI(List<? extends Point2> points) {
 		return createPolygonROI(points, ImagePlane.getDefaultPlane());
@@ -295,6 +315,19 @@ public class ROIs {
 		return new PolygonROI(points, plane);
 	}
 
+	/**
+	 * Create a polygon ROI from an array of x and y coordinates on the default image plane
+	 * @param x x coordinates of the polygon vertices
+	 * @param y y coordinates of the polygon vertices
+	 * @return a new polygon ROI
+	 * @throws IllegalArgumentException if x and y have a different length
+	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
+	 */
+	public static ROI createPolygonROI(double[] x, double[] y) throws IllegalArgumentException {
+		return createPolygonROI(x, y, ImagePlane.getDefaultPlane());
+	}
+
 	
 	/**
 	 * Create an empty, closed polygon ROI consisting of a single point.
@@ -307,42 +340,91 @@ public class ROIs {
 	public static PolygonROI createPolygonROI(double x, double y, ImagePlane plane) {
 		return new PolygonROI(Collections.singletonList(new Point2(x, y)), plane);
 	}
+
+	/**
+	 * Create an empty, closed polygon ROI consisting of a single point on the default image plane.
+	 *
+	 * @param x x coordinate for the only polygon point
+	 * @param y y coordinate for the only polygon point
+	 * @return a new polygon ROI
+	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
+	 */
+	public static PolygonROI createPolygonROI(double x, double y) {
+		return createPolygonROI(x, y, ImagePlane.getDefaultPlane());
+	}
 	
 	/**
 	 * Create a polyline ROI from a list of points.
-	 * @param points
-	 * @param plane
-	 * @return
+	 * @param points the vertices of the polyline
+	 * @param plane the plane containing the ROI
+	 * @return a new polyline ROI
 	 */
-	public static PolylineROI createPolylineROI(List<Point2> points, ImagePlane plane) {
+	public static PolylineROI createPolylineROI(List<? extends Point2> points, ImagePlane plane) {
 		return new PolylineROI(points, plane);
+	}
+
+	/**
+	 * Create a polyline ROI from a list of points on the default image plane.
+	 * @param points the vertices of the polyline
+	 * @return a new polyline ROI
+	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
+	 */
+	public static PolylineROI createPolylineROI(List<? extends Point2> points) {
+		return createPolylineROI(points, ImagePlane.getDefaultPlane());
 	}
 	
 	/**
 	 * Create an empty polyline ROI consisting of a single point.
-	 * @param x
-	 * @param y
-	 * @param plane
-	 * @return
+	 * @param x x coordinate of the point
+	 * @param y y coordinate of the point
+	 * @param plane the image plane containing the ROI
+	 * @return a new polyline ROI
 	 */
 	public static PolylineROI createPolylineROI(double x, double y, ImagePlane plane) {
-		return new PolylineROI(Collections.singletonList(new Point2(x, y)), plane);
+		return createPolylineROI(Collections.singletonList(new Point2(x, y)), plane);
+	}
+
+	/**
+	 * Create an empty polyline ROI consisting of a single point on the default iamge plane.
+	 * @param x x coordinate of the point
+	 * @param y y coordinate of the point
+	 * @return a new polyline ROI
+	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
+	 */
+	public static PolylineROI createPolylineROI(double x, double y) {
+		return createPolylineROI(x, y, ImagePlane.getDefaultPlane());
 	}
 	
 	/**
-	 * Create a polygon ROI from an array of x and y coordinates.
-	 * @param x
-	 * @param y
-	 * @param plane
-	 * @return
+	 * Create a polyline ROI from an array of x and y coordinates.
+	 * @param x x coordinates of the polyline vertices
+	 * @param y y coordinates of the polyline vertices
+	 * @return a new polygon ROI
+	 * @throws IllegalArgumentException if x and y have a different length
 	 */
-	public static ROI createPolylineROI(double[] x, double[] y, ImagePlane plane) {
+	public static ROI createPolylineROI(double[] x, double[] y, ImagePlane plane) throws IllegalArgumentException {
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Arrays have different lengths!");
 		var points = new ArrayList<Point2>();
 		for (int i = 0; i < x.length; i++)
 			points.add(new Point2(x[i], y[i]));
 		return new PolylineROI(points, plane);
+	}
+
+	/**
+	 * Create a polyline ROI from an array of x and y coordinates on the default image plane.
+	 * @param x x coordinates of the polyline vertices
+	 * @param y y coordinates of the polyline vertices
+	 * @return a new polygon ROI
+	 * @throws IllegalArgumentException if x and y have a different length
+	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
+	 */
+	public static ROI createPolylineROI(double[] x, double[] y) throws IllegalArgumentException {
+		return createPolylineROI(x, y, ImagePlane.getDefaultPlane());
 	}
 	
 	/**

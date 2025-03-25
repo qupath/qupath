@@ -74,6 +74,9 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	
 	private transient GeometryStats stats = null;
 
+	// May be expensive
+	private transient int hashCode;
+
 	/**
 	 * Cache a locator for faster 'contains' checks.
 	 */
@@ -374,7 +377,22 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 				plane);
 	}
 
-//	@Override
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+		GeometryROI that = (GeometryROI) o;
+		return Objects.equals(getImagePlane(), that.getImagePlane()) && Objects.equals(geometry, that.geometry);
+	}
+
+	@Override
+	public int hashCode() {
+		if (hashCode == 0) {
+			hashCode = Objects.hash(geometry, getImagePlane());
+		}
+		return hashCode;
+	}
+
+	//	@Override
 //	public double getMaxDiameter() {
 //		return getGeometryStats().getMaxDiameter();
 //	}

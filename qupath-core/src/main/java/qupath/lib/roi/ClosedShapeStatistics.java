@@ -23,7 +23,11 @@
 
 package qupath.lib.roi;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.awt.Shape;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
@@ -39,7 +43,9 @@ import java.util.List;
  *
  */
 class ClosedShapeStatistics implements Serializable {
-	
+
+	private static final Logger logger = LoggerFactory.getLogger(ClosedShapeStatistics.class);
+
 	private static final long serialVersionUID = 1L;
 	
 	private double areaCached = Double.NaN;
@@ -119,6 +125,21 @@ class ClosedShapeStatistics implements Serializable {
 	ClosedShapeStatistics(final Shape shape, final double pixelWidth, final double pixelHeight) {
 		calculateShapeMeasurements(shape, pixelWidth, pixelHeight);
 	}
+
+	private static PathIterator getPathIterator(final Shape shape, double flatness) {
+		if (shape instanceof Area area)
+			return area.getPathIterator(null, flatness);
+		else {
+			// Try to get path iterator from an area - but if this is empty, it suggests we just have a line,
+			// in which case we should use the default iterator (whatever that is)
+			Area area = new Area(shape);
+			if (area.isEmpty())
+				return shape.getPathIterator(null, flatness);
+			else {
+				return area.getPathIterator(null, flatness);
+			}
+		}
+	}
 	
 	private void calculateShapeMeasurements(final Shape shape, final double pixelWidth, final double pixelHeight) {
 		double perimeter = 0;		
@@ -130,25 +151,14 @@ class ClosedShapeStatistics implements Serializable {
 		double flatness = 0.01;
 		
 		// Get a path iterator, with flattening involved
-		PathIterator iter;
-		
-		if (shape instanceof Area)
-			iter = ((Area)shape).getPathIterator(null, flatness);
-		else {
-			// Try to get path iterator from an area - but if this is empty, it suggests we just have a line, in which case we should use the default iterator (whatever that is)
-			Area area = new Area(shape);
-			if (area.isEmpty())
-				iter = shape.getPathIterator(null, flatness);
-			else {
-				iter = area.getPathIterator(null, flatness);
-			}
-		}
+		PathIterator iter = getPathIterator(shape, flatness);
 		double[] seg = new double[6];
 		double startX = Double.NaN, startY = Double.NaN;
 		minX = Double.POSITIVE_INFINITY;
 		maxX = Double.NEGATIVE_INFINITY;
 		minY = Double.POSITIVE_INFINITY;
 		maxY = Double.NEGATIVE_INFINITY;
+		double sumCenterX = 0, sumCenterY = 0;
 		double x0 = 0, y0 = 0, x1 = 0, y1 = 0;
 		int nPaths = 0;
 		while (!iter.isDone()) {
@@ -181,12 +191,16 @@ class ClosedShapeStatistics implements Serializable {
 				throw new RuntimeException("Invalid polygon in " + this + " - only line connections are allowed");
 			};
 			// Update the calculations
-			perimeter += Math.sqrt((x1 - x0)*(x1 - x0) + (y1 - y0)*(y1 - y0));
+			double segLength = Math.sqrt((x1 - x0)*(x1 - x0) + (y1 - y0)*(y1 - y0));
+			perimeter += segLength;
 //			area += ((x1 - x0) * (y1 + y0)*0.5);
 			// For centroid calculations, see http://en.wikipedia.org/wiki/Centroid#Centroid_of_polygon			
 			cx += (x0 + x1) * (x0 * y1 - x1 * y0);
 			cy += (y0 + y1) * (x0 * y1 - x1 * y0);
 			areaTempSigned += 0.5 * (x0 * y1 - x1 * y0);
+			// We need a difference centroid calculation if the area is zero - so treat as a line
+			sumCenterX += (x0 + x1) / 2 * segLength;
+			sumCenterY += (y0 + y1) / 2 * segLength;
 			// Update the coordinates
 			x0 = x1;
 			y0 = y1;
@@ -195,18 +209,23 @@ class ClosedShapeStatistics implements Serializable {
 //		Line2D.Double line = new Line2D.Double();
 //		Line2D.linesIntersect(x1, y1, x2, y2, x3, y3, x4, y4)
 //		logger.info("POLYGON - Area: " + area + ", Signed area: " + areaSigned);
+		this.areaCached = Math.abs(areaCached + areaTempSigned);
 		if (nPaths == 1) {
-			centroidXCached = (float)(cx / (6 * areaTempSigned));
-			centroidYCached = (float)(cy / (6 * areaTempSigned));
 			// The perimeter only makes sense if we have a single path
 			perimeterCached = perimeter;
 		} else {
-			centroidXCached = (float)(cx / (6 * (areaCached + areaTempSigned)));
-			centroidYCached = (float)(cy / (6 * (areaCached + areaTempSigned)));
 			perimeterCached = Double.NaN;
 		}
-		this.areaCached = Math.abs(areaCached + areaTempSigned);
-		
+		if (this.areaCached > 0) {
+			// Calculate centroid within area
+			centroidXCached = (float)(cx / (6 * (areaCached + areaTempSigned)));
+			centroidYCached = (float)(cy / (6 * (areaCached + areaTempSigned)));
+		} else {
+			// Calculate centroid from boundary
+			centroidXCached = (float)(sumCenterX / perimeter);
+			centroidYCached = (float)(sumCenterY / perimeter);
+		}
+
 		// I'm not entirely sure I have correctly deciphered Java's shapes... so do some basic sanity checking
 		Rectangle2D bounds = shape.getBounds2D();
 		if (pixelWidth != 1 || pixelHeight != 1) {
@@ -217,7 +236,11 @@ class ClosedShapeStatistics implements Serializable {
 					bounds.getHeight() * pixelHeight);
 		}
 		assert this.areaCached <= bounds.getWidth() * bounds.getHeight();
-		assert bounds.contains(centroidXCached, centroidYCached);
+		if (bounds.getWidth() > 0 && bounds.getHeight() > 0) {
+			assert bounds.contains(centroidXCached, centroidYCached);
+		} else {
+			logger.debug("Shape measurements requested for shape with zero-area bounding box");
+		}
 	}
 	
 	
