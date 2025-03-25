@@ -30,6 +30,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
@@ -46,15 +48,10 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	
 	private final List<Point2> points = new ArrayList<>();
 	
-//	// Point radius no longer sorted internally (it's really a display thing)
-//	@Deprecated
-//	protected double pointRadius = -1;
-	
 	private transient double xMin = Double.NaN, yMin = Double.NaN, xMax = Double.NaN, yMax = Double.NaN;
 	private transient double xCentroid = Double.NaN, yCentroid = Double.NaN;
 	private transient ROI convexHull = null;
-//	protected transient Point2 pointAdjusting = null;
-	
+
 	PointsROI() {
 		this(Double.NaN, Double.NaN);
 	}
@@ -84,25 +81,6 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 			addPoint(x[i], y[i]);
 		recomputeBounds();
 	}
-	
-	
-	
-	
-	
-//	public double getPointRadius() {
-//		if (pointRadius >= 0)
-//			return pointRadius;
-//		return defaultPointRadius;
-//	}
-//	
-//	
-//	/**
-//	 * Set radius for drawing points; if < 0, the default radius (specified in PathPrefs) will be used.
-//	 * @param radius
-//	 */
-//	public void setPointRadius(double radius) {
-//		pointRadius = radius;
-//	}
 
 
 	@Override
@@ -157,34 +135,6 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 		}
 		return pClosest;
 	}
-
-
-//	@Deprecated
-//	public boolean startAdjusting(double x, double y, int modifiers) {
-//		Point2 pNearest = getNearest(x, y, PointsROI.getDefaultPointRadius());
-//		if (pNearest == null)
-//			return false;
-////		logger.info("STARTING: " + p);
-//		pointAdjusting = pNearest;
-//		pNearest.setLocation(x, y);
-//		isAdjusting = true;
-//		return true;
-//	}
-//
-//	@Override
-//	public void finishAdjusting(double x, double y, boolean shiftDown) {
-//		super.finishAdjusting(x, y, shiftDown);
-//		pointAdjusting = null;
-//		recomputeBounds();
-//	}
-//	
-//	
-//	@Override
-//	public void updateAdjustment(double x, double y, boolean shiftDown) {
-//		if (pointAdjusting != null) {
-//			pointAdjusting.setLocation(x, y);
-//		}
-//	}
 	
 	
 	protected void recomputeBounds() {
@@ -213,19 +163,6 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 			yMax = y;
 	}
 	
-	
-//	public boolean removePoint(Point2 p) {
-////		logger.info("Removing " + p + " from " + points.size());
-//		if (points.remove(p)) {
-//			// Update the bounds (this is overly-conservative... if checked how far inside, update may be unnecessary)
-//			recomputeBounds();
-//			// Reset convex hull (again overly-conservative...)
-//			convexHull = null;
-//			return true;
-//		}
-//		return false;
-//	}
-	
 	private void addPoint(double x, double y) {
 //		addPoint(x, y, -1);
 		// Can't add NaN
@@ -233,18 +170,7 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 			return;
 		points.add(new Point2(x, y));
 	}
-	
-	
-	
-//	public void updateAdjustment(double x, double y, double maxDist, int modifiers) {
-//		if ((modifiers & MouseEvent.ALT_DOWN_MASK) != 0) {
-//			Point2D p = getNearest(x, y, maxDist);
-//			if (p != null)
-//				points.remove(p);
-//		}
-//		else
-//			points.add(new Point2D.Double(x, y));
-//	}
+
 
 	/**
 	 * A Points ROI is empty if it contains no points (*not* if its bounds have no width or height...
@@ -263,8 +189,6 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	
 	@Override
 	public String toString() {
-//		if (getName() != null)
-//			return String.format("%s (%d points)", getName(), points.size());			
 		return String.format("%s (%d points)", getRoiName(), points.size());
 	}
 	
@@ -288,9 +212,7 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	@Override
 	@Deprecated
 	public ROI duplicate() {
-		PointsROI roi = new PointsROI(points, getImagePlane());
-//		roi.setPointRadius(pointRadius);
-		return roi;
+		return new PointsROI(points, getImagePlane());
 	}
 
 	@Override
@@ -304,22 +226,6 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 		return convexHull;
 	}
 
-//	@Override
-//	public double getConvexArea() {
-//		PathArea hull = getConvexHull();
-//		if (hull != null)
-//			return hull.getArea();
-//		return Double.NaN;
-//	}
-//	
-//	@Override
-//	public double getScaledConvexArea(double pixelWidth, double pixelHeight) {
-//		PathArea hull = getConvexHull();
-//		if (hull != null)
-//			return hull.getScaledArea(pixelWidth, pixelHeight);
-//		return Double.NaN;
-//	}
-
 	
 	private void resetBounds() {
 		xMin = Double.NaN;
@@ -327,11 +233,6 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 		xMax = Double.NaN;
 		yMax = Double.NaN;		
 	}
-	
-//	public void resetMeasurements() {
-//		resetBounds();
-//		convexHull = null;
-//	}
 
 	@Override
 	public double getBoundsX() {
@@ -352,32 +253,6 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	public double getBoundsHeight() {
 		return yMax - yMin;
 	}
-
-//	@Override
-//	public void writeExternal(ObjectOutput out) throws IOException {
-//		out.writeInt(1); // Version
-//		out.writeDouble(pointRadius);
-//		out.writeInt(points.size());
-//		for (Point2 p : points) {
-//			out.writeDouble(p.getX());
-//			out.writeDouble(p.getY());
-//		}
-//	}
-//
-//	@Override
-//	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-//		int version = in.readInt();
-//		if (version != 1) {
-//			logger.error("Unknown Point ROI version " + version);
-//		}
-//		pointRadius = in.readDouble();
-//		int nPoints = in.readInt();
-//		points = new ArrayList<>();
-//		for (int i = 0; i < nPoints; i++) {
-//			points.add(new Point2(in.readDouble(), in.readDouble()));
-//		}
-//	}
-	
 	
 	/**
 	 * It is not possible to convert a PointROI to a java.awt.Shape.
@@ -393,14 +268,6 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 		throw new UnsupportedOperationException("PointROI does not support createShape()!");
 	}
 	
-//	/**
-//	 * throws UnsupportedOperationException
-//	 */
-//	@Override
-//	public Geometry getGeometry() throws UnsupportedOperationException {
-//		throw new UnsupportedOperationException("PointROI does not support getGeometry()!");
-//	}
-	
 	
 	@Override
 	public RoiType getRoiType() {
@@ -414,8 +281,28 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 				points,
 				plane);
 	}
-	
-	
+
+
+	/**
+	 * Test if this ROI is equal to another.
+	 * Note that this requires the other object to be a PointsROI on the same plane, with the same points in the
+	 * same order.
+	 * @param o the object to test
+	 * @return true if the objects are equal, false otherwise
+	 */
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+		PointsROI pointsROI = (PointsROI) o;
+		return Objects.equals(points, pointsROI.points)
+				&& Objects.equals(getImagePlane(), pointsROI.getImagePlane());
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(points, getImagePlane());
+	}
+
 	private Object writeReplace() {
 		return new SerializationProxy(this);
 	}

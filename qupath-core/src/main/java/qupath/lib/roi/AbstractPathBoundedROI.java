@@ -25,6 +25,8 @@ package qupath.lib.roi;
 
 import qupath.lib.regions.ImagePlane;
 
+import java.util.Objects;
+
 /**
  * Abstract implementation of any ROI that can be defined based on a bounding box, 
  * i.e. a rectangle or ellipse (both unrotated).
@@ -113,6 +115,21 @@ abstract class AbstractPathBoundedROI extends AbstractPathROI {
 	public double getBoundsHeight() {
 		return Math.abs(y - y2);
 	}
-	
-		
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass())
+			return false;
+		AbstractPathBoundedROI that = (AbstractPathBoundedROI) o;
+		return Double.compare(x, that.x) == 0 &&
+				Double.compare(y, that.y) == 0 &&
+				Double.compare(x2, that.x2) == 0 &&
+				Double.compare(y2, that.y2) == 0 &&
+				getImagePlane().equals(that.getImagePlane());
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(x, y, x2, y2, getImagePlane());
+	}
 }

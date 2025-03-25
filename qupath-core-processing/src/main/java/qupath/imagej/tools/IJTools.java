@@ -1163,8 +1163,6 @@ public class IJTools {
 //		if (roi instanceof ShapeRoi)
 //			return convertToAreaROI((ShapeRoi)roi, cal, downsampleFactor);
 //		// Shape ROIs should be able to handle most eventualities
-		if (roi instanceof ShapeRoi)
-			return ROIConverterIJ.convertToAreaROI((ShapeRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
 		if (roi.isArea())
 			return ROIConverterIJ.convertToPolygonOrAreaROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
 		if (roi instanceof PolygonRoi) {

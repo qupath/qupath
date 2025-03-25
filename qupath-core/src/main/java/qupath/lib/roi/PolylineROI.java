@@ -31,6 +31,8 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.lang.ref.SoftReference;
 import java.util.List;
+import java.util.Objects;
+
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
@@ -54,9 +56,10 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 	
 	private transient PolylineStats stats;
 
-	private transient SoftReference<Shape> shape;
-	
-	PolylineROI(List<Point2> points, ImagePlane plane) {
+	// Hash code may be expensive to calculate
+	private transient int hashCode;
+
+	PolylineROI(List<? extends Point2> points, ImagePlane plane) {
 		super(plane);
 		float[] x = new float[points.size()];
 		float[] y = new float[points.size()];
@@ -177,7 +180,7 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 		private double length = 0;
 		
 		PolylineStats(final Vertices vertices, final double pixelWidth, final double pixelHeight) {
-			if (vertices.size() == 0) {
+			if (vertices.isEmpty()) {
 				return;
 			}
 			this.length = 0;
@@ -292,6 +295,22 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 		return getShapeInternal().intersects(x, y, width, height);
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+		PolylineROI that = (PolylineROI) o;
+		return getImagePlane().equals(that.getImagePlane()) &&
+				vertices.size() == that.vertices.size() &&
+				Objects.equals(vertices.getPoints(), that.vertices.getPoints());
+	}
+
+	@Override
+	public int hashCode() {
+		if (hashCode == 0) {
+			hashCode = Objects.hash(getImagePlane(), vertices);
+		}
+		return hashCode;
+	}
 
 	private Object writeReplace() {
 		return new SerializationProxy(this);

@@ -32,6 +32,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import org.locationtech.jts.geom.Geometry;
 
@@ -314,7 +315,19 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 	public ROI updatePlane(ImagePlane plane) {
 		throw new UnsupportedOperationException("Updating the plane for an AreaROI is not supported!");
 	}
-	
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass())
+			return false;
+		AreaROI that = (AreaROI) o;
+		return Objects.equals(getImagePlane(), that.getImagePlane()) && Objects.equals(getGeometry(), that.getGeometry());
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(getGeometry(), getImagePlane());
+	}
 	
 	private Object writeReplace() {
 		return new SerializationProxy(this);

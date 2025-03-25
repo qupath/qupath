@@ -27,6 +27,7 @@ import java.awt.geom.Path2D;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
@@ -73,6 +74,9 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	
 	private transient GeometryStats stats = null;
 
+	// May be expensive
+	private transient int hashCode;
+
 	/**
 	 * Cache a locator for faster 'contains' checks.
 	 */
@@ -103,6 +107,11 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		if (geometry instanceof Polygonal && geometry.getNumPoints() > 1000) {
 			logger.trace("Creating IndexedPointInAreaLocator for large geometry");
 			cachedLocator = new IndexedPointInAreaLocator(geometry);
+		}
+		// Check the precision model & warn if it doesn't match
+		if (!Objects.equals(geometry.getPrecisionModel(), GeometryTools.getDefaultFactory().getPrecisionModel())) {
+			logger.warn("Geometry precision model for ROI {} does not match default precision model {}",
+					geometry.getPrecisionModel(), GeometryTools.getDefaultFactory().getPrecisionModel());
 		}
 	}
 
@@ -368,7 +377,22 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 				plane);
 	}
 
-//	@Override
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+		GeometryROI that = (GeometryROI) o;
+		return Objects.equals(getImagePlane(), that.getImagePlane()) && Objects.equals(geometry, that.geometry);
+	}
+
+	@Override
+	public int hashCode() {
+		if (hashCode == 0) {
+			hashCode = Objects.hash(geometry, getImagePlane());
+		}
+		return hashCode;
+	}
+
+	//	@Override
 //	public double getMaxDiameter() {
 //		return getGeometryStats().getMaxDiameter();
 //	}
