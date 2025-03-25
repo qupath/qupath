@@ -90,7 +90,7 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 //		vertices.close();
 	}
 	
-	PolygonROI(List<Point2> points, ImagePlane plane) {
+	PolygonROI(List<? extends Point2> points, ImagePlane plane) {
 		super(plane);
 //		vertices = VerticesFactory.createMutableVertices(points.size()+1);
 //		setPoints(points);

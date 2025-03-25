@@ -27,6 +27,7 @@ import java.awt.geom.Path2D;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
@@ -103,6 +104,11 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		if (geometry instanceof Polygonal && geometry.getNumPoints() > 1000) {
 			logger.trace("Creating IndexedPointInAreaLocator for large geometry");
 			cachedLocator = new IndexedPointInAreaLocator(geometry);
+		}
+		// Check the precision model & warn if it doesn't match
+		if (!Objects.equals(geometry.getPrecisionModel(), GeometryTools.getDefaultFactory().getPrecisionModel())) {
+			logger.warn("Geometry precision model for ROI {} does not match default precision model {}",
+					geometry.getPrecisionModel(), GeometryTools.getDefaultFactory().getPrecisionModel());
 		}
 	}
 

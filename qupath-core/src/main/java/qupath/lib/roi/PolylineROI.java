@@ -54,9 +54,7 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 	
 	private transient PolylineStats stats;
 
-	private transient SoftReference<Shape> shape;
-	
-	PolylineROI(List<Point2> points, ImagePlane plane) {
+	PolylineROI(List<? extends Point2> points, ImagePlane plane) {
 		super(plane);
 		float[] x = new float[points.size()];
 		float[] y = new float[points.size()];

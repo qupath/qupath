@@ -456,14 +456,14 @@ public class RoiTools {
 				// Remove end point if it is a duplicate of the start point
 				// since the polygon will be closed anyway
 				// This avoids a point being 'doubled-up' when rotating a rectangle
-				var pStart = points.get(0);
-				var pEnd = points.get(points.size()-1);
+				var pStart = points.getFirst();
+				var pEnd = points.getLast();
 				if (pEnd.equals(pStart))
-					points.remove(points.size()-1);
+					points.removeLast();
 			}
 			return ROIs.createPolygonROI(points, plane);
 		}
-		return ROIs.createAreaROI(area, plane);		
+		return new GeometryROI(GeometryTools.shapeToGeometry(area), plane);
 	}
 	
 	
@@ -709,7 +709,7 @@ public class RoiTools {
 						tile = ROIs.createRectangleROI(bounds2.getX(), bounds2.getY(), bounds2.getWidth(), bounds2.getHeight(), roi.getImagePlane());
 					}
 					else
-						tile = ROIs.createAreaROI(tileArea, roi.getImagePlane());
+						tile = RoiTools.getShapeROI(tileArea, roi.getImagePlane());
 				}
 				//				tile.setName("Tile " + (++ind));
 				tiles.add(tile);

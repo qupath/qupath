@@ -168,16 +168,10 @@ class ROIConverterIJ {
 	}
 	
 	static ROI convertToPolygonOrAreaROI(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, final int c, final int z, final int t) {
-		Shape shape;
 		if (roi instanceof ShapeRoi shapeRoi)
-			shape = shapeRoi.getShape();
+			return convertToAreaROI(shapeRoi, xOrigin, yOrigin, downsampleFactor, c, z, t);
 		else
-			shape = new ShapeRoi(roi).getShape();
-		AffineTransform transform = new AffineTransform();
-		transform.scale(downsampleFactor, downsampleFactor);
-		transform.translate(roi.getXBase(), roi.getYBase());
-		transform.translate(-xOrigin, -yOrigin);
-		return ROIs.createAreaROI(new Area(transform.createTransformedShape(shape)), ImagePlane.getPlaneWithChannel(c, z, t));
+			return convertToAreaROI(new ShapeRoi(roi), xOrigin, yOrigin, downsampleFactor, c, z, t);
 	}
 	
 	static ROI convertToAreaROI(ShapeRoi roi, double xOrigin, double yOrigin, double downsampleFactor, final int c, final int z, final int t) {
@@ -186,7 +180,9 @@ class ROIConverterIJ {
 		transform.scale(downsampleFactor, downsampleFactor);
 		transform.translate(roi.getXBase(), roi.getYBase());
 		transform.translate(-xOrigin, -yOrigin);
-		return ROIs.createAreaROI(new Area(transform.createTransformedShape(shape)), ImagePlane.getPlaneWithChannel(c, z, t));
+		return RoiTools.getShapeROI(
+				new Area(transform.createTransformedShape(shape)),
+				ImagePlane.getPlaneWithChannel(c, z, t));
 	}
 	
 	
