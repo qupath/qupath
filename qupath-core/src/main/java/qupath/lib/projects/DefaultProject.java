@@ -861,7 +861,11 @@ class DefaultProject implements Project<BufferedImage> {
 						if (desktop.moveToTrash(path.toFile()))
 							return;
 					} else {
-						SwingUtilities.invokeLater(this::moveDataToTrash);
+						SwingUtilities.invokeLater(() -> {
+							if (!desktop.moveToTrash(path.toFile())) {
+								logger.warn("Unable to move {} to trash - please delete manually if required", path);
+							}
+						});
 						return;
 					}
 				}

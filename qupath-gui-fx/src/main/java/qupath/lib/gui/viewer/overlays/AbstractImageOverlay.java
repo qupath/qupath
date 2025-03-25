@@ -44,7 +44,7 @@ public abstract class AbstractImageOverlay extends AbstractOverlay {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractImageOverlay.class);
 	
-    private ObjectProperty<ImageInterpolation> interpolation = new SimpleObjectProperty<>(ImageInterpolation.NEAREST);
+    private final ObjectProperty<ImageInterpolation> interpolation = new SimpleObjectProperty<>(ImageInterpolation.NEAREST);
 
 	protected AbstractImageOverlay(OverlayOptions options) {
 		super(options);

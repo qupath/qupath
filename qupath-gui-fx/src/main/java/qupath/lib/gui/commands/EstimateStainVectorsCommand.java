@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.ImagingOpException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,9 +53,11 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import qupath.lib.analysis.algorithms.EstimateStainVectors;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -89,12 +92,12 @@ class EstimateStainVectorsCommand {
 	private enum AxisColor {RED, GREEN, BLUE;
 		@Override
 		public String toString() {
-			switch(this) {
-			case RED: return "Red";
-			case GREEN: return "Green";
-			case BLUE: return "Blue";
-			default: throw new IllegalArgumentException();
-			}
+            return switch (this) {
+                case RED -> "Red";
+                case GREEN -> "Green";
+                case BLUE -> "Blue";
+                default -> throw new IllegalArgumentException();
+            };
 		}
 	};
 
@@ -104,13 +107,13 @@ class EstimateStainVectorsCommand {
 			GuiTools.showNoImageError(TITLE);
 			return;
 		}
-		if (!imageData.isBrightfield() || imageData.getServer() == null || !imageData.getServer().isRGB()) {
-			Dialogs.showErrorMessage(TITLE, "No brightfield, RGB image selected!");
+		if (!imageData.isBrightfield() || imageData.getServer() == null || imageData.getServer().nChannels() != 3) {
+			Dialogs.showErrorMessage(TITLE, "No brightfield, 3-channel image selected!");
 			return;
 		}
 		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 		if (stains == null || !stains.getStain(3).isResidual()) {
-			Dialogs.showErrorMessage(TITLE, "Sorry, stain editing is only possible for brightfield, RGB images with 2 stains");
+			Dialogs.showErrorMessage(TITLE, "Sorry, stain estimation is only possible for brightfield, 3-channel images with 2 stains");
 			return;
 		}
 		
@@ -128,23 +131,39 @@ class EstimateStainVectorsCommand {
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Estimate stain vectors", e);
 			logger.error("Unable to obtain pixels for {}", request, e);
+			return;
 		}
 		
 		// Apply small amount of smoothing to reduce compression artefacts
-		img = EstimateStainVectors.smoothImage(img);
+		try {
+			img = EstimateStainVectors.smoothImage(img);
+		} catch (ImagingOpException e) {
+				logger.warn("Unable to convolve image - will attempt stain estimation without smoothing");
+				logger.debug(e.getMessage(), e);
+		}
 		
 		// Check modes for background
-		int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
-		int[] rgbMode = EstimateStainVectors.getModeRGB(rgb);
-		int rMax = rgbMode[0];
-		int gMax = rgbMode[1];
-		int bMax = rgbMode[2];
-		
+		double rMax, gMax, bMax;
+		if (BufferedImageTools.is8bitColorType(img.getType())) {
+			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+			int[] rgbMode = EstimateStainVectors.getModeRGB(rgb);
+			rMax = rgbMode[0];
+			gMax = rgbMode[1];
+			bMax = rgbMode[2];
+		} else {
+			rMax = EstimateStainVectors.getMode(ColorDeconvolutionHelper.getPixels(img.getRaster(), 0), 256);
+			gMax = EstimateStainVectors.getMode(ColorDeconvolutionHelper.getPixels(img.getRaster(), 1), 256);
+			bMax = EstimateStainVectors.getMode(ColorDeconvolutionHelper.getPixels(img.getRaster(), 2), 256);
+		}
+
 		// Check if the background values may need to be changed
 		if (rMax != stains.getMaxRed() || gMax != stains.getMaxGreen() || bMax != stains.getMaxBlue()) {
 			ButtonType response =
 					Dialogs.showYesNoCancelDialog(TITLE,
-							String.format("Modal RGB values %d, %d, %d do not match current background values - do you want to use the modal values?", rMax, gMax, bMax));
+							String.format("Modal RGB values %s, %s, %s do not match current background values - do you want to use the modal values?",
+									GeneralTools.formatNumber(rMax, 2),
+									GeneralTools.formatNumber(gMax, 2),
+									GeneralTools.formatNumber(bMax, 2)));
 			if (response == ButtonType.CANCEL)
 				return;
 			else if (response == ButtonType.YES) {
@@ -155,13 +174,12 @@ class EstimateStainVectorsCommand {
 		
 		
 		ColorDeconvolutionStains stainsUpdated = null;
-		logger.info("Requesting region for stain vector editing: {}", request);
+		logger.info("Requesting region for stain vector estimation: {}", request);
 		try {
 			stainsUpdated = showStainEditor(img, stains);
 		} catch (Exception e) {
 			Dialogs.showErrorMessage(TITLE, "Error with stain estimation: " + e.getLocalizedMessage());
-			logger.error("{}", e.getLocalizedMessage(), e);
-//			JOptionPane.showMessageDialog(qupath.getFrame(), "Error with stain estimation: " + e.getLocalizedMessage(), "Estimate stain vectors", JOptionPane.ERROR_MESSAGE, null);
+			logger.error(e.getMessage(), e);
 			return;
 		}
 		if (!stains.equals(stainsUpdated)) {
@@ -188,16 +206,37 @@ class EstimateStainVectorsCommand {
 	
 	@SuppressWarnings("unchecked")
 	public static ColorDeconvolutionStains showStainEditor(final BufferedImage img, final ColorDeconvolutionStains stains) {
-		
-		// 
-		int[] buf = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
-//		int[] rgb = buf;
-		int[] rgb = EstimateStainVectors.subsample(buf, 10000);
-		
-		float[] red = ColorDeconvolutionHelper.getRedOpticalDensities(rgb, stains.getMaxRed(), null);
-		float[] green = ColorDeconvolutionHelper.getGreenOpticalDensities(rgb, stains.getMaxGreen(), null);
-		float[] blue = ColorDeconvolutionHelper.getBlueOpticalDensities(rgb, stains.getMaxBlue(), null);
-		
+
+		float[] red, green, blue;
+		int[] rgb;
+
+		if (BufferedImageTools.is8bitColorType(img.getType())) {
+			int[] buf = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+			rgb = EstimateStainVectors.subsample(buf, 10000);
+
+			red = ColorDeconvolutionHelper.getRedOpticalDensities(rgb, stains.getMaxRed(), null);
+			green = ColorDeconvolutionHelper.getGreenOpticalDensities(rgb, stains.getMaxGreen(), null);
+			blue = ColorDeconvolutionHelper.getBlueOpticalDensities(rgb, stains.getMaxBlue(), null);
+		} else {
+			red = ColorDeconvolutionHelper.getPixels(img.getRaster(), 0, null);
+			green = ColorDeconvolutionHelper.getPixels(img.getRaster(), 1, null);
+			blue = ColorDeconvolutionHelper.getPixels(img.getRaster(), 2, null);
+
+			// TODO: Try to generate a sensible RGB color for each pixel
+			int n = red.length;
+			rgb = new int[n];
+			for (int i = 0; i < n; i++) {
+				int r = (int)GeneralTools.clipValue(red[i]/stains.getMaxRed()*255, 0, 255);
+				int g = (int)GeneralTools.clipValue(green[i]/stains.getMaxGreen()*255, 0, 255);
+				int b = (int)GeneralTools.clipValue(blue[i]/stains.getMaxBlue()*255, 0, 255);
+				rgb[i] = ColorTools.packRGB(r, g, b);
+			}
+
+			ColorDeconvolutionHelper.convertToOpticalDensity(red, stains.getMaxRed());
+			ColorDeconvolutionHelper.convertToOpticalDensity(green, stains.getMaxGreen());
+			ColorDeconvolutionHelper.convertToOpticalDensity(blue, stains.getMaxBlue());
+		}
+
 		
 //		panelPlots.setBorder(BorderFactory.createTitledBorder(null, "Stain vector scatterplots", TitledBorder.CENTER, TitledBorder.TOP));
 		

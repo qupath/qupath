@@ -266,32 +266,31 @@ public class ConvertCommand implements Runnable, Subcommand {
 					builder.build().writeSeries(outputFile.getAbsolutePath());
 				}
 				case ZARR -> {
-					OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(server, outputFile.getAbsolutePath())
-							.setTileWidth(tileWidth)
-							.setTileHeight(tileHeight)
-							.setBoundingBox(boundingBox.orElse(null))
-							.setZSlices(zSlicesRange.start(), zSlicesRange.end())
-							.setTimepoints(timepointsRange.start(), timepointsRange.end());
+					OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(server)
+							.tileSize(tileWidth, tileHeight)
+							.region(boundingBox.orElse(null))
+							.zSlices(zSlicesRange.start(), zSlicesRange.end())
+							.timePoints(timepointsRange.start(), timepointsRange.end());
 
 					if (!parallelize) {
-						builder.setNumberOfThreads(1);
+						builder.parallelize(1);
 					}
 
 					if (pyramid > 1) {
-						builder.setDownsamples(DoubleStream.iterate(
+						builder.downsamples(DoubleStream.iterate(
 								downsample,
 								d -> (int) (server.getWidth() / d) > tileWidth &&
 										(int) (server.getHeight() / d) > tileHeight,
 								d -> d * pyramid
 						).toArray());
 					} else {
-						builder.setDownsamples(DoubleStream.concat(
+						builder.downsamples(DoubleStream.concat(
 								DoubleStream.of(downsample),
 								Arrays.stream(server.getPreferredDownsamples()).filter(d -> d > downsample)
 						).toArray());
 					}
 
-					try (OMEZarrWriter writer = builder.build()) {
+					try (OMEZarrWriter writer = builder.build(outputFile.getAbsolutePath())) {
 						writer.writeImage();
 					}
 				}
