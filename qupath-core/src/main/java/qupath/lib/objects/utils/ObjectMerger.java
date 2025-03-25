@@ -66,7 +66,6 @@ public class ObjectMerger implements ObjectProcessor {
 
     private final BiPredicate<PathObject, PathObject> compatibilityTest;
     private final BiPredicate<Geometry, Geometry> mergeTest;
-
     private final double searchDistance;
 
     /**
@@ -524,6 +523,7 @@ public class ObjectMerger implements ObjectProcessor {
         var map = pathObjects.parallelStream()
                 .filter(PathObject::hasROI)
                 .map(PathObject::getROI)
+                .distinct()
                 .collect(Collectors.toConcurrentMap(Function.identity(), ROI::getGeometry));
 
         // We have no mutability guarantees from Collectors.toConcurrentMap
