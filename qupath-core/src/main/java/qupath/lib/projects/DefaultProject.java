@@ -43,8 +43,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -443,6 +445,7 @@ class DefaultProject implements Project<BufferedImage> {
 		 * Map of associated metadata for the entry.
 		 */
 		private Map<String, String> metadata = Collections.synchronizedMap(new LinkedHashMap<>());
+		private final Set<String> tags = Collections.synchronizedSet(new LinkedHashSet<>());
 
 		/**
 		 * Store a soft reference to the thumbnail, so that it can be garbage collected if necessary.
@@ -481,9 +484,13 @@ class DefaultProject implements Project<BufferedImage> {
 			this.entryID = entry.entryID;
 			this.imageName = entry.imageName;
 			this.description = entry.description;
-			if (entry.metadata != null)
+			if (entry.metadata != null) {
 				this.metadata.putAll(entry.metadata);
-		}
+			}
+			if (entry.tags != null) {
+				this.tags.addAll(entry.tags);
+			}
+        }
 		
 		/**
 		 * Copy the image data from another entry.
@@ -528,7 +535,7 @@ class DefaultProject implements Project<BufferedImage> {
 			}
 			return imageManager;
 		}
-		
+
 		private String getFullProjectEntryID() {
 			return file.getAbsolutePath() + "::" + getID();
 		}
@@ -838,6 +845,19 @@ class DefaultProject implements Project<BufferedImage> {
 					ImageIO.write(img, "JPEG", stream);
 				}
 			}
+		}
+
+		/**
+		 * Returns a thread-safe (see {@link Collections#synchronizedSet(Set)}) and modifiable set containing the tags
+		 * of this entry.
+		 * <p>
+		 * Modifications to this set are saved when calling {@link #syncChanges()}.
+		 *
+		 * @return the set of tags of this entry
+		 */
+		@Override
+		public Set<String> getTags() {
+			return tags;
 		}
 
 		/**
