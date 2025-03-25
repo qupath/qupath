@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2023, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -54,6 +54,9 @@ public class ViewerActions {
 	@ActionIcon(PathIcons.SHOW_SCALEBAR)
 	@ActionConfig("ViewerActions.scalebar")
 	public final Action SHOW_SCALEBAR;
+
+	@ActionConfig("ViewerActions.zProject")
+	public final Action SHOW_Z_PROJECT;
 	
 	@ActionAccelerator("shortcut+alt+s")
 	@ActionConfig("ViewerActions.synchronize")
@@ -96,6 +99,7 @@ public class ViewerActions {
 		SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerManager.showOverviewProperty());
 		SHOW_LOCATION = ActionTools.createSelectableAction(viewerManager.showLocationProperty());
 		SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerManager.showScalebarProperty());
+		SHOW_Z_PROJECT = ActionTools.createSelectableAction(viewerManager.showZProjectControlsProperty());
 		TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty());
 		MATCH_VIEWER_RESOLUTIONS = new Action(e -> viewerManager.matchResolutions());
 

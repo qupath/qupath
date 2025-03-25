@@ -134,6 +134,7 @@ public class ViewMenuActions implements MenuActions {
 		public final Action SHOW_OVERVIEW = viewerActions.SHOW_OVERVIEW;
 		public final Action SHOW_LOCATION = viewerActions.SHOW_LOCATION;
 		public final Action SHOW_SCALEBAR = viewerActions.SHOW_SCALEBAR;
+		public final Action SHOW_Z_PROJECT = viewerActions.SHOW_Z_PROJECT;
 		public final Action SHOW_GRID = overlayActions.SHOW_GRID;
 		public final Action GRID_SPACING = overlayActions.GRID_SPACING;
 		

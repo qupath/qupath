@@ -58,10 +58,11 @@ public class QuPathViewerPlus extends QuPathViewer {
 	private final ChangeListener<Boolean> overviewListener = (v, o, n) -> setOverviewVisible(n);
 	private final ChangeListener<Boolean> scalebarListener = (v, o, n) -> setScalebarVisible(n);
 
-	private AnchorPane basePane = new AnchorPane();
+	private final AnchorPane basePane = new AnchorPane();
 	
 	private final ImageOverview overview = new ImageOverview(this);
 	private final Scalebar scalebar = new Scalebar(this);
+	private final ZProjectOverlayControls zProjectOverlayControls;
 
 	private final BorderPane panelLocation = new BorderPane();
 	private final Label labelLocation = new Label(" ");
@@ -144,6 +145,8 @@ public class QuPathViewerPlus extends QuPathViewer {
 		viewerDisplayOptions.showLocationProperty().addListener(locationListener);
 		viewerDisplayOptions.showOverviewProperty().addListener(overviewListener);
 		viewerDisplayOptions.showScalebarProperty().addListener(scalebarListener);
+
+		zProjectOverlayControls = new ZProjectOverlayControls(this, viewerDisplayOptions.showZProjectControlsProperty());
 	}
 
 	private void updateSpinners() {
