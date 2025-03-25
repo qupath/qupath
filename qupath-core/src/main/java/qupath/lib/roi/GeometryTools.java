@@ -286,7 +286,33 @@ public class GeometryTools {
 		geometry = DouglasPeuckerSimplifier.simplify(geometry, 0.0);
 		return geometry;
 	}
-	
+
+	/**
+	 * Update a geometry to have the precision model of the default factory.
+	 * This can help ensure consistency among geometries used in QuPath.
+	 * @param geometry the input geometry
+	 * @return the input geometry if it already had the required precision model,
+	 *         or a duplicate geometry after precision reduction.
+	 */
+	public static Geometry ensurePrecision(Geometry geometry) {
+		return ensurePrecision(geometry, GeometryTools.getDefaultFactory().getPrecisionModel());
+	}
+
+	/**
+	 * Update a geometry to have the specified precision model.
+	 * @param geometry the input geometry
+	 * @param precisionModel the target precision model
+	 * @return the input geometry if it already had the required precision model,
+	 *         or a duplicate geometry after precision reduction.
+	 */
+	public static Geometry ensurePrecision(Geometry geometry, PrecisionModel precisionModel) {
+		if (geometry.getFactory().getPrecisionModel() == precisionModel)
+			return geometry;
+		var reducer = new GeometryPrecisionReducer(precisionModel);
+		reducer.setChangePrecisionModel(true);
+		return reducer.reduce(geometry);
+	}
+
 	/**
 	 * Compute the intersection of a Geometry and a specified bounding box.
 	 * The original Geometry <i>may</i> be returned unchanged if no changes are required to fit within the bounds.
