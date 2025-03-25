@@ -126,10 +126,11 @@ They may change or be removed in future versions.
 ### Dependency updates
 * Bio-Formats 8.1.1
 * Commonmark 0.24.0
+* ControlsFX 11.2.2
 * DeepJavaLibrary 0.31.1
 * Groovy 4.0.25
 * Gson 2.12.1
-* Guava 33.4.0-jre
+* Guava 33.4.4-jre
 * ImageJ 1.54k
 * JavaCPP 1.5.11
 * JavaFX 23.0.2
