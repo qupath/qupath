@@ -265,7 +265,9 @@ public class CellTools {
 			try {
 				var geomCell = face;
 				try {
-					geomCell = face.intersection(bounds);
+					// Important to use this order - the bounds should use the right precision model,
+					// but the face might not (because the subdivision can use a FLOATING rather than FIXED model)
+					geomCell = bounds.intersection(face);
 					geomCell = GeometryTools.ensurePolygonal(geomCell);
 					geomCell = VWSimplifier.simplify(geomCell, 1.0);
 				} catch (Exception e) {
@@ -292,7 +294,12 @@ public class CellTools {
 					}
 					roiCell = GeometryTools.geometryToROI(geomCell, roiNucleus.getImagePlane());
 				}
-				cells.add(PathObjects.createCellObject(roiCell, roiNucleus, detection.getPathClass(), detection.getMeasurementList()));
+				var cell = PathObjects.createCellObject(roiCell, roiNucleus, detection.getPathClass(), detection.getMeasurementList());
+				cell.setName(detection.getName());
+				if (detection.getColor() != null) {
+					cell.setColor(detection.getColor());
+				}
+				cells.add(cell);
 			} catch (Exception ex) {
 				logger.warn("Exception creating cell for {} - will skip", PathObjectTools.getROI(detection, true));
 			}
