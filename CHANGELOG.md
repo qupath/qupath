@@ -17,13 +17,19 @@ Some things may be added, some things may be removed, and some things may look d
 * More control over showing/hiding objects by classification (https://github.com/qupath/qupath/pull/1752)
 * New ImageJ script runner (https://github.com/qupath/qupath/pull/1682)
 * Improved measurements - with tooltips & scatterplots (https://github.com/qupath/qupath/pull/1747, https://github.com/qupath/qupath/pull/1544, https://github.com/qupath/qupath/pull/1768)
+  * Also new icons to help distinguish different measurements (https://github.com/qupath/qupath/pull/1791)
 * Optionally build QuPath *and* Fiji together (https://github.com/qupath/qupath/pull/1728)
+* Support for z-projection overlays (https://github.com/qupath/qupath/pull/1810)
+  * Also new controls to navigate z-slices / time points (https://github.com/qupath/qupath/pull/1802)
 
 ### Enhancements
 (These are not yet ordered by interestingness)
 
 * Support system light/dark color themes
+* Window menu to help find lost windows (https://github.com/qupath/qupath/pull/1790)
 * Improved display of annotation names (https://github.com/qupath/qupath/pull/1532)
+* Better performance for large pixel classifiers (https://github.com/qupath/qupath/pull/1782)
+* Faster, simpler measurement exporter - set decimal places in scripts (https://github.com/qupath/qupath/pull/1784)
 * Support log10 counts with histograms (no longer use natural log) (https://github.com/qupath/qupath/pull/1540)
   * Log counts also now available in measurement tables
 * Prompt to save modified scripts when closing QuPath (https://github.com/qupath/qupath/pull/1524)
@@ -61,6 +67,8 @@ Some things may be added, some things may be removed, and some things may look d
 * Improved ImageJ integration (https://github.com/qupath/qupath/pull/1676 https://github.com/qupath/qupath/pull/1677)
 * 'Selection mode' now supports 'deselecting' objects by pressing the 'Alt' key (https://github.com/qupath/qupath/issues/1704)
 * More 'filter boxes' in the user interface to find things in long lists or tables (https://github.com/qupath/qupath/pull/1742)
+* Color deconvolution support for non-8-bit images (https://github.com/qupath/qupath/pull/1807)
+
 
 ### Experimental features
 These features are included for testing and feedback.
@@ -126,10 +134,11 @@ They may change or be removed in future versions.
 ### Dependency updates
 * Bio-Formats 8.1.1
 * Commonmark 0.24.0
+* ControlsFX 11.2.2
 * DeepJavaLibrary 0.31.1
 * Groovy 4.0.25
 * Gson 2.12.1
-* Guava 33.4.0-jre
+* Guava 33.4.6-jre
 * ImageJ 1.54k
 * JavaCPP 1.5.11
 * JavaFX 23.0.2
@@ -139,12 +148,14 @@ They may change or be removed in future versions.
 * JUnit 5.11.0
 * Logback 1.5.8
 * Picocli 4.7.6
+* qupath-bioimageio-spec 0.2.0
+* qupath-fxtras 0.12.0
+* qupath-javadoc-viewer 0.1.2
 * OpenCV 4.10.0
 * OpenJDK 21
 * RichTextFX 0.11.4
 * slf4j 2.0.16
 * snakeyaml 2.3
-* qupath-bioimageio-spec 0.2.0
 
 
 ## Version 0.5.1
