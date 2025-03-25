@@ -57,6 +57,7 @@ import javafx.stage.Window;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.InfoMessage;
@@ -74,7 +75,9 @@ import java.beans.PropertyChangeListener;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Help window providing context-dependent help.
@@ -135,6 +138,33 @@ public class ContextHelpViewer {
 	private ObjectProperty<PixelCalibration> currentPixelSize = new SimpleObjectProperty<>();
 	private BooleanBinding pixelCalibrationUnset = imageDataProperty.isNotNull().and(currentPixelSize.isNull()
 			.or(currentPixelSize.isEqualTo(PixelCalibration.getDefaultInstance())));
+
+
+	private static double dpiToMicrons(double dpi) {
+		return 25400 / dpi;
+	}
+
+	private static Set<Double> typicalDpiPixelSizes = Set.of(72, 96, 120, 144, 300)
+			.stream()
+			.map(ContextHelpViewer::dpiToMicrons)
+			.collect(Collectors.toSet());
+
+	// Pixel size is a suspicion value, probably indicating dots per inch
+	private BooleanBinding pixelSizeLikelyDpi = imageDataProperty.isNotNull().and(currentPixelSize.isNotNull())
+			.and(Bindings.createBooleanBinding(() -> {
+				var pixelSize = currentPixelSize.get();
+				if (pixelSize == null)
+					return false;
+				if (pixelSize.getPixelWidthUnit() != null && pixelSize.getPixelWidthUnit().startsWith("inch"))
+					return true;
+				if (pixelSize.hasPixelSizeMicrons()) {
+					for (double d : typicalDpiPixelSizes) {
+						if (GeneralTools.almostTheSame(d, pixelSize.getAveragedPixelSizeMicrons(), 1e-3))
+							return true;
+					}
+				}
+				return false;
+					}, currentPixelSize));
 
 	private ObjectProperty<ImageData.ImageType> currentImageType = new SimpleObjectProperty<>();
 	private BooleanBinding imageTypeUnset = imageDataProperty.isNotNull().and(currentImageType.isNull()
@@ -265,6 +295,7 @@ public class ContextHelpViewer {
 				createUnseenErrors(),
 				createLargeNonPyramidal(),
 				createPixelSizeMissing(),
+				createPixelSizeLikelyDpi(),
 				createImageTypeMissing(),
 				createSelectionModelEntry(),
 				createAnnotationsHiddenEntry(),
@@ -665,6 +696,14 @@ public class ContextHelpViewer {
 				"ContextHelp.warning.pixelSizeMissing");
 		entry.visibleProperty().bind(
 				pixelCalibrationUnset);
+		return entry;
+	}
+
+	private HelpListEntry createPixelSizeLikelyDpi() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.pixelSizeDpi");
+		entry.visibleProperty().bind(
+				pixelSizeLikelyDpi);
 		return entry;
 	}
 
