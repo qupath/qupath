@@ -49,6 +49,7 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -253,12 +254,10 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 				}
 				// 	If we have a selected object, add annotations within it
 				try {
-					if (roi != null) {
-						rectangle = RoiTools.createRandomRectangle(roi, width, height);
-					} else {
-						var region = ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition());
-						rectangle = RoiTools.createRandomRectangle(region, width, height);
+					if (roi == null) {
+						roi = ROIs.createRectangleROI(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getImagePlane());
 					}
+					rectangle = RoiTools.createRandomRectangle(roi, width, height);
 				} catch (IllegalArgumentException e) {
 					Dialogs.showErrorMessage("Create region", e.getLocalizedMessage());
 					return;
