@@ -1014,7 +1014,17 @@ public class RoiTools {
 	 * @throws IllegalArgumentException if either the mask width or height is too small for the requested width and height
 	 */
 	public static ROI createRandomRectangle(ImageRegion mask, double width, double height, Random random) throws IllegalArgumentException {
-		return createRandomRectangle(ROIs.createRectangleROI(mask), width, height, 1000, true, random);
+		Objects.requireNonNull(mask, "Cannot create random rectangle - region mask must not be null");
+		if (mask.getWidth() < width || mask.getHeight() < height)
+			throw new IllegalArgumentException(
+					"Cannot create random rectangle - region mask " + mask + " is too small to create a " +
+							GeneralTools.formatNumber(width, 2) + " x " + GeneralTools.formatNumber(height, 2) + " region");
+
+		if (random == null)
+			random = new Random();
+		double x = width == mask.getWidth() ? 0 : mask.getMinX() + random.nextDouble() * (mask.getWidth() - width);
+		double y = height == mask.getHeight() ? 0 : mask.getMinY() + random.nextDouble() * (mask.getHeight() - height);
+		return ROIs.createRectangleROI(x, y, width, height, mask.getImagePlane());
 	}
 	
 	/**
