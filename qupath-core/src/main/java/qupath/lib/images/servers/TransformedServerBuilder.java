@@ -251,6 +251,37 @@ public class TransformedServerBuilder {
 	public TransformedServerBuilder zProjectStandardDeviation(int offset) {
 		return zProject(ZProjectedImageServer.Projection.STANDARD_DEVIATION, offset);
 	}
+  
+  /**
+	 * Concatenate a list of additional servers along the 'z' dimension (iteration order is used).
+	 *
+	 * @param servers the servers to concatenate
+	 * @return this builder
+	 * @throws IllegalArgumentException if the provided images are not similar (see
+	 * {@link ZConcatenatedImageServer#ZConcatenatedImageServer(List, Number)}), or if one of them have more than one z-stack
+	 */
+	public TransformedServerBuilder concatToZStack(List<ImageServer<BufferedImage>> servers) {
+		return concatToZStack(servers, null);
+	}
+
+	/**
+	 * Concatenate a list of additional servers along the 'z' dimension (iteration order is used).
+	 *
+	 * @param servers the servers to concatenate
+	 * @param zSpacingMicrons the spacing in microns there should be between the combined images. Can be null to use the default value
+	 * @return this builder
+	 * @throws IllegalArgumentException if the provided images are not similar (see
+	 * {@link ZConcatenatedImageServer#ZConcatenatedImageServer(List, Number)}), or if one of them have more than one z-stack
+	 */
+	public TransformedServerBuilder concatToZStack(List<ImageServer<BufferedImage>> servers, Number zSpacingMicrons) {
+		List<ImageServer<BufferedImage>> allServers = new ArrayList<>(servers);
+		if (!allServers.contains(server)) {
+			allServers.addFirst(server);
+		}
+
+		server = new ZConcatenatedImageServer(allServers, zSpacingMicrons);
+		return this;
+  }
 	
 	/**
 	 * Apply an {@link AffineTransform} to the server. 

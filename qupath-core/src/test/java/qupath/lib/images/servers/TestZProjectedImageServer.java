@@ -69,16 +69,14 @@ public class TestZProjectedImageServer {
                     getAveragePixels(),
                     sampleServer.getMetadata()
             );
-
             ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
                     ZProjectedImageServer.Projection.MEAN
             );
 
-            assertBufferedImagesEqual(
-                    expectedImage,
-                    zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer))
-            );
+            BufferedImage image = zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer));
+
+            assertBufferedImagesEqual(expectedImage, image);
 
             zProjectedServer.close();
         }
@@ -89,16 +87,14 @@ public class TestZProjectedImageServer {
                     getMinPixels(),
                     sampleServer.getMetadata()
             );
-
             ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
                     ZProjectedImageServer.Projection.MIN
             );
 
-            assertBufferedImagesEqual(
-                    expectedImage,
-                    zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer))
-            );
+            BufferedImage image = zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer));
+
+            assertBufferedImagesEqual(expectedImage, image);
 
             zProjectedServer.close();
         }
@@ -109,16 +105,14 @@ public class TestZProjectedImageServer {
                     getMaxPixels(),
                     sampleServer.getMetadata()
             );
-
             ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
                     ZProjectedImageServer.Projection.MAX
             );
 
-            assertBufferedImagesEqual(
-                    expectedImage,
-                    zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer))
-            );
+            BufferedImage image = zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer));
+
+            assertBufferedImagesEqual(expectedImage, image);
 
             zProjectedServer.close();
         }
@@ -129,16 +123,14 @@ public class TestZProjectedImageServer {
                     getSumPixels(),
                     sampleServer.getMetadata()
             );
-
             ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
                     ZProjectedImageServer.Projection.SUM
             );
 
-            assertBufferedImagesEqual(
-                    expectedImage,
-                    zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer))
-            );
+            BufferedImage image = zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer));
+
+            assertBufferedImagesEqual(expectedImage, image);
 
             zProjectedServer.close();
         }
@@ -149,16 +141,14 @@ public class TestZProjectedImageServer {
                     getStandardDeviationPixels(),
                     sampleServer.getMetadata()
             );
-
             ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
                     ZProjectedImageServer.Projection.STANDARD_DEVIATION
             );
 
-            assertBufferedImagesEqual(
-                    expectedImage,
-                    zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer))
-            );
+            BufferedImage image = zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer));
+
+            assertBufferedImagesEqual(expectedImage, image);
 
             zProjectedServer.close();
         }
@@ -169,16 +159,14 @@ public class TestZProjectedImageServer {
                     getMedianPixels(),
                     sampleServer.getMetadata()
             );
-
             ImageServer<BufferedImage> zProjectedServer = new ZProjectedImageServer(
                     sampleServer,
                     ZProjectedImageServer.Projection.MEDIAN
             );
 
-            assertBufferedImagesEqual(
-                    expectedImage,
-                    zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer))
-            );
+            BufferedImage image = zProjectedServer.readRegion(RegionRequest.createInstance(sampleServer));
+
+            assertBufferedImagesEqual(expectedImage, image);
 
             zProjectedServer.close();
         }

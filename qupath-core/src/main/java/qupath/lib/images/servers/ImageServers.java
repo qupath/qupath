@@ -102,7 +102,8 @@ public class ImageServers {
 			.registerSubtype(NormalizedImageServerBuilder.class, "normalized")
 			.registerSubtype(TypeConvertImageServerBuilder.class, "typeConvert")
 			.registerSubtype(SlicedImageServerBuilder.class, "sliced")
-			.registerSubtype(ZProjectedImageServerBuilder.class, "z_projection")
+			.registerSubtype(ZProjectedImageServerBuilder.class, "z_projected")
+			.registerSubtype(ZConcatenatedImageServerBuilder.class, "z_concatenated")
 			;
 
 	private static GsonTools.SubTypeAdapterFactory<BufferedImageNormalizer> normalizerFactory =
@@ -633,6 +634,54 @@ public class ImageServers {
 						newBuilder,
 						projection,
 						runningOffset
+				);
+			}
+		}
+	}
+
+	static class ZConcatenatedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+
+		private final List<ServerBuilder<BufferedImage>> builders;
+
+		public ZConcatenatedImageServerBuilder(
+				ImageServerMetadata metadata,
+				List<ServerBuilder<BufferedImage>> builders
+		) {
+			super(metadata);
+
+			this.builders = builders;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			List<ImageServer<BufferedImage>> servers = new ArrayList<>();
+			for (var builder: builders) {
+				servers.add(builder.build());
+			}
+
+			return new ZConcatenatedImageServer(servers, getMetadata().map(ImageServerMetadata::getZSpacingMicrons).orElse(null));
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builders.stream()
+					.map(ServerBuilder::getURIs)
+					.flatMap(Collection::stream)
+					.toList();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			List<ServerBuilder<BufferedImage>> newBuilders = builders.stream()
+					.map(builder -> builder.updateURIs(updateMap))
+					.toList();
+
+			if (newBuilders.equals(builders)) {
+				return this;
+			} else {
+				return new ZConcatenatedImageServerBuilder(
+						getMetadata().orElse(null),
+						newBuilders
 				);
 			}
 		}
