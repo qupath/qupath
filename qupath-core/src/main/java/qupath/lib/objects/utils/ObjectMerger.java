@@ -158,7 +158,7 @@ public class ObjectMerger implements ObjectProcessor {
     /**
      * Create an object merger that uses a shared boundary IoU criterion and default overlap tolerance.
      * <p>
-     * Objects will be merged if they a common boundary and have the same classification.
+     * Objects will be merged if they share a common boundary and have the same classification.
      * A small overlap tolerance is used to compensate for sub-pixel misalignment of tiles.
      * <p>
      * This is intended for post-processing a tile-based segmentation, where the tiling has been strictly enforced
@@ -170,8 +170,12 @@ public class ObjectMerger implements ObjectProcessor {
      * @return an object merger that uses a shared boundary criterion
      * @see #createSharedTileBoundaryMerger(double, double)
      */
+    public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold, MeasurementStrategy measurementStrategy) {
+        return createSharedTileBoundaryMerger(sharedBoundaryThreshold, 0.125, measurementStrategy);
+    }
+
     public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold) {
-        return createSharedTileBoundaryMerger(sharedBoundaryThreshold, 0.125);
+        return createSharedTileBoundaryMerger(sharedBoundaryThreshold, 0.125, MeasurementStrategy.IGNORE);
     }
 
     /**
@@ -193,11 +197,16 @@ public class ObjectMerger implements ObjectProcessor {
      *                         shared exactly. A typical value is 0.125, which allows for a small, sub-pixel overlap.
      * @return an object merger that uses a shared boundary criterion and overlap tolerance
      */
-    public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold, double overlapTolerance) {
+    public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold, double overlapTolerance, MeasurementStrategy measurementStrategy) {
         return new ObjectMerger(
                 ObjectMerger::sameClassTypePlaneTest,
                 createBoundaryOverlapTest(sharedBoundaryThreshold, overlapTolerance),
-                0.0625);
+                0.0625,
+                measurementStrategy);
+    }
+
+    public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold, double overlapTolerance) {
+        return createSharedTileBoundaryMerger(sharedBoundaryThreshold, overlapTolerance, MeasurementStrategy.IGNORE);
     }
 
     /**
@@ -207,11 +216,16 @@ public class ObjectMerger implements ObjectProcessor {
      * The ROIs to not need to be touching; the resulting merged objects can have discontinuous ROIs.
      * @return an object merger that can merge together any objects with similar ROIs and the same classification
      */
-    public static ObjectMerger createSharedClassificationMerger() {
+    public static ObjectMerger createSharedClassificationMerger(MeasurementStrategy measurementStrategy) {
         return new ObjectMerger(
                 ObjectMerger::sameClassTypePlaneTest,
                 ObjectMerger::sameDimensions,
-                -1);
+                -1,
+                measurementStrategy);
+    }
+
+    public static ObjectMerger createSharedClassificationMerger() {
+        return createSharedClassificationMerger(MeasurementStrategy.IGNORE);
     }
 
     /**
@@ -232,12 +246,18 @@ public class ObjectMerger implements ObjectProcessor {
      * @return an object merger that can merge together any objects with similar ROIs and the same classification
      * @see #createSharedTileBoundaryMerger(double, double)
      */
-    public static ObjectMerger createTouchingMerger() {
+    public static ObjectMerger createTouchingMerger(MeasurementStrategy measurementStrategy) {
         return new ObjectMerger(
                 ObjectMerger::sameClassTypePlaneTest,
                 ObjectMerger::sameDimensionsAndTouching,
-                0);
+                0,
+                measurementStrategy);
     }
+
+    public static ObjectMerger createTouchingMerger() {
+        return createTouchingMerger(MeasurementStrategy.IGNORE);
+    }
+
 
     /**
      * Create an object merger that can merge together any objects with sufficiently large intersection over union.
@@ -254,12 +274,18 @@ public class ObjectMerger implements ObjectProcessor {
      * @param iouThreshold Intersection over union threshold; any pairs with values greater than or equal to this are merged.
      * @return an object merger that can merge together any objects with sufficiently high IoU and the same classification
      */
-    public static ObjectMerger createIoUMerger(double iouThreshold) {
+    public static ObjectMerger createIoUMerger(double iouThreshold, MeasurementStrategy measurementStrategy) {
         return new ObjectMerger(
                 ObjectMerger::sameClassTypePlaneTest,
                 createIoUMergeTest(iouThreshold),
-                0.0625);
+                0.0625,
+                measurementStrategy);
     }
+
+    public static ObjectMerger createIoUMerger(double iouThreshold) {
+        return createIoUMerger(iouThreshold, MeasurementStrategy.IGNORE);
+    }
+
 
     /**
      * Create an object merger that can merge together any objects with sufficiently large intersection over minimum
@@ -282,11 +308,16 @@ public class ObjectMerger implements ObjectProcessor {
      * @return an object merger that can merge together any objects with sufficiently high IoM and the same classification
      * @implNote This method does not currently merge objects with zero area. It is assumed that they will be handled separately.
      */
-    public static ObjectMerger createIoMinMerger(double iomThreshold) {
+    public static ObjectMerger createIoMinMerger(double iomThreshold, MeasurementStrategy measurementStrategy) {
         return new ObjectMerger(
                 ObjectMerger::sameClassTypePlaneTest,
                 createIoMinMergeTest(iomThreshold),
-                0.0625);
+                0.0625,
+                measurementStrategy);
+    }
+
+    public static ObjectMerger createIoMinMerger(double iomThreshold) {
+        return createIoMinMerger(iomThreshold, MeasurementStrategy.IGNORE);
     }
 
     /**
@@ -602,7 +633,7 @@ public class ObjectMerger implements ObjectProcessor {
 
         PathObject mergedObject = null;
         if (pathObject.isTile()) {
-            mergedObject = PathObjects.createTileObject(mergedROI, pathObject.getPathClass(), null);
+            mergedObject = PathObjects.createTileObject(mergedROI, pathObject.getPathClass(), measurements);
         } else if (pathObject.isCell()) {
             var nucleusROIs = pathObjects.stream()
                     .map(PathObjectTools::getNucleusROI)
@@ -610,11 +641,11 @@ public class ObjectMerger implements ObjectProcessor {
                     .distinct()
                     .collect(Collectors.toList());
             ROI nucleusROI = nucleusROIs.isEmpty() ? null : RoiTools.union(nucleusROIs);
-            mergedObject = PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass(), null);
+            mergedObject = PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass(), measurements);
         } else if (pathObject.isDetection()) {
-            mergedObject = PathObjects.createDetectionObject(mergedROI, pathObject.getPathClass());
+            mergedObject = PathObjects.createDetectionObject(mergedROI, pathObject.getPathClass(), measurements);
         } else if (pathObject.isAnnotation()) {
-            mergedObject = PathObjects.createAnnotationObject(mergedROI, pathObject.getPathClass());
+            mergedObject = PathObjects.createAnnotationObject(mergedROI, pathObject.getPathClass(), measurements);
         } else
             throw new IllegalArgumentException("Unsupported object type for merging: " + pathObject.getClass());
 
@@ -657,7 +688,7 @@ public class ObjectMerger implements ObjectProcessor {
                                     .mapToDouble(po ->
                                             po.getMeasurementList().get(es.getKey()) * areas.computeIfAbsent(po.getROI(), ROI::getArea)
                                     )
-                                    .sum() / (pathObjects.size() * areas.values().stream().mapToDouble(d -> d).sum()));
+                                    .sum() / (areas.values().stream().mapToDouble(d -> d).sum()));
                 }
                 yield out;
             }

@@ -21,6 +21,7 @@
 
 package qupath.lib.objects.utils;
 
+import java.util.HashMap;
 import org.junit.jupiter.api.Test;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -223,6 +224,85 @@ public class TestObjectMerger {
         assertEquals(2, ObjectMerger.createIoMinMerger(0.5 + 1e-6).merge(List.of(poBase, poIoM50)).size());
         assertEquals(1, ObjectMerger.createIoMinMerger(0.5 - 1e-6).merge(List.of(poBase, poIoM50)).size());
     }
+
+    @Test
+    public void test_merge_strategy_ignore() {
+        List<PathObject> objects = createMergableObjectsWithMeasurements();
+        var merged = ObjectMerger.createIoMinMerger(0.5, ObjectMerger.MeasurementStrategy.IGNORE).process(objects);
+        assertEquals(1, merged.size());
+        assertEquals(new HashMap<>(), merged.getFirst().getMeasurements());
+    }
+
+    @Test
+    public void test_merge_strategy_use_first() {
+        List<PathObject> objects = createMergableObjectsWithMeasurements();
+        var merged = ObjectMerger.createIoMinMerger(0.5, ObjectMerger.MeasurementStrategy.USE_FIRST).process(objects);
+        assertEquals(1, merged.size());
+        assertEquals(objects.getFirst().getMeasurements(), merged.getFirst().getMeasurements());
+    }
+
+    @Test
+    public void test_merge_strategy_mean() {
+        List<PathObject> objects = createMergableObjectsWithMeasurements();
+        var merged = ObjectMerger.createIoMinMerger(0.5, ObjectMerger.MeasurementStrategy.MEAN).process(objects);
+        assertEquals(1, merged.size());
+        assertEquals(
+                objects.stream().mapToDouble(po -> po.getMeasurementList().get("Measurement")).sum() / objects.size(),
+                (double)merged.getFirst().getMeasurements().get("Measurement"),
+                0.0001
+                );
+    }
+
+    @Test
+    public void test_merge_strategy_weighted_mean() {
+        List<PathObject> objects = createMergableObjectsWithMeasurements();
+        var merged = ObjectMerger.createIoMinMerger(0.5, ObjectMerger.MeasurementStrategy.WEIGHTED_MEAN).process(objects);
+        assertEquals(
+                0.2625,
+                (double)merged.getFirst().getMeasurements().get("Measurement"),
+                0.0001
+        );
+    }
+
+    @Test
+    public void test_merge_strategy_median() {
+        List<PathObject> objects = createMergableObjectsWithMeasurements();
+        var merged = ObjectMerger.createIoMinMerger(0.5, ObjectMerger.MeasurementStrategy.MEDIAN).process(objects);
+        assertEquals(
+                0.2,
+                (double)merged.getFirst().getMeasurements().get("Measurement"),
+                0.0001
+        );
+    }
+
+    @Test
+    public void test_merge_strategy_random() {
+        List<PathObject> objects = createMergableObjectsWithMeasurements();
+        var merged = ObjectMerger.createIoMinMerger(0.5, ObjectMerger.MeasurementStrategy.RANDOM).process(objects);
+        var found = objects.stream().filter(pathObject -> pathObject.getMeasurementList().equals(merged.getFirst().getMeasurementList())).toList();
+        assertEquals(1, found.size());
+    }
+
+    @Test
+    public void test_merge_strategy_use_biggest() {
+        List<PathObject> objects = createMergableObjectsWithMeasurements();
+        var merged = ObjectMerger.createIoMinMerger(0.5, ObjectMerger.MeasurementStrategy.USE_BIGGEST).process(objects);
+        var found = objects.stream().filter(pathObject -> pathObject.getMeasurementList().equals(merged.getFirst().getMeasurementList())).toList();
+        assertEquals(1, found.size());
+        assertEquals(objects.get(2).getMeasurements(), found.getFirst().getMeasurements());
+
+    }
+
+    private List<PathObject> createMergableObjectsWithMeasurements() {
+        var po1 = createRectangleObject(0, 0, 100, 100);
+        var po2 = createRectangleObject(0, 0, 100, 180);
+        var po3 = createRectangleObject(10, 0, 100, 200);
+        po1.getMeasurementList().put("Measurement", 0.1);
+        po2.getMeasurementList().put("Measurement", 0.2);
+        po3.getMeasurementList().put("Measurement", 0.4);
+        return List.of(po1, po2, po3);
+    }
+
 
     private static PathObject createRectangleObject(double x, double y, double width, double height) {
         return PathObjects.createDetectionObject(
