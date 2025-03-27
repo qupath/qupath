@@ -221,7 +221,7 @@ public class ObjectMerger implements ObjectProcessor {
      * Create an object merger that can merge together any objects with similar ROIs (e.g. points, areas), the same
      * classification, and are on the same image plane.
      * <p>
-     * The ROIs to not need to be touching; the resulting merged objects can have discontinuous ROIs.
+     * The ROIs do not need to be touching; the resulting merged objects can have discontinuous ROIs.
      * @param measurementStrategy strategy for merging measurements from merged objects.
      * @return an object merger that can merge together any objects with similar ROIs and the same classification
      */
