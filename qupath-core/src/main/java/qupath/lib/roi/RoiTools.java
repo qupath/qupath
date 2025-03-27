@@ -1074,9 +1074,6 @@ public class RoiTools {
 		if (random == null)
 			random = new Random();
 
-		if (mask instanceof RectangleROI rectangleROI) {
-			return createRandomRectangle(ImageRegion.createInstance(rectangleROI), width, height, random);
-		}
 		// Get prepared geometry just in case it's a complex region
 		var geometry = mask.getGeometry();
 		var prepared = PreparedGeometryFactory.prepare(geometry);
