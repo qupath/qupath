@@ -21,6 +21,8 @@
 
 package qupath.lib.objects.utils;
 
+import java.util.Comparator;
+import java.util.HashMap;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFilter;
@@ -31,6 +33,8 @@ import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.hprtree.HPRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.measurements.MeasurementList;
+import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
@@ -66,8 +70,8 @@ public class ObjectMerger implements ObjectProcessor {
 
     private final BiPredicate<PathObject, PathObject> compatibilityTest;
     private final BiPredicate<Geometry, Geometry> mergeTest;
-
     private final double searchDistance;
+    private final MeasurementStrategy measurementStrategy;
 
     /**
      * Constructor.
@@ -78,10 +82,24 @@ public class ObjectMerger implements ObjectProcessor {
      *                       If zero, only objects that touch are considered.
      */
     private ObjectMerger(BiPredicate<PathObject, PathObject> compatibilityTest, BiPredicate<Geometry, Geometry> mergeTest, double searchDistance) {
+        this(compatibilityTest, mergeTest, searchDistance, MeasurementStrategy.IGNORE);
+    }
+
+    /**
+     * Constructor.
+     * @param compatibilityTest the test to apply to check if objects are compatible (e.g. same type, plane and classification).
+     * @param mergeTest the test to apply to check if objects can be merged (e.g. a boundary or overlap test).
+     * @param searchDistance the distance to search for compatible objects. If negative, all objects are considered,
+     *                       and merging can be applied for disconnected ROIs.
+     *                       If zero, only objects that touch are considered.
+     */
+    private ObjectMerger(BiPredicate<PathObject, PathObject> compatibilityTest, BiPredicate<Geometry, Geometry> mergeTest, double searchDistance, MeasurementStrategy measurementStrategy) {
         this.compatibilityTest = compatibilityTest;
         this.mergeTest = mergeTest;
         this.searchDistance = searchDistance;
+        this.measurementStrategy = measurementStrategy;
     }
+
 
     /**
      * Merge the input objects using the merging strategy.
@@ -130,10 +148,179 @@ public class ObjectMerger implements ObjectProcessor {
         // Parallelize the merging - it can be slow
         var output = clustersToMerge.stream()
                 .parallel()
-                .map(ObjectMerger::mergeObjects)
+                .map((List<PathObject> pathObjects1) -> mergeObjects(pathObjects1, measurementStrategy))
                 .toList();
         assert output.size() <= pathObjects.size();
         return output;
+    }
+
+    /**
+     * Create an object merger that uses a shared boundary IoU criterion and default overlap tolerance.
+     * <p>
+     * Objects will be merged if they a common boundary and have the same classification.
+     * A small overlap tolerance is used to compensate for sub-pixel misalignment of tiles.
+     * <p>
+     * This is intended for post-processing a tile-based segmentation, where the tiling has been strictly enforced
+     * (i.e. any objects have been clipped to non-overlapping tile boundaries).
+     *
+     * @param sharedBoundaryThreshold minimum intersection-over-union (IoU) proportion of the possibly-clipped boundary
+     *                                for merging
+     *
+     * @return an object merger that uses a shared boundary criterion
+     * @see #createSharedTileBoundaryMerger(double, double)
+     */
+    public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold) {
+        return createSharedTileBoundaryMerger(sharedBoundaryThreshold, 0.125);
+    }
+
+    /**
+     * Create an object merger that uses a shared boundary IoU criterion and overlap tolerance.
+     * <p>
+     * Objects will be merged if they share a common boundary and have the same classification.
+     * A small overlap tolerance can be used to compensate for slight misalignment of tiles.
+     * <p>
+     * After identifying a common boundary line between ROIs, the ROI boundaries are intersected with the line,
+     * and the two intersections are subsequently intersected with each other to determine the shared intersection.
+     * The length of the shared intersection is then used to compute the intersection over union.
+     * <p>
+     * This is intended for post-processing a tile-based segmentation, where the tiling has been strictly enforced
+     * (i.e. any objects have been clipped to non-overlapping tile boundaries).
+     *
+     * @param sharedBoundaryThreshold minimum intersection-over-union (IoU) proportion of the possibly-clipped boundary
+     *      *                                for merging
+     * @param overlapTolerance amount of overlap allowed between objects, in pixels. If zero, the boundary must be
+     *                         shared exactly. A typical value is 0.125, which allows for a small, sub-pixel overlap.
+     * @return an object merger that uses a shared boundary criterion and overlap tolerance
+     */
+    public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold, double overlapTolerance) {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                createBoundaryOverlapTest(sharedBoundaryThreshold, overlapTolerance),
+                0.0625);
+    }
+
+    /**
+     * Create an object merger that can merge together any objects with similar ROIs (e.g. points, areas), the same
+     * classification, and are on the same image plane.
+     * <p>
+     * The ROIs to not need to be touching; the resulting merged objects can have discontinuous ROIs.
+     * @return an object merger that can merge together any objects with similar ROIs and the same classification
+     */
+    public static ObjectMerger createSharedClassificationMerger() {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                ObjectMerger::sameDimensions,
+                -1);
+    }
+
+    /**
+     * Create an object merger that can merge together any objects with similar ROIs (e.g. points, areas) that also
+     * touch one another.
+     * <p>
+     * Objects must also have the same classification and be on the same image plane to be mergeable.
+     * <p>
+     * Note that this is a strict criterion following the Java Topology Suite definition of touching, which requires
+     * that the boundaries of the geometries intersect, but the interiors do not intersect.
+     * <p>
+     * This strictness can cause unexpected results due to floating point precision issues, unless it is certain that
+     * the ROIs are perfectly aligned (e.g they are generated using integer coordinates on a pixel grid).
+     * <p>
+     * If this is not the case, {@link #createSharedTileBoundaryMerger(double, double)} is usually preferable, since it
+     * can include a small overlap tolerance.
+     *
+     * @return an object merger that can merge together any objects with similar ROIs and the same classification
+     * @see #createSharedTileBoundaryMerger(double, double)
+     */
+    public static ObjectMerger createTouchingMerger() {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                ObjectMerger::sameDimensionsAndTouching,
+                0);
+    }
+
+    /**
+     * Create an object merger that can merge together any objects with sufficiently large intersection over union.
+     * <p>
+     * Objects must also have the same classification and be on the same image plane to be mergeable.
+     * <p>
+     * IoU is calculated using Java Topology Suite intersection, union, and getArea calls.
+     * <p>
+     * This merger assumes that you are using an OutputHandler that doesn't clip to tile boundaries (only to region
+     * requests) and that you are using sufficient padding to ensure that objects are being detected in more than on
+     * tile/region request.
+     * You should probably also remove any objects that touch the regionRequest boundaries, as these will probably be
+     * clipped, and merging them will result in weirdly shaped detections.
+     * @param iouThreshold Intersection over union threshold; any pairs with values greater than or equal to this are merged.
+     * @return an object merger that can merge together any objects with sufficiently high IoU and the same classification
+     */
+    public static ObjectMerger createIoUMerger(double iouThreshold) {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                createIoUMergeTest(iouThreshold),
+                0.0625);
+    }
+
+    /**
+     * Create an object merger that can merge together any objects with sufficiently large intersection over minimum
+     * area (IoMin).
+     * This is similar to IoU, but uses the minimum area of the two objects as the denominator.
+     * <p>
+     * This is useful in the (common) case where we are happy for small objects falling within larger objects to be
+     * swallowed up by the larger object.
+     * <p>
+     * Objects must also have the same classification and be on the same image plane to be mergeable.
+     * <p>
+     * IoM is calculated using Java Topology Suite intersection, union, and getArea calls.
+     * <p>
+     * This merger assumes that you are using an OutputHandler that doesn't clip to tile boundaries (only to region
+     * requests) and that you are using sufficient padding to ensure that objects are being detected in more than on
+     * tile/region request.
+     * You should probably also remove any objects that touch the regionRequest boundaries, as these will probably be
+     * clipped, and merging them will result in weirdly shaped detections.
+     * @param iomThreshold Intersection over minimum threshold; any pairs with values greater than or equal to this are merged.
+     * @return an object merger that can merge together any objects with sufficiently high IoM and the same classification
+     * @implNote This method does not currently merge objects with zero area. It is assumed that they will be handled separately.
+     */
+    public static ObjectMerger createIoMinMerger(double iomThreshold) {
+        return new ObjectMerger(
+                ObjectMerger::sameClassTypePlaneTest,
+                createIoMinMergeTest(iomThreshold),
+                0.0625);
+    }
+
+    /**
+     * Options for how to handle measurements between objects being merged.
+     * Usually, it is safe to ignore, but if a pipeline creates objects and adds measurements before handling merges between tiles, then it is useful to consider how the measurements of each object will be passed to the output object.
+     */
+    public enum MeasurementStrategy {
+        /**
+         * The default and previous strategy: ignore and discard.
+         */
+        IGNORE,
+        /**
+         * Assign the measurements of the first object to the output object.
+         */
+        USE_FIRST,
+        /**
+         * Calculate the mean of each measurement and pass these to the output object.
+         */
+        MEAN,
+        /**
+         * Calculate a mean weighted by object area and pass this to the output object.
+         */
+        WEIGHTED_MEAN,
+        /**
+         * Calculate the median of each measurement and pass these to the output object.
+         */
+        MEDIAN,
+        /**
+         * Choose an object at random and use the measurements from this object.
+         */
+        RANDOM,
+        /**
+         * Use the measurements of the largest object by area or volume.
+         */
+        USE_BIGGEST
     }
 
     /**
@@ -283,113 +470,6 @@ public class ObjectMerger implements ObjectProcessor {
         return geometryMap.computeIfAbsent(pathObject.getROI(), ROI::getGeometry);
     }
 
-
-    /**
-     * Create an object merger that uses a shared boundary IoU criterion and default overlap tolerance.
-     * <p>
-     * Objects will be merged if they a common boundary and have the same classification.
-     * A small overlap tolerance is used to compensate for sub-pixel misalignment of tiles.
-     * <p>
-     * This is intended for post-processing a tile-based segmentation, where the tiling has been strictly enforced
-     * (i.e. any objects have been clipped to non-overlapping tile boundaries).
-     *
-     * @param sharedBoundaryThreshold minimum intersection-over-union (IoU) proportion of the possibly-clipped boundary
-     *                                for merging
-     *
-     * @return an object merger that uses a shared boundary criterion
-     * @see #createSharedTileBoundaryMerger(double, double)
-     */
-    public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold) {
-        return createSharedTileBoundaryMerger(sharedBoundaryThreshold, 0.125);
-    }
-
-    /**
-     * Create an object merger that uses a shared boundary IoU criterion and overlap tolerance.
-     * <p>
-     * Objects will be merged if they share a common boundary and have the same classification.
-     * A small overlap tolerance can be used to compensate for slight misalignment of tiles.
-     * <p>
-     * After identifying a common boundary line between ROIs, the ROI boundaries are intersected with the line,
-     * and the two intersections are subsequently intersected with each other to determine the shared intersection.
-     * The length of the shared intersection is then used to compute the intersection over union.
-     * <p>
-     * This is intended for post-processing a tile-based segmentation, where the tiling has been strictly enforced
-     * (i.e. any objects have been clipped to non-overlapping tile boundaries).
-     *
-     * @param sharedBoundaryThreshold minimum intersection-over-union (IoU) proportion of the possibly-clipped boundary
-     *      *                                for merging
-     * @param overlapTolerance amount of overlap allowed between objects, in pixels. If zero, the boundary must be
-     *                         shared exactly. A typical value is 0.125, which allows for a small, sub-pixel overlap.
-     * @return an object merger that uses a shared boundary criterion and overlap tolerance
-     */
-    public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold, double overlapTolerance) {
-        return new ObjectMerger(
-                ObjectMerger::sameClassTypePlaneTest,
-                createBoundaryOverlapTest(sharedBoundaryThreshold, overlapTolerance),
-                0.0625);
-    }
-
-    /**
-     * Create an object merger that can merge together any objects with similar ROIs (e.g. points, areas), the same
-     * classification, and are on the same image plane.
-     * <p>
-     * The ROIs to not need to be touching; the resulting merged objects can have discontinuous ROIs.
-     * @return an object merger that can merge together any objects with similar ROIs and the same classification
-     */
-    public static ObjectMerger createSharedClassificationMerger() {
-        return new ObjectMerger(
-                ObjectMerger::sameClassTypePlaneTest,
-                ObjectMerger::sameDimensions,
-                -1);
-    }
-
-    /**
-     * Create an object merger that can merge together any objects with similar ROIs (e.g. points, areas) that also
-     * touch one another.
-     * <p>
-     * Objects must also have the same classification and be on the same image plane to be mergeable.
-     * <p>
-     * Note that this is a strict criterion following the Java Topology Suite definition of touching, which requires
-     * that the boundaries of the geometries intersect, but the interiors do not intersect.
-     * <p>
-     * This strictness can cause unexpected results due to floating point precision issues, unless it is certain that
-     * the ROIs are perfectly aligned (e.g they are generated using integer coordinates on a pixel grid).
-     * <p>
-     * If this is not the case, {@link #createSharedTileBoundaryMerger(double, double)} is usually preferable, since it
-     * can include a small overlap tolerance.
-     *
-     * @return an object merger that can merge together any objects with similar ROIs and the same classification
-     * @see #createSharedTileBoundaryMerger(double, double)
-     */
-    public static ObjectMerger createTouchingMerger() {
-        return new ObjectMerger(
-                ObjectMerger::sameClassTypePlaneTest,
-                ObjectMerger::sameDimensionsAndTouching,
-                0);
-    }
-
-    /**
-     * Create an object merger that can merge together any objects with sufficiently large intersection over union.
-     * <p>
-     * Objects must also have the same classification and be on the same image plane to be mergeable.
-     * <p>
-     * IoU is calculated using Java Topology Suite intersection, union, and getArea calls.
-     * <p>
-     * This merger assumes that you are using an OutputHandler that doesn't clip to tile boundaries (only to region
-     * requests) and that you are using sufficient padding to ensure that objects are being detected in more than on
-     * tile/region request.
-     * You should probably also remove any objects that touch the regionRequest boundaries, as these will probably be
-     * clipped, and merging them will result in weirdly shaped detections.
-     * @param iouThreshold Intersection over union threshold; any pairs with values greater than or equal to this are merged.
-     * @return an object merger that can merge together any objects with sufficiently high IoU and the same classification
-     */
-    public static ObjectMerger createIoUMerger(double iouThreshold) {
-        return new ObjectMerger(
-                ObjectMerger::sameClassTypePlaneTest,
-                createIoUMergeTest(iouThreshold),
-                0.0625);
-    }
-
     private static BiPredicate<Geometry, Geometry> createIoUMergeTest(double iouThreshold) {
         return (geom, geomOverlap) -> {
             var i = geom.intersection(geomOverlap);
@@ -400,34 +480,6 @@ public class ObjectMerger implements ObjectProcessor {
             }
             return (intersection / union) >= iouThreshold;
         };
-    }
-
-    /**
-     * Create an object merger that can merge together any objects with sufficiently large intersection over minimum
-     * area (IoMin).
-     * This is similar to IoU, but uses the minimum area of the two objects as the denominator.
-     * <p>
-     * This is useful in the (common) case where we are happy for small objects falling within larger objects to be
-     * swallowed up by the larger object.
-     * <p>
-     * Objects must also have the same classification and be on the same image plane to be mergeable.
-     * <p>
-     * IoM is calculated using Java Topology Suite intersection, union, and getArea calls.
-     * <p>
-     * This merger assumes that you are using an OutputHandler that doesn't clip to tile boundaries (only to region
-     * requests) and that you are using sufficient padding to ensure that objects are being detected in more than on
-     * tile/region request.
-     * You should probably also remove any objects that touch the regionRequest boundaries, as these will probably be
-     * clipped, and merging them will result in weirdly shaped detections.
-     * @param iomThreshold Intersection over minimum threshold; any pairs with values greater than or equal to this are merged.
-     * @return an object merger that can merge together any objects with sufficiently high IoM and the same classification
-     * @implNote This method does not currently merge objects with zero area. It is assumed that they will be handled separately.
-     */
-    public static ObjectMerger createIoMinMerger(double iomThreshold) {
-        return new ObjectMerger(
-                ObjectMerger::sameClassTypePlaneTest,
-                createIoMinMergeTest(iomThreshold),
-                0.0625);
     }
 
     private static BiPredicate<Geometry, Geometry> createIoMinMergeTest(double iomThreshold) {
@@ -531,10 +583,12 @@ public class ObjectMerger implements ObjectProcessor {
     }
 
 
-    private static PathObject mergeObjects(List<? extends PathObject> pathObjects) {
+    private static PathObject mergeObjects(List<? extends PathObject> pathObjects, MeasurementStrategy measurementStrategy) {
         if (pathObjects.isEmpty())
             return null;
 
+        // todo: how to handle? suggest easiest is functional, but should benchmark diff strategies...
+        var measurements = mergeMeasurements(pathObjects, measurementStrategy);
         var pathObject = pathObjects.getFirst();
         if (pathObjects.size() == 1)
             return pathObject;
@@ -568,6 +622,74 @@ public class ObjectMerger implements ObjectProcessor {
         if (color != null)
             mergedObject.setColor(color);
         return mergedObject;
+    }
+
+    private static MeasurementList mergeMeasurements(List<? extends PathObject> pathObjects, MeasurementStrategy measurementStrategy) {
+        if (pathObjects.isEmpty()) {
+            return null;
+        }
+        return switch(measurementStrategy) {
+            case IGNORE -> null;
+            case USE_FIRST -> pathObjects.getFirst().getMeasurementList();
+            case MEAN -> {
+                var out = MeasurementListFactory.createMeasurementList(
+                        pathObjects.getFirst().getMeasurementList().size(),
+                        MeasurementList.MeasurementListType.FLOAT
+                );
+                for (var es: pathObjects.getFirst().getMeasurements().entrySet()) {
+                    out.put(
+                            es.getKey(),
+                            pathObjects.stream().mapToDouble(po -> po.getMeasurementList().get(es.getKey())).sum() / pathObjects.size());
+                }
+                yield out;
+            }
+            case WEIGHTED_MEAN -> {
+                var out = MeasurementListFactory.createMeasurementList(
+                        pathObjects.getFirst().getMeasurementList().size(),
+                        MeasurementList.MeasurementListType.FLOAT
+                );
+                Map<ROI, Double> areas = new HashMap<>();
+                for (var es: pathObjects.getFirst().getMeasurements().entrySet()) {
+                    out.put(
+                            es.getKey(),
+                            pathObjects.stream()
+                                    .mapToDouble(po ->
+                                            po.getMeasurementList().get(es.getKey()) * areas.computeIfAbsent(po.getROI(), ROI::getArea)
+                                    )
+                                    .sum() / (pathObjects.size() * areas.values().stream().mapToDouble(d -> d).sum()));
+                }
+                yield out;
+            }
+            case MEDIAN -> {
+                var out = MeasurementListFactory.createMeasurementList(
+                        pathObjects.getFirst().getMeasurementList().size(),
+                        MeasurementList.MeasurementListType.FLOAT
+                );
+                for (var es: pathObjects.getFirst().getMeasurements().entrySet()) {
+                    out.put(
+                            es.getKey(),
+                            pathObjects.stream()
+                                    .mapToDouble(po -> po.getMeasurementList().get(es.getKey()))
+                                    .sorted()
+                                    .skip((pathObjects.size() - 1) / 2)
+                                    .limit(2 - pathObjects.size() % 2)
+                                    .average()
+                                    .orElse(Double.NaN)
+                    );
+                }
+                yield out;
+
+            }
+            case RANDOM -> pathObjects.stream()
+                    .skip((int)(pathObjects.size() * Math.random()))
+                    .findFirst()
+                    .map(PathObject::getMeasurementList)
+                    .orElse(null);
+            case USE_BIGGEST -> pathObjects.stream()
+                    .max(Comparator.comparingDouble((PathObject o) -> o.getROI().getArea()))
+                    .map(PathObject::getMeasurementList)
+                    .orElse(null);
+        };
     }
 
 
