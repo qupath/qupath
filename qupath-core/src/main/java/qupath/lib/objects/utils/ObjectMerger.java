@@ -158,7 +158,7 @@ public class ObjectMerger implements ObjectProcessor {
     /**
      * Create an object merger that uses a shared boundary IoU criterion and default overlap tolerance.
      * <p>
-     * Objects will be merged if they a common boundary and have the same classification.
+     * Objects will be merged if they share a common boundary and have the same classification.
      * A small overlap tolerance is used to compensate for sub-pixel misalignment of tiles.
      * <p>
      * This is intended for post-processing a tile-based segmentation, where the tiling has been strictly enforced
