@@ -166,6 +166,7 @@ public class ObjectMerger implements ObjectProcessor {
      *
      * @param sharedBoundaryThreshold minimum intersection-over-union (IoU) proportion of the possibly-clipped boundary
      *                                for merging
+     * @param measurementStrategy strategy for merging measurements from merged objects.
      *
      * @return an object merger that uses a shared boundary criterion
      * @see #createSharedTileBoundaryMerger(double, double)
@@ -174,6 +175,9 @@ public class ObjectMerger implements ObjectProcessor {
         return createSharedTileBoundaryMerger(sharedBoundaryThreshold, 0.125, measurementStrategy);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold) {
         return createSharedTileBoundaryMerger(sharedBoundaryThreshold, 0.125, MeasurementStrategy.IGNORE);
     }
@@ -195,6 +199,7 @@ public class ObjectMerger implements ObjectProcessor {
      *      *                                for merging
      * @param overlapTolerance amount of overlap allowed between objects, in pixels. If zero, the boundary must be
      *                         shared exactly. A typical value is 0.125, which allows for a small, sub-pixel overlap.
+     * @param measurementStrategy strategy for merging measurements from merged objects.
      * @return an object merger that uses a shared boundary criterion and overlap tolerance
      */
     public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold, double overlapTolerance, MeasurementStrategy measurementStrategy) {
@@ -205,6 +210,9 @@ public class ObjectMerger implements ObjectProcessor {
                 measurementStrategy);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold, double overlapTolerance) {
         return createSharedTileBoundaryMerger(sharedBoundaryThreshold, overlapTolerance, MeasurementStrategy.IGNORE);
     }
@@ -214,6 +222,7 @@ public class ObjectMerger implements ObjectProcessor {
      * classification, and are on the same image plane.
      * <p>
      * The ROIs to not need to be touching; the resulting merged objects can have discontinuous ROIs.
+     * @param measurementStrategy strategy for merging measurements from merged objects.
      * @return an object merger that can merge together any objects with similar ROIs and the same classification
      */
     public static ObjectMerger createSharedClassificationMerger(MeasurementStrategy measurementStrategy) {
@@ -224,6 +233,9 @@ public class ObjectMerger implements ObjectProcessor {
                 measurementStrategy);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public static ObjectMerger createSharedClassificationMerger() {
         return createSharedClassificationMerger(MeasurementStrategy.IGNORE);
     }
@@ -242,6 +254,7 @@ public class ObjectMerger implements ObjectProcessor {
      * <p>
      * If this is not the case, {@link #createSharedTileBoundaryMerger(double, double)} is usually preferable, since it
      * can include a small overlap tolerance.
+     * @param measurementStrategy strategy for merging measurements from merged objects.
      *
      * @return an object merger that can merge together any objects with similar ROIs and the same classification
      * @see #createSharedTileBoundaryMerger(double, double)
@@ -254,6 +267,9 @@ public class ObjectMerger implements ObjectProcessor {
                 measurementStrategy);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public static ObjectMerger createTouchingMerger() {
         return createTouchingMerger(MeasurementStrategy.IGNORE);
     }
@@ -272,6 +288,7 @@ public class ObjectMerger implements ObjectProcessor {
      * You should probably also remove any objects that touch the regionRequest boundaries, as these will probably be
      * clipped, and merging them will result in weirdly shaped detections.
      * @param iouThreshold Intersection over union threshold; any pairs with values greater than or equal to this are merged.
+     * @param measurementStrategy strategy for merging measurements from merged objects.
      * @return an object merger that can merge together any objects with sufficiently high IoU and the same classification
      */
     public static ObjectMerger createIoUMerger(double iouThreshold, MeasurementStrategy measurementStrategy) {
@@ -282,6 +299,9 @@ public class ObjectMerger implements ObjectProcessor {
                 measurementStrategy);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public static ObjectMerger createIoUMerger(double iouThreshold) {
         return createIoUMerger(iouThreshold, MeasurementStrategy.IGNORE);
     }
@@ -305,6 +325,7 @@ public class ObjectMerger implements ObjectProcessor {
      * You should probably also remove any objects that touch the regionRequest boundaries, as these will probably be
      * clipped, and merging them will result in weirdly shaped detections.
      * @param iomThreshold Intersection over minimum threshold; any pairs with values greater than or equal to this are merged.
+     * @param measurementStrategy strategy for merging measurements from merged objects.
      * @return an object merger that can merge together any objects with sufficiently high IoM and the same classification
      * @implNote This method does not currently merge objects with zero area. It is assumed that they will be handled separately.
      */
@@ -316,6 +337,9 @@ public class ObjectMerger implements ObjectProcessor {
                 measurementStrategy);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public static ObjectMerger createIoMinMerger(double iomThreshold) {
         return createIoMinMerger(iomThreshold, MeasurementStrategy.IGNORE);
     }
