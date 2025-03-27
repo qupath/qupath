@@ -92,6 +92,7 @@ public class ObjectMerger implements ObjectProcessor {
      * @param searchDistance the distance to search for compatible objects. If negative, all objects are considered,
      *                       and merging can be applied for disconnected ROIs.
      *                       If zero, only objects that touch are considered.
+     * @param measurementStrategy Strategy for merging measurements from merged objects.
      */
     private ObjectMerger(BiPredicate<PathObject, PathObject> compatibilityTest, BiPredicate<Geometry, Geometry> mergeTest, double searchDistance, MeasurementStrategy measurementStrategy) {
         this.compatibilityTest = compatibilityTest;
