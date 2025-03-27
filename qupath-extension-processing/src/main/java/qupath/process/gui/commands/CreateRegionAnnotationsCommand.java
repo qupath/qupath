@@ -254,10 +254,12 @@ public class CreateRegionAnnotationsCommand implements Runnable {
 				}
 				// 	If we have a selected object, add annotations within it
 				try {
-					if (roi == null) {
-						roi = ROIs.createRectangleROI(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getImagePlane());
+					if (roi != null) {
+						rectangle = RoiTools.createRandomRectangle(roi, width, height);
+					} else {
+						var region = ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition());
+						rectangle = RoiTools.createRandomRectangle(region, width, height);
 					}
-					rectangle = RoiTools.createRandomRectangle(roi, width, height);
 				} catch (IllegalArgumentException e) {
 					Dialogs.showErrorMessage("Create region", e.getLocalizedMessage());
 					return;
