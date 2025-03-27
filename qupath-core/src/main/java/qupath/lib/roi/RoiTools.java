@@ -149,7 +149,6 @@ public class RoiTools {
 		return GeometryTools.geometryToROI(GeometryTools.union(geometries), plane);
 	}
 	
-	
 	/**
 	 * Create union of multiple ROIs. 
 	 * ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
@@ -160,7 +159,6 @@ public class RoiTools {
 	public static ROI union(ROI... rois) {
 		return union(Arrays.asList(rois));
 	}
-	
 	
 	/**
 	 * Create intersection of multiple ROIs from a collection.
@@ -188,7 +186,6 @@ public class RoiTools {
 			first = first.intersection(geom);
 		return GeometryTools.geometryToROI(GeometryTools.homogenizeGeometryCollection(first), plane);
 	}
-	
 	
 	/**
 	 * Create intersection of multiple ROIs.
@@ -264,7 +261,6 @@ public class RoiTools {
 		return GeometryTools.geometryToROI(geom, plane);
 	}
 	
-	
 	/**
 	 * Subtract one or more ROIs from another ROI.
 	 * @param roiMain the main ROI, defining the positive area
@@ -275,7 +271,6 @@ public class RoiTools {
 	public static ROI subtract(ROI roiMain, ROI... roisToSubtract) {
 		return subtract(roiMain, Arrays.asList(roisToSubtract));
 	}
-	
 	
 	/**
 	 * Subtract a collection of ROIs from another ROI.
@@ -290,10 +285,6 @@ public class RoiTools {
 		
 		if (roisToSubtract.size() == 1)
 			return difference(roiMain, roisToSubtract.iterator().next());
-		
-//		// Seems slower (at least if there are many small roisToSubtract)
-//		for (var r : roisToSubtract)
-//			roiMain = difference(roiMain, r);
 
 		// Filter out ROIs that don't overlap the bounding box of the main one
 		var region = ImageRegion.createInstance(roiMain);
@@ -310,8 +301,6 @@ public class RoiTools {
 		return roiMain;
 	}
 
-	
-	
 	/**
 	 * Test whether a {@link ROI} and an {@link ImageRegion} intersect.
 	 * <p>
@@ -332,8 +321,7 @@ public class RoiTools {
 			return true;
 		return GeometryTools.regionToGeometry(region).intersects(roi.getGeometry());
 	}
-	
-	
+
 	/**
 	 * Apply an affine transform to a ROI, returning the result.
 	 * @param roi the ROI to transform
@@ -356,8 +344,7 @@ public class RoiTools {
 		var geometry2 = t.transform(roi.getGeometry());
 		return GeometryTools.geometryToROI(geometry2, roi.getImagePlane());
 	}
-	
-	
+
 	/**
 	 * Intersect a collection of ROIs with a single parent ROI, returning all results that are valid.
 	 * Where possible, ROIs are returned unchanged.
@@ -433,40 +420,6 @@ public class RoiTools {
 		return GeometryTools.geometryToROI(geometry2, roi.getImagePlane());
 	}
 
-
-	/**
-	 * Get a {@link ROI} from an Area.
-	 * This will try to return a simple representation of the ROI if possible (e.g. a rectangle or polygon).
-	 * 
-	 * @param area
-	 * @param plane
-	 * @param flatness - can be used to prefer polygons, see Shape.getPathIterator(AffineTransform at, double flatness)
-	 * @return
-	 */
-	static ROI getShapeROI(Area area, ImagePlane plane, double flatness) {
-		if (area.isRectangular()) {
-			Rectangle2D bounds = area.getBounds2D();
-			return ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), plane);
-		}
-		//		else if (area.isPolygonal() && area.isSingular())
-		else if (area.isSingular() && (area.isPolygonal() || flatness > 0)) {
-			Path2D path = new Path2D.Float(area);
-			List<Point2> points = flatness > 0 ? RoiTools.getLinearPathPoints(path, path.getPathIterator(null, flatness)) : RoiTools.getLinearPathPoints(path, path.getPathIterator(null));
-			if (points.size() > 2) {
-				// Remove end point if it is a duplicate of the start point
-				// since the polygon will be closed anyway
-				// This avoids a point being 'doubled-up' when rotating a rectangle
-				var pStart = points.getFirst();
-				var pEnd = points.getLast();
-				if (pEnd.equals(pStart))
-					points.removeLast();
-			}
-			return ROIs.createPolygonROI(points, plane);
-		}
-		return new GeometryROI(GeometryTools.shapeToGeometry(area), plane);
-	}
-	
-	
 	/**
 	 * Get circularity measurement for Area ROIs, calculated as {@code 4 * PI * (area / perimeter^2)}.
 	 * Non-area ROIs return Double.NaN.
@@ -502,7 +455,7 @@ public class RoiTools {
 	 * Create a {@link ROI} from an Shape with a specified 'flatness'.
 	 * This will try to return a RectangleROI or PolygonROI if possible,
 	 * or AreaROI if neither of the other classes can adequately represent the area.
-	 * 
+	 * <br>
 	 * In the input shape is an Ellipse2D then an EllipseROI will be returned.
 	 * 
 	 * @param shape
@@ -616,7 +569,7 @@ public class RoiTools {
 	 * Create a {@link ROI} from an Shape.
 	 * This will try to return a RectangleROI or PolygonROI if possible,
 	 * or AreaROI if neither of the other classes can adequately represent the area.
-	 * 
+	 * <br>
 	 * In the input shape is an Ellipse2D then an EllipseROI will be returned.
 	 * 
 	 * @param area
@@ -626,9 +579,6 @@ public class RoiTools {
 	public static ROI getShapeROI(Area area, ImagePlane plane) {
 		return getShapeROI(area, plane, -1);
 	}
-
-
-
 
 	/**
 	 * Get a {@link Shape} object representing a ROI.
@@ -644,7 +594,6 @@ public class RoiTools {
 		return roi.getShape();
 	}
 
-
 	/**
 	 * Get an {@link Area} object representing a ROI.
 	 * 
@@ -658,7 +607,6 @@ public class RoiTools {
 		return new Area(shape);
 
 	}
-
 	
 	/**
 	 * Make fixed-size rectangular tile ROIs for a specified area.
@@ -675,11 +623,8 @@ public class RoiTools {
 		Rectangle bounds = AwtTools.getBounds(roi);
 		Area area = getArea(roi);
 		List<ROI> tiles = new ArrayList<>();
-		//		int ind = 0;
 		for (int y = bounds.y; y < bounds.y + bounds.height; y += tileHeight) {
 			for (int x = bounds.x; x < bounds.x + bounds.width; x += tileWidth) {
-				//				int width = Math.min(x + tileWidth, bounds.x + bounds.width) - x;
-				//				int height = Math.min(y + tileHeight, bounds.y + bounds.height) - y;
 				int width = tileWidth;
 				int height = tileHeight;
 				Rectangle tileBounds = new Rectangle(x, y, width, height);
@@ -711,97 +656,12 @@ public class RoiTools {
 					else
 						tile = RoiTools.getShapeROI(tileArea, roi.getImagePlane());
 				}
-				//				tile.setName("Tile " + (++ind));
 				tiles.add(tile);
 			}			
 		}
 		return tiles;
 	}
-	
-	
-	
-	/**
-	 * Legacy implementation (pre v0.3.0) of {@link #computeTiledROIs(ROI, ImmutableDimension, ImmutableDimension, boolean, int)}
-	 * 
-	 * @param parentROI main ROI to be tiled
-	 * @param sizePreferred the preferred size; in general tiles should have this size
-	 * @param sizeMax the maximum allowed size; occasionally it is more efficient to have a tile larger than the preferred size towards a ROI boundary to avoid creating very small tiles unnecessarily
-	 * @param fixedSize if true, the tile size is enforced so that complete tiles have the same size
-	 * @param overlap optional requested overlap between tiles
-	 * @return
-	 * 
-	 * @see #makeTiles(ROI, int, int, boolean)
-	 */
-	static Collection<? extends ROI> computeTiledROIsLegacy(ROI parentROI, ImmutableDimension sizePreferred, ImmutableDimension sizeMax, boolean fixedSize, int overlap) {
 
-		ROI pathArea = parentROI != null && parentROI.isArea() ? parentROI : null;
-		Rectangle2D bounds = AwtTools.getBounds2D(parentROI);
-		if (pathArea == null || (bounds.getWidth() <= sizeMax.width && bounds.getHeight() <= sizeMax.height)) {
-			return Collections.singletonList(parentROI);
-		}
-
-
-		List<ROI> pathROIs = new ArrayList<>();
-
-		Geometry area = pathArea.getGeometry();
-
-		double xMin = bounds.getMinX();
-		double yMin = bounds.getMinY();
-		int nx = (int)Math.ceil(bounds.getWidth() / sizePreferred.width);
-		int ny = (int)Math.ceil(bounds.getHeight() / sizePreferred.height);
-		double w = fixedSize ? sizePreferred.width : (int)Math.ceil(bounds.getWidth() / nx);
-		double h = fixedSize ? sizePreferred.height : (int)Math.ceil(bounds.getHeight() / ny);
-
-		// Center the tiles
-		xMin = (int)(bounds.getCenterX() - (nx * w * .5));
-		yMin = (int)(bounds.getCenterY() - (ny * h * .5));
-		
-		var plane = parentROI.getImagePlane();
-		int skipCount = 0;
-
-		for (int yi = 0; yi < ny; yi++) {
-			for (int xi = 0; xi < nx; xi++) {
-
-				double x = xMin + xi * w - overlap;
-				double y = yMin + yi * h - overlap;
-
-				var rect = ROIs.createRectangleROI(x, y, w + overlap*2, h + overlap*2, plane);
-				var boundsTile = rect.getGeometry();
-
-				//				double x = xMin + xi * w;
-				//				double y = yMin + yi * h;
-				//				
-				//				Rectangle2D boundsTile = new Rectangle2D.Double(x, y, w, h);
-				//					logger.info(boundsTile);
-				ROI pathROI = null;
-				if (area.contains(boundsTile))
-					pathROI = rect;
-				else {
-					if (!area.intersects(boundsTile))
-						continue;
-					try {
-						// Errors were reported when computing the intersection here - so try to recover as best we can
-						Geometry areaTemp = GeometryTools.homogenizeGeometryCollection(boundsTile.intersection(area));
-						if (!areaTemp.isEmpty())
-							pathROI = GeometryTools.geometryToROI(areaTemp, plane);
-					} catch (Exception e) {
-						logger.warn("Tile skipped because of error computing intersection: " + e.getLocalizedMessage(), e);
-						skipCount++;
-					}
-				}
-				if (pathROI != null)
-					pathROIs.add(pathROI);
-			}
-		}
-		if (skipCount > 0) {
-			logger.warn("You may be able to avoid tiling errors by calling 'Simplify shape' on any complex annotations first.");
-		}
-		return pathROIs;
-	}
-	
-	
-	
-	
 	/**
 	 * Create a collection of tiled ROIs corresponding to a specified parentROI if it is larger than sizeMax, with optional overlaps.
 	 * <p>
@@ -813,7 +673,7 @@ public class RoiTools {
 	 * @param sizeMax the maximum allowed size; occasionally it is more efficient to have a tile larger than the preferred size towards a ROI boundary to avoid creating very small tiles unnecessarily
 	 * @param fixedSize if true, the tile size is enforced so that complete tiles have the same size
 	 * @param overlap optional requested overlap between tiles
-	 * @return
+	 * @return the tiled rois
 	 *
 	 * @see #makeTiles(ROI, int, int, boolean)
 	 */
@@ -969,20 +829,15 @@ public class RoiTools {
 				.filter(t -> !t.isEmpty() && t.isArea())
 				.toList();
 	}
-	
-	
+
 	/**
 	 * Try to intersect two geometries, returning null if this fails.
 	 * Intended for use in a stream.
-	 * @param g1
-	 * @param g2
-	 * @return
+	 * @param g1 the first geometry
+	 * @param g2 the other geometry
+	 * @return the intersection between g1 and g2
 	 */
 	private static Geometry intersect(Geometry g1, Geometry g2) {
-//		if (g1.covers(g2))
-//			return g2;
-//		if (g2.covers(g1))
-//			return g1;
 		if (g1 == g2)
 			return g1;
 		
@@ -993,9 +848,7 @@ public class RoiTools {
 			return null;
 		}
 	}
-	
-	
-	
+
 	/**
 	 * Buffer the specified ROI, dilating (or eroding) by the specified distance.
 	 * @param roi the ROI to buffer
@@ -1006,14 +859,13 @@ public class RoiTools {
 		return GeometryTools.geometryToROI(roi.getGeometry().buffer(distance), roi.getImagePlane());
 	}
 	
-	
 	/**
 	 * Split a multi-part ROI into separate pieces.
 	 * <p>
 	 * If the ROI is already a distinct, single region or line it is returned as a singleton list.
 	 * 
-	 * @param roi
-	 * @return
+	 * @param roi the roi to be split
+	 * @return the separated parts
 	 */
 	public static List<ROI> splitROI(final ROI roi) {
 		if (roi instanceof RectangleROI || roi instanceof LineROI || roi instanceof EllipseROI) {
@@ -1041,7 +893,6 @@ public class RoiTools {
 		}
 		return list;
 	}
-	
 
 	/**
 	 * Split Area into PolygonROIs for the exterior and the holes.
@@ -1057,10 +908,10 @@ public class RoiTools {
 	 * }
 	 * </pre>
 	 * 
-	 * @param area
-	 * @param c
-	 * @param z
-	 * @param t
+	 * @param area the area to be split
+	 * @param c the channel index
+	 * @param z the z-index
+	 * @param t the time-index
 	 * @return
 	 */
 	public static PolygonROI[][] splitAreaToPolygons(final Area area, int c, int z, int t) {
@@ -1140,8 +991,7 @@ public class RoiTools {
 
 		return polyOutput;
 	}
-	
-	
+
 	/**
 	 * Create a randomly-located rectangle ROI with the specified width and height, constrained to fall within the provided mask region.
 	 * @param mask region defining the area in which the rectangle can be located, including the image plane information
@@ -1167,13 +1017,13 @@ public class RoiTools {
 		Objects.requireNonNull(mask, "Cannot create random rectangle - region mask must not be null");
 		if (mask.getWidth() < width || mask.getHeight() < height)
 			throw new IllegalArgumentException(
-					"Cannot create random rectangle - region mask " + mask + " is too small to create a " + 
+					"Cannot create random rectangle - region mask " + mask + " is too small to create a " +
 							GeneralTools.formatNumber(width, 2) + " x " + GeneralTools.formatNumber(height, 2) + " region");
-		
+
 		if (random == null)
 			random = new Random();
-		double x = width == mask.getWidth() ? 0 : mask.getMinX() + random.nextDouble() * mask.getWidth() - width;
-		double y = height == mask.getHeight() ? 0 : mask.getMinY() + random.nextDouble() * mask.getHeight() - height;
+		double x = width == mask.getWidth() ? 0 : mask.getMinX() + random.nextDouble() * (mask.getWidth() - width);
+		double y = height == mask.getHeight() ? 0 : mask.getMinY() + random.nextDouble() * (mask.getHeight() - height);
 		return ROIs.createRectangleROI(x, y, width, height, mask.getImagePlane());
 	}
 	
@@ -1282,9 +1132,134 @@ public class RoiTools {
 		}
 		return ROIs.createRectangleROI(x, y, width, height, mask.getImagePlane());
 	}
-	
-	
-	
+
+	/**
+	 * Returns true if pathROI is an area that contains x &amp; y somewhere within it.
+	 *
+	 * @param pathROI
+	 * @param x
+	 * @param y
+	 * @return
+	 */
+	public static boolean areaContains(final ROI pathROI, final double x, final double y) {
+		return pathROI.isArea() && pathROI.contains(x, y);
+	}
+
+	/**
+	 * Returns true if the ROI is not null and is not a point ROI.
+	 * @param roi
+	 * @return
+	 */
+	public static boolean isShapeROI(ROI roi) {
+		return roi != null && !roi.isPoint();
+	}
+
+	/**
+	 * Get a {@link ROI} from an Area.
+	 * This will try to return a simple representation of the ROI if possible (e.g. a rectangle or polygon).
+	 *
+	 * @param area
+	 * @param plane
+	 * @param flatness - can be used to prefer polygons, see Shape.getPathIterator(AffineTransform at, double flatness)
+	 * @return
+	 */
+	static ROI getShapeROI(Area area, ImagePlane plane, double flatness) {
+		if (area.isRectangular()) {
+			Rectangle2D bounds = area.getBounds2D();
+			return ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), plane);
+		}
+		//		else if (area.isPolygonal() && area.isSingular())
+		else if (area.isSingular() && (area.isPolygonal() || flatness > 0)) {
+			Path2D path = new Path2D.Float(area);
+			List<Point2> points = flatness > 0 ? RoiTools.getLinearPathPoints(path, path.getPathIterator(null, flatness)) : RoiTools.getLinearPathPoints(path, path.getPathIterator(null));
+			if (points.size() > 2) {
+				// Remove end point if it is a duplicate of the start point
+				// since the polygon will be closed anyway
+				// This avoids a point being 'doubled-up' when rotating a rectangle
+				var pStart = points.getFirst();
+				var pEnd = points.getLast();
+				if (pEnd.equals(pStart))
+					points.removeLast();
+			}
+			return ROIs.createPolygonROI(points, plane);
+		}
+		return new GeometryROI(GeometryTools.shapeToGeometry(area), plane);
+	}
+
+	/**
+	 * Legacy implementation (pre v0.3.0) of {@link #computeTiledROIs(ROI, ImmutableDimension, ImmutableDimension, boolean, int)}
+	 *
+	 * @param parentROI main ROI to be tiled
+	 * @param sizePreferred the preferred size; in general tiles should have this size
+	 * @param sizeMax the maximum allowed size; occasionally it is more efficient to have a tile larger than the preferred size towards a ROI boundary to avoid creating very small tiles unnecessarily
+	 * @param fixedSize if true, the tile size is enforced so that complete tiles have the same size
+	 * @param overlap optional requested overlap between tiles
+	 * @return the tiles
+	 *
+	 * @see #makeTiles(ROI, int, int, boolean)
+	 */
+	static Collection<? extends ROI> computeTiledROIsLegacy(ROI parentROI, ImmutableDimension sizePreferred, ImmutableDimension sizeMax, boolean fixedSize, int overlap) {
+
+		ROI pathArea = parentROI != null && parentROI.isArea() ? parentROI : null;
+		Rectangle2D bounds = AwtTools.getBounds2D(parentROI);
+		if (pathArea == null || (bounds.getWidth() <= sizeMax.width && bounds.getHeight() <= sizeMax.height)) {
+			return Collections.singletonList(parentROI);
+		}
+
+
+		List<ROI> pathROIs = new ArrayList<>();
+
+		Geometry area = pathArea.getGeometry();
+
+		double xMin = bounds.getMinX();
+		double yMin = bounds.getMinY();
+		int nx = (int)Math.ceil(bounds.getWidth() / sizePreferred.width);
+		int ny = (int)Math.ceil(bounds.getHeight() / sizePreferred.height);
+		double w = fixedSize ? sizePreferred.width : (int)Math.ceil(bounds.getWidth() / nx);
+		double h = fixedSize ? sizePreferred.height : (int)Math.ceil(bounds.getHeight() / ny);
+
+		// Center the tiles
+		xMin = (int)(bounds.getCenterX() - (nx * w * .5));
+		yMin = (int)(bounds.getCenterY() - (ny * h * .5));
+
+		var plane = parentROI.getImagePlane();
+		int skipCount = 0;
+
+		for (int yi = 0; yi < ny; yi++) {
+			for (int xi = 0; xi < nx; xi++) {
+
+				double x = xMin + xi * w - overlap;
+				double y = yMin + yi * h - overlap;
+
+				var rect = ROIs.createRectangleROI(x, y, w + overlap*2, h + overlap*2, plane);
+				var boundsTile = rect.getGeometry();
+
+				ROI pathROI = null;
+				if (area.contains(boundsTile))
+					pathROI = rect;
+				else {
+					if (!area.intersects(boundsTile))
+						continue;
+					try {
+						// Errors were reported when computing the intersection here - so try to recover as best we can
+						Geometry areaTemp = GeometryTools.homogenizeGeometryCollection(boundsTile.intersection(area));
+						if (!areaTemp.isEmpty())
+							pathROI = GeometryTools.geometryToROI(areaTemp, plane);
+					} catch (Exception e) {
+						logger.warn("Tile skipped because of error computing intersection: " + e.getLocalizedMessage(), e);
+						skipCount++;
+					}
+				}
+				if (pathROI != null)
+					pathROIs.add(pathROI);
+			}
+		}
+		if (skipCount > 0) {
+			logger.warn("You may be able to avoid tiling errors by calling 'Simplify shape' on any complex annotations first.");
+		}
+		return pathROIs;
+	}
+
 
 	static PolygonROI[][] splitAreaToPolygons(final ROI pathROI) {
 		return splitAreaToPolygons(getArea(pathROI), pathROI.getC(), pathROI.getZ(), pathROI.getT());
@@ -1298,25 +1273,7 @@ public class RoiTools {
 	 * @return
 	 */
 	static boolean sameImagePlane(ROI roi1, ROI roi2) {
-//		if (roi1.getC() != roi2.getC())
-//			logger.info("Channels differ");
-//		if (roi1.getT() != roi2.getT())
-//			logger.info("Timepoints differ");
-//		if (roi1.getZ() != roi2.getZ())
-//			logger.info("Z-slices differ");
 		return roi1.getC() == roi2.getC() && roi1.getT() == roi2.getT() && roi1.getZ() == roi2.getZ();
-	}
-
-	/**
-	 * Returns true if pathROI is an area that contains x &amp; y somewhere within it.
-	 * 
-	 * @param pathROI
-	 * @param x
-	 * @param y
-	 * @return
-	 */
-	public static boolean areaContains(final ROI pathROI, final double x, final double y) {
-		return pathROI.isArea() && pathROI.contains(x, y);
 	}
 
 	static List<Point2> getLinearPathPoints(final Path2D path, final PathIterator iter) {
@@ -1330,9 +1287,6 @@ public class RoiTools {
 					points.add(new Point2(seg[0], seg[1]));
 					break;
 				case PathIterator.SEG_CLOSE:
-	//				// Add first point again
-	//				if (!points.isEmpty())
-	//					points.add(points.get(0));
 					break;
 				default:
 					throw new IllegalArgumentException("Invalid polygon " + path + " - only line connections are allowed");
@@ -1381,15 +1335,6 @@ public class RoiTools {
 		v *= scale;
 		v += origin;
 		return v;
-	}
-
-	/**
-	 * Returns true if the ROI is not null and is not a point ROI.
-	 * @param roi
-	 * @return
-	 */
-	public static boolean isShapeROI(ROI roi) {
-		return roi != null && !roi.isPoint();
 	}
 
 }
