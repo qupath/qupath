@@ -47,7 +47,7 @@ openslide       = "4.0.0.6"
 picocli         = "4.7.6"
 qupath-fxtras   = "0.1.6"
 
-richtextfx      = "0.11.4"
+richtextfx      = "0.11.5"
 
 slf4j           = "2.0.16"
 snakeyaml       = "2.3"

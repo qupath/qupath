@@ -153,7 +153,7 @@ They may change or be removed in future versions.
 * qupath-javadoc-viewer 0.1.2
 * OpenCV 4.10.0
 * OpenJDK 21
-* RichTextFX 0.11.4
+* RichTextFX 0.11.5
 * slf4j 2.0.16
 * snakeyaml 2.3
 
