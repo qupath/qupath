@@ -49,6 +49,7 @@ import java.util.stream.Collectors;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.locationtech.jts.geom.util.LinearComponentExtracter;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,7 +88,7 @@ public class PathObjectTools {
 	 * Remove objects with PointsROI from a collection.
 	 * @param pathObjects
 	 */
-	private static void removePoints(Collection<PathObject> pathObjects) {
+	private static void removePoints(Collection<? extends PathObject> pathObjects) {
 		logger.trace("Remove points");
         pathObjects.removeIf(PathObjectTools::hasPointROI);
 	}
@@ -129,7 +130,7 @@ public class PathObjectTools {
 	 * @param cls
 	 * @return
 	 */
-	public static List<PathObject> getObjectsOfClass(final Collection<PathObject> pathObjects, final Class<? extends PathObject> cls) {
+	public static List<PathObject> getObjectsOfClass(final Collection<? extends PathObject> pathObjects, final Class<? extends PathObject> cls) {
 		logger.trace("Get objects of class {}", cls);
 		List<PathObject> pathObjectsFiltered = new ArrayList<>(pathObjects.size());
 		for (PathObject temp : pathObjects) {
@@ -1108,10 +1109,10 @@ public class PathObjectTools {
 	/**
 	 * Get all descendant objects with a specified type.
 	 * 
-	 * @param pathObject
-	 * @param pathObjects
-	 * @param cls
-	 * @return
+	 * @param pathObject the parent object
+	 * @param pathObjects optionally collection to store the output
+	 * @param cls type of descendant objects to get
+	 * @return collection of descendant objects of the specified type
 	 */
 	public static Collection<PathObject> getDescendantObjects(PathObject pathObject, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
 		if (pathObject == null || !pathObject.hasChildObjects())
@@ -1264,6 +1265,85 @@ public class PathObjectTools {
 		}
 		return map;
 	}
+
+	/**
+	 * Find all objects with ROIs that touch (or cross) a parent ROI's boundary.
+	 * This can be used to identify objects that might be clipped to a ROI, i.e. they are not completely contained
+	 * within the ROI, nor are they entirely outside it.
+	 * @param roi the parent ROI
+	 * @param pathObjects the objects that may touch the parent ROI
+	 * @return a list containing the objects from the input that touch or cross the specified ROI.
+	 * 		   Note that this may contain objects that have the specified parent ROI, since it is considered to touch
+	 * 		   or cross itself.
+	 */
+	public static List<PathObject> findTouchingBoundary(ROI roi, Collection<? extends PathObject> pathObjects) {
+		if (roi == null)
+			return Collections.emptyList();
+
+		// Do a fast check to find any potential intersections
+		var region = ImageRegion.createInstance(roi);
+		var potential = pathObjects.stream()
+				.filter(PathObject::hasROI)
+				.filter(p -> RoiTools.intersectsRegion(p.getROI(), region))
+				.map(p -> (PathObject)p)
+				.toList();
+		if (potential.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		// Extract the lines from the parent & prepare or fast tests
+		var linear = GeometryTools.getDefaultFactory().buildGeometry(LinearComponentExtracter.getLines(roi.getGeometry()));
+		var prepared = PreparedGeometryFactory.prepare(linear);
+		return potential
+				.stream()
+				.filter(p -> !prepared.disjoint(p.getROI().getGeometry()))
+				.toList();
+	}
+
+	/**
+	 * Remove all objects with ROIs that touch or overlap the ROI of the parent object.
+	 * @param hierarchy object hierarchy containing objects that may be removed
+	 * @param parent the parent object
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 * @see #findTouchingBoundary(ROI, Collection)
+	 * @see #removeTouchingBoundary(PathObjectHierarchy, PathObject, Predicate)
+	 */
+	public static boolean removeTouchingBoundary(PathObjectHierarchy hierarchy, PathObject parent) {
+		return removeTouchingBoundary(hierarchy, parent, null);
+	}
+
+	/**
+	 /**
+	 * Remove all objects with ROIs that touch or overlap the ROI of the parent object, optionally filtering to
+	 * consider only filtered objects for removal.
+	 * @param hierarchy object hierarchy containing objects that may be removed
+	 * @param parent the parent object
+	 * @param filter optional filter; for example, {@code PathObject::isDetection} can be used to restrict the
+	 *               method to only consider removing detection objects.
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 * @see #findTouchingBoundary(ROI, Collection)
+	 * @see #removeTouchingBoundary(PathObjectHierarchy, PathObject)
+	 */
+	public static boolean removeTouchingBoundary(PathObjectHierarchy hierarchy, PathObject parent, Predicate<PathObject> filter) {
+		Predicate<PathObject> predicate = (PathObject p) -> {
+			return p.hasROI() && !p.isTMACore() && !Objects.equals(parent, p);
+		};
+		if (filter != null)
+			predicate = predicate.and(filter);
+		var pathObjects = hierarchy.getAllObjects(false)
+				.stream()
+				.filter(predicate)
+				.toList();
+		var touching = findTouchingBoundary(parent.getROI(), pathObjects);
+		if (touching.isEmpty()) {
+			return false;
+		}
+		hierarchy.removeObjects(touching, true);
+		return true;
+	}
+
 
 	/**
 	 * Given a collection of objects, split the objects with area ROIs using dividing lines extracted from the objects
