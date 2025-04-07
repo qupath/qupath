@@ -33,6 +33,7 @@ import qupath.lib.gui.actions.annotations.ActionAccelerator;
 import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
+import qupath.lib.gui.commands.DeleteObjectsOnBoundsCommand;
 import qupath.lib.gui.commands.objects.SplitAnnotationsByLineCommand;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
@@ -121,11 +122,10 @@ public class ObjectsMenuActions implements MenuActions {
 		@ActionConfig("Action.Objects.Delete.imageBoundary")
 		public final Action DELETE_IMAGE_BOUNDARY = qupath.createImageDataAction(Commands::removeOnImageBounds);
 
-		@ActionConfig("Action.Objects.Delete.selectedBoundary")
-		public final Action DELETE_SELECTED_BOUNDARY = qupath.createImageDataAction(Commands::removeTouchingSelectedROIBoundary);
+		private final DeleteObjectsOnBoundsCommand deleteOnBoundsCommand = new DeleteObjectsOnBoundsCommand(qupath);
 
-		@ActionConfig("Action.Objects.Delete.childSelectedBoundary")
-		public final Action DELETE_CHILD_SELECTED_BOUNDARY = qupath.createImageDataAction(Commands::removeChildObjectsOnSelectedBoundary);
+		@ActionConfig("Action.Objects.Delete.selectedBoundary")
+		public final Action DELETE_SELECTED_BOUNDARY = qupath.createImageDataAction(deleteOnBoundsCommand::runForImage);
 
 	}
 

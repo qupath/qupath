@@ -35,7 +35,7 @@ import java.util.Set;
 public class TestPathObjectTools3 {
 
     @Test
-    public void test_findTouchingBoundary() {
+    public void test_findTouchingBounds() {
         // Check we can find objects that touch a ROI boundary
         var parent = ROIs.createRectangleROI(0, 0, 100, 100);
         var intersecting = PathObjects.createDetectionObject(ROIs.createRectangleROI(99, 99, 10, 10));
@@ -44,23 +44,23 @@ public class TestPathObjectTools3 {
         var inside = PathObjects.createDetectionObject(ROIs.createRectangleROI(50, 50, 10, 10));
         var outside = PathObjects.createDetectionObject(ROIs.createRectangleROI(150, 150, 10, 10));
 
-        var results = PathObjectTools.findTouchingBoundary(parent, List.of(intersecting, touchingCorner, touchingSide, inside, outside));
+        var results = PathObjectTools.findTouchingBounds(parent, List.of(intersecting, touchingCorner, touchingSide, inside, outside));
         Assertions.assertEquals(Set.of(intersecting, touchingCorner, touchingSide), Set.copyOf(results));
     }
 
     @Test
-    public void test_findTouchingBoundaryDifferentPlane() {
+    public void test_findTouchingBoundsDifferentPlane() {
         // Check we do *not* find objects that touch a ROI boundary, but are on the wrong plane
         var parent = ROIs.createRectangleROI(0, 0, 100, 100);
         var touchingSide = PathObjects.createDetectionObject(ROIs.createRectangleROI(50, 100, 10, 10));
         var touchingSideDiffZ = PathObjects.createDetectionObject(touchingSide.getROI().updatePlane(ImagePlane.getPlaneWithChannel(0, 1, 0)));
         var touchingSideDiffT= PathObjects.createDetectionObject(touchingSide.getROI().updatePlane(ImagePlane.getPlaneWithChannel(0, 0, 1)));
-        var results = PathObjectTools.findTouchingBoundary(parent, List.of(touchingSide, touchingSideDiffZ, touchingSideDiffT));
+        var results = PathObjectTools.findTouchingBounds(parent, List.of(touchingSide, touchingSideDiffZ, touchingSideDiffT));
         Assertions.assertEquals(Set.of(touchingSide), Set.copyOf(results));
     }
 
     @Test
-    public void test_removeTouchingBoundary() {
+    public void test_removeTouchingBounds() {
         // Check that we can remove objects that touch a ROI boundary
         var parent = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 100, 100));
 
@@ -72,19 +72,19 @@ public class TestPathObjectTools3 {
 
         // Check using no filter
         var hierarchy = createHierarchy(parent, intersecting, touchingCorner, touchingSide, inside, outside);
-        var result = PathObjectTools.removeTouchingBoundary(hierarchy, parent);
+        var result = PathObjectTools.removeTouchingBounds(hierarchy, parent);
         Assertions.assertTrue(result);
         Assertions.assertEquals(Set.of(parent, inside, outside), Set.copyOf(hierarchy.getAllObjects(false)));
 
         // Check using detecton filter
         var hierarchy2 = createHierarchy(parent, intersecting, touchingCorner, touchingSide, inside, outside);
-        var resultRemoveDetections = PathObjectTools.removeTouchingBoundary(hierarchy2, parent, PathObject::isDetection);
+        var resultRemoveDetections = PathObjectTools.removeTouchingBounds(hierarchy2, parent, PathObject::isDetection);
         Assertions.assertTrue(resultRemoveDetections);
         Assertions.assertEquals(Set.of(parent, inside, outside), Set.copyOf(hierarchy2.getAllObjects(false)));
 
         // Check using annotation filter
         var hierarchy3 = createHierarchy(parent, intersecting, touchingCorner, touchingSide, inside, outside);
-        var resultRemoveAnnotations = PathObjectTools.removeTouchingBoundary(hierarchy3, parent, PathObject::isAnnotation);
+        var resultRemoveAnnotations = PathObjectTools.removeTouchingBounds(hierarchy3, parent, PathObject::isAnnotation);
         Assertions.assertFalse(resultRemoveAnnotations);
         Assertions.assertEquals(Set.of(parent, intersecting, touchingCorner, touchingSide, inside, outside),
                 hierarchy3.getAllObjects(false));

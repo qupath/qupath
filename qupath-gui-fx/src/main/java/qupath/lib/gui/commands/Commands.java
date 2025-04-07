@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -1290,45 +1290,11 @@ public class Commands {
 			logger.warn("No image available!");
 			return;
 		}
-		QP.removeTouchingImageBoundary(imageData);
+		QP.removeObjectsTouchingImageBounds(imageData, null);
 		imageData.getHistoryWorkflow().addStep(
 				new DefaultScriptableWorkflowStep(
 						"Remove objects on image boundary",
-						"removeTouchingImageBoundary()")
-		);
-	}
-
-	/**
-	 * Delete all objects touching the boundaries of the selected ROIs.
-	 * @param imageData the image data
-	 */
-	public static void removeTouchingSelectedROIBoundary(ImageData<?> imageData) {
-		if (imageData == null) {
-			logger.warn("No image available!");
-			return;
-		}
-		QP.removeTouchingSelectedObjectBoundary(imageData.getHierarchy());
-		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep(
-						"Remove objects touching selected ROIs",
-						"removeTouchingSelectedObjectBoundary()")
-		);
-	}
-
-	/**
-	 * Delete all child objects touching the boundaries of the selected ROIs.
-	 * @param imageData the image data
-	 */
-	public static void removeChildObjectsOnSelectedBoundary(ImageData<?> imageData) {
-		if (imageData == null) {
-			logger.warn("No image available!");
-			return;
-		}
-		QP.removeChildObjectsOnBoundary(imageData.getHierarchy());
-		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep(
-						"Remove child objects touching selected ROI boundaries",
-						"removeChildObjectsOnBoundary()")
+						"removeObjectsTouchingImageBounds()")
 		);
 	}
 

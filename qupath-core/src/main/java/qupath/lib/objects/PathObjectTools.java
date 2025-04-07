@@ -1275,10 +1275,10 @@ public class PathObjectTools {
 	 * 		   Note that this may contain objects that have the specified parent ROI, since it is considered to touch
 	 * 		   or cross itself.
 	 * @since v0.6.0
-	 * @see #findTouchingImageBoundary(ImageServer, Collection)
+	 * @see #findTouchingImageBounds(ImageServer, Collection)
 	 */
-	public static List<PathObject> findTouchingBoundary(ROI roi, Collection<? extends PathObject> pathObjects) {
-		return findTouchingBoundary(roi, pathObjects, roi.getImagePlane());
+	public static List<PathObject> findTouchingBounds(ROI roi, Collection<? extends PathObject> pathObjects) {
+		return findTouchingBounds(roi, pathObjects, roi.getImagePlane());
 	}
 
 	/**
@@ -1288,14 +1288,14 @@ public class PathObjectTools {
 	 * @param pathObjects the objects that may touch the image boundary
 	 * @return a list containing the objects from the input that touch or cross the image boundary
 	 * @since v0.6.0
-	 * @see #findTouchingBoundary(ROI, Collection)
+	 * @see #findTouchingBounds(ROI, Collection)
 	 */
-	public static List<PathObject> findTouchingImageBoundary(ImageServer<?> server, Collection<? extends PathObject> pathObjects) {
+	public static List<PathObject> findTouchingImageBounds(ImageServer<?> server, Collection<? extends PathObject> pathObjects) {
 		var roi = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight());
-		return findTouchingBoundary(roi, pathObjects, null);
+		return findTouchingBounds(roi, pathObjects, null);
 	}
 
-	private static List<PathObject> findTouchingBoundary(ROI roi, Collection<? extends PathObject> pathObjects, ImagePlane plane) {
+	private static List<PathObject> findTouchingBounds(ROI roi, Collection<? extends PathObject> pathObjects, ImagePlane plane) {
 		// Internal method where the plane is passed as a parameter, rather than determined from the ROI.
 		// This is to make it possible to pass null, and apply the test to the ROI on any plane
 		if (roi == null)
@@ -1329,11 +1329,11 @@ public class PathObjectTools {
 	 * @param parent the parent object
 	 * @return true if objects were removed, false otherwise
 	 * @since v0.6.0
-	 * @see #findTouchingBoundary(ROI, Collection)
-	 * @see #removeTouchingBoundary(PathObjectHierarchy, PathObject, Predicate)
+	 * @see #findTouchingBounds(ROI, Collection)
+	 * @see #removeTouchingBounds(PathObjectHierarchy, PathObject, Predicate)
 	 */
-	public static boolean removeTouchingBoundary(PathObjectHierarchy hierarchy, PathObject parent) {
-		return removeTouchingBoundary(hierarchy, parent, null);
+	public static boolean removeTouchingBounds(PathObjectHierarchy hierarchy, PathObject parent) {
+		return removeTouchingBounds(hierarchy, parent, null);
 	}
 
 	/**
@@ -1348,10 +1348,10 @@ public class PathObjectTools {
 	 *               method to only consider removing detection objects.
 	 * @return true if objects were removed, false otherwise
 	 * @since v0.6.0
-	 * @see #findTouchingBoundary(ROI, Collection)
-	 * @see #removeTouchingBoundary(PathObjectHierarchy, PathObject)
+	 * @see #findTouchingBounds(ROI, Collection)
+	 * @see #removeTouchingBounds(PathObjectHierarchy, PathObject)
 	 */
-	public static boolean removeTouchingBoundary(PathObjectHierarchy hierarchy, PathObject parent, Predicate<PathObject> filter) {
+	public static boolean removeTouchingBounds(PathObjectHierarchy hierarchy, PathObject parent, Predicate<PathObject> filter) {
 		Predicate<PathObject> predicate = (PathObject p) -> {
 			return p.hasROI() && !p.isTMACore() && !Objects.equals(parent, p);
 		};
@@ -1361,7 +1361,7 @@ public class PathObjectTools {
 				.stream()
 				.filter(predicate)
 				.toList();
-		var touching = findTouchingBoundary(parent.getROI(), pathObjects);
+		var touching = findTouchingBounds(parent.getROI(), pathObjects);
 		if (touching.isEmpty()) {
 			return false;
 		}
@@ -1375,11 +1375,11 @@ public class PathObjectTools {
 	 * @param imageData the image data
 	 * @return true if objects were deleted, false otherwise
 	 * @since v0.6.0
-	 * @see #findTouchingImageBoundary(ImageServer, Collection)
-	 * @see #removeTouchingImageBoundary(ImageData, Predicate)
+	 * @see #findTouchingImageBounds(ImageServer, Collection)
+	 * @see #removeTouchingImageBounds(ImageData, Predicate)
 	 */
-	public static boolean removeTouchingImageBoundary(ImageData<?> imageData) {
-		return removeTouchingImageBoundary(imageData, null);
+	public static boolean removeTouchingImageBounds(ImageData<?> imageData) {
+		return removeTouchingImageBounds(imageData, null);
 	}
 
 	/**
@@ -1391,10 +1391,10 @@ public class PathObjectTools {
 	 *               method to only consider removing detection objects.
 	 * @return true if objects were deleted, false otherwise
 	 * @since v0.6.0
-	 * @see #findTouchingImageBoundary(ImageServer, Collection)
-	 * @see #removeTouchingImageBoundary(ImageData)
+	 * @see #findTouchingImageBounds(ImageServer, Collection)
+	 * @see #removeTouchingImageBounds(ImageData)
 	 */
-	public static boolean removeTouchingImageBoundary(ImageData<?> imageData, Predicate<PathObject> filter) {
+	public static boolean removeTouchingImageBounds(ImageData<?> imageData, Predicate<PathObject> filter) {
 		if (imageData == null)
 			return false;
 		var server = imageData.getServer();
@@ -1405,7 +1405,7 @@ public class PathObjectTools {
 				.filter(p -> !p.isTMACore())
 				.filter(filter == null ? p -> true : filter)
 				.toList();
-		var touching = findTouchingImageBoundary(server, pathObjects);
+		var touching = findTouchingImageBounds(server, pathObjects);
 		if (touching.isEmpty()) {
 			return false;
 		}

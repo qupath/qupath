@@ -5183,43 +5183,114 @@ public class QP {
 	 }
 
 
-
-	public static boolean removeTouchingImageBoundary() {
-		return removeTouchingImageBoundary(getCurrentImageData());
+	/**
+	 * Remove all objects that touch the boundary of the current image.
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingImageBounds() {
+		return removeObjectsTouchingImageBounds(null);
 	}
 
-	public static boolean removeTouchingImageBoundary(ImageData<?> imageData) {
+	/**
+	 * Remove all objects that touch the boundary of the current image.
+	 * @param filter optional filter to identify which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingImageBounds(Predicate<PathObject> filter) {
+		return removeObjectsTouchingImageBounds(getCurrentImageData(), filter);
+	}
+
+	/**
+	 * Remove objects that touch the boundary of the specified image.
+	 * @param imageData the image to process
+	 * @param filter optional filter to restrict which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingImageBounds(ImageData<?> imageData, Predicate<PathObject> filter) {
 		 if (imageData == null)
 			 return false;
-		 return PathObjectTools.removeTouchingImageBoundary(imageData);
+		 return PathObjectTools.removeTouchingImageBounds(imageData, filter);
 	}
 
-	public static boolean removeTouchingSelectedObjectBoundary() {
-		return removeTouchingSelectedObjectBoundary(getCurrentHierarchy());
+	/**
+	 * Remove all objects that touch or overlap the bounds of the selected objects in the current image.
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingSelectedBounds() {
+		return removeObjectsTouchingSelectedBounds(null);
 	}
 
-	public static boolean removeTouchingSelectedObjectBoundary(PathObjectHierarchy hierarchy) {
+	/**
+	 * Remove objects that touch or overlap the bounds of the selected objects in the current image.
+	 * @param filter optional filter to restrict which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingSelectedBounds(Predicate<PathObject> filter) {
+		return removeObjectsTouchingSelectedBounds(getCurrentHierarchy(), filter);
+	}
+
+	/**
+	 * Remove objects that touch or overlap the bounds of the selected objects in the specified object hierarchy.
+	 * @param hierarchy the object hierarchy to use
+	 * @param filter optional filter to restrict which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingSelectedBounds(PathObjectHierarchy hierarchy, Predicate<PathObject> filter) {
 		if (hierarchy == null)
 			return false;
 		var selected = List.copyOf(hierarchy.getSelectionModel().getSelectedObjects());
 		boolean changes = false;
 		for (var obj : selected) {
-			changes = changes | PathObjectTools.removeTouchingBoundary(hierarchy, obj);
+			changes = changes | PathObjectTools.removeTouchingBounds(hierarchy, obj, filter);
 		}
 		return changes;
 	}
 
-	public static boolean removeChildObjectsOnBoundary() {
-		return removeChildObjectsOnBoundary(getCurrentHierarchy());
+	/**
+	 * Remove all objects that touch or overlap the bounds of the selected objects in the current image,
+	 * and are direct children of the selected objects.
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeChildObjectsTouchingSelectedBounds() {
+		return removeChildObjectsTouchingSelectedBounds(null);
 	}
 
-	public static boolean removeChildObjectsOnBoundary(PathObjectHierarchy hierarchy) {
+	/**
+	 * Remove objects that touch or overlap the bounds of the selected objects in the current image,
+	 * and are direct children of the selected objects.
+	 * @param filter optional filter to restrict which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeChildObjectsTouchingSelectedBounds(Predicate<PathObject> filter) {
+		return removeChildObjectsTouchingSelectedBounds(getCurrentHierarchy(), filter);
+	}
+
+	/**
+	 * Remove objects that touch or overlap the bounds of the selected objects in the specified image,
+	 * and are direct children of the selected objects.
+	 * @param hierarchy the object hierarchy to use
+	 * @param filter optional filter to restrict which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeChildObjectsTouchingSelectedBounds(PathObjectHierarchy hierarchy, Predicate<PathObject> filter) {
 		if (hierarchy == null)
 			return false;
 		var selected = List.copyOf(hierarchy.getSelectionModel().getSelectedObjects());
 		boolean changes = false;
 		for (var obj : selected) {
-			changes = changes | PathObjectTools.removeTouchingBoundary(hierarchy, obj, p -> Objects.equals(obj, p.getParent()));
+			Predicate<PathObject> predicate = (PathObject p) -> Objects.equals(obj, p.getParent());
+			if (filter != null)
+				predicate = filter.and(predicate);
+			changes = changes | PathObjectTools.removeTouchingBounds(hierarchy, obj, predicate);
 		}
 		return changes;
 	}
