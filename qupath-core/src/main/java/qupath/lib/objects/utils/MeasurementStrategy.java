@@ -47,7 +47,6 @@ public interface MeasurementStrategy {
         }
     });
 
-
     /**
      * Calculate a mean weighted by object area and pass this to the output object.
      */
