@@ -1274,16 +1274,38 @@ public class PathObjectTools {
 	 * @return a list containing the objects from the input that touch or cross the specified ROI.
 	 * 		   Note that this may contain objects that have the specified parent ROI, since it is considered to touch
 	 * 		   or cross itself.
+	 * @since v0.6.0
+	 * @see #findTouchingImageBoundary(ImageServer, Collection)
 	 */
 	public static List<PathObject> findTouchingBoundary(ROI roi, Collection<? extends PathObject> pathObjects) {
+		return findTouchingBoundary(roi, pathObjects, roi.getImagePlane());
+	}
+
+	/**
+	 * Find all the objects that touch (or cross) a rectangle representing the image bounds.
+	 * This is applied to all slices and timepoints of the image.
+	 * @param server the image
+	 * @param pathObjects the objects that may touch the image boundary
+	 * @return a list containing the objects from the input that touch or cross the image boundary
+	 * @since v0.6.0
+	 * @see #findTouchingBoundary(ROI, Collection)
+	 */
+	public static List<PathObject> findTouchingImageBoundary(ImageServer<?> server, Collection<? extends PathObject> pathObjects) {
+		var roi = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight());
+		return findTouchingBoundary(roi, pathObjects, null);
+	}
+
+	private static List<PathObject> findTouchingBoundary(ROI roi, Collection<? extends PathObject> pathObjects, ImagePlane plane) {
+		// Internal method where the plane is passed as a parameter, rather than determined from the ROI.
+		// This is to make it possible to pass null, and apply the test to the ROI on any plane
 		if (roi == null)
 			return Collections.emptyList();
 
 		// Do a fast check to find any potential intersections
-		var region = ImageRegion.createInstance(roi);
 		var potential = pathObjects.stream()
 				.filter(PathObject::hasROI)
-				.filter(p -> roi.getZ() == p.getROI().getZ() && roi.getT() == p.getROI().getT())
+				.filter(p -> plane == null ||
+						(plane.getZ() == p.getROI().getZ() && plane.getT() == p.getROI().getT()))
 				.map(p -> (PathObject)p)
 				.toList();
 		if (potential.isEmpty()) {
@@ -1301,6 +1323,8 @@ public class PathObjectTools {
 
 	/**
 	 * Remove all objects with ROIs that touch or overlap the ROI of the parent object.
+	 * <br/>
+	 * Note that this method cannot be used to remove TMA cores, since this may make the TMA grid invalid.
 	 * @param hierarchy object hierarchy containing objects that may be removed
 	 * @param parent the parent object
 	 * @return true if objects were removed, false otherwise
@@ -1316,6 +1340,8 @@ public class PathObjectTools {
 	 /**
 	 * Remove all objects with ROIs that touch or overlap the ROI of the parent object, optionally filtering to
 	 * consider only filtered objects for removal.
+	 * <br/>
+	 * Note that this method cannot be used to remove TMA cores, since this may make the TMA grid invalid.
 	 * @param hierarchy object hierarchy containing objects that may be removed
 	 * @param parent the parent object
 	 * @param filter optional filter; for example, {@code PathObject::isDetection} can be used to restrict the
@@ -1336,6 +1362,50 @@ public class PathObjectTools {
 				.filter(predicate)
 				.toList();
 		var touching = findTouchingBoundary(parent.getROI(), pathObjects);
+		if (touching.isEmpty()) {
+			return false;
+		}
+		hierarchy.removeObjects(touching, true);
+		return true;
+	}
+
+	/**
+	 * Find all the objects that touch (or cross) a rectangle representing the image bounds.
+	 * This is applied to all slices and timepoints of the image.
+	 * @param imageData the image data
+	 * @return true if objects were deleted, false otherwise
+	 * @since v0.6.0
+	 * @see #findTouchingImageBoundary(ImageServer, Collection)
+	 * @see #removeTouchingImageBoundary(ImageData, Predicate)
+	 */
+	public static boolean removeTouchingImageBoundary(ImageData<?> imageData) {
+		return removeTouchingImageBoundary(imageData, null);
+	}
+
+	/**
+	 * Find all the objects that touch (or cross) a rectangle representing the image bounds.
+	 * This is applied to all slices and timepoints of the image.
+	 * @param imageData the image data
+	 * @param filter optional filter to select objects that cou
+	 * @param filter optional filter; for example, {@code PathObject::isDetection} can be used to restrict the
+	 *               method to only consider removing detection objects.
+	 * @return true if objects were deleted, false otherwise
+	 * @since v0.6.0
+	 * @see #findTouchingImageBoundary(ImageServer, Collection)
+	 * @see #removeTouchingImageBoundary(ImageData)
+	 */
+	public static boolean removeTouchingImageBoundary(ImageData<?> imageData, Predicate<PathObject> filter) {
+		if (imageData == null)
+			return false;
+		var server = imageData.getServer();
+		var hierarchy = imageData.getHierarchy();
+		var pathObjects = hierarchy.getAllObjects(false)
+				.stream()
+				.filter(PathObject::hasROI)
+				.filter(p -> !p.isTMACore())
+				.filter(filter == null ? p -> true : filter)
+				.toList();
+		var touching = findTouchingImageBoundary(server, pathObjects);
 		if (touching.isEmpty()) {
 			return false;
 		}

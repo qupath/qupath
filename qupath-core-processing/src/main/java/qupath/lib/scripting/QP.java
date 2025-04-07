@@ -4829,10 +4829,30 @@ public class QP {
 	
 	/**
 	 * Get the logger associated with this class.
-	 * @return
+	 * @return the logger
 	 */
 	public static Logger getLogger() {
 		return logger;
+	}
+
+	/**
+	 * Get a logger with a specified name.
+	 * @param name the name of the logger
+	 * @return the logger
+	 * @since v0.6.0
+	 */
+	public static Logger getLogger(String name) {
+		return LoggerFactory.getLogger(name);
+	}
+
+	/**
+	 * Get a logger associated with a specified class.
+	 * @param cls the class used to determine the logger name
+	 * @return the logger
+	 * @since v0.6.0
+	 */
+	public static Logger getLogger(Class<?> cls) {
+		return LoggerFactory.getLogger(cls);
 	}
 	
 	
@@ -5161,6 +5181,48 @@ public class QP {
 		 hierarchy.fireHierarchyChangedEvent(QP.class);
 		 return changes;
 	 }
+
+
+
+	public static boolean removeTouchingImageBoundary() {
+		return removeTouchingImageBoundary(getCurrentImageData());
+	}
+
+	public static boolean removeTouchingImageBoundary(ImageData<?> imageData) {
+		 if (imageData == null)
+			 return false;
+		 return PathObjectTools.removeTouchingImageBoundary(imageData);
+	}
+
+	public static boolean removeTouchingSelectedObjectBoundary() {
+		return removeTouchingSelectedObjectBoundary(getCurrentHierarchy());
+	}
+
+	public static boolean removeTouchingSelectedObjectBoundary(PathObjectHierarchy hierarchy) {
+		if (hierarchy == null)
+			return false;
+		var selected = List.copyOf(hierarchy.getSelectionModel().getSelectedObjects());
+		boolean changes = false;
+		for (var obj : selected) {
+			changes = changes | PathObjectTools.removeTouchingBoundary(hierarchy, obj);
+		}
+		return changes;
+	}
+
+	public static boolean removeChildObjectsOnBoundary() {
+		return removeChildObjectsOnBoundary(getCurrentHierarchy());
+	}
+
+	public static boolean removeChildObjectsOnBoundary(PathObjectHierarchy hierarchy) {
+		if (hierarchy == null)
+			return false;
+		var selected = List.copyOf(hierarchy.getSelectionModel().getSelectedObjects());
+		boolean changes = false;
+		for (var obj : selected) {
+			changes = changes | PathObjectTools.removeTouchingBoundary(hierarchy, obj, p -> Objects.equals(obj, p.getParent()));
+		}
+		return changes;
+	}
 
 	 
 	 /*

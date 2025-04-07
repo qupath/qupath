@@ -1278,7 +1278,60 @@ public class Commands {
 				logger.warn("Cannot remove all objects for class {}", cls);
 		}
 	}
-	
+
+
+
+	/**
+	 * Delete all objects touching the image boundary.
+	 * @param imageData the image data
+	 */
+	public static void removeOnImageBounds(ImageData<?> imageData) {
+		if (imageData == null) {
+			logger.warn("No image available!");
+			return;
+		}
+		QP.removeTouchingImageBoundary(imageData);
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep(
+						"Remove objects on image boundary",
+						"removeTouchingImageBoundary()")
+		);
+	}
+
+	/**
+	 * Delete all objects touching the boundaries of the selected ROIs.
+	 * @param imageData the image data
+	 */
+	public static void removeTouchingSelectedROIBoundary(ImageData<?> imageData) {
+		if (imageData == null) {
+			logger.warn("No image available!");
+			return;
+		}
+		QP.removeTouchingSelectedObjectBoundary(imageData.getHierarchy());
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep(
+						"Remove objects touching selected ROIs",
+						"removeTouchingSelectedObjectBoundary()")
+		);
+	}
+
+	/**
+	 * Delete all child objects touching the boundaries of the selected ROIs.
+	 * @param imageData the image data
+	 */
+	public static void removeChildObjectsOnSelectedBoundary(ImageData<?> imageData) {
+		if (imageData == null) {
+			logger.warn("No image available!");
+			return;
+		}
+		QP.removeChildObjectsOnBoundary(imageData.getHierarchy());
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep(
+						"Remove child objects touching selected ROI boundaries",
+						"removeChildObjectsOnBoundary()")
+		);
+	}
+
 	
 	/**
 	 * Reset QuPath's preferences, after confirming with the user.
