@@ -10,7 +10,7 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 
 /**
- * Strategies for handling measurements between objects being merged.
+ * A strategy for handling measurements between objects being merged.
  * Usually, it is safe to ignore, but if a pipeline creates objects and adds measurements before handling merges between tiles, then it is useful to consider how the measurements of each object will be passed to the output object.
  */
 @FunctionalInterface
@@ -18,6 +18,7 @@ public interface MeasurementStrategy {
 
     /**
      * Merge the measurements for a set of input objects to a single measurement list.
+     * This should operate by means of side effect, adding the calculated measurements to the measurement list passed in as second argument.
      * @param pathObjects the input objects
      * @param outputList the container that output measurements should be stored in
      */
