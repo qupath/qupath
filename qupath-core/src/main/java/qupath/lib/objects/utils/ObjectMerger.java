@@ -176,7 +176,7 @@ public class ObjectMerger implements ObjectProcessor {
     }
 
     /**
-     * {@inheritDoc}
+     * @see ObjectMerger#createSharedTileBoundaryMerger(double, double, MeasurementStrategy)
      */
     public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold) {
         return createSharedTileBoundaryMerger(sharedBoundaryThreshold, 0.125, MeasurementStrategy.IGNORE);
@@ -211,7 +211,7 @@ public class ObjectMerger implements ObjectProcessor {
     }
 
     /**
-     * {@inheritDoc}
+     * @see ObjectMerger#createSharedTileBoundaryMerger(double, double, MeasurementStrategy)
      */
     public static ObjectMerger createSharedTileBoundaryMerger(double sharedBoundaryThreshold, double overlapTolerance) {
         return createSharedTileBoundaryMerger(sharedBoundaryThreshold, overlapTolerance, MeasurementStrategy.IGNORE);
@@ -234,7 +234,7 @@ public class ObjectMerger implements ObjectProcessor {
     }
 
     /**
-     * {@inheritDoc}
+     * @see ObjectMerger#createSharedClassificationMerger(MeasurementStrategy)
      */
     public static ObjectMerger createSharedClassificationMerger() {
         return createSharedClassificationMerger(MeasurementStrategy.IGNORE);
@@ -268,7 +268,7 @@ public class ObjectMerger implements ObjectProcessor {
     }
 
     /**
-     * {@inheritDoc}
+     * @see ObjectMerger#createTouchingMerger(MeasurementStrategy)
      */
     public static ObjectMerger createTouchingMerger() {
         return createTouchingMerger(MeasurementStrategy.IGNORE);
@@ -300,7 +300,7 @@ public class ObjectMerger implements ObjectProcessor {
     }
 
     /**
-     * {@inheritDoc}
+     * @see ObjectMerger#createIoUMerger(double, MeasurementStrategy)
      */
     public static ObjectMerger createIoUMerger(double iouThreshold) {
         return createIoUMerger(iouThreshold, MeasurementStrategy.IGNORE);
@@ -338,46 +338,12 @@ public class ObjectMerger implements ObjectProcessor {
     }
 
     /**
-     * {@inheritDoc}
+     * @see ObjectMerger#createIoMinMerger(double, MeasurementStrategy)
      */
     public static ObjectMerger createIoMinMerger(double iomThreshold) {
         return createIoMinMerger(iomThreshold, MeasurementStrategy.IGNORE);
     }
 
-    /**
-     * Options for how to handle measurements between objects being merged.
-     * Usually, it is safe to ignore, but if a pipeline creates objects and adds measurements before handling merges between tiles, then it is useful to consider how the measurements of each object will be passed to the output object.
-     */
-    public enum MeasurementStrategy {
-        /**
-         * The default and previous strategy: ignore and discard.
-         */
-        IGNORE,
-        /**
-         * Assign the measurements of the first object to the output object.
-         */
-        USE_FIRST,
-        /**
-         * Calculate the mean of each measurement and pass these to the output object.
-         */
-        MEAN,
-        /**
-         * Calculate a mean weighted by object area and pass this to the output object.
-         */
-        WEIGHTED_MEAN,
-        /**
-         * Calculate the median of each measurement and pass these to the output object.
-         */
-        MEDIAN,
-        /**
-         * Choose an object at random and use the measurements from this object.
-         */
-        RANDOM,
-        /**
-         * Use the measurements of the largest object by area or volume.
-         */
-        USE_BIGGEST
-    }
 
     /**
      * Recursive method - kept for reference and debugging, but not used.
@@ -643,8 +609,6 @@ public class ObjectMerger implements ObjectProcessor {
         if (pathObjects.isEmpty())
             return null;
 
-        // todo: how to handle? suggest easiest is functional, but should benchmark diff strategies...
-        var measurements = mergeMeasurements(pathObjects, measurementStrategy);
         var pathObject = pathObjects.getFirst();
         if (pathObjects.size() == 1)
             return pathObject;
@@ -657,7 +621,7 @@ public class ObjectMerger implements ObjectProcessor {
 
         PathObject mergedObject = null;
         if (pathObject.isTile()) {
-            mergedObject = PathObjects.createTileObject(mergedROI, pathObject.getPathClass(), measurements);
+            mergedObject = PathObjects.createTileObject(mergedROI, pathObject.getPathClass());
         } else if (pathObject.isCell()) {
             var nucleusROIs = pathObjects.stream()
                     .map(PathObjectTools::getNucleusROI)
@@ -665,87 +629,21 @@ public class ObjectMerger implements ObjectProcessor {
                     .distinct()
                     .collect(Collectors.toList());
             ROI nucleusROI = nucleusROIs.isEmpty() ? null : RoiTools.union(nucleusROIs);
-            mergedObject = PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass(), measurements);
+            mergedObject = PathObjects.createCellObject(mergedROI, nucleusROI, pathObject.getPathClass());
         } else if (pathObject.isDetection()) {
-            mergedObject = PathObjects.createDetectionObject(mergedROI, pathObject.getPathClass(), measurements);
+            mergedObject = PathObjects.createDetectionObject(mergedROI, pathObject.getPathClass());
         } else if (pathObject.isAnnotation()) {
-            mergedObject = PathObjects.createAnnotationObject(mergedROI, pathObject.getPathClass(), measurements);
+            mergedObject = PathObjects.createAnnotationObject(mergedROI, pathObject.getPathClass());
         } else
             throw new IllegalArgumentException("Unsupported object type for merging: " + pathObject.getClass());
+
+        measurementStrategy.mergeMeasurements(pathObjects, mergedObject.getMeasurementList());
 
         // We might need to transfer over the color as well
         var color = pathObject.getColor();
         if (color != null)
             mergedObject.setColor(color);
         return mergedObject;
-    }
-
-    private static MeasurementList mergeMeasurements(List<? extends PathObject> pathObjects, MeasurementStrategy measurementStrategy) {
-        if (pathObjects.isEmpty()) {
-            return null;
-        }
-        return switch(measurementStrategy) {
-            case IGNORE -> null;
-            case USE_FIRST -> pathObjects.getFirst().getMeasurementList();
-            case MEAN -> {
-                var out = MeasurementListFactory.createMeasurementList(
-                        pathObjects.getFirst().getMeasurementList().size(),
-                        MeasurementList.MeasurementListType.FLOAT
-                );
-                for (var es: pathObjects.getFirst().getMeasurements().entrySet()) {
-                    out.put(
-                            es.getKey(),
-                            pathObjects.stream().mapToDouble(po -> po.getMeasurementList().get(es.getKey())).sum() / pathObjects.size());
-                }
-                yield out;
-            }
-            case WEIGHTED_MEAN -> {
-                var out = MeasurementListFactory.createMeasurementList(
-                        pathObjects.getFirst().getMeasurementList().size(),
-                        MeasurementList.MeasurementListType.FLOAT
-                );
-                Map<ROI, Double> areas = new HashMap<>();
-                for (var es: pathObjects.getFirst().getMeasurements().entrySet()) {
-                    out.put(
-                            es.getKey(),
-                            pathObjects.stream()
-                                    .mapToDouble(po ->
-                                            po.getMeasurementList().get(es.getKey()) * areas.computeIfAbsent(po.getROI(), ROI::getArea)
-                                    )
-                                    .sum() / (areas.values().stream().mapToDouble(d -> d).sum()));
-                }
-                yield out;
-            }
-            case MEDIAN -> {
-                var out = MeasurementListFactory.createMeasurementList(
-                        pathObjects.getFirst().getMeasurementList().size(),
-                        MeasurementList.MeasurementListType.FLOAT
-                );
-                for (var es: pathObjects.getFirst().getMeasurements().entrySet()) {
-                    out.put(
-                            es.getKey(),
-                            pathObjects.stream()
-                                    .mapToDouble(po -> po.getMeasurementList().get(es.getKey()))
-                                    .sorted()
-                                    .skip((pathObjects.size() - 1) / 2)
-                                    .limit(2 - pathObjects.size() % 2)
-                                    .average()
-                                    .orElse(Double.NaN)
-                    );
-                }
-                yield out;
-
-            }
-            case RANDOM -> pathObjects.stream()
-                    .skip((int)(pathObjects.size() * Math.random()))
-                    .findFirst()
-                    .map(PathObject::getMeasurementList)
-                    .orElse(null);
-            case USE_BIGGEST -> pathObjects.stream()
-                    .max(Comparator.comparingDouble((PathObject o) -> o.getROI().getArea()))
-                    .map(PathObject::getMeasurementList)
-                    .orElse(null);
-        };
     }
 
 
