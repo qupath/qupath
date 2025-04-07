@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -54,7 +54,6 @@ import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.common.ColorTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -1284,7 +1283,7 @@ public class PathObjectTools {
 		var region = ImageRegion.createInstance(roi);
 		var potential = pathObjects.stream()
 				.filter(PathObject::hasROI)
-				.filter(p -> RoiTools.intersectsRegion(p.getROI(), region))
+				.filter(p -> roi.getZ() == p.getROI().getZ() && roi.getT() == p.getROI().getT())
 				.map(p -> (PathObject)p)
 				.toList();
 		if (potential.isEmpty()) {
