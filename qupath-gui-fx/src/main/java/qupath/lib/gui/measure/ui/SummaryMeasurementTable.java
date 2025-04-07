@@ -49,6 +49,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.ToolBar;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
@@ -99,8 +100,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -147,6 +150,8 @@ public class SummaryMeasurementTable {
     private ObjectBinding<Predicate<PathObject>> overlayVisibilityPredicate;
 
     private final ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+
+    private final Map<String, Tooltip> tooltips = new ConcurrentHashMap<>();
 
     private BorderPane pane;
 
@@ -319,7 +324,7 @@ public class SummaryMeasurementTable {
             if (colThumbnails.isVisible())
                 return Math.max(24, colThumbnails.getWidth() + thumbnailPadding);
             else
-                return -1.0;
+                return 24d;//-1.0;
         }, colThumbnails.widthProperty(), colThumbnails.visibleProperty()));
 
         // Add main table columns
@@ -349,11 +354,24 @@ public class SummaryMeasurementTable {
         table.setItems(items);
     }
 
+    /**
+     * Get a tooltip for use in a table cell.
+     * Tooltips can be reused (specified in the javadocs).
+     * This can have a noticeable performance impact; tooltip initialization for one image was costing
+     * more than a second of processing time in one case.
+     */
+    private Tooltip getTooltip(String text) {
+        if (text == null || text.isEmpty())
+            return null;
+        else
+            return tooltips.computeIfAbsent(text, Tooltip::new);
+    }
+
     private TableColumn<PathObject, Number> createNumericTableColumn(String name) {
         var tooltipText = model.getHelpText(name);
         TableColumn<PathObject, Number> col = new TableColumn<>(name);
         col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
-        col.setCellFactory(column -> new NumericTableCell<>(tooltipText, histogramDisplay));
+        col.setCellFactory(column -> new NumericTableCell<>(getTooltip(tooltipText), histogramDisplay));
         return col;
     }
 
@@ -361,7 +379,7 @@ public class SummaryMeasurementTable {
         var tooltipText = model.getHelpText(name);
         TableColumn<PathObject, String> col = new TableColumn<>(name);
         col.setCellValueFactory(column -> createStringMeasurement(model, column.getValue(), column.getTableColumn().getText()));
-        col.setCellFactory(column -> new BasicTableCell<>(tooltipText));
+        col.setCellFactory(column -> new BasicTableCell<>(getTooltip(tooltipText)));
         return col;
     }
 
