@@ -230,13 +230,17 @@ abstract class ImageDataTransformerBuilder {
 		private enum NormalizationType {
 			NONE,
 			GAUSSIAN_MEAN,
-			GAUSSIAN_MEAN_VARIANCE;
+			GAUSSIAN_MEAN_VARIANCE,
+			LOCAL_MIN_MAX,
+			LOCAL_MIN_MAX_SMOOTHED;
 			
 			@Override
 			public String toString() {
                 return switch (this) {
                     case GAUSSIAN_MEAN -> "Local mean subtraction only";
                     case GAUSSIAN_MEAN_VARIANCE -> "Local mean & variance";
+					case LOCAL_MIN_MAX -> "Local min & max";
+					case LOCAL_MIN_MAX_SMOOTHED -> "Local min & max smoothed";
                     case NONE -> "None";
                     default -> throw new IllegalArgumentException("Unknown normalization " + this);
                 };
@@ -397,6 +401,15 @@ abstract class ImageDataTransformerBuilder {
 					break;
 				case GAUSSIAN_MEAN_VARIANCE:
 					opNormalize = ImageOps.Normalize.localNormalization(localNormalizeSigma, localNormalizeSigma * varianceScaleRatio);
+					break;
+				case LOCAL_MIN_MAX:
+					int radius = (int)Math.ceil(localNormalizeSigma);
+					opNormalize = ImageOps.Normalize.localNormalizationMinMax(radius, 0);
+					break;
+				case LOCAL_MIN_MAX_SMOOTHED:
+					// Apply min/max and then also smooth
+					int radius2 = (int)Math.ceil(localNormalizeSigma);
+					opNormalize = ImageOps.Normalize.localNormalizationMinMax(radius2, localNormalizeSigma);
 					break;
 				case NONE:
 				default:
