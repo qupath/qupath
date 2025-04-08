@@ -26,6 +26,8 @@ Some things may be added, some things may be removed, and some things may look d
 (These are not yet ordered by interestingness)
 
 * Support system light/dark color themes
+* Menu items uses ellipsis to indicate more input will be needed
+  * Standard UX convention we didn't know about...
 * Commands to remove objects touching the bounds of the image or other objects (https://github.com/qupath/qupath/pull/1821)
   * _Objects → Delete... → Delete objects on image bounds_
   * _Objects → Delete... → Delete objects touching selected ROI bounds..._
