@@ -26,6 +26,9 @@ Some things may be added, some things may be removed, and some things may look d
 (These are not yet ordered by interestingness)
 
 * Support system light/dark color themes
+* Commands to remove objects touching the bounds of the image or other objects (https://github.com/qupath/qupath/pull/1821)
+  * _Objects → Delete... → Delete objects on image bounds_
+  * _Objects → Delete... → Delete objects touching selected ROI bounds..._
 * Window menu to help find lost windows (https://github.com/qupath/qupath/pull/1790)
 * Improved display of annotation names (https://github.com/qupath/qupath/pull/1532)
 * Better performance for large pixel classifiers (https://github.com/qupath/qupath/pull/1782)
