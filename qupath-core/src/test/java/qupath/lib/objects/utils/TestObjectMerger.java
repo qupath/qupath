@@ -277,6 +277,28 @@ public class TestObjectMerger {
     }
 
     @Test
+    public void test_merge_strategy_max() {
+        List<PathObject> objects = createMergableObjectsWithMeasurements();
+        var merged = ObjectMerger.createIoMinMerger(0.5, MeasurementStrategy.MAX).process(objects);
+        assertEquals(
+                0.4,
+                (double)merged.getFirst().getMeasurements().get("Measurement"),
+                0.0001
+        );
+    }
+
+    @Test
+    public void test_merge_strategy_min() {
+        List<PathObject> objects = createMergableObjectsWithMeasurements();
+        var merged = ObjectMerger.createIoMinMerger(0.5, MeasurementStrategy.MIN).process(objects);
+        assertEquals(
+                0.1,
+                (double)merged.getFirst().getMeasurements().get("Measurement"),
+                0.0001
+        );
+    }
+
+    @Test
     public void test_merge_strategy_random() {
         List<PathObject> objects = createMergableObjectsWithMeasurements();
         var merged = ObjectMerger.createIoMinMerger(0.5, MeasurementStrategy.RANDOM).process(objects);
