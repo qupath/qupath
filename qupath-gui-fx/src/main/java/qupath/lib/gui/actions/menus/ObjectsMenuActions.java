@@ -33,6 +33,7 @@ import qupath.lib.gui.actions.annotations.ActionAccelerator;
 import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
+import qupath.lib.gui.commands.DeleteObjectsOnBoundsCommand;
 import qupath.lib.gui.commands.objects.SplitAnnotationsByLineCommand;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
@@ -108,15 +109,24 @@ public class ObjectsMenuActions implements MenuActions {
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
 		@ActionConfig("Action.Objects.Delete.all")
-		public final Action CLEAR_HIERARCHY = qupath.createImageDataAction(imageData -> Commands.promptToDeleteObjects(imageData, null));
+		public final Action DELETE_ALL = qupath.createImageDataAction(imageData -> Commands.promptToDeleteObjects(imageData, null));
 
 		@ActionConfig("Action.Objects.Delete.annotations")
-		public final Action CLEAR_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.promptToDeleteObjects(imageData, PathAnnotationObject.class));
+		public final Action DELETE_ANNOTATION = qupath.createImageDataAction(imageData -> Commands.promptToDeleteObjects(imageData, PathAnnotationObject.class));
 		
 		@ActionConfig("Action.Objects.Delete.detections")
-		public final Action CLEAR_DETECTIONS = qupath.createImageDataAction(imageData -> Commands.promptToDeleteObjects(imageData, PathDetectionObject.class));
+		public final Action DELETE_DETECTIONS = qupath.createImageDataAction(imageData -> Commands.promptToDeleteObjects(imageData, PathDetectionObject.class));
 
-		
+		public final Action SEP_2 = ActionTools.createSeparator();
+
+		@ActionConfig("Action.Objects.Delete.imageBoundary")
+		public final Action DELETE_IMAGE_BOUNDARY = qupath.createImageDataAction(Commands::removeOnImageBounds);
+
+		private final DeleteObjectsOnBoundsCommand deleteOnBoundsCommand = new DeleteObjectsOnBoundsCommand(qupath);
+
+		@ActionConfig("Action.Objects.Delete.selectedBoundary")
+		public final Action DELETE_SELECTED_BOUNDARY = qupath.createImageDataAction(deleteOnBoundsCommand::runForImage);
+
 	}
 
 	public class SelectActions {

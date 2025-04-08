@@ -212,7 +212,7 @@ public class TestPathObjectTools extends TestPathObjectMethods {
 		}
 
 		// Test contains centroid
-		// One ROI is separate, all other intersect
+		// One ROI is separate, all others intersect
 		assertEquals(List.of(roiSeparate),
 				PathObjectTools.filterByROIContainsCentroid(roiSeparate, pathObjects).stream().map(PathObject::getROI).toList());
 		for (var roi : List.of(roiRect, roiEllipse, roiDiamond, roiOverlaps, roiOverlaps2)) {

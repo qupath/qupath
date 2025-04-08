@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -1278,7 +1278,26 @@ public class Commands {
 				logger.warn("Cannot remove all objects for class {}", cls);
 		}
 	}
-	
+
+
+
+	/**
+	 * Delete all objects touching the image boundary.
+	 * @param imageData the image data
+	 */
+	public static void removeOnImageBounds(ImageData<?> imageData) {
+		if (imageData == null) {
+			logger.warn("No image available!");
+			return;
+		}
+		QP.removeObjectsTouchingImageBounds(imageData, null);
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep(
+						"Remove objects on image boundary",
+						"removeObjectsTouchingImageBounds()")
+		);
+	}
+
 	
 	/**
 	 * Reset QuPath's preferences, after confirming with the user.

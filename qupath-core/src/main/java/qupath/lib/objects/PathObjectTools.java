@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -49,11 +49,11 @@ import java.util.stream.Collectors;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.locationtech.jts.geom.util.LinearComponentExtracter;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.common.ColorTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -87,7 +87,7 @@ public class PathObjectTools {
 	 * Remove objects with PointsROI from a collection.
 	 * @param pathObjects
 	 */
-	private static void removePoints(Collection<PathObject> pathObjects) {
+	private static void removePoints(Collection<? extends PathObject> pathObjects) {
 		logger.trace("Remove points");
         pathObjects.removeIf(PathObjectTools::hasPointROI);
 	}
@@ -129,7 +129,7 @@ public class PathObjectTools {
 	 * @param cls
 	 * @return
 	 */
-	public static List<PathObject> getObjectsOfClass(final Collection<PathObject> pathObjects, final Class<? extends PathObject> cls) {
+	public static List<PathObject> getObjectsOfClass(final Collection<? extends PathObject> pathObjects, final Class<? extends PathObject> cls) {
 		logger.trace("Get objects of class {}", cls);
 		List<PathObject> pathObjectsFiltered = new ArrayList<>(pathObjects.size());
 		for (PathObject temp : pathObjects) {
@@ -1108,10 +1108,10 @@ public class PathObjectTools {
 	/**
 	 * Get all descendant objects with a specified type.
 	 * 
-	 * @param pathObject
-	 * @param pathObjects
-	 * @param cls
-	 * @return
+	 * @param pathObject the parent object
+	 * @param pathObjects optionally collection to store the output
+	 * @param cls type of descendant objects to get
+	 * @return collection of descendant objects of the specified type
 	 */
 	public static Collection<PathObject> getDescendantObjects(PathObject pathObject, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
 		if (pathObject == null || !pathObject.hasChildObjects())
@@ -1264,6 +1264,155 @@ public class PathObjectTools {
 		}
 		return map;
 	}
+
+	/**
+	 * Find all objects with ROIs that touch (or cross) a parent ROI's boundary.
+	 * This can be used to identify objects that might be clipped to a ROI, i.e. they are not completely contained
+	 * within the ROI, nor are they entirely outside it.
+	 * @param roi the parent ROI
+	 * @param pathObjects the objects that may touch the parent ROI
+	 * @return a list containing the objects from the input that touch or cross the specified ROI.
+	 * 		   Note that this may contain objects that have the specified parent ROI, since it is considered to touch
+	 * 		   or cross itself.
+	 * @since v0.6.0
+	 * @see #findTouchingImageBounds(ImageServer, Collection)
+	 */
+	public static List<PathObject> findTouchingBounds(ROI roi, Collection<? extends PathObject> pathObjects) {
+		return findTouchingBounds(roi, pathObjects, roi.getImagePlane());
+	}
+
+	/**
+	 * Find all the objects that touch (or cross) a rectangle representing the image bounds.
+	 * This is applied to all slices and timepoints of the image.
+	 * @param server the image
+	 * @param pathObjects the objects that may touch the image boundary
+	 * @return a list containing the objects from the input that touch or cross the image boundary
+	 * @since v0.6.0
+	 * @see #findTouchingBounds(ROI, Collection)
+	 */
+	public static List<PathObject> findTouchingImageBounds(ImageServer<?> server, Collection<? extends PathObject> pathObjects) {
+		var roi = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight());
+		return findTouchingBounds(roi, pathObjects, null);
+	}
+
+	private static List<PathObject> findTouchingBounds(ROI roi, Collection<? extends PathObject> pathObjects, ImagePlane plane) {
+		// Internal method where the plane is passed as a parameter, rather than determined from the ROI.
+		// This is to make it possible to pass null, and apply the test to the ROI on any plane
+		if (roi == null)
+			return Collections.emptyList();
+
+		// Do a fast check to find any potential intersections
+		var potential = pathObjects.stream()
+				.filter(PathObject::hasROI)
+				.filter(p -> plane == null ||
+						(plane.getZ() == p.getROI().getZ() && plane.getT() == p.getROI().getT()))
+				.map(p -> (PathObject)p)
+				.toList();
+		if (potential.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		// Extract the lines from the parent & prepare or fast tests
+		var linear = GeometryTools.getDefaultFactory().buildGeometry(LinearComponentExtracter.getLines(roi.getGeometry()));
+		var prepared = PreparedGeometryFactory.prepare(linear);
+		return potential
+				.stream()
+				.filter(p -> !prepared.disjoint(p.getROI().getGeometry()))
+				.toList();
+	}
+
+	/**
+	 * Remove all objects with ROIs that touch or overlap the ROI of the parent object.
+	 * <br/>
+	 * Note that this method cannot be used to remove TMA cores, since this may make the TMA grid invalid.
+	 * @param hierarchy object hierarchy containing objects that may be removed
+	 * @param parent the parent object
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 * @see #findTouchingBounds(ROI, Collection)
+	 * @see #removeTouchingBounds(PathObjectHierarchy, PathObject, Predicate)
+	 */
+	public static boolean removeTouchingBounds(PathObjectHierarchy hierarchy, PathObject parent) {
+		return removeTouchingBounds(hierarchy, parent, null);
+	}
+
+	/**
+	 /**
+	 * Remove all objects with ROIs that touch or overlap the ROI of the parent object, optionally filtering to
+	 * consider only filtered objects for removal.
+	 * <br/>
+	 * Note that this method cannot be used to remove TMA cores, since this may make the TMA grid invalid.
+	 * @param hierarchy object hierarchy containing objects that may be removed
+	 * @param parent the parent object
+	 * @param filter optional filter; for example, {@code PathObject::isDetection} can be used to restrict the
+	 *               method to only consider removing detection objects.
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 * @see #findTouchingBounds(ROI, Collection)
+	 * @see #removeTouchingBounds(PathObjectHierarchy, PathObject)
+	 */
+	public static boolean removeTouchingBounds(PathObjectHierarchy hierarchy, PathObject parent, Predicate<PathObject> filter) {
+		Predicate<PathObject> predicate = (PathObject p) -> {
+			return p.hasROI() && !p.isTMACore() && !Objects.equals(parent, p);
+		};
+		if (filter != null)
+			predicate = predicate.and(filter);
+		var pathObjects = hierarchy.getAllObjects(false)
+				.stream()
+				.filter(predicate)
+				.toList();
+		var touching = findTouchingBounds(parent.getROI(), pathObjects);
+		if (touching.isEmpty()) {
+			return false;
+		}
+		hierarchy.removeObjects(touching, true);
+		return true;
+	}
+
+	/**
+	 * Find all the objects that touch (or cross) a rectangle representing the image bounds.
+	 * This is applied to all slices and timepoints of the image.
+	 * @param imageData the image data
+	 * @return true if objects were deleted, false otherwise
+	 * @since v0.6.0
+	 * @see #findTouchingImageBounds(ImageServer, Collection)
+	 * @see #removeTouchingImageBounds(ImageData, Predicate)
+	 */
+	public static boolean removeTouchingImageBounds(ImageData<?> imageData) {
+		return removeTouchingImageBounds(imageData, null);
+	}
+
+	/**
+	 * Find all the objects that touch (or cross) a rectangle representing the image bounds.
+	 * This is applied to all slices and timepoints of the image.
+	 * @param imageData the image data
+	 * @param filter optional filter to select objects that cou
+	 * @param filter optional filter; for example, {@code PathObject::isDetection} can be used to restrict the
+	 *               method to only consider removing detection objects.
+	 * @return true if objects were deleted, false otherwise
+	 * @since v0.6.0
+	 * @see #findTouchingImageBounds(ImageServer, Collection)
+	 * @see #removeTouchingImageBounds(ImageData)
+	 */
+	public static boolean removeTouchingImageBounds(ImageData<?> imageData, Predicate<PathObject> filter) {
+		if (imageData == null)
+			return false;
+		var server = imageData.getServer();
+		var hierarchy = imageData.getHierarchy();
+		var pathObjects = hierarchy.getAllObjects(false)
+				.stream()
+				.filter(PathObject::hasROI)
+				.filter(p -> !p.isTMACore())
+				.filter(filter == null ? p -> true : filter)
+				.toList();
+		var touching = findTouchingImageBounds(server, pathObjects);
+		if (touching.isEmpty()) {
+			return false;
+		}
+		hierarchy.removeObjects(touching, true);
+		return true;
+	}
+
 
 	/**
 	 * Given a collection of objects, split the objects with area ROIs using dividing lines extracted from the objects
