@@ -773,6 +773,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 				availableChannels.parallelStream()
 						.filter(c -> !(c instanceof DirectServerChannelInfo))
 						.forEach(this::autoSetDisplayRangeWithoutUpdate);
+				if (!server.isRGB()) {
+					// For direct 8-bit, non-RGB set using the min and max from the histogram
+					// This is intended to deal with labeled images, e.g. a pixel classifier's output -
+					// where the values are usually low
+					availableChannels.parallelStream()
+							.filter(c -> c instanceof DirectServerChannelInfo)
+							.forEach(c -> autoSetDisplayRange(c, 0));
+				}
 			} else {
 				availableChannels.parallelStream()
 						.forEach(this::autoSetDisplayRangeWithoutUpdate);
