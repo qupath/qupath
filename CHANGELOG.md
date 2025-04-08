@@ -579,6 +579,7 @@ Here's an abridged version of the main changes, grouped by category.
   * Making measurements is *much* faster in some circumstances (https://github.com/qupath/qupath/pull/1076)
   * It's possible to restrict live prediction more closely to annotated regions ((https://github.com/qupath/qupath/pull/1076))
   * Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
+  * Improve the layout of the buttons at the bottom of the pixel classifier pane (https://github.com/qupath/qupath/pull/1823)
 * New 'Analyze > Spatial analysis > Signed distance to annotations 2D' command (https://github.com/qupath/qupath/issues/1032)
 * New 'Objects > Lock... >' commands
   * Enables annotations & TMA cores to be locked, so they cannot accidentally be moved or edited (deletion is still possible)
