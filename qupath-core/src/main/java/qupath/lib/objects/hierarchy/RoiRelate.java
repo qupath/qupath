@@ -1,6 +1,26 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2025 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.objects.hierarchy;
 
-import org.locationtech.jts.algorithm.PointLocator;
 import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
@@ -17,6 +37,13 @@ import qupath.lib.roi.interfaces.ROI;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+/**
+ * Helper class for determining relationships between ROIs.
+ * <br/>
+ * Using this class helps reduce expensive calculations by enabling the results to be cached.
+ * It also adds support for {@code coversWithTolerance} to help with more intuitive hierarchy
+ * resolution, in an attempt to address https://github.com/qupath/qupath/issues/1771
+ */
 class RoiRelate {
 
     private final ROI roi;
@@ -31,11 +58,29 @@ class RoiRelate {
         this.geometry = geometry == null ? roi.getGeometry() : geometry;
     }
 
+    /**
+     * Determine whether the ROI stored here covers another ROI, including a small amount of tolerance.
+     * <br/>
+     * This is intended to help deal with the fact that overlay options in JTS don't "obey the axioms of set theory"
+     * due to precision model limits, see e.g. https://locationtech.github.io/jts/jts-faq.html#D7
+     * <br/>
+     * Practically, this means that the intersection of two ROIs is not necessarily 'covered' by either of the two ROIs,
+     * which produces unintuitive results when we tried to resolve the object hierarchy using QuPath's defined rules.
+     * @param roi the roi that may be covered
+     * @return true if the stored ROI covers the roi passed as a parameter, false otherwise
+     */
     public boolean coversWithTolerance(ROI roi) {
         return coversMap.computeIfAbsent(roi, this::computeCoversWithTolerance);
     }
 
+    private boolean samePlane(ROI roi) {
+        return this.roi.getZ() == roi.getZ() && this.roi.getT() == roi.getT();
+    }
+
     private boolean computeCoversWithTolerance(ROI roi) {
+        if (!samePlane(roi)) {
+            return false;
+        }
         var child = roi.getGeometry();
         var parent = getPreparedGeometry();
 
@@ -51,6 +96,7 @@ class RoiRelate {
         if (parentArea < childArea || childArea == 0)
             return false;
 
+        // Define our distance tolerance here
 //		double dist = Math.max(1e-3, 1.0/parent.getGeometry().getFactory().getPrecisionModel().getScale());
         double dist = Math.max(1e-3, 2.0/parent.getGeometry().getFactory().getPrecisionModel().getScale());
 
@@ -64,10 +110,25 @@ class RoiRelate {
         return actualDist < dist;
     }
 
+    /**
+     * Query if the stored ROI contains the centroid of the specified ROI.
+     * @param roi the roi whose centroid should be checked
+     * @return true if the stored ROI contains the centroid, false otherwise
+     */
     public boolean containsCentroid(ROI roi) {
+        if (!samePlane(roi))
+            return false;
         return contains(new Coordinate(roi.getCentroidX(), roi.getCentroidY()));
     }
 
+    /**
+     * Query if the stored ROI contains the specified coordinates, assuming the same plane.
+     * This tests both the original x and y coordinates, and a (possibly) adjusted version using the precision model,
+     * returning true if either pass the test.
+     * @param x the x coordinate
+     * @param y the y coordinate
+     * @return true if the ROI contains the coordinate, false otherwise
+     */
     public boolean contains(double x, double y) {
         var coord = new Coordinate(x, y);
         if (contains(coord))
@@ -76,6 +137,12 @@ class RoiRelate {
         return contains(coord);
     }
 
+    /**
+     * Query if the stored ROI contains the specified coordinate.
+     * No adjustment is made for the precision model.
+     * @param coord the coordinate to test
+     * @return true if the ROI contains the coordinate, false otherwise
+     */
     public boolean contains(Coordinate coord) {
         return getLocator().locate(coord) != Location.EXTERIOR;
     }
