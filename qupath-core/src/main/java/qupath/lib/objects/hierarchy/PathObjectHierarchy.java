@@ -850,19 +850,18 @@ public final class PathObjectHierarchy implements Serializable {
 		if (pathObjects.isEmpty() || !roi.isArea() || roi.isEmpty())
 			return Collections.emptyList();
 		
-		var locator = tileCache.getLocator(roi);
-		var preparedGeometry = tileCache.getPreparedGeometry(tileCache.getGeometry(roi));
 		// Note: JTS 1.17.0 does not support parallel requests, see https://github.com/locationtech/jts/issues/571
 		// A change in getLocator() overcomes this - but watch out for future problems
+		var relate = tileCache.getRoiRelate(roi);
 		return pathObjects.parallelStream().filter(child -> {
 			// Test plane first
 			if (!sameZT(roi, child.getROI()))
 				return false;
-			
+
 			if (child.isDetection())
-				return tileCache.containsCentroid(locator, child);
+				return relate.containsCentroid(child.getROI());
 			else {
-				return tileCache.covers(preparedGeometry, tileCache.getGeometry(child));
+				return relate.coversWithTolerance(child.getROI());
 			}
 		}).collect(Collectors.toCollection(ArrayList::new));
 	}
