@@ -410,11 +410,15 @@ public class HierarchyOverlay extends AbstractOverlay {
 	 * Quick test to see if an ROI's bounds intersect a specified region.
 	 * @param roi
 	 * @param region
-	 * @return true if the roi is non-null and its bounds intersect region, false otherwise
+	 * @return true if the roi is non-null and its bounds intersect the region, false otherwise
 	 */
 	private static boolean roiBoundsIntersectsRegion(ROI roi, ImageRegion region) {
 		return roi != null && roi.getZ() == region.getZ() && roi.getT() == region.getT() &&
-				region.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight());
+				region.intersects(
+						roi.getBoundsX(),
+						roi.getBoundsY(),
+						Math.max(roi.getBoundsWidth(), 1e-3), // Handle points / lines with 0 width or height
+						Math.max(roi.getBoundsHeight(), 1e-3));
 	}
 
 

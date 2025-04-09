@@ -524,8 +524,6 @@ public class BrightnessContrastChannelPane extends BorderPane {
         var metadata2 = new ImageServerMetadata.Builder(metadata)
                 .channels(channels)
                 .build();
-        imageData.updateServerMetadata(metadata2);
-
 
         // Update the display
         channel.setLUTColor(
@@ -533,6 +531,10 @@ public class BrightnessContrastChannelPane extends BorderPane {
                 (int)(newColor.getGreen() * 255),
                 (int)(newColor.getBlue() * 255)
         );
+
+        // Update the image data - need to do this after the display
+        // to ensure the histogram updates properly
+        imageData.updateServerMetadata(metadata2);
 
         // Add color property
         var imageDisplay = imageDisplayProperty().getValue();

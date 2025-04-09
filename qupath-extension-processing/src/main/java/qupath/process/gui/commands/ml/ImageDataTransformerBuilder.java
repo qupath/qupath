@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -99,7 +99,7 @@ abstract class ImageDataTransformerBuilder {
 			if (!set.contains(name))
 				set.add(name);
 			else
-				logger.warn("Found duplicate channel name! Will skip channel " + i + " (name '" + name + "')");
+                logger.warn("Found duplicate channel name! Will skip channel {} (name '{}')", i, name);
 			i++;
 		}
 		return set;
@@ -227,39 +227,40 @@ abstract class ImageDataTransformerBuilder {
 		
 		private static final Logger logger = LoggerFactory.getLogger(DefaultFeatureCalculatorBuilder.class);
 		
-		private static enum NormalizationType {
+		private enum NormalizationType {
 			NONE,
 			GAUSSIAN_MEAN,
-			GAUSSIAN_MEAN_VARIANCE;
+			GAUSSIAN_MEAN_VARIANCE,
+			LOCAL_MIN_MAX,
+			LOCAL_MIN_MAX_SMOOTHED;
 			
 			@Override
 			public String toString() {
-				switch(this) {
-				case GAUSSIAN_MEAN:
-					return "Local mean subtraction only";
-				case GAUSSIAN_MEAN_VARIANCE:
-					return "Local mean & variance";
-				case NONE:
-					return "None";
-				default:
-					throw new IllegalArgumentException("Unknown normalization " + this);
-				}
+                return switch (this) {
+                    case GAUSSIAN_MEAN -> "Local mean subtraction only";
+                    case GAUSSIAN_MEAN_VARIANCE -> "Local mean & variance";
+					case LOCAL_MIN_MAX -> "Local min & max";
+					case LOCAL_MIN_MAX_SMOOTHED -> "Local min & max smoothed";
+                    case NONE -> "None";
+                    default -> throw new IllegalArgumentException("Unknown normalization " + this);
+                };
 			}
 		}
 
-		private GridPane pane;
-		private CheckComboBox<ColorTransform> comboChannels;
+		private final GridPane pane;
+		private final CheckComboBox<ColorTransform> comboChannels;
 		
-		private ObservableList<ColorTransform> selectedChannels;
-		private ObservableList<Double> selectedSigmas;
-		private ObservableList<MultiscaleFeature> selectedFeatures;
-		
-		private ObservableList<NormalizationType> localNormalizations = FXCollections.observableArrayList(NormalizationType.values());
+		private final ObservableList<ColorTransform> selectedChannels;
+		private final ObservableList<Double> selectedSigmas;
+		private final ObservableList<MultiscaleFeature> selectedFeatures;
 
-		private ObservableObjectValue<NormalizationType> normalization;
-		private ObservableObjectValue<Double> normalizationSigma;
-//		private ObservableBooleanValue do3D;
-		
+		private final ObservableList<NormalizationType> localNormalizations = FXCollections.observableArrayList(NormalizationType.values());
+
+		private final ObservableObjectValue<NormalizationType> normalization;
+		private final ObservableObjectValue<Double> normalizationSigma;
+
+		private final boolean do3D = false; // We don't support 3D features yet...
+
 		public DefaultFeatureCalculatorBuilder(ImageData<BufferedImage> imageData) {
 			
 			int row = 0;
@@ -271,9 +272,7 @@ abstract class ImageDataTransformerBuilder {
 			var labelChannels = new Label("Channels");
 			comboChannels = new CheckComboBox<>();
 			FXUtils.installSelectAllOrNoneMenu(comboChannels);
-			//			var btnChannels = new Button("Select");
-			//			btnChannels.setOnAction(e -> selectChannels());
-			@SuppressWarnings("resource")
+
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
 				comboChannels.getItems().setAll(getAvailableChannels(imageData));
@@ -293,10 +292,9 @@ abstract class ImageDataTransformerBuilder {
 			var comboScales = new CheckComboBox<Double>();
 			FXUtils.installSelectAllOrNoneMenu(comboScales);
 			var labelScales = new Label("Scales");
-			comboScales.getItems().addAll(0.5, 1.0, 2.0, 4.0, 8.0);
+			comboScales.getItems().addAll(0.5, 1.0, 2.0, 4.0, 8.0, 12.0, 16.0, 24.0, 32.0);
 			comboScales.getCheckModel().check(1);
 			selectedSigmas = comboScales.getCheckModel().getCheckedItems();
-			//			comboScales.getCheckModel().check(1.0);
 
 			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
 
@@ -304,11 +302,16 @@ abstract class ImageDataTransformerBuilder {
 			var comboFeatures = new CheckComboBox<MultiscaleFeature>();
 			FXUtils.installSelectAllOrNoneMenu(comboFeatures);
 			var labelFeatures = new Label("Features");
-			comboFeatures.getItems().addAll(MultiscaleFeature.values());
+			List<MultiscaleFeature> compatibleFilters;
+			if (do3D) {
+				compatibleFilters = Arrays.stream(MultiscaleFeature.values()).filter(MultiscaleFeature::supports3D).toList();
+			} else {
+				compatibleFilters = Arrays.stream(MultiscaleFeature.values()).filter(MultiscaleFeature::supports2D).toList();
+			}
+			comboFeatures.getItems().addAll(compatibleFilters);
 			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
+
 			selectedFeatures = comboFeatures.getCheckModel().getCheckedItems();
-			//			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
-			//			selectedChannels.addListener((Change<? extends Integer> c) -> updateFeatureCalculator());
 			comboFeatures.titleProperty().bind(Bindings.createStringBinding(() -> {
 				int n = selectedFeatures.size();
 				if (n == 0)
@@ -331,14 +334,10 @@ abstract class ImageDataTransformerBuilder {
 			FXUtils.restrictTextFieldInputToNumber(spinnerNormalize.getEditor(), true);
 			FXUtils.resetSpinnerNullToPrevious(spinnerNormalize);
 			spinnerNormalize.focusedProperty().addListener((v, o, n) -> {
-				if (spinnerNormalize.getEditor().getText().equals(""))
+				if (spinnerNormalize.getEditor().getText().isEmpty())
 					spinnerNormalize.getValueFactory().valueProperty().set(0.0);
 			});
 			
-//			var cb3D = new CheckBox("Use 3D filters");
-//			do3D = cb3D.selectedProperty();
-
-
 			GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
 					comboNormalize, spinnerNormalize);
 
@@ -354,10 +353,6 @@ abstract class ImageDataTransformerBuilder {
 					"Choose the features",
 					labelFeatures, comboFeatures);		
 
-//			PaneTools.addGridRow(pane, row++, 0,
-//					"Use 3D filters (rather than 2D)",
-//					cb3D, cb3D);	
-
 			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Apply local intensity (Gaussian-weighted) normalization before calculating features",
 					labelNormalize, comboNormalize);
@@ -365,13 +360,6 @@ abstract class ImageDataTransformerBuilder {
 			GridPaneUtils.addGridRow(pane, row++, 0,
 					"Amount of smoothing to apply for local normalization",
 					labelNormalizeScale, spinnerNormalize);
-
-			//			GridPaneTools.addGridRow(pane, row++, 0,
-			//					"Choose the image channels used to calculate features",
-			//					labelChannels, comboChannels, btnChannels);
-
-
-
 
 			pane.setHgap(5);
 			pane.setVgap(6);
@@ -387,11 +375,7 @@ abstract class ImageDataTransformerBuilder {
 
 			
 			// Extract features, removing any that are incompatible
-			MultiscaleFeature[] features;
-//			if (do3D.get())
-//				features = selectedFeatures.stream().filter(f -> f.supports3D()).toArray(MultiscaleFeature[]::new);
-//			else
-				features = selectedFeatures.stream().filter(f -> f.supports2D()).toArray(MultiscaleFeature[]::new);
+			MultiscaleFeature[] features = selectedFeatures.toArray(MultiscaleFeature[]::new);
 
 			double[] sigmas = selectedSigmas.stream().mapToDouble(d -> d).toArray();
 			
@@ -418,6 +402,15 @@ abstract class ImageDataTransformerBuilder {
 				case GAUSSIAN_MEAN_VARIANCE:
 					opNormalize = ImageOps.Normalize.localNormalization(localNormalizeSigma, localNormalizeSigma * varianceScaleRatio);
 					break;
+				case LOCAL_MIN_MAX:
+					int radius = (int)Math.ceil(localNormalizeSigma);
+					opNormalize = ImageOps.Normalize.localNormalizationMinMax(radius, 0);
+					break;
+				case LOCAL_MIN_MAX_SMOOTHED:
+					// Apply min/max and then also smooth
+					int radius2 = (int)Math.ceil(localNormalizeSigma);
+					opNormalize = ImageOps.Normalize.localNormalizationMinMax(radius2, localNormalizeSigma);
+					break;
 				case NONE:
 				default:
 					break;
@@ -426,7 +419,7 @@ abstract class ImageDataTransformerBuilder {
 			if (opNormalize != null)
 				op = ImageOps.Core.sequential(opNormalize, op);
 //				op = ImageOps.Core.sequential(op, opNormalize);
-						
+
 			return ImageOps.buildImageDataOp(selectedChannels).appendOps(op);
 		}
 
@@ -449,8 +442,6 @@ abstract class ImageDataTransformerBuilder {
 					comboChannels.getCheckModel().checkIndices(IntStream.range(0, imageData.getServer().nChannels()).toArray());
 				}
 			}
-			
-			
 
 			boolean success = Dialogs.showMessageDialog("Select features", pane);
 			if (success) {
@@ -465,16 +456,13 @@ abstract class ImageDataTransformerBuilder {
 				}
 			}
 			return success;
-
 		}
 
 		@Override
 		public String toString() {
-			return "Default multiscale features";
+			return "Default multiscale features " + (do3D ? "3D" : "2D");
 		}
 
 	}
-
-
 
 }

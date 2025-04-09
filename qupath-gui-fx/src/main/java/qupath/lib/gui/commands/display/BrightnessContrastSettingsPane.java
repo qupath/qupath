@@ -45,7 +45,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
 import org.controlsfx.control.SearchableComboBox;
@@ -94,7 +93,7 @@ public class BrightnessContrastSettingsPane extends GridPane {
         initializePane();
         tryToKeepSearchText();
         // Change on invalidation
-        lastChangeTimestamp = imageDisplayProperty.flatMap(ImageDisplay::changeTimestampProperty);
+        lastChangeTimestamp = imageDisplayProperty.flatMap(ImageDisplay::eventCountProperty);
         lastChangeTimestamp.addListener(this::timestampInvalidated);
         settingsChanged.addListener((v, o, n) -> {
             if (!n)

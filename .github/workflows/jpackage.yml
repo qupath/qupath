@@ -1,15 +1,29 @@
 # This workflow will build a Java project with Gradle, then create an image with jpackage
 # For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
 
- name: Build packages with jpackage
+name: Build packages with jpackage
 
- on: 
-  - workflow_dispatch
-  - workflow_call
+on:
+  workflow_dispatch:
+    inputs:
+      extensions:
+        description: Comma-separated list of extensions to build with.
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      extensions:
+        description: Comma-separated list of extensions to build with.
+        required: false
+        type: string
 
- jobs:
-   build:
 
+
+jobs:
+  build:
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -26,11 +40,28 @@
     steps:
 
     - uses: actions/checkout@v4
+      with:
+        path: qupath
+
+    - name: Clone extensions
+      if: ${{ github.event.inputs.extensions != '' }}
+      run: |
+        IFS=',' read -ra EXTENSIONS <<< "${{ inputs.extensions }}"
+        echo "[includeBuild]" > qupath/include-extra
+        for EXTENSION in "${EXTENSIONS[@]}"; do
+          git clone "https://github.com/qupath/$EXTENSION"
+          echo "../$EXTENSION" >> qupath/include-extra
+        done
+        echo "[dependencies]" >> qupath/include-extra
+        for EXTENSION in "${EXTENSIONS[@]}"; do
+          echo "io.github.qupath:$EXTENSION" >> qupath/include-extra
+        done
+        cat qupath/include-extra
+        ls -lah
 
     - name: Set QuPath version
-      shell: bash
       run: |
-        echo "QUPATH_VERSION=$(cat VERSION)" >> $GITHUB_ENV
+        echo "QUPATH_VERSION=$(cat qupath/VERSION)" >> $GITHUB_ENV
 
     - name: Set up JDK 21
       uses: actions/setup-java@v4
@@ -42,33 +73,37 @@
       uses: gradle/actions/setup-gradle@v4
 
     - name: Assemble javadocs
-      run: ./gradlew assembleJavadocs
+      run: |
+        pushd qupath
+        ./gradlew assembleJavadocs
+        popd
 
     - name: Build with Gradle
-      run: ./gradlew jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums -P toolchain=21
+      run: |
+        pushd qupath
+        ./gradlew jpackage -P git-commit=true -P package=installer mergedJavadoc createChecksums -P toolchain=21
+        popd
 
     - name: Make Linux tar.xz
       if: matrix.name == 'Linux'
-      shell: bash
       run: |
-        tar -c -C build/dist/ QuPath | xz > build/dist/QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}.tar.xz
-        rm -r build/dist/QuPath/
+        tar -c -C qupath/build/dist/ QuPath | xz > qupath/build/dist/QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}.tar.xz
+        rm -r qupath/build/dist/QuPath/
 
     - name: Clean windows artifact
       if: matrix.name == 'Windows'
-      shell: bash
       run: |
-        rm -r build/dist/QuPath-${{ env.QUPATH_VERSION }}
+        rm -r qupath/build/dist/QuPath-${{ env.QUPATH_VERSION }}
 
     - uses: actions/upload-artifact@v4
       with:
         name: QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}
-        path: build/dist/QuPath*
+        path: qupath/build/dist/QuPath*
         retention-days: 1
 
     - uses: actions/upload-artifact@v4
       if: matrix.name == 'Mac-arm64'
       with:
         name: javadoc-QuPath-v${{ env.QUPATH_VERSION }}
-        path: build/docs-merged/javadoc
+        path: qupath/build/docs-merged/javadoc
         retention-days: 7

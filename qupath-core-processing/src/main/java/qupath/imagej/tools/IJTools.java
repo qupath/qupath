@@ -1163,8 +1163,6 @@ public class IJTools {
 //		if (roi instanceof ShapeRoi)
 //			return convertToAreaROI((ShapeRoi)roi, cal, downsampleFactor);
 //		// Shape ROIs should be able to handle most eventualities
-		if (roi instanceof ShapeRoi)
-			return ROIConverterIJ.convertToAreaROI((ShapeRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
 		if (roi.isArea())
 			return ROIConverterIJ.convertToPolygonOrAreaROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
 		if (roi instanceof PolygonRoi) {
@@ -1198,11 +1196,12 @@ public class IJTools {
 	}
 
 	/**
-	 * Apply color deconvolution, outputting 3 'stain' images in the same order as the stain vectors.
+	 * Apply color deconvolution to an RGB image, outputting 3 'stain' images in the same order as the stain vectors.
 	 * 
 	 * @param cp      input RGB color image
 	 * @param stains  color deconvolution stain vectors
 	 * @return array containing three {@code FloatProcessor}s, representing the deconvolved stains
+	 * @see #colorDeconvolve(ImageProcessor, ImageProcessor, ImageProcessor, ColorDeconvolutionStains)
 	 */
 	public static FloatProcessor[] colorDeconvolve(ColorProcessor cp, ColorDeconvolutionStains stains) {
 		int width = cp.getWidth();
@@ -1212,6 +1211,33 @@ public class IJTools {
 		FloatProcessor fpStain2 = new FloatProcessor(width, height, ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_2, null, stains));
 		FloatProcessor fpStain3 = new FloatProcessor(width, height, ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_3, null, stains));
 		return new FloatProcessor[] {fpStain1, fpStain2, fpStain3};
+	}
+
+	/**
+	 * Apply color deconvolution to RGB channels, outputting 3 'stain' images in the same order as the stain vectors.
+	 * This exists to support color deconvolution of non-RGB images.
+	 *
+	 * @param ipRed   input red channel
+	 * @param ipGreen input green channel
+	 * @param ipBlue  input blue channel
+	 * @param stains  color deconvolution stain vectors
+	 * @return array containing three {@code FloatProcessor}s, representing the deconvolved stains
+	 * @see #colorDeconvolve(ColorProcessor, ColorDeconvolutionStains)
+	 */
+	public static FloatProcessor[] colorDeconvolve(ImageProcessor ipRed, ImageProcessor ipGreen, ImageProcessor ipBlue,
+												   ColorDeconvolutionStains stains) {
+		// convertToFloatProcessor makes a copy if the input is already a FloatProcessor
+		int w = ipRed.getWidth();
+		int h = ipRed.getHeight();
+		var red = (float[])ipRed.convertToFloatProcessor().getPixels();
+		var green = (float[])ipGreen.convertToFloatProcessor().getPixels();
+		var blue = (float[])ipBlue.convertToFloatProcessor().getPixels();
+		ColorDeconvolutionHelper.colorDeconvolve(red, green, blue, stains);
+		return new FloatProcessor[] {
+				new FloatProcessor(w, h, red),
+				new FloatProcessor(w, h, green),
+				new FloatProcessor(w, h, blue)
+		};
 	}
 
 }

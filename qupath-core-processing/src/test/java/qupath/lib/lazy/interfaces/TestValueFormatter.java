@@ -33,6 +33,18 @@ public class TestValueFormatter {
     }
 
     @Test
+    void testNegative() {
+        assertEquals("-5.2", ValueFormatter.getStringValue(-5.245, 1));
+        assertEquals("-5.2", ValueFormatter.getStringValue(-5.245, -1));
+        assertEquals("-5.25", ValueFormatter.getStringValue(-5.245, 2));
+        assertEquals("-5.25", ValueFormatter.getStringValue(-5.245, -2));
+        assertEquals("-5.245", ValueFormatter.getStringValue(-5.245, 3));
+        assertEquals("-5.245", ValueFormatter.getStringValue(-5.245, -3));
+        assertEquals("-5.2450", ValueFormatter.getStringValue(-5.245, 4));
+        assertEquals("-5.245", ValueFormatter.getStringValue(-5.245, -4));
+    }
+
+    @Test
     void testNaN() {
         assertEquals("NaN", ValueFormatter.getStringValue(Double.NaN, 5));
         assertEquals("NaN", ValueFormatter.getStringValue(Double.NaN, -5));

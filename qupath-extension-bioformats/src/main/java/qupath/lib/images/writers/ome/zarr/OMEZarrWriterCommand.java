@@ -88,10 +88,10 @@ public class OMEZarrWriterCommand implements Runnable {
             return;
         }
 
-        OMEZarrWriter.Builder builder = createBuilder(parameters, imageData, fileOutput);
+        OMEZarrWriter.Builder builder = createBuilder(parameters, imageData);
 
         task = executor.submit(() -> {
-            try (OMEZarrWriter writer = builder.build()) {
+            try (OMEZarrWriter writer = builder.build(fileOutput.getAbsolutePath())) {
                 Dialogs.showInfoNotification(
                         QuPathResources.getString("Action.BioFormats.omeZarrWriter"),
                         MessageFormat.format(
@@ -198,12 +198,11 @@ public class OMEZarrWriterCommand implements Runnable {
         }
     }
 
-    private OMEZarrWriter.Builder createBuilder(ParameterList parameters, ImageData<BufferedImage> imageData, File fileOutput) {
-        OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(imageData.getServer(), fileOutput.getAbsolutePath())
-                .setNumberOfThreads(parameters.getIntParameterValue("numberOfThreads"))
-                .setTileWidth(parameters.getIntParameterValue("tileSize"))
-                .setTileHeight(parameters.getIntParameterValue("tileSize"))
-                .setDownsamples(DoubleStream.iterate(
+    private OMEZarrWriter.Builder createBuilder(ParameterList parameters, ImageData<BufferedImage> imageData) {
+        OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(imageData.getServer())
+                .parallelize(parameters.getIntParameterValue("numberOfThreads"))
+                .tileSize(parameters.getIntParameterValue("tileSize"))
+                .downsamples(DoubleStream.iterate(
                         1,
                         d -> (int) (imageData.getServer().getWidth() / d) > parameters.getIntParameterValue("tileSize") &&
                                 (int) (imageData.getServer().getHeight() / d) > parameters.getIntParameterValue("tileSize"),
@@ -211,15 +210,15 @@ public class OMEZarrWriterCommand implements Runnable {
                 );
 
         if (!parameters.getBooleanParameterValue("allZ")) {
-            builder.setZSlices(qupath.getViewer().getZPosition(), qupath.getViewer().getZPosition()+1);
+            builder.zSlices(qupath.getViewer().getZPosition(), qupath.getViewer().getZPosition()+1);
         }
         if (!parameters.getBooleanParameterValue("allT")) {
-            builder.setTimepoints(qupath.getViewer().getTPosition(), qupath.getViewer().getTPosition()+1);
+            builder.timePoints(qupath.getViewer().getTPosition(), qupath.getViewer().getTPosition()+1);
         }
 
         PathObject selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
         if (selected != null && selected.hasROI() && selected.getROI().isArea()) {
-            builder.setBoundingBox(ImageRegion.createInstance(selected.getROI()));
+            builder.region(ImageRegion.createInstance(selected.getROI()));
         }
 
         return builder;

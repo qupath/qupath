@@ -526,9 +526,9 @@ public class MultiscaleFeatures {
 		 */
 		public FeatureMap build(List<Mat> mats, int ind) {
 			if (sigmaZ > 0) {
-				return build3D(mats, ind).get(0);
+				return build3D(mats, ind).getFirst();
 			}
-			return build2D(Collections.singletonList(mats.get(ind))).get(0);
+			return build2D(Collections.singletonList(mats.get(ind))).getFirst();
 		}
 		
 		/**

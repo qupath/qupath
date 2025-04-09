@@ -156,7 +156,9 @@ class PathClassPane {
 
 		Action removeSelected = new Action(e -> promptToRemoveSelectedClasses());
 		removeSelected.setGraphic(IconFactory.createNode(FontAwesome.Glyph.MINUS, iconSize));
-		removeSelected.disabledProperty().bind(Bindings.isEmpty(listClasses.getSelectionModel().getSelectedItems().filtered(p -> p != PathClass.NULL_CLASS)));
+		removeSelected.disabledProperty().bind(Bindings.createBooleanBinding(() ->
+				listClasses.getSelectionModel().getSelectedItems().stream().noneMatch(p -> p != PathClass.NULL_CLASS),
+				listClasses.getSelectionModel().getSelectedItems()));
 		removeSelected.setLongText("Remove the selected classes from the list (this does not change or remove objects)");
 
 		Button btnAdd = ActionUtils.createButton(addNewAction);

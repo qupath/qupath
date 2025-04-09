@@ -309,7 +309,7 @@ public class TMASummaryViewer {
 		MenuItem miOpen = new MenuItem("Open...");
 		miOpen.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
 		miOpen.setOnAction(e -> {
-			File file = FileChoosers.promptForFile(stage, null, null,
+			File file = FileChoosers.promptForFile(stage, null,
 					FileChoosers.createExtensionFilter("TMA data files", "*.qptma"));
 			if (file == null)
 				return;

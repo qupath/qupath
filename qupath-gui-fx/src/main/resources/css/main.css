@@ -45,7 +45,22 @@
 
 }
 
-/* Text objects used as placeholders */
+/* Location text, slider backgrounds to show on the viewer */
+.viewer-overlay {
+  -fx-background-color: rgba(0, 0, 0, 0.4);
+  -fx-base: rgb(45, 48, 50);
+  -fx-background: derive(-fx-base, -10%);
+  -fx-control-inner-background: derive(-fx-base, 10%);
+  -fx-control-inner-background-alt: derive(-fx-control-inner-background,1%);
+  -fx-light-text-color: white;
+}
+
+.viewer-overlay.viewer-dims {
+  -fx-padding: 10;
+  -fx-background-radius: 5;
+}
+
+  /* Text objects used as placeholders */
 .text-placeholder {
   -fx-fill: -fx-text-base-color;
   -fx-opacity: 0.8;
@@ -58,7 +73,7 @@
 
 /* Adapt menu icon colors */
 .qupath-icon {
-  -fx-text-fill: -fx-text-background-color;;
+  -fx-text-fill: -fx-text-base-color;
 }
 
 /* Used in command finder for help text */
@@ -71,6 +86,11 @@
 .minimal-color-picker {
   -fx-color-label-visible: false;
   -fx-background-color: null;
+  -fx-color: -fx-base;
+}
+
+.minimal-color-picker .color-palette {
+  -fx-background: -fx-base;
 }
 
 .minimal-color-picker > .color-picker-label {
@@ -78,7 +98,7 @@
 }
 
 .minimal-color-picker:hover {
-  -fx-effect: dropshadow(two-pass-box , rgba(0, 0, 0, 0.2), 5, 0.0 , 0, 2);
+  -fx-effect: dropshadow(two-pass-box, rgba(0, 0, 0, 0.2), 5, 0.0 , 0, 2);
 }
 
 .minimal-color-picker:focused {

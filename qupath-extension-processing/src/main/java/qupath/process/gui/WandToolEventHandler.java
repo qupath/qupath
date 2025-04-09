@@ -439,8 +439,8 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 			}
 			if (coords.size() > 1) {
 				// Ensure closed
-				if (!coords.get(coords.size()-1).equals(coords.get(0)))
-					coords.add(coords.get(0));
+				if (!coords.getLast().equals(coords.getFirst()))
+					coords.add(coords.getFirst());
 				// Exclude single pixels
 				var polygon = factory.createPolygon(coords.toArray(Coordinate[]::new));
 				if (coords.size() > 5 || polygon.getArea() > 1)
@@ -453,7 +453,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 			return null;
 		
 		// Handle the fact that OpenCV contours are defined using the 'pixel center' by dilating the boundary
-		var geometry = geometries.size() == 1 ? geometries.get(0) : GeometryCombiner.combine(geometries);
+		var geometry = geometries.size() == 1 ? geometries.getFirst() : GeometryCombiner.combine(geometries);
 		geometry = geometry.buffer(0.5);
 		
 		// Transform to map to integer pixel locations in the full-resolution image
@@ -467,7 +467,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 			return null;
 		
 		long endTime = System.currentTimeMillis();
-		logger.trace(getClass().getSimpleName() + " time: " + (endTime - startTime));
+        logger.trace("{} time: {}", getClass().getSimpleName(), endTime - startTime);
 		
 		if (pLast == null)
 			pLast = new Point2D.Double(x, y);

@@ -1714,11 +1714,11 @@ public class PathPrefs {
     	return strokeThickThickness;
     }
 
-	private static BooleanProperty newDetectionRendering = new SimpleBooleanProperty(false);
+	private static final BooleanProperty newDetectionRendering = createPersistentPreference("newDetectionRendering", true);
 
 	/**
 	 * Flag to enable the new rendering strategy for detections.
-	 * This can be used to temporarily turn on/off the rendering, to help refine the behavior.
+	 * This can be used to turn on/off the rendering, in case users prefer the 'old' approach.
 	 * @return
 	 * @since v0.6.0
 	 */

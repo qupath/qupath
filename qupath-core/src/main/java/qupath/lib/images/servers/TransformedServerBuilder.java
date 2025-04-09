@@ -98,6 +98,190 @@ public class TransformedServerBuilder {
 		server = new SlicedImageServer(server, zStart, zEnd, zStep, tStart, tEnd, tStep);
 		return this;
 	}
+
+	/**
+	 * Apply a mean Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMean() {
+		return zProject(ZProjectedImageServer.Projection.MEAN);
+	}
+
+	/**
+	 * Apply a minimum Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMin() {
+		return zProject(ZProjectedImageServer.Projection.MIN);
+	}
+
+	/**
+	 * Apply a maximum Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMax() {
+		return zProject(ZProjectedImageServer.Projection.MAX);
+	}
+
+	/**
+	 * Apply a sum Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectSum() {
+		return zProject(ZProjectedImageServer.Projection.SUM);
+	}
+
+	/**
+	 * Apply a standard deviation Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectStandardDeviation() {
+		return zProject(ZProjectedImageServer.Projection.STANDARD_DEVIATION);
+	}
+
+	/**
+	 * Apply a median Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMedian() {
+		return zProject(ZProjectedImageServer.Projection.MEDIAN);
+	}
+
+	/**
+	 * Apply a Z-projection.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @param projection a type of projection to convert the multiple z-stacks into one
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProject(ZProjectedImageServer.Projection projection) {
+		server = new ZProjectedImageServer(server, projection, -1);
+		return this;
+	}
+
+	/**
+	 * Apply a Z-projection, either from all slices or using a running projection from adjacent slices.
+	 * <p>
+	 * If {@code offset} is {@link ZProjectedImageServer#NO_RUNNING_OFFSET}, this is equivalent to
+	 * {@link #zProject(ZProjectedImageServer.Projection)} and the resulting image will have a single z-slice.
+	 * <p>
+	 * Otherwise, if {@code offset} is greater than 0, the resulting image will have the same number of z-slices
+	 * as the input, where each slice is a projection using up to {@code offset} slices both above and below
+	 * the current slice.
+	 * This means that offset x 2 + 1 slices will be used for each projection, except at the edges where fewer slices
+	 * will be used.
+	 *
+	 * @param projection a type of projection to convert the multiple z-stacks into one
+	 * @param offset the number of slices to use for the running projection (ignored for non-running projections).
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProject(ZProjectedImageServer.Projection projection, int offset) {
+		server = new ZProjectedImageServer(server, projection, offset);
+		return this;
+	}
+
+	/**
+	 * Apply a running maximum Z-projection to the image.
+	 *
+	 * @param offset the number of slices to use for the running projection, or
+	 *               {@link ZProjectedImageServer#NO_RUNNING_OFFSET} to create a single projection from all slices.
+	 * @return this builder
+	 * @see #zProject(ZProjectedImageServer.Projection, int)
+	 */
+	public TransformedServerBuilder zProjectMax(int offset) {
+		return zProject(ZProjectedImageServer.Projection.MAX, offset);
+	}
+
+	/**
+	 * Apply a running minimum Z-projection to the image.
+	 *
+	 * @param offset the number of slices to use for the running projection, or
+	 *               {@link ZProjectedImageServer#NO_RUNNING_OFFSET} to create a single projection from all slices.
+	 * @return this builder
+	 * @see #zProject(ZProjectedImageServer.Projection, int)
+	 */
+	public TransformedServerBuilder zProjectMin(int offset) {
+		return zProject(ZProjectedImageServer.Projection.MIN, offset);
+	}
+
+	/**
+	 * Apply a running mean Z-projection to the image.
+	 *
+	 * @param offset the number of slices to use for the running projection, or
+	 *               {@link ZProjectedImageServer#NO_RUNNING_OFFSET} to create a single projection from all slices.
+	 * @return this builder
+	 * @see #zProject(ZProjectedImageServer.Projection, int)
+	 */
+	public TransformedServerBuilder zProjectMean(int offset) {
+		return zProject(ZProjectedImageServer.Projection.MEAN, offset);
+	}
+
+	/**
+	 * Apply a running median Z-projection to the image.
+	 *
+	 * @param offset the number of slices to use for the running projection, or
+	 *               {@link ZProjectedImageServer#NO_RUNNING_OFFSET} to create a single projection from all slices.
+	 * @return this builder
+	 * @see #zProject(ZProjectedImageServer.Projection, int)
+	 */
+	public TransformedServerBuilder zProjectMedian(int offset) {
+		return zProject(ZProjectedImageServer.Projection.MEDIAN, offset);
+	}
+
+	/**
+	 * Apply a running standard deviation Z-projection to the image.
+	 *
+	 * @param offset the number of slices to use for the running projection, or
+	 *               {@link ZProjectedImageServer#NO_RUNNING_OFFSET} to create a single projection from all slices.
+	 * @return this builder
+	 * @see #zProject(ZProjectedImageServer.Projection, int)
+	 */
+	public TransformedServerBuilder zProjectStandardDeviation(int offset) {
+		return zProject(ZProjectedImageServer.Projection.STANDARD_DEVIATION, offset);
+	}
+  
+  /**
+	 * Concatenate a list of additional servers along the 'z' dimension (iteration order is used).
+	 *
+	 * @param servers the servers to concatenate
+	 * @return this builder
+	 * @throws IllegalArgumentException if the provided images are not similar (see
+	 * {@link ZConcatenatedImageServer#ZConcatenatedImageServer(List, Number)}), or if one of them have more than one z-stack
+	 */
+	public TransformedServerBuilder concatToZStack(List<ImageServer<BufferedImage>> servers) {
+		return concatToZStack(servers, null);
+	}
+
+	/**
+	 * Concatenate a list of additional servers along the 'z' dimension (iteration order is used).
+	 *
+	 * @param servers the servers to concatenate
+	 * @param zSpacingMicrons the spacing in microns there should be between the combined images. Can be null to use the default value
+	 * @return this builder
+	 * @throws IllegalArgumentException if the provided images are not similar (see
+	 * {@link ZConcatenatedImageServer#ZConcatenatedImageServer(List, Number)}), or if one of them have more than one z-stack
+	 */
+	public TransformedServerBuilder concatToZStack(List<ImageServer<BufferedImage>> servers, Number zSpacingMicrons) {
+		List<ImageServer<BufferedImage>> allServers = new ArrayList<>(servers);
+		if (!allServers.contains(server)) {
+			allServers.addFirst(server);
+		}
+
+		server = new ZConcatenatedImageServer(allServers, zSpacingMicrons);
+		return this;
+  }
 	
 	/**
 	 * Apply an {@link AffineTransform} to the server. 

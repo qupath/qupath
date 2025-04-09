@@ -214,6 +214,14 @@ public class ViewerManager implements QuPathViewerListener {
 		return viewerDisplayOptions.showScalebarProperty();
 	}
 
+	/**
+	 * Show z-projection overlay options, where relevant
+	 * @return
+	 */
+	public BooleanProperty showZProjectControlsProperty() {
+		return viewerDisplayOptions.showZProjectControlsProperty();
+	}
+
 
 	/**
 	 * Match the display resolutions (downsamples) of all viewers to match the current viewer.

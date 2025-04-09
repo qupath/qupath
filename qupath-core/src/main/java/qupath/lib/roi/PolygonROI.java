@@ -30,6 +30,8 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.lang.ref.SoftReference;
 import java.util.List;
+import java.util.Objects;
+
 import org.locationtech.jts.geom.Geometry;
 
 import org.locationtech.jts.operation.predicate.RectangleIntersects;
@@ -63,6 +65,9 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	 */
 	private transient SoftReference<Geometry> cachedGeometry;
 
+	// Hash code may be expensive to calculate
+	private transient int hashCode;
+
 	PolygonROI() {
 		super();
 	}
@@ -85,16 +90,10 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	PolygonROI(double x, double y, ImagePlane plane) {
 		super(plane);
 		vertices = VerticesFactory.createVertices(new float[]{(float)x, (float)x}, new float[]{(float)y, (float)y}, false);
-//		vertices = VerticesFactory.createMutableVertices();
-//		vertices.add(x, y);
-//		vertices.close();
 	}
 	
-	PolygonROI(List<Point2> points, ImagePlane plane) {
+	PolygonROI(List<? extends Point2> points, ImagePlane plane) {
 		super(plane);
-//		vertices = VerticesFactory.createMutableVertices(points.size()+1);
-//		setPoints(points);
-//		vertices.close();
 		float[] x = new float[points.size()];
 		float[] y = new float[points.size()];
 		for (int i = 0; i < points.size(); i++) {
@@ -108,13 +107,6 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	
 	PolygonROI(float[] x, float[] y, ImagePlane plane) {
 		this(x, y, plane, true);
-//		List<Point2> points = new ArrayList<>();
-//		for (int i = 0; i < x.length; i++) {
-//			points.add(new Point2(x[i], y[i]));
-//		}
-//		vertices = VerticesFactory.createMutableVertices(points.size()+1);
-//		setPoints(points);
-//		vertices.close();
 	}
 	
 	
@@ -122,14 +114,6 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 		super(plane);
 		vertices = VerticesFactory.createVertices(x, y, copyVertices);
 	}
-	
-	
-//	public PolygonROI(Vertices vertices, int c, int z, int t) {
-//		super(c, z, t);
-//		this.vertices = Vertices.createMutableVertices(vertices.size());
-//		setPoints(vertices.getPoints()); // TODO: Implement this more efficiency, if it remains...
-//		isAdjusting = false;
-//	}
 
 
 	@Override
@@ -177,6 +161,8 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	 */
 	@Override
 	public double getCentroidX() {
+		if (vertices.size() == 1)
+			return vertices.getX(0);
 		if (stats == null)
 			calculateShapeMeasurements();
 		return stats.getCentroidX();
@@ -187,6 +173,8 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	 */
 	@Override
 	public double getCentroidY() {
+		if (vertices.size() == 1)
+			return vertices.getY(0);
 		if (stats == null)
 			calculateShapeMeasurements();
 		return stats.getCentroidY();
@@ -248,6 +236,8 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	 */
 	@Override
 	public double getArea() {
+		if (vertices.size() <= 2)
+			return 0;
 		if (stats == null)
 			calculateShapeMeasurements();
 		return stats.getArea();
@@ -258,6 +248,8 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	 */
 	@Override
 	public double getLength() {
+		if (getNumPoints() <= 1)
+			return 0;
 		if (stats == null)
 			calculateShapeMeasurements();
 		return stats.getPerimeter();
@@ -320,25 +312,10 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 		return vertices;
 	}
 	
-//	public VerticesIterator getVerticesIterator() {
-//		return vertices.getIterator();
-//	}
-	
 	
 	void calculateShapeMeasurements() {
 		stats = new ClosedShapeStatistics(vertices);
 	}
-	
-	
-//	void setPoints(List<Point2> points) {
-//		vertices.clear();
-//		vertices.ensureCapacity(points.size() + 1);
-//		for (Point2 p : points) {
-//			vertices.add(p.getX(), p.getY());
-//		}
-//		vertices.close();
-//		resetCachedMeasurements();
-//	}
 
 
 	/* (non-Javadoc)
@@ -407,24 +384,24 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 		return stats.getBoundsHeight();
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+		PolygonROI that = (PolygonROI) o;
+		// TODO: Consider that this may be inefficient
+		return Objects.equals(getImagePlane(), that.getImagePlane()) &&
+				vertices.size() == that.vertices.size() &&
+				Objects.equals(vertices.getPoints(), that.vertices.getPoints());
+	}
 
-//	@Override
-//	public void writeExternal(ObjectOutput out) throws IOException {
-//		// Write x & y arrays (reusing same array)
-//		float[] x = vertices.getX(null);
-//		super.wr
-//		out.writeObject(x);
-//		out.writeObject(vertices.getY(x));
-//	}
-//
-//
-//	@Override
-//	public void readExternal(ObjectInput in) throws IOException,
-//			ClassNotFoundException {
-//		// TODO Auto-generated method stub
-//		
-//	}
-	
+	@Override
+	public int hashCode() {
+		if (hashCode == 0) {
+			hashCode = Objects.hash(vertices.getPoints(), getImagePlane());
+		}
+		return hashCode;
+	}
+
 	private Object writeReplace() {
 		return new SerializationProxy(this);
 	}

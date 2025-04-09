@@ -183,7 +183,7 @@ public class PathObjectImageViewers {
 			if (paintObject && viewer != null) {
 				var options = viewer.getOverlayOptions();
 				options.lastChangeTimestamp().addListener(numberListenerFalse);
-				viewer.getImageDisplay().changeTimestampProperty().addListener(numberListenerFalse);
+				viewer.getImageDisplay().eventCountProperty().addListener(numberListenerFalse);
 			}
 			this.node = node;
 			this.widthProperty = widthProperty;

@@ -31,6 +31,7 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
@@ -239,7 +240,23 @@ public class LineROI extends AbstractPathROI implements Serializable {
 	public ROI getConvexHull() {
 		return this;
 	}
-	
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+		LineROI lineROI = (LineROI) o;
+		return Double.compare(x, lineROI.x) == 0 &&
+				Double.compare(y, lineROI.y) == 0 &&
+				Double.compare(x2, lineROI.x2) == 0 &&
+				Double.compare(y2, lineROI.y2) == 0 &&
+				getImagePlane().equals(lineROI.getImagePlane());
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(x, y, x2, y2, getImagePlane());
+	}
+
 	private Object writeReplace() {
 		return new SerializationProxy(this);
 	}

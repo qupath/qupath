@@ -21,11 +21,7 @@
 
 package qupath.lib.display;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.IndexColorModel;
-import java.util.Objects;
-
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorToolsAwt;
@@ -34,7 +30,12 @@ import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 
-class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.IndexColorModel;
+import java.util.Objects;
+
+class ColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 
 	private transient int stainNumber;
 	private transient ColorDeconvolutionStains stains;
@@ -44,7 +45,7 @@ class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 
 	private ColorTransformMethod method;
 
-	public RBGColorDeconvolutionInfo(final ImageData<BufferedImage> imageData, ColorTransformMethod method) {
+	public ColorDeconvolutionInfo(final ImageData<BufferedImage> imageData, ColorTransformMethod method) {
 		super(imageData);
 		this.method = method;
 		switch (method) {
@@ -94,14 +95,32 @@ class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 					true);
 		}
 	}
-	
-	
+
+	private static boolean isRGB(BufferedImage img) {
+		return BufferedImageTools.is8bitColorType(img.getType());
+	}
 
 	@Override
 	public float getValue(BufferedImage img, int x, int y) {
 		ensureStainsUpdated();
 		if (stains == null)
 			return 0f;
+		if (isRGB(img)) {
+			return getValueRGB(img, x, y);
+		} else {
+			float r = img.getRaster().getSampleFloat(x, y, 0);
+			float g = img.getRaster().getSampleFloat(x, y, 1);
+			float b = img.getRaster().getSampleFloat(x, y, 2);
+			if (method == ColorTransformer.ColorTransformMethod.Optical_density_sum) {
+				return r + g + b;
+			} else {
+				var invMat = stains.getMatrixInverse();
+				return (float) (r * invMat[0][stainNumber - 1] + g * invMat[1][stainNumber - 1] + b * invMat[2][stainNumber - 1]);
+			}
+		}
+	}
+
+	private float getValueRGB(BufferedImage img, int x, int y) {
 		int rgb = img.getRGB(x, y);
 		if (method == null)
 			return ColorTransformer.colorDeconvolveRGBPixel(rgb, stains, stainNumber-1);
@@ -110,7 +129,7 @@ class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 			int g = ColorTools.green(rgb);
 			int b = ColorTools.blue(rgb);
 			return (float)(ColorDeconvolutionHelper.makeOD(r, stains.getMaxRed()) +
-					ColorDeconvolutionHelper.makeOD(g, stains.getMaxGreen()) + 
+					ColorDeconvolutionHelper.makeOD(g, stains.getMaxGreen()) +
 					ColorDeconvolutionHelper.makeOD(b, stains.getMaxBlue()));
 		} else
 			return ColorTransformer.getPixelValue(rgb, method, stains);
@@ -124,6 +143,26 @@ class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 				return new float[w * h];
 			return array;
 		}
+		if (isRGB(img)) {
+			return getValuesRGB(img, x, y, w, h, array);
+		} else {
+			if (method == ColorTransformer.ColorTransformMethod.Optical_density_sum) {
+				// Reuse the array if we can
+				float[] r = ColorDeconvolutionHelper.getOpticalDensities(img.getRaster(), 0, stains.getMaxRed(), array);
+				float[] g = ColorDeconvolutionHelper.getOpticalDensities(img.getRaster(), 1, stains.getMaxGreen(), null);
+				float[] b = ColorDeconvolutionHelper.getOpticalDensities(img.getRaster(), 2, stains.getMaxBlue(), null);
+				array = r;
+				for (int i = 0; i < array.length; i++) {
+					array[i] = r[i] + g[i] + b[i];
+				}
+				return array;
+			} else {
+				return ColorDeconvolutionHelper.colorDeconvolve(img, stains, stainNumber - 1, array);
+			}
+		}
+	}
+
+	private float[] getValuesRGB(BufferedImage img, int x, int y, int w, int h, float[] array) {
 		int[] buffer = RGBDirectChannelInfo.getRGBIntBuffer(img);
 		if (buffer == null)
 			buffer = img.getRGB(x, y, w, h, null, 0, w);
@@ -183,7 +222,7 @@ class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 	}
 	
 	@Override
-	public ColorTransformer.ColorTransformMethod getMethod() {
+	public ColorTransformMethod getMethod() {
 		return method;
 	}
 

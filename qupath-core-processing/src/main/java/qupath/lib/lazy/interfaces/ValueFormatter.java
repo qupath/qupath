@@ -72,11 +72,12 @@ class ValueFormatter {
 
     private static String applyDefaultFormatting(double val) {
         int dp;
-        if (val > 1000)
+        var absVal = Math.abs(val);
+        if (absVal > 1000)
             dp = 1;
-        else if (val > 10)
+        else if (absVal > 10)
             dp = 2;
-        else if (val > 1)
+        else if (absVal > 1)
             dp = 3;
         else
             dp = 4;

@@ -6,10 +6,9 @@ import javafx.scene.control.Tooltip;
 
 class BasicTableCell<S, T> extends TableCell<S, T> {
 
-    public BasicTableCell(String tooltipText) {
+    public BasicTableCell(Tooltip tooltip) {
         setAlignment(Pos.CENTER);
-        if (tooltipText != null && !tooltipText.isEmpty())
-            setTooltip(new Tooltip(tooltipText));
+        setTooltip(tooltip);
     }
 
     @Override

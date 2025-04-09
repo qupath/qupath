@@ -3,17 +3,20 @@ package qupath.lib.gui.measure.ui;
 import javafx.geometry.Pos;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseEvent;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.HistogramDisplay;
+import qupath.lib.lazy.interfaces.LazyValue;
 
 class NumericTableCell<T> extends TableCell<T, Number> {
 
     private final HistogramDisplay histogramDisplay;
 
-    public NumericTableCell(String tooltipText, HistogramDisplay histogramDisplay) {
+    public NumericTableCell(Tooltip tooltip, HistogramDisplay histogramDisplay) {
         this.histogramDisplay = histogramDisplay;
-        if (tooltipText != null && !tooltipText.isEmpty())
-            setTooltip(new Tooltip(tooltipText));
+        setTooltip(tooltip);
+        if (histogramDisplay != null)
+            setOnMouseClicked(this::handleMouseClick);
     }
 
 
@@ -25,25 +28,28 @@ class NumericTableCell<T> extends TableCell<T, Number> {
             setStyle("");
         } else {
             setAlignment(Pos.CENTER);
-            if (Double.isNaN(item.doubleValue()))
+            if (item instanceof Integer || item instanceof Long) {
+                setText(item.toString());
+            } else if (Double.isNaN(item.doubleValue())) {
                 setText("-");
-            else {
-                if (item.doubleValue() >= 1000)
-                    setText(GeneralTools.formatNumber(item.doubleValue(), 1));
-                else if (item.doubleValue() >= 10)
-                    setText(GeneralTools.formatNumber(item.doubleValue(), 2));
+            } else {
+                double value = item.doubleValue();
+                if (value >= 1000)
+                    setText(GeneralTools.formatNumber(value, 1));
+                else if (value >= 10)
+                    setText(GeneralTools.formatNumber(value, 2));
                 else
-                    setText(GeneralTools.formatNumber(item.doubleValue(), 3));
+                    setText(GeneralTools.formatNumber(value, 3));
             }
-
-
-            setOnMouseClicked(e -> {
-                if (e.isAltDown() && histogramDisplay != null) {
-                    histogramDisplay.showHistogram(getTableColumn().getText());
-                    e.consume();
-                }
-            });
         }
     }
+
+    private void handleMouseClick(MouseEvent event) {
+        if (event.isAltDown() && histogramDisplay != null) {
+            histogramDisplay.showHistogram(getTableColumn().getText());
+            event.consume();
+        }
+    }
+
 
 }

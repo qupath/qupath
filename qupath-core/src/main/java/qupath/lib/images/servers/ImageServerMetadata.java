@@ -434,7 +434,11 @@ public class ImageServerMetadata {
 
 //			if (metadata.path == null || metadata.path.isBlank())
 //				throw new IllegalArgumentException("Invalid metadata - path must be set (and not be blank)");
-						
+
+			// Set RGB channels, if needed
+			if (metadata.isRGB && (metadata.channels == null || metadata.channels.isEmpty()))
+				metadata.channels = ImageChannel.getDefaultRGBChannels();
+
 			// Set sensible tile sizes, if required
 			if (metadata.preferredTileWidth <= 0) {
 				if (metadata.levels.length == 1)

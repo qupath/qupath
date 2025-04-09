@@ -611,6 +611,20 @@ public class ImageOps {
 		public static ImageOp localNormalization(double sigmaMean, double sigmaVariance) {
 			return new LocalNormalizationOp(sigmaMean, sigmaVariance);
 		}
+
+		/**
+		 * Apply local 2D normalization using local min and max values, optionally smoothing with a Gaussian filter
+		 * to reduce sharp edges.
+		 * <p>
+		 * This method is applied per-channel.
+		 *
+		 * @param radius radius for the local min and max filters
+		 * @param sigma sigma for Gaussian filter to smooth the min and max filtered images
+		 * @return
+		 */
+		public static ImageOp localNormalizationMinMax(int radius, double sigma) {
+			return new LocalMinMaxNormalizationOp(radius, sigma);
+		}
 		
 		
 		/**
@@ -755,6 +769,80 @@ public class ImageOps {
 				return inputType == PixelType.FLOAT64 ? inputType : PixelType.FLOAT32;
 			}
 			
+		}
+
+		/**
+		 * Normalize by rescaling channels based on a Gaussian-weighted estimate of local mean and standard deviation.
+		 */
+		@OpType("local-min-max")
+		static class LocalMinMaxNormalizationOp extends PaddedOp {
+
+			private int radius;
+			private double sigmaSmooth;
+
+			LocalMinMaxNormalizationOp(int radius, double sigmaSmooth) {
+				if (radius < 1)
+					throw new IllegalArgumentException("Radius must be greater than 0");
+				this.radius = radius;
+				this.sigmaSmooth = Math.max(0, sigmaSmooth);
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return getDefaultGaussianPadding(sigmaSmooth, sigmaSmooth).add(Padding.symmetric((int)Math.ceil(radius)));
+			}
+
+			@Override
+			protected List<Mat> transformPadded(Mat input) {
+				int depth = input.depth();
+				if (depth != opencv_core.CV_64F && depth != opencv_core.CV_32F) {
+					input.convertTo(input, opencv_core.CV_32F);
+				}
+				var channels = OpenCVTools.splitChannels(input);
+				var size = new Size(radius*2+1, radius*2+1);
+				var strel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, size);
+				var tempMin = new Mat();
+				var tempMax = new Mat();
+				Size sizeGaussian = null;
+				if (sigmaSmooth > 0) {
+					int s = (int)Math.ceil(sigmaSmooth * 4) * 2 + 1;
+					sizeGaussian = new Size(s, s);
+				}
+				for (var m : channels) {
+					// Get local min
+					opencv_imgproc.erode(m, tempMin, strel);
+					if (sigmaSmooth > 0)
+						opencv_imgproc.GaussianBlur(tempMin, tempMin, sizeGaussian, sigmaSmooth);
+
+					// Get local max
+					opencv_imgproc.dilate(m, tempMax, strel);
+					if (sigmaSmooth > 0)
+						opencv_imgproc.GaussianBlur(tempMax, tempMax, sizeGaussian, sigmaSmooth);
+
+					// Subtract min
+					opencv_core.subtract(m, tempMin, m);
+
+					// Divide by max-min (with tolerance to avoid division by zero)
+					opencv_core.subtract(tempMax, tempMin, tempMax);
+					m.put(opencv_core.divide(m, opencv_core.max(tempMax, 1e-6)));
+				}
+				tempMin.close();
+				tempMax.close();
+				strel.close();
+				if (sizeGaussian != null)
+					sizeGaussian.close();
+
+				OpenCVTools.mergeChannels(channels, input);
+
+				input.convertTo(input, depth);
+				return Collections.singletonList(input);
+			}
+
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return inputType == PixelType.FLOAT64 ? inputType : PixelType.FLOAT32;
+			}
+
 		}
 		
 		/**

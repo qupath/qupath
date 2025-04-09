@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -288,7 +289,14 @@ public interface ProjectImageEntry<T> extends UriResource, MinimalMetadataStore 
 	 * @return
 	 */
 	Manager<ImageServer<T>> getImages();
-	
-	
 
+	/**
+	 * Returns a modifiable set containing tag values.
+	 * <p>
+	 * The returned set may or may not be thread-safe. Implementing classes must
+	 * document the thread-safeness of the set.
+	 *
+	 * @return the set of tags of this entry
+	 */
+	Set<String> getTags();
 }

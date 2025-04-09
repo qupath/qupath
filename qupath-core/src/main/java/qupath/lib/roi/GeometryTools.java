@@ -286,7 +286,33 @@ public class GeometryTools {
 		geometry = DouglasPeuckerSimplifier.simplify(geometry, 0.0);
 		return geometry;
 	}
-	
+
+	/**
+	 * Update a geometry to have the precision model of the default factory.
+	 * This can help ensure consistency among geometries used in QuPath.
+	 * @param geometry the input geometry
+	 * @return the input geometry if it already had the required precision model,
+	 *         or a duplicate geometry after precision reduction.
+	 */
+	public static Geometry ensurePrecision(Geometry geometry) {
+		return ensurePrecision(geometry, GeometryTools.getDefaultFactory().getPrecisionModel());
+	}
+
+	/**
+	 * Update a geometry to have the specified precision model.
+	 * @param geometry the input geometry
+	 * @param precisionModel the target precision model
+	 * @return the input geometry if it already had the required precision model,
+	 *         or a duplicate geometry after precision reduction.
+	 */
+	public static Geometry ensurePrecision(Geometry geometry, PrecisionModel precisionModel) {
+		if (geometry.getFactory().getPrecisionModel() == precisionModel)
+			return geometry;
+		var reducer = new GeometryPrecisionReducer(precisionModel);
+		reducer.setChangePrecisionModel(true);
+		return reducer.reduce(geometry);
+	}
+
 	/**
 	 * Compute the intersection of a Geometry and a specified bounding box.
 	 * The original Geometry <i>may</i> be returned unchanged if no changes are required to fit within the bounds.
@@ -423,13 +449,23 @@ public class GeometryTools {
     
     /**
      * Convert a JTS Geometry to a QuPath ROI.
-     * @param geometry
-     * @param plane 
-     * @return
+	 * @param geometry the geometry from which to create a ROI
+     * @param plane the plane that should contain the ROI
+     * @return a new ROI
      */
     public static ROI geometryToROI(Geometry geometry, ImagePlane plane) {
     	return DEFAULT_INSTANCE.geometryToROI(geometry, plane);
     }
+
+	/**
+	 * Convert a JTS Geometry to a QuPath ROI on the default image plane.
+	 * @param geometry the geometry from which to create a ROI
+	 * @return a new ROI
+	 * @see ImagePlane#getDefaultPlane()
+	 */
+	public static ROI geometryToROI(Geometry geometry) {
+		return geometryToROI(geometry, ImagePlane.getDefaultPlane());
+	}
     
     /**
      * Convert to QuPath ROI to a JTS Geometry.
@@ -1037,8 +1073,8 @@ public class GeometryTools {
 	    }
 	    
 	    private Geometry areaToGeometry(ROI roi) {
-	    	if (roi.isEmpty())
-	    		return factory.createPolygon();
+//	    	if (roi.isEmpty())
+//	    		return factory.createPolygon();
 	    	if (roi instanceof EllipseROI || roi instanceof RectangleROI) {
 	    		var shapeFactory = new GeometricShapeFactory(factory);
 	    		shapeFactory.setEnvelope(
@@ -1081,9 +1117,15 @@ public class GeometryTools {
 //		    	polygonizer.add(lineString.union());
 //		    	return polygonizer.getGeometry();
 //	    	}
-	    	
-	    	Area shape = RoiTools.getArea(roi);
-	    	return areaToGeometry(shape);
+
+			if (roi.isEmpty()) {
+				var shape = RoiTools.getShape(roi);
+				var iterator = shape.getPathIterator(transform, flatness);
+				return getShapeReader().read(iterator);
+			} else {
+				Area area = RoiTools.getArea(roi);
+				return areaToGeometry(area);
+			}
 	    }
 	    
 	    private Geometry shapeToGeometry(Shape shape) {
@@ -1447,9 +1489,25 @@ public class GeometryTools {
 	    		List<Point2> points = Arrays.stream(coords).map(c -> new Point2(c.x, c.y)).toList();
 	    		return ROIs.createPointsROI(points, plane);
 	    	}
-	    	// For anything complicated, return a Geometry ROI
-	    	if (geometry.getNumGeometries() > 1 || (geometry instanceof Polygon && ((Polygon)geometry).getNumInteriorRing() > 0))
+	    	// For multi-part geometries, return a Geometry ROI
+	    	if (geometry.getNumGeometries() > 1)
 	    		return new GeometryROI(geometry, plane);
+			if (geometry instanceof Polygon polygon) {
+				// For polygons with holes, return a Geometry ROI
+				if (polygon.getNumInteriorRing() > 0)
+					return new GeometryROI(polygon, plane);
+				// For non-rectangular polygons without holes, return a polygon ROI
+				// This avoid the issue where a polygon with zero area can lead to a 'general'
+				// empty ROI being returned, rather than one with the appropriate vertices
+				if (!polygon.isRectangle()) {
+					var points = Arrays.stream(polygon.getCoordinates())
+							.map(coord -> new Point2(coord.x, coord.y))
+							.toList();
+					// TODO: Consider if/when we could convert this to a Rectangle when it *is* a
+					// rectangle with zero area
+					return ROIs.createPolygonROI(points, plane);
+				}
+			}
 	    	// Otherwise return a (possibly easier to edit) ROI
 	        return RoiTools.getShapeROI(geometryToShape(geometry), plane, flatness);
 	    }
