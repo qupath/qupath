@@ -34,6 +34,7 @@ import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import qupath.lib.roi.interfaces.ROI;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -48,14 +49,26 @@ class RoiRelate {
 
     private final ROI roi;
     private final Geometry geometry;
+    private final double area;
+    private final double tolerance;
+
+    private final double minBoundsX, minBoundsY, maxBoundsX, maxBoundsY;
+
     private volatile PreparedGeometry preparedGeometry;
     private volatile PointOnGeometryLocator locator;
 
-    private final Map<ROI, Boolean> coversMap = new WeakHashMap<>();
+    private final Map<ROI, Boolean> coversMap = Collections.synchronizedMap(new WeakHashMap<>());
 
     RoiRelate(ROI roi, Geometry geometry) {
         this.roi = roi;
         this.geometry = geometry == null ? roi.getGeometry() : geometry;
+        this.area = roi.getArea();
+        // Define our distance tolerance here
+        this.tolerance = Math.max(1e-3, 2.0/this.geometry.getFactory().getPrecisionModel().getScale());
+        this.minBoundsX = roi.getBoundsX()-tolerance;
+        this.minBoundsY = roi.getBoundsY()-tolerance;
+        this.maxBoundsX = roi.getBoundsX()+roi.getBoundsWidth()+tolerance;
+        this.maxBoundsY = roi.getBoundsY()+roi.getBoundsHeight()+tolerance;
     }
 
     /**
@@ -70,7 +83,18 @@ class RoiRelate {
      * @return true if the stored ROI covers the roi passed as a parameter, false otherwise
      */
     public boolean coversWithTolerance(ROI roi) {
-        return coversMap.computeIfAbsent(roi, this::computeCoversWithTolerance);
+        if (samePlane(roi) && boundsCovers(roi) && area >= roi.getArea()) {
+            return coversMap.computeIfAbsent(roi, this::computeCoversWithTolerance);
+        } else {
+            return false;
+        }
+    }
+
+    private boolean boundsCovers(ROI roi) {
+        return minBoundsX <= roi.getBoundsX() &&
+                minBoundsY <= roi.getBoundsY() &&
+                maxBoundsX >= roi.getBoundsX() + roi.getBoundsWidth() &&
+                maxBoundsY >= roi.getBoundsY() + roi.getBoundsHeight();
     }
 
     private boolean samePlane(ROI roi) {
@@ -78,14 +102,11 @@ class RoiRelate {
     }
 
     private boolean computeCoversWithTolerance(ROI roi) {
-        if (!samePlane(roi)) {
-            return false;
-        }
         var child = roi.getGeometry();
-        var parent = getPreparedGeometry();
-
         if (child.isEmpty())
             return false;
+
+        var parent = getPreparedGeometry();
         if (parent.covers(child))
             return true;
         if (parent.disjoint(child) || parent.touches(child))
@@ -96,18 +117,14 @@ class RoiRelate {
         if (parentArea < childArea || childArea == 0)
             return false;
 
-        // Define our distance tolerance here
-//		double dist = Math.max(1e-3, 1.0/parent.getGeometry().getFactory().getPrecisionModel().getScale());
-        double dist = Math.max(1e-3, 2.0/parent.getGeometry().getFactory().getPrecisionModel().getScale());
-
         var env = parent.getGeometry().getEnvelopeInternal();
-        env.expandBy(dist);
+        env.expandBy(tolerance);
         if (!env.covers(child.getEnvelopeInternal()))
             return false;
 
         var intersection = parent.getGeometry().intersection(child);
         double actualDist = DiscreteHausdorffDistance.distance(intersection, child, 0.01);
-        return actualDist < dist;
+        return actualDist < tolerance;
     }
 
     /**
