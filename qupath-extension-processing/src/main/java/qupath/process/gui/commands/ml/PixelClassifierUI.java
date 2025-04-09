@@ -31,6 +31,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import javafx.scene.control.ButtonType;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,17 +42,10 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.binding.StringExpression;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.StringProperty;
-import javafx.geometry.Side;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -125,58 +121,81 @@ public class PixelClassifierUI {
 	 */
 	public static Pane createPixelClassifierButtons(ObjectExpression<ImageData<BufferedImage>> imageData, ObjectExpression<PixelClassifier> classifier, StringExpression classifierName) {
 	
-		BooleanProperty allowWithoutSaving = new SimpleBooleanProperty(false);
+//		BooleanProperty allowWithoutSaving = new SimpleBooleanProperty(false);
 		
 		BooleanBinding disableButtons = imageData.isNull()
-				.or(classifier.isNull())
-				.or(classifierName.isEmpty().and(allowWithoutSaving.not()));
+				.or(classifier.isNull());
+//				.or(classifierName.isEmpty().and(allowWithoutSaving.not()));
 
 		
 		var btnCreateObjects = new Button("Create objects");
 		btnCreateObjects.disableProperty().bind(disableButtons);
 		btnCreateObjects.setTooltip(new Tooltip("Create annotation or detection objects from the classification output"));
 		
-		var btnAddMeasurements = new Button("Measure");
+		var btnAddMeasurements = new Button("Add measurements");
 		btnAddMeasurements.disableProperty().bind(disableButtons);
-		btnAddMeasurements.setTooltip(new Tooltip("Add measurements to existing objects based upon the classification output"));
+		btnAddMeasurements.setTooltip(new Tooltip("Add measurements to existing objects based upon the classifier output"));
 		
-		var btnClassifyObjects = new Button("Classify");
+		var btnClassifyObjects = new Button("Classify detections");
 		btnClassifyObjects.disableProperty().bind(disableButtons);
-		btnClassifyObjects.setTooltip(new Tooltip("Classify detection based upon the prediction at the ROI centroid"));
-		
+		btnClassifyObjects.setTooltip(new Tooltip("Classify detections based upon the prediction at the ROI centroid"));
+
+		var btnSavePrediction = new Button("Save prediction");
+		btnSavePrediction.disableProperty().bind(disableButtons);
+		btnSavePrediction.setTooltip(new Tooltip("Save an image of the classifier predictions"));
+
 		btnAddMeasurements.setOnAction(e -> {
+			if (classifierName.getValueSafe().isEmpty() && !promptForUnnamedClassifier(btnAddMeasurements.getText()))
+				return;
 			promptToAddMeasurements(imageData.get(), classifier.get(), classifierName.get());			
 		});
 		btnCreateObjects.setOnAction(e -> {
+			if (classifierName.getValueSafe().isEmpty() && !promptForUnnamedClassifier(btnCreateObjects.getText()))
+				return;
 			promptToCreateObjects(imageData.get(), classifier.get(), classifierName.get());
 		});
 		btnClassifyObjects.setOnAction(e -> {
+			if (classifierName.getValueSafe().isEmpty() && !promptForUnnamedClassifier(btnClassifyObjects.getText()))
+				return;
 			promptToClassifyDetectionsByCentroid(imageData.get(), classifier.get(), classifierName.get());
 		});
+
+		btnSavePrediction.setOnAction(e -> {
+			if (classifierName.getValueSafe().isEmpty() && !promptForUnnamedClassifier(btnSavePrediction.getText()))
+				return;
+			promptToSavePredictionImage(imageData.get(), classifier.get(), classifierName.get());
+		});
+		btnSavePrediction.disableProperty().bind(disableButtons);
+
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, btnAddMeasurements, btnCreateObjects, btnClassifyObjects, btnSavePrediction);
+
+		var pane = new GridPane();
+		pane.addRow(0, btnCreateObjects, btnSavePrediction);
+		pane.addRow(1, btnAddMeasurements, btnClassifyObjects);
+		var c1 = new ColumnConstraints();
+		c1.setPercentWidth(50);
+		var c2 = new ColumnConstraints();
+		c2.setPercentWidth(50);
+		pane.getColumnConstraints().setAll(c1, c2);
 		
-		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
-		
-		var paneMain = GridPaneUtils.createColumnGrid(btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
-		
-		// Add some more options
-		var menu = new ContextMenu();
-		var miWithoutSaving = new CheckMenuItem("Enable buttons for unsaved classifiers");
-		miWithoutSaving.selectedProperty().bindBidirectional(allowWithoutSaving);
-		var miSavePrediction = new MenuItem("Save prediction image");
-		miSavePrediction.setOnAction(e -> promptToSavePredictionImage(imageData.get(), classifier.get(), classifierName.get()));
-		miSavePrediction.disableProperty().bind(disableButtons);
-		
-		menu.getItems().addAll(
-				miSavePrediction,
-				miWithoutSaving
-				);
-		
-		var btnAdvanced = GuiTools.createMoreButton(menu, Side.RIGHT);
-		
-		var pane = new BorderPane(paneMain);
-		pane.setRight(btnAdvanced);
 		return pane;
 	}
+
+	private static boolean promptForUnnamedClassifier(String title) {
+		return Dialogs.builder()
+				.title(title)
+				.warning()
+//				.headerText("Are you sure?")
+				.contentText("""
+                        Are you sure?
+                        
+                        The classifier has not been saved - this step won't be logged in the workflow.""")
+				.buttons(ButtonType.OK, ButtonType.CANCEL)
+				.showAndWait()
+				.orElse(ButtonType.CANCEL)
+				.equals(ButtonType.OK);
+	}
+
 	
 	/**
 	 * Create a pane that contains a text field and save button to allow a pixel classifier to be saved in a project.
