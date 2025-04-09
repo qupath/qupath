@@ -75,11 +75,6 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	private static final Envelope MAX_ENVELOPE = new Envelope(-Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, Double.MAX_VALUE);
 	
 	/**
-	 * Keep a map of envelopes per ROI; ROIs should be immutable.
-	 */
-	private final Map<ROI, Envelope> envelopeMap = new WeakHashMap<>();
-	
-	/**
 	 * Store a spatial index according to the class of PathObject.
 	 */
 	private final Map<Class<? extends PathObject>, SpatialIndex> map = new HashMap<>();
@@ -228,18 +223,10 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	}
 	
 	private Envelope getEnvelope(ROI roi) {
-		boolean useCache = false;
-		if (useCache)
-			return envelopeMap.computeIfAbsent(roi, PathObjectTileCache::computeEnvelope);
-		else
-			return computeEnvelope(roi);
-	}
-
-	private static Envelope computeEnvelope(ROI roi) {
 		return new Envelope(roi.getBoundsX(), roi.getBoundsX() + roi.getBoundsWidth(),
 				roi.getBoundsY(), roi.getBoundsY() + roi.getBoundsHeight());
 	}
-	
+
 	private Envelope getEnvelope(ImageRegion region) {
 		return new Envelope(region.getMinX(), region.getMaxX(),
 				region.getMinY(), region.getMaxY());

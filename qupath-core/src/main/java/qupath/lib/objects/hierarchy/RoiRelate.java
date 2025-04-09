@@ -122,6 +122,7 @@ class RoiRelate {
         if (!env.covers(child.getEnvelopeInternal()))
             return false;
 
+        // Expensive calculation!
         var intersection = parent.getGeometry().intersection(child);
         double actualDist = DiscreteHausdorffDistance.distance(intersection, child, 0.01);
         return actualDist < tolerance;

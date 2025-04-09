@@ -21,6 +21,8 @@ Some things may be added, some things may be removed, and some things may look d
 * Optionally build QuPath *and* Fiji together (https://github.com/qupath/qupath/pull/1728)
 * Support for z-projection overlays (https://github.com/qupath/qupath/pull/1810)
   * Also new controls to navigate z-slices / time points (https://github.com/qupath/qupath/pull/1802)
+* Add tolerance when resolving object hierarchy (https://github.com/qupath/qupath/pull/1824)
+
 
 ### Enhancements
 (These are not yet ordered by interestingness)
@@ -28,6 +30,8 @@ Some things may be added, some things may be removed, and some things may look d
 * Support system light/dark color themes
 * Menu items uses ellipsis to indicate more input will be needed
   * Standard UX convention we didn't know about...
+* 'Update detection line thickness with zoom' preference (https://github.com/qupath/qupath/pull/1623)
+  * New preference that changes how detections are displayed at high magnifications (to avoid thick lines obscuring the image)
 * Commands to remove objects touching the bounds of the image or other objects (https://github.com/qupath/qupath/pull/1821)
   * _Objects → Delete... → Delete objects on image bounds_
   * _Objects → Delete... → Delete objects touching selected ROI bounds..._
@@ -78,8 +82,6 @@ Some things may be added, some things may be removed, and some things may look d
 ### Experimental features
 These features are included for testing and feedback.
 They may change or be removed in future versions.
-* 'Dynamic detection line thickness (experimental)' preference (https://github.com/qupath/qupath/pull/1623)
-  * Experimental preference to adjust how detections are displayed when zoomed in
 * New toolbar button to show/hide 'neighbors' in the viewer (https://github.com/qupath/qupath/pull/1597)
   * Note that the *Delaunay cluster features 2D* command is now deprecated - see https://github.com/qupath/qupath/issues/1590 for details
     * If you use this command, the calculated connections are displayed instead of the default neighbor connections for compatibility.
