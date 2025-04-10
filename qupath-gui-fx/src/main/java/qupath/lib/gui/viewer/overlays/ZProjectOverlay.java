@@ -90,7 +90,6 @@ public class ZProjectOverlay extends AbstractImageOverlay {
 
     /**
      * Set the {@link ImageRenderer} property used with this overlay.
-     * @return
      */
     public void setRenderer(ImageRenderer renderer) {
         this.renderer.set(renderer);
