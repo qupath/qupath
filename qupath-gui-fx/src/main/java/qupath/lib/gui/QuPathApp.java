@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -35,6 +35,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.geometry.Pos;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Hyperlink;
+import javafx.scene.control.Label;
+import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +50,7 @@ import javafx.application.Platform;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -79,11 +87,15 @@ public class QuPathApp extends Application {
 		tryToRegisterOpenFilesHandler(qupath);
 		
 		if (!params.requestQuietLaunch()) {
-			
+
 			if (PathPrefs.showStartupMessageProperty().get()) {
 				showWelcomeMessage(qupath);
 			}
-			
+
+			if (promptForExtensions.get() && QuPathGUI.getExtensionCatalogManager().getCatalogManagedInstalledJars().isEmpty()) {
+				promptToOpenExtensionManager(qupath);
+			}
+
 			// If code is running from a directory (not a jar), we're likely running 
 			// from source (not an official package) - so we don't want to check 
 			// for updates unnecessarily.
@@ -96,12 +108,36 @@ public class QuPathApp extends Application {
 		}
 		
 	}
+
+	private static final BooleanProperty promptForExtensions =
+			PathPrefs.createPersistentPreference("showExtensionManagerOnStartup", true);
+
+	private static void promptToOpenExtensionManager(QuPathGUI qupath) {
+		var labelContent = new Label("Add extra features by installing optional extensions.");
+		var hyperlink = new Hyperlink("Find out more (website)");
+		hyperlink.setOnAction(e -> QuPathGUI.openInBrowser(Urls.getExtensionsDocsUrl()));
+		var cbAskAgain = new CheckBox("Remind me next time");
+		cbAskAgain.setSelected(promptForExtensions.get());
+		var content = new VBox(labelContent, hyperlink, cbAskAgain);
+		content.setSpacing(5);
+		content.setAlignment(Pos.CENTER);
+		if (Dialogs.builder()
+				.headerText("Do you want to open QuPath's Extension Manager?")
+				.content(content)
+				.title("Extensions")
+				.buttons(ButtonType.YES, ButtonType.NO)
+				.showAndWait()
+				.orElse(ButtonType.NO) == ButtonType.YES) {
+			Commands.showInstalledExtensions(qupath);
+		}
+		promptForExtensions.set(cbAskAgain.isSelected());
+	}
 			
 	private static void openProjectOrLogException(QuPathGUI qupath, String projectParameter) {
 		try {
 			tryToOpenProject(qupath, projectParameter);
 		} catch (IOException | URISyntaxException e) {
-			logger.error("Unable to open project " + projectParameter, e);
+            logger.error("Unable to open project {}", projectParameter, e);
 		}
 	}
 
