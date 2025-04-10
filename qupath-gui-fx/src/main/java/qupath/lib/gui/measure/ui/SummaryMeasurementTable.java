@@ -864,7 +864,7 @@ public class SummaryMeasurementTable {
      */
     public static <T> List<String> getTableModelStrings(final PathTableData<T> model, final String delim, Collection<String> excludeColumns) {
         var toExclude = Set.of(excludeColumns.toArray(String[]::new));
-        return model.getRowStrings(delim, -1, s -> !toExclude.contains(s));
+        return model.getRowStrings(delim, PathTableData.DEFAULT_DECIMAL_PLACES, s -> !toExclude.contains(s));
     }
 
 

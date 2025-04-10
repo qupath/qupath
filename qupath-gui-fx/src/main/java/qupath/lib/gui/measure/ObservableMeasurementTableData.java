@@ -41,6 +41,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.lazy.objects.MeasurementListValue;
 import qupath.lib.lazy.objects.PathObjectLazyValues;
 import qupath.lib.lazy.interfaces.LazyValue;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -305,7 +306,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 	@Override
 	public String getStringValue(PathObject pathObject, String column) {
-		return getStringValue(pathObject, column, -1);
+		return getStringValue(pathObject, column, PathTableData.DEFAULT_DECIMAL_PLACES);
 	}
 
 	/**
@@ -324,6 +325,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	@Override
 	public String getStringValue(PathObject pathObject, String column, int decimalPlaces) {
 		LazyValue<PathObject, ?> builder = builderMap.get(column);
+		// Temporary hack! This restores v0.6.0 behavior to be similar to previous versions, but it would be better
+		// to suppose specifying the number of decimal places through a preference & apply it consistently
+		if (decimalPlaces == PathTableData.DEFAULT_DECIMAL_PLACES && builder instanceof MeasurementListValue)
+			decimalPlaces = -4;
 		if (builder != null)
 			return builder.getStringValue(pathObject, decimalPlaces);
 		
