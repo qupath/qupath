@@ -1386,7 +1386,6 @@ public class PathObjectTools {
 	 * Find all the objects that touch (or cross) a rectangle representing the image bounds.
 	 * This is applied to all slices and timepoints of the image.
 	 * @param imageData the image data
-	 * @param filter optional filter to select objects that cou
 	 * @param filter optional filter; for example, {@code PathObject::isDetection} can be used to restrict the
 	 *               method to only consider removing detection objects.
 	 * @return true if objects were deleted, false otherwise
