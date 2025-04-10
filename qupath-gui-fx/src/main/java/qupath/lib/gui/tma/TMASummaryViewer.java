@@ -1766,7 +1766,7 @@ public class TMASummaryViewer {
 
 		@Override
 		public String getStringValue(TMAEntry entry, String column) {
-			return getStringValue(entry, column, -1);
+			return getStringValue(entry, column, PathTableData.DEFAULT_DECIMAL_PLACES);
 		}
 
 		@Override
