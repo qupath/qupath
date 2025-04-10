@@ -14,7 +14,7 @@ deepJavaLibrary = "0.32.0"
 
 groovy          = "4.0.26"
 gson            = "2.12.1"
-guava           = "33.4.6-jre"
+guava           = "33.4.7-jre"
 
 ikonli          = "12.3.1"
 imagej          = "1.54k"
