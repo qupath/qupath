@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2023-2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -55,7 +55,7 @@ public final class Urls {
 	 * Get the base URL for the QuPath documentation (independent of version).
 	 * @return
 	 */
-	public static final String getDocsUrl() {
+	public static String getDocsUrl() {
 		return "https://qupath.readthedocs.io";
 	}
 	
@@ -63,7 +63,7 @@ public final class Urls {
 	 * Get the base URL for the QuPath documentation, specifically for this software version.
 	 * @return
 	 */
-	public static final String getVersionedDocsUrl() {
+	public static String getVersionedDocsUrl() {
 		return "https://qupath.readthedocs.io/en/" + DOCS_VERSION;
 	}
 
@@ -73,7 +73,7 @@ public final class Urls {
 	 * @param relative
 	 * @return
 	 */
-	public static final String getVersionedDocsUrl(String relative) {
+	public static String getVersionedDocsUrl(String relative) {
 		return "https://qupath.readthedocs.io/en/" + DOCS_VERSION + "/docs/" + relative;
 	}
 	
@@ -81,7 +81,7 @@ public final class Urls {
 	 * Get a URL pointing to a page that explains how to cite this version of QuPath in a publication.
 	 * @return
 	 */
-	public static final String getCitationUrl() {
+	public static String getCitationUrl() {
 		// Would ideally use latest or stable, not the current version - but that would break if the 
 		// doc pages are renamed
 		return getVersionedDocsUrl("intro/citing.html");
@@ -91,15 +91,23 @@ public final class Urls {
 	 * Get a URL pointing to a page that explains how to install this version of QuPath.
 	 * @return
 	 */
-	public static final String getInstallationUrl() {
+	public static String getInstallationUrl() {
 		return getVersionedDocsUrl("intro/installation.html");
+	}
+
+	/**
+	 * Get a URL pointing to a page that explains how to install QuPath extensions.
+	 * @return
+	 */
+	public static String getExtensionsDocsUrl() {
+		return getVersionedDocsUrl("intro/extensions.html");
 	}
 
 	/**
 	 * Get a URL pointing to the QuPath YouTube channel.
 	 * @return
 	 */
-	public static final String getYouTubeUrl() {
+	public static String getYouTubeUrl() {
 		return "https://www.youtube.com/c/QuPath";
 	}
 	
@@ -107,7 +115,7 @@ public final class Urls {
 	 * Get a URL pointing to the main QuPath GitHub repo.
 	 * @return
 	 */
-	public static final String getGitHubRepoUrl() {
+	public static String getGitHubRepoUrl() {
 		return "https://github.com/qupath/qupath";
 	}
 	
@@ -115,7 +123,7 @@ public final class Urls {
 	 * Get a URL pointing to the main GitHub issues page.
 	 * @return
 	 */
-	public static final String getGitHubIssuesUrl() {
+	public static String getGitHubIssuesUrl() {
 		return "https://github.com/qupath/qupath/issues";
 	}
 
@@ -123,7 +131,7 @@ public final class Urls {
 	 * Get a URL pointing to the main QuPath user forum.
 	 * @return
 	 */
-	public static final String getUserForumUrl() {
+	public static String getUserForumUrl() {
 		return "https://forum.image.sc/tags/qupath";
 	}
 
