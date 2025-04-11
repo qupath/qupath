@@ -38,7 +38,7 @@ junit           = "5.11.0"
 logback         = "1.5.8"
 logviewer       = "0.2.0"
 
-extensionmanager= "1.0.0-rc2"
+extensionmanager= "1.0.0-rc3"
 
 javadocviewer   = "0.1.2"
 
