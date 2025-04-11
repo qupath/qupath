@@ -201,7 +201,7 @@ public class SummaryMeasurementTable {
      */
     private static BooleanProperty createPartiallyBoundProperty(BooleanProperty prop) {
         var prop2 = new SimpleBooleanProperty(prop.getValue());
-        prop.bind(prop2);
+        prop2.addListener((observable, oldValue, newValue) -> prop.setValue(newValue));
         return prop2;
     }
 

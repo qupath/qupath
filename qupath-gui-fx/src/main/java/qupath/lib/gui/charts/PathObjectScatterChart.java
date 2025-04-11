@@ -54,15 +54,18 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -87,6 +90,9 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     public static final int NO_SHUFFLE_SEED = -1;
 
     private final WeakReference<QuPathViewer> viewer;
+    private final PathObjectSelectionModel selectionModel;
+
+    private final Set<PathObject> selectedObjects = new HashSet<>();
 
     private final IntegerProperty rngSeed = new SimpleIntegerProperty(NO_SHUFFLE_SEED);
     private final DoubleProperty pointOpacity = new SimpleDoubleProperty(1);
@@ -131,7 +137,24 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
      */
     public PathObjectScatterChart(QuPathViewer viewer) {
         super(new NumberAxis(), new NumberAxis());
-        this.viewer = viewer == null ? null : new WeakReference<>(viewer);
+        if (viewer == null) {
+            this.viewer = null;
+            this.selectionModel = null;
+        } else {
+            this.viewer = new WeakReference<>(viewer);
+            var hierarchy = viewer.getHierarchy();
+            if (hierarchy != null) {
+                this.selectionModel = hierarchy.getSelectionModel();
+                this.selectionModel.addPathObjectSelectionListener(this::handleObjectSelectionChanged);
+                PathPrefs.useSelectedColorProperty().addListener(
+                        (v, o, n) -> {
+                            if (!selectedObjects.isEmpty())
+                                refreshData();
+                        });
+            } else {
+                selectionModel = null;
+            }
+        }
         maxPoints.addListener(o -> ensureMaxPoints());
         pointOpacity.addListener(o -> updateOpacity());
         pointRadius.addListener(o -> updateRadius());
@@ -149,6 +172,14 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         resampleAndUpdate();
     }
 
+    private void handleObjectSelectionChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
+        if (this.selectedObjects.equals(allSelected))
+            return;
+        selectedObjects.clear();
+        selectedObjects.addAll(allSelected);
+        refreshData();
+    }
+
     private void handleRngSeedChange(ObservableValue<? extends Number> val, Number oldValue, Number newValue) {
         shuffleData();
         // We need to update even if not subsampling because
@@ -159,10 +190,25 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     private void updateOpacity() {
         double opacity = pointOpacity.get();
         for (var item : series.getData()) {
-            if (item.getNode() instanceof Circle circle) {
+            if (item.getNode() instanceof Circle circle && !isSelected(item)) {
                 circle.setOpacity(opacity);
             }
         }
+    }
+
+    private boolean isSelected(Data<?, ?> item) {
+        var pathObject = getPathObject(item);
+        return pathObject != null && isSelected(pathObject);
+    }
+
+    private boolean isSelected(PathObject pathObject) {
+        return selectedObjects.contains(pathObject);
+    }
+
+    private static PathObject getPathObject(Data<?, ?> item) {
+        if (item != null && item.getExtraValue() instanceof PathObject pathObject)
+            return pathObject;
+        return null;
     }
 
     private void updateRadius() {
@@ -217,6 +263,13 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         circle.setRadius(pointRadius.get());
         circle.setOpacity(pointOpacity.get());
         circle.setFill(ColorToolsFX.getDisplayedColor(pathObject));
+
+        if (isSelected(pathObject)) {
+            circle.setOpacity(1);
+            if (PathPrefs.useSelectedColorProperty().get()) {
+                circle.setFill(ColorToolsFX.getCachedColor(PathPrefs.colorSelectedObjectProperty().getValue()));
+            }
+        }
 
         // TODO: Check if this is necessary, or if there's no appreciable overhead when setting to unchanged value
         var x = xFun.apply(pathObject);
