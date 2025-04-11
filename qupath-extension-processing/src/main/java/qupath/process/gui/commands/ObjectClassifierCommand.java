@@ -169,7 +169,6 @@ public class ObjectClassifierCommand implements Runnable {
 	public void run() {
 		if (dialog == null) {
 			dialog = new Stage();
-			FXUtils.addCloseWindowShortcuts(dialog);
 			if (qupath != null)
 				dialog.initOwner(qupath.getStage());
 			dialog.setTitle(name);
