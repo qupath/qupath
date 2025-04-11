@@ -34,6 +34,7 @@ import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -95,7 +96,7 @@ public class SummaryMeasurementTableCommand {
 		stage.titleProperty().bind(title);
 
 		var pane = table.getPane();
-		var screen = Screen.getPrimary();
+		var screen = FXUtils.getScreenOrPrimary(stage.getOwner());
 		Scene scene = new Scene(pane,
 				Math.min(screen.getBounds().getWidth(), 800),
 				Math.min(screen.getBounds().getHeight(), 600));

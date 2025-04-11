@@ -553,7 +553,7 @@ public class GuiTools {
 			}
 		case FULL_SCREENSHOT:
 			// Make the screenshot of the screen containing QuPath, if possible
-			var screen = stage == null ? Screen.getPrimary() : FXUtils.getScreen(stage);
+			var screen = FXUtils.getScreenOrPrimary(stage);
 			var bounds = screen.getBounds();
 			return createScreenCapture(bounds.getMinX(), bounds.getMinY(), bounds.getWidth(), bounds.getHeight(), GeneralTools.isMac());
 		default:

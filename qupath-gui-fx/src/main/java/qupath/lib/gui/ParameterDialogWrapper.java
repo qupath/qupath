@@ -97,7 +97,7 @@ class ParameterDialogWrapper<T> {
 		if (dialog.isShowing())
 			dialog.toFront();
 		dialog.show();
-		double maxHeight = Screen.getPrimary().getBounds().getHeight() * 0.8;
+		double maxHeight = Math.max(100, FXUtils.getScreenOrPrimary(dialog.getOwner()).getBounds().getHeight() * 0.8);
 		if (dialog.getHeight() > maxHeight) {
 			dialog.setMaxHeight(maxHeight);
 			dialog.centerOnScreen();			
