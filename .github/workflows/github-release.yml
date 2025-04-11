@@ -18,7 +18,7 @@ jobs:
     name: Run JPackage
     uses: ./.github/workflows/jpackage.yml
     with:
-      extensions: ${{ input.extensions }}
+      extensions: ${{ inputs.extensions }}
 
   release:
     needs: jpackage
