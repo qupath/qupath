@@ -84,28 +84,28 @@ import javafx.beans.value.ObservableBooleanValue;
  */
 public class PixelClassificationOverlay extends AbstractImageOverlay  {
 	
-	private static Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);
+	private static final Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);
 
-    private ObjectProperty<ImageRenderer> renderer = new SimpleObjectProperty<>();
+    private final ObjectProperty<ImageRenderer> renderer = new SimpleObjectProperty<>();
     private long rendererLastTimestamp = 0L;
 
-    private Map<RegionRequest, BufferedImage> cacheRGB = new ConcurrentHashMap<>();
-    private Set<TileRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
-    private Set<TileRequest> currentRequests = Collections.synchronizedSet(new HashSet<>());
+    private final Map<BufferedImage, BufferedImage> cacheRGB = Collections.synchronizedMap(new WeakHashMap<>());
+    private final Set<TileRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
+    private final Set<TileRequest> currentRequests = Collections.synchronizedSet(new HashSet<>());
 
     private int maxThreads = ThreadTools.getParallelism();
-    private ThreadPoolExecutor pool;
+    private final ThreadPoolExecutor pool;
     
-    private Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun;
+    private final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun;
     
     private boolean livePrediction = false;
     
     private Map<ImageData<BufferedImage>, ImageServer<BufferedImage>> cachedServers = new WeakHashMap<>();
     
-    private ObservableBooleanValue showOverlay;
+    private final ObservableBooleanValue showOverlay;
 
 	private RegionFilter lastRegionFilter;
-	private Map<RegionRequest, Boolean> acceptedTiles = new HashMap<>();
+	private final Map<RegionRequest, Boolean> acceptedTiles = new HashMap<>();
 	private long lastHierarchyEventCount = -1L;
     
     private PixelClassificationOverlay(final OverlayOptions options, final int nThreads, final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun) {
@@ -496,34 +496,40 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
      * @return
      */
      BufferedImage getCachedTileRGB(TileRequest request, ImageServer<BufferedImage> server) {
-    	var imgRGB = cacheRGB.get(request.getRegionRequest());
-    	if (imgRGB != null || server == null)
-    		return imgRGB;
-        // If we have a tile that isn't RGB, then create the RGB version we need
+		 if (server == null)
+			 return null;
+		 // We no longer store the RGB tile cache independently of the cache used for predictions
+		 // This is because it is confusing when the overlay shows that pixels are classified,
+		 // but live measurements are not made (because the actual prediction tiles are no longer in the cache)
     	var img = server.getCachedTile(request);
-    	var renderer = this.renderer.get();
         if (img != null) {
             if (img.getType() == BufferedImage.TYPE_INT_ARGB ||
             		img.getType() == BufferedImage.TYPE_INT_RGB ||
             		img.getType() == BufferedImage.TYPE_BYTE_INDEXED ||
             		img.getType() == BufferedImage.TYPE_BYTE_GRAY) {
-                imgRGB = img;
-            } else if (renderer == null) {
-                imgRGB = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
-                Graphics2D g = imgRGB.createGraphics();
-                g.drawImage(img, 0, 0, null);
-                g.dispose();
+				// Return tile if it is already renderable
+                return img;
             } else {
-            	try {
-            		imgRGB = renderer.applyTransforms(img, null);
-            	} catch (Exception e) {
-            		logger.error("Exception rendering image", e);
-            	}
-            }
-            cacheRGB.put(request.getRegionRequest(), imgRGB);
-        }
-        return imgRGB;
+				// If we have a tile that isn't RGB, then create the RGB version we need
+				return cacheRGB.computeIfAbsent(img, this::convertToRGB);
+			}
+        } else {
+			return null;
+		}
     }
+
+	private BufferedImage convertToRGB(BufferedImage img) {
+		 var renderer = this.renderer.get();
+		 if (renderer == null) {
+			 var imgRGB = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
+			 Graphics2D g = imgRGB.createGraphics();
+			 g.drawImage(img, 0, 0, null);
+			 g.dispose();
+			 return imgRGB;
+		 } else {
+			 return renderer.applyTransforms(img, null);
+		 }
+	}
     
      
      /**
