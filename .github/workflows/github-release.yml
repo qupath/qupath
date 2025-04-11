@@ -1,7 +1,13 @@
 
 name: Draft a GitHub release
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      extensions:
+        description: Comma-separated list of extensions to build with.
+        required: false
+        type: string
 
 concurrency: release-${{ github.ref }}
 permissions:
@@ -11,6 +17,8 @@ jobs:
   jpackage:
     name: Run JPackage
     uses: ./.github/workflows/jpackage.yml
+    with:
+      extensions: ${{ inputs.extensions }}
 
   release:
     needs: jpackage
