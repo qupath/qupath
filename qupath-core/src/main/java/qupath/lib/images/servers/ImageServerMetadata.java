@@ -121,7 +121,9 @@ public class ImageServerMetadata {
 	private int sizeT = 1;
 	
 	private ImageServerMetadata.ChannelType channelType = ImageServerMetadata.ChannelType.DEFAULT;
-	
+
+	private boolean isSpatiallyTransformed = false;
+
 	private boolean isRGB = false;
 	private PixelType pixelType = PixelType.UINT8;
 	
@@ -267,6 +269,16 @@ public class ImageServerMetadata {
 		 */
 		public Builder classificationLabels(final Map<Integer, PathClass> classificationLabels) {
 			this.metadata.classificationLabels = Collections.unmodifiableMap(new LinkedHashMap<>(classificationLabels));
+			return this;
+		}
+
+		/**
+		 * Specify that some spatial transformation is applied over the original image.
+		 * @param isSpatiallyTransformed
+		 * @return
+		 */
+		public Builder spatiallyTransformed(boolean isSpatiallyTransformed) {
+			metadata.isSpatiallyTransformed = isSpatiallyTransformed;
 			return this;
 		}
 		
@@ -481,7 +493,8 @@ public class ImageServerMetadata {
 		
 		this.sizeZ = metadata.sizeZ;
 		this.sizeT = metadata.sizeT;
-				
+		
+		this.isSpatiallyTransformed = metadata.isSpatiallyTransformed;
 		this.isRGB = metadata.isRGB;
 		this.pixelType = metadata.pixelType;
 		
@@ -582,6 +595,10 @@ public class ImageServerMetadata {
 	 */
 	public ImageResolutionLevel getLevel(int level) {
 		return levels[level];
+	}
+
+	public boolean isSpatiallyTransformed() {
+		return isSpatiallyTransformed;
 	}
 	
 	/**
@@ -851,6 +868,7 @@ public class ImageServerMetadata {
 		result = prime * result + ((channelType == null) ? 0 : channelType.hashCode());
 		result = prime * result + ((channels == null) ? 0 : channels.hashCode());
 		result = prime * result + height;
+		result = prime * result + (isSpatiallyTransformed ? 4142 : 5152);
 		result = prime * result + (isRGB ? 1231 : 1237);
 		result = prime * result + Arrays.hashCode(levels);
 		result = prime * result + ((magnification == null) ? 0 : magnification.hashCode());
@@ -885,6 +903,8 @@ public class ImageServerMetadata {
 		} else if (!channels.equals(other.channels))
 			return false;
 		if (height != other.height)
+			return false;
+		if (isSpatiallyTransformed != other.isSpatiallyTransformed)
 			return false;
 		if (isRGB != other.isRGB)
 			return false;
