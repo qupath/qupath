@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,15 +24,13 @@ package qupath.lib.gui;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import org.controlsfx.control.decoration.Decorator;
 import org.controlsfx.control.decoration.GraphicDecoration;
+import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +73,6 @@ import qupath.lib.gui.viewer.tools.ExtendedPathTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 class ToolBarComponent {
 
@@ -84,17 +81,17 @@ class ToolBarComponent {
 	/**
 	 * The toolbar consists of distinct sections
 	 */
-	private ObservableList<PathTool> availableTools;
-	private Map<PathTool, Node> toolMap = new WeakHashMap<>();
+	private final ObservableList<PathTool> availableTools;
+	private final Map<PathTool, Node> toolMap = new WeakHashMap<>();
 
-	private ToolManager toolManager;
+	private final ToolManager toolManager;
 	
-	private int toolIdx;
+	private final int toolIdx;
 	
 	@SuppressWarnings("unused")
-	private ObservableValue<? extends QuPathViewer> viewerProperty; // Keep to prevent garbage collection
+	private final ObservableValue<? extends QuPathViewer> viewerProperty; // Keep to prevent garbage collection
 
-	private ToolBar toolbar = new ToolBar();
+	private final ToolBar toolbar = new ToolBar();
 
 	ToolBarComponent(ToolManager toolManager,
 					 ViewerActions viewerManagerActions,
@@ -160,9 +157,9 @@ class ToolBarComponent {
 		btnMeasure.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
 		btnMeasure.setTooltip(new Tooltip(getDescription("showMeasurementsTable")));
 		btnMeasure.getItems().addAll(
-				ActionTools.createMenuItem(commonActions.MEASURE_TMA),
 				ActionTools.createMenuItem(commonActions.MEASURE_ANNOTATIONS),
-				ActionTools.createMenuItem(commonActions.MEASURE_DETECTIONS)
+				ActionTools.createMenuItem(commonActions.MEASURE_DETECTIONS),
+				ActionTools.createMenuItem(commonActions.MEASURE_TMA)
 				);
 		nodes.add(btnMeasure);
 
@@ -170,10 +167,18 @@ class ToolBarComponent {
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_OVERVIEW));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_LOCATION));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_SCALEBAR));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_GRID));
+		var btnOverlay = new MenuButton();
+//		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.DESKTOP));
+		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.TH_LARGE, QuPathGUI.TOOLBAR_ICON_SIZE));
+		btnMeasure.setTooltip(new Tooltip("Options to show/hide items on QuPath's viewer"));
+
+		btnOverlay.getItems().addAll(
+				ActionTools.createMenuItem(viewerManagerActions.SHOW_OVERVIEW),
+				ActionTools.createMenuItem(viewerManagerActions.SHOW_LOCATION),
+				ActionTools.createMenuItem(viewerManagerActions.SHOW_SCALEBAR),
+				ActionTools.createMenuItem(overlayActions.SHOW_GRID)
+		);
+		nodes.add(btnOverlay);
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.PREFERENCES));
