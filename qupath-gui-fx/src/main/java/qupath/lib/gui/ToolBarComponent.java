@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+import javafx.scene.control.Button;
+import org.controlsfx.control.action.Action;
 import org.controlsfx.control.decoration.Decorator;
 import org.controlsfx.control.decoration.GraphicDecoration;
 import org.controlsfx.glyphfont.FontAwesome;
@@ -112,7 +114,7 @@ class ToolBarComponent {
 
 		// Show analysis panel
 		List<Node> nodes = new ArrayList<>();
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(commonActions.SHOW_ANALYSIS_PANE));
+		nodes.add(createToggleButton(commonActions.SHOW_ANALYSIS_PANE));
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		// Record index where tools start
@@ -122,28 +124,28 @@ class ToolBarComponent {
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(toolManager.getSelectionModeAction()));			
+		nodes.add(createToggleButton(toolManager.getSelectionModeAction()));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.BRIGHTNESS_CONTRAST));
+		nodes.add(createButton(commonActions.BRIGHTNESS_CONTRAST));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
 		nodes.add(magLabel);
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.ZOOM_TO_FIT));
+		nodes.add(createToggleButton(viewerManagerActions.ZOOM_TO_FIT));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_ANNOTATIONS));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.FILL_ANNOTATIONS));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_NAMES));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_TMA_GRID));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_DETECTIONS));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.FILL_DETECTIONS));
+		nodes.add(createToggleButton(overlayActions.SHOW_ANNOTATIONS));
+		nodes.add(createToggleButton(overlayActions.FILL_ANNOTATIONS));
+		nodes.add(createToggleButton(overlayActions.SHOW_NAMES));
+		nodes.add(createToggleButton(overlayActions.SHOW_TMA_GRID));
+		nodes.add(createToggleButton(overlayActions.SHOW_DETECTIONS));
+		nodes.add(createToggleButton(overlayActions.FILL_DETECTIONS));
 		// TODO: Consider removing 'Show connections' button until it becomes more useful
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_CONNECTIONS));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_PIXEL_CLASSIFICATION));
+		nodes.add(createToggleButton(overlayActions.SHOW_CONNECTIONS));
+		nodes.add(createToggleButton(overlayActions.SHOW_PIXEL_CLASSIFICATION));
 
 		final Slider sliderOpacity = new Slider(0, 1, 1);
 		var overlayOptions = overlayActions.getOverlayOptions();
@@ -163,7 +165,7 @@ class ToolBarComponent {
 				);
 		nodes.add(btnMeasure);
 
-		nodes.add(ActionTools.createButtonWithGraphicOnly(automateActions.SCRIPT_EDITOR));
+		nodes.add(createButton(automateActions.SCRIPT_EDITOR));
 
 		nodes.add(new Separator(Orientation.VERTICAL));
 
@@ -181,11 +183,29 @@ class ToolBarComponent {
 		nodes.add(btnOverlay);
 
 		nodes.add(new Separator(Orientation.VERTICAL));
-		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.PREFERENCES));
-		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.SHOW_LOG));
-		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.HELP_VIEWER));
+		nodes.add(createButton(commonActions.PREFERENCES));
+		nodes.add(createButton(commonActions.SHOW_LOG));
+		nodes.add(createButton(commonActions.HELP_VIEWER));
 
 		toolbar.getItems().setAll(nodes);
+	}
+
+	private Button createButton(Action action) {
+		Button button;
+		if (action.getGraphic() == null)
+			button = ActionTools.createButton(action);
+		else
+			button = ActionTools.createButtonWithGraphicOnly(action);
+		return button;
+	}
+
+	private ToggleButton createToggleButton(Action action) {
+		ToggleButton button;
+		if (action.getGraphic() == null)
+			button = ActionTools.createToggleButton(action);
+		else
+			button = ActionTools.createToggleButtonWithGraphicOnly(action);
+		return button;
 	}
 	
 	
@@ -232,11 +252,8 @@ class ToolBarComponent {
 			var action = toolManager.getToolAction(tool);
 			var btnTool = toolMap.get(tool);
 			if (btnTool == null) {
-				if (action.getGraphic() == null)
-					btnTool = ActionTools.createToggleButton(action);
-				else
-					btnTool = ActionTools.createToggleButtonWithGraphicOnly(action);
-				var toggleButton = (ToggleButton)btnTool;
+				var toggleButton = createToggleButton(action);
+				btnTool = toggleButton;
 				toggleButton.setToggleGroup(group);
 				if (tool instanceof ExtendedPathTool extendedTool) {
 					var popup = createContextMenu(extendedTool, toggleButton);
