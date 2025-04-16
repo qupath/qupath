@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
-import javafx.collections.ListChangeListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,14 +70,14 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 	private ImageData<?> imageData;
 
-	private final ObservableList<PathObject> list = FXCollections.observableArrayList();
-	private final FilteredList<PathObject> filterList = new FilteredList<>(list);
+	private final ObservableList<PathObject> backingList = FXCollections.observableArrayList();
+	private final FilteredList<PathObject> filterList = new FilteredList<>(backingList);
 
-	private final ObservableList<String> fullList = FXCollections.observableArrayList();
-	private final ObservableList<String> metadataList = FXCollections.observableArrayList();
-	private final ObservableList<String> measurementList = FXCollections.observableArrayList();
+	private final ObservableList<String> fullColumnList = FXCollections.observableArrayList();
+	private final ObservableList<String> metadataColumnList = FXCollections.observableArrayList();
+	private final ObservableList<String> measurementColumnList = FXCollections.observableArrayList();
 
-	private final Map<String, LazyValue<PathObject, ?>> builderMap = new LinkedHashMap<>();
+	private final Map<String, LazyValue<PathObject, ?>> lazyValueMap = new LinkedHashMap<>();
 
 	private PathObjectValueFactory factory;
 
@@ -119,7 +118,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 */
 	public synchronized void setImageData(final ImageData<?> imageData, final Collection<? extends PathObject> pathObjects) {
 		this.imageData = imageData;
-		list.setAll(pathObjects);
+		backingList.setAll(pathObjects);
 		// Cannot force this to run in application thread as this can result in unexpected behavior if called from a different thread
 		if (!Platform.isFxApplicationThread())
 			logger.debug("Image data is being set by thread {}", Thread.currentThread());
@@ -163,7 +162,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @see #setImageData(ImageData, Collection)
 	 */
 	public synchronized void updateMeasurementList() {
-		builderMap.clear();
+		lazyValueMap.clear();
 
 		// We *might* have a factory set already (but we probably don't)
 		PathObjectValueFactory factory = this.factory;
@@ -181,7 +180,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			factory = PathObjectValueFactory.join(allFactories);
 		}
 
-		var wrapper = PathObjectListWrapper.create(imageData, list);
+		var wrapper = PathObjectListWrapper.create(imageData, backingList);
 
 		List<String> metadataNames = new ArrayList<>();
 		List<String> featureNames = new ArrayList<>();
@@ -189,10 +188,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		for (var measurement : factory.createValues(wrapper)) {
 			String name = measurement.getName();
-			if (builderMap.containsKey(name)) {
+			if (lazyValueMap.containsKey(name)) {
 				logger.warn("Duplicate measurement {} - entries will be dropped", name);
 			} else {
-				builderMap.put(measurement.getName(), measurement);
+				lazyValueMap.put(measurement.getName(), measurement);
 				// Before v0.6.0, we used a different approach & avoided adding ROI z/t/centroid
 				// values here
 				if (measurement.isNumeric())
@@ -205,20 +204,21 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		// Update all the lists, if necessary
 		boolean changes = false;
-		if (!metadataNames.equals(metadataList)) {
-			changes = metadataList.setAll(metadataNames);
+		if (!metadataNames.equals(metadataColumnList)) {
+			changes = metadataColumnList.setAll(metadataNames);
 		}
-		if (!featureNames.equals(measurementList))
-			changes = measurementList.setAll(featureNames);
+		if (!featureNames.equals(measurementColumnList))
+			changes = measurementColumnList.setAll(featureNames);
 		if (changes) {
-			fullList.setAll(allNames);
+			fullColumnList.setAll(allNames);
 		}
 	}
 
 
 	/**
 	 * Set a predicate used to filter the rows of the table.
-	 * @param predicate
+	 * This effectively filters the contents of {@link #getBackingList()} when returning {@link #getItems()}.
+	 * @param predicate the filter to apply
 	 */
 	public void setPredicate(Predicate<? super PathObject> predicate) {
 		filterList.setPredicate(predicate);
@@ -230,7 +230,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @return true if the measurement returns a String (only), false otherwise
 	 */
 	public boolean isStringMeasurement(final String name) {
-		var measurement = builderMap.getOrDefault(name, null);
+		var measurement = lazyValueMap.getOrDefault(name, null);
 		return measurement != null && measurement.isString();
 	}
 	
@@ -240,7 +240,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @return true if the measurement returns a number, false otherwise
 	 */
 	public boolean isNumericMeasurement(final String name) {
-		var measurement = builderMap.getOrDefault(name, null);
+		var measurement = lazyValueMap.getOrDefault(name, null);
 		// TODO: For now, we allow null because we default to requesting from the measurement list -
 		//       but this behavior is likely to change
 		return measurement == null || measurement.isNumeric();
@@ -249,13 +249,13 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	
 	@Override
 	public ReadOnlyListWrapper<String> getMeasurementNames() {
-		return new ReadOnlyListWrapper<>(measurementList);
+		return new ReadOnlyListWrapper<>(measurementColumnList);
 	}
 	
 	@Override
 	public double[] getDoubleValues(final String column) {
 		double[] values = new double[filterList.size()];
-		if (builderMap.containsKey(column)) {
+		if (lazyValueMap.containsKey(column)) {
 			for (int i = 0; i < filterList.size(); i++)
 				values[i] = getNumericValue(filterList.get(i), column);
 			return values;
@@ -268,14 +268,14 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	
 	@Override
 	public double getNumericValue(final PathObject pathObject, final String column) {
-		if (builderMap.containsKey(column)) {
+		if (lazyValueMap.containsKey(column)) {
 			// Don't derive a measurement for a core marked as missing
 			if (pathObject instanceof TMACoreObject core) {
 				if (core.isMissing())
 					return Double.NaN;
 			}
 			
-			LazyValue<PathObject, ?> builder = builderMap.get(column);
+			LazyValue<PathObject, ?> builder = lazyValueMap.get(column);
 			var val = builder.getValue(pathObject);
 			if (val instanceof Number num)
 				return num.doubleValue();
@@ -292,16 +292,28 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	
 	/**
 	 * Access the underlying entries, for which getEntries provides a filtered view.
-	 * 
-	 * @return
+	 * @return a list of all objects used to create the table
+	 * @deprecated v0.6.0 use instead {@link #getBackingList()}
 	 */
+	@Deprecated
 	public ObservableList<PathObject> getBackingListEntries() {
-		return list;
+		return getBackingList();
+	}
+
+	/**
+	 * Access all the objects used to generate the table.
+	 * This contains all the objects passed to {@link #setImageData(ImageData, Collection)} and may be longer than
+	 * the list returned by {@link #getItems()} if a predicate has been applied.
+	 * @return the list of objects
+	 * @since v0.6.0
+	 */
+	public ObservableList<PathObject> getBackingList() {
+		return backingList;
 	}
 
 	@Override
 	public List<String> getAllNames() {
-		return new ArrayList<>(fullList);
+		return new ArrayList<>(fullColumnList);
 	}
 
 	@Override
@@ -315,7 +327,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @return
 	 */
 	public String getHelpText(String column) {
-		LazyValue<PathObject, ?> builder = builderMap.get(column);
+		LazyValue<PathObject, ?> builder = lazyValueMap.get(column);
 		if (builder != null)
 			return builder.getHelpText();
 		else
@@ -324,7 +336,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 	@Override
 	public String getStringValue(PathObject pathObject, String column, int decimalPlaces) {
-		LazyValue<PathObject, ?> builder = builderMap.get(column);
+		LazyValue<PathObject, ?> builder = lazyValueMap.get(column);
 		// Temporary hack! This restores v0.6.0 behavior to be similar to previous versions, but it would be better
 		// to suppose specifying the number of decimal places through a preference & apply it consistently
 		if (decimalPlaces == PathTableData.DEFAULT_DECIMAL_PLACES && builder instanceof MeasurementListValue)
@@ -347,7 +359,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	 * @return
 	 */
 	public ReadOnlyListWrapper<String> getMetadataNames() {
-		return new ReadOnlyListWrapper<>(metadataList);
+		return new ReadOnlyListWrapper<>(metadataColumnList);
 	}
 
 }
