@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -27,7 +27,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -46,7 +45,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import javafx.scene.shape.Arc;
 import javafx.scene.shape.CubicCurveTo;
 import javafx.scene.shape.QuadCurve;
 import javafx.scene.text.TextAlignment;
@@ -110,14 +108,14 @@ public class IconFactory {
 	        GlyphFontRegistry.register("icomoon", IconFactory.class.getClassLoader().getResourceAsStream("fonts/icomoon.ttf") , 12);
 	    }
 
-		private static GlyphFont icoMoon = GlyphFontRegistry.font("icomoon");
-		private static GlyphFont fontAwesome = GlyphFontRegistry.font("FontAwesome");
+		private static final GlyphFont icoMoon = GlyphFontRegistry.font("icomoon");
+		private static final GlyphFont fontAwesome = GlyphFontRegistry.font("FontAwesome");
 
 		static class FontIconSupplier implements IntFunction<Node> {
 			
-			private GlyphFont font;
+			private final GlyphFont font;
 			
-			private char code;
+			private final char code;
 			private javafx.scene.paint.Color color;// = javafx.scene.paint.Color.GRAY;
 			private ObservableIntegerValue observableColor;
 			
@@ -213,10 +211,9 @@ public class IconFactory {
 			var fill = IconSuppliers.icoMoon('\ue900', PathPrefs.colorDefaultObjectsProperty()).apply(size);
 			fill.setOpacity(0.5);
 			var outline = IconSuppliers.icoMoon('\ue901', PathPrefs.colorDefaultObjectsProperty()).apply(size);
-			var group = new Group(
-					fill, outline
-			);
-			return group;
+            return new Group(
+                    fill, outline
+            );
 		}
 
 		static IntFunction<Node> fillDetectionsIcon() {
@@ -227,10 +224,9 @@ public class IconFactory {
 			var fill = IconSuppliers.icoMoon('\ue907', DETECTION_COLOR).apply(size);
 			fill.setOpacity(0.75);
 			var outline = IconSuppliers.icoMoon('\ue908', DETECTION_COLOR).apply(size);
-			var group = new Group(
-					fill, outline
-			);
-			return group;
+            return new Group(
+                    fill, outline
+            );
 		}
 		
 		static IntFunction<Node> arrowToolIcon(String cap) {
@@ -281,13 +277,20 @@ public class IconFactory {
 			return i -> new DuplicatableNode(() -> drawViewerGridIcon(i, rows, cols));
 		}
 
+		static IntFunction<Node> createGridIcon() {
+			return i -> new DuplicatableNode(() -> drawGridIcon(i, 4));
+		}
+
+		static IntFunction<Node> createGridSpacingIcon() {
+			return i -> new DuplicatableNode(() -> drawGridIcon(i, 2));
+		}
+
 	}
 	
 	
 	/**
 	 * Default icons for QuPath commands.
 	 */
-	@SuppressWarnings("javadoc")
 	public enum PathIcons {	ACTIVE_SERVER(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(0, 200, 0))),
 									ANNOTATIONS(IconSuppliers.icoMoon('\ue901', PathPrefs.colorDefaultObjectsProperty())),
 									ANNOTATIONS_FILL(IconSuppliers.fillAnnotationsIcon()),
@@ -297,12 +300,13 @@ public class IconFactory {
 									ARROW_DOUBLE_TOOL(IconSuppliers.arrowToolIcon("<>")),
 
 									BRUSH_TOOL(IconSuppliers.brushToolIcon()),
-									
+
 									CELL_NUCLEI_BOTH(IconSuppliers.icoMoon('\ue903')),
 									CELL_ONLY(IconSuppliers.icoMoon('\ue904')),
 									CENTROIDS_ONLY(IconSuppliers.icoMoon('\ue913')),
 
 									COG(IconSuppliers.fontAwesome(FontAwesome.Glyph.COG)),
+									COMMAND_LIST(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_UL)),
 									CONTRAST(IconSuppliers.icoMoon('\ue906')),
 
 									DETECTIONS(IconSuppliers.icoMoon('\ue908', DETECTION_COLOR)),
@@ -312,7 +316,8 @@ public class IconFactory {
 									ELLIPSE_TOOL(IconSuppliers.ellipseToolIcon()),
 									EXTRACT_REGION(IconSuppliers.icoMoon('\ue90a')),
 
-									GRID(IconSuppliers.icoMoon('\ue90b')),
+									GRID(IconSuppliers.createGridIcon()),
+									GRID_SPACING(IconSuppliers.createGridSpacingIcon()),
 									GITHUB(IconSuppliers.fontAwesome(FontAwesome.Glyph.GITHUB)),
 
 									HELP(IconSuppliers.fontAwesome(FontAwesome.Glyph.QUESTION_CIRCLE)),
@@ -320,12 +325,15 @@ public class IconFactory {
 									INFO(IconSuppliers.fontAwesome(FontAwesome.Glyph.INFO)),
 									INACTIVE_SERVER(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(200, 0, 0))),
 
+									KEYBOARD(IconSuppliers.fontAwesome(FontAwesome.Glyph.KEYBOARD_ALT)),
+
 									LOG_VIEWER(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_ALT)), // Shows list in window
 //									LOG_VIEWER(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_UL)), // Alternative
 									LINE_TOOL(IconSuppliers.lineToolIcon()),
 									LOCATION(IconSuppliers.icoMoon('\ue90d')),
 									
 									MEASURE(IconSuppliers.icoMoon('\ue90e')),
+									MEMORY_MONITOR(IconSuppliers.fontAwesome(FontAwesome.Glyph.AREA_CHART)),
 									MINUS(IconSuppliers.fontAwesome(FontAwesome.Glyph.MINUS)),
 									MOVE_TOOL(IconSuppliers.icoMoon('\ue90f')),
 									
@@ -340,7 +348,8 @@ public class IconFactory {
 									POLYGON_TOOL(IconSuppliers.polygonToolIcon()),
 									
 									POLYLINE_TOOL(IconSuppliers.polylineToolIcon()),
-									
+
+									RECENT_COMMANDS(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_OL)),
 									RECTANGLE_TOOL(IconSuppliers.rectangleToolIcon()),
 									REFRESH(IconSuppliers.fontAwesome(FontAwesome.Glyph.REFRESH)),
 
@@ -360,6 +369,8 @@ public class IconFactory {
 									TABLE(IconSuppliers.icoMoon('\ue91a')),
 									TMA_GRID(IconSuppliers.icoMoon('\ue91b', PathPrefs.colorTMAProperty())),
 
+									UNDO(IconSuppliers.fontAwesome(FontAwesome.Glyph.UNDO)),
+
 									VIEWER_GRID_1x1(IconSuppliers.createViewerGridIcon(1, 1)),
 									VIEWER_GRID_1x2(IconSuppliers.createViewerGridIcon(1, 2)),
 									VIEWER_GRID_2x1(IconSuppliers.createViewerGridIcon(2, 1)),
@@ -368,13 +379,14 @@ public class IconFactory {
 
 									WAND_TOOL(IconSuppliers.icoMoon('\ue91c', PathPrefs.colorDefaultObjectsProperty())),
 									WARNING(IconSuppliers.fontAwesome(FontAwesome.Glyph.WARNING)),
-									
+
+									Z_PROJECT(IconSuppliers.fontAwesome(FontAwesome.Glyph.CUBE)),
 									ZOOM_IN(IconSuppliers.icoMoon('\ue91d')),
 									ZOOM_OUT(IconSuppliers.icoMoon('\ue91e')),
 									ZOOM_TO_FIT(IconSuppliers.icoMoon('\ue91f'))
 									;
 		
-		private IntFunction<Node> fun;
+		private final IntFunction<Node> fun;
 									
 		PathIcons(IntFunction<Node> fun) {
 			this.fun = fun;
@@ -385,7 +397,7 @@ public class IconFactory {
 		}
 		
 	};
-	
+
 	private static Node createLineOrArrowIcon(int size, String cap) {
 		return new DuplicatableNode(() -> drawLineOrArrowIcon(size, size, cap));
 	}
@@ -489,7 +501,7 @@ public class IconFactory {
 		var rect = new Rectangle(0, 0, width, height);
 		rect.setFill(Color.TRANSPARENT);
 		var group = new Group(nodes);
-		group.getChildren().add(0, rect);
+		group.getChildren().addFirst(rect);
 		return group;
 	}
 
@@ -669,6 +681,7 @@ public class IconFactory {
 	
 	private static Node drawShowNamesIcon(int size) {
 		var text = new Text("N");
+		text.setTextAlignment(TextAlignment.CENTER);
 		bindColorPropertyToRGB(text.fillProperty(), PathPrefs.colorDefaultObjectsProperty());
 		return text;
 	}
@@ -679,6 +692,23 @@ public class IconFactory {
 		return label;
 	}
 
+	private static Node drawGridIcon(int size, int n) {
+		List<Node> lines = new ArrayList<>();
+		double offset = size / (double)n;
+		double k = offset/2.0;
+		for (int i = 0; i < n; i++) {
+			var line1 = new Line(0, k, size, k);
+			styleIconShape(line1);
+			lines.add(line1);
+			var line2 = new Line(k, 0, k, size);
+			styleIconShape(line2);
+			lines.add(line2);
+			k += offset;
+		}
+		var group = wrapInGroup(size, lines.toArray(Node[]::new));
+		group.getStyleClass().add("qupath-icon");
+		return group;
+	}
 
 	private static Node drawViewerGridIcon(int size, int rows, int cols) {
 		double pad = 2.0;
@@ -794,7 +824,6 @@ public class IconFactory {
 		bindShapeColor(shape, PathPrefs.colorDefaultObjectsProperty());
 	}
 	
-	
 	private static void bindShapeColor(Shape shape, ObservableIntegerValue color) {
 		bindColorPropertyToRGB(shape.strokeProperty(), color);
 	}
@@ -808,7 +837,7 @@ public class IconFactory {
 	
 	private static class DuplicatableNode extends Label implements Duplicatable<Node> {
 		
-		private Supplier<Node> supplier;
+		private final Supplier<Node> supplier;
 		
 		DuplicatableNode(Supplier<Node> supplier) {
 			this.supplier = supplier;
@@ -853,7 +882,7 @@ public class IconFactory {
 		return createROIIcon(roi, width, height, color);
 	}
 	
-	private static Map<ROI, Path> pathCache = new WeakHashMap<>();	
+	private static final Map<ROI, Path> roiIconCache = new WeakHashMap<>();
 	
 	/**
 	 * Create an icon depicting a ROI.
@@ -895,7 +924,7 @@ public class IconFactory {
 			// Just show generic points
 			return drawPointsIcon(Math.min(width, height), color);
 		} else {
-			var path = pathCache.computeIfAbsent(roi, r -> createPath(r, scale, color));
+			var path = roiIconCache.computeIfAbsent(roi, r -> createPath(r, scale, color));
 			if (path != null) {
 				path = new Path(path.getElements());
 				path.setStroke(color);
