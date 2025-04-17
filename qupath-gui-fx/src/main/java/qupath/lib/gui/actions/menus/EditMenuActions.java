@@ -75,7 +75,6 @@ public class EditMenuActions implements MenuActions {
 		
 		@ActionAccelerator("shortcut+z")
 		@ActionConfig("Action.Edit.undo")
-		@ActionIcon(IconFactory.PathIcons.UNDO)
 		public final Action UNDO;
 		
 		@ActionAccelerator("shortcut+shift+z")

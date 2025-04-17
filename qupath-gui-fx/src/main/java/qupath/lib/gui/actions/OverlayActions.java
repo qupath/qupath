@@ -48,6 +48,7 @@ public class OverlayActions {
 	@ActionConfig("OverlayActions.showCountingGrid")
 	public final Action SHOW_GRID;
 
+	@ActionIcon(PathIcons.GRID_SPACING)
 	@ActionConfig("OverlayActions.setCountingGridSpacing")
 	public final Action GRID_SPACING;
 	
