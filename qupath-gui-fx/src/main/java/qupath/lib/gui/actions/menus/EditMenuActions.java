@@ -37,10 +37,12 @@ import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.CommonActions;
 import qupath.lib.gui.actions.annotations.ActionAccelerator;
 import qupath.lib.gui.actions.annotations.ActionConfig;
+import qupath.lib.gui.actions.annotations.ActionIcon;
 import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.IconFactory;
 
 public class EditMenuActions implements MenuActions {
 	
@@ -73,6 +75,7 @@ public class EditMenuActions implements MenuActions {
 		
 		@ActionAccelerator("shortcut+z")
 		@ActionConfig("Action.Edit.undo")
+		@ActionIcon(IconFactory.PathIcons.UNDO)
 		public final Action UNDO;
 		
 		@ActionAccelerator("shortcut+shift+z")

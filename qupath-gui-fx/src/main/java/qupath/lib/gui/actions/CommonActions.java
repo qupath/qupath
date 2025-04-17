@@ -77,6 +77,14 @@ public class CommonActions {
 	@ActionConfig("CommonActions.showPointConvexHull")
 	public final Action CONVEX_POINTS;
 
+	@ActionConfig("Action.View.inputDisplay")
+	@ActionIcon(PathIcons.KEYBOARD)
+	public final Action INPUT_DISPLAY;
+
+	@ActionConfig("Action.View.memoryMonitor")
+	@ActionIcon(PathIcons.MEMORY_MONITOR)
+	public final Action MEMORY_MONITOR;
+
 	@ActionIcon(PathIcons.LOG_VIEWER)
 	@ActionAccelerator("shortcut+shift+l")
 	@ActionConfig("CommonActions.showLog")
@@ -156,7 +164,10 @@ public class CommonActions {
 		var contextHelp = ContextHelpViewer.getInstance(qupath);
 		HELP_VIEWER = Commands.createSingleStageAction(() -> contextHelp.getStage());
 		ActionTools.installInfoMessage(HELP_VIEWER, contextHelp.getInfoMessage());
-		
+
+		INPUT_DISPLAY = ActionTools.createSelectableCommandAction(qupath.showInputDisplayProperty());
+		MEMORY_MONITOR = Commands.createSingleStageAction(() -> Commands.createMemoryMonitorDialog(qupath));
+
 		// This has the effect of applying the annotations
 		ActionTools.getAnnotatedActions(this);
 	}

@@ -56,6 +56,7 @@ public class ViewerActions {
 	public final Action SHOW_SCALEBAR;
 
 	@ActionConfig("ViewerActions.zProject")
+	@ActionIcon(PathIcons.Z_PROJECT)
 	public final Action SHOW_Z_PROJECT;
 	
 	@ActionAccelerator("shortcut+alt+s")

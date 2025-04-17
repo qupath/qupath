@@ -33,6 +33,7 @@ import javafx.geometry.VPos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.Control;
+import javafx.scene.control.SeparatorMenuItem;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.decoration.Decorator;
 import org.controlsfx.control.decoration.GraphicDecoration;
@@ -174,15 +175,22 @@ class ToolBarComponent {
 		nodes.add(createSeparator());
 
 		var btnOverlay = new MenuButton();
-//		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.DESKTOP));
-		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.TH_LARGE, QuPathGUI.TOOLBAR_ICON_SIZE));
+		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.DESKTOP));
+//		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.TH_LARGE, QuPathGUI.TOOLBAR_ICON_SIZE));
+//		btnOverlay.setGraphic(IconFactory.createFontAwesome('\uf26c', QuPathGUI.TOOLBAR_ICON_SIZE));
 		btnMeasure.setTooltip(new Tooltip(getDescription("viewerMenu")));
 
 		btnOverlay.getItems().addAll(
 				ActionTools.createMenuItem(viewerManagerActions.SHOW_OVERVIEW),
 				ActionTools.createMenuItem(viewerManagerActions.SHOW_LOCATION),
 				ActionTools.createMenuItem(viewerManagerActions.SHOW_SCALEBAR),
-				ActionTools.createMenuItem(overlayActions.SHOW_GRID)
+				ActionTools.createMenuItem(viewerManagerActions.SHOW_Z_PROJECT),
+				new SeparatorMenuItem(),
+				ActionTools.createMenuItem(overlayActions.SHOW_GRID),
+				ActionTools.createMenuItem(overlayActions.GRID_SPACING),
+				new SeparatorMenuItem(),
+				ActionTools.createMenuItem(commonActions.INPUT_DISPLAY),
+				ActionTools.createMenuItem(commonActions.MEMORY_MONITOR)
 		);
 		nodes.add(btnOverlay);
 

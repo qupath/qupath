@@ -297,12 +297,13 @@ public class IconFactory {
 									ARROW_DOUBLE_TOOL(IconSuppliers.arrowToolIcon("<>")),
 
 									BRUSH_TOOL(IconSuppliers.brushToolIcon()),
-									
+
 									CELL_NUCLEI_BOTH(IconSuppliers.icoMoon('\ue903')),
 									CELL_ONLY(IconSuppliers.icoMoon('\ue904')),
 									CENTROIDS_ONLY(IconSuppliers.icoMoon('\ue913')),
 
 									COG(IconSuppliers.fontAwesome(FontAwesome.Glyph.COG)),
+									COMMAND_LIST(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_UL)),
 									CONTRAST(IconSuppliers.icoMoon('\ue906')),
 
 									DETECTIONS(IconSuppliers.icoMoon('\ue908', DETECTION_COLOR)),
@@ -320,12 +321,15 @@ public class IconFactory {
 									INFO(IconSuppliers.fontAwesome(FontAwesome.Glyph.INFO)),
 									INACTIVE_SERVER(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(200, 0, 0))),
 
+									KEYBOARD(IconSuppliers.fontAwesome(FontAwesome.Glyph.KEYBOARD_ALT)),
+
 									LOG_VIEWER(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_ALT)), // Shows list in window
 //									LOG_VIEWER(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_UL)), // Alternative
 									LINE_TOOL(IconSuppliers.lineToolIcon()),
 									LOCATION(IconSuppliers.icoMoon('\ue90d')),
 									
 									MEASURE(IconSuppliers.icoMoon('\ue90e')),
+									MEMORY_MONITOR(IconSuppliers.fontAwesome(FontAwesome.Glyph.AREA_CHART)),
 									MINUS(IconSuppliers.fontAwesome(FontAwesome.Glyph.MINUS)),
 									MOVE_TOOL(IconSuppliers.icoMoon('\ue90f')),
 									
@@ -340,7 +344,8 @@ public class IconFactory {
 									POLYGON_TOOL(IconSuppliers.polygonToolIcon()),
 									
 									POLYLINE_TOOL(IconSuppliers.polylineToolIcon()),
-									
+
+									RECENT_COMMANDS(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_OL)),
 									RECTANGLE_TOOL(IconSuppliers.rectangleToolIcon()),
 									REFRESH(IconSuppliers.fontAwesome(FontAwesome.Glyph.REFRESH)),
 
@@ -360,6 +365,8 @@ public class IconFactory {
 									TABLE(IconSuppliers.icoMoon('\ue91a')),
 									TMA_GRID(IconSuppliers.icoMoon('\ue91b', PathPrefs.colorTMAProperty())),
 
+									UNDO(IconSuppliers.fontAwesome(FontAwesome.Glyph.UNDO)),
+
 									VIEWER_GRID_1x1(IconSuppliers.createViewerGridIcon(1, 1)),
 									VIEWER_GRID_1x2(IconSuppliers.createViewerGridIcon(1, 2)),
 									VIEWER_GRID_2x1(IconSuppliers.createViewerGridIcon(2, 1)),
@@ -368,7 +375,8 @@ public class IconFactory {
 
 									WAND_TOOL(IconSuppliers.icoMoon('\ue91c', PathPrefs.colorDefaultObjectsProperty())),
 									WARNING(IconSuppliers.fontAwesome(FontAwesome.Glyph.WARNING)),
-									
+
+									Z_PROJECT(IconSuppliers.fontAwesome(FontAwesome.Glyph.CUBE)),
 									ZOOM_IN(IconSuppliers.icoMoon('\ue91d')),
 									ZOOM_OUT(IconSuppliers.icoMoon('\ue91e')),
 									ZOOM_TO_FIT(IconSuppliers.icoMoon('\ue91f'))
