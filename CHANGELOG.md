@@ -28,6 +28,7 @@ Some things may be added, some things may be removed, and some things may look d
 (These are not yet ordered by interestingness)
 
 * Support system light/dark color themes
+* Updated toolbar so key buttons appear on smaller displays
 * Menu items uses ellipsis to indicate more input will be needed
   * Standard UX convention we didn't know about...
 * 'Update detection line thickness with zoom' preference (https://github.com/qupath/qupath/pull/1623)
