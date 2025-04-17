@@ -28,7 +28,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+import javafx.geometry.HPos;
+import javafx.geometry.VPos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBase;
+import javafx.scene.control.Control;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.decoration.Decorator;
 import org.controlsfx.control.decoration.GraphicDecoration;
@@ -115,27 +119,27 @@ class ToolBarComponent {
 		// Show analysis panel
 		List<Node> nodes = new ArrayList<>();
 		nodes.add(createToggleButton(commonActions.SHOW_ANALYSIS_PANE));
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
 		// Record index where tools start
 		toolIdx = nodes.size();
 
 		addToolButtons(nodes, availableTools);
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
 		nodes.add(createToggleButton(toolManager.getSelectionModeAction()));
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
 		nodes.add(createButton(commonActions.BRIGHTNESS_CONTRAST));
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
 		nodes.add(magLabel);
 		nodes.add(createToggleButton(viewerManagerActions.ZOOM_TO_FIT));
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
 		nodes.add(createToggleButton(overlayActions.SHOW_ANNOTATIONS));
 		nodes.add(createToggleButton(overlayActions.FILL_ANNOTATIONS));
@@ -153,7 +157,7 @@ class ToolBarComponent {
 		sliderOpacity.setTooltip(new Tooltip(getDescription("overlayOpacity")));
 		nodes.add(sliderOpacity);
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
 		var btnMeasure = new MenuButton();
 		btnMeasure.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
@@ -167,7 +171,7 @@ class ToolBarComponent {
 
 		nodes.add(createButton(automateActions.SCRIPT_EDITOR));
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
 		var btnOverlay = new MenuButton();
 //		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.DESKTOP));
@@ -182,12 +186,31 @@ class ToolBarComponent {
 		);
 		nodes.add(btnOverlay);
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 		nodes.add(createButton(commonActions.PREFERENCES));
 		nodes.add(createButton(commonActions.SHOW_LOG));
 		nodes.add(createButton(commonActions.HELP_VIEWER));
 
+		toolbar.getItems().addListener(this::handleItemsChanged);
 		toolbar.getItems().setAll(nodes);
+	}
+
+	private void handleItemsChanged(Change<? extends Node> change) {
+		var buttons = change.getList().stream()
+				.filter(p -> p instanceof ButtonBase)
+				.map(ButtonBase.class::cast)
+				.toList();
+		if (buttons.isEmpty())
+			return;
+		double maxPrefHeight = buttons.stream().mapToDouble(ButtonBase::getHeight).max().orElse(Control.USE_COMPUTED_SIZE);
+		buttons.forEach(b -> b.setPrefHeight(maxPrefHeight));
+	}
+
+	private static Separator createSeparator() {
+		var separator = new Separator(Orientation.VERTICAL);
+		separator.setHalignment(HPos.CENTER);
+		separator.setValignment(VPos.CENTER);
+		return separator;
 	}
 
 	private Button createButton(Action action) {
