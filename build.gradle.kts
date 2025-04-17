@@ -143,7 +143,7 @@ tasks.register<JavaExec>("exportDocs") {
         println("Making docs dir in ${docsDir.absolutePath}")
         docsDir.mkdirs()
     }
-    classpath = sourceSets["main"].runtimeClasspath
+    classpath = sourceSets.main.get().runtimeClasspath
     mainClass = "qupath.lib.gui.tools.DocGenerator"
     args = listOf(docsDir.absolutePath, "--all")
 }
