@@ -176,7 +176,7 @@ class ToolBarComponent {
 		var btnOverlay = new MenuButton();
 //		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.DESKTOP));
 		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.TH_LARGE, QuPathGUI.TOOLBAR_ICON_SIZE));
-		btnMeasure.setTooltip(new Tooltip("Options to show/hide items on QuPath's viewer"));
+		btnMeasure.setTooltip(new Tooltip(getDescription("viewerMenu")));
 
 		btnOverlay.getItems().addAll(
 				ActionTools.createMenuItem(viewerManagerActions.SHOW_OVERVIEW),
@@ -187,9 +187,9 @@ class ToolBarComponent {
 		nodes.add(btnOverlay);
 
 		nodes.add(createSeparator());
-		nodes.add(createButton(commonActions.PREFERENCES));
-		nodes.add(createButton(commonActions.SHOW_LOG));
 		nodes.add(createButton(commonActions.HELP_VIEWER));
+		nodes.add(createButton(commonActions.SHOW_LOG));
+		nodes.add(createButton(commonActions.PREFERENCES));
 
 		toolbar.getItems().addListener(this::handleItemsChanged);
 		toolbar.getItems().setAll(nodes);
@@ -358,9 +358,9 @@ class ToolBarComponent {
 		
 		private QuPathViewer viewer;
 		
-		private static String defaultText = "1x";
+		private final static String defaultText = "1x";
 		
-		private Tooltip tooltipMag = new Tooltip(getDescription("magnification"));
+		private final Tooltip tooltipMag = new Tooltip(getDescription("magnification"));
 		
 		private ViewerMagnificationLabel() {
 			setTooltip(tooltipMag);
@@ -388,7 +388,7 @@ class ToolBarComponent {
 		
 		private void updateMagnificationString() {
 			if (!Platform.isFxApplicationThread()) {
-				Platform.runLater(() -> updateMagnificationString());
+				Platform.runLater(this::updateMagnificationString);
 				return;
 			}
 			if (viewer == null || viewer.getImageData() == null) {
@@ -405,13 +405,15 @@ class ToolBarComponent {
 			if (tooltipMag == null || viewer == null)
 				return;
 			var imageData = viewer.getImageData();
-			var mag = imageData == null ? null : imageData.getServerMetadata().getMagnification();
 			if (imageData == null)
 				tooltipMag.setText(getName("magnification"));
-			else if (mag != null && !Double.isNaN(mag))
-				tooltipMag.setText(getDescription("magnification"));
-			else
-				tooltipMag.setText(getDescription("magnificationScale"));
+			else {
+				var mag = imageData.getServerMetadata().getMagnification();
+				if (!Double.isNaN(mag))
+					tooltipMag.setText(getDescription("magnification"));
+				else
+					tooltipMag.setText(getDescription("magnificationScale"));
+			}
 		}
 
 		
@@ -426,7 +428,7 @@ class ToolBarComponent {
 				if (value == null)
 					return;
 				if (Double.isFinite(value) && value > 0)
-					viewer.setMagnification(value.doubleValue());
+					viewer.setMagnification(value);
 				else
 					Dialogs.showErrorMessage(getName("setMagnification"), String.format(getMessage("invalidMagnification"), value));
 			} else {
@@ -435,7 +437,7 @@ class ToolBarComponent {
 				if (value == null)
 					return;
 				if (Double.isFinite(value) && value > 0)
-					viewer.setDownsampleFactor(value.doubleValue());
+					viewer.setDownsampleFactor(value);
 				else
 					Dialogs.showErrorMessage(getName("setDownsample"), String.format(getMessage("invalidDownsample"), value));
 			}
@@ -462,8 +464,5 @@ class ToolBarComponent {
 		}
 		
 	}
-
-
-
 
 }
