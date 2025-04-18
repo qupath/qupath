@@ -87,7 +87,7 @@ import qupath.fx.localization.LocalizedResourceManager;
  */
 public class ActionTools {
 	
-	private static Logger logger = LoggerFactory.getLogger(ActionTools.class);
+	private static final Logger logger = LoggerFactory.getLogger(ActionTools.class);
 	
 	private static final String ACTION_KEY = ActionTools.class.getName();
 
@@ -348,9 +348,8 @@ public class ActionTools {
 				if (!f.canAccess(obj))
 					f.setAccessible(true);
 				var value = f.get(obj);
-				if (value instanceof Action) {
-					var action = (Action)value;
-					parseAnnotations(action, f, baseMenu);
+				if (value instanceof Action action) {
+                    parseAnnotations(action, f, baseMenu);
 					actions.add(action);
 				} else if (value instanceof Action[]) {
 					for (var temp : (Action[])value) {
@@ -473,7 +472,7 @@ public class ActionTools {
 	}
 
 	private static String getActionText(KeyCombination accelerator, String description) {
-		return accelerator == null ?
+		return accelerator == null || accelerator.getDisplayText().isBlank() ?
 				description :
 				"(" + accelerator.getDisplayText() + ") " + description;
 	}
