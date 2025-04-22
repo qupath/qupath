@@ -124,27 +124,27 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		// Add popup to control detection display
 		ContextMenu popup = new ContextMenu();
 		ToggleGroup toggleGroup = new ToggleGroup();
-		RadioMenuItem miWithIcons = new RadioMenuItem("With icons");
+		RadioMenuItem miWithIcons = new RadioMenuItem("Show with icons");
 		miWithIcons.setToggleGroup(toggleGroup);
 		miWithIcons.selectedProperty().addListener((v, o, n) -> {
 			if (n)
 				PathPrefs.detectionTreeDisplayModeProperty().set(DetectionTreeDisplayModes.WITH_ICONS);
 		});
 
-
-		RadioMenuItem miWithoutIcons = new RadioMenuItem("Without icons");
+		RadioMenuItem miWithoutIcons = new RadioMenuItem("Show without icons");
 		miWithoutIcons.setToggleGroup(toggleGroup);
 		miWithoutIcons.selectedProperty().addListener((v, o, n) -> {
 			if (n)
 				PathPrefs.detectionTreeDisplayModeProperty().set(DetectionTreeDisplayModes.WITHOUT_ICONS);
 		});
 
-		RadioMenuItem miHide = new RadioMenuItem("Hide detections");
+		RadioMenuItem miHide = new RadioMenuItem("Don't show");
 		miHide.setToggleGroup(toggleGroup);
 		miHide.selectedProperty().addListener((v, o, n) -> {
 			if (n)
 				PathPrefs.detectionTreeDisplayModeProperty().set(DetectionTreeDisplayModes.NONE);
 		});
+
 		// Ensure we have the right toggle selected
 		miWithIcons.setSelected(PathPrefs.detectionTreeDisplayModeProperty().get() == DetectionTreeDisplayModes.WITH_ICONS);
 		miWithoutIcons.setSelected(PathPrefs.detectionTreeDisplayModeProperty().get() == DetectionTreeDisplayModes.WITHOUT_ICONS);
