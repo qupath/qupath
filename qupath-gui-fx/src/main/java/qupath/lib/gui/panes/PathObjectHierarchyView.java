@@ -123,41 +123,44 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		
 		// Add popup to control detection display
 		ContextMenu popup = new ContextMenu();
-		ToggleGroup toggleGroup = new ToggleGroup();
-		RadioMenuItem miWithIcons = new RadioMenuItem("Show with icons");
-		miWithIcons.setToggleGroup(toggleGroup);
-		miWithIcons.selectedProperty().addListener((v, o, n) -> {
-			if (n)
-				PathPrefs.detectionTreeDisplayModeProperty().set(DetectionTreeDisplayModes.WITH_ICONS);
+		CheckMenuItem showDetections = new CheckMenuItem("Show detections");
+		CheckMenuItem showIcons = new CheckMenuItem("Show icons");
+		showIcons.disableProperty().bind(showDetections.selectedProperty().not());
+		showIcons.selectedProperty().addListener((v, o, n) -> {
+			if (showDetections.isSelected()) {
+				PathPrefs.detectionTreeDisplayModeProperty().set(
+						n ? DetectionTreeDisplayModes.WITH_ICONS : DetectionTreeDisplayModes.WITHOUT_ICONS
+				);
+			}
 		});
-
-		RadioMenuItem miWithoutIcons = new RadioMenuItem("Show without icons");
-		miWithoutIcons.setToggleGroup(toggleGroup);
-		miWithoutIcons.selectedProperty().addListener((v, o, n) -> {
-			if (n)
-				PathPrefs.detectionTreeDisplayModeProperty().set(DetectionTreeDisplayModes.WITHOUT_ICONS);
-		});
-
-		RadioMenuItem miHide = new RadioMenuItem("Don't show");
-		miHide.setToggleGroup(toggleGroup);
-		miHide.selectedProperty().addListener((v, o, n) -> {
-			if (n)
+		showDetections.selectedProperty().addListener((v, o, n) -> {
+			if (!n) {
 				PathPrefs.detectionTreeDisplayModeProperty().set(DetectionTreeDisplayModes.NONE);
+			} else {
+				PathPrefs.detectionTreeDisplayModeProperty().set(
+						showIcons.isSelected() ? DetectionTreeDisplayModes.WITH_ICONS : DetectionTreeDisplayModes.WITHOUT_ICONS
+				);
+			}
 		});
-
-		// Ensure we have the right toggle selected
-		miWithIcons.setSelected(PathPrefs.detectionTreeDisplayModeProperty().get() == DetectionTreeDisplayModes.WITH_ICONS);
-		miWithoutIcons.setSelected(PathPrefs.detectionTreeDisplayModeProperty().get() == DetectionTreeDisplayModes.WITHOUT_ICONS);
-		miHide.setSelected(PathPrefs.detectionTreeDisplayModeProperty().get() == DetectionTreeDisplayModes.NONE);
+		switch (PathPrefs.detectionTreeDisplayModeProperty().get()) {
+			case WITH_ICONS -> {
+				showDetections.setSelected(true);
+				showIcons.setSelected(true);
+			}
+			case WITHOUT_ICONS -> {
+				showDetections.setSelected(true);
+				showIcons.setSelected(false);
+			}
+			case NONE -> {
+				showDetections.setSelected(false);
+				showIcons.setSelected(true); // todo: should we default to this?
+			}
+		}
 
 		// Add to menu
 		Menu menuDetectionDisplay = new Menu("Detection display");
-		menuDetectionDisplay.getItems().setAll(
-			miWithIcons, miWithoutIcons, miHide
-		);
-		popup.getItems().setAll(
-				menuDetectionDisplay
-		);
+		menuDetectionDisplay.getItems().setAll(showDetections, showIcons);
+		popup.getItems().setAll(menuDetectionDisplay);
 		treeView.setContextMenu(popup);
 
 		treeView.setShowRoot(false);
