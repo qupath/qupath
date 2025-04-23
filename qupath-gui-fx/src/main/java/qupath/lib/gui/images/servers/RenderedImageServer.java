@@ -24,6 +24,7 @@ package qupath.lib.gui.images.servers;
 import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.awt.image.LookupOp;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -69,10 +70,18 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	private final Color backgroundColor;
 	private final ImageServerMetadata metadata;
 	private final boolean dedicatedStore;
+	private final LookupOp gammaOp;
 	
-	private RenderedImageServer(DefaultImageRegionStore store, ImageData<BufferedImage> imageData,
-								List<? extends PathOverlay> overlayLayers, ImageRenderer renderer,
-								double[] downsamples, Color backgroundColor, double overlayOpacity) {
+	private RenderedImageServer(
+			DefaultImageRegionStore store,
+			ImageData<BufferedImage> imageData,
+			List<? extends PathOverlay> overlayLayers,
+			ImageRenderer renderer,
+			double[] downsamples,
+			Color backgroundColor,
+			double overlayOpacity,
+			LookupOp gammaOp
+	) {
 		super();
 
 		if (store == null) {
@@ -88,6 +97,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		this.renderer = renderer;
 		this.imageData = imageData;
 		this.backgroundColor = backgroundColor;
+		this.gammaOp = gammaOp;
 		var builder = new ImageServerMetadata.Builder(imageData.getServerMetadata())
 				.rgb(true)
 				.channels(ImageChannel.getDefaultRGBChannels())
@@ -148,6 +158,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		private double overlayOpacity = 1.0;
 		private Color backgroundColor;
 		private double[] downsamples;
+		private LookupOp gammaOp = null;
 		
 		/**
 		 * Create a rendered image server build using viewer defaults.
@@ -159,6 +170,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			this.overlayLayers.addAll(viewer.getOverlayLayers());
 			this.renderer = viewer.getImageDisplay();
 			this.overlayOpacity = viewer.getOverlayOptions().getOpacity();
+			this.gammaOp = viewer.getGammaOp();
 		}
 
 		/**
@@ -284,7 +296,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			var store = getStore();
 			var renderer = getRenderer();
 			return new RenderedImageServer(
-					store, imageData, overlayLayers, renderer, downsamples, backgroundColor, overlayOpacity
+					store, imageData, overlayLayers, renderer, downsamples, backgroundColor, overlayOpacity, gammaOp
 			);
 		}
 
@@ -366,6 +378,10 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 				tileRequest.getZ(), tileRequest.getT(),
 				downsample, null, renderer,
 				Integer.MAX_VALUE);
+
+		if (gammaOp != null) {
+			gammaOp.filter(img.getRaster(), img.getRaster());
+		}
 
 		// Handle opacity - see https://github.com/qupath/qupath/issues/1292
 		if (overlayOpacity > 0) {
