@@ -44,6 +44,8 @@ import loci.formats.ome.OMEPyramidStore;
 import loci.formats.ome.OMEXMLMetadata;
 import ome.units.UNITS;
 import ome.units.quantity.Length;
+import ome.xml.meta.OMEXMLMetadataRoot;
+import ome.xml.model.Shape;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -60,6 +62,10 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.roi.RoiTools;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -82,7 +88,10 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
@@ -101,7 +110,7 @@ import java.util.stream.IntStream;
  * @author Pete Bankhead
  *
  */
-public class BioFormatsImageServer extends AbstractTileableImageServer {
+public class BioFormatsImageServer extends AbstractTileableImageServer implements PathObjectReader {
 	
 	private static final Logger logger = LoggerFactory.getLogger(BioFormatsImageServer.class);
 		
@@ -1016,6 +1025,61 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
+
+	@Override
+	public Collection<PathObject> readPathObjects() {
+		IFormatReader reader = readerPool.nextQueuedReader();
+		if (reader == null) {
+			logger.debug("Cannot get reader. Returning no path objects");
+			return List.of();
+		}
+
+		if (!(reader.getMetadataStore().getRoot() instanceof OMEXMLMetadataRoot metadata)) {
+			logger.debug("Metadata store of reader {} not instance of OMEXMLMetadataRoot. Returning no path objects", reader.getMetadataStore());
+			return List.of();
+		}
+
+		return IntStream.range(0, metadata.sizeOfROIList())
+				.mapToObj(metadata::getROI)
+				.map(bioFormatsRoi -> {
+					logger.debug("Converting {} to QuPath path object", bioFormatsRoi);
+
+					List<Shape> shapes = IntStream.range(0, bioFormatsRoi.getUnion().sizeOfShapeList())
+							.mapToObj(i -> bioFormatsRoi.getUnion().getShape(i))
+							.toList();
+
+					PathObject pathObject = PathObjects.createAnnotationObject(RoiTools.union(shapes.stream()
+							.map(BioFormatsShapeConverter::convertShapeToRoi)
+							.flatMap(Optional::stream)
+							.toList()
+					));
+
+					try {
+						pathObject.setID(UUID.fromString(bioFormatsRoi.getID()));
+						logger.debug("ID {} of {} set to {}", bioFormatsRoi.getID(), bioFormatsRoi, pathObject);
+					} catch (IllegalArgumentException | NullPointerException e) {
+						logger.debug("ID {} of {} is not a valid UUID", bioFormatsRoi.getID(), bioFormatsRoi, e);
+					}
+
+					Optional<Boolean> locked = shapes.stream()
+							.map(Shape::getLocked)
+							.filter(Objects::nonNull)
+							.findAny();
+					if (locked.isPresent()) {
+						pathObject.setLocked(locked.get());
+						logger.debug("Locked status {} of {} set to {}", locked.get(), bioFormatsRoi, pathObject);
+					} else {
+						logger.debug("Locked status not found in {}", bioFormatsRoi);
+					}
+
+					pathObject.setName(bioFormatsRoi.getName());
+
+					logger.debug("PathObject {} created from {}", pathObject, bioFormatsRoi);
+
+					return pathObject;
+				})
+				.toList();
+	}
 	
 	/**
 	 * Get the class name of the first reader that potentially supports the file type, or null if no reader can be found.
@@ -1046,9 +1110,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		}
 		return null;
 	}
-	
-	
-	
+
+
 	/**
 	 * Helper class that manages a pool of readers.
 	 * The purpose is to allow multiple threads to take the next available reader, without
