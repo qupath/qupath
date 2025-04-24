@@ -78,6 +78,7 @@ Some things may be added, some things may be removed, and some things may look d
 * 'Selection mode' now supports 'deselecting' objects by pressing the 'Alt' key (https://github.com/qupath/qupath/issues/1704)
 * More 'filter boxes' in the user interface to find things in long lists or tables (https://github.com/qupath/qupath/pull/1742)
 * Color deconvolution support for non-8-bit images (https://github.com/qupath/qupath/pull/1807)
+* Optionally use viewer gamma when exporting rendered images (https://github.com/qupath/qupath/pull/1849)
 
 
 ### Experimental features
@@ -144,8 +145,8 @@ They may change or be removed in future versions.
 * Commonmark 0.24.0
 * ControlsFX 11.2.2
 * DeepJavaLibrary 0.31.1
-* Groovy 4.0.25
-* Gson 2.12.1
+* Groovy 4.0.26
+* Gson 2.13.1
 * Guava 33.4.6-jre
 * ImageJ 1.54k
 * JavaCPP 1.5.11
@@ -155,7 +156,7 @@ They may change or be removed in future versions.
 * JNA 5.16.0
 * JUnit 5.11.0
 * Logback 1.5.8
-* Picocli 4.7.6
+* Picocli 4.7.7
 * qupath-bioimageio-spec 0.2.0
 * qupath-fxtras 0.12.0
 * qupath-javadoc-viewer 0.1.2
