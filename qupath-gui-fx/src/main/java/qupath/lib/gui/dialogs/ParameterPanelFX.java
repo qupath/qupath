@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -55,8 +55,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.fx.utils.GridPaneUtils;
@@ -79,19 +77,16 @@ import qupath.lib.plugins.parameters.StringParameter;
  */
 public class ParameterPanelFX {
 
-	private List<ParameterChangeListener> listeners = Collections.synchronizedList(new ArrayList<>());
+	private final List<ParameterChangeListener> listeners = Collections.synchronizedList(new ArrayList<>());
 
 	private static final Logger logger = LoggerFactory.getLogger(ParameterPanelFX.class);
 	
 	private static int DEFAULT_NUMERIC_TEXT_COLS = 8;
 	
-	private GridPane pane;
-	private ParameterList params;
-	private Map<Parameter<?>, Node> map = new HashMap<>();
-	
-	// TODO: Check if font needs to be set everywhere?  For now it's just for titles...
-	private static Font font = Font.font("Arial");
-	
+	private final GridPane pane;
+	private final ParameterList params;
+	private final Map<Parameter<?>, Node> map = new HashMap<>();
+
 	/**
 	 * Create a ParameterPanelFX.
 	 * 
@@ -135,28 +130,27 @@ public class ParameterPanelFX {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void initialize() {
 		for (Entry<String, Parameter<?>> entry : params.getParameters().entrySet()) {
+			String key = entry.getKey();
 			Parameter<?> p = entry.getValue();
 			// Don't show hidden parameters
 			if (p.isHidden())
 				continue;
-			if (p instanceof DoubleParameter)
-				addDoubleParameter((DoubleParameter)p);
-			else if (p instanceof IntParameter)
-				addIntParameter((IntParameter)p);
-			else if (p instanceof StringParameter)
-				addStringParameter((StringParameter)p);
-			else if (p instanceof EmptyParameter)
-				addEmptyParameter((EmptyParameter)p);
-			else if (p instanceof ChoiceParameter)
-				addChoiceParameter((ChoiceParameter)p);
-			else if (p instanceof BooleanParameter) {
-				addBooleanParameter((BooleanParameter)p);
-			}
+            switch (p) {
+                case DoubleParameter doubleParameter -> addDoubleParameter(key, doubleParameter);
+                case IntParameter intParameter -> addIntParameter(key, intParameter);
+                case StringParameter stringParameter -> addStringParameter(key, stringParameter);
+                case EmptyParameter emptyParameter -> addEmptyParameter(emptyParameter);
+                case ChoiceParameter choiceParameter -> addChoiceParameter(key, choiceParameter);
+                case BooleanParameter booleanParameter -> addBooleanParameter(key, booleanParameter);
+                default -> {
+					logger.warn("Unknown parameter type: {}", p.getClass().getName());
+                }
+            }
 		}
 	}
 	
 	/**
-	 * Add a {@link ParameterChangeListener} to be notified as parameters are modified by the user.
+	 * Add a {@link ParameterChangeListener} to be notified as the user modifies parameters.
 	 * @param listener
 	 * @see #removeParameterChangeListener(ParameterChangeListener)
 	 */
@@ -193,26 +187,26 @@ public class ParameterPanelFX {
 		}
 	}
 
-	private void addBooleanParameter(BooleanParameter param) {
-		addCheckBoxParameter(param);
+	private void addBooleanParameter(String key, BooleanParameter param) {
+		addCheckBoxParameter(key, param);
 	}
 	
-	private void addDoubleParameter(DoubleParameter param) {
+	private void addDoubleParameter(String key, DoubleParameter param) {
 		if (param.hasLowerAndUpperBounds())
-			addSliderParameter(param);
+			addSliderParameter(key, param);
 		else
-			addNumericTextField(param);
+			addNumericTextField(key, param);
 	}
 
-	private void addIntParameter(IntParameter param) {
+	private void addIntParameter(String key, IntParameter param) {
 		if (param.hasLowerAndUpperBounds())
-			addSliderParameter(param);
+			addSliderParameter(key, param);
 		else
-			addNumericTextField(param);
+			addNumericTextField(key, param);
 	}
 	
-	private void addNumericTextField(NumericParameter<? extends Number> param) {
-		TextField tf = getTextField(param, DEFAULT_NUMERIC_TEXT_COLS);
+	private void addNumericTextField(String key, NumericParameter<? extends Number> param) {
+		TextField tf = getTextField(param, DEFAULT_NUMERIC_TEXT_COLS, key);
 		if (param.getUnit() != null) {
 			Pane panel = new HBox();
 			panel.getChildren().add(tf);
@@ -227,8 +221,8 @@ public class ParameterPanelFX {
 		}
 	}
 
-	private void addStringParameter(StringParameter param) {
-		addParamComponent(param, param.getPrompt(), getTextField(param, 25));
+	private void addStringParameter(String key, StringParameter param) {
+		addParamComponent(param, param.getPrompt(), getTextField(param, 25, key));
 	}
 
 	private void addEmptyParameter(EmptyParameter param) {
@@ -244,7 +238,7 @@ public class ParameterPanelFX {
 		addParamComponent(param, null, label);
 	}
 
-	private void addChoiceParameter(ChoiceParameter<Object> param) {
+	private void addChoiceParameter(String key, ChoiceParameter<Object> param) {
 		ComboBox<Object> combo = new ComboBox<>();
 		combo.getItems().setAll(param.getChoices());
 		combo.getSelectionModel().select(param.getValueOrDefault());
@@ -253,10 +247,12 @@ public class ParameterPanelFX {
 				fireParameterChangedEvent(param, false);
 		});
 		combo.setMaxWidth(Double.MAX_VALUE);
+		if (key != null)
+			combo.setId(key);
 		addParamComponent(param, param.getPrompt(), combo);
 	}
 	
-	private void addCheckBoxParameter(BooleanParameter param) {
+	private void addCheckBoxParameter(String key, BooleanParameter param) {
 		CheckBox cb = new CheckBox(param.getPrompt());
 		cb.setSelected(param.getValueOrDefault());
 		cb.setMinWidth(CheckBox.USE_COMPUTED_SIZE);
@@ -265,14 +261,19 @@ public class ParameterPanelFX {
 			if (param.setValue(cb.isSelected()))
 				fireParameterChangedEvent(param, false);
 		});
+		if (key != null)
+			cb.setId(key);
 		addParamComponent(param, null, cb);
 	}
 	
-	private void addSliderParameter(IntParameter param) {
+	private void addSliderParameter(String key, IntParameter param) {
 		int min = (int)param.getLowerBound();
 		int max = (int)(param.getUpperBound() + .5);
 		Slider slider = new Slider(min, max, param.getValueOrDefault());
 		TextField tf = new TextField();
+		if (key != null)
+			tf.setId(key);
+
 		tf.setEditable(false);
 		tf.setText(""+slider.getValue());
 		tf.setPrefColumnCount(DEFAULT_NUMERIC_TEXT_COLS);
@@ -285,9 +286,11 @@ public class ParameterPanelFX {
 	}
 	
 	
-	private void addSliderParameter(DoubleParameter param) {
+	private void addSliderParameter(String key, DoubleParameter param) {
 		final Slider slider = new Slider(param.getLowerBound(), param.getUpperBound(),  param.getValueOrDefault());
 		TextField tf = new TextField();
+		if (key != null)
+			tf.setId(key);
 		tf.setPrefColumnCount(DEFAULT_NUMERIC_TEXT_COLS);
 		setTextFieldFromNumber(tf, param.getValueOrDefault(), param.getUnit());
 		tf.setEditable(false);
@@ -323,7 +326,7 @@ public class ParameterPanelFX {
 	}
 	
 	
-	protected TextField getTextField(Parameter<?> param, int cols) {
+	protected TextField getTextField(Parameter<?> param, int cols, String key) {
 		TextField tf = new TextField();
 		Object defaultVal = param.getValueOrDefault();
 		if (defaultVal instanceof Number)
@@ -333,7 +336,10 @@ public class ParameterPanelFX {
 		
 		if (cols > 0)
 			tf.setPrefColumnCount(cols);
-		
+
+		if (key != null)
+			tf.setId(key);
+
 		tf.textProperty().addListener((v, o, n) -> {
 			if (n != null && param.setStringLastValue(Locale.getDefault(Category.FORMAT), n)) {
 				fireParameterChangedEvent(param, false);
@@ -561,7 +567,7 @@ public class ParameterPanelFX {
 		
 		new JFXPanel();
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> demoParameterPanel());
+			Platform.runLater(ParameterPanelFX::demoParameterPanel);
 			return;
 		}
 		
@@ -577,7 +583,7 @@ public class ParameterPanelFX {
 				addIntParameter(Integer.toString(k++), "Enter an int in range", 5, null, 1, 10, "Bounded int").
 				addStringParameter(Integer.toString(k++), "Enter a string", "Default here").
 				addChoiceParameter(Integer.toString(k++), "Choose a choice", "Two", Arrays.asList("One", "Two", "Three"), "Simple choice").
-				addChoiceParameter(Integer.toString(k++), "Choose a number choice", Integer.valueOf(2), Arrays.asList(1, 2, 3), "Numeric choice").
+				addChoiceParameter(Integer.toString(k++), "Choose a number choice", 2, Arrays.asList(1, 2, 3), "Numeric choice").
 				addBooleanParameter(Integer.toString(k++), "Check me out", true);
 		
 		
