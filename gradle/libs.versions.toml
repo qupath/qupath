@@ -13,8 +13,8 @@ controlsFX      = "11.2.2"
 deepJavaLibrary = "0.32.0"
 
 groovy          = "4.0.26"
-gson            = "2.12.1"
-guava           = "33.4.7-jre"
+gson            = "2.13.1"
+guava           = "33.4.8-jre"
 
 ikonli          = "12.3.1"
 imagej          = "1.54k"
@@ -38,13 +38,13 @@ junit           = "5.11.0"
 logback         = "1.5.8"
 logviewer       = "0.2.0"
 
-extensionmanager= "1.0.0-rc3"
+extensionmanager= "1.0.0-rc4"
 
 javadocviewer   = "0.1.2"
 
 openslide       = "4.0.0.6"
 
-picocli         = "4.7.6"
+picocli         = "4.7.7"
 qupath-fxtras   = "0.1.7"
 
 richtextfx      = "0.11.5"
