@@ -91,10 +91,16 @@ class BioFormatsShapeConverter {
         logger.debug("Converting mask {} to QuPath ROI", mask);
 
         BinData binData = mask.getBinData();
+        if (binData == null) {
+            logger.debug("Binary data of {} null, cannot convert it to ROI", mask);
+            return null;
+        }
         long nPixels = binData.getLength().getValue();
 
         // Aspect ratios of binData and mask are the same, hence the formula below. We assume square pixels
-        int width = (int) Math.round(Math.sqrt(nPixels * (mask.getWidth() / mask.getHeight())));
+        double maskWidth = mask.getWidth() == null ? 0 : mask.getWidth();
+        double maskHeight = mask.getHeight() == null ? 0 : mask.getHeight();
+        int width = (int) Math.round(Math.sqrt(nPixels * (maskWidth / maskHeight)));
         int height = (int)(nPixels / width);
         if (((long)width * height) != nPixels) {
             logger.debug("Couldn't figure out dimensions: {}x{} != {} pixels. Cannot convert {}", width, height, nPixels, mask);
@@ -102,6 +108,10 @@ class BioFormatsShapeConverter {
         }
 
         byte[] array = binData.getBase64Binary();
+        if (array == null) {
+            logger.debug("Base64 byte array of {} null, cannot convert it to ROI", mask);
+            return null;
+        }
         SimpleModifiableImage simpleImage = SimpleImages.createFloatImage(width, height);
         for (int i = 0; i < nPixels; i++) {
             if (array[i] != 0) {
@@ -116,8 +126,8 @@ class BioFormatsShapeConverter {
                 RegionRequest.createInstance(
                         "",
                         1.0,
-                        mask.getX().intValue(),     // x and y assumed to be integers
-                        mask.getY().intValue(),
+                        mask.getX() == null ? 0 : mask.getX().intValue(),     // x and y assumed to be integers
+                        mask.getY() == null ? 0 : mask.getY().intValue(),
                         simpleImage.getWidth(),
                         simpleImage.getHeight(),
                         createImagePlane(mask)
@@ -129,10 +139,10 @@ class BioFormatsShapeConverter {
         logger.debug("Converting rectangle {} to QuPath rectangle ROI", rectangle);
 
         return ROIs.createRectangleROI(
-                rectangle.getX(),
-                rectangle.getY(),
-                rectangle.getWidth(),
-                rectangle.getHeight(),
+                rectangle.getX() == null ? 0 : rectangle.getX(),
+                rectangle.getY() == null ? 0 : rectangle.getY(),
+                rectangle.getWidth() == null ? 0 : rectangle.getWidth(),
+                rectangle.getHeight() == null ? 0 : rectangle.getHeight(),
                 createImagePlane(rectangle)
         );
     }
@@ -140,11 +150,16 @@ class BioFormatsShapeConverter {
     private static ROI convertEllipse(Ellipse ellipse) {
         logger.debug("Converting ellipse {} to QuPath ellipse ROI", ellipse);
 
+        double x = ellipse.getX() == null ? 0 : ellipse.getX();
+        double y = ellipse.getY() == null ? 0 : ellipse.getY();
+        double radiusX = ellipse.getRadiusX() == null ? 0 : ellipse.getRadiusX();
+        double radiusY = ellipse.getRadiusY() == null ? 0 : ellipse.getRadiusY();
+
         return ROIs.createEllipseROI(
-                ellipse.getX()- ellipse.getRadiusX(),
-                ellipse.getY() - ellipse.getRadiusY(),
-                ellipse.getRadiusX() * 2,
-                ellipse.getRadiusY() * 2,
+                x - radiusX,
+                y - radiusY,
+                radiusX * 2,
+                radiusY * 2,
                 createImagePlane(ellipse)
         );
     }
@@ -153,8 +168,8 @@ class BioFormatsShapeConverter {
         logger.debug("Converting label {} to QuPath point ROI", label);
 
         return ROIs.createPointsROI(
-                label.getX(),
-                label.getY(),
+                label.getX() == null ? 0 : label.getX(),
+                label.getY() == null ? 0 : label.getY(),
                 createImagePlane(label)
         );
     }
@@ -163,10 +178,10 @@ class BioFormatsShapeConverter {
         logger.debug("Converting line {} to QuPath line ROI", line);
 
         return ROIs.createLineROI(
-                line.getX1(),
-                line.getY1(),
-                line.getX2(),
-                line.getY2(),
+                line.getX1() == null ? 0 : line.getX1(),
+                line.getY1() == null ? 0 : line.getY1(),
+                line.getX2() == null ? 0 : line.getX2(),
+                line.getY2() == null ? 0 : line.getY2(),
                 createImagePlane(line)
         );
     }
@@ -175,8 +190,8 @@ class BioFormatsShapeConverter {
         logger.debug("Converting point {} to QuPath point ROI", point);
 
         return ROIs.createPointsROI(
-                point.getX(),
-                point.getY(),
+                point.getX() == null ? 0 : point.getX(),
+                point.getY() == null ? 0 : point.getY(),
                 createImagePlane(point)
         );
     }
