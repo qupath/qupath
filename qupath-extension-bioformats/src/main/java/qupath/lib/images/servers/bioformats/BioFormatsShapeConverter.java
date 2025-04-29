@@ -120,7 +120,7 @@ class BioFormatsShapeConverter {
                         mask.getY().intValue(),
                         simpleImage.getWidth(),
                         simpleImage.getHeight(),
-                        ImagePlane.getPlane(mask.getTheZ().getValue(), mask.getTheT().getValue())
+                        createImagePlane(mask)
                 )
         );
     }
@@ -133,7 +133,7 @@ class BioFormatsShapeConverter {
                 rectangle.getY(),
                 rectangle.getWidth(),
                 rectangle.getHeight(),
-                ImagePlane.getPlaneWithChannel(rectangle.getTheC().getValue(), rectangle.getTheZ().getValue(), rectangle.getTheT().getValue())
+                createImagePlane(rectangle)
         );
     }
 
@@ -145,7 +145,7 @@ class BioFormatsShapeConverter {
                 ellipse.getY() - ellipse.getRadiusY(),
                 ellipse.getRadiusX() * 2,
                 ellipse.getRadiusY() * 2,
-                ImagePlane.getPlaneWithChannel(ellipse.getTheC().getValue(), ellipse.getTheZ().getValue(), ellipse.getTheT().getValue())
+                createImagePlane(ellipse)
         );
     }
 
@@ -155,7 +155,7 @@ class BioFormatsShapeConverter {
         return ROIs.createPointsROI(
                 label.getX(),
                 label.getY(),
-                ImagePlane.getPlaneWithChannel(label.getTheC().getValue(), label.getTheZ().getValue(), label.getTheT().getValue())
+                createImagePlane(label)
         );
     }
 
@@ -167,7 +167,7 @@ class BioFormatsShapeConverter {
                 line.getY1(),
                 line.getX2(),
                 line.getY2(),
-                ImagePlane.getPlaneWithChannel(line.getTheC().getValue(), line.getTheZ().getValue(), line.getTheT().getValue())
+                createImagePlane(line)
         );
     }
 
@@ -177,7 +177,7 @@ class BioFormatsShapeConverter {
         return ROIs.createPointsROI(
                 point.getX(),
                 point.getY(),
-                ImagePlane.getPlaneWithChannel(point.getTheC().getValue(), point.getTheZ().getValue(), point.getTheT().getValue())
+                createImagePlane(point)
         );
     }
 
@@ -186,7 +186,7 @@ class BioFormatsShapeConverter {
 
         return ROIs.createPolygonROI(
                 parseStringPoints(polygon.getPoints() == null ? "" : polygon.getPoints()),
-                ImagePlane.getPlaneWithChannel(polygon.getTheC().getValue(), polygon.getTheZ().getValue(), polygon.getTheT().getValue())
+                createImagePlane(polygon)
         );
     }
 
@@ -195,8 +195,23 @@ class BioFormatsShapeConverter {
 
         return ROIs.createPolylineROI(
                 parseStringPoints(polyline.getPoints() == null ? "" : polyline.getPoints()),
-                ImagePlane.getPlaneWithChannel(polyline.getTheC().getValue(), polyline.getTheZ().getValue(), polyline.getTheT().getValue())
+                createImagePlane(polyline)
         );
+    }
+
+    private static ImagePlane createImagePlane(Shape shape) {
+        if (shape.getTheC() == null) {
+            return ImagePlane.getPlane(
+                    shape.getTheZ() == null ? 0 : shape.getTheZ().getValue(),
+                    shape.getTheT() == null ? 0 : shape.getTheT().getValue()
+            );
+        } else {
+            return ImagePlane.getPlaneWithChannel(
+                    shape.getTheC().getValue(),
+                    shape.getTheZ() == null ? 0 : shape.getTheZ().getValue(),
+                    shape.getTheT() == null ? 0 : shape.getTheT().getValue()
+            );
+        }
     }
 
     private static List<Point2> parseStringPoints(String pointsString) {
