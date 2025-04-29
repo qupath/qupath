@@ -19,8 +19,10 @@ import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
+import java.awt.geom.AffineTransform;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -49,7 +51,7 @@ class BioFormatsShapeConverter {
     public static Optional<ROI> convertShapeToRoi(Shape shape) {
         logger.debug("Converting {} to QuPath ROI", shape);
 
-        return switch (shape) {
+        Optional<ROI> optionalRoi = switch (shape) {
             case Mask mask -> Optional.ofNullable(convertMask(mask));
             case Rectangle rectangle -> Optional.of(convertRectangle(rectangle));
             case Ellipse ellipse -> Optional.of(convertEllipse(ellipse));
@@ -58,11 +60,31 @@ class BioFormatsShapeConverter {
             case Point point -> Optional.of(convertPoint(point));
             case Polygon polygon -> Optional.of(convertPolygon(polygon));
             case Polyline polyline -> Optional.of(convertPolyLine(polyline));
-            case null, default -> {
+            default -> {
                 logger.debug("Unknown shape {}. Cannot convert it to QuPath ROI", shape);
                 yield Optional.empty();
             }
         };
+        return optionalRoi.map(roi -> {
+            ome.xml.model.AffineTransform transform = shape.getTransform();
+            if (transform == null) {
+                logger.debug("No transform in {}, so returning {} without applying any transform", shape, roi);
+                return roi;
+            }
+
+            logger.debug("Transform {} detected in {}, so applying it to {}", transform, shape, roi);
+            return RoiTools.transformROI(
+                    roi,
+                    new AffineTransform(
+                            transform.getA00(),
+                            transform.getA10(),
+                            transform.getA01(),
+                            transform.getA11(),
+                            transform.getA02(),
+                            transform.getA12()
+                    )
+            );
+        });
     }
 
     private static ROI convertMask(Mask mask) {
