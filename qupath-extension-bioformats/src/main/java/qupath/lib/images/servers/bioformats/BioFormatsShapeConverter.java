@@ -1,5 +1,6 @@
 package qupath.lib.images.servers.bioformats;
 
+import ome.xml.model.BinData;
 import ome.xml.model.Ellipse;
 import ome.xml.model.Label;
 import ome.xml.model.Line;
@@ -11,8 +12,12 @@ import ome.xml.model.Rectangle;
 import ome.xml.model.Shape;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.analysis.images.ContourTracing;
+import qupath.lib.analysis.images.SimpleImages;
+import qupath.lib.analysis.images.SimpleModifiableImage;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -45,7 +50,7 @@ class BioFormatsShapeConverter {
         logger.debug("Converting {} to QuPath ROI", shape);
 
         return switch (shape) {
-            case Mask mask -> Optional.of(convertMask(mask));
+            case Mask mask -> Optional.ofNullable(convertMask(mask));
             case Rectangle rectangle -> Optional.of(convertRectangle(rectangle));
             case Ellipse ellipse -> Optional.of(convertEllipse(ellipse));
             case Label label -> Optional.of(convertLabel(label));
@@ -61,14 +66,40 @@ class BioFormatsShapeConverter {
     }
 
     private static ROI convertMask(Mask mask) {
-        logger.debug("Converting mask {} to QuPath rectangle ROI", mask);
+        logger.debug("Converting mask {} to QuPath ROI", mask);
 
-        return ROIs.createRectangleROI(
-                mask.getX(),
-                mask.getY(),
-                mask.getWidth(),
-                mask.getHeight(),
-                ImagePlane.getPlane(mask.getTheZ().getValue(), mask.getTheT().getValue())
+        BinData binData = mask.getBinData();
+        long nPixels = binData.getLength().getValue();
+
+        // Aspect ratios of binData and mask are the same, hence the formula below. We assume square pixels
+        int width = (int) Math.round(Math.sqrt(nPixels * (mask.getWidth() / mask.getHeight())));
+        int height = (int)(nPixels / width);
+        if (((long)width * height) != nPixels) {
+            logger.debug("Couldn't figure out dimensions: {}x{} != {} pixels. Cannot convert {}", width, height, nPixels, mask);
+            return null;
+        }
+
+        byte[] array = binData.getBase64Binary();
+        SimpleModifiableImage simpleImage = SimpleImages.createFloatImage(width, height);
+        for (int i = 0; i < nPixels; i++) {
+            if (array[i] != 0) {
+                simpleImage.setValue(i % width, i / width, 1.0f);
+            }
+        }
+
+        return ContourTracing.createTracedROI(
+                simpleImage,
+                1,
+                1,
+                RegionRequest.createInstance(
+                        "",
+                        1.0,
+                        mask.getX().intValue(),     // x and y assumed to be integers
+                        mask.getY().intValue(),
+                        simpleImage.getWidth(),
+                        simpleImage.getHeight(),
+                        ImagePlane.getPlane(mask.getTheZ().getValue(), mask.getTheT().getValue())
+                )
         );
     }
 
@@ -80,7 +111,7 @@ class BioFormatsShapeConverter {
                 rectangle.getY(),
                 rectangle.getWidth(),
                 rectangle.getHeight(),
-                ImagePlane.getPlane(rectangle.getTheZ().getValue(), rectangle.getTheT().getValue())
+                ImagePlane.getPlaneWithChannel(rectangle.getTheC().getValue(), rectangle.getTheZ().getValue(), rectangle.getTheT().getValue())
         );
     }
 
@@ -92,7 +123,7 @@ class BioFormatsShapeConverter {
                 ellipse.getY() - ellipse.getRadiusY(),
                 ellipse.getRadiusX() * 2,
                 ellipse.getRadiusY() * 2,
-                ImagePlane.getPlane(ellipse.getTheZ().getValue(), ellipse.getTheT().getValue())
+                ImagePlane.getPlaneWithChannel(ellipse.getTheC().getValue(), ellipse.getTheZ().getValue(), ellipse.getTheT().getValue())
         );
     }
 
@@ -102,7 +133,7 @@ class BioFormatsShapeConverter {
         return ROIs.createPointsROI(
                 label.getX(),
                 label.getY(),
-                ImagePlane.getPlane(label.getTheZ().getValue(), label.getTheT().getValue())
+                ImagePlane.getPlaneWithChannel(label.getTheC().getValue(), label.getTheZ().getValue(), label.getTheT().getValue())
         );
     }
 
@@ -114,7 +145,7 @@ class BioFormatsShapeConverter {
                 line.getY1(),
                 line.getX2(),
                 line.getY2(),
-                ImagePlane.getPlane(line.getTheZ().getValue(), line.getTheT().getValue())
+                ImagePlane.getPlaneWithChannel(line.getTheC().getValue(), line.getTheZ().getValue(), line.getTheT().getValue())
         );
     }
 
@@ -124,7 +155,7 @@ class BioFormatsShapeConverter {
         return ROIs.createPointsROI(
                 point.getX(),
                 point.getY(),
-                ImagePlane.getPlane(point.getTheZ().getValue(), point.getTheT().getValue())
+                ImagePlane.getPlaneWithChannel(point.getTheC().getValue(), point.getTheZ().getValue(), point.getTheT().getValue())
         );
     }
 
@@ -133,7 +164,7 @@ class BioFormatsShapeConverter {
 
         return ROIs.createPolygonROI(
                 parseStringPoints(polygon.getPoints() == null ? "" : polygon.getPoints()),
-                ImagePlane.getPlane(polygon.getTheZ().getValue(), polygon.getTheT().getValue())
+                ImagePlane.getPlaneWithChannel(polygon.getTheC().getValue(), polygon.getTheZ().getValue(), polygon.getTheT().getValue())
         );
     }
 
@@ -142,17 +173,25 @@ class BioFormatsShapeConverter {
 
         return ROIs.createPolylineROI(
                 parseStringPoints(polyline.getPoints() == null ? "" : polyline.getPoints()),
-                ImagePlane.getPlane(polyline.getTheZ().getValue(), polyline.getTheT().getValue())
+                ImagePlane.getPlaneWithChannel(polyline.getTheC().getValue(), polyline.getTheZ().getValue(), polyline.getTheT().getValue())
         );
     }
 
     private static List<Point2> parseStringPoints(String pointsString) {
+        logger.debug("Converting {} to a list of points", pointsString);
+
         return Arrays.stream(pointsString.split(POINT_DELIMITER))
                 .map(pointStr -> {
                     String[] point = pointStr.split(POINT_COORDINATE_DELIMITER);
                     if (point.length > 1) {
-                        return new Point2(Double.parseDouble(point[0]), Double.parseDouble(point[1]));
+                        try {
+                            return new Point2(Double.parseDouble(point[0]), Double.parseDouble(point[1]));
+                        } catch (NumberFormatException e) {
+                            logger.debug("Cannot convert {} to two double elements", pointStr, e);
+                            return null;
+                        }
                     } else {
+                        logger.debug("Cannot find two elements in {}", pointStr);
                         return null;
                     }
                 })
