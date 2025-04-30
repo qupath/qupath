@@ -25,7 +25,10 @@ import static qupath.lib.gui.actions.ActionTools.createAction;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
+import javafx.application.Platform;
 import org.controlsfx.control.action.Action;
 
 import javafx.scene.image.Image;
@@ -144,8 +147,14 @@ public class EditMenuActions implements MenuActions {
 		
 		
 		private static void copyViewToClipboard(final QuPathGUI qupath, final GuiTools.SnapshotType type) {
-			Image img = GuiTools.makeSnapshotFX(qupath, qupath.getViewer(), type);
-			Clipboard.getSystemClipboard().setContent(Collections.singletonMap(DataFormat.IMAGE, img));
+			// We need to copy slightly later, to avoid copying the menu itself while it is still showing.
+			// Using the next pulse alone isn't enough, since even if the menu isn't showing it may still
+			// be highlighted in the menubar.
+			CompletableFuture.delayedExecutor(100L, TimeUnit.MILLISECONDS, Platform::runLater)
+							.execute(() -> {
+								Image img = GuiTools.makeSnapshotFX(qupath, qupath.getViewer(), type);
+								Clipboard.getSystemClipboard().setContent(Collections.singletonMap(DataFormat.IMAGE, img));
+							});
 		}
 
 		
