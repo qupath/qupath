@@ -21,6 +21,7 @@
 
 package qupath.lib.gui.commands;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
@@ -39,6 +40,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxListCell;
+import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
@@ -132,6 +134,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -865,7 +869,23 @@ public class Commands {
 	private static StringProperty defaultScreenshotExtension = PathPrefs.createPersistentPreference("defaultScreenshotExtension", "*.png");
 
 	private static File lastSnapshotDirectory = null;
-	
+
+	/**
+	 * Save an image snapshot after a specified delay, prompting the user to select the output file.
+	 * <br/>
+	 * The delay is used to work around the fact that making a snapshot immediately can sometimes result
+	 * in undesirable UI elements still being visible, e.g. the menu item used to trigger the snapshot.
+	 * <br/>
+	 * See https://github.com/qupath/qupath/issues/1854
+	 * @param qupath the {@link QuPathGUI} instance to snapshot
+	 * @param type the snapshot type
+	 * @param delayMillis the delay in milliseconds
+	 */
+	public static void saveSnapshotWithDelay(QuPathGUI qupath, GuiTools.SnapshotType type, long delayMillis) {
+		CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS, Platform::runLater)
+				.execute(() -> saveSnapshot(qupath, type));
+	}
+
 	/**
 	 * Save an image snapshot, prompting the user to select the output file.
 	 * @param qupath the {@link QuPathGUI} instance to snapshot

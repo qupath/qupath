@@ -183,7 +183,7 @@ public class FileMenuActions implements MenuActions {
 	public class ExportSnapshotActions {
 		
 		@ActionConfig("Action.File.ExportSnapshot.windowScreenshot")
-		public final Action SNAPSHOT_WINDOW = createAction(() -> Commands.saveSnapshot(qupath, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT));
+		public final Action SNAPSHOT_WINDOW = createAction(() -> Commands.saveSnapshotWithDelay(qupath, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT, 100L));
 		
 		@ActionConfig("Action.File.ExportSnapshot.windowContent")
 		public final Action SNAPSHOT_WINDOW_CONTENT = createAction(() -> Commands.saveSnapshot(qupath, GuiTools.SnapshotType.MAIN_SCENE));
