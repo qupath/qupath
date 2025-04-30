@@ -1133,7 +1133,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		return null;
 	}
 
-
 	/**
 	 * Helper class that manages a pool of readers.
 	 * The purpose is to allow multiple threads to take the next available reader, without
