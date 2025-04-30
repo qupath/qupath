@@ -1036,6 +1036,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			logger.debug("Cannot get reader. Returning no path objects");
 			return List.of();
 		}
+		reader.setSeries(series);
 
 		if (!(reader.getMetadataStore().getRoot() instanceof OMEXMLMetadataRoot metadata)) {
 			logger.debug("Metadata store of reader {} not instance of OMEXMLMetadataRoot. Returning no path objects", reader.getMetadataStore());
