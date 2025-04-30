@@ -1828,7 +1828,7 @@ public class QuPathGUI {
 	
 	/**
 	 * Install a Groovy script as a new command in QuPath.
-	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String, String...)} for the specification.
 	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
 	 *                 If a menu item already exists for the given path, it will be removed.
 	 * @param file the Groovy script to run; note that this will be reloaded each time it is required
@@ -2439,7 +2439,7 @@ public class QuPathGUI {
 
 	/**
 	 * Get a reference to an existing menu from the main QuPath menubar, optionally creating a new menu if it is not present.
-	 * 
+	 *
 	 * @param name
 	 * @param createMenu
 	 * @return
@@ -2937,10 +2937,26 @@ public class QuPathGUI {
 	
 	/**
 	 * Search for a menu item based upon its path.
-	 * @param menuPath path to the menu item, in the form {@code "Main menu>Submenu>Name}
+	 * <br/>
+	 * This supports two possible syntaxes: one using {@code >} as a delimiter,
+	 * and the other providing multiple parts as separate strings.
+	 * This means the following are equivalent:
+	 * {@snippet :
+	 * 	lookupMenuItem("Main menu>Submenu>Name");
+	 *  lookupMenuItem("Main menu", "Submenu", "Name");
+	 * }
+	 *
+	 * @param menuPath path to the menu item, or first component of the path
+	 * @param parts optional additional parts of the path to the menu item
 	 * @return the menu item corresponding to this path, or null if no menu item is found
+	 * @implNote The delimiter {@code ">"} is used internally.
+	 *           This means that the method currently cannot support menus or menu items that
+	 *           contain {@code >} in their text.
+	 * @since v0.6.0 (previously, only a single delimited string input was supported)
 	 */
-	public MenuItem lookupMenuItem(String menuPath) {
+	public MenuItem lookupMenuItem(String menuPath, String... parts) {
+		if (parts.length > 0)
+			menuPath = menuPath + ">" + String.join(">", parts);
 		var menu = parseMenu(menuPath, "", false);
 		if (menu == null)
 			return null;
