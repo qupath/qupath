@@ -366,6 +366,7 @@ public class GsonTools {
 	 * @return a list of objects read from the element, or an empty list if none could be found
 	 * @throws JsonParseException
 	 * @since v0.5.0
+	 * @see #parseObjectsFromGeoJSON(String)
 	 */
 	public static List<PathObject> parseObjectsFromGeoJSON(JsonElement element) throws JsonParseException {
 		var gson = getInstance();
@@ -374,15 +375,28 @@ public class GsonTools {
 		return pathObjects;
 	}
 
-
 	/**
-	 * Try to parse objects from GeoJSON.
-	 * This might involve a FeatureCollection, Feature or Geometry.
-	 * @param element
-	 * @param pathObjects
-	 * @param gson
-	 * @return
+	 * Attempt to read PathObjects from a JSON string, interpreting it as GeoJSON.
+	 * @param json the JSON string
+	 * @return a list of objects read from the element, or an empty list if none could be found
+	 * @throws JsonParseException
+	 * @since v0.6.0
+	 * @see #parseObjectsFromGeoJSON(JsonElement)
 	 */
+	public static List<PathObject> parseObjectsFromGeoJSON(String json) throws JsonParseException {
+		var element = getInstance().fromJson(json, JsonElement.class);
+		return parseObjectsFromGeoJSON(element);
+	}
+
+
+		/**
+         * Try to parse objects from GeoJSON.
+         * This might involve a FeatureCollection, Feature or Geometry.
+         * @param element
+         * @param pathObjects
+         * @param gson
+         * @return
+         */
 	private static boolean addPathObjects(JsonElement element, List<PathObject> pathObjects, Gson gson) {
 		if (element == null)
 			return false;
