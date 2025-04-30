@@ -47,6 +47,7 @@ class BioFormatsShapeConverter {
      * @param shape the shape to convert
      * @return the ROI corresponding to the provided shape, or an empty Optional
      * if it was not possible to convert the shape
+     * @throws NullPointerException if the provided shape is null
      */
     public static Optional<ROI> convertShapeToRoi(Shape shape) {
         logger.debug("Converting {} to QuPath ROI", shape);

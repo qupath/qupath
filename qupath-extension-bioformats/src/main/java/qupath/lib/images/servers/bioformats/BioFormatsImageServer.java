@@ -1046,6 +1046,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 
 					List<Shape> shapes = IntStream.range(0, bioFormatsRoi.getUnion().sizeOfShapeList())
 							.mapToObj(i -> bioFormatsRoi.getUnion().getShape(i))
+							.filter(Objects::nonNull)
 							.toList();
 
 					PathObject pathObject = PathObjects.createAnnotationObject(RoiTools.union(shapes.stream()
