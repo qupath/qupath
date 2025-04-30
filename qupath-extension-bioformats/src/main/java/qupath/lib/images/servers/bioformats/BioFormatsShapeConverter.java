@@ -96,11 +96,11 @@ class BioFormatsShapeConverter {
             logger.debug("Binary data of {} null, cannot convert it to ROI", mask);
             return null;
         }
-        long nPixels = binData.getLength().getValue();
+        long nPixels = binData.getLength() == null ? binData.getBase64Binary().length : binData.getLength().getValue();
 
-        // Aspect ratios of binData and mask are the same, hence the formula below. We assume square pixels
         double maskWidth = mask.getWidth() == null ? 0 : mask.getWidth();
         double maskHeight = mask.getHeight() == null ? 0 : mask.getHeight();
+        // Aspect ratios of binData and mask are the same, hence the formula below. We assume square pixels
         int width = (int) Math.round(Math.sqrt(nPixels * (maskWidth / maskHeight)));
         int height = (int)(nPixels / width);
         if (((long)width * height) != nPixels) {
