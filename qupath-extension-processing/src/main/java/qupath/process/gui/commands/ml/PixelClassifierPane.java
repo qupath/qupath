@@ -660,11 +660,7 @@ public class PixelClassifierPane {
 	private void updateTitle() {
 		if (stage == null)
 			return;
-//		var imageData = viewer.getImageData();
-//		if (imageData == null)
-			stage.setTitle("Pixel classifier");
-//		else
-//			stage.setTitle("Pixel classifier (" + imageData.getServer().getDisplayedImageName() + ")");
+		stage.setTitle("Train pixel classifier");
 	}
 	
 	private MouseListener mouseListener = new MouseListener();
