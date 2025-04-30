@@ -153,6 +153,7 @@ class ToolBarComponent {
 		nodes.add(createToggleButton(overlayActions.SHOW_PIXEL_CLASSIFICATION));
 
 		final Slider sliderOpacity = new Slider(0, 1, 1);
+		sliderOpacity.setId("opacitySlider");
 		var overlayOptions = overlayActions.getOverlayOptions();
 		sliderOpacity.valueProperty().bindBidirectional(overlayOptions.opacityProperty());
 		sliderOpacity.setTooltip(new Tooltip(getDescription("overlayOpacity")));
@@ -161,6 +162,7 @@ class ToolBarComponent {
 		nodes.add(createSeparator());
 
 		var btnMeasure = new MenuButton();
+		btnMeasure.setId("measurementTablesMenuButton");
 		btnMeasure.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
 		btnMeasure.setTooltip(new Tooltip(getDescription("showMeasurementsTable")));
 		btnMeasure.getItems().addAll(
@@ -175,6 +177,7 @@ class ToolBarComponent {
 		nodes.add(createSeparator());
 
 		var btnOverlay = new MenuButton();
+		btnOverlay.setId("viewerMenuButton");
 		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.DESKTOP));
 //		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.TH_LARGE, QuPathGUI.TOOLBAR_ICON_SIZE));
 //		btnOverlay.setGraphic(IconFactory.createFontAwesome('\uf26c', QuPathGUI.TOOLBAR_ICON_SIZE));
