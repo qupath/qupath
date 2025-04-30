@@ -65,7 +65,10 @@ import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectReader;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.interfaces.ROI;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -1049,11 +1052,28 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 							.filter(Objects::nonNull)
 							.toList();
 
-					PathObject pathObject = PathObjects.createAnnotationObject(RoiTools.union(shapes.stream()
+					List<ROI> rois = shapes.stream()
 							.map(BioFormatsShapeConverter::convertShapeToRoi)
 							.flatMap(Optional::stream)
-							.toList()
-					));
+							.toList();
+
+					ROI roi;
+					if (rois.stream().allMatch(ROI::isPoint)) {
+						logger.debug("Got point ROIs {} from {}. Combining them", rois, bioFormatsRoi);
+						roi = ROIs.createPointsROI(
+								rois.stream()
+										.map(ROI::getAllPoints)
+										.flatMap(List::stream)
+										.distinct()
+										.toList(),
+								rois.isEmpty() ? ImagePlane.getDefaultPlane() : rois.getFirst().getImagePlane()
+						);
+					} else {
+						logger.debug("Got non point ROIs {} from {}. Creating union from it", rois, bioFormatsRoi);
+						roi = RoiTools.union(rois);
+					}
+
+					PathObject pathObject = PathObjects.createAnnotationObject(roi);
 
 					try {
 						pathObject.setID(UUID.fromString(bioFormatsRoi.getID()));
