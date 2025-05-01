@@ -242,6 +242,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		TextArea textDescription = new TextArea();
 		textDescription.textProperty().bind(descriptionText);
 		textDescription.setWrapText(true);
+		textDescription.setEditable(false);
 
 		ToggleButton keepDescriptionOpenButton = new ToggleButton(
 				null,
