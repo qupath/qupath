@@ -137,7 +137,7 @@ import qupath.lib.projects.ProjectImageEntry;
 public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> {
 
 	private static final Logger logger = LoggerFactory.getLogger(ProjectBrowser.class);
-	private static final int KEEP_DESCRIPTION_OPEN_ICON_SIZE = 11;
+	private static final int KEEP_DESCRIPTION_OPEN_ICON_SIZE = 12;
 	private static final BooleanProperty keepDescriptionPaneOpenPref = PathPrefs.createPersistentPreference(
 			"keepDescriptionOpen",
 			false
@@ -245,7 +245,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
 		ToggleButton keepDescriptionOpenButton = new ToggleButton(
 				null,
-				IconFactory.createNode(FontAwesome.Glyph.ANCHOR, KEEP_DESCRIPTION_OPEN_ICON_SIZE)
+				IconFactory.createNode(FontAwesome.Glyph.THUMB_TACK, KEEP_DESCRIPTION_OPEN_ICON_SIZE)
 		);
 		keepDescriptionOpenButton.selectedProperty().set(keepDescriptionPaneOpenPref.get());
 		keepDescriptionOpenButton.selectedProperty().addListener((p, o, n) -> keepDescriptionPaneOpenPref.set(n));
