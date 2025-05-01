@@ -250,15 +250,15 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				tree.getSelectionModel().selectedItemProperty()
 		));
 		editDescriptionButton.managedProperty().bind(editDescriptionButton.visibleProperty());
-		editDescriptionButton.setMaxHeight(Double.MAX_VALUE);
 
 		ToggleButton keepDescriptionOpenButton = new ToggleButton(
 				null,
-				IconFactory.createNode(FontAwesome.Glyph.THUMB_TACK, 12)
+				IconFactory.createNode(FontAwesome.Glyph.THUMB_TACK, 13)
 		);
 		keepDescriptionOpenButton.selectedProperty().set(keepDescriptionPaneOpenPref.get());
 		keepDescriptionOpenButton.selectedProperty().addListener((p, o, n) -> keepDescriptionPaneOpenPref.set(n));
 		keepDescriptionOpenButton.setTooltip(new Tooltip("Keep description pane open"));
+		keepDescriptionOpenButton.setPadding(new Insets(1,9,1,9));
 
 		TitledPane textDescriptionContainer = GuiTools.createLeftRightTitledPane(
 				"Description",
