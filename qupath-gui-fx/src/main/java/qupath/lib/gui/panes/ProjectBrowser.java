@@ -243,6 +243,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				null,
 				IconFactory.createNode(FontAwesome.Glyph.PENCIL, 13)
 		);
+		editDescriptionButton.setTooltip(new Tooltip("Edit description"));
 		editDescriptionButton.setOnAction(e -> promptToEditSelectedImageDescription());
 		editDescriptionButton.visibleProperty().bind(Bindings.createBooleanBinding(
 				() -> tree.getSelectionModel().getSelectedItem() != null && tree.getSelectionModel().getSelectedItem().getValue().getType().equals(Type.IMAGE),
