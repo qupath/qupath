@@ -56,6 +56,7 @@ import javafx.scene.Node;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.layout.HBox;
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -137,7 +138,6 @@ import qupath.lib.projects.ProjectImageEntry;
 public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> {
 
 	private static final Logger logger = LoggerFactory.getLogger(ProjectBrowser.class);
-	private static final int KEEP_DESCRIPTION_OPEN_ICON_SIZE = 12;
 	private static final BooleanProperty keepDescriptionPaneOpenPref = PathPrefs.createPersistentPreference(
 			"keepDescriptionOpen",
 			false
@@ -239,20 +239,34 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			}
 		});
 
-		TextArea textDescription = new TextArea();
-		textDescription.textProperty().bind(descriptionText);
-		textDescription.setWrapText(true);
-		textDescription.setEditable(false);
+		Button editDescriptionButton = new Button(
+				null,
+				IconFactory.createNode(FontAwesome.Glyph.PENCIL, 13)
+		);
+		editDescriptionButton.setOnAction(e -> promptToEditSelectedImageDescription());
+		editDescriptionButton.visibleProperty().bind(Bindings.createBooleanBinding(
+				() -> tree.getSelectionModel().getSelectedItem() != null && tree.getSelectionModel().getSelectedItem().getValue().getType().equals(Type.IMAGE),
+				tree.getSelectionModel().selectedItemProperty()
+		));
+		editDescriptionButton.managedProperty().bind(editDescriptionButton.visibleProperty());
+		editDescriptionButton.setMaxHeight(Double.MAX_VALUE);
 
 		ToggleButton keepDescriptionOpenButton = new ToggleButton(
 				null,
-				IconFactory.createNode(FontAwesome.Glyph.THUMB_TACK, KEEP_DESCRIPTION_OPEN_ICON_SIZE)
+				IconFactory.createNode(FontAwesome.Glyph.THUMB_TACK, 12)
 		);
 		keepDescriptionOpenButton.selectedProperty().set(keepDescriptionPaneOpenPref.get());
 		keepDescriptionOpenButton.selectedProperty().addListener((p, o, n) -> keepDescriptionPaneOpenPref.set(n));
 		keepDescriptionOpenButton.setTooltip(new Tooltip("Keep description pane open"));
 
-		TitledPane textDescriptionContainer = GuiTools.createLeftRightTitledPane("Description", keepDescriptionOpenButton);
+		TitledPane textDescriptionContainer = GuiTools.createLeftRightTitledPane(
+				"Description",
+				new HBox(5, editDescriptionButton, keepDescriptionOpenButton)
+		);
+		TextArea textDescription = new TextArea();
+		textDescription.textProperty().bind(descriptionText);
+		textDescription.setWrapText(true);
+		textDescription.setEditable(false);
 		textDescriptionContainer.setContent(textDescription);
 
 		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescriptionContainer, false);
