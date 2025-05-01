@@ -54,11 +54,14 @@ import java.util.stream.Stream;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.layout.HBox;
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.textfield.TextFields;
+import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,7 +138,10 @@ import qupath.lib.projects.ProjectImageEntry;
 public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> {
 
 	private static final Logger logger = LoggerFactory.getLogger(ProjectBrowser.class);
-
+	private static final BooleanProperty keepDescriptionPaneOpenPref = PathPrefs.createPersistentPreference(
+			"keepDescriptionOpen",
+			false
+	);
 	private Project<BufferedImage> project;
 
 	// Requested thumbnail max dimensions
@@ -232,13 +238,43 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				e.consume();
 			}
 		});
-		
-//		TextArea textDescription = new TextArea();
+
+		Button editDescriptionButton = new Button(
+				null,
+				IconFactory.createNode(FontAwesome.Glyph.PENCIL, 13)
+		);
+		editDescriptionButton.setTooltip(new Tooltip("Edit description"));
+		editDescriptionButton.setOnAction(e -> promptToEditSelectedImageDescription());
+		editDescriptionButton.visibleProperty().bind(Bindings.createBooleanBinding(
+				() -> tree.getSelectionModel().getSelectedItem() != null && tree.getSelectionModel().getSelectedItem().getValue().getType().equals(Type.IMAGE),
+				tree.getSelectionModel().selectedItemProperty()
+		));
+		editDescriptionButton.managedProperty().bind(editDescriptionButton.visibleProperty());
+
+		ToggleButton keepDescriptionOpenButton = new ToggleButton(
+				null,
+				IconFactory.createNode(FontAwesome.Glyph.THUMB_TACK, 13)
+		);
+		keepDescriptionOpenButton.selectedProperty().set(keepDescriptionPaneOpenPref.get());
+		keepDescriptionOpenButton.selectedProperty().addListener((p, o, n) -> keepDescriptionPaneOpenPref.set(n));
+		keepDescriptionOpenButton.setTooltip(new Tooltip("Keep description pane open"));
+		keepDescriptionOpenButton.setPadding(new Insets(1,9,1,9));
+
+		TitledPane textDescriptionContainer = GuiTools.createLeftRightTitledPane(
+				"Description",
+				new HBox(5, editDescriptionButton, keepDescriptionOpenButton)
+		);
 		TextArea textDescription = new TextArea();
 		textDescription.textProperty().bind(descriptionText);
 		textDescription.setWrapText(true);
-		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescription, false);
-		mdTree.showDetailNodeProperty().bind(descriptionText.isNotNull());
+		textDescription.setEditable(false);
+		textDescriptionContainer.setContent(textDescription);
+
+		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescriptionContainer, false);
+		mdTree.showDetailNodeProperty().bind(Bindings.createBooleanBinding(
+				() -> keepDescriptionOpenButton.selectedProperty().get() || descriptionText.get() != null,
+				keepDescriptionOpenButton.selectedProperty(), descriptionText
+		));
 		
 		tree.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
@@ -752,12 +788,14 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	static boolean showDescriptionEditor(ProjectImageEntry<?> entry) {
 		TextArea editor = new TextArea();
 		editor.setWrapText(true);
+		editor.setPromptText(String.format("Enter description for %s", entry.getImageName()));
 		editor.setText(entry.getDescription());
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
 		dialog.setTitle("Image description");
 		dialog.getDialogPane().setHeaderText(entry.getImageName());
 		dialog.getDialogPane().setContent(editor);
+		Platform.runLater(editor::requestFocus);
 		Optional<ButtonType> result = dialog.showAndWait();
 		if (result.isPresent() && result.get() == ButtonType.OK && editor.getText() != null) {	
 			var text = editor.getText();
