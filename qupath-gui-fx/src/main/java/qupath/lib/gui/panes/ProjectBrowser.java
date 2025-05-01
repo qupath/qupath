@@ -788,12 +788,14 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	static boolean showDescriptionEditor(ProjectImageEntry<?> entry) {
 		TextArea editor = new TextArea();
 		editor.setWrapText(true);
+		editor.setPromptText(String.format("Enter description for %s", entry.getImageName()));
 		editor.setText(entry.getDescription());
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
 		dialog.setTitle("Image description");
 		dialog.getDialogPane().setHeaderText(entry.getImageName());
 		dialog.getDialogPane().setContent(editor);
+		Platform.runLater(editor::requestFocus);
 		Optional<ButtonType> result = dialog.showAndWait();
 		if (result.isPresent() && result.get() == ButtonType.OK && editor.getText() != null) {	
 			var text = editor.getText();
