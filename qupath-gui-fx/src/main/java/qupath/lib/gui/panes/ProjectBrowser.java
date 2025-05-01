@@ -54,11 +54,13 @@ import java.util.stream.Stream;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.textfield.TextFields;
+import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,7 +137,11 @@ import qupath.lib.projects.ProjectImageEntry;
 public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> {
 
 	private static final Logger logger = LoggerFactory.getLogger(ProjectBrowser.class);
-
+	private static final int KEEP_DESCRIPTION_OPEN_ICON_SIZE = 11;
+	private static final BooleanProperty keepDescriptionPaneOpenPref = PathPrefs.createPersistentPreference(
+			"keepDescriptionOpen",
+			false
+	);
 	private Project<BufferedImage> project;
 
 	// Requested thumbnail max dimensions
@@ -232,13 +238,27 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				e.consume();
 			}
 		});
-		
-//		TextArea textDescription = new TextArea();
+
 		TextArea textDescription = new TextArea();
 		textDescription.textProperty().bind(descriptionText);
 		textDescription.setWrapText(true);
-		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescription, false);
-		mdTree.showDetailNodeProperty().bind(descriptionText.isNotNull());
+
+		ToggleButton keepDescriptionOpenButton = new ToggleButton(
+				null,
+				IconFactory.createNode(FontAwesome.Glyph.ANCHOR, KEEP_DESCRIPTION_OPEN_ICON_SIZE)
+		);
+		keepDescriptionOpenButton.selectedProperty().set(keepDescriptionPaneOpenPref.get());
+		keepDescriptionOpenButton.selectedProperty().addListener((p, o, n) -> keepDescriptionPaneOpenPref.set(n));
+		keepDescriptionOpenButton.setTooltip(new Tooltip("Keep description pane open"));
+
+		TitledPane textDescriptionContainer = GuiTools.createLeftRightTitledPane("Description", keepDescriptionOpenButton);
+		textDescriptionContainer.setContent(textDescription);
+
+		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescriptionContainer, false);
+		mdTree.showDetailNodeProperty().bind(Bindings.createBooleanBinding(
+				() -> keepDescriptionOpenButton.selectedProperty().get() || descriptionText.get() != null,
+				keepDescriptionOpenButton.selectedProperty(), descriptionText
+		));
 		
 		tree.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
