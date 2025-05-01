@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +43,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import loci.formats.codec.CodecOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -340,6 +342,13 @@ public class OMEPyramidWriter {
 					}
 				}
 			}
+
+			// The codec options need to be set before writer.setId(), otherwise they are not taken into account
+			series.stream()
+					.map(s -> s.codecOptions)
+					.filter(Objects::nonNull)
+					.findAny()
+					.ifPresent(writer::setCodecOptions);
 			
 			writer.setId(path);
 			for (int s = 0; s < series.size(); s++) {
@@ -384,6 +393,8 @@ public class OMEPyramidWriter {
 		private ChannelExportType channelExportType = ChannelExportType.DEFAULT;
 	
 		private CompressionType compression = CompressionType.DEFAULT;
+
+		private CodecOptions codecOptions;
 		
 		private static int[] RGB_CHANNEL_ARRAY = new int[] {0, 1, 2};
 		
@@ -605,11 +616,11 @@ public class OMEPyramidWriter {
 		 * @see #initializeMetadata(IMetadata, int)
 		 */
 		public void writeSeries(IFormatWriter writer, IMetadata meta, final int series) throws FormatException, IOException {
-	
+
 			// We need to get the writer directly to be able to check if it is a TiffWriter
 			while (writer instanceof ImageWriter)
 				writer = ((ImageWriter)writer).getWriter();
-			
+
 			boolean isRGB = doExportRGB();
 			int nChannels = meta.getPixelsSizeC(series).getValue();
 			int nSamples = meta.getChannelSamplesPerPixel(series, 0).getValue();
@@ -1488,6 +1499,17 @@ public class OMEPyramidWriter {
 		 */
 		public Builder channels(int... channels) {
 			series.channels = channels;
+			return this;
+		}
+
+		/**
+		 * Set options for compressing data.
+		 *
+		 * @param codecOptions the codec options to set
+		 * @return this builder
+		 */
+		public Builder codecOptions(CodecOptions codecOptions) {
+			series.codecOptions = codecOptions;
 			return this;
 		}
 
