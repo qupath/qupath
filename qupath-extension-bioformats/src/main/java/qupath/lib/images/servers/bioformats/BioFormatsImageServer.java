@@ -101,6 +101,8 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 /**
@@ -138,6 +140,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	 * Default tile size - when no other value is available.
 	 */
 	private static int DEFAULT_TILE_SIZE = 512;
+	private static final Pattern ZARR_FILE_PATTERN = Pattern.compile("\\.zarr/?(\\d+/?)?$");
 
 //	/**
 //	 * Maximum tile size - larger values will be ignored.
@@ -1292,7 +1295,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			}
 			
 			IFormatReader imageReader;
-			if (new File(id).isDirectory() || id.toLowerCase().endsWith(".zarr") || id.toLowerCase().endsWith(".zarr/")) {
+			Matcher zarrMatcher = ZARR_FILE_PATTERN.matcher(id.toLowerCase());
+			if (new File(id).isDirectory() || zarrMatcher.find()) {
 				// Using new ImageReader() on a directory won't work
 				imageReader = new ZarrReader();
 				if (id.startsWith("https") && imageReader.getMetadataOptions() instanceof DynamicMetadataOptions zarrOptions) {
