@@ -400,6 +400,9 @@ class ScriptCommand implements Runnable {
 						imageData.getServer().close();						
 					}
 				}
+				if (save) {
+					project.syncChanges();
+				}
 			} else if (imagePath != null && !imagePath.equals("")) {
 				String path = QuPath.getEncodedPath(imagePath);
 				URI uri = GeneralTools.toURI(path);
