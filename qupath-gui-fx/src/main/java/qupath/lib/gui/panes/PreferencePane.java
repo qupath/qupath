@@ -93,12 +93,13 @@ public class PreferencePane {
 
 	private PropertySheet propSheet;
 	
-	private static LocaleManager localeManager = new LocaleManager(QuPathResources::hasDefaultBundleForLocale);
+	private static final LocaleManager localeManager = new LocaleManager(Locale.US,
+			QuPathResources::hasDefaultBundleForLocale, false);
 	
 	private BorderPane pane;
 
-	private LocaleSnapshot localeSnapshot = new LocaleSnapshot();
-	private StringProperty localeChangedText = QuPathResources.getLocalizedResourceManager().createProperty("Prefs.localeChanged");
+	private final LocaleSnapshot localeSnapshot = new LocaleSnapshot();
+	private final StringProperty localeChangedText = QuPathResources.getLocalizedResourceManager().createProperty("Prefs.localeChanged");
 	private BooleanBinding localeChanged;
 	
 	@SuppressWarnings("javadoc")
@@ -127,7 +128,7 @@ public class PreferencePane {
 				Level.class);
 		var parser = new PropertyItemParser()
 				.setResourceManager(QuPathResources.getLocalizedResourceManager())
-				.setLocaleManager(new LocaleManager(QuPathResources::hasDefaultBundleForLocale));
+				.setLocaleManager(localeManager);
 		return new PropertySheetBuilder()
 				.parser(parser)
 				.editorFactory(factory)
