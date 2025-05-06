@@ -1,5 +1,7 @@
 package qupath.lib.lazy.objects;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import qupath.lib.images.ImageData;
 import qupath.lib.lazy.interfaces.LazyBooleanValue;
 import qupath.lib.lazy.interfaces.LazyNumericValue;
@@ -10,9 +12,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.WeakHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -22,10 +21,21 @@ import java.util.function.Supplier;
  */
 public class PathObjectLazyValues {
 
-    private static final Map<ImageData<?>, DetectionClassificationCounter> countsMap = Collections.synchronizedMap(new WeakHashMap<>());
+    // Using weak values is important because of https://github.com/qupath/qupath/issues/1862
+    // Otherwise, the ImageData is never cleared - even when out of scope everywhere else, it lingers on
+    // through strong references via the values in the cache.
+    private static final Cache<ImageData<?>, DetectionClassificationCounter> countsMap = CacheBuilder.newBuilder()
+            .weakKeys()
+            .weakValues()
+            .build();
 
-    private static Function<PathObject, DetectionPathClassCounts> getCountsFunction(ImageData<?> imageData) {
-        return countsMap.computeIfAbsent(imageData, data -> new DetectionClassificationCounter(data.getHierarchy()));
+    private static synchronized Function<PathObject, DetectionPathClassCounts> getCountsFunction(ImageData<?> imageData) {
+        var counts = countsMap.getIfPresent(imageData);
+        if (counts == null) {
+            counts = new DetectionClassificationCounter(imageData.getHierarchy());
+            countsMap.put(imageData, counts);
+        }
+        return counts;
     }
 
     /**
