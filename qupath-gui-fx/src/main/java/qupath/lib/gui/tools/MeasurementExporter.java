@@ -22,6 +22,7 @@
 package qupath.lib.gui.tools;
 
 import java.awt.image.BufferedImage;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -307,7 +308,7 @@ public class MeasurementExporter {
 	 * @throws IOException if the export files
 	 */
 	public void exportMeasurements(File file) throws IOException, InterruptedException {
-		try (FileOutputStream fos = new FileOutputStream(file)) {
+		try (var fos = new BufferedOutputStream(new FileOutputStream(file), 4096)) {
 			doExport(fos, getSeparatorToUse(file.getName()));
 		}
 	}
@@ -456,27 +457,54 @@ public class MeasurementExporter {
 	private static class MeasurementTable {
 
 		private final Set<String> header = new LinkedHashSet<>();
-		private final List<Map<String, String>> data =  new ArrayList<>();
+		private final List<String[]> data =  new ArrayList<>();
+		private List<String> headerList;
+		private Map<String, Integer> columnIndices = new HashMap<>();
 
 		public <T> void addRows(Collection<String> headerColumns, PathTableData<T> table, int nDecimalPlaces) {
+			var currentHeaderColumns = Set.copyOf(headerColumns);
 			header.addAll(headerColumns);
-			int n = headerColumns.size();
+			var sameColumns = header.size() == currentHeaderColumns.size();
+			var columns = header.toArray(String[]::new);
+			int n = columns.length;
 			for (var item : table.getItems()) {
 				// Try to avoid needing to resize the map
-				Map<String, String> row = new HashMap<>(n+1, 1f);
-				for (var h : headerColumns) {
-					row.put(h, table.getStringValue(item, h, nDecimalPlaces));
+				var row = new String[columns.length];
+				for (int i = 0; i < n; i++) {
+					var col = columns[i];
+					if (sameColumns || currentHeaderColumns.contains(col)) {
+						row[i] = table.getStringValue(item, columns[i], nDecimalPlaces);
+					}
 				}
 				data.add(row);
 			}
 		}
 
-		public List<String> getHeader() {
-			return List.copyOf(header);
+		public synchronized List<String> getHeader() {
+			if (headerList == null || headerList.size() != header.size())
+				headerList = List.copyOf(header);
+			return headerList;
+		}
+
+		private synchronized Map<String, Integer> getColumnIndices() {
+			var list = getHeader();
+			if (columnIndices.size() != list.size()) {
+				var map = new HashMap<String, Integer>();
+				for (int i = 0; i < list.size(); i++) {
+					map.put(list.get(i), i);
+				}
+				columnIndices = map;
+			}
+			return columnIndices;
 		}
 
 		public String getString(int row, String column, String defaultValue) {
-			return data.get(row).getOrDefault(column, defaultValue);
+			var dataRow = data.get(row);
+			int ind = getColumnIndices().getOrDefault(column, -1);
+			if (ind >= 0 && ind < dataRow.length)
+				return dataRow[ind];
+			else
+				return defaultValue;
 		}
 
 		public int size() {
