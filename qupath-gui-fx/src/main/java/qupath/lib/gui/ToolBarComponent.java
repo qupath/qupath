@@ -192,8 +192,7 @@ class ToolBarComponent {
 				ActionTools.createMenuItem(overlayActions.SHOW_GRID),
 				ActionTools.createMenuItem(overlayActions.GRID_SPACING),
 				new SeparatorMenuItem(),
-				ActionTools.createMenuItem(commonActions.INPUT_DISPLAY),
-				ActionTools.createMenuItem(commonActions.MEMORY_MONITOR)
+				ActionTools.createMenuItem(commonActions.INPUT_DISPLAY)
 		);
 		nodes.add(btnOverlay);
 

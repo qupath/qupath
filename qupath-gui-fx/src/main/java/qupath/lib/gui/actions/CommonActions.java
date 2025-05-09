@@ -102,16 +102,16 @@ public class CommonActions {
 	
 	@ActionConfig("CommonActions.objectDescriptions")
 	public final Action SHOW_OBJECT_DESCRIPTIONS;
-	
-	@ActionConfig("CommonActions.measureTMA")
-	public final Action MEASURE_TMA;
-	
+
 	@ActionConfig("CommonActions.measureAnnotations")
 	public final Action MEASURE_ANNOTATIONS;
 	
 	@ActionConfig("CommonActions.measureDetections")
 	public final Action MEASURE_DETECTIONS;
-	
+
+	@ActionConfig("CommonActions.measureTMA")
+	public final Action MEASURE_TMA;
+
 	@ActionConfig("CommonActions.gridViewAnnotations")
 	public final Action MEASURE_GRID_ANNOTATIONS;
 
