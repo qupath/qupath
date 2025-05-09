@@ -19,7 +19,10 @@ base {
 dependencies {
     implementation(project(":qupath-gui-fx"))
     implementation(libs.picocli)
-    implementation(libs.qupath.training) // Optional extension (tour)
+
+    // Bundled extensions
+    implementation(libs.qupath.training)
+    implementation(libs.qupath.djl)
 
     implementation(libs.extensionmanager)
 }
