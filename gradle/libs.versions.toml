@@ -45,7 +45,9 @@ javadocviewer   = "0.1.2"
 openslide       = "4.0.0.6"
 
 picocli         = "4.7.7"
-qupath-fxtras   = "0.2.0-SNAPSHOT"
+
+qupath-fxtras   = "0.2.0-rc1"
+qupath-training = "0.1.0-rc2"
 
 richtextfx      = "0.11.5"
 
@@ -91,6 +93,8 @@ omeZarrReader = { module = "ome:OMEZarrReader",                 version.ref = "o
 picocli       = { module = "info.picocli:picocli",              version.ref = "picocli" }
 
 qupath-fxtras = { module = "io.github.qupath:qupath-fxtras",    version.ref = "qupath-fxtras" }
+
+qupath-training = { module = "io.github.qupath:qupath-extension-training", version.ref = "qupath-training" }
 
 richtextfx    = { module = "org.fxmisc.richtext:richtextfx",    version.ref = "richtextfx" }
 

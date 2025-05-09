@@ -79,6 +79,11 @@ Some things may be added, some things may be removed, and some things may look d
 * More 'filter boxes' in the user interface to find things in long lists or tables (https://github.com/qupath/qupath/pull/1742)
 * Color deconvolution support for non-8-bit images (https://github.com/qupath/qupath/pull/1807)
 * Optionally use viewer gamma when exporting rendered images (https://github.com/qupath/qupath/pull/1849)
+* Save project from command line when `-s` parameter set (https://github.com/qupath/qupath/pull/1859)
+* Add possibility to set codec options in OMEPyramidWriter (https://github.com/qupath/qupath/pull/1857)
+* Add dock button to keep project description pane open (https://github.com/qupath/qupath/pull/1856)
+* Add support for OME XML shapes (https://github.com/qupath/qupath/pull/1848)
+* Combine viewer-related toolbar buttons under one menu button (https://github.com/qupath/qupath/pull/1841)
 
 
 ### Experimental features
