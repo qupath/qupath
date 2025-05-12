@@ -72,7 +72,6 @@ class TestParameterList {
 		assertEquals(params.getChoiceParameterValue("choicePathClass"), pathClassChoices.get(defaultChoiceInd));
 		
 		var json = ParameterList.convertToJson(params);
-		var mapFromJson = GeneralTools.parseArgStringValues(json);
 		
 		// Create a new parameter list with the same keys but different values
 		var paramsFromJson = new ParameterList()
@@ -98,7 +97,8 @@ class TestParameterList {
 		assertNotEquals(json, jsonDifferent);
 
 		// Update the values, then check again
-		ParameterList.updateParameterList(paramsFromJson, mapFromJson, Locale.getDefault());
+		var mapFromJson = GeneralTools.parseArgStringValues(json);
+		ParameterList.updateParameterList(paramsFromJson, mapFromJson, Locale.US);
 		assertEquals(paramsFromJson.getBooleanParameterValue("bool"), boolValue);
 		assertEquals(paramsFromJson.getIntParameterValue("int"), integerValue);
 		assertEquals(paramsFromJson.getDoubleParameterValue("double"), doubleValue);
