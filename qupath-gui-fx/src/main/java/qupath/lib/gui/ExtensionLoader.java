@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.extensionmanager.core.ExtensionCatalogManager;
 import qupath.fx.dialogs.Dialogs;
-import qupath.fx.utils.FXUtils;
 import qupath.lib.common.Version;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.localization.QuPathResources;
@@ -57,7 +56,10 @@ class ExtensionLoader {
             for (QuPathExtension extension : ServiceLoader.load(QuPathExtension.class, extensionClassLoader)) {
                 if (!loadedExtensions.contains(extension.getClass())) {
                     loadedExtensions.add(extension.getClass());
-                    FXUtils.runOnApplicationThread(() -> loadExtension(extension, showNotifications));
+                    if (Platform.isFxApplicationThread())
+                        loadExtension(extension, showNotifications);
+                    else
+                        Platform.runLater(() -> loadExtension(extension, showNotifications));
                 }
             }
 
