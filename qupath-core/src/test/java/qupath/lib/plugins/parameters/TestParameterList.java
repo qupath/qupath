@@ -98,7 +98,7 @@ class TestParameterList {
 		assertNotEquals(json, jsonDifferent);
 
 		// Update the values, then check again
-		ParameterList.updateParameterList(paramsFromJson, mapFromJson, Locale.UK);
+		ParameterList.updateParameterList(paramsFromJson, mapFromJson, Locale.US);
 		assertEquals(paramsFromJson.getBooleanParameterValue("bool"), boolValue);
 		assertEquals(paramsFromJson.getIntParameterValue("int"), integerValue);
 		assertEquals(paramsFromJson.getDoubleParameterValue("double"), doubleValue);
