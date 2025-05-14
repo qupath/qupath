@@ -1,10 +1,20 @@
 package qupath.lib.lazy.interfaces;
 
+import java.text.DecimalFormatSymbols;
+import java.util.Locale;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestValueFormatter {
+
+    private static char sep;
+
+    @BeforeAll
+    static void setSep() {
+        sep = DecimalFormatSymbols.getInstance(Locale.getDefault()).getDecimalSeparator();
+    }
 
     @Test
     void testInteger() {
@@ -22,26 +32,26 @@ public class TestValueFormatter {
 
     @Test
     void testDouble() {
-        assertEquals("5.2", ValueFormatter.getStringValue(5.245, 1));
-        assertEquals("5.2", ValueFormatter.getStringValue(5.245, -1));
-        assertEquals("5.25", ValueFormatter.getStringValue(5.245, 2));
-        assertEquals("5.25", ValueFormatter.getStringValue(5.245, -2));
-        assertEquals("5.245", ValueFormatter.getStringValue(5.245, 3));
-        assertEquals("5.245", ValueFormatter.getStringValue(5.245, -3));
-        assertEquals("5.2450", ValueFormatter.getStringValue(5.245, 4));
-        assertEquals("5.245", ValueFormatter.getStringValue(5.245, -4));
+        assertEquals("5" + sep + "2", ValueFormatter.getStringValue(5.245, 1));
+        assertEquals("5" + sep + "2", ValueFormatter.getStringValue(5.245, -1));
+        assertEquals("5" + sep + "25", ValueFormatter.getStringValue(5.245, 2));
+        assertEquals("5" + sep + "25", ValueFormatter.getStringValue(5.245, -2));
+        assertEquals("5" + sep + "245", ValueFormatter.getStringValue(5.245, 3));
+        assertEquals("5" + sep + "245", ValueFormatter.getStringValue(5.245, -3));
+        assertEquals("5" + sep + "2450", ValueFormatter.getStringValue(5.245, 4));
+        assertEquals("5" + sep + "245", ValueFormatter.getStringValue(5.245, -4));
     }
 
     @Test
     void testNegative() {
-        assertEquals("-5.2", ValueFormatter.getStringValue(-5.245, 1));
-        assertEquals("-5.2", ValueFormatter.getStringValue(-5.245, -1));
-        assertEquals("-5.25", ValueFormatter.getStringValue(-5.245, 2));
-        assertEquals("-5.25", ValueFormatter.getStringValue(-5.245, -2));
-        assertEquals("-5.245", ValueFormatter.getStringValue(-5.245, 3));
-        assertEquals("-5.245", ValueFormatter.getStringValue(-5.245, -3));
-        assertEquals("-5.2450", ValueFormatter.getStringValue(-5.245, 4));
-        assertEquals("-5.245", ValueFormatter.getStringValue(-5.245, -4));
+        assertEquals("-5" + sep + "2", ValueFormatter.getStringValue(-5.245, 1));
+        assertEquals("-5" + sep + "2", ValueFormatter.getStringValue(-5.245, -1));
+        assertEquals("-5" + sep + "25", ValueFormatter.getStringValue(-5.245, 2));
+        assertEquals("-5" + sep + "25", ValueFormatter.getStringValue(-5.245, -2));
+        assertEquals("-5" + sep + "245", ValueFormatter.getStringValue(-5.245, 3));
+        assertEquals("-5" + sep + "245", ValueFormatter.getStringValue(-5.245, -3));
+        assertEquals("-5" + sep + "2450", ValueFormatter.getStringValue(-5.245, 4));
+        assertEquals("-5" + sep + "245", ValueFormatter.getStringValue(-5.245, -4));
     }
 
     @Test
@@ -67,12 +77,12 @@ public class TestValueFormatter {
 
     @Test
     void testFloat() {
-        assertEquals("5.2", ValueFormatter.getStringValue(5.245f, 1));
-        assertEquals("5.2", ValueFormatter.getStringValue(5.245f, -1));
-        assertEquals("5.245", ValueFormatter.getStringValue(5.245f, 3));
-        assertEquals("5.245", ValueFormatter.getStringValue(5.245f, -3));
-        assertEquals("5.2450", ValueFormatter.getStringValue(5.245f, 4));
-        assertEquals("5.245", ValueFormatter.getStringValue(5.245f, -4));
+        assertEquals("5" + sep + "2", ValueFormatter.getStringValue(5.245f, 1));
+        assertEquals("5" + sep + "2", ValueFormatter.getStringValue(5.245f, -1));
+        assertEquals("5" + sep + "245", ValueFormatter.getStringValue(5.245f, 3));
+        assertEquals("5" + sep + "245", ValueFormatter.getStringValue(5.245f, -3));
+        assertEquals("5" + sep + "2450", ValueFormatter.getStringValue(5.245f, 4));
+        assertEquals("5" + sep + "245", ValueFormatter.getStringValue(5.245f, -4));
     }
 
     @Test
