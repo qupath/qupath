@@ -25,22 +25,32 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.objects.classes.PathClass;
 
 class TestParameterList {
 
+	static Collection<Locale> locales() {
+		return Set.of(Locale.US, Locale.FRANCE, Locale.CHINESE);
+	}
+
 	/**
 	 * Test serialization to/from JSON
 	 */
-	@Test
-	void testJson() {
-		
+	@ParameterizedTest
+	@MethodSource("locales")
+	void testJson(Locale locale) {
+		Locale.setDefault(locale);
+
 		boolean boolValue = false;
 		int integerValue = 20;
 		double doubleValue = 15.25;
@@ -98,7 +108,7 @@ class TestParameterList {
 		assertNotEquals(json, jsonDifferent);
 
 		// Update the values, then check again
-		ParameterList.updateParameterList(paramsFromJson, mapFromJson, Locale.getDefault());
+		ParameterList.updateParameterList(paramsFromJson, mapFromJson, Locale.US);
 		assertEquals(paramsFromJson.getBooleanParameterValue("bool"), boolValue);
 		assertEquals(paramsFromJson.getIntParameterValue("int"), integerValue);
 		assertEquals(paramsFromJson.getDoubleParameterValue("double"), doubleValue);
