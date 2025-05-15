@@ -181,7 +181,7 @@ class ToolBarComponent {
 		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.DESKTOP));
 //		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.TH_LARGE, QuPathGUI.TOOLBAR_ICON_SIZE));
 //		btnOverlay.setGraphic(IconFactory.createFontAwesome('\uf26c', QuPathGUI.TOOLBAR_ICON_SIZE));
-		btnMeasure.setTooltip(new Tooltip(getDescription("viewerMenu")));
+		btnOverlay.setTooltip(new Tooltip(getDescription("viewerMenu")));
 
 		btnOverlay.getItems().addAll(
 				ActionTools.createMenuItem(viewerManagerActions.SHOW_OVERVIEW),
