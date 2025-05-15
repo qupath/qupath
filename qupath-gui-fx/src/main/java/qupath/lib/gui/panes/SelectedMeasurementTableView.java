@@ -94,8 +94,8 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	private static final Logger logger = LoggerFactory.getLogger(SelectedMeasurementTableView.class);
 	
-	private static int nDecimalPlaces = 4;
-	
+	private static int nDecimalPlaces = -4;
+
 	/**
 	 * Retain reference to prevent garbage collection.
 	 */
