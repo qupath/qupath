@@ -175,7 +175,7 @@ public class OMEZarrWriterCommand implements Runnable {
     private static File promptOutputDirectory() {
         File fileOutput = FileChoosers.promptToSaveFile(
                 QuPathResources.getString("Action.BioFormats.writeOMEZarr"),
-                null,
+                new File(""),
                 FileChoosers.createExtensionFilter(QuPathResources.getString("Action.BioFormats.omeZarr"), ".ome.zarr")
         );
 
