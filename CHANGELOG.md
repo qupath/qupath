@@ -150,7 +150,7 @@ They may change or be removed in future versions.
 * Bio-Formats 8.1.1
 * Commonmark 0.24.0
 * ControlsFX 11.2.2
-* DeepJavaLibrary 0.31.1
+* DeepJavaLibrary 0.33.0
 * Groovy 4.0.26
 * Gson 2.13.1
 * Guava 33.4.6-jre
