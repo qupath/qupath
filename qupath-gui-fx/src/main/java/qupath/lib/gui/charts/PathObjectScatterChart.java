@@ -279,6 +279,12 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         var y = yFun.apply(pathObject);
         if (!Objects.equals(item.getYValue(), y))
             item.setYValue(y);
+
+        // Workaround for https://github.com/qupath/qupath/issues/1877
+        // May be preferable to exclude non-finite values earlier, so that we only subsample points that could
+        // actually be included - but that is likely to be more complex (at least to do it efficiently if measurement
+        // calculations are expensive)
+        circle.setVisible(x != null && y != null && Double.isFinite(x.doubleValue()) && Double.isFinite(y.doubleValue()));
     }
 
     /**
