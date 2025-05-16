@@ -1848,7 +1848,7 @@ public class QuPathGUI {
 	
 	/**
 	 * Install a Groovy script as a new command in QuPath.
-	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String, String...)} for the specification.
 	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
 	 *                 If a menu item already exists for the given path, it will be removed.
 	 * @param script the Groovy script to run
@@ -1869,7 +1869,7 @@ public class QuPathGUI {
 	/**
 	 * Install a new command in QuPath that takes the current {@link ImageData} as input.
 	 * The command will only be enabled when an image is available.
-	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String, String...)} for the specification.
 	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
 	 *                 If a menu item already exists for the given path, it will be removed.
 	 * @param command the command to run
@@ -1890,7 +1890,7 @@ public class QuPathGUI {
 	
 	/**
 	 * Install a new command in QuPath.
-	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String, String...)} for the specification.
 	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
 	 *                 If a menu item already exists for the given path, it will be removed.
 	 * @param runnable the command to run
@@ -2035,7 +2035,7 @@ public class QuPathGUI {
 	
 	/**
 	 * Set an accelerator for the specified menu command.
-	 * The command is defined as described in {@link #lookupMenuItem(String)}, 
+	 * The command is defined as described in {@link #lookupMenuItem(String, String...)}, 
 	 * and the accelerator is the the format used by {@link KeyCombination#valueOf(String)}.
 	 * An example:
 	 * <pre>
@@ -2050,7 +2050,7 @@ public class QuPathGUI {
 	 * @param menuCommand
 	 * @param combo
 	 * @return true if a change was made, false otherwise
-	 * @see #lookupMenuItem(String)
+	 * @see #lookupMenuItem(String, String...) 
 	 * @see #setAccelerator(Action, KeyCombination)
 	 */
 	public boolean setAccelerator(String menuCommand, String combo) {
