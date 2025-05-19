@@ -33,6 +33,7 @@ import java.util.Deque;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+import org.apache.commons.io.serialization.ValidatingObjectInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -418,7 +419,8 @@ public class UndoRedoManager implements ChangeListener<QuPathViewer>, QuPathView
 		@SuppressWarnings("unchecked")
 		private T deserialize(byte[] bytes) {
 			try (ByteArrayInputStream stream = new ByteArrayInputStream(bytes)) {
-				ObjectInputStream in = PathIO.createObjectInputStream(stream);
+				ValidatingObjectInputStream ois = new ValidatingObjectInputStream(stream); {
+        ois.accept(LinkedList.class, LogMutation.class, HashMap.class, String.class);
 				return (T)in.readObject();
 			} catch (ClassNotFoundException | IOException e) {
 				logger.error("Error deserializing object", e);
