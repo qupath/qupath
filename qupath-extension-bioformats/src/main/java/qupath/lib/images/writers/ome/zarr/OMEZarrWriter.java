@@ -202,7 +202,7 @@ public class OMEZarrWriter implements AutoCloseable {
         private static final String FILE_EXTENSION = ".ome.zarr";
         private final ImageServer<BufferedImage> server;
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
-        private int numberOfThreads = 12;
+        private int numberOfThreads = Runtime.getRuntime().availableProcessors();
         private double[] downsamples = new double[0];
         private int maxNumberOfChunks = 50;
         private int tileWidth = 512;
