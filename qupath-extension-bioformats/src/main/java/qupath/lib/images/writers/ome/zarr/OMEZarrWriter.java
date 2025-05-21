@@ -29,7 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -94,7 +96,22 @@ public class OMEZarrWriter implements AutoCloseable {
                 builder.compressor
         );
 
-        this.executorService = Executors.newFixedThreadPool(builder.numberOfThreads);
+        this.executorService = Executors.newFixedThreadPool(
+                builder.numberOfThreads,
+                new ThreadFactory() {
+                    private static final AtomicInteger poolCounter = new AtomicInteger(0);
+                    private final AtomicInteger threadCounter = new AtomicInteger(0);
+                    private final int poolNumber = poolCounter.getAndIncrement();
+
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        return new Thread(
+                                r,
+                                String.format("zarr_writer_pool-%d-thread-%d", poolNumber, threadCounter.getAndIncrement())
+                        );
+                    }
+                }
+        );
         this.onTileWritten = builder.onTileWritten;
     }
 
