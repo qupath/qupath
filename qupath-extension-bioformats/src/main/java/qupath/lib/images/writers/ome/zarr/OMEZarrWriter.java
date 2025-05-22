@@ -10,6 +10,7 @@ import com.bc.zarr.ZarrGroup;
 import loci.formats.gui.AWTImageTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.TileRequest;
@@ -29,9 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -98,19 +97,7 @@ public class OMEZarrWriter implements AutoCloseable {
 
         this.executorService = Executors.newFixedThreadPool(
                 builder.numberOfThreads,
-                new ThreadFactory() {
-                    private static final AtomicInteger poolCounter = new AtomicInteger(0);
-                    private final AtomicInteger threadCounter = new AtomicInteger(0);
-                    private final int poolNumber = poolCounter.getAndIncrement();
-
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        return new Thread(
-                                r,
-                                String.format("zarr_writer_pool-%d-thread-%d", poolNumber, threadCounter.getAndIncrement())
-                        );
-                    }
-                }
+                ThreadTools.createThreadFactory("zarr_writer_", false)
         );
         this.onTileWritten = builder.onTileWritten;
     }
