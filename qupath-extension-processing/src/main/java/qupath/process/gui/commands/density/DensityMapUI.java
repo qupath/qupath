@@ -887,7 +887,7 @@ public class DensityMapUI {
 			var dialog = new Dialog<ButtonType>();
 			dialog.setTitle(title);
 			dialog.setHeaderText("How do you want to export the density map?");
-			dialog.setContentText("Choose 'Raw values' of 'Send to ImageJ' if you need the original counts, or 'Color overlay' if you want to keep the same visual appearance.");
+			dialog.setContentText("Choose 'Raw values' or 'Send to ImageJ' if you need the original counts, or 'Color overlay' if you want to keep the same visual appearance.");
 			var btOrig = new ButtonType("Raw values");
 			var btColor = new ButtonType("Color overlay");
 			var btImageJ = new ButtonType("Send to ImageJ");
