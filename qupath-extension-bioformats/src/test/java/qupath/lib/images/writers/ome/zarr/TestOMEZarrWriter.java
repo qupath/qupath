@@ -28,6 +28,7 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class TestOMEZarrWriter {
 
@@ -535,6 +536,28 @@ public class TestOMEZarrWriter {
             image = server.readRegion(1, 0, 0, server.getWidth(), server.getHeight(), z, t - tStart);
         }
         assertDoubleBufferedImagesEqual(expectedImage, image);
+
+        sampleImageServer.close();
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
+    void Check_On_Tile_Written_Called() throws Exception {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
+        SampleImageServer sampleImageServer = new SampleImageServer();
+        int expectedNumberOfTilesWritten;
+        AtomicInteger numberOfTilesWritten = new AtomicInteger(0);
+
+        try (OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleImageServer)
+                .onTileWritten(tile -> numberOfTilesWritten.incrementAndGet())
+                .build(outputImagePath)
+        ) {
+            expectedNumberOfTilesWritten = writer.getReaderServer().getTileRequestManager().getAllTileRequests().size();
+            writer.writeImage();
+        }
+
+        Assertions.assertEquals(expectedNumberOfTilesWritten, numberOfTilesWritten.get());
 
         sampleImageServer.close();
         FileUtils.deleteDirectory(path.toFile());
