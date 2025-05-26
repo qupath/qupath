@@ -360,7 +360,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 			return;
 		}
 		
-		String arg = ColorDeconvolutionStains.getColorDeconvolutionStainsAsString(imageData.getColorDeconvolutionStains(), 5);
+		String arg = ColorDeconvolutionStains.getColorDeconvolutionStainsAsString(imageData.getColorDeconvolutionStains(), 17);
 		Map<String, String> map = GeneralTools.parseArgStringValues(arg);
 		WorkflowStep lastStep = imageData.getHistoryWorkflow().getLastStep();
 		String commandName = "Set color deconvolution stains";
