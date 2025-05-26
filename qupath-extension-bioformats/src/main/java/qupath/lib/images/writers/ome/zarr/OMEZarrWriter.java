@@ -10,6 +10,7 @@ import com.bc.zarr.ZarrGroup;
 import loci.formats.gui.AWTImageTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.TileRequest;
@@ -30,6 +31,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * Create an OME-Zarr file writer as described by version 0.4 of the specifications of the
@@ -48,6 +50,7 @@ public class OMEZarrWriter implements AutoCloseable {
     private final ImageServer<BufferedImage> server;
     private final Map<Integer, ZarrArray> levelArrays;
     private final ExecutorService executorService;
+    private final Consumer<TileRequest> onTileWritten;
 
     private OMEZarrWriter(Builder builder, String path) throws IOException {
         TransformedServerBuilder transformedServerBuilder = new TransformedServerBuilder(ImageServers.pyramidalizeTiled(
@@ -75,7 +78,7 @@ public class OMEZarrWriter implements AutoCloseable {
         if (builder.boundingBox != null) {
             transformedServerBuilder.crop(builder.boundingBox);
         }
-        server = transformedServerBuilder.build();
+        this.server = transformedServerBuilder.build();
 
         OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(server.getMetadata());
 
@@ -85,14 +88,18 @@ public class OMEZarrWriter implements AutoCloseable {
         );
 
         OMEXMLCreator.create(server.getMetadata()).ifPresent(omeXML -> createOmeSubGroup(root, path, omeXML));
-        levelArrays = createLevelArrays(
+        this.levelArrays = createLevelArrays(
                 server,
                 root,
                 attributes.getLevelAttributes(),
                 builder.compressor
         );
 
-        executorService = Executors.newFixedThreadPool(builder.numberOfThreads);
+        this.executorService = Executors.newFixedThreadPool(
+                builder.numberOfThreads,
+                ThreadTools.createThreadFactory("zarr_writer_", false)
+        );
+        this.onTileWritten = builder.onTileWritten;
     }
 
     /**
@@ -155,6 +162,9 @@ public class OMEZarrWriter implements AutoCloseable {
             } catch (Exception e) {
                 logger.error("Error when writing tile", e);
             }
+            if (onTileWritten != null) {
+                onTileWritten.accept(tileRequest);
+            }
         });
     }
 
@@ -179,7 +189,7 @@ public class OMEZarrWriter implements AutoCloseable {
         private static final String FILE_EXTENSION = ".ome.zarr";
         private final ImageServer<BufferedImage> server;
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
-        private int numberOfThreads = 12;
+        private int numberOfThreads = ThreadTools.getParallelism();
         private double[] downsamples = new double[0];
         private int maxNumberOfChunks = 50;
         private int tileWidth = 512;
@@ -189,6 +199,7 @@ public class OMEZarrWriter implements AutoCloseable {
         private int zEnd;
         private int tStart = 0;
         private int tEnd;
+        private Consumer<TileRequest> onTileWritten = null;
 
         /**
          * Create the builder.
@@ -325,6 +336,21 @@ public class OMEZarrWriter implements AutoCloseable {
         public Builder timePoints(int tStart, int tEnd) {
             this.tStart = tStart;
             this.tEnd = tEnd;
+            return this;
+        }
+
+        /**
+         * Set a function that will be called each time a {@link TileRequest} is successfully
+         * or unsuccessfully written.
+         * <p>
+         * This function may be called from any thread.
+         *
+         * @param onTileWritten a function that will be called each time a {@link TileRequest} is successfully
+         *                      or unsuccessfully written
+         * @return this builder
+         */
+        public Builder onTileWritten(Consumer<TileRequest> onTileWritten) {
+            this.onTileWritten = onTileWritten;
             return this;
         }
 
