@@ -130,7 +130,8 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 				if (!e.isConsumed() && canAdjust(currentObject) &&
 						(RoiTools.areaContains(currentROI, xx, yy) || ToolUtils.getSelectableObjectList(viewer, xx, yy).contains(currentObject))) {
 					// If we have a translatable ROI, try starting translation
-					if (editor.startTranslation(xx, yy, PathPrefs.usePixelSnappingProperty().get() && currentROI.isArea()))
+					// No translation should happen if we have points, because we never want to move all points together
+					if (!editor.getROI().isPoint() && editor.startTranslation(xx, yy, PathPrefs.usePixelSnappingProperty().get() && currentROI.isArea()))
 						e.consume();
 				}
 				if (e.isConsumed()) {
