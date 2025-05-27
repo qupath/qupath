@@ -25,12 +25,10 @@ package qupath.lib.images;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -360,7 +358,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 			return;
 		}
 		
-		String arg = ColorDeconvolutionStains.getColorDeconvolutionStainsAsString(imageData.getColorDeconvolutionStains(), 17);
+		String arg = ColorDeconvolutionStains.getColorDeconvolutionStainsAsString(imageData.getColorDeconvolutionStains(), 32);
 		Map<String, String> map = GeneralTools.parseArgStringValues(arg);
 		WorkflowStep lastStep = imageData.getHistoryWorkflow().getLastStep();
 		String commandName = "Set color deconvolution stains";
