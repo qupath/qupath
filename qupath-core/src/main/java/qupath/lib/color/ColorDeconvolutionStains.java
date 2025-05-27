@@ -588,7 +588,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
 		out.writeInt(version);
-		out.writeObject(getColorDeconvolutionStainsAsString(this, 8));
+		out.writeObject(getColorDeconvolutionStainsAsString(this, 32));
 	}
 
 
