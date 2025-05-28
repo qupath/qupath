@@ -788,7 +788,20 @@ public class ViewerManager implements QuPathViewerListener {
 	private void setupViewer(final QuPathViewerPlus viewer) {
 		
 		viewer.getView().setFocusTraversable(true);
-		
+
+		// Create placeholder text for when no image is showing
+		var placeholder = Bindings.createStringBinding(() -> {
+			if (viewer.getImageData() != null) {
+				return null;
+			}
+			if (qupath.getProject() == null) {
+				return "Drag & drop an image file or project folder";
+			} else {
+				return "Drag & drop image files to add to the project";
+			}
+		}, viewer.imageDataProperty(), qupath.projectProperty());
+		viewer.placeholderTextProperty().bind(placeholder);
+
 		// Update active viewer as required
 		viewer.getView().focusedProperty().addListener((e, f, nowFocussed) -> {
 			if (nowFocussed) {

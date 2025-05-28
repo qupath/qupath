@@ -61,6 +61,10 @@ import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.stream.ImageInputStream;
 
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.geometry.Pos;
+import javafx.scene.control.Label;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -160,9 +164,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private static final double MIN_ROTATION = 0;
 	private static final double MAX_ROTATION = 360 * Math.PI / 180;
 
-	private List<QuPathViewerListener> listeners = new ArrayList<>();
+	private final List<QuPathViewerListener> listeners = new ArrayList<>();
 
-	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+	private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 
 	private DefaultImageRegionStore regionStore;
 
@@ -179,15 +183,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //	private PixelLayerOverlay pixelLayerOverlay = null;
 	// A custom pixel overlay to use instead of the default
 	private PathOverlay customPixelLayerOverlay = null;
+
+	// Text to show when no image is open
+	private final StringProperty placeholderText = new SimpleStringProperty();
 	
 	// Overlay layers that can be edited
-	private ObservableList<PathOverlay> customOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
+	private final ObservableList<PathOverlay> customOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
 	
 	// Core overlay layers - these are always retained, and painted on top of any custom layers
-	private ObservableList<PathOverlay> coreOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
+	private final ObservableList<PathOverlay> coreOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
 	
 	// List that concatenates the custom & core overlay layers in painting order
-	private ObservableList<PathOverlay> allOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
+	private final ObservableList<PathOverlay> allOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
 
 	// Current we have two images - one transformed & one not - because the untransformed
 	// image is needed to determine pixel values as the mouse moves over the image
@@ -322,7 +329,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		pane.getChildren().add(canvas);
 		canvas.widthProperty().bind(pane.widthProperty());
 		canvas.heightProperty().bind(pane.heightProperty());
-		
+
+		pane.setAlignment(Pos.CENTER);
+		var placeholder = createPlaceholder();
+		pane.getChildren().add(placeholder);
+
 		// Resize to anything
 		pane.setMinWidth(1);
 		pane.setMinHeight(1);
@@ -341,7 +352,34 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		pane.addEventHandler(KeyEvent.ANY, new KeyEventHandler());
 
 	}
-	
+
+
+	/**
+	 * String property to hold text that should be displayed whenever no image is open in the viewer.
+	 * @return the placeholder text property
+	 * @since v0.6.0
+	 */
+	public StringProperty placeholderTextProperty() {
+		return placeholderText;
+	}
+
+
+	private Label createPlaceholder() {
+		var placeholder = new Label(placeholderText.getValueSafe());
+		placeholder.textProperty().bind(placeholderText);
+		placeholder.styleProperty().bind(Bindings.createStringBinding(() -> {
+			Integer rgb = PathPrefs.viewerBackgroundColorProperty().getValue();
+			var c = rgb == null ? javafx.scene.paint.Color.BLACK : ColorToolsFX.getCachedColor(rgb);
+			if (c.getBrightness() > 0.5)
+				return "-fx-text-fill: black;";
+			else
+				return "-fx-text-fill: white";
+		}, PathPrefs.viewerBackgroundColorProperty()));
+		placeholder.setOpacity(0.7);
+		placeholder.visibleProperty().bind(imageDataProperty.isNull().and(placeholderText.isNotEmpty()));
+		return placeholder;
+	}
+
 	
 	/**
 	 * Update allOverlayLayers to make sure it contains all the required PathOverlays.
