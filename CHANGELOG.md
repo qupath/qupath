@@ -147,7 +147,7 @@ They may change or be removed in future versions.
   * Extension writers can use either Groovy or Kotlin - but may need to make some changes to their build scripts
 
 ### Dependency updates
-* Bio-Formats 8.1.1
+* Bio-Formats 8.2.0
 * Commonmark 0.24.0
 * ControlsFX 11.2.2
 * DeepJavaLibrary 0.33.0
@@ -166,6 +166,7 @@ They may change or be removed in future versions.
 * qupath-bioimageio-spec 0.2.0
 * qupath-fxtras 0.12.0
 * qupath-javadoc-viewer 0.1.2
+* OMEZarrReader 0.6.0
 * OpenCV 4.10.0
 * OpenJDK 21
 * RichTextFX 0.11.5
