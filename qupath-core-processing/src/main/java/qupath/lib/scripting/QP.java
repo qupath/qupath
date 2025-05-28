@@ -81,6 +81,7 @@ import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.LogTools;
@@ -1906,7 +1907,33 @@ public class QP {
 		imageData.setColorDeconvolutionStains(stains);
 		return true;
 	}
-	
+
+	/**
+	 * Set the color deconvolution stains for the current image data.
+	 *
+	 * @param name the name of the color deconvolution stains
+	 * @param stains a map of stain name to stain values. Each stain value must be a list containing at least three elements
+	 *               (otherwise the value is skipped). A 'Background' stain must be provided. A stain with the name of 'Residual'
+	 *               will be set as {@link StainVector#isResidual() residual}, others won't. The order of the map matters: the first
+	 *               entry will be the first stain (unless it's the background), and so on.
+	 * @return whether color deconvolution stains were set (which will be false if there is no current image
+	 * data for example. The exact reason will be logged with the DEBUG level)
+	 */
+	public static boolean setColorDeconvolutionStains(String name, Map<String, List<Number>> stains) {
+		ImageData<?> imageData = getCurrentImageData();
+		if (imageData == null) {
+			logger.debug("No current image data. Cannot set color deconvolution stains");
+			return false;
+		}
+
+		try {
+			imageData.setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStains(name, stains));
+			return true;
+		} catch (IllegalArgumentException e) {
+			logger.debug("Cannot set color deconvolution stains {}", stains, e);
+			return false;
+		}
+	}
 	
 //	public static void classifyDetection(final Predicate<PathObject> p, final String className) {
 //		PathObjectHierarchy hierarchy = getCurrentHierarchy();

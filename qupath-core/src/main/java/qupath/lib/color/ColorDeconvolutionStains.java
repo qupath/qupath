@@ -29,7 +29,10 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -57,6 +60,8 @@ public class ColorDeconvolutionStains implements Externalizable {
 	private static final long serialVersionUID = 1L;
 	
 	private static final Logger logger = LoggerFactory.getLogger(ColorDeconvolutionStains.class);
+	private static final String BACKGROUND_KEY = "Background";
+	private static final String RESIDUAL_KEY = "Residual";
 
 	private static int version = 1;
 	
@@ -581,9 +586,89 @@ public class ColorDeconvolutionStains implements Externalizable {
 		// If we got here, we didn't find 3 numbers
 		return null;
 	}
-	
-	
-	
+
+	/**
+	 * Create color deconvolution stains from the provided name and map.
+	 * <p>
+	 * This is the inverse operation of {@link #getColorDeconvolutionStainsAsMap()}.
+	 *
+	 * @param name the name of the color deconvolution stains
+	 * @param stains a map of stain name to stain values. Each stain value must be a list containing at least three elements
+	 *               (otherwise the value is skipped). A 'Background' stain must be provided. A stain with the name of 'Residual'
+	 *               will be set as {@link StainVector#isResidual() residual}, others won't. The order of the map matters: the first
+	 *               entry will be the first stain (unless it's the background), and so on.
+	 * @return color deconvolution stains representing the provided map
+	 * @throws IllegalArgumentException if the provided stains do not contain a 'Background' stain with at least three values,
+	 * or if the provided stains do not contain at least two non-'Background' stains with at least three values
+	 * @throws NullPointerException if one of the parameter is null
+	 */
+	public static ColorDeconvolutionStains parseColorDeconvolutionStains(String name, Map<String, List<Number>> stains) {
+		Objects.requireNonNull(name);
+		if (!stains.containsKey(BACKGROUND_KEY) || stains.get(BACKGROUND_KEY).size() < 3) {
+			throw new IllegalArgumentException(String.format(
+					"The provided stains %s do not contain a 'Background' stain with at least three values",
+					stains
+			));
+		}
+
+		List<StainVector> stainVectors = stains.entrySet().stream()
+				.filter(entry -> !entry.getKey().equals(BACKGROUND_KEY))
+				.map(entry -> {
+					if (entry.getValue().size() < 3) {
+						logger.warn("Stain {} does not contain at least three values (it has {}). Skipping it", entry.getKey(), entry.getValue());
+						return null;
+					} else {
+						return new StainVector(
+								entry.getKey(),
+								entry.getValue().get(0).doubleValue(),
+								entry.getValue().get(1).doubleValue(),
+								entry.getValue().get(2).doubleValue(),
+								RESIDUAL_KEY.equals(entry.getKey())
+						);
+					}
+				})
+				.filter(Objects::nonNull)
+				.toList();
+		if (stainVectors.size() < 2) {
+			throw new IllegalArgumentException(String.format(
+					"It was not possible to create at least two stain vectors from the provided stains %s (without considering the 'Background' stain)",
+					stains
+			));
+		}
+
+		return new ColorDeconvolutionStains(
+				name,
+				stainVectors.getFirst(),
+				stainVectors.get(1),
+				stainVectors.size() > 2 ? stainVectors.get(2) : null,
+				stains.get(BACKGROUND_KEY).get(0).doubleValue(),
+				stains.get(BACKGROUND_KEY).get(1).doubleValue(),
+				stains.get(BACKGROUND_KEY).get(2).doubleValue()
+		);
+	}
+
+	/**
+	 * Create a map containing information on the stain vectors and maximum RGB values of this object.
+	 * <p>
+	 * This is the inverse operation of {@link #parseColorDeconvolutionStains(String,Map)} (without the
+	 * {@link #getName() name} information).
+	 *
+	 * @return a map of stain name to stain values. Each stain value is a list of three elements. A 'Background' stain
+	 * represents the maximum RGB values. The returned map is ordered: the first entry represents the first stain, and
+	 * so on (the 'Background' stain will be the last element)
+	 */
+	public Map<String, List<Number>> getColorDeconvolutionStainsAsMap() {
+		Map<String, List<Number>> stainsMap = new LinkedHashMap<>();	// LinkedHashMap to keep order
+
+		for (StainVector stain: Arrays.asList(stain1, stain2, stain3)) {
+			if (stain != null) {
+				stainsMap.put(stain.getName(), List.of(stain.getRed(), stain.getGreen(), stain.getBlue()));
+			}
+		}
+		stainsMap.put(BACKGROUND_KEY, List.of(maxRed, maxGreen, maxBlue));
+
+		return stainsMap;
+	}
 	
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
