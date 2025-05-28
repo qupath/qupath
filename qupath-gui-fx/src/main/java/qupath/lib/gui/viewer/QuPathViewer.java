@@ -63,6 +63,7 @@ import javax.imageio.stream.ImageInputStream;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import org.slf4j.Logger;
@@ -272,7 +273,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private BufferedImage imgCache;
 	private WritableImage imgCacheFX;
 	
-	private double borderLineWidth = 5;
+	private double borderLineWidth = 6;
 	private javafx.scene.paint.Color borderColor;
 	
 	/**
@@ -366,6 +367,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	private Label createPlaceholder() {
 		var placeholder = new Label(placeholderText.getValueSafe());
+		placeholder.setWrapText(true);
+		placeholder.setTextAlignment(TextAlignment.CENTER);
+		placeholder.setPadding(new Insets(5.0));
 		placeholder.textProperty().bind(placeholderText);
 		placeholder.styleProperty().bind(Bindings.createStringBinding(() -> {
 			Integer rgb = PathPrefs.viewerBackgroundColorProperty().getValue();

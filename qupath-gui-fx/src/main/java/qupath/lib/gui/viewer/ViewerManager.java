@@ -141,7 +141,7 @@ public class ViewerManager implements QuPathViewerListener {
 	 */
 	private Reference<PathObject> lastAnnotationObject = null;
 
-	private final Color colorBorder = Color.rgb(180, 0, 0, 0.5);
+	private final Color colorBorder = Color.rgb(180, 0, 0, 0.8);
 
 	private BooleanProperty synchronizeViewers = PathPrefs.createPersistentPreference("synchronizeViewers", false);
 
@@ -273,7 +273,8 @@ public class ViewerManager implements QuPathViewerListener {
 		getLastViewerPosition(viewer).reset();
 
 		if (viewer != null) {
-			viewer.setBorderColor(colorBorder);
+			if (viewers.size() > 1)
+				viewer.setBorderColor(colorBorder);
 			if (viewer.getServer() != null) {
 				getLastViewerPosition(viewer).update(viewer);
 				if (spaceDown)
@@ -791,16 +792,18 @@ public class ViewerManager implements QuPathViewerListener {
 
 		// Create placeholder text for when no image is showing
 		var placeholder = Bindings.createStringBinding(() -> {
-			if (viewer.getImageData() != null) {
+			if (viewer != activeViewerProperty().get() || viewer.getImageData() != null) {
 				return null;
 			}
 			if (qupath.getProject() == null) {
 				return "Drag & drop an image file or project folder";
 			} else {
-				return "Drag & drop image files to add to the project";
+				return "Drag & drop image files to add them to the project\n" +
+						"or open an image by double-clicking it under the 'Project' tab";
 			}
-		}, viewer.imageDataProperty(), qupath.projectProperty());
+		}, viewer.imageDataProperty(), qupath.projectProperty(), activeViewerProperty());
 		viewer.placeholderTextProperty().bind(placeholder);
+
 
 		// Update active viewer as required
 		viewer.getView().focusedProperty().addListener((e, f, nowFocussed) -> {
