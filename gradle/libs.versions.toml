@@ -1,8 +1,8 @@
 [versions]
 
-bioformats      = "8.1.1"
+bioformats      = "8.2.0"
 bioimageIoSpec  = "0.2.0"
-omeZarrReader   = "0.5.2"
+omeZarrReader   = "0.6.0"
 blosc           = "1.21.6+01"
 
 commonmark      = "0.24.0"
