@@ -21,6 +21,7 @@
 
 package qupath.lib.objects.hierarchy;
 
+import org.locationtech.jts.algorithm.construct.MaximumInscribedCircle;
 import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
@@ -32,6 +33,8 @@ import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.util.Collections;
@@ -46,6 +49,8 @@ import java.util.WeakHashMap;
  * resolution, in an attempt to address https://github.com/qupath/qupath/issues/1771
  */
 class RoiRelate {
+
+    private static final Logger logger = LoggerFactory.getLogger(RoiRelate.class);
 
     private final ROI roi;
     private final Geometry geometry;
@@ -122,9 +127,24 @@ class RoiRelate {
         if (!env.covers(child.getEnvelopeInternal()))
             return false;
 
-        // Expensive calculation!
+        // Difference should use overlay op precision... so if this is empty,
+        // then the geometry is covered (within the tolerance)
+        var diff = child.difference(parent.getGeometry());
+        if (diff.isEmpty()) {
+            logger.trace("Geometry does not cover - fails empty difference test");
+            return true;
+        }
+
+        // We can use the difference to do a quick check based on 'thickness'
+        if (new MaximumInscribedCircle(diff, tolerance/10).getRadiusLine().getLength() * 2 >= tolerance) {
+            logger.trace("Geometry does not cover - fails max inscribed circle test");
+            return false;
+        }
+
+        // Expensive calculation! Used as a last resort
         var intersection = parent.getGeometry().intersection(child);
         double actualDist = DiscreteHausdorffDistance.distance(intersection, child, 0.01);
+        logger.trace("Applying DiscreteHausdorffDistance test");
         return actualDist < tolerance;
     }
 
