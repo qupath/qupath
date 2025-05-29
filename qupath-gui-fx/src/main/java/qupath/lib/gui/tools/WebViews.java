@@ -23,6 +23,7 @@
 package qupath.lib.gui.tools;
 
 import javafx.application.ColorScheme;
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -44,6 +45,7 @@ public class WebViews {
 	static {
 		QuPathStyleManager.fontProperty().addListener((v, o, n) -> updateStylesheet());
 		QuPathStyleManager.selectedStyleProperty().addListener((v, o, n) -> updateStylesheet());
+		Platform.getPreferences().colorSchemeProperty().addListener((v, o, n) -> updateStylesheet());
 		updateStylesheet();
 	}
 	
