@@ -36,12 +36,16 @@ import java.util.Objects;
 import java.util.Optional;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.TextAlignment;
+import javafx.stage.Modality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +80,7 @@ public class QuPathApp extends Application {
 
 		// Delay logging until here, so that the UI has initialized and can display the message
 		QuPathLaunchParameters params = QuPathLaunchParameters.parse(getParameters());
-		logger.info("Starting QuPath with parameters: " + params.getRawParameters());
+        logger.info("Starting QuPath with parameters: {}", params.getRawParameters());
 
 		Optional<String> projectPath = params.getProjectParameter();
 		projectPath.ifPresent(s -> openProjectOrLogException(qupath, s));
@@ -87,6 +91,10 @@ public class QuPathApp extends Application {
 		tryToRegisterOpenFilesHandler(qupath);
 		
 		if (!params.requestQuietLaunch()) {
+
+			if (showLicenseMessage.get()) {
+				showLicenseMessage(qupath);
+			}
 
 			if (PathPrefs.showStartupMessageProperty().get()) {
 				showWelcomeMessage(qupath);
@@ -107,6 +115,44 @@ public class QuPathApp extends Application {
 			
 		}
 		
+	}
+
+	private static final BooleanProperty showLicenseMessage =
+			PathPrefs.createPersistentPreference("showUseMessage", true);
+
+	private static void showLicenseMessage(QuPathGUI qupath) {
+		var labelLicense = new Label(
+                "QuPath is open-source software that is shared\n" +
+				"under the terms of the General Public License v3");
+		labelLicense.setTextAlignment(TextAlignment.CENTER);
+
+		var hyperlink = new Hyperlink("Show licenses");
+		hyperlink.setOnAction(e -> qupath.getCommonActions().SHOW_LICENSE.handle(e));
+
+		var labelContent = new Label("This software is not intended for clinical use.");
+		labelContent.setTextAlignment(TextAlignment.CENTER);
+		labelContent.setStyle("-fx-font-weight: bold;");
+
+		var cbAskAgain = new CheckBox("Don't show this again (always accept)");
+		cbAskAgain.setSelected(showLicenseMessage.get());
+		cbAskAgain.setPadding(new Insets(5, 0, 0, 0));
+		var content = new VBox(labelLicense, hyperlink, labelContent, cbAskAgain);
+
+		content.setSpacing(5);
+		content.setAlignment(Pos.CENTER);
+		var accept = new ButtonType("Accept", ButtonBar.ButtonData.YES);
+		var exit = new ButtonType("Exit", ButtonBar.ButtonData.NO);
+		if (!Dialogs.builder()
+			.information()
+			.content(content)
+			.modality(Modality.APPLICATION_MODAL)
+			.title("Notice")
+			.buttons(accept, exit)
+			.showAndWait()
+			.orElse(exit).equals(accept)) {
+			System.exit(0);
+		}
+		showLicenseMessage.set(cbAskAgain.isSelected());
 	}
 
 	private static final BooleanProperty promptForExtensions =

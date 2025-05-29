@@ -97,7 +97,7 @@ public class HelpMenuActions implements MenuActions {
 		public final Action SEP_3 = ActionTools.createSeparator();
 
 		@ActionConfig("Action.Help.license")
-		public final Action LICENSE = Commands.createSingleStageAction(() -> Commands.createLicensesWindow(qupath));
+		public final Action LICENSE = qupath.getCommonActions().SHOW_LICENSE;
 		
 		@ActionConfig("Action.Help.systemInfo")
 		public final Action INFO = Commands.createSingleStageAction(() -> Commands.createShowSystemInfoDialog(qupath));

@@ -76,7 +76,7 @@ class ShowLicensesCommand {
 			sbQuPath.append(licenseText);
 		} catch (Exception e) {
 			sbQuPath.append("Error reading license information!\n\n");
-			sbQuPath.append("For the most up-to-date QuPath license information, see " + Urls.getGitHubRepoUrl());
+			sbQuPath.append("For the most up-to-date QuPath license information, see ").append(Urls.getGitHubRepoUrl());
 			logger.error("Cannot read license information", e);
 		}
 
