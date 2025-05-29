@@ -22,6 +22,8 @@
 
 package qupath.lib.gui.tools;
 
+import javafx.application.ColorScheme;
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -43,6 +45,7 @@ public class WebViews {
 	static {
 		QuPathStyleManager.fontProperty().addListener((v, o, n) -> updateStylesheet());
 		QuPathStyleManager.selectedStyleProperty().addListener((v, o, n) -> updateStylesheet());
+		Platform.getPreferences().colorSchemeProperty().addListener((v, o, n) -> updateStylesheet());
 		updateStylesheet();
 	}
 	
@@ -92,8 +95,8 @@ public class WebViews {
 			break;
 		}
 		
-		var style = QuPathStyleManager.selectedStyleProperty().get();
-		if (style != null && style.getName().toLowerCase().contains("dark"))
+		var scheme = QuPathStyleManager.getStyleColorScheme();
+		if (scheme != null && scheme == ColorScheme.DARK)
 			cssName += "dark";
 		else
 			cssName += "light";
