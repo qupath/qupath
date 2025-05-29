@@ -121,6 +121,9 @@ public class CommonActions {
 	@ActionIcon(PathIcons.HELP)
 	@ActionConfig("CommonActions.showHelp")
 	public final Action HELP_VIEWER;
+
+	@ActionConfig("Action.Help.license")
+	public final Action SHOW_LICENSE;
 	
 	private QuPathGUI qupath;
 	
@@ -167,6 +170,8 @@ public class CommonActions {
 
 		INPUT_DISPLAY = ActionTools.createSelectableCommandAction(qupath.showInputDisplayProperty());
 		MEMORY_MONITOR = Commands.createSingleStageAction(() -> Commands.createMemoryMonitorDialog(qupath));
+
+		SHOW_LICENSE = Commands.createSingleStageAction(() -> Commands.createLicensesWindow(qupath));
 
 		// This has the effect of applying the annotations
 		ActionTools.getAnnotatedActions(this);
