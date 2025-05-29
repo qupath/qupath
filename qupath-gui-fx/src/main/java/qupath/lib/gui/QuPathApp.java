@@ -122,7 +122,7 @@ public class QuPathApp extends Application {
 	private static void showLicenseMessage(QuPathGUI qupath) {
 		var labelLicense = new Label(
                 "QuPath is open-source software that is shared\n" +
-				"under the terms of the General Public License v3");
+				"under the terms of the GNU General Public License v3");
 		labelLicense.setTextAlignment(TextAlignment.CENTER);
 
 		var hyperlink = new Hyperlink("Show licenses");
