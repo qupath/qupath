@@ -138,7 +138,7 @@ class ToolBarComponent {
 		nodes.add(createSeparator());
 
 		nodes.add(magLabel);
-		nodes.add(createToggleButton(viewerManagerActions.ZOOM_TO_FIT));
+		nodes.add(createButton(viewerManagerActions.ZOOM_TO_FIT));
 
 		nodes.add(createSeparator());
 
