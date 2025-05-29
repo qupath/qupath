@@ -668,6 +668,16 @@ public class ContextHelpViewer {
 		return entry;
 	}
 
+	private HelpListEntry createGreyscaleColors() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.greyscale");
+		entry.visibleProperty().bind(
+				qupath.viewerProperty()
+						.map(QuPathViewer::getImageDisplay)
+						.flatMap(ImageDisplay::useGrayscaleLutProperty));
+		return entry;
+	}
+
 	private HelpListEntry createNoChannelsVisible() {
 		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.noChannels",
