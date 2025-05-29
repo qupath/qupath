@@ -131,7 +131,7 @@ class RoiRelate {
         // then the geometry is covered (within the tolerance)
         var diff = child.difference(parent.getGeometry());
         if (diff.isEmpty()) {
-            logger.trace("Geometry does not cover - fails empty difference test");
+            logger.trace("Geometry covers - difference is empty");
             return true;
         }
 
