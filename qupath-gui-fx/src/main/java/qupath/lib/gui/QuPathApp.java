@@ -117,8 +117,7 @@ public class QuPathApp extends Application {
 		
 	}
 
-	private static final BooleanProperty showLicenseMessage =
-			PathPrefs.createPersistentPreference("showUseMessage", true);
+	private static final BooleanProperty showLicenseMessage = PathPrefs.showLicenseMessageOnStartupProperty();
 
 	private static void showLicenseMessage(QuPathGUI qupath) {
 		var labelLicense = new Label(
@@ -134,7 +133,7 @@ public class QuPathApp extends Application {
 		labelContent.setStyle("-fx-font-weight: bold;");
 
 		var cbAskAgain = new CheckBox("Don't show this again (always accept)");
-		cbAskAgain.setSelected(showLicenseMessage.get());
+		cbAskAgain.setSelected(!showLicenseMessage.get());
 		cbAskAgain.setPadding(new Insets(5, 0, 0, 0));
 		var content = new VBox(labelLicense, hyperlink, labelContent, cbAskAgain);
 
@@ -152,7 +151,7 @@ public class QuPathApp extends Application {
 			.orElse(exit).equals(accept)) {
 			System.exit(0);
 		}
-		showLicenseMessage.set(cbAskAgain.isSelected());
+		showLicenseMessage.set(!cbAskAgain.isSelected());
 	}
 
 	private static final BooleanProperty promptForExtensions =

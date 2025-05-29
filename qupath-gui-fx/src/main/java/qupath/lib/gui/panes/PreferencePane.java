@@ -228,6 +228,9 @@ public class PreferencePane {
 		@BooleanPref("Prefs.General.showStartupMessage")
 		public final BooleanProperty startupMessage = PathPrefs.showStartupMessageProperty();
 
+		@BooleanPref("Prefs.General.showLicenseMessage")
+		public final BooleanProperty licenseMessage = PathPrefs.showLicenseMessageOnStartupProperty();
+
 		@FilePref(value = "Prefs.General.startupScriptPath", extensions = "*.groovy")
 		public final StringProperty startupScriptPath = PathPrefs.startupScriptProperty();
 

@@ -318,13 +318,24 @@ public class PathPrefs {
 	
 	private static BooleanProperty showStartupMessage = createPersistentPreference("showStartupMessage", true);
 	
-	
+
 	/**
 	 * Show a startup message when QuPath is launched.
 	 * @return
 	 */
 	public static BooleanProperty showStartupMessageProperty() {
 		return showStartupMessage;
+	}
+
+
+	private static BooleanProperty showLicenseMessageProperty = createPersistentPreference("showLicenseMessage", true);
+
+	/**
+	 * Show a startup message about license when QuPath is launched.
+	 * @return
+	 */
+	public static BooleanProperty showLicenseMessageOnStartupProperty() {
+		return showLicenseMessageProperty;
 	}
 
 
