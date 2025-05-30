@@ -27,15 +27,16 @@ import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -349,25 +350,32 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		pcs.firePropertyChange("imageType", oldType, type);
 		changes = true;
 	}
-	
-	
-	
+
 	private static void addColorDeconvolutionStainsToWorkflow(ImageData<?> imageData) {
 		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 		if (stains == null) {
+			logger.debug("{} has no color deconvolution stain. Cannot add workflow step", imageData);
 			return;
 		}
-		
-		String arg = ColorDeconvolutionStains.getColorDeconvolutionStainsAsString(imageData.getColorDeconvolutionStains(), 32);
-		Map<String, String> map = GeneralTools.parseArgStringValues(arg);
+
+		Map<String, List<Number>> stainsMap = stains.getColorDeconvolutionStainsAsMap();
+
+		WorkflowStep newStep = new DefaultScriptableWorkflowStep(
+				"Set color deconvolution stains",
+				stainsMap,
+				String.format(
+						"setColorDeconvolutionStains('%s', [%s])",
+						stains.getName(),
+						stainsMap.entrySet().stream()
+								.map(entry -> String.format("%s: %s", entry.getKey(), entry.getValue()))
+								.collect(Collectors.joining(", "))
+				)
+		);
 		WorkflowStep lastStep = imageData.getHistoryWorkflow().getLastStep();
-		String commandName = "Set color deconvolution stains";
-		WorkflowStep newStep = new DefaultScriptableWorkflowStep(commandName,
-				map,
-				"setColorDeconvolutionStains(\'" + arg + "');");
-		
-		if (!Objects.equals(newStep, lastStep))
+
+		if (!Objects.equals(newStep, lastStep)) {
 			imageData.getHistoryWorkflow().addStep(newStep);
+		}
 	}
 
 	/**
