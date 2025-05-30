@@ -453,8 +453,15 @@ public class UriUpdater<T extends UriResource> {
 
 	private static int searchDirectoriesRecursive(File dir, Collection<SingleUriItem> allItems, int maxDepth, Map<SingleUriItem, SingleUriItem> replacements) {
 		// Get a map of filenames and URIs for easier search
-		Map<String, List<SingleUriItem>> missing = allItems.stream().filter(p -> p.getStatus() == UriStatus.MISSING && p.getPath() != null && replacements.getOrDefault(p, null) == null)
-				.collect(Collectors.groupingBy(p -> p.getPath().getFileName().toString()));
+		Map<String, List<SingleUriItem>> missing = allItems.stream()
+				.filter(p -> p.getStatus() == UriStatus.MISSING &&
+						(p.getPath() != null || p.getURI().getPath() != null) &&
+						replacements.getOrDefault(p, null) == null
+				)
+				.collect(Collectors.groupingBy(p -> {
+					Path path = p.getPath() == null ? Paths.get(p.getURI().getPath()) : p.getPath();
+					return path.getFileName().toString();
+				}));
 
 		int sizeBefore = replacements.size();
 		searchDirectoriesRecursive(dir, missing, maxDepth, replacements);
@@ -535,9 +542,9 @@ public class UriUpdater<T extends UriResource> {
 		 * @return
 		 */
 		public UriStatus getStatus() {
-			if (path == null)
+			if (path == null && !"file".equals(uri.getScheme()))
 				return UriStatus.UNKNOWN;
-			if (Files.exists(path))
+			if (path != null && Files.exists(path))
 				return UriStatus.EXISTS;
 			return UriStatus.MISSING;
 		}
