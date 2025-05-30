@@ -24,6 +24,8 @@ package qupath.lib.gui.commands;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Scanner;
@@ -371,8 +373,9 @@ public class UpdateUrisCommand<T extends UriResource> {
 				setText("");
 				return;
 			}
-			setText(item.toString());
-			tooltip.setText(item.toString());
+			String displayableText = URLDecoder.decode(item.toString(), StandardCharsets.UTF_8);
+			setText(displayableText);
+			tooltip.setText(displayableText);
 			setTooltip(tooltip);
 
 			switch (item.getStatus()) {
