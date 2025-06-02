@@ -88,8 +88,18 @@ public class OverlayOptions {
 		/**
 		 * Show only detection centroids, not boundaries.
 		 */
-		CENTROIDS
-		};
+		CENTROIDS;
+		public static DetectionDisplayMode next(DetectionDisplayMode value) {
+			boolean pick = false;
+			for (var v: values()) {
+				if (pick) {
+					return v;
+				}
+				pick = v == value;
+			}
+			return values()[0];
+		}
+	};
 	
 	private final ObjectProperty<MeasurementMapper> measurementMapper = new SimpleObjectProperty<>();
 	private final BooleanProperty showAnnotations = new SimpleBooleanProperty(null, "showAnnotations", true);

@@ -109,7 +109,12 @@ public class OverlayActions {
 	@ActionIcon(PathIcons.SHOW_CONNECTIONS)
 	@ActionConfig("OverlayActions.showConnections")
 	public final Action SHOW_CONNECTIONS;
-	
+
+	@ActionConfig("OverlayActions.toggleDetectionDisplay")
+	@ActionIcon(PathIcons.CELL_NUCLEI_BOTH)
+	@ActionAccelerator("shift+n")
+	public final Action TOGGLE_DETECTION_DISPLAY;
+
 	private OverlayOptions overlayOptions;
 	
 	public OverlayActions(OverlayOptions overlayOptions) {
@@ -136,7 +141,10 @@ public class OverlayActions {
 		SHOW_CELL_CENTROIDS = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS));
 		
 		SHOW_CONNECTIONS = ActionTools.createSelectableAction(overlayOptions.showConnectionsProperty());
-		
+
+		TOGGLE_DETECTION_DISPLAY = new Action(e -> {
+			overlayOptions.detectionDisplayModeProperty().set(DetectionDisplayMode.next(overlayOptions.detectionDisplayModeProperty().get()));
+		});
 		ActionTools.getAnnotatedActions(this);
 	}
 	
