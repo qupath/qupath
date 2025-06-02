@@ -69,7 +69,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
 import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -280,7 +279,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
         TableColumn<ChannelDisplayInfo, Boolean> col2 = new TableColumn<>("Show");
         col2.setId("show-column");
         col2.setCellValueFactory(this::showChannelCellValueFactory);
-        col2.setCellFactory(column -> new ShowChannelDisplayTableCell());
+        col2.setCellFactory(column -> new ShowChannelDisplayTableCell(table));
         col2.setSortable(false);
         col2.setEditable(true);
         col2.setResizable(false);
@@ -418,6 +417,15 @@ public class BrightnessContrastChannelPane extends BorderPane {
             return;
         for (var channel : channels)
             imageDisplay.setChannelSelected(channel, !isChannelShowing(channel));
+        table.refresh();
+    }
+
+    private void setShowChannels(Collection<? extends ChannelDisplayInfo> channels, boolean newValue) {
+        var imageDisplay = imageDisplayProperty().getValue();
+        if (imageDisplay == null || channels.isEmpty())
+            return;
+        for (var channel : channels)
+            imageDisplay.setChannelSelected(channel, newValue);
         table.refresh();
     }
 
@@ -780,8 +788,11 @@ public class BrightnessContrastChannelPane extends BorderPane {
      */
     private class ShowChannelDisplayTableCell extends CheckBoxTableCell<ChannelDisplayInfo, Boolean> {
 
-        public ShowChannelDisplayTableCell() {
+        private final TableView<ChannelDisplayInfo> table;
+
+        public ShowChannelDisplayTableCell(TableView<ChannelDisplayInfo> table) {
             super();
+            this.table = table;
             addEventFilter(MouseEvent.MOUSE_CLICKED, this::filterMouseClicks);
         }
 
@@ -802,6 +813,11 @@ public class BrightnessContrastChannelPane extends BorderPane {
                 if (event.getTarget() == this && channel != null) {
                     toggleShowHideChannel(channel);
                 }
+                var selItems = table.getSelectionModel().getSelectedItems();
+                if (selItems.size() > 1) {
+                    setShowChannels(selItems, !isChannelShowing(channel));
+                }
+
                 event.consume();
             }
         }
