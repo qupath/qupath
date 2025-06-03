@@ -253,7 +253,7 @@ public class PathPrefs {
 	}
 
 	
-	public static BooleanProperty maskImageNames = createPersistentPreference("maskImageNames", Boolean.FALSE);
+	private static BooleanProperty maskImageNames = createPersistentPreference("maskImageNames", Boolean.FALSE);
 	
 	/**
 	 * Request that image names are hidden within the user interface.
