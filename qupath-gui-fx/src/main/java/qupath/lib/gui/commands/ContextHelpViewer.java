@@ -309,6 +309,7 @@ public class ContextHelpViewer {
 				createOpacityZeroEntry(),
 				createGammaNotDefault(),
 				createInvertedColors(),
+				createGreyscaleColors(),
 				createNoChannelsVisible(),
 				createColorsTooSimilar()
 				);
