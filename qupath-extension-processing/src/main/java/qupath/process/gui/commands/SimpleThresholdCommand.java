@@ -232,7 +232,7 @@ public class SimpleThresholdCommand implements Runnable {
 		labelSigma.textProperty().bind(
 				Bindings.createStringBinding(() -> sigma.get() == null ? "" : GeneralTools.formatNumber(sigma.get(), 2), sigma)
 				);
-		labelSigma.setMinWidth(25); // Thanks to Melvin, to stop it jumping around
+		labelSigma.setMinWidth(50); // Thanks to Melvin, to stop it jumping around
 		FXUtils.restrictTextFieldInputToNumber(sigmaSpinner.getEditor(), true);
 		FXUtils.resetSpinnerNullToPrevious(sigmaSpinner);
 		GridPaneUtils.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
@@ -240,6 +240,7 @@ public class SimpleThresholdCommand implements Runnable {
 		label = new Label("Threshold");
 		label.setLabelFor(spinner);
 		Label labelThreshold = new Label();
+		labelThreshold.setMinWidth(50); // to stop it jumping around
 		labelThreshold.textProperty().bind(
 				Bindings.createStringBinding(() -> threshold.get() == null ? "" : GeneralTools.formatNumber(threshold.get(), 2), threshold)
 				);
@@ -335,6 +336,9 @@ public class SimpleThresholdCommand implements Runnable {
 		stage.show();
 
 		stage.setMinHeight(320);
+		stage.setMaxHeight(420);
+		stage.setMinWidth(320);
+		stage.setMaxWidth(420);
 		stage.sizeToScene();
 		stage.setResizable(true);
 		
