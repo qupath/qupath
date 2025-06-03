@@ -297,6 +297,7 @@ public class ContextHelpViewer {
 				createPixelSizeMissing(),
 				createPixelSizeLikelyDpi(),
 				createImageTypeMissing(),
+				createMaskImageNames(),
 				createSelectionModelEntry(),
 				createAnnotationsHiddenEntry(),
 				createDetectionsHiddenEntry(),
@@ -309,6 +310,7 @@ public class ContextHelpViewer {
 				createOpacityZeroEntry(),
 				createGammaNotDefault(),
 				createInvertedColors(),
+				createGreyscaleColors(),
 				createNoChannelsVisible(),
 				createColorsTooSimilar()
 				);
@@ -555,7 +557,14 @@ public class ContextHelpViewer {
 			vbox.getChildren().add(label);
 		return label;
 	}
-	
+
+	private HelpListEntry createMaskImageNames() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.maskImageNames");
+		entry.visibleProperty().bind(
+				PathPrefs.maskImageNamesProperty());
+		return entry;
+	}
 	
 	private HelpListEntry createSelectionModelEntry() {
 		var entry = HelpListEntry.createInfo(
@@ -665,6 +674,16 @@ public class ContextHelpViewer {
 				qupath.viewerProperty()
 						.map(QuPathViewer::getImageDisplay)
 						.flatMap(ImageDisplay::useInvertedBackgroundProperty));
+		return entry;
+	}
+
+	private HelpListEntry createGreyscaleColors() {
+		var entry = HelpListEntry.createWarning(
+				"ContextHelp.warning.greyscale");
+		entry.visibleProperty().bind(
+				qupath.viewerProperty()
+						.map(QuPathViewer::getImageDisplay)
+						.flatMap(ImageDisplay::useGrayscaleLutProperty));
 		return entry;
 	}
 
