@@ -297,6 +297,7 @@ public class ContextHelpViewer {
 				createPixelSizeMissing(),
 				createPixelSizeLikelyDpi(),
 				createImageTypeMissing(),
+				createMaskImageNames(),
 				createSelectionModelEntry(),
 				createAnnotationsHiddenEntry(),
 				createDetectionsHiddenEntry(),
@@ -556,7 +557,14 @@ public class ContextHelpViewer {
 			vbox.getChildren().add(label);
 		return label;
 	}
-	
+
+	private HelpListEntry createMaskImageNames() {
+		var entry = HelpListEntry.createInfo(
+				"ContextHelp.warning.maskImageNames");
+		entry.visibleProperty().bind(
+				PathPrefs.maskImageNames);
+		return entry;
+	}
 	
 	private HelpListEntry createSelectionModelEntry() {
 		var entry = HelpListEntry.createInfo(
