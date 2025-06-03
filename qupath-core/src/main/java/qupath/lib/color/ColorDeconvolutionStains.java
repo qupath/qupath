@@ -611,24 +611,25 @@ public class ColorDeconvolutionStains implements Externalizable {
 			));
 		}
 
-		List<StainVector> stainVectors = stains.entrySet().stream()
-				.filter(entry -> !entry.getKey().equals(BACKGROUND_KEY))
-				.map(entry -> {
-					if (entry.getValue().size() < 3) {
-						logger.warn("Stain {} does not contain at least three values (it has {}). Skipping it", entry.getKey(), entry.getValue());
-						return null;
-					} else {
-						return new StainVector(
-								entry.getKey(),
-								entry.getValue().get(0).doubleValue(),
-								entry.getValue().get(1).doubleValue(),
-								entry.getValue().get(2).doubleValue(),
-								RESIDUAL_KEY.equals(entry.getKey())
-						);
-					}
-				})
-				.filter(Objects::nonNull)
-				.toList();
+		List<StainVector> stainVectors = new ArrayList<>();
+		for (var entry: stains.entrySet()) {
+			if (entry.getKey().equals(BACKGROUND_KEY)) {
+				continue;
+			}
+
+			if (entry.getValue().size() != 3) {
+				logger.warn("Stain {} does not contain three values (it has {}). Skipping it", entry.getKey(), entry.getValue());
+				continue;
+			}
+
+			stainVectors.add(new StainVector(
+					entry.getKey(),
+					entry.getValue().get(0).doubleValue(),
+					entry.getValue().get(1).doubleValue(),
+					entry.getValue().get(2).doubleValue(),
+					RESIDUAL_KEY.equals(entry.getKey())
+			));
+		}
 		if (stainVectors.size() < 2) {
 			throw new IllegalArgumentException(String.format(
 					"It was not possible to create at least two stain vectors from the provided stains %s (without considering the 'Background' stain)",
@@ -638,7 +639,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 
 		return new ColorDeconvolutionStains(
 				name,
-				stainVectors.getFirst(),
+				stainVectors.get(0),
 				stainVectors.get(1),
 				stainVectors.size() > 2 ? stainVectors.get(2) : null,
 				stains.get(BACKGROUND_KEY).get(0).doubleValue(),
