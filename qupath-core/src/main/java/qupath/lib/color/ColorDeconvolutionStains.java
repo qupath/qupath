@@ -613,12 +613,12 @@ public class ColorDeconvolutionStains implements Externalizable {
 
 		List<StainVector> stainVectors = new ArrayList<>();
 		for (var entry: stains.entrySet()) {
-			if (entry.getKey().equals(BACKGROUND_KEY)) {
+			if (BACKGROUND_KEY.equals(entry.getKey())) {
 				continue;
 			}
 
-			if (entry.getValue().size() != 3) {
-				logger.warn("Stain {} does not contain three values (it has {}). Skipping it", entry.getKey(), entry.getValue());
+			if (entry.getValue() == null || entry.getValue().size() != 3) {
+				logger.warn("Stain {} does not contain three values (it is {}). Skipping it", entry.getKey(), entry.getValue());
 				continue;
 			}
 
