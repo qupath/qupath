@@ -559,7 +559,7 @@ public class ContextHelpViewer {
 	}
 
 	private HelpListEntry createMaskImageNames() {
-		var entry = HelpListEntry.createInfo(
+		var entry = HelpListEntry.createWarning(
 				"ContextHelp.warning.maskImageNames");
 		entry.visibleProperty().bind(
 				PathPrefs.maskImageNames);
