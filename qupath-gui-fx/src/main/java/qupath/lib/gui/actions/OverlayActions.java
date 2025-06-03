@@ -113,7 +113,7 @@ public class OverlayActions {
 	@ActionConfig("OverlayActions.toggleDetectionDisplay")
 	@ActionIcon(PathIcons.CELL_NUCLEI_BOTH)
 	@ActionAccelerator("shift+n")
-	public final Action TOGGLE_DETECTION_DISPLAY;
+	public final Action NEXT_DETECTION_DISPLAY;
 
 	private OverlayOptions overlayOptions;
 	
@@ -142,7 +142,7 @@ public class OverlayActions {
 		
 		SHOW_CONNECTIONS = ActionTools.createSelectableAction(overlayOptions.showConnectionsProperty());
 
-		TOGGLE_DETECTION_DISPLAY = new Action(e -> {
+		NEXT_DETECTION_DISPLAY = new Action(e -> {
 			overlayOptions.detectionDisplayModeProperty().set(DetectionDisplayMode.next(overlayOptions.detectionDisplayModeProperty().get()));
 		});
 		ActionTools.getAnnotatedActions(this);

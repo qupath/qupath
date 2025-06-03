@@ -150,7 +150,6 @@ class ToolBarComponent {
 		nodes.add(createToggleButton(overlayActions.FILL_DETECTIONS));
 		// TODO: Consider removing 'Show connections' button until it becomes more useful
 		nodes.add(createToggleButton(overlayActions.SHOW_CONNECTIONS));
-		nodes.add(createToggleButton(overlayActions.TOGGLE_DETECTION_DISPLAY));
 		nodes.add(createToggleButton(overlayActions.SHOW_PIXEL_CLASSIFICATION));
 
 		final Slider sliderOpacity = new Slider(0, 1, 1);

@@ -228,9 +228,7 @@ public class ViewMenuActions implements MenuActions {
 		public final Action ATTACH_VIEWER = qupath.createViewerAction(viewer -> qupath.getViewerManager().attachViewerToGrid(viewer));
 
 	}
-	
-	
-	
+
 	public class ZoomActions {
 		
 		@ActionConfig("Action.View.Zoom.400")
@@ -288,6 +286,10 @@ public class ViewMenuActions implements MenuActions {
 		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = overlayActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI;
 
 		public final Action SHOW_CELL_CENTROIDS = overlayActions.SHOW_CELL_CENTROIDS;
+
+		public final Action SEP_9 = ActionTools.createSeparator();
+
+		public final Action NEXT_DETECTION_DISPLAY = overlayActions.NEXT_DETECTION_DISPLAY;
 		
 	}
 	
@@ -308,7 +310,7 @@ public class ViewMenuActions implements MenuActions {
 			PathPrefs.useRotateGesturesProperty().set(false);
 		});
 		
-		public final Action SEP_9 = ActionTools.createSeparator();
+		public final Action SEP_10 = ActionTools.createSeparator();
 		
 		@ActionConfig("Action.View.Multitouch.scroll")
 		public final Action GESTURES_SCROLL = ActionTools.createSelectableCommandAction(PathPrefs.useScrollGesturesProperty());
