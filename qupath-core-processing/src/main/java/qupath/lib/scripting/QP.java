@@ -1911,15 +1911,15 @@ public class QP {
 	/**
 	 * Set the color deconvolution stains for the current image data.
 	 *
-	 * @param name the name of the color deconvolution stains
 	 * @param stains a map of stain name to stain values. Each stain value must be a list containing at least three elements
-	 *               (otherwise the value is skipped). A 'Background' stain must be provided. A stain with the name of 'Residual'
-	 *               will be set as {@link StainVector#isResidual() residual}, others won't. The order of the map matters: the first
-	 *               entry will be the first stain (unless it's the background), and so on.
-	 * @return whether color deconvolution stains were set (which will be false if there is no current image
-	 * data for example. The exact reason will be logged with the DEBUG level)
+	 *               (otherwise the value is skipped). A stain must be provided with the name defined by {@link ColorDeconvolutionStains#BACKGROUND_KEY}.
+	 *               A stain with the name defined by {@link ColorDeconvolutionStains#RESIDUAL_KEY} will be set as {@link StainVector#isResidual() residual},
+	 *               others won't. The order of the map matters: the first entry will be the first stain (unless it's the background), and so on.
+	 * @param name the name of the color deconvolution stains
+	 * @return whether color deconvolution stains were set (which will be false if there is no current image data for example. The exact reason will be logged
+	 * with the DEBUG level)
 	 */
-	public static boolean setColorDeconvolutionStains(String name, Map<String, List<Number>> stains) {
+	public static boolean setColorDeconvolutionStains(Map<String, List<Number>> stains, String name) {
 		ImageData<?> imageData = getCurrentImageData();
 		if (imageData == null) {
 			logger.debug("No current image data. Cannot set color deconvolution stains");
