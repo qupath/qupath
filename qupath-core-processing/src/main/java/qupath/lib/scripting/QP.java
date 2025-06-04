@@ -1916,23 +1916,19 @@ public class QP {
 	 *               A stain with the name defined by {@link ColorDeconvolutionStains#RESIDUAL_KEY} will be set as {@link StainVector#isResidual() residual},
 	 *               others won't. The order of the map matters: the first entry will be the first stain (unless it's the background), and so on.
 	 * @param name the name of the color deconvolution stains
-	 * @return whether color deconvolution stains were set (which will be false if there is no current image data for example. The exact reason will be logged
-	 * with the DEBUG level)
+	 * @throws IllegalStateException if there is no current image data
+	 * @throws IllegalArgumentException if the provided stains do not contain a stain with the name defined by {@link ColorDeconvolutionStains#BACKGROUND_KEY}
+	 * and with at least three values, or if the provided stains do not contain at least two non-{@link ColorDeconvolutionStains#BACKGROUND_KEY} stains with
+	 * at least three values
+	 * @throws NullPointerException if one of the parameter is null
 	 */
-	public static boolean setColorDeconvolutionStains(Map<String, List<Number>> stains, String name) {
+	public static void setColorDeconvolutionStains(Map<String, List<Number>> stains, String name) {
 		ImageData<?> imageData = getCurrentImageData();
 		if (imageData == null) {
-			logger.debug("No current image data. Cannot set color deconvolution stains");
-			return false;
+			throw new IllegalStateException("No current image data. Cannot set color deconvolution stains");
 		}
 
-		try {
-			imageData.setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStains(name, stains));
-			return true;
-		} catch (IllegalArgumentException e) {
-			logger.debug("Cannot set color deconvolution stains {}", stains, e);
-			return false;
-		}
+		imageData.setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStains(name, stains));
 	}
 	
 //	public static void classifyDetection(final Predicate<PathObject> p, final String className) {

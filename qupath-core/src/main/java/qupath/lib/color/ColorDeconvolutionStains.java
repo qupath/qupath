@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.StringTokenizer;
 import java.util.stream.IntStream;
 
@@ -600,15 +601,17 @@ public class ColorDeconvolutionStains implements Externalizable {
 	 *               others won't. The order of the map matters: the first entry will be the first stain (unless it's the background), and so on.
 	 * @return color deconvolution stains representing the provided map
 	 * @throws IllegalArgumentException if the provided stains do not contain a stain with the name defined by {@link #BACKGROUND_KEY} and with at least three values,
-	 * or if the provided stains do not contain at least two non-'Background' stains with at least three values
+	 * or if the provided stains do not contain at least two non-{@link #BACKGROUND_KEY} stains with at least three values
 	 * @throws NullPointerException if one of the parameter is null
 	 */
 	public static ColorDeconvolutionStains parseColorDeconvolutionStains(String name, Map<String, List<Number>> stains) {
 		Objects.requireNonNull(name);
+
+		Optional<String> backgroundStainName = stains.keySet().stream().filter(BACKGROUND_KEY::equalsIgnoreCase).findAny();
 		if (
-				!stains.containsKey(BACKGROUND_KEY) ||
-				stains.get(BACKGROUND_KEY).size() < 3 ||
-				IntStream.range(0, 3).mapToObj(i -> stains.get(BACKGROUND_KEY).get(i)).anyMatch(Objects::isNull)
+				backgroundStainName.isEmpty() ||
+				stains.get(backgroundStainName.get()).size() < 3 ||
+				IntStream.range(0, 3).mapToObj(i -> stains.get(backgroundStainName.get()).get(i)).anyMatch(Objects::isNull)
 		) {
 			throw new IllegalArgumentException(String.format(
 					"The provided stains %s do not contain a '%s' stain with at least three values",
@@ -619,7 +622,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 
 		List<StainVector> stainVectors = new ArrayList<>();
 		for (var entry: stains.entrySet()) {
-			if (BACKGROUND_KEY.equals(entry.getKey())) {
+			if (backgroundStainName.get().equals(entry.getKey())) {
 				continue;
 			}
 
@@ -633,14 +636,14 @@ public class ColorDeconvolutionStains implements Externalizable {
 					entry.getValue().get(0).doubleValue(),
 					entry.getValue().get(1).doubleValue(),
 					entry.getValue().get(2).doubleValue(),
-					RESIDUAL_KEY.equals(entry.getKey())
+					RESIDUAL_KEY.equalsIgnoreCase(entry.getKey())
 			));
 		}
 		if (stainVectors.size() < 2) {
 			throw new IllegalArgumentException(String.format(
 					"It was not possible to create at least two stain vectors from the provided stains %s (without considering the '%s' stain)",
 					stains,
-					BACKGROUND_KEY
+					backgroundStainName.get()
 			));
 		}
 
@@ -649,9 +652,9 @@ public class ColorDeconvolutionStains implements Externalizable {
 				stainVectors.get(0),
 				stainVectors.get(1),
 				stainVectors.size() > 2 ? stainVectors.get(2) : null,
-				stains.get(BACKGROUND_KEY).get(0).doubleValue(),
-				stains.get(BACKGROUND_KEY).get(1).doubleValue(),
-				stains.get(BACKGROUND_KEY).get(2).doubleValue()
+				stains.get(backgroundStainName.get()).get(0).doubleValue(),
+				stains.get(backgroundStainName.get()).get(1).doubleValue(),
+				stains.get(backgroundStainName.get()).get(2).doubleValue()
 		);
 	}
 
