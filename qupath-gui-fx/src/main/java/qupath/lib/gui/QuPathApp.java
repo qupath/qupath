@@ -128,7 +128,7 @@ public class QuPathApp extends Application {
 		var hyperlink = new Hyperlink("Show licenses");
 		hyperlink.setOnAction(e -> qupath.getCommonActions().SHOW_LICENSE.handle(e));
 
-		var labelContent = new Label("This software is not intended for clinical use.");
+		var labelContent = new Label("This software is not intended for clinical, diagnostic or therapeutic purposes.");
 		labelContent.setTextAlignment(TextAlignment.CENTER);
 		labelContent.setStyle("-fx-font-weight: bold;");
 
