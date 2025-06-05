@@ -792,7 +792,9 @@ public class ViewerManager implements QuPathViewerListener {
 
 		// Create placeholder text for when no image is showing
 		var placeholder = Bindings.createStringBinding(() -> {
-			if (viewer != activeViewerProperty().get() || viewer.getImageData() != null) {
+			if (!PathPrefs.showViewerPlaceholderTextProperty().get() ||
+					viewer != activeViewerProperty().get() ||
+					viewer.getImageData() != null) {
 				return null;
 			}
 			if (qupath.getProject() == null) {
@@ -801,7 +803,7 @@ public class ViewerManager implements QuPathViewerListener {
 				return "Drag & drop image files to add them to the project\n" +
 						"or open an image by double-clicking it under the 'Project' tab";
 			}
-		}, viewer.imageDataProperty(), qupath.projectProperty(), activeViewerProperty());
+		}, viewer.imageDataProperty(), qupath.projectProperty(), activeViewerProperty(), PathPrefs.showViewerPlaceholderTextProperty());
 		viewer.placeholderTextProperty().bind(placeholder);
 
 

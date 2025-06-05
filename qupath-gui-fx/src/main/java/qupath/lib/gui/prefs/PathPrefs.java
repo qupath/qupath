@@ -920,15 +920,15 @@ public class PathPrefs {
 	}
 	
 	
-	private static DoubleProperty gridStartX = createPersistentPreference("gridStartX", 0.0);
+	private final static DoubleProperty gridStartX = createPersistentPreference("gridStartX", 0.0);
 
-	private static DoubleProperty gridStartY = createPersistentPreference("gridStartY", 0.0);
+	private final static DoubleProperty gridStartY = createPersistentPreference("gridStartY", 0.0);
 	
-	private static DoubleProperty gridSpacingX = createPersistentPreference("gridSpacingX", 250.0);
+	private final static DoubleProperty gridSpacingX = createPersistentPreference("gridSpacingX", 250.0);
 
-	private static DoubleProperty gridSpacingY = createPersistentPreference("gridSpacingY", 250.0);
+	private final static DoubleProperty gridSpacingY = createPersistentPreference("gridSpacingY", 250.0);
 
-	private static BooleanProperty gridScaleMicrons = createPersistentPreference("gridScaleMicrons", true);
+	private final static BooleanProperty gridScaleMicrons = createPersistentPreference("gridScaleMicrons", true);
 
 
 	/**
@@ -971,9 +971,17 @@ public class PathPrefs {
 		return gridScaleMicrons;
 	}
 
+	private final static BooleanProperty showViewerPlaceholderText = createPersistentPreference("showViewerPlaceholderText", true);
+
+	/**
+	 * Property to determine whether placeholder text should be shown when the viewer is empty.
+	 * @return
+	 */
+	public static BooleanProperty showViewerPlaceholderTextProperty() {
+		return showViewerPlaceholderText;
+	}
 	
-	
-	private static DoubleProperty autoBrightnessContrastSaturation = PathPrefs.createPersistentPreference("autoBrightnessContrastSaturationPercentage", 0.1);
+	private final static DoubleProperty autoBrightnessContrastSaturation = PathPrefs.createPersistentPreference("autoBrightnessContrastSaturationPercentage", 0.1);
 
 	/**
 	 * Controls percentage of saturated pixels to apply when automatically setting brightness/contrast.
