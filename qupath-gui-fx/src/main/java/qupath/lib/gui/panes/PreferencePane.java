@@ -350,7 +350,10 @@ public class PreferencePane {
 	
 	@PrefCategory("Prefs.Viewer")
 	public static class ViewerPreferences {
-		
+
+		@BooleanPref("Prefs.Viewer.placeholderText")
+		public final BooleanProperty placeholderText = PathPrefs.showViewerPlaceholderTextProperty();
+
 		@ColorPref("Prefs.Viewer.backgroundColor")
 		public final IntegerProperty backgroundColor = PathPrefs.viewerBackgroundColorProperty();
 
