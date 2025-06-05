@@ -23,6 +23,9 @@ package qupath.process.gui.commands;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+
+import javafx.scene.layout.BorderPane;
+import javafx.scene.text.TextAlignment;
 import org.controlsfx.control.CheckListView;
 
 import javafx.scene.control.CheckBox;
@@ -114,16 +117,27 @@ public class CreateChannelTrainingImagesCommand implements Runnable {
 		GridPaneUtils.addGridRow(pane, row++, 0, namePrompt, labelName, tfName);
 		GridPaneUtils.addGridRow(pane, row++, 0, "Channels to duplicate", list, list);
 		GridPaneUtils.addGridRow(pane, row++, 0, "Create Points annotations for the corresponding channel", cbInitializePoints, cbInitializePoints);
-		
+
+		if (imageData.isChanged()) {
+			var labelWarning = new Label("Image contains unsaved changes!\n" +
+					"These will not be transferred to the new images.");
+			labelWarning.setTextAlignment(TextAlignment.CENTER);
+			labelWarning.setStyle("-fx-text-fill: -qp-script-error-color;");
+			var paneWarning = new BorderPane(labelWarning);
+			pane.add(paneWarning, 0, row++, GridPane.REMAINING, 1);
+			GridPaneUtils.setToExpandGridPaneWidth(paneWarning);
+		}
+
 		GridPaneUtils.setFillWidth(Boolean.TRUE, label, tfName, list, cbInitializePoints);
 		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, label, tfName, list, cbInitializePoints);
 		GridPaneUtils.setVGrowPriority(Priority.ALWAYS, list);
 		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, label, tfName, list, cbInitializePoints);
 		list.setPrefHeight(240);
+		list.setPrefWidth(400);
 		pane.setHgap(5.0);
 		pane.setVgap(5.0);
 		
-		if (!Dialogs.showConfirmDialog(title, pane))
+		if (!Dialogs.showMessageDialog(title, pane))
 			return;
 		
 		var name = tfName.getText().trim();
