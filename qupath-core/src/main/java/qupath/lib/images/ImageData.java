@@ -349,25 +349,25 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		pcs.firePropertyChange("imageType", oldType, type);
 		changes = true;
 	}
-	
-	
-	
+
 	private static void addColorDeconvolutionStainsToWorkflow(ImageData<?> imageData) {
 		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 		if (stains == null) {
+			logger.debug("{} has no color deconvolution stain. Cannot add workflow step", imageData);
 			return;
 		}
-		
+
 		String arg = ColorDeconvolutionStains.getColorDeconvolutionStainsAsString(imageData.getColorDeconvolutionStains(), 32);
-		Map<String, String> map = GeneralTools.parseArgStringValues(arg);
+		WorkflowStep newStep = new DefaultScriptableWorkflowStep(
+				"Set color deconvolution stains",
+				GeneralTools.parseArgStringValues(arg),
+				"setColorDeconvolutionStains('" + arg + "');"
+		);
+
 		WorkflowStep lastStep = imageData.getHistoryWorkflow().getLastStep();
-		String commandName = "Set color deconvolution stains";
-		WorkflowStep newStep = new DefaultScriptableWorkflowStep(commandName,
-				map,
-				"setColorDeconvolutionStains(\'" + arg + "');");
-		
-		if (!Objects.equals(newStep, lastStep))
+		if (!Objects.equals(newStep, lastStep)) {
 			imageData.getHistoryWorkflow().addStep(newStep);
+		}
 	}
 
 	/**

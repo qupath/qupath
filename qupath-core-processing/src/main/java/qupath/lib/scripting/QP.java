@@ -81,6 +81,7 @@ import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.LogTools;
@@ -1906,7 +1907,29 @@ public class QP {
 		imageData.setColorDeconvolutionStains(stains);
 		return true;
 	}
-	
+
+	/**
+	 * Set the color deconvolution stains for the current image data.
+	 *
+	 * @param stains a map of stain name to stain values. Each stain value must be a list containing at least three elements
+	 *               (otherwise the value is skipped). A stain must be provided with the name defined by {@link ColorDeconvolutionStains#BACKGROUND_KEY}.
+	 *               A stain with the name defined by {@link ColorDeconvolutionStains#RESIDUAL_KEY} will be set as {@link StainVector#isResidual() residual},
+	 *               others won't. The order of the map matters: the first entry will be the first stain (unless it's the background), and so on.
+	 * @param name the name of the color deconvolution stains
+	 * @throws IllegalStateException if there is no current image data
+	 * @throws IllegalArgumentException if the provided stains do not contain a stain with the name defined by {@link ColorDeconvolutionStains#BACKGROUND_KEY}
+	 * and with at least three values, or if the provided stains do not contain at least two non-{@link ColorDeconvolutionStains#BACKGROUND_KEY} stains with
+	 * at least three values
+	 * @throws NullPointerException if one of the parameter is null
+	 */
+	public static void setColorDeconvolutionStains(Map<String, List<Number>> stains, String name) {
+		ImageData<?> imageData = getCurrentImageData();
+		if (imageData == null) {
+			throw new IllegalStateException("No current image data. Cannot set color deconvolution stains");
+		}
+
+		imageData.setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStains(name, stains));
+	}
 	
 //	public static void classifyDetection(final Predicate<PathObject> p, final String className) {
 //		PathObjectHierarchy hierarchy = getCurrentHierarchy();
