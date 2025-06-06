@@ -25,6 +25,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,20 +54,25 @@ public class OMEZarrWriter implements AutoCloseable {
     private final Consumer<TileRequest> onTileWritten;
 
     private OMEZarrWriter(Builder builder, String path) throws IOException {
-        TransformedServerBuilder transformedServerBuilder = new TransformedServerBuilder(ImageServers.pyramidalizeTiled(
-                builder.server,
-                getChunkSize(
-                        builder.tileWidth > 0 ? builder.tileWidth : builder.server.getMetadata().getPreferredTileWidth(),
-                        builder.maxNumberOfChunks,
-                        builder.server.getWidth()
-                ),
-                getChunkSize(
-                        builder.tileHeight > 0 ? builder.tileHeight : builder.server.getMetadata().getPreferredTileHeight(),
-                        builder.maxNumberOfChunks,
-                        builder.server.getHeight()
-                ),
-                builder.downsamples.length == 0 ? builder.server.getPreferredDownsamples() : builder.downsamples
-        ));
+        int tileWidth = getChunkSize(
+                builder.tileWidth > 0 ? builder.tileWidth : builder.server.getMetadata().getPreferredTileWidth(),
+                builder.maxNumberOfChunks,
+                builder.server.getWidth()
+        );
+        int tileHeight = getChunkSize(
+                builder.tileHeight > 0 ? builder.tileHeight : builder.server.getMetadata().getPreferredTileHeight(),
+                builder.maxNumberOfChunks,
+                builder.server.getHeight()
+        );
+        double[] downsamples = builder.downsamples.length > 0 ? builder.downsamples : builder.server.getPreferredDownsamples();
+        boolean tileSizeAndDownsamplesUnchanged = tileWidth == builder.server.getMetadata().getPreferredTileWidth() &&
+                tileHeight == builder.server.getMetadata().getPreferredTileHeight() &&
+                Arrays.equals(downsamples, builder.server.getPreferredDownsamples());
+
+        TransformedServerBuilder transformedServerBuilder = new TransformedServerBuilder(tileSizeAndDownsamplesUnchanged ?
+                builder.server :
+                ImageServers.pyramidalizeTiled(builder.server, tileWidth, tileHeight, downsamples)
+        );
         if (builder.zStart != 0 || builder.zEnd != builder.server.nZSlices() || builder.tStart != 0 || builder.tEnd != builder.server.nTimepoints()) {
             transformedServerBuilder.slice(
                     builder.zStart,
@@ -191,9 +197,9 @@ public class OMEZarrWriter implements AutoCloseable {
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = ThreadTools.getParallelism();
         private double[] downsamples = new double[0];
-        private int maxNumberOfChunks = 50;
-        private int tileWidth = 512;
-        private int tileHeight = 512;
+        private int maxNumberOfChunks = -1;
+        private int tileWidth = -1;
+        private int tileHeight = -1;
         private ImageRegion boundingBox = null;
         private int zStart = 0;
         private int zEnd;
@@ -253,7 +259,7 @@ public class OMEZarrWriter implements AutoCloseable {
 
         /**
          * In Zarr files, data is stored in chunks. This parameter defines the maximum number
-         * of chunks on the x,y, and z dimensions. By default, this value is set to 50.
+         * of chunks on the x,y, and z dimensions. By default, this value is set to -1.
          * <p>
          * Use a negative value to not define any maximum number of chunks.
          *
@@ -267,7 +273,7 @@ public class OMEZarrWriter implements AutoCloseable {
 
         /**
          * In Zarr files, data is stored in chunks. This parameter defines the size
-         * of chunks on the x and y dimensions. By default, these values are set to 512.
+         * of chunks on the x and y dimensions. By default, these values are set to -1.
          * <p>
          * Use a negative value to use the tile width/height of the provided image server.
          * <p>
@@ -283,7 +289,7 @@ public class OMEZarrWriter implements AutoCloseable {
 
         /**
          * In Zarr files, data is stored in chunks. This parameter defines the size
-         * of chunks on the x and y dimensions. By default, these values are set to 512.
+         * of chunks on the x and y dimensions. By default, these values are set to -1.
          * <p>
          * Use a negative value to use the tile width/height of the provided image server.
          * <p>
