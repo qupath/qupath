@@ -384,7 +384,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 
 			// If we have an empty region, try to use an empty tile
 			if (isEmptyRegion) {
-				return getEmptyTile(request.getWidth(), request.getHeight());
+				return getEmptyTile(width, height);
 			}
 
 			if (raster == null)
