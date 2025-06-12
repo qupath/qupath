@@ -29,6 +29,10 @@ import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
+
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Label;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +54,7 @@ import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.Urls;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 
 /**
@@ -124,6 +129,14 @@ class ShowLicensesCommand {
 			// Create a third-party licenses tab
 			tabPane.getTabs().add(new Tab("Third party", createLicenseTreePane(fileLicenses.getParentFile())));
 		}
+
+		var pane = new BorderPane(tabPane);
+		var labelUse = new Label(QuPathResources.getString("Startup.use"));
+		labelUse.setAlignment(Pos.CENTER);
+		labelUse.setMaxWidth(Double.MAX_VALUE);
+		labelUse.setPadding(new Insets(5));
+		labelUse.setStyle("-fx-font-weight: bold;");
+		pane.setBottom(labelUse);
 		
 		// Create and show dialog
 		Stage dialog = new Stage();
@@ -131,7 +144,7 @@ class ShowLicensesCommand {
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle("Licenses");
-		dialog.setScene(new Scene(tabPane));
+		dialog.setScene(new Scene(pane));
 		return dialog;
 	}
 
