@@ -84,6 +84,8 @@ Some things may be added, some things may be removed, and some things may look d
 * Add dock button to keep project description pane open (https://github.com/qupath/qupath/pull/1856)
 * Add support for OME XML shapes (https://github.com/qupath/qupath/pull/1848)
 * Combine viewer-related toolbar buttons under one menu button (https://github.com/qupath/qupath/pull/1841)
+* Add placeholder text to empty viewers (https://github.com/qupath/qupath/pull/1888)
+  * This can be turned of with a preference (https://github.com/qupath/qupath/pull/1908)
 
 
 ### Experimental features
@@ -116,6 +118,8 @@ They may change or be removed in future versions.
 * QuPath ignores OpenSlide when opening some images from the command line outside a project (but they work properly in the UI) (https://github.com/qupath/qupath/issues/1758)
 * Exporting specific channels with OMEPyramidWriter includes wrong channel names (https://github.com/qupath/qupath/issues/1754)
 * Screenshots created in QuPath can also include the screenshot menu (https://github.com/qupath/qupath/issues/1854)
+* Setting color deconvolution stains from a workflow script lost some precision (https://github.com/qupath/qupath/pull/1887)
+* Point annotations can sometimes move unexpectedly all together (https://github.com/qupath/qupath/issues/1872)
 
 ### API changes
 * New `Map<String, String> getMetadata()` method added to `PathObject`, `Project` and `ProjectImageEntry` (https://github.com/qupath/qupath/pull/1587)
