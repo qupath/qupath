@@ -182,6 +182,8 @@ public class ObjectClassifierCommand implements Runnable {
 			scrollPane.setFitToHeight(true);
 			dialog.setScene(new Scene(scrollPane));
 
+			dialog.setMinWidth(320);
+			dialog.setMinHeight(320);
 			panel.registerListeners(qupath);
 			dialog.setOnCloseRequest(e -> {
 				dialog = null; // Reset the dialog so a new one will be created next time
