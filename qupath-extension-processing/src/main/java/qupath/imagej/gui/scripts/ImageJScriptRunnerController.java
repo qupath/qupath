@@ -41,12 +41,14 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
@@ -158,6 +160,20 @@ public class ImageJScriptRunnerController extends BorderPane {
     }
 
     /**
+     * Options for the script language.
+     */
+    public enum LanguageOption {
+        /**
+         * ImageJ macro language
+         */
+        MACRO,
+        /**
+         * Groovy language
+         */
+        GROOVY
+    }
+
+    /**
      * A map to store persistent preferences or each resolution option.
      */
     private final Map<ResolutionOption, StringProperty> resolutionOptionStringMap = Map.of(
@@ -168,6 +184,8 @@ public class ImageJScriptRunnerController extends BorderPane {
             ResolutionOption.LARGEST_DIMENSION,
             PathPrefs.createPersistentPreference(PREFS_KEY + "resolution.maxDim", "1024")
     );
+
+    private final ObjectProperty<LanguageOption> languageProperty = PathPrefs.createPersistentPreference(PREFS_KEY + "language", LanguageOption.MACRO, LanguageOption.class);
 
     private final BooleanProperty setImageJRoi = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJRoi", true);
     private final BooleanProperty setImageJOverlay = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJOverlay", false);
@@ -268,6 +286,15 @@ public class ImageJScriptRunnerController extends BorderPane {
     @FXML
     private MenuItem miRun;
 
+    @FXML
+    private RadioMenuItem rmiMacro;
+
+    @FXML
+    private RadioMenuItem rmiGroovy;
+
+    @FXML
+    private ToggleGroup toggleLanguages;
+
     private final ObjectProperty<DownsampleCalculator> downsampleCalculatorProperty = new SimpleObjectProperty<>();
 
     private ScriptEditorControl<?> scriptEditorControl;
@@ -305,6 +332,7 @@ public class ImageJScriptRunnerController extends BorderPane {
         this.imageDataProperty.bind(qupath.imageDataProperty());
         this.imageDataProperty.addListener(this::handleImageDataChange);
         initEditor();
+        initLanguages();
         initThreads();
         initTitle();
         initResolutionChoices();
@@ -331,9 +359,28 @@ public class ImageJScriptRunnerController extends BorderPane {
         if (this.scriptEditorControl == null)
             this.scriptEditorControl = new TextAreaControl(textAreaMacro, true);
         this.macroText.bind(scriptEditorControl.textProperty());
-        this.macroText.addListener((v, o, n) -> updateLanguage());
+    }
+
+    private void initLanguages() {
+        rmiMacro.setUserData(LanguageOption.MACRO);
+        rmiGroovy.setUserData(LanguageOption.GROOVY);
+        if (languageProperty.get() == LanguageOption.GROOVY)
+            toggleLanguages.selectToggle(rmiGroovy);
+        else
+            toggleLanguages.selectToggle(rmiMacro);
+        languageProperty.bind(toggleLanguages.selectedToggleProperty().map(t -> (LanguageOption)t.getUserData()));
+        languageProperty.addListener((v, o, n) -> updateLanguage());
         updateLanguage();
     }
+
+    private void updateLanguage() {
+        if (languageProperty.get() == LanguageOption.GROOVY) {
+            this.scriptEditorControl.setLanguage(GroovyLanguage.getInstanceWithCompletions(Collections.emptyList()));
+        } else {
+            this.scriptEditorControl.setLanguage(ImageJMacroLanguage.getInstance());
+        }
+    }
+
 
     private void initTitle() {
         titledScript.textProperty().bind(
@@ -353,19 +400,6 @@ public class ImageJScriptRunnerController extends BorderPane {
         } catch (Exception | Error e) {
             logger.warn("Unable to find rich text code editor - will default to basic editor");
             return new TextAreaControl(true);
-        }
-    }
-
-    /**
-     * Currently, we 'guess' language based on the macro contents.
-     * In the future, it may be possible to set this explicitly.
-     */
-    private void updateLanguage() {
-        var text = macroText.getValueSafe();
-        if (text.contains("IJ.getImage()") || text.contains("import ")) {
-            this.scriptEditorControl.setLanguage(GroovyLanguage.getInstanceWithCompletions(Collections.emptyList()));
-        } else {
-            this.scriptEditorControl.setLanguage(ImageJMacroLanguage.getInstance());
         }
     }
 
@@ -608,7 +642,7 @@ public class ImageJScriptRunnerController extends BorderPane {
     private File getLastSavedFile() {
         var path = lastSavedPath.get();
         if (path == null || !Objects.equals(path.getFileSystem(), FileSystems.getDefault()))
-            return null;
+            return new File("Untitled");
         else
             return path.toFile();
     }
@@ -664,7 +698,7 @@ public class ImageJScriptRunnerController extends BorderPane {
 
     @FXML
     void promptToOpenMacro() {
-        var file = FileChoosers.promptForFile(FXUtils.getWindow(this), title, getExtensionFilters());
+        var file = FileChoosers.promptForFile(FXUtils.getWindow(this), title, getAllValidExtensionFilters());
         if (file != null)
             openMacro(file.toPath());
     }
@@ -672,7 +706,7 @@ public class ImageJScriptRunnerController extends BorderPane {
     @FXML
     void handleSave() {
         var lastSavedFile = getLastSavedFile();
-        if (lastSavedFile == null) {
+        if (lastSavedFile == null || !lastSavedFile.exists()) {
             handleSaveAs();
             return;
         }
@@ -689,7 +723,7 @@ public class ImageJScriptRunnerController extends BorderPane {
                 FXUtils.getWindow(this),
                 title,
                 getLastSavedFile(),
-                getExtensionFilters());
+                getExtensionFilter());
         if (file != null) {
             tryToSave(file);
         }
@@ -716,11 +750,18 @@ public class ImageJScriptRunnerController extends BorderPane {
         }
     }
 
-    private static FileChooser.ExtensionFilter[] getExtensionFilters() {
+    private FileChooser.ExtensionFilter getExtensionFilter() {
+        if (languageProperty.get() == LanguageOption.GROOVY)
+            return FileChoosers.createExtensionFilter("Groovy", "*.groovy");
+        else
+            return FileChoosers.createExtensionFilter("ImageJ macro", "*.ijm");
+    }
+
+    private FileChooser.ExtensionFilter[] getAllValidExtensionFilters() {
         return new FileChooser.ExtensionFilter[] {
                 FileChoosers.createExtensionFilter(
                         resources.getString("chooser.validFiles"),
-                        ".ijm", ".txt", ".groovy"),
+                        "*.ijm", "*.txt", "*.groovy"),
                 FileChoosers.FILTER_ALL_FILES
         };
     }
@@ -844,8 +885,8 @@ public class ImageJScriptRunnerController extends BorderPane {
                 .padding(padding)
                 .overlayToObjects(overlayObjectType)
                 .roiToObject(roiObjectType)
-                .macroText(macroText)
-                .scriptEngine(estimateScriptEngine(macroText))
+                .text(macroText)
+                .scriptEngine(estimateScriptEngine())
                 .addToWorkflow(addToWorkflow)
                 .channels(channels)
                 .nThreads(nThreads)
@@ -885,8 +926,8 @@ public class ImageJScriptRunnerController extends BorderPane {
     }
 
 
-    private static String estimateScriptEngine(String macroText) {
-        if (macroText.contains("import ij") || macroText.contains("ij.IJ"))
+    private String estimateScriptEngine() {
+        if (languageProperty.get() == LanguageOption.GROOVY)
             return "groovy";
         else
             return null;

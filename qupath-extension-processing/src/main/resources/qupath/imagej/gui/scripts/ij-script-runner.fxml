@@ -21,6 +21,8 @@
 <?import javafx.scene.layout.VBox?>
 <?import org.controlsfx.control.CheckComboBox?>
 
+<?import javafx.scene.control.RadioMenuItem?>
+<?import javafx.scene.control.ToggleGroup?>
 <fx:root maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="350.0" minWidth="300.0" prefHeight="500.0" prefWidth="600.0" stylesheets="@ij-script-runner.css" type="BorderPane" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1">
    <center>
       <TitledPane fx:id="titledScript" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="%ui.title.script" BorderPane.alignment="CENTER">
@@ -248,6 +250,23 @@
                   <MenuItem mnemonicParsing="false" onAction="#doPaste" text="%menu.edit.paste" />
             </items>
           </Menu>
+           <Menu mnemonicParsing="false" text="%menu.language">
+              <items>
+                 <RadioMenuItem fx:id="rmiMacro" mnemonicParsing="false" selected="true" text="%menu.language.macro">
+                    <accelerator>
+                       <KeyCodeCombination alt="UP" code="M" control="UP" meta="UP" shift="DOWN" shortcut="DOWN" />
+                    </accelerator>
+                    <toggleGroup>
+                       <ToggleGroup fx:id="toggleLanguages" />
+                    </toggleGroup>
+                 </RadioMenuItem>
+                 <RadioMenuItem fx:id="rmiGroovy" mnemonicParsing="false" text="%menu.language.groovy" toggleGroup="$toggleLanguages">
+                    <accelerator>
+                       <KeyCodeCombination alt="UP" code="G" control="UP" meta="UP" shift="DOWN" shortcut="DOWN" />
+                    </accelerator>
+                 </RadioMenuItem>
+              </items>
+           </Menu>
           <Menu mnemonicParsing="false" text="%menu.run">
             <items>
               <MenuItem fx:id="miRun" mnemonicParsing="false" onAction="#handleRun" text="%menu.run.run">
