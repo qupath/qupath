@@ -136,7 +136,7 @@ public class ImageJScriptRunnerController extends BorderPane {
     /**
      * A map to store persistent preferences or each resolution option.
      */
-    private Map<ResolutionOption, StringProperty> resolutionOptionStringMap = Map.of(
+    private final Map<ResolutionOption, StringProperty> resolutionOptionStringMap = Map.of(
             ResolutionOption.FIXED_DOWNSAMPLE,
             PathPrefs.createPersistentPreference(PREFS_KEY + "resolution.fixed", "10"),
             ResolutionOption.PIXEL_SIZE,
@@ -145,33 +145,35 @@ public class ImageJScriptRunnerController extends BorderPane {
             PathPrefs.createPersistentPreference(PREFS_KEY + "resolution.maxDim", "1024")
     );
 
-    private BooleanProperty setImageJRoi = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJRoi", true);
-    private BooleanProperty setImageJOverlay = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJOverlay", false);
-    private BooleanProperty deleteChildObjects = PathPrefs.createPersistentPreference(PREFS_KEY + "deleteChildObjects", true);
-    private BooleanProperty addToCommandHistory = PathPrefs.createPersistentPreference(PREFS_KEY + "addToCommandHistory", false);
+    private final BooleanProperty setImageJRoi = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJRoi", true);
+    private final BooleanProperty setImageJOverlay = PathPrefs.createPersistentPreference(PREFS_KEY + "setImageJOverlay", false);
+    private final BooleanProperty deleteChildObjects = PathPrefs.createPersistentPreference(PREFS_KEY + "deleteChildObjects", true);
+    private final BooleanProperty addToCommandHistory = PathPrefs.createPersistentPreference(PREFS_KEY + "addToCommandHistory", false);
 
     // Default to 1 thread, as multiple threads may be problematic for some macros (e.g. with duplicate images)
-    private IntegerProperty nThreadsProperty = PathPrefs.createPersistentPreference(PREFS_KEY + "nThreads", 1);
+    private final IntegerProperty nThreadsProperty = PathPrefs.createPersistentPreference(PREFS_KEY + "nThreads", 1);
 
-    private ObjectProperty<ResolutionOption> resolutionProperty =
+    private final ObjectProperty<ResolutionOption> resolutionProperty =
             PathPrefs.createPersistentPreference(PREFS_KEY + "resolutionProperty", ResolutionOption.LARGEST_DIMENSION, ResolutionOption.class);
 
-    private ObjectProperty<ImageJScriptRunner.PathObjectType> returnRoiType =
+    private final IntegerProperty paddingProperty = PathPrefs.createPersistentPreference(PREFS_KEY + "padding", 0);
+
+    private final ObjectProperty<ImageJScriptRunner.PathObjectType> returnRoiType =
             PathPrefs.createPersistentPreference(PREFS_KEY + "returnRoiType", ImageJScriptRunner.PathObjectType.NONE, ImageJScriptRunner.PathObjectType.class);
 
-    private ObjectProperty<ImageJScriptRunner.PathObjectType> returnOverlayType =
+    private final ObjectProperty<ImageJScriptRunner.PathObjectType> returnOverlayType =
             PathPrefs.createPersistentPreference(PREFS_KEY + "returnOverlayType", ImageJScriptRunner.PathObjectType.NONE, ImageJScriptRunner.PathObjectType.class);
 
-    private ObjectProperty<ImageJScriptRunner.ApplyToObjects> applyToObjects =
+    private final ObjectProperty<ImageJScriptRunner.ApplyToObjects> applyToObjects =
             PathPrefs.createPersistentPreference(PREFS_KEY + "applyToObjects", ImageJScriptRunner.ApplyToObjects.SELECTED, ImageJScriptRunner.ApplyToObjects.class);
 
     // No objects should be returned from the macro
-    private BooleanBinding noReturnObjects = (returnRoiType.isNull().or(returnRoiType.isEqualTo(ImageJScriptRunner.PathObjectType.NONE)))
+    private final BooleanBinding noReturnObjects = (returnRoiType.isNull().or(returnRoiType.isEqualTo(ImageJScriptRunner.PathObjectType.NONE)))
             .and(returnOverlayType.isNull().or(returnOverlayType.isEqualTo(ImageJScriptRunner.PathObjectType.NONE)));
 
-    private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+    private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 
-    private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
+    private final ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
     @FXML
     private CheckComboBox<ColorTransforms.ColorTransform> comboChannels;
@@ -219,6 +221,9 @@ public class ImageJScriptRunnerController extends BorderPane {
     private TextField tfResolution;
 
     @FXML
+    private Spinner<Integer> spinnerPadding;
+
+    @FXML
     private TitledPane titledScript;
 
     @FXML
@@ -239,14 +244,14 @@ public class ImageJScriptRunnerController extends BorderPane {
     @FXML
     private MenuItem miRun;
 
-    private ObjectProperty<DownsampleCalculator> downsampleCalculatorProperty = new SimpleObjectProperty<>();
+    private final ObjectProperty<DownsampleCalculator> downsampleCalculatorProperty = new SimpleObjectProperty<>();
 
     private ScriptEditorControl<?> scriptEditorControl;
 
-    private StringProperty macroText = new SimpleStringProperty("");
-    private StringProperty lastSavedText = new SimpleStringProperty("");
-    private ObjectProperty<Path> lastSavedPath = new SimpleObjectProperty<>(null);
-    private BooleanBinding unsavedChanges = lastSavedText.isNotEqualTo(macroText)
+    private final StringProperty macroText = new SimpleStringProperty("");
+    private final StringProperty lastSavedText = new SimpleStringProperty("");
+    private final ObjectProperty<Path> lastSavedPath = new SimpleObjectProperty<>(null);
+    private final BooleanBinding unsavedChanges = lastSavedText.isNotEqualTo(macroText)
             .and(lastSavedText.isNotEmpty());
 
     /**
@@ -277,6 +282,7 @@ public class ImageJScriptRunnerController extends BorderPane {
         initThreads();
         initTitle();
         initResolutionChoices();
+        initPadding();
         initReturnObjectTypeChoices();
         initApplyToObjectTypes();
         bindPreferences();
@@ -364,6 +370,16 @@ public class ImageJScriptRunnerController extends BorderPane {
             comboChannels.getItems().setAll(availableChannels);
             comboChannels.getCheckModel().checkAll();
         }
+    }
+
+    private void initPadding() {
+        int min = 0;
+        int value = Math.max(min, paddingProperty.getValue());
+        int max = 1024;
+        int step = 1;
+        spinnerPadding.setValueFactory(
+                new SpinnerValueFactory.IntegerSpinnerValueFactory(min, max, value, step));
+        paddingProperty.bind(spinnerPadding.valueProperty());
     }
 
     private void initThreads() {
@@ -748,6 +764,7 @@ public class ImageJScriptRunnerController extends BorderPane {
 
         String macroText = this.macroText.get();
         var downsampleCalculator = this.downsampleCalculatorProperty.get();
+        int padding = this.paddingProperty.get();
         boolean setImageJRoi = this.setImageJRoi.get();
         boolean setImageJOverlay = this.setImageJOverlay.get();
 
@@ -768,6 +785,7 @@ public class ImageJScriptRunnerController extends BorderPane {
                 .setImageJRoi(setImageJRoi)
                 .setImageJOverlay(setImageJOverlay)
                 .downsample(downsampleCalculator)
+                .padding(padding)
                 .overlayToObjects(overlayObjectType)
                 .roiToObject(roiObjectType)
                 .macroText(macroText)

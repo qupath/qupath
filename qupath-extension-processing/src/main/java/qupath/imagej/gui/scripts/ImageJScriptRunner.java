@@ -510,9 +510,17 @@ public class ImageJScriptRunner {
 
     private RegionRequest createRequest(ImageServer<?> server, PathObject parent) {
         var pathROI = parent.getROI();
-        ImageRegion region = pathROI == null ? RegionRequest.createInstance(server) : ImageRegion.createInstance(pathROI);
+        ImageRegion fullImage = RegionRequest.createInstance(server);
+        ImageRegion region = pathROI == null ? fullImage : ImageRegion.createInstance(pathROI);
         double downsampleFactor = params.getDownsample().getDownsample(server, region);
-        return RegionRequest.createInstance(server.getPath(), downsampleFactor, region);
+        var request = RegionRequest.createInstance(server.getPath(), downsampleFactor, region);
+        // Only apply padding for ROIs
+        if (!region.equals(fullImage) && params.getPadding() > 0) {
+            int expand = (int)Math.round(params.getPadding() * downsampleFactor);
+            request = request.pad2D(expand, expand);
+        }
+        // Make sure that the region is contained within the image
+        return request.intersect2D(fullImage);
     }
 
     private static ImagePlus extractImage(ImageServer<BufferedImage> server, RegionRequest request, boolean requestHyperstack) throws IOException {
@@ -731,6 +739,7 @@ public class ImageJScriptRunner {
         private List<ColorTransforms.ColorTransform> channels;
 
         private DownsampleCalculator downsample = DownsampleCalculators.maxDimension(1024);
+        private int padding = 0;
         private boolean setRoi = true;
         private boolean setOverlay = false;
         private boolean closeOpenImages = false;
@@ -755,11 +764,18 @@ public class ImageJScriptRunner {
             // Store null since then it'll be skipped with json serialization
             channels = params.channels == null || params.channels.isEmpty() ? null : List.copyOf(params.channels);
             text = params.text;
+            downsample = params.downsample;
+            padding = params.padding;
             setRoi = params.setRoi;
             setOverlay = params.setOverlay;
+            closeOpenImages = params.closeOpenImages;
             clearChildObjects = params.clearChildObjects;
             activeRoiObjectType = params.activeRoiObjectType;
             overlayRoiObjectType = params.overlayRoiObjectType;
+            applyToObjects = params.applyToObjects;
+            scriptEngine = params.scriptEngine;
+            addToWorkflow = params.addToWorkflow;
+            nThreads = params.nThreads;
         }
 
         public List<ColorTransforms.ColorTransform> getChannels() {
@@ -780,6 +796,14 @@ public class ImageJScriptRunner {
          */
         public DownsampleCalculator getDownsample() {
             return downsample;
+        }
+
+        /**
+         * Get the padding to add around the ROI.
+         * @return
+         */
+        public int getPadding() {
+            return padding;
         }
 
         /**
@@ -903,7 +927,7 @@ public class ImageJScriptRunner {
 
         // Cache of script engine names from file extensions, so that we don't need to
         // do a more expensive check
-        private static Map<String, String> scriptEngineNameCache = new HashMap<>();
+        private static final Map<String, String> scriptEngineNameCache = new HashMap<>();
 
         static {
             scriptEngineNameCache.put(null, ENGINE_NAME_MACRO);
@@ -1240,6 +1264,16 @@ public class ImageJScriptRunner {
          */
         public Builder downsample(DownsampleCalculator downsample) {
             params.downsample = downsample;
+            return this;
+        }
+
+        /**
+         * Specify how much padding to add around the ROI.
+         * @param padding number of pixels of padding to add (should be &geq; 0)
+         * @return this builder
+         */
+        public Builder padding(int padding) {
+            params.padding = padding;
             return this;
         }
 
