@@ -900,21 +900,26 @@ public class IJTools {
 		imp.setDimensions(imp.getStackSize(), 1, 1);
 		// Set colors
 		SampleModel sampleModel = img.getSampleModel();
-		if (!server.isRGB() && sampleModel.getNumBands() > 1) {
-			CompositeImage impComp = imp.isRGB() ? (CompositeImage)CompositeConverter.makeComposite(imp) : new CompositeImage(imp, CompositeImage.COMPOSITE);
-			for (int b = 0; b < sampleModel.getNumBands(); b++) {
-				impComp.setChannelLut(
-						LUT.createLutFromColor(
-								new Color(server.getChannel(b).getColor())), b+1);
-				impComp.getStack().setSliceLabel(server.getChannel(b).getName(), b+1);
+		if (!server.isRGB()) {
+			if (sampleModel.getNumBands() > 1) {
+				CompositeImage impComp = imp.isRGB() ? (CompositeImage) CompositeConverter.makeComposite(imp) : new CompositeImage(imp, CompositeImage.COMPOSITE);
+				for (int b = 0; b < sampleModel.getNumBands(); b++) {
+					impComp.setChannelLut(
+							LUT.createLutFromColor(
+									new Color(server.getChannel(b).getColor())), b + 1);
+					impComp.getStack().setSliceLabel(server.getChannel(b).getName(), b + 1);
+				}
+				impComp.updateAllChannelsAndDraw();
+				impComp.resetDisplayRanges();
+				imp = impComp;
+			} else {
+				// Set slice label for only channel
+				var channelName = server.getChannel(0).getName();
+				if (channelName != null && !channelName.isBlank()) {
+					imp.getStack().setSliceLabel(channelName, 1);
+				}
 			}
-			impComp.updateAllChannelsAndDraw();
-			impComp.resetDisplayRanges();
-			imp = impComp;
 		}
-//		else if (img.getType() == BufferedImage.TYPE_BYTE_INDEXED) {
-//			imp.getProcessor().setColorModel(img.getColorModel());
-//		}
 		// Set calibration
 		calibrateImagePlus(imp, request, server);
 		return createPathImage(server, imp, request);

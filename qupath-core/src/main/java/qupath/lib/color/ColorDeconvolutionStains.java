@@ -336,6 +336,15 @@ public class ColorDeconvolutionStains implements Externalizable {
 			logger.error("Stains are not zero-based! Do you mean you want stain 1?");
 		return null;
 	}
+
+	/**
+	 * Get an unmodifiable list containing the 3 stains.
+	 * This allows 0-based indexing (while {@link #getStain(int)} uses 1-based indexing).
+	 * @return a 3-element list of stains
+	 */
+	public List<StainVector> getStains() {
+		return List.of(stain1, stain2, stain3);
+	}
 	
 	/**
 	 * Get a collection of all the stains.

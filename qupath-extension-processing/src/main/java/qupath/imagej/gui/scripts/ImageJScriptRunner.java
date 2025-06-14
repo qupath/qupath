@@ -350,7 +350,9 @@ public class ImageJScriptRunner {
 
         ImagePlus imp;
         try {
-            imp = extractImage(server, request, false); // TODO: Consider hyperstack support
+            // Get hyperstack if passing the full image
+            imp = extractImage(server, request,
+                    params.activeRoiObjectType == PathObjectType.NONE && pathObject.isRootObject());
             Predicate<PathObject> filter = null;
             // Add the main Roi, if needed
             if (params.doSetRoi() && pathObject.hasROI()) {
@@ -629,11 +631,20 @@ public class ImageJScriptRunner {
         switch (val) {
             case JsonPrimitive primitive -> {
                 if (primitive.isString()) {
-                    String str = val.getAsString();
+                    String str = primitive.getAsString();
                     String quote = "\"";
-                    if (str.contains(quote))
+                    if (str.contains(quote)) {
                         quote = "\"\"\"";
-                    sb.append(quote).append(primitive.getAsString()).append(quote);
+                        // For long, multi-line strings it's more readable to start
+                        // and end with a newline
+                        if (str.contains("\n")) {
+                            if (!str.startsWith("\n"))
+                                str = "\n" + str;
+                            if (!str.endsWith("\n"))
+                                str += "\n";
+                        }
+                    }
+                    sb.append(quote).append(str).append(quote);
                 } else
                     sb.append(primitive.getAsString());
             }
@@ -676,6 +687,10 @@ public class ImageJScriptRunner {
         if (channels.isEmpty()) {
             return server;
         } else {
+            for (var channel : channels) {
+                channel instanceof C
+            }
+
             return new TransformedServerBuilder(server)
                     .applyColorTransforms(channels.toArray(ColorTransforms.ColorTransform[]::new))
                     .build();

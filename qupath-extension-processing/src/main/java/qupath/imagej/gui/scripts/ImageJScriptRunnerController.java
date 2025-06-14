@@ -72,6 +72,7 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Controller class for the ImageJ script runner.
@@ -362,13 +363,20 @@ public class ImageJScriptRunnerController extends BorderPane {
         if (imageData == null)
             return;
         List<ColorTransforms.ColorTransform> availableChannels = new ArrayList<>();
+        int nChannels = imageData.getServer().nChannels();
         for (var channel : imageData.getServer().getMetadata().getChannels()) {
             availableChannels.add(ColorTransforms.createChannelExtractor(channel.getName()));
+        }
+        var stains = imageData.getColorDeconvolutionStains();
+        if (stains != null) {
+            for (int i = 0; i < 3; i++) {
+                availableChannels.add(ColorTransforms.createColorDeconvolvedChannel(stains, i+1));
+            }
         }
         if (!Objects.equals(availableChannels, comboChannels.getItems())) {
             comboChannels.getCheckModel().clearChecks();
             comboChannels.getItems().setAll(availableChannels);
-            comboChannels.getCheckModel().checkAll();
+            comboChannels.getCheckModel().checkIndices(IntStream.range(0, nChannels).toArray());
         }
     }
 
