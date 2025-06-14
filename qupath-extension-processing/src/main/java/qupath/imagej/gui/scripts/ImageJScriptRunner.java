@@ -444,6 +444,9 @@ public class ImageJScriptRunner {
                 if (engine != null) {
                     // We have a script engine (probably for Groovy)
                     try {
+                        imp.setProperty("qupath.imageData", imageData);
+                        imp.setProperty("qupath.pathObject", pathObject);
+                        imp.setProperty("qupath.request", request);
                         if (isTest)
                             imp.show();
                         engine.eval(script);
@@ -451,6 +454,10 @@ public class ImageJScriptRunner {
                         Dialogs.showErrorNotification("ImageJ script", e);
                         Thread.currentThread().interrupt();
                         return false;
+                    } finally {
+                        imp.setProperty("qupath.imageData", null);
+                        imp.setProperty("qupath.pathObject", null);
+                        imp.setProperty("qupath.request", null);
                     }
                 } else {
                     // ImageJ macro
