@@ -53,6 +53,8 @@ import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 import java.awt.image.BufferedImage;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -255,6 +257,8 @@ public class ImageJScriptRunnerController extends BorderPane {
     private final BooleanBinding unsavedChanges = lastSavedText.isNotEqualTo(macroText)
             .and(lastSavedText.isNotEmpty());
 
+    private final PropertyChangeListener imageDataPropertyListener = this::imageDataPropertyChange;
+
     /**
      * Create a new instance.
      * @param qupath the QuPath instance in which the macro runner should be used.
@@ -290,7 +294,8 @@ public class ImageJScriptRunnerController extends BorderPane {
         initMenus();
         initRunButton();
         initDragDrop();
-        initChannels();
+        // This should trigger channel update & also add property change listener
+        handleImageDataChange(imageDataProperty, null, imageDataProperty.get());
     }
 
     private void initEditor() {
@@ -351,8 +356,23 @@ public class ImageJScriptRunnerController extends BorderPane {
     private void handleImageDataChange(ObservableValue<? extends ImageData<BufferedImage>> values,
                                        ImageData<BufferedImage> oldValue,
                                        ImageData<BufferedImage> newValue) {
+        if (oldValue != null) {
+            oldValue.removePropertyChangeListener(imageDataPropertyListener);
+        }
+        if (newValue != null) {
+            newValue.addPropertyChangeListener(imageDataPropertyListener);
+        }
         updateChannels(newValue);
     }
+
+    private void imageDataPropertyChange(PropertyChangeEvent evt) {
+        if ("imageType".equals(evt.getPropertyName()) ||
+                "stains".equals(evt.getPropertyName()) ||
+                "serverMetadata".equals(evt.getPropertyName())) {
+            updateChannels(imageDataProperty.getValue());
+        }
+    }
+
 
     private void initChannels() {
         updateChannels(imageDataProperty.get());
@@ -374,9 +394,16 @@ public class ImageJScriptRunnerController extends BorderPane {
             }
         }
         if (!Objects.equals(availableChannels, comboChannels.getItems())) {
+            int[] toCheck;
+            // If the number of channels is unchanged, keep the same indices checked
+            if (availableChannels.size() == comboChannels.getItems().size()) {
+                toCheck = comboChannels.getCheckModel().getCheckedIndices().stream().mapToInt(Integer::intValue).toArray();
+            } else {
+                toCheck = IntStream.range(0, nChannels).toArray();
+            }
             comboChannels.getCheckModel().clearChecks();
             comboChannels.getItems().setAll(availableChannels);
-            comboChannels.getCheckModel().checkIndices(IntStream.range(0, nChannels).toArray());
+            comboChannels.getCheckModel().checkIndices(toCheck);
         }
     }
 

@@ -687,10 +687,6 @@ public class ImageJScriptRunner {
         if (channels.isEmpty()) {
             return server;
         } else {
-            for (var channel : channels) {
-                channel instanceof C
-            }
-
             return new TransformedServerBuilder(server)
                     .applyColorTransforms(channels.toArray(ColorTransforms.ColorTransform[]::new))
                     .build();
