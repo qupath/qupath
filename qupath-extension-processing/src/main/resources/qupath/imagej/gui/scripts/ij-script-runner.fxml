@@ -170,12 +170,12 @@
                         <Separator orientation="VERTICAL" />
                         <Label maxHeight="1.7976931348623157E308" text="%ui.threads.label">
                            <tooltip>
-                              <Tooltip text="%ui.threads.label" />
+                              <Tooltip text="%ui.threads.label.tooltip" />
                            </tooltip>
                         </Label>
                         <Spinner fx:id="spinnerThreads" maxWidth="1.7976931348623157E308" prefWidth="80.0" HBox.hgrow="SOMETIMES">
                            <tooltip>
-                              <Tooltip text="%ui.threads.label" />
+                              <Tooltip text="%ui.threads.label.tooltip" />
                            </tooltip>
                         </Spinner>
                         <Button fx:id="btnTest" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleRunTest" text="%ui.button.test" HBox.hgrow="SOMETIMES">

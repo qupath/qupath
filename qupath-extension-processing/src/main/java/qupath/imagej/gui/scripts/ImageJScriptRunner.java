@@ -466,12 +466,16 @@ public class ImageJScriptRunner {
                         // Running a batch macro can sometimes fail due to
                         // Cannot invoke "java.util.Vector.add(Object)" because "ij.macro.Interpreter.imageActivations" is null
                         // which seems to be due to the use of static methods and variables.
-//                                impResult = interpreter.runBatchMacro(script, imp);
-                        // This appears to work more reliably with multithreading
-                        WindowManager.setTempCurrentImage(imp);
-                        interpreter.run(script);
-                        impResult = WindowManager.getTempCurrentImage();
-                        WindowManager.setTempCurrentImage(null);
+                        if (params.nThreads == 1) {
+                            impResult = interpreter.runBatchMacro(script, imp);
+                        } else {
+                            // This appears to work more reliably with multithreading - UNLESS images are duplicated...
+                            // in which case, I can't find any way to make multithreading reliable
+                            WindowManager.setTempCurrentImage(imp);
+                            interpreter.run(script, "");
+                            impResult = WindowManager.getTempCurrentImage();
+                            WindowManager.setTempCurrentImage(null);
+                        }
                     }
 
                     // If we had an error, return
@@ -627,14 +631,14 @@ public class ImageJScriptRunner {
         if (!parents.isEmpty()) {
             if (parents.stream().allMatch(PathObject::isAnnotation)) {
                 sb.append("// selectAnnotations()\n");
-            } else if (parents.stream().allMatch(PathObject::isDetection)) {
-                sb.append("// selectDetections()\n");
             } else if (parents.stream().allMatch(PathObject::isTile)) {
                 sb.append("// selectTiles()\n");
             } else if (parents.stream().allMatch(PathObject::isTMACore)) {
                 sb.append("// selectTMACores()\n");
             } else if (parents.stream().allMatch(PathObject::isCell)) {
                 sb.append("// selectCells()\n");
+            } else if (parents.stream().allMatch(PathObject::isDetection)) {
+                sb.append("// selectDetections()\n");
             }
         }
         var gson = GsonTools.getInstance();
