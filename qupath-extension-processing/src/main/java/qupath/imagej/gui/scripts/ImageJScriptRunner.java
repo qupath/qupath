@@ -1,3 +1,24 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2024 - 2025 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.imagej.gui.scripts;
 
 import com.google.gson.JsonArray;
@@ -59,13 +80,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
 /**
@@ -288,6 +311,7 @@ public class ImageJScriptRunner {
             case DETECTIONS -> List.copyOf(hierarchy.getDetectionObjects());
             case CELLS -> List.copyOf(hierarchy.getCellObjects());
             case TILES -> List.copyOf(hierarchy.getTileObjects());
+            // TODO: Consider whether to filter out missing cores (or this can be done by passing selected objects)
             case TMA_CORES -> hierarchy.getTMAGrid() == null ? List.of() : List.copyOf(hierarchy.getTMAGrid().getTMACoreList());
             case SELECTED -> {
                 // We want the main selected object to be first, so that it is the one used during testing
@@ -346,43 +370,49 @@ public class ImageJScriptRunner {
         }
 
         // Maintain a map of Rois we sent, so that we don't create unnecessary duplicate objects
-        Map<Roi, PathObject> sentRois = new HashMap<>();
+        Map<Roi, PathObject> sentRois = new ConcurrentHashMap<>();
 
         ImagePlus imp;
         try {
             // Get hyperstack if passing the full image
             imp = extractImage(server, request,
                     params.activeRoiObjectType == PathObjectType.NONE && pathObject.isRootObject());
-            Predicate<PathObject> filter = null;
-            // Add the main Roi, if needed
+            // Create variable to store which Roi should be active on the image
+            // If adding an overlay, we want to ensure the same Roi is reused
+            Roi roiToSelect = null;
+            // Create an overlay, if needed
+            // Note that an overlay is always used for cells, because it is the only way to get boundary and nucleus
+            // rois to both be passed
+            var overlay = new Overlay();
+            Set<PathObject> overlayObjects = new LinkedHashSet<>();
+            // Add the selected object first
             if (params.doSetRoi() && pathObject.hasROI()) {
-                var roi = createRois(pathObject, request, 0).getFirst();
-                if (roi != null) {
-                    sentRois.put(roi, pathObject);
-                    imp.setRoi(roi);
-                    filter = p -> p != pathObject && !PathObjectTools.isAncestor(pathObject, p);
-                }
+                overlayObjects.add(pathObject);
             }
-            // Add an overlay, if needed
+            // Add the other objects from the region, if required
             if (params.doSetOverlay()) {
-                var overlay = new Overlay();
-                Collection<PathObject> overlayObjects;
-                if (pathROI != null && params.doSetRoi()) {
-                    overlayObjects = imageData.getHierarchy().getAllObjectsForROI(pathROI);
-                } else {
-                    overlayObjects = imageData.getHierarchy().getAllObjectsForRegion(request);
-                }
-                int count = 0;
-                for (var temp : overlayObjects) {
-                    if (filter != null && !filter.test(temp))
-                        continue;
-                    for (var roi : createRois(temp, request, ++count)) {
-                        sentRois.put(roi, temp);
-                        overlay.add(roi);
-                    }
-                }
-                imp.setOverlay(overlay);
+                imageData.getHierarchy().getAllObjectsForRegion(request, overlayObjects);
             }
+            int count = 0;
+            for (var temp : overlayObjects) {
+                List<Roi> tempRois;
+                if (temp == pathObject && params.doSetRoi()) {
+                    // Don't modify the main Roi name with a positive count value
+                    // Do store it for activating on the image later
+                    tempRois = createRois(temp, request, -1);
+                    roiToSelect = tempRois.getFirst();
+                } else {
+                    tempRois = createRois(temp, request, ++count);
+                }
+                for (var roi : tempRois) {
+                    sentRois.put(roi, temp);
+                    overlay.add(roi);
+                }
+            }
+
+            imp.setOverlay(overlay);
+            // Add the main Roi, if needed
+            imp.setRoi(roiToSelect);
         } catch (IOException e) {
             logger.error("Unable to extract image region {}", request, e);
             return false;
@@ -433,7 +463,15 @@ public class ImageJScriptRunner {
                         // The error messages via AWT are really obtrusive - it's better to ignore them
                         // and log them for the user
                         interpreter.setIgnoreErrors(true);
-                        impResult = interpreter.runBatchMacro(script, imp);
+                        // Running a batch macro can sometimes fail due to
+                        // Cannot invoke "java.util.Vector.add(Object)" because "ij.macro.Interpreter.imageActivations" is null
+                        // which seems to be due to the use of static methods and variables.
+//                                impResult = interpreter.runBatchMacro(script, imp);
+                        // This appears to work more reliably with multithreading
+                        WindowManager.setTempCurrentImage(imp);
+                        interpreter.run(script);
+                        impResult = WindowManager.getTempCurrentImage();
+                        WindowManager.setTempCurrentImage(null);
                     }
 
                     // If we had an error, return
@@ -693,14 +731,16 @@ public class ImageJScriptRunner {
         }
     }
 
-    private static PathObject createOrUpdateObject(Function<ROI, PathObject> creator, Roi roi, RegionRequest request, ROI clipROI,
-                                              Map<Roi, PathObject> existingObjects) {
+    private static PathObject createOrUpdateObject(Function<ROI, PathObject> creator, Roi roi, RegionRequest request,
+                                                   ROI clipROI, Map<Roi, PathObject> existingObjects) {
         var existing = existingObjects.getOrDefault(roi, null);
         if (existing == null)
             return createNewObject(creator, roi, request, clipROI);
         else {
-            IJTools.calibrateObject(existing, roi);
-            return existing;
+            synchronized (existing) {
+                IJTools.calibrateObject(existing, roi);
+                return null;
+            }
         }
     }
 
