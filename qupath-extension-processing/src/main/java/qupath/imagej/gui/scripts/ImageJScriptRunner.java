@@ -1,3 +1,24 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2024 - 2025 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.imagej.gui.scripts;
 
 import com.google.gson.JsonArray;
@@ -17,6 +38,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJProperties;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.servers.downsamples.DownsampleCalculator;
 import qupath.lib.images.servers.downsamples.DownsampleCalculators;
 import qupath.imagej.tools.IJTools;
@@ -59,13 +81,16 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
 /**
@@ -195,7 +220,15 @@ public class ImageJScriptRunner {
     public void test(final ImageData<BufferedImage> imageData) {
         if (imageData == null)
             throw new IllegalArgumentException("No image data available");
-        run(imageData, getObjectsToProcess(imageData.getHierarchy()).getFirst(), true);
+        var toProcess = getObjectsToProcess(imageData.getHierarchy());
+        if (toProcess.isEmpty()) {
+            return;
+        }
+        // Use the selected object, if it's compatible - otherwise use the first
+        var selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
+        if (!toProcess.contains(selected))
+            selected = toProcess.getFirst();
+        run(imageData, selected, true);
     }
 
     private void run(final ImageData<BufferedImage> imageData, final Collection<? extends PathObject> pathObjects) {
@@ -288,6 +321,7 @@ public class ImageJScriptRunner {
             case DETECTIONS -> List.copyOf(hierarchy.getDetectionObjects());
             case CELLS -> List.copyOf(hierarchy.getCellObjects());
             case TILES -> List.copyOf(hierarchy.getTileObjects());
+            // TODO: Consider whether to filter out missing cores (or this can be done by passing selected objects)
             case TMA_CORES -> hierarchy.getTMAGrid() == null ? List.of() : List.copyOf(hierarchy.getTMAGrid().getTMACoreList());
             case SELECTED -> {
                 // We want the main selected object to be first, so that it is the one used during testing
@@ -346,41 +380,50 @@ public class ImageJScriptRunner {
         }
 
         // Maintain a map of Rois we sent, so that we don't create unnecessary duplicate objects
-        Map<Roi, PathObject> sentRois = new HashMap<>();
+        Map<UUID, PathObject> sentObjects = new ConcurrentHashMap<>();
 
         ImagePlus imp;
         try {
-            imp = extractImage(server, request, false); // TODO: Consider hyperstack support
-            Predicate<PathObject> filter = null;
-            // Add the main Roi, if needed
+            // Get hyperstack if passing the full image
+            imp = extractImage(server, request,
+                    params.activeRoiObjectType == PathObjectType.NONE && pathObject.isRootObject());
+            // Create variable to store which Roi should be active on the image
+            // If adding an overlay, we want to ensure the same Roi is reused
+            Roi roiToSelect = null;
+            // Create an overlay, if needed
+            // Note that an overlay is always used for cells, because it is the only way to get boundary and nucleus
+            // rois to both be passed
+            var overlay = new Overlay();
+            Set<PathObject> overlayObjects = new LinkedHashSet<>();
+            // Add the selected object first
             if (params.doSetRoi() && pathObject.hasROI()) {
-                var roi = createRois(pathObject, request, 0).getFirst();
-                if (roi != null) {
-                    sentRois.put(roi, pathObject);
-                    imp.setRoi(roi);
-                    filter = p -> p != pathObject && !PathObjectTools.isAncestor(pathObject, p);
-                }
+                overlayObjects.add(pathObject);
             }
-            // Add an overlay, if needed
+            // Add the other objects from the region, if required
             if (params.doSetOverlay()) {
-                var overlay = new Overlay();
-                Collection<PathObject> overlayObjects;
-                if (pathROI != null && params.doSetRoi()) {
-                    overlayObjects = imageData.getHierarchy().getAllObjectsForROI(pathROI);
-                } else {
-                    overlayObjects = imageData.getHierarchy().getAllObjectsForRegion(request);
-                }
-                int count = 0;
-                for (var temp : overlayObjects) {
-                    if (filter != null && !filter.test(temp))
-                        continue;
-                    for (var roi : createRois(temp, request, ++count)) {
-                        sentRois.put(roi, temp);
-                        overlay.add(roi);
-                    }
-                }
-                imp.setOverlay(overlay);
+                imageData.getHierarchy().getAllObjectsForRegion(request, overlayObjects);
             }
+            int count = 0;
+            for (var temp : overlayObjects) {
+                if (sentObjects.put(temp.getID(), temp) != null)
+                    logger.warn("Duplicate object ID found: {}", temp.getID());
+                List<Roi> tempRois;
+                if (temp == pathObject && params.doSetRoi()) {
+                    // Don't modify the main Roi name with a positive count value
+                    // Do store it for activating on the image later
+                    tempRois = createRois(temp, request, -1);
+                    roiToSelect = tempRois.getFirst();
+                } else {
+                    tempRois = createRois(temp, request, ++count);
+                }
+                for (var roi : tempRois) {
+                    overlay.add(roi);
+                }
+            }
+
+            imp.setOverlay(overlay);
+            // Add the main Roi, if needed
+            imp.setRoi(roiToSelect);
         } catch (IOException e) {
             logger.error("Unable to extract image region {}", request, e);
             return false;
@@ -412,6 +455,9 @@ public class ImageJScriptRunner {
                 if (engine != null) {
                     // We have a script engine (probably for Groovy)
                     try {
+                        imp.setProperty("qupath.imageData", imageData);
+                        imp.setProperty("qupath.pathObject", pathObject);
+                        imp.setProperty("qupath.request", request);
                         if (isTest)
                             imp.show();
                         engine.eval(script);
@@ -419,6 +465,10 @@ public class ImageJScriptRunner {
                         Dialogs.showErrorNotification("ImageJ script", e);
                         Thread.currentThread().interrupt();
                         return false;
+                    } finally {
+                        imp.setProperty("qupath.imageData", null);
+                        imp.setProperty("qupath.pathObject", null);
+                        imp.setProperty("qupath.request", null);
                     }
                 } else {
                     // ImageJ macro
@@ -431,7 +481,19 @@ public class ImageJScriptRunner {
                         // The error messages via AWT are really obtrusive - it's better to ignore them
                         // and log them for the user
                         interpreter.setIgnoreErrors(true);
-                        impResult = interpreter.runBatchMacro(script, imp);
+                        // Running a batch macro can sometimes fail due to
+                        // Cannot invoke "java.util.Vector.add(Object)" because "ij.macro.Interpreter.imageActivations" is null
+                        // which seems to be due to the use of static methods and variables.
+                        if (params.nThreads == 1) {
+                            impResult = interpreter.runBatchMacro(script, imp);
+                        } else {
+                            // This appears to work more reliably with multithreading - UNLESS images are duplicated...
+                            // in which case, I can't find any way to make multithreading reliable
+                            WindowManager.setTempCurrentImage(imp);
+                            interpreter.run(script, "");
+                            impResult = WindowManager.getTempCurrentImage();
+                            WindowManager.setTempCurrentImage(null);
+                        }
                     }
 
                     // If we had an error, return
@@ -474,7 +536,7 @@ public class ImageJScriptRunner {
             var maskROI = params.doSetRoi() ? pathROI : null;
             if (activeRoiToObject != null && impResult.getRoi() != null) {
                 Roi roi = impResult.getRoi();
-                var existingObject = sentRois.getOrDefault(roi, null);
+                var existingObject = sentObjects.getOrDefault(IJProperties.getObjectId(roi), null);
                 if (existingObject == null) {
                     var pathObjectNew = createNewObject(activeRoiToObject, roi,  request, maskROI);
                     // Add an object if it isn't already there
@@ -491,8 +553,7 @@ public class ImageJScriptRunner {
             if (overlayRoiToObject != null && impResult.getOverlay() != null) {
                 var overlay = impResult.getOverlay();
                 var childObjects = Arrays.stream(overlay.toArray())
-                        .parallel()
-                        .map(r -> createOrUpdateObject(overlayRoiToObject, r, request, maskROI, sentRois))
+                        .map(r -> createOrUpdateObject(overlayRoiToObject, r, request, maskROI, sentObjects))
                         .filter(Objects::nonNull)
                         .toList();
                 if (!childObjects.isEmpty()) {
@@ -510,9 +571,17 @@ public class ImageJScriptRunner {
 
     private RegionRequest createRequest(ImageServer<?> server, PathObject parent) {
         var pathROI = parent.getROI();
-        ImageRegion region = pathROI == null ? RegionRequest.createInstance(server) : ImageRegion.createInstance(pathROI);
+        ImageRegion fullImage = RegionRequest.createInstance(server);
+        ImageRegion region = pathROI == null ? fullImage : ImageRegion.createInstance(pathROI);
         double downsampleFactor = params.getDownsample().getDownsample(server, region);
-        return RegionRequest.createInstance(server.getPath(), downsampleFactor, region);
+        var request = RegionRequest.createInstance(server.getPath(), downsampleFactor, region);
+        // Only apply padding for ROIs
+        if (!region.equals(fullImage) && params.getPadding() > 0) {
+            int expand = (int)Math.round(params.getPadding() * downsampleFactor);
+            request = request.pad2D(expand, expand);
+        }
+        // Make sure that the region is contained within the image
+        return request.intersect2D(fullImage);
     }
 
     private static ImagePlus extractImage(ImageServer<BufferedImage> server, RegionRequest request, boolean requestHyperstack) throws IOException {
@@ -579,14 +648,14 @@ public class ImageJScriptRunner {
         if (!parents.isEmpty()) {
             if (parents.stream().allMatch(PathObject::isAnnotation)) {
                 sb.append("// selectAnnotations()\n");
-            } else if (parents.stream().allMatch(PathObject::isDetection)) {
-                sb.append("// selectDetections()\n");
             } else if (parents.stream().allMatch(PathObject::isTile)) {
                 sb.append("// selectTiles()\n");
             } else if (parents.stream().allMatch(PathObject::isTMACore)) {
                 sb.append("// selectTMACores()\n");
             } else if (parents.stream().allMatch(PathObject::isCell)) {
                 sb.append("// selectCells()\n");
+            } else if (parents.stream().allMatch(PathObject::isDetection)) {
+                sb.append("// selectDetections()\n");
             }
         }
         var gson = GsonTools.getInstance();
@@ -594,12 +663,16 @@ public class ImageJScriptRunner {
         var obj = gson.fromJson(json, JsonObject.class);
         var map = gson.fromJson(json, Map.class);
 
-        sb.append(ImageJScriptRunner.class.getName()).append(".fromMap(");
+        sb.append(ImageJScriptRunner.class.getName()).append(".fromMap(\n");
         var groovyMap = toGroovy(obj);
         if (groovyMap.startsWith("[") && groovyMap.endsWith("]")) {
-            groovyMap = groovyMap.substring(1, groovyMap.length()-1);
+            groovyMap = groovyMap.substring(1, groovyMap.length()-1).strip();
         }
-        sb.append(groovyMap);
+        if (!groovyMap.isEmpty()) {
+            sb.append("  ");
+            sb.append(groovyMap);
+            sb.append("\n");
+        }
         sb.append(").run()");
 
         var workflowScript = sb.toString();
@@ -607,51 +680,108 @@ public class ImageJScriptRunner {
                 new DefaultScriptableWorkflowStep("ImageJ script", map, workflowScript)
         );
 
-        logger.info(sb.toString());
+        logger.debug(sb.toString());
     }
 
     private static String toGroovy(JsonElement element) {
         var sb = new StringBuilder();
-        appendValue(sb, element);
+        appendValue(sb, element, 1);
         return sb.toString();
     }
 
 
-    private static String appendValue(StringBuilder sb, JsonElement val) {
+    /**
+     * Example program to log a script.
+     * @param args
+     */
+    public static void main(String[] args) {
+        try {
+            var server = new WrappedBufferedImageServer(
+                    "Anything",
+                    new BufferedImage(128, 128, BufferedImage.TYPE_INT_RGB));
+            var imageData = new ImageData<>(server);
+            imageData.setImageType(ImageData.ImageType.BRIGHTFIELD_H_E);
+            new ImageJScriptRunner.Builder()
+                    .text("""
+                            print("Hello?");
+                            print("Are you here?);
+                            """)
+                    .channels(
+                            ColorTransforms.createChannelExtractor(0),
+                            ColorTransforms.createChannelExtractor("Green"),
+                            ColorTransforms.createColorDeconvolvedChannel(imageData.getColorDeconvolutionStains(), 1))
+                    .build().addScriptToWorkflow(imageData, List.of());
+            if (imageData.getHistoryWorkflow().getLastStep() instanceof DefaultScriptableWorkflowStep step) {
+                logger.info(step.getScript());
+            }
+        } catch (Exception e) {
+            logger.error("Error running ImageJScriptRunner", e);
+        }
+    }
+
+
+    private static String appendValue(StringBuilder sb, JsonElement val, int indent) {
         switch (val) {
             case JsonPrimitive primitive -> {
                 if (primitive.isString()) {
-                    String str = val.getAsString();
+                    String str = primitive.getAsString();
                     String quote = "\"";
-                    if (str.contains(quote))
+                    if (str.contains(quote)) {
+                        if (str.contains("\"\"\"")) {
+                            logger.warn("Triple-quotes found in script text - this will not be properly handled");
+                        }
+                        int sinceLastNewline = Math.max(1, sb.length() - 1 - Math.max(sb.lastIndexOf("\n"), 0));
                         quote = "\"\"\"";
-                    sb.append(quote).append(primitive.getAsString()).append(quote);
+                        // For long, multi-line strings it's more readable to include in triple quotes and indent
+                        if (str.contains("\n")) {
+                            if (!str.startsWith("\n"))
+                                str = "\n" + str;
+                            if (!str.endsWith("\n"))
+                                str += "\n";
+                            str = str.replace("\n", "\n" + " ".repeat(sinceLastNewline));
+                        }
+                    }
+                    sb.append(quote).append(str).append(quote);
                 } else
                     sb.append(primitive.getAsString());
             }
             case JsonArray array -> {
                 sb.append("[");
                 boolean isFirst = true;
+                boolean isIndented = array.size() > 1 && indent > 0;
                 for (int i = 0; i < array.size(); i++) {
                     if (!isFirst) {
                         sb.append(", ");
                     }
-                    appendValue(sb, array.get(i));
+                    if (isIndented) {
+                        sb.append("\n");
+                        sb.append(" ".repeat(indent * 2));
+                    }
+                    // Indent 0 (keep on same row)
+                    appendValue(sb, array.get(i), indent+1);
                     isFirst = false;
+                }
+                if (isIndented) {
+                    sb.append("\n");
+                    sb.append(" ".repeat(indent * 2));
                 }
                 sb.append("]");
             }
             case JsonObject obj -> {
                 sb.append("[");
+                String newlineAndIndent = indent <= 0 || obj.size() <= 1 ? "" : System.lineSeparator() + " ".repeat(indent * 2);
+                sb.append(newlineAndIndent);
                 boolean isFirst = true;
                 for (var entry : obj.asMap().entrySet()) {
                     if (!isFirst) {
                         sb.append(", ");
+                        sb.append(newlineAndIndent);
                     }
                     sb.append(entry.getKey()).append(": ");
-                    appendValue(sb, entry.getValue());
+                    appendValue(sb, entry.getValue(), indent+1);
                     isFirst = false;
                 }
+                sb.append(newlineAndIndent);
                 sb.append("]");
             }
             case null, default -> {
@@ -674,14 +804,16 @@ public class ImageJScriptRunner {
         }
     }
 
-    private static PathObject createOrUpdateObject(Function<ROI, PathObject> creator, Roi roi, RegionRequest request, ROI clipROI,
-                                              Map<Roi, PathObject> existingObjects) {
-        var existing = existingObjects.getOrDefault(roi, null);
+    private static PathObject createOrUpdateObject(Function<ROI, PathObject> creator, Roi roi, RegionRequest request,
+                                                   ROI clipROI, Map<UUID, PathObject> existingObjects) {
+        var existing = existingObjects.getOrDefault(IJProperties.getObjectId(roi), null);
         if (existing == null)
             return createNewObject(creator, roi, request, clipROI);
         else {
-            IJTools.calibrateObject(existing, roi);
-            return existing;
+            synchronized (existing) {
+                IJTools.calibrateObject(existing, roi);
+                return null;
+            }
         }
     }
 
@@ -731,6 +863,7 @@ public class ImageJScriptRunner {
         private List<ColorTransforms.ColorTransform> channels;
 
         private DownsampleCalculator downsample = DownsampleCalculators.maxDimension(1024);
+        private int padding = 0;
         private boolean setRoi = true;
         private boolean setOverlay = false;
         private boolean closeOpenImages = false;
@@ -755,11 +888,18 @@ public class ImageJScriptRunner {
             // Store null since then it'll be skipped with json serialization
             channels = params.channels == null || params.channels.isEmpty() ? null : List.copyOf(params.channels);
             text = params.text;
+            downsample = params.downsample;
+            padding = params.padding;
             setRoi = params.setRoi;
             setOverlay = params.setOverlay;
+            closeOpenImages = params.closeOpenImages;
             clearChildObjects = params.clearChildObjects;
             activeRoiObjectType = params.activeRoiObjectType;
             overlayRoiObjectType = params.overlayRoiObjectType;
+            applyToObjects = params.applyToObjects;
+            scriptEngine = params.scriptEngine;
+            addToWorkflow = params.addToWorkflow;
+            nThreads = params.nThreads;
         }
 
         public List<ColorTransforms.ColorTransform> getChannels() {
@@ -780,6 +920,14 @@ public class ImageJScriptRunner {
          */
         public DownsampleCalculator getDownsample() {
             return downsample;
+        }
+
+        /**
+         * Get the padding to add around the ROI.
+         * @return
+         */
+        public int getPadding() {
+            return padding;
         }
 
         /**
@@ -903,7 +1051,7 @@ public class ImageJScriptRunner {
 
         // Cache of script engine names from file extensions, so that we don't need to
         // do a more expensive check
-        private static Map<String, String> scriptEngineNameCache = new HashMap<>();
+        private static final Map<String, String> scriptEngineNameCache = new HashMap<>();
 
         static {
             scriptEngineNameCache.put(null, ENGINE_NAME_MACRO);
@@ -998,7 +1146,7 @@ public class ImageJScriptRunner {
         public Builder scriptFile(Path path) throws IOException {
             var text = Files.readString(path, StandardCharsets.UTF_8);
             updateScriptEngineFromFilename(path.getFileName().toString());
-            return macroText(text);
+            return text(text);
         }
 
         private void updateScriptEngineFromFilename(String name) {
@@ -1240,6 +1388,16 @@ public class ImageJScriptRunner {
          */
         public Builder downsample(DownsampleCalculator downsample) {
             params.downsample = downsample;
+            return this;
+        }
+
+        /**
+         * Specify how much padding to add around the ROI.
+         * @param padding number of pixels of padding to add (should be &geq; 0)
+         * @return this builder
+         */
+        public Builder padding(int padding) {
+            params.padding = padding;
             return this;
         }
 

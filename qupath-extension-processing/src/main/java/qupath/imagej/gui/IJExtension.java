@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -32,7 +32,10 @@ import ij.Prefs;
 import ij.gui.Overlay;
 import ij.gui.Roi;
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
 import javafx.scene.Scene;
@@ -131,6 +134,8 @@ public class IJExtension implements QuPathExtension {
 
 	// Handle quitting ImageJ quietly, without prompts to save images
 	private static final ImageJQuitCommandListener quitCommandListener = new ImageJQuitCommandListener(IJ.getInstance() != null);
+
+	private static final BooleanProperty alwaysOnTop = new SimpleBooleanProperty(false);
 
 	/**
 	 * It is necessary to block MenuBars created with AWT on macOS, otherwise shortcuts
@@ -254,6 +259,9 @@ public class IJExtension implements QuPathExtension {
 		ij.exitWhenQuitting(false);
 		Executer.removeCommandListener(quitCommandListener);
 		Executer.addCommandListener(quitCommandListener);
+
+		// Handle always-on-top
+		ij.setAlwaysOnTop(alwaysOnTop.get());
 
 		// Attempt to block the AWT menu bar when ImageJ is not in focus.
 		// Also try to work around a macOS issue where ImageJ's menubar and QuPath's don't work nicely together,
@@ -700,7 +708,15 @@ public class IJExtension implements QuPathExtension {
 										.description("Set the path to the 'plugins' directory of an existing ImageJ installation")
 				.build();
 		qupath.getPreferencePane().getPropertySheet().getItems().add(item);
-		
+
+		// Add a preference to set the ImageJ path
+		var itemOnTop = new PropertyItemBuilder<>(alwaysOnTop, Boolean.class)
+				.name("ImageJ always on top")
+				.category("ImageJ")
+				.description("Request that the ImageJ window is always on top of all other windows")
+				.build();
+		qupath.getPreferencePane().getPropertySheet().getItems().add(itemOnTop);
+
 		var commands = new IJExtensionCommands(qupath);
 		qupath.installActions(ActionTools.getAnnotatedActions(commands));
 		
@@ -820,8 +836,16 @@ public class IJExtension implements QuPathExtension {
 		
 		extensionInstalled = true;
 
+		alwaysOnTop.addListener(this::alwaysOnTopChanged);
+
 		Prefs.setThreads(1); // We always want a single thread, due to QuPath's multithreading
 		addQuPathCommands(qupath);
+	}
+
+	private void alwaysOnTopChanged(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
+		var ij = IJ.getInstance();
+		if (ij != null)
+			ij.setAlwaysOnTop(newValue);
 	}
 
 

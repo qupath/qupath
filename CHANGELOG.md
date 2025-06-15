@@ -75,6 +75,7 @@ Some things may be added, some things may be removed, and some things may look d
 * Channel names can now be set for all fluorescence images, even if they are RGB (https://github.com/qupath/qupath/pull/1659)
   * Note that channel colors still only be set for non-RGB images
 * Improved ImageJ integration (https://github.com/qupath/qupath/pull/1676 https://github.com/qupath/qupath/pull/1677)
+  * Includes new preference to make ImageJ window 'always on top'
 * 'Selection mode' now supports 'deselecting' objects by pressing the 'Alt' key (https://github.com/qupath/qupath/issues/1704)
 * More 'filter boxes' in the user interface to find things in long lists or tables (https://github.com/qupath/qupath/pull/1742)
 * Color deconvolution support for non-8-bit images (https://github.com/qupath/qupath/pull/1807)
