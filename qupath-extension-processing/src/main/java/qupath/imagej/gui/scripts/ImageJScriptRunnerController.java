@@ -218,6 +218,9 @@ public class ImageJScriptRunnerController extends BorderPane {
     private final ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
     @FXML
+    private BorderPane paneScript;
+
+    @FXML
     private CheckComboBox<ColorTransforms.ColorTransform> comboChannels;
 
     @FXML
@@ -228,6 +231,9 @@ public class ImageJScriptRunnerController extends BorderPane {
 
     @FXML
     private Spinner<Integer> spinnerThreads;
+
+    @FXML
+    private Label labelThreadsWarning;
 
     @FXML
     private CheckBox cbAddToHistory;
@@ -480,6 +486,14 @@ public class ImageJScriptRunnerController extends BorderPane {
         spinnerThreads.setValueFactory(
                 new SpinnerValueFactory.IntegerSpinnerValueFactory(min, max, value, step));
         nThreadsProperty.bind(spinnerThreads.valueProperty());
+
+
+        paneScript.bottomProperty().bind(Bindings.createObjectBinding(() -> {
+            if (nThreadsProperty.get() > 1 && languageProperty.get() == LanguageOption.MACRO)
+                return labelThreadsWarning;
+            else
+                return null;
+        }, nThreadsProperty, languageProperty));
     }
 
     private void bindPreferences() {

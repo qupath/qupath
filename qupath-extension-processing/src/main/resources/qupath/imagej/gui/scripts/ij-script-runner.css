@@ -5,3 +5,8 @@
 .macro {
     -fx-font-family: monospace;
 }
+
+.warning {
+    -fx-text-fill: -qp-script-error-color;
+    -fx-font-weight: bold;
+}
