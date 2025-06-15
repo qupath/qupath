@@ -543,7 +543,6 @@ public class ImageJScriptRunner {
             if (overlayRoiToObject != null && impResult.getOverlay() != null) {
                 var overlay = impResult.getOverlay();
                 var childObjects = Arrays.stream(overlay.toArray())
-                        .parallel()
                         .map(r -> createOrUpdateObject(overlayRoiToObject, r, request, maskROI, sentRois))
                         .filter(Objects::nonNull)
                         .toList();
