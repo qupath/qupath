@@ -303,8 +303,6 @@ class ExtractRegionCommand implements Runnable {
 								RegionRequest request2 = RegionRequest.createInstance(region.getPath(), region.getDownsample(), region.getX(), region.getY(), region.getWidth(), region.getHeight(), z, t);
 								var regionPredicate = PathObjectTools.createImageRegionPredicate(request2);
 								Overlay temp = IJExtension.extractOverlay(hierarchy, request2, options, p -> p != pathObject && regionPredicate.test(p));
-								if (overlay == null)
-									overlay = temp;
 								for (int i = 0; i < temp.size(); i++) {
 									Roi roiIJ = temp.get(i);
 									roiIJ.setPosition(-1, z+1, t+1);
@@ -312,13 +310,14 @@ class ExtractRegionCommand implements Runnable {
 								}
 							}							
 						}
-						if (overlay != null && overlay.size() > 0)
+						if (overlay.size() > 0)
 							imp.setOverlay(overlay);
 					}
-				} else if (includeOverlay)
+				} else if (includeOverlay) {
 					imp = IJExtension.extractROIWithOverlay(server, pathObject, hierarchy, region, doIncludeRoi, options).getImage();
-				else
+				} else {
 					imp = IJExtension.extractROIWithOverlay(server, pathObject, null, region, doIncludeRoi, options).getImage();
+				}
 				
 				// Set display ranges and invert LUTs if we should (and can)
 				boolean invertLUTs = imageDisplay.useInvertedBackground();

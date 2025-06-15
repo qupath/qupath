@@ -568,10 +568,9 @@ public class IJTools {
 	public static void calibrateObject(PathObject pathObject, Roi roi) {
 		Color color = roi.getStrokeColor();
 		Integer colorRGB = color == null ? null : color.getRGB();
-		// Take name from properties first, then from Roi name
+		// Take name from properties
+		// Don't use Roi.getName() because it may not have the same purpose
 		String name = IJProperties.getObjectName(roi);
-		if (name == null)
-			name = roi.getName();
 		if (name != null && !name.isBlank()) {
 			pathObject.setName(name);
 		}
@@ -588,11 +587,12 @@ public class IJTools {
 				var groupName = Roi.getGroupName(group);
 				if (groupName == null)
 					groupName = "Group " + group;
-				pathObject.setPathClass(PathClass.getInstance(groupName, colorRGB));
+				pathObject.setPathClass(PathClass.fromString(groupName, colorRGB));
 			}
 		}
 		// Set color if we haven't already assigned a color via the classification
-		if (colorRGB != null && pathObject.getPathClass() == null) {
+		if (colorRGB != null && pathObject.getPathClass() == null
+				&& !colorRGB.equals(pathObject.getColor())) {
 			pathObject.setColor(colorRGB);
 		}
 		// Set ID if it is stored
@@ -607,12 +607,23 @@ public class IJTools {
 		}
 	}
 
-
+	/**
+	 * Set properties of an ImageJ Roi based upon the property of a {@link PathObject}.
+	 * @param roi
+	 * @param pathObject
+	 */
 	public static void calibrateRoi(Roi roi, PathObject pathObject) {
 		IJProperties.setClassification(roi, pathObject);
 		IJProperties.setObjectName(roi, pathObject);
 		IJProperties.setObjectId(roi, pathObject);
 		roi.setProperty("qupath.object.type", PathObjectTools.getSuitableName(pathObject.getClass(), false));
+		// Set the Roi color, if a color is used
+		Integer colorRGB = pathObject.getColor();
+		var pc = pathObject.getPathClass();
+		if (pc != null)
+			colorRGB = pc.getColor();
+		if (colorRGB != null)
+			roi.setStrokeColor(ColorToolsAwt.getCachedColor(colorRGB));
 	}
 	
 	

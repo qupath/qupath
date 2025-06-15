@@ -38,7 +38,6 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJProperties;
-import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.servers.downsamples.DownsampleCalculator;
 import qupath.lib.images.servers.downsamples.DownsampleCalculators;
