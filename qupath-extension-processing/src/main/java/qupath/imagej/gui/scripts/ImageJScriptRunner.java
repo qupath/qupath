@@ -86,6 +86,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -219,7 +220,15 @@ public class ImageJScriptRunner {
     public void test(final ImageData<BufferedImage> imageData) {
         if (imageData == null)
             throw new IllegalArgumentException("No image data available");
-        run(imageData, getObjectsToProcess(imageData.getHierarchy()).getFirst(), true);
+        var toProcess = getObjectsToProcess(imageData.getHierarchy());
+        if (toProcess.isEmpty()) {
+            return;
+        }
+        // Use the selected object, if it's compatible - otherwise use the first
+        var selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
+        if (!toProcess.contains(selected))
+            selected = toProcess.getFirst();
+        run(imageData, selected, true);
     }
 
     private void run(final ImageData<BufferedImage> imageData, final Collection<? extends PathObject> pathObjects) {
@@ -371,7 +380,7 @@ public class ImageJScriptRunner {
         }
 
         // Maintain a map of Rois we sent, so that we don't create unnecessary duplicate objects
-        Map<Roi, PathObject> sentRois = new ConcurrentHashMap<>();
+        Map<UUID, PathObject> sentObjects = new ConcurrentHashMap<>();
 
         ImagePlus imp;
         try {
@@ -396,6 +405,8 @@ public class ImageJScriptRunner {
             }
             int count = 0;
             for (var temp : overlayObjects) {
+                if (sentObjects.put(temp.getID(), temp) != null)
+                    logger.warn("Duplicate object ID found: {}", temp.getID());
                 List<Roi> tempRois;
                 if (temp == pathObject && params.doSetRoi()) {
                     // Don't modify the main Roi name with a positive count value
@@ -406,7 +417,6 @@ public class ImageJScriptRunner {
                     tempRois = createRois(temp, request, ++count);
                 }
                 for (var roi : tempRois) {
-                    sentRois.put(roi, temp);
                     overlay.add(roi);
                 }
             }
@@ -526,7 +536,7 @@ public class ImageJScriptRunner {
             var maskROI = params.doSetRoi() ? pathROI : null;
             if (activeRoiToObject != null && impResult.getRoi() != null) {
                 Roi roi = impResult.getRoi();
-                var existingObject = sentRois.getOrDefault(roi, null);
+                var existingObject = sentObjects.getOrDefault(IJProperties.getObjectId(roi), null);
                 if (existingObject == null) {
                     var pathObjectNew = createNewObject(activeRoiToObject, roi,  request, maskROI);
                     // Add an object if it isn't already there
@@ -543,7 +553,7 @@ public class ImageJScriptRunner {
             if (overlayRoiToObject != null && impResult.getOverlay() != null) {
                 var overlay = impResult.getOverlay();
                 var childObjects = Arrays.stream(overlay.toArray())
-                        .map(r -> createOrUpdateObject(overlayRoiToObject, r, request, maskROI, sentRois))
+                        .map(r -> createOrUpdateObject(overlayRoiToObject, r, request, maskROI, sentObjects))
                         .filter(Objects::nonNull)
                         .toList();
                 if (!childObjects.isEmpty()) {
@@ -795,8 +805,8 @@ public class ImageJScriptRunner {
     }
 
     private static PathObject createOrUpdateObject(Function<ROI, PathObject> creator, Roi roi, RegionRequest request,
-                                                   ROI clipROI, Map<Roi, PathObject> existingObjects) {
-        var existing = existingObjects.getOrDefault(roi, null);
+                                                   ROI clipROI, Map<UUID, PathObject> existingObjects) {
+        var existing = existingObjects.getOrDefault(IJProperties.getObjectId(roi), null);
         if (existing == null)
             return createNewObject(creator, roi, request, clipROI);
         else {
