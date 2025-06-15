@@ -177,7 +177,7 @@
                               <Tooltip text="%ui.apply.label.tooltip" />
                            </tooltip>
                         </Label>
-                        <ChoiceBox fx:id="choiceApplyTo" prefWidth="182.0">
+                        <ChoiceBox fx:id="choiceApplyTo" maxWidth="1.7976931348623157E308" prefWidth="182.0" HBox.hgrow="SOMETIMES">
                            <tooltip>
                               <Tooltip text="%ui.apply.label.tooltip" />
                            </tooltip>
