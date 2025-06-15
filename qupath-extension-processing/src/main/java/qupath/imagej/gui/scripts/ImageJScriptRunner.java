@@ -655,13 +655,17 @@ public class ImageJScriptRunner {
         var obj = gson.fromJson(json, JsonObject.class);
         var map = gson.fromJson(json, Map.class);
 
-        sb.append(ImageJScriptRunner.class.getName()).append(".fromMap(");
+        sb.append(ImageJScriptRunner.class.getName()).append(".fromMap(\n");
         var groovyMap = toGroovy(obj);
         if (groovyMap.startsWith("[") && groovyMap.endsWith("]")) {
-            groovyMap = groovyMap.substring(1, groovyMap.length()-1);
+            groovyMap = groovyMap.substring(1, groovyMap.length()-1).strip();
         }
-        sb.append(groovyMap);
-        sb.append("\n).run()");
+        if (!groovyMap.isEmpty()) {
+            sb.append("  ");
+            sb.append(groovyMap);
+            sb.append("\n");
+        }
+        sb.append(").run()");
 
         var workflowScript = sb.toString();
         imageData.getHistoryWorkflow().addStep(
@@ -709,17 +713,18 @@ public class ImageJScriptRunner {
 
 
     private static String appendValue(StringBuilder sb, JsonElement val, int indent) {
-        String newline = indent <= 0 ? "" : System.lineSeparator() + " ".repeat(indent * 2);
         switch (val) {
             case JsonPrimitive primitive -> {
                 if (primitive.isString()) {
                     String str = primitive.getAsString();
                     String quote = "\"";
                     if (str.contains(quote)) {
+                        if (str.contains("\"\"\"")) {
+                            logger.warn("Triple-quotes found in script text - this will not be properly handled");
+                        }
                         int sinceLastNewline = Math.max(1, sb.length() - 1 - Math.max(sb.lastIndexOf("\n"), 0));
                         quote = "\"\"\"";
-                        // For long, multi-line strings it's more readable to start
-                        // and end with a newline
+                        // For long, multi-line strings it's more readable to include in triple quotes and indent
                         if (str.contains("\n")) {
                             if (!str.startsWith("\n"))
                                 str = "\n" + str;
@@ -735,29 +740,40 @@ public class ImageJScriptRunner {
             case JsonArray array -> {
                 sb.append("[");
                 boolean isFirst = true;
+                boolean isIndented = array.size() > 1 && indent > 0;
                 for (int i = 0; i < array.size(); i++) {
                     if (!isFirst) {
                         sb.append(", ");
                     }
+                    if (isIndented) {
+                        sb.append("\n");
+                        sb.append(" ".repeat(indent * 2));
+                    }
                     // Indent 0 (keep on same row)
-                    appendValue(sb, array.get(i), 0);
+                    appendValue(sb, array.get(i), indent+1);
                     isFirst = false;
+                }
+                if (isIndented) {
+                    sb.append("\n");
+                    sb.append(" ".repeat(indent * 2));
                 }
                 sb.append("]");
             }
             case JsonObject obj -> {
                 sb.append("[");
-                sb.append(newline);
+                String newlineAndIndent = indent <= 0 || obj.size() <= 1 ? "" : System.lineSeparator() + " ".repeat(indent * 2);
+                sb.append(newlineAndIndent);
                 boolean isFirst = true;
                 for (var entry : obj.asMap().entrySet()) {
                     if (!isFirst) {
                         sb.append(", ");
-                        sb.append(newline);
+                        sb.append(newlineAndIndent);
                     }
                     sb.append(entry.getKey()).append(": ");
-                    appendValue(sb, entry.getValue(), 0);
+                    appendValue(sb, entry.getValue(), indent+1);
                     isFirst = false;
                 }
+                sb.append(newlineAndIndent);
                 sb.append("]");
             }
             case null, default -> {
