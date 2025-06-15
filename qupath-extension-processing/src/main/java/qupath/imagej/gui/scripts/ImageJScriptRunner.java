@@ -38,6 +38,8 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJProperties;
+import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.servers.downsamples.DownsampleCalculator;
 import qupath.lib.images.servers.downsamples.DownsampleCalculators;
 import qupath.imagej.tools.IJTools;
@@ -659,30 +661,62 @@ public class ImageJScriptRunner {
             groovyMap = groovyMap.substring(1, groovyMap.length()-1);
         }
         sb.append(groovyMap);
-        sb.append(").run()");
+        sb.append("\n).run()");
 
         var workflowScript = sb.toString();
         imageData.getHistoryWorkflow().addStep(
                 new DefaultScriptableWorkflowStep("ImageJ script", map, workflowScript)
         );
 
-        logger.info(sb.toString());
+        logger.debug(sb.toString());
     }
 
     private static String toGroovy(JsonElement element) {
         var sb = new StringBuilder();
-        appendValue(sb, element);
+        appendValue(sb, element, 1);
         return sb.toString();
     }
 
 
-    private static String appendValue(StringBuilder sb, JsonElement val) {
+    /**
+     * Example program to log a script.
+     * @param args
+     */
+    public static void main(String[] args) {
+        try {
+            var server = new WrappedBufferedImageServer(
+                    "Anything",
+                    new BufferedImage(128, 128, BufferedImage.TYPE_INT_RGB));
+            var imageData = new ImageData<>(server);
+            imageData.setImageType(ImageData.ImageType.BRIGHTFIELD_H_E);
+            new ImageJScriptRunner.Builder()
+                    .text("""
+                            print("Hello?");
+                            print("Are you here?);
+                            """)
+                    .channels(
+                            ColorTransforms.createChannelExtractor(0),
+                            ColorTransforms.createChannelExtractor("Green"),
+                            ColorTransforms.createColorDeconvolvedChannel(imageData.getColorDeconvolutionStains(), 1))
+                    .build().addScriptToWorkflow(imageData, List.of());
+            if (imageData.getHistoryWorkflow().getLastStep() instanceof DefaultScriptableWorkflowStep step) {
+                logger.info(step.getScript());
+            }
+        } catch (Exception e) {
+            logger.error("Error running ImageJScriptRunner", e);
+        }
+    }
+
+
+    private static String appendValue(StringBuilder sb, JsonElement val, int indent) {
+        String newline = indent <= 0 ? "" : System.lineSeparator() + " ".repeat(indent * 2);
         switch (val) {
             case JsonPrimitive primitive -> {
                 if (primitive.isString()) {
                     String str = primitive.getAsString();
                     String quote = "\"";
                     if (str.contains(quote)) {
+                        int sinceLastNewline = Math.max(1, sb.length() - 1 - Math.max(sb.lastIndexOf("\n"), 0));
                         quote = "\"\"\"";
                         // For long, multi-line strings it's more readable to start
                         // and end with a newline
@@ -691,6 +725,7 @@ public class ImageJScriptRunner {
                                 str = "\n" + str;
                             if (!str.endsWith("\n"))
                                 str += "\n";
+                            str = str.replace("\n", "\n" + " ".repeat(sinceLastNewline));
                         }
                     }
                     sb.append(quote).append(str).append(quote);
@@ -704,20 +739,23 @@ public class ImageJScriptRunner {
                     if (!isFirst) {
                         sb.append(", ");
                     }
-                    appendValue(sb, array.get(i));
+                    // Indent 0 (keep on same row)
+                    appendValue(sb, array.get(i), 0);
                     isFirst = false;
                 }
                 sb.append("]");
             }
             case JsonObject obj -> {
                 sb.append("[");
+                sb.append(newline);
                 boolean isFirst = true;
                 for (var entry : obj.asMap().entrySet()) {
                     if (!isFirst) {
                         sb.append(", ");
+                        sb.append(newline);
                     }
                     sb.append(entry.getKey()).append(": ");
-                    appendValue(sb, entry.getValue());
+                    appendValue(sb, entry.getValue(), 0);
                     isFirst = false;
                 }
                 sb.append("]");
@@ -1084,7 +1122,7 @@ public class ImageJScriptRunner {
         public Builder scriptFile(Path path) throws IOException {
             var text = Files.readString(path, StandardCharsets.UTF_8);
             updateScriptEngineFromFilename(path.getFileName().toString());
-            return macroText(text);
+            return text(text);
         }
 
         private void updateScriptEngineFromFilename(String name) {
