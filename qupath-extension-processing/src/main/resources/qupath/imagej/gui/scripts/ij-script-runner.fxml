@@ -37,13 +37,6 @@
                </content>
             </TitledPane>
          </center>
-         <bottom>
-            <Label fx:id="labelThreadsWarning" alignment="CENTER" contentDisplay="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" styleClass="warning" text="%ui.threads.warning" textAlignment="CENTER" wrapText="true" BorderPane.alignment="CENTER">
-               <padding>
-                  <Insets bottom="5.0" top="5.0" />
-               </padding>
-            </Label>
-         </bottom>
       </BorderPane>
    </center>
    <bottom>
@@ -223,6 +216,11 @@
                                     <Tooltip text="%ui.threads.label.tooltip" />
                                  </tooltip>
                               </Spinner>
+                              <Label fx:id="labelThreadsWarning" contentDisplay="GRAPHIC_ONLY" maxHeight="1.7976931348623157E308">
+                                 <tooltip>
+                                    <Tooltip text="%ui.threads.warning" />
+                                 </tooltip>
+                              </Label>
                               <Button fx:id="btnTest" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleRunTest" text="%ui.button.test" HBox.hgrow="SOMETIMES">
                                  <tooltip>
                                     <Tooltip text="%ui.button.test.tooltip" />

@@ -7,6 +7,6 @@
 }
 
 .warning {
+    -fx-fill: -qp-script-error-color;
     -fx-text-fill: -qp-script-error-color;
-    -fx-font-weight: bold;
 }

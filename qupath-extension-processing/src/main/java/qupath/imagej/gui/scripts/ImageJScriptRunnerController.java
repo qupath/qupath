@@ -37,6 +37,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -54,12 +55,16 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
+import javafx.util.Duration;
 import org.controlsfx.control.CheckComboBox;
+import org.controlsfx.glyphfont.FontAwesome;
+import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.FXUtils;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.images.servers.downsamples.DownsampleCalculator;
 import qupath.lib.images.servers.downsamples.DownsampleCalculators;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
@@ -488,12 +493,16 @@ public class ImageJScriptRunnerController extends BorderPane {
         nThreadsProperty.bind(spinnerThreads.valueProperty());
 
 
-        paneScript.bottomProperty().bind(Bindings.createObjectBinding(() -> {
-            if (nThreadsProperty.get() > 1 && languageProperty.get() == LanguageOption.MACRO)
-                return labelThreadsWarning;
-            else
-                return null;
-        }, nThreadsProperty, languageProperty));
+        labelThreadsWarning.visibleProperty().bind(Bindings.createBooleanBinding(() ->
+            nThreadsProperty.get() > 1 && languageProperty.get() == LanguageOption.MACRO,
+                nThreadsProperty, languageProperty));
+
+        var icon = new Glyph("FontAwesome", FontAwesome.Glyph.EXCLAMATION_CIRCLE);
+        icon.getStyleClass().add("warning");
+        labelThreadsWarning.setGraphic(icon);
+        labelThreadsWarning.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        labelThreadsWarning.getTooltip().setShowDelay(Duration.ZERO);
+        labelThreadsWarning.getTooltip().setHideDelay(Duration.ZERO);
     }
 
     private void bindPreferences() {
