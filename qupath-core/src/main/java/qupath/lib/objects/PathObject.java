@@ -774,10 +774,10 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	}
 
 	/**
-	 * Convenience method to et the classification of the object from a string representation.
+	 * Convenience method to set the classification of the object from a string representation.
 	 * If the string is null or empty, the classification is reset.
 	 * Otherwise, it is equivalent to calling {@code setPathClass(PathClass.fromString(classification))}
-	 * @param classification
+	 * @param classification string representation of the classification to use
 	 * @see #getClassification()
 	 * @see #setPathClass(PathClass)
 	 * @see #setClassifications(Collection)
@@ -788,6 +788,26 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 			resetPathClass();
 		else
 			setPathClass(PathClass.fromString(classification));
+	}
+
+	/**
+	 * Companion method for {@link #setClassification(String)} to reduce the risk of issues when using Groovy.
+	 * <p>
+	 * Without this, calling {@code setClassification(["First", "Second"])} would result in a string representation
+	 * of the list being used as the name for the class.
+	 * @param obj the classification to set
+	 * @since v0.6.0
+	 */
+	public void setClassification(Object obj) {
+        switch (obj) {
+            case null -> resetPathClass();
+            case String s -> setClassification(s);
+            case Collection<?> collection ->
+                    throw new IllegalArgumentException("setClassification(String) requires a string " +
+                            "- did you mean to call setClassifications(Collection)?");
+            default -> throw new IllegalArgumentException("setClassification(String) requires a string input - " +
+                    "cannot parse " + obj);
+        }
 	}
 
 	/**
