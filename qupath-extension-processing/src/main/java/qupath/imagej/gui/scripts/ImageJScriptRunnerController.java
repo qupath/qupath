@@ -395,7 +395,7 @@ public class ImageJScriptRunnerController extends BorderPane {
 
     private void initTitle() {
         titledScript.textProperty().bind(
-                Bindings.createStringBinding(this::getMacroPaneTitle, unsavedChanges)
+                Bindings.createStringBinding(this::getMacroPaneTitle, unsavedChanges, languageProperty)
         );
     }
 
@@ -415,7 +415,11 @@ public class ImageJScriptRunnerController extends BorderPane {
     }
 
     private String getMacroPaneTitle() {
-        var title = resources.getString("ui.title.script");
+        String title = switch(languageProperty.get()) {
+                case GROOVY -> resources.getString("ui.title.script.groovy");
+                case MACRO -> resources.getString("ui.title.script.macro");
+                default -> resources.getString("ui.title.script");
+            };
         return unsavedChanges.get() ? title + "*" : title;
     }
 
@@ -595,6 +599,16 @@ public class ImageJScriptRunnerController extends BorderPane {
         );
         miRun.disableProperty().bind(btnRunMacro.disableProperty());
         btnTest.disableProperty().bind(btnRunMacro.disableProperty());
+
+        var runText = Bindings.createStringBinding(() -> {
+            return switch (languageProperty.get()) {
+                case GROOVY -> resources.getString("ui.button.run.groovy");
+                case MACRO -> resources.getString("ui.button.run.macro");
+                default -> resources.getString("ui.button.run");
+            };
+        }, languageProperty);
+        miRun.textProperty().bind(runText);
+        btnRunMacro.textProperty().bind(runText);
     }
 
     private void initMenus() {
@@ -849,6 +863,13 @@ public class ImageJScriptRunnerController extends BorderPane {
             scriptEditorControl.setText(text);
             lastSavedText.set(text);
             lastSavedPath.set(path);
+            // Update language, if necessary
+            var ext = GeneralTools.getExtension(path.toString()).orElse("");
+            switch(ext.toLowerCase()) {
+                case ".groovy" -> toggleLanguages.selectToggle(rmiGroovy);
+                case ".ijm", ".txt" -> toggleLanguages.selectToggle(rmiMacro);
+                default -> {}
+            };
         } catch (IOException e) {
             Dialogs.showErrorNotification(title,
                     String.format(resources.getString("dialogs.error.reading"), path.getFileName()));
