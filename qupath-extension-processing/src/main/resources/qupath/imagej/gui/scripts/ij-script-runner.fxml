@@ -19,7 +19,11 @@
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.input.KeyCodeCombination?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import org.controlsfx.control.CheckComboBox?>
 
@@ -47,9 +51,17 @@
          <children>
             <TitledPane fx:id="titledOptions" text="%ui.title.options" VBox.vgrow="ALWAYS">
                <content>
-                  <HBox maxWidth="1.7976931348623157E308">
+                  <GridPane>
+                     <columnConstraints>
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="49.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" minWidth="5.0" percentWidth="2.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="49.0" prefWidth="100.0" />
+                     </columnConstraints>
+                     <rowConstraints>
+                        <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+                     </rowConstraints>
                      <children>
-                        <VBox spacing="5.0" HBox.hgrow="ALWAYS">
+                        <VBox spacing="5.0">
                            <children>
                               <Label styleClass="title" text="%ui.title.toImageJ" />
                               <HBox spacing="10.0">
@@ -116,12 +128,12 @@
                               </CheckBox>
                            </children>
                         </VBox>
-                        <Separator orientation="VERTICAL" HBox.hgrow="NEVER">
-                           <HBox.margin>
-                              <Insets left="10.0" right="10.0" />
-                           </HBox.margin>
-                        </Separator>
-                        <VBox spacing="5.0" HBox.hgrow="ALWAYS">
+                        <StackPane GridPane.columnIndex="1" GridPane.hgrow="ALWAYS">
+                           <children>
+                              <Separator orientation="VERTICAL" StackPane.alignment="CENTER" />
+                           </children>
+                        </StackPane>
+                        <VBox spacing="5.0" GridPane.columnIndex="2">
                            <children>
                               <Label styleClass="title" text="%ui.title.toQuPath" />
                               <HBox spacing="10.0">
@@ -165,41 +177,61 @@
                            </children>
                         </VBox>
                      </children>
-                  </HBox>
+                  </GridPane>
                </content>
             </TitledPane>
             <VBox spacing="5.0">
                <children>
-                  <HBox spacing="10.0">
+                  <GridPane>
+                     <columnConstraints>
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="49.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="2.0" prefWidth="100.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="49.0" prefWidth="100.0" />
+                     </columnConstraints>
+                     <rowConstraints>
+                        <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+                     </rowConstraints>
                      <children>
-                        <Label maxHeight="1.7976931348623157E308" prefWidth="90.0" text="%ui.apply.label">
-                           <tooltip>
-                              <Tooltip text="%ui.apply.label.tooltip" />
-                           </tooltip>
-                        </Label>
-                        <ChoiceBox fx:id="choiceApplyTo" maxWidth="1.7976931348623157E308" prefWidth="182.0" HBox.hgrow="SOMETIMES">
-                           <tooltip>
-                              <Tooltip text="%ui.apply.label.tooltip" />
-                           </tooltip>
-                        </ChoiceBox>
-                        <Separator orientation="VERTICAL" />
-                        <Label maxHeight="1.7976931348623157E308" text="%ui.threads.label">
-                           <tooltip>
-                              <Tooltip text="%ui.threads.label.tooltip" />
-                           </tooltip>
-                        </Label>
-                        <Spinner fx:id="spinnerThreads" maxWidth="1.7976931348623157E308" prefWidth="80.0" HBox.hgrow="SOMETIMES">
-                           <tooltip>
-                              <Tooltip text="%ui.threads.label.tooltip" />
-                           </tooltip>
-                        </Spinner>
-                        <Button fx:id="btnTest" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleRunTest" text="%ui.button.test" HBox.hgrow="SOMETIMES">
-                           <tooltip>
-                              <Tooltip text="%ui.button.test.tooltip" />
-                           </tooltip>
-                        </Button>
+                        <HBox spacing="10.0">
+                           <children>
+                              <Label maxHeight="1.7976931348623157E308" prefWidth="90.0" text="%ui.apply.label">
+                                 <tooltip>
+                                    <Tooltip text="%ui.apply.label.tooltip" />
+                                 </tooltip>
+                              </Label>
+                              <ChoiceBox fx:id="choiceApplyTo" maxWidth="1.7976931348623157E308" prefWidth="182.0" HBox.hgrow="SOMETIMES">
+                                 <tooltip>
+                                    <Tooltip text="%ui.apply.label.tooltip" />
+                                 </tooltip>
+                              </ChoiceBox>
+                           </children>
+                        </HBox>
+                        <StackPane GridPane.columnIndex="1">
+                           <children>
+                              <Separator orientation="VERTICAL" StackPane.alignment="CENTER" />
+                           </children>
+                        </StackPane>
+                        <HBox prefWidth="200.0" spacing="5.0" GridPane.columnIndex="2">
+                           <children>
+                              <Label maxHeight="1.7976931348623157E308" text="%ui.threads.label">
+                                 <tooltip>
+                                    <Tooltip text="%ui.threads.label.tooltip" />
+                                 </tooltip>
+                              </Label>
+                              <Spinner fx:id="spinnerThreads" maxWidth="1.7976931348623157E308" prefWidth="80.0" HBox.hgrow="SOMETIMES">
+                                 <tooltip>
+                                    <Tooltip text="%ui.threads.label.tooltip" />
+                                 </tooltip>
+                              </Spinner>
+                              <Button fx:id="btnTest" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleRunTest" text="%ui.button.test" HBox.hgrow="SOMETIMES">
+                                 <tooltip>
+                                    <Tooltip text="%ui.button.test.tooltip" />
+                                 </tooltip>
+                              </Button>
+                           </children>
+                        </HBox>
                      </children>
-                  </HBox>
+                  </GridPane>
                   <Button fx:id="btnRunMacro" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleRun" text="%ui.button.run">
                      <tooltip>
                         <Tooltip text="%ui.button.run.tooltip" />
