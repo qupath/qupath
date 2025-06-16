@@ -101,11 +101,10 @@ public class IJProperties {
         int z = sz == null ? 0 : Integer.parseInt(sz);
         int t = st == null ? 0 : Integer.parseInt(st);
         try {
-            var region = ImageRegion.createInstance(
+            return ImageRegion.createInstance(
                     Integer.parseInt(sx), Integer.parseInt(sy), Integer.parseInt(swidth), Integer.parseInt(sheight),
                     z, t
             );
-            return region;
         } catch (Exception e) {
             logger.warn("Exception parsing region from properties: {}", e.getMessage());
             logger.debug(e.getMessage(), e);
