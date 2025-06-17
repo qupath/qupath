@@ -1376,10 +1376,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 				}
 				// TODO: Allow multiple extensions to be used?
 				Collection<String> extensions = tab.getRequestedExtensions();
-				String ext = extensions.isEmpty() ? null : extensions.iterator().next();
 				File file = FileChoosers.promptToSaveFile(dialog, "Save script file",
 						tab.getName() == null ? null : new File(dir, tab.getName()),
-						FileChoosers.createExtensionFilter(currentLanguage.getValue().getName() + " file", ext));
+						FileChoosers.createExtensionFilter(currentLanguage.getValue().getName() + " file", extensions));
 				if (file == null)
 					return false;
 				tab.saveToFile(getCurrentText(), file);

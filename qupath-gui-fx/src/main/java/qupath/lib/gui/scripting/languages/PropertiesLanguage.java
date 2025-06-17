@@ -21,8 +21,7 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.Set;
-
+import com.google.common.collect.ImmutableSet;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
@@ -36,7 +35,7 @@ public class PropertiesLanguage extends ScriptLanguage {
 	private static final PropertiesLanguage INSTANCE = new PropertiesLanguage();
 
 	private PropertiesLanguage() {
-		super("Properties", Set.of(".properties", ".cfg"));
+		super("Properties", ImmutableSet.of(".properties", ".cfg"));
 	}
 	
 	/**

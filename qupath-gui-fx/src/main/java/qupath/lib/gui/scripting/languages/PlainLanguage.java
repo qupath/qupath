@@ -21,8 +21,7 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.Set;
-
+import com.google.common.collect.ImmutableSet;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
@@ -37,7 +36,7 @@ public class PlainLanguage extends ScriptLanguage {
 	private static final PlainLanguage INSTANCE = new PlainLanguage();
 
 	private PlainLanguage() {
-		super("None", Set.of(".txt", ".tsv", ".csv"));
+		super("None", ImmutableSet.of(".txt", ".tsv", ".csv"));
 	}
 	
 	/**
