@@ -33,6 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -42,6 +43,7 @@ import java.util.function.Function;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.*;
@@ -61,7 +63,6 @@ import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.projects.ProjectIO;
 
 /**
  * Central storage of QuPath preferences.
@@ -777,38 +778,54 @@ public class PathPrefs {
 	}
 	
 	
-	private static ObservableList<URI> recentProjects = createRecentProjectsList(5);
-	
-	private static ObservableList<URI> createRecentProjectsList(int maxRecentProjects) {
+	private static final ObservableList<URI> recentProjects = createPersistentUriList("recentProject", 8);
+
+	/**
+	 * Create an observable list backed by preferences to store URIs.
+	 * This is intended for us
+	 *
+	 * @param key the preference key
+	 * @param maxUris the maximum number of URIs to store in the preferences.
+	 *                If the list contains more URIs, these will not be included.
+	 *                Note that this should be between 1 and 1024.
+	 * @param extensions optional array of extensions to filter valid URIs
+	 * @return an observable list
+	 * @throws IllegalArgumentException if the maximum number of URIs is not a positive integer &leq; 1024.
+	 */
+	public static ObservableList<URI> createPersistentUriList(String key, int maxUris, String... extensions) throws IllegalArgumentException {
+		if (maxUris <= 0 || maxUris > 1024) {
+			throw new IllegalArgumentException("Max URIs must be between 1 and 1024");
+		}
 		// Try to load the recent projects
-		ObservableList<URI> recentProjects = FXCollections.observableArrayList();
-		for (int i = 0; i < maxRecentProjects; i++) {
-			String project = getUserPreferences().get("recentProject" + i, null);
-			if (project == null || project.length() == 0)
+		ObservableList<URI> recentUris = FXCollections.observableArrayList();
+		var prefs = MANAGER.getPreferences();
+		var exts = Arrays.stream(extensions).map(String::toLowerCase).collect(Collectors.toSet());
+		for (int i = 0; i < maxUris; i++) {
+			String nextUri = prefs.get(key + i, null);
+			if (nextUri == null || nextUri.isEmpty())
 				break;
 			// Only allow project files
-			if (!(project.toLowerCase().endsWith(ProjectIO.getProjectExtension()))) {
+			var lowerUri = nextUri.toLowerCase();
+			if (!exts.isEmpty() && exts.stream().noneMatch(lowerUri::endsWith)) {
 				continue;
 			}
 			try {
-				recentProjects.add(GeneralTools.toURI(project));
+				recentUris.add(GeneralTools.toURI(nextUri));
 			} catch (URISyntaxException e) {
-				logger.warn("Unable to parse URI from " + project, e);
+                logger.warn("Unable to parse URI from {}", nextUri, e);
 			}
 		}
 		// Add a listener to keep storing the preferences, as required
-		recentProjects.addListener((Change<? extends URI> c) -> {
-			int i = 0;
-			for (URI project : recentProjects) {
-				getUserPreferences().put("recentProject" + i, project.toString());
-				i++;
-			}
-			while (i < maxRecentProjects) {
-				getUserPreferences().put("recentProject" + i, "");
-				i++;
+		recentUris.addListener((Change<? extends URI> c) -> {
+			var prefsCurrent = MANAGER.getPreferences();
+			for (int i = 0; i < maxUris; i++) {
+				if (i < recentUris.size())
+					prefsCurrent.put(key + i, recentUris.get(i).toString());
+				else
+					prefsCurrent.put(key + i, "");
 			}
 		});
-		return recentProjects;
+		return recentUris;
 	}
 	
 	/**
@@ -821,8 +838,8 @@ public class PathPrefs {
 	
 	
 	
-	private static IntegerProperty maxUndoLevels = PathPrefs.createPersistentPreference("undoMaxLevels", 10);
-	private static IntegerProperty maxUndoHierarchySize = PathPrefs.createPersistentPreference("undoMaxHierarchySize", 10000);
+	private static final IntegerProperty maxUndoLevels = PathPrefs.createPersistentPreference("undoMaxLevels", 10);
+	private static final IntegerProperty maxUndoHierarchySize = PathPrefs.createPersistentPreference("undoMaxHierarchySize", 10000);
 
 	/**
 	 * The requested maximum number of undo levels that QuPath should support.
@@ -843,35 +860,7 @@ public class PathPrefs {
 	}
 
 	
-	private static ObservableList<URI> recentScripts = createRecentScriptsList(8);
-	
-	private static ObservableList<URI> createRecentScriptsList(int nRecentScripts) {
-		// Try to load the recent scripts
-		ObservableList<URI> recentScripts = FXCollections.observableArrayList();
-		for (int i = 0; i < nRecentScripts; i++) {
-			String project = getUserPreferences().get("recentScript" + i, null);
-			if (project == null || project.length() == 0)
-				break;
-			try {
-				recentScripts.add(GeneralTools.toURI(project));
-			} catch (URISyntaxException e) {
-				logger.warn("Unable to parse URI from " + project, e);
-			}
-		}
-		// Add a listener to keep storing the preferences, as required
-		recentScripts.addListener((Change<? extends URI> c) -> {
-			int i = 0;
-			for (URI project : recentScripts) {
-				getUserPreferences().put("recentScript" + i, project.toString());
-				i++;
-			}
-			while (i < nRecentScripts) {
-				getUserPreferences().put("recentScript" + i, "");
-				i++;
-			}
-		});
-		return recentScripts;
-	}
+	private static final ObservableList<URI> recentScripts = createPersistentUriList("recentScript", 8);
 	
 	/**
 	 * Get a list of the most recent scripts that were opened.
@@ -882,7 +871,7 @@ public class PathPrefs {
 	}
 
 
-	private static BooleanProperty skipProjectUriChecks = createPersistentPreference("Skip checking URIs in the project browser",
+	private static final BooleanProperty skipProjectUriChecks = createPersistentPreference("Skip checking URIs in the project browser",
 			false);
 
 	/**
