@@ -254,7 +254,9 @@
                         <KeyCodeCombination alt="UP" code="O" control="UP" meta="UP" shift="UP" shortcut="DOWN" />
                      </accelerator>
                   </MenuItem>
-                  <Menu fx:id="menuExamples" mnemonicParsing="false" text="%menu.file.openExamples">
+               <Menu fx:id="menuRecent" mnemonicParsing="false" text="%menu.file.openRecent" />
+               <SeparatorMenuItem mnemonicParsing="false" />
+               <Menu fx:id="menuExamples" mnemonicParsing="false" text="%menu.file.openExamples">
                     <items>
                       <MenuItem mnemonicParsing="false" text="Action 1" />
                     </items>
