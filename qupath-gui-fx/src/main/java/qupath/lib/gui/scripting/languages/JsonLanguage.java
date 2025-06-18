@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2022, 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2022, 2024 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,8 +21,7 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.Set;
-
+import com.google.common.collect.ImmutableSet;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
@@ -37,7 +36,7 @@ public class JsonLanguage extends ScriptLanguage {
 	private static final JsonLanguage INSTANCE = new JsonLanguage();
 	
 	private JsonLanguage() {
-		super("JSON", Set.of(".json", ".geojson"));
+		super("JSON", ImmutableSet.of(".json", ".geojson"));
 	}
 
 	/**

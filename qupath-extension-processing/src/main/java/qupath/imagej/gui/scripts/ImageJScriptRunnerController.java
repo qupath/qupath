@@ -31,6 +31,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -64,7 +65,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.FXUtils;
-import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.servers.downsamples.DownsampleCalculator;
 import qupath.lib.images.servers.downsamples.DownsampleCalculators;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
@@ -222,6 +223,8 @@ public class ImageJScriptRunnerController extends BorderPane {
 
     private final ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
 
+    private final ObservableList<URI> recentUris = PathPrefs.createPersistentUriList(PREFS_KEY + "recentUris", 8);
+
     @FXML
     private BorderPane paneScript;
 
@@ -284,6 +287,9 @@ public class ImageJScriptRunnerController extends BorderPane {
 
     @FXML
     private MenuBar menuBar;
+
+    @FXML
+    private Menu menuRecent;
 
     @FXML
     private Menu menuExamples;
@@ -626,6 +632,21 @@ public class ImageJScriptRunnerController extends BorderPane {
         } catch (Exception e) {
             logger.error("Error loading default examples: {}", e.getMessage(), e);
         }
+
+        initRecentScripts();
+    }
+
+    private void initRecentScripts() {
+        GuiTools.configureRecentItemsMenu(menuRecent, recentUris, this::tryToOpenUri);
+    }
+
+    private void tryToOpenUri(URI uri) {
+        var path = GeneralTools.toPath(uri);
+        if (path != null && Files.exists(path)) {
+            openMacro(path);
+        } else {
+            logger.error("Unable to open URI {}", uri);
+        }
     }
 
     private void initDragDrop() {
@@ -781,6 +802,10 @@ public class ImageJScriptRunnerController extends BorderPane {
             logger.info("Script saved to {}", path);
             lastSavedText.set(text);
             lastSavedPath.set(path);
+
+            var uri = path.toUri();
+            recentUris.remove(uri);
+            recentUris.addFirst(uri);
         } catch (IOException e) {
             Dialogs.showErrorNotification(title,
                     String.format(resources.getString("dialogs.error.writing"), file.getName()));

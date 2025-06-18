@@ -1264,7 +1264,7 @@ public class QuPathGUI {
 				Dialogs.showErrorMessage("Project error", "Cannot find project " + uri);
 				logger.error("Error loading project", e1);
 			}
-		}, Project::getNameFromURI);
+		});
 		
 		return menuRecent;
 	}

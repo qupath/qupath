@@ -1289,31 +1289,41 @@ public class GuiTools {
 	
 	
 	/**
-	 * Create a menu that displays recent items, stored in the form of URIs, using default text to show for the menu item.
+	 * Create a menu that displays recent items, stored in the form of URIs.
+	 * <p>
+	 * This menu updates its items based upon the list of recent tiles.
+	 * <p>
+	 * An important limitation is that this requires setting the menu validation listener for any parent of the
+	 * menu that is created, since this is used to populate the items.
 	 * 
-	 * @param menuTitle
-	 * @param recentItems
-	 * @param consumer
-	 * @return
+	 * @param menuTitle name for the new menu
+	 * @param recentItems list containing URIs for recent items
+	 * @param consumer consumer to process a URI when the corresponding menu item is selected
+	 * @return a menu that automatically populates based upon a list of URIs
+	 * @see #configureRecentItemsMenu(Menu, ObservableList, Consumer) 
 	 */
 	public static Menu createRecentItemsMenu(String menuTitle, ObservableList<URI> recentItems, Consumer<URI> consumer) {
-		return createRecentItemsMenu(menuTitle, recentItems, consumer, GuiTools::getNameFromURI);
-	}
-	
-	
-	/**
-	 * Create a menu that displays recent items, stored in the form of URIs, customizing the text displayed for the menu items.
-	 * 
-	 * @param menuTitle
-	 * @param recentItems
-	 * @param consumer
-	 * @param menuitemText 
-	 * @return
-	 */
-	public static Menu createRecentItemsMenu(String menuTitle, ObservableList<URI> recentItems, Consumer<URI> consumer, Function<URI, String> menuitemText) {
 		// Create a recent projects list in the File menu
 		Menu menuRecent = MenuTools.createMenu(menuTitle);
+		configureRecentItemsMenu(menuRecent, recentItems, consumer);
+		return menuRecent;
+	}
 
+	/**
+	 * Configure a menu to displays recent items, stored in the form of URIs.
+	 * <p>
+	 * The menu updates its items based upon the list of recent tiles.
+	 * <p>
+	 * An important limitation is that this requires setting the menu validation listener for any parent of the
+	 * menu that is created, since this is used to populate the items.
+	 *
+	 * @param menuRecent the menu to configure
+	 * @param recentItems list containing URIs for recent items
+	 * @param consumer consumer to process a URI when the corresponding menu item is selected
+	 * @since v0.6.0
+	 * @see #createRecentItemsMenu(String, ObservableList, Consumer) 
+	 */
+	public static void configureRecentItemsMenu(Menu menuRecent, ObservableList<URI> recentItems, Consumer<URI> consumer) {
 		EventHandler<Event> validationHandler = e -> {
 			List<MenuItem> items = new ArrayList<>();
 			for (URI uri : recentItems) {
@@ -1335,9 +1345,8 @@ public class GuiTools {
 			if (n != null)
 				n.setOnMenuValidation(validationHandler);
 		});
-
-		return menuRecent;
-
+		if (menuRecent.getParentMenu() != null)
+			menuRecent.getParentMenu().setOnMenuValidation(validationHandler);
 	}
 
 
