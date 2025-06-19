@@ -14,7 +14,7 @@ import qupath.imagej.tools.IJProperties
 // Select the thresholding method
 var method = AutoThresholder.Method.Otsu
 
-// Optional Gaussan smoothing
+// Optional Gaussian smoothing
 double sigma = 1.0
 
 // Get the current image

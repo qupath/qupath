@@ -536,7 +536,8 @@ public class ImageJScriptRunner {
             var maskROI = params.doSetRoi() ? pathROI : null;
             if (activeRoiToObject != null && impResult.getRoi() != null) {
                 Roi roi = impResult.getRoi();
-                var existingObject = sentObjects.getOrDefault(IJProperties.getObjectId(roi), null);
+                var id = IJProperties.getObjectId(roi);
+                var existingObject = id == null ? null : sentObjects.getOrDefault(id, null);
                 if (existingObject == null) {
                     var pathObjectNew = createNewObject(activeRoiToObject, roi,  request, maskROI);
                     // Add an object if it isn't already there
