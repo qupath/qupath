@@ -19,6 +19,7 @@ import qupath.lib.objects.PathObject
 // Define the membrane thickness
 int thickness = 3
 
+// Access the image and original QuPath object
 var imp = IJ.getImage()
 var roi = imp.getRoi()
 PathObject pathObject = imp.getProperty("qupath.pathObject")
@@ -30,7 +31,6 @@ bp.setLineWidth(thickness)
 bp.draw(roi)
 bp.setThreshold(127, Double.MAX_VALUE, ImageProcessor.NO_LUT_UPDATE)
 var roiMembrane = IJProcessing.thresholdToRoi(bp)
-println(roiMembrane)
 imp.setRoi(roiMembrane)
 
 // Loop through the channels
