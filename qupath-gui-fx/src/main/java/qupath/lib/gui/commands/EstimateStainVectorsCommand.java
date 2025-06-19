@@ -159,11 +159,15 @@ class EstimateStainVectorsCommand {
 		// Check if the background values may need to be changed
 		if (rMax != stains.getMaxRed() || gMax != stains.getMaxGreen() || bMax != stains.getMaxBlue()) {
 			ButtonType response =
-					Dialogs.showYesNoCancelDialog(TITLE,
-							String.format("Modal RGB values %s, %s, %s do not match current background values - do you want to use the modal values?",
+					Dialogs.showYesNoCancelDialog(
+							TITLE,
+							String.format(
+									"Modal RGB values %s, %s, %s do not match current background values.\nDo you want to use the modal values?",
 									GeneralTools.formatNumber(rMax, 2),
 									GeneralTools.formatNumber(gMax, 2),
-									GeneralTools.formatNumber(bMax, 2)));
+									GeneralTools.formatNumber(bMax, 2)
+							)
+					);
 			if (response == ButtonType.CANCEL)
 				return;
 			else if (response == ButtonType.YES) {
