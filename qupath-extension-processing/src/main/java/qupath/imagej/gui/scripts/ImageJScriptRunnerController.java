@@ -401,7 +401,7 @@ public class ImageJScriptRunnerController extends BorderPane {
 
     private void initTitle() {
         titledScript.textProperty().bind(
-                Bindings.createStringBinding(this::getMacroPaneTitle, unsavedChanges, languageProperty)
+                Bindings.createStringBinding(this::getMacroPaneTitle, unsavedChanges, languageProperty, lastSavedPath)
         );
     }
 
@@ -421,6 +421,10 @@ public class ImageJScriptRunnerController extends BorderPane {
     }
 
     private String getMacroPaneTitle() {
+        var path = lastSavedPath.get();
+        var name = path == null || path.getFileName() == null ? "" : path.getFileName().toString();
+        if (!name.isBlank())
+            return name;
         String title = switch(languageProperty.get()) {
                 case GROOVY -> resources.getString("ui.title.script.groovy");
                 case MACRO -> resources.getString("ui.title.script.macro");
@@ -699,10 +703,12 @@ public class ImageJScriptRunnerController extends BorderPane {
      */
     private File getLastSavedFile() {
         var path = lastSavedPath.get();
-        if (path == null || !Objects.equals(path.getFileSystem(), FileSystems.getDefault()))
-            return new File("Untitled");
-        else
+        if (path != null && Objects.equals(path.getFileSystem(), FileSystems.getDefault()))
             return path.toFile();
+        String name = "Untitled";
+        if (path != null && path.getFileName() != null)
+            name = GeneralTools.stripExtension(path.getFileName().toString());
+        return new File(name);
     }
 
     private List<MenuItem> loadExampleMacros() throws URISyntaxException, IOException {
