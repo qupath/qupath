@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -20,6 +20,8 @@
  */
 
 package qupath.lib.objects;
+
+import qupath.lib.objects.classes.PathClassTools;
 
 import java.util.function.Predicate;
 
@@ -85,7 +87,17 @@ public enum PathObjectFilter implements Predicate<PathObject> {
 	/**
 	 * Accept any object that has a points ROI
 	 */
-	ROI_POINT
+	ROI_POINT,
+
+	/**
+	 * Accept any object that does not have a classification set
+	 */
+	UNCLASSIFIED,
+
+	/**
+	 * Accept any object that has a classification set (no matter what it is)
+	 */
+	CLASSIFIED
 	;
 	
 	
@@ -103,6 +115,8 @@ public enum PathObjectFilter implements Predicate<PathObject> {
             case ROI_LINE -> "Has line ROI";
             case ROI_AREA -> "Has area ROI";
             case ROI_POINT -> "Has point ROI";
+			case CLASSIFIED -> "Has classification";
+			case UNCLASSIFIED -> "Has no classification";
             default -> throw new IllegalArgumentException();
         };
 	}
@@ -121,7 +135,9 @@ public enum PathObjectFilter implements Predicate<PathObject> {
             case ROI_LINE -> p.hasROI() && p.getROI().isLine();
             case ROI_AREA -> p.hasROI() && p.getROI().isArea();
             case ROI_POINT -> p.hasROI() && p.getROI().isPoint();
-            default -> throw new IllegalArgumentException();
+			case CLASSIFIED -> p.getPathClass() != null && !PathClassTools.isNullClass(p.getPathClass());
+			case UNCLASSIFIED -> p.getPathClass() == null || PathClassTools.isNullClass(p.getPathClass());
+			default -> throw new IllegalArgumentException();
         };
 	}
 	

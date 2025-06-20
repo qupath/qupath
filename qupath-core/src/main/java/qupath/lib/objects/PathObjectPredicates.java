@@ -38,7 +38,7 @@ import qupath.lib.objects.classes.PathClassTools;
  */
 public class PathObjectPredicates {
 	
-	private static SubTypeAdapterFactory<PathObjectPredicate> typeAdapterFactory = 
+	private static final SubTypeAdapterFactory<PathObjectPredicate> typeAdapterFactory =
 			GsonTools.createSubTypeAdapterFactory(PathObjectPredicate.class, "predicate_type")
 			.registerSubtype(PathObjectClassPredicate.class, "classified")
 			.registerSubtype(PathObjectClassNamePredicate.class, "classified-name")
