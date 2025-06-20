@@ -307,10 +307,15 @@ public class DensityMapUI {
 	}
 
 	/**
-	 * Ignore classification (accept all objects).
+	 * Ignore classification entirely (i.e. accept all objects).
 	 * Generated with a UUID for uniqueness, and because it should not be serialized.
 	 */
-	public static final PathClass ANY_CLASS = PathClass.fromString(UUID.randomUUID().toString());
+	public static final PathClass ANY_CLASS_OR_NONE = PathClass.fromString(UUID.randomUUID().toString());
+
+	/**
+	 * Any classification, but not no classification.
+	 */
+	public static final PathClass ANY_SPECIFIED_CLASS = PathClass.fromString(UUID.randomUUID().toString());
 
 	/**
 	 * Accept any positive classification, including 1+, 2+, 3+.
