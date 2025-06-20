@@ -48,7 +48,7 @@ picocli         = "4.7.7"
 
 qupath-fxtras   = "0.2.0-rc1"
 qupath-training = "0.1.0-rc2"
-qupath-djl      = "0.4.0-20250509.113349-5" # UPDATE TO TAGGED RELEASE WHEN AVAILABLE!
+qupath-djl      = "0.4.0-20250619.120454-1" # UPDATE TO TAGGED RELEASE WHEN AVAILABLE!
 
 richtextfx      = "0.11.5"
 
