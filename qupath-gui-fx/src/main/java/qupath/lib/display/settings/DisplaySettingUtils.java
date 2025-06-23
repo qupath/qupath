@@ -116,7 +116,7 @@ public class DisplaySettingUtils {
             var color = channelSettings.getColor();
             if (color != null && channel instanceof DirectServerChannelInfo info) {
                 info.setLUTColor(color.getRed(), color.getGreen(), color.getBlue());
-                directChannels.add(ImageChannel.getInstance(channel.getName(),
+                directChannels.add(ImageChannel.getInstance(info.getOriginalChannelName(),
                         ColorTools.packRGB(color.getRed(), color.getGreen(), color.getBlue())));
             }
             display.setMinMaxDisplay(channel, channelSettings.getMinDisplay(), channelSettings.getMaxDisplay());
