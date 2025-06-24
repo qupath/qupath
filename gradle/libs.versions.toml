@@ -46,9 +46,9 @@ openslide       = "4.0.0.6"
 
 picocli         = "4.7.7"
 
-qupath-fxtras   = "0.2.0-rc1"
-qupath-training = "0.1.0-rc2"
-qupath-djl      = "0.4.0-20250619.120454-1" # UPDATE TO TAGGED RELEASE WHEN AVAILABLE!
+qupath-fxtras   = "0.2.0-rc2"  # UPDATE TO FINAL TAGGED RELEASE WHEN AVAILABLE!
+qupath-training = "0.1.0"
+qupath-djl      = "0.4.0"
 
 richtextfx      = "0.11.5"
 
