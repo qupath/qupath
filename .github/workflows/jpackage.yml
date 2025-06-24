@@ -99,7 +99,7 @@ jobs:
       with:
         name: QuPath-v${{ env.QUPATH_VERSION }}-${{ matrix.name }}
         path: qupath/build/dist/QuPath*
-        retention-days: 7
+        retention-days: 1
 
     - uses: actions/upload-artifact@v4
       if: matrix.name == 'Mac-arm64'
