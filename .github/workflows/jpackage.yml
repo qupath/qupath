@@ -102,7 +102,7 @@ jobs:
         retention-days: 1
 
     - uses: actions/upload-artifact@v4
-      if: matrix.name == 'Mac-arm64'
+      if: matrix.name == 'Linux'
       with:
         name: javadoc-QuPath-v${{ env.QUPATH_VERSION }}
         path: qupath/build/docs-merged/javadoc
