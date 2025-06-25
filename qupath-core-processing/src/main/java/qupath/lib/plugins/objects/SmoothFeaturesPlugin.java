@@ -398,7 +398,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 					parents.add(pathObject);
 			}			
 			if (!parents.isEmpty())
-				logger.warn("Smoothing using annotations");
+				logger.info("Smoothing using annotations");
 		}
 		return parents;
 	}
