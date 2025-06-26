@@ -807,7 +807,8 @@ public class ImageJScriptRunner {
 
     private static PathObject createOrUpdateObject(Function<ROI, PathObject> creator, Roi roi, RegionRequest request,
                                                    ROI clipROI, Map<UUID, PathObject> existingObjects) {
-        var existing = existingObjects.getOrDefault(IJProperties.getObjectId(roi), null);
+        var id = IJProperties.getObjectId(roi);
+        var existing = id == null ? null : existingObjects.getOrDefault(id, null);
         if (existing == null)
             return createNewObject(creator, roi, request, clipROI);
         else {
