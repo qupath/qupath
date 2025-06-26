@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Function;
@@ -576,8 +577,10 @@ public class IJTools {
 		}
 		// Take classification from properties first
 		var classification = IJProperties.getClassification(roi);
+		// We don't want to use the default color (or all our classified objects would usually be yellow)
+		var classColor = !Objects.equals(color, Roi.getColor()) ? colorRGB : null;
 		if (classification != null) {
-			var pathClass = PathClass.fromString(classification, colorRGB);
+			var pathClass = PathClass.fromString(classification, classColor);
 			pathObject.setPathClass(pathClass);
 		} else{
 			// Take classification from Roi group
@@ -587,7 +590,7 @@ public class IJTools {
 				var groupName = Roi.getGroupName(group);
 				if (groupName == null)
 					groupName = "Group " + group;
-				pathObject.setPathClass(PathClass.fromString(groupName, colorRGB));
+				pathObject.setPathClass(PathClass.fromString(groupName, classColor));
 			}
 		}
 		// Set color if we haven't already assigned a color via the classification
