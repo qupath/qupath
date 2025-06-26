@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -781,16 +781,24 @@ public class TileExporter  {
 				}
 				
 				if (ensureSize) {
-					// Updated for v0.3.0 to ensure the image size is correct
-					// TODO: This has disadvantages, in that it loses channel names & region info
-					// (e.g. if saving as an ImageJ TIFF)
-					var img = readFixedSizeRegion(server, request, tileWidth, tileHeight);
-					ImageWriterTools.writeImage(img, path);
+					// Try reading the image; if it's already the right size, we can export as 'normal'
+					var img = server.readRegion(request.intersect2D(0, 0, server.getWidth(), server.getHeight()));
+					if (img.getWidth() == tileWidth && img.getHeight() == tileHeight) {
+						ImageWriterTools.writeImageRegion(server, request, path);
+					} else {
+						// Make sure we have the right image size.
+						// We don't want to do this unnecessarily, because it can lose channel names & region info
+						// for some file formats (e.g. saving as an ImageJ TIFF)
+						// TODO: Try to minimize information loss when fixing the image size (if this occurs)
+						logger.warn("Adjusting tile to {}x{} pixels for {}", tileWidth, tileHeight, request);
+						img = readFixedSizeRegion(server, request, tileWidth, tileHeight);
+						ImageWriterTools.writeImage(img, path);
+					}
 				} else {
 					ImageWriterTools.writeImageRegion(server, request, path);
 				}
 			} catch (Exception e) {
-				logger.error("Error writing tile: " + e.getLocalizedMessage(), e);
+                logger.error("Error writing tile: {}", e.getMessage(), e);
 			}
 		}
 
