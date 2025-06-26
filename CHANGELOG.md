@@ -1,10 +1,4 @@
-## Version 0.6.0-SNAPSHOT
-
-This is a *work in progress* for the next major release.
-
-Some things may be added, some things may be removed, and some things may look different before the final release.
-
-*QuPath v0.6.0 requires Java 21 or later*
+## Version 0.6.0
 
 ### Major features
 * Support for InstanSeg segmentation (https://github.com/instanseg/instanseg)
@@ -25,12 +19,12 @@ Some things may be added, some things may be removed, and some things may look d
 
 
 ### Enhancements
-(These are not yet ordered by interestingness)
+(Not necessarily ordered by interestingness)
 
 * Support system light/dark color themes
 * Updated toolbar so key buttons appear on smaller displays
-* Menu items uses ellipsis to indicate more input will be needed
-  * Standard UX convention we didn't know about...
+* Menu items use ellipsis to indicate more input will be needed
+  * This follows a standard UX convention we didn't know about...
 * 'Update detection line thickness with zoom' preference (https://github.com/qupath/qupath/pull/1623)
   * New preference that changes how detections are displayed at high magnifications (to avoid thick lines obscuring the image)
 * Commands to remove objects touching the bounds of the image or other objects (https://github.com/qupath/qupath/pull/1821)
@@ -121,6 +115,7 @@ They may change or be removed in future versions.
 * Screenshots created in QuPath can also include the screenshot menu (https://github.com/qupath/qupath/issues/1854)
 * Setting color deconvolution stains from a workflow script lost some precision (https://github.com/qupath/qupath/pull/1887)
 * Point annotations can sometimes move unexpectedly all together (https://github.com/qupath/qupath/issues/1872)
+* TileExporter with ImageJ TIFF can lose pixel size and channel color information (https://github.com/qupath/qupath/issues/1516)
 
 ### API changes
 * New `Map<String, String> getMetadata()` method added to `PathObject`, `Project` and `ProjectImageEntry` (https://github.com/qupath/qupath/pull/1587)
@@ -158,7 +153,7 @@ They may change or be removed in future versions.
 * DeepJavaLibrary 0.33.0
 * Groovy 4.0.26
 * Gson 2.13.1
-* Guava 33.4.6-jre
+* Guava 33.4.8-jre
 * ImageJ 1.54k
 * JavaCPP 1.5.11
 * JavaFX 23.0.2
@@ -169,7 +164,7 @@ They may change or be removed in future versions.
 * Logback 1.5.8
 * Picocli 4.7.7
 * qupath-bioimageio-spec 0.2.0
-* qupath-fxtras 0.12.0
+* qupath-fxtras 0.2.0
 * qupath-javadoc-viewer 0.1.2
 * OMEZarrReader 0.6.0
 * OpenCV 4.10.0
