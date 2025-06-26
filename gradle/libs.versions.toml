@@ -38,7 +38,7 @@ junit           = "5.11.0"
 logback         = "1.5.8"
 logviewer       = "0.2.0"
 
-extensionmanager= "1.0.0-rc5"
+extensionmanager= "1.0.0"
 
 javadocviewer   = "0.1.2"
 
@@ -46,7 +46,7 @@ openslide       = "4.0.0.6"
 
 picocli         = "4.7.7"
 
-qupath-fxtras   = "0.2.0-rc2"  # UPDATE TO FINAL TAGGED RELEASE WHEN AVAILABLE!
+qupath-fxtras   = "0.2.0"
 qupath-training = "0.1.0"
 qupath-djl      = "0.4.0"
 
