@@ -331,7 +331,8 @@ public class IconFactory {
 //									LOG_VIEWER(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_UL)), // Alternative
 									LINE_TOOL(IconSuppliers.lineToolIcon()),
 									LOCATION(IconSuppliers.icoMoon('\ue90d')),
-									
+
+									MAP_PIN(IconSuppliers.fontAwesome(FontAwesome.Glyph.MAP_MARKER)),
 									MEASURE(IconSuppliers.icoMoon('\ue90e')),
 									MEMORY_MONITOR(IconSuppliers.fontAwesome(FontAwesome.Glyph.AREA_CHART)),
 									MINUS(IconSuppliers.fontAwesome(FontAwesome.Glyph.MINUS)),
