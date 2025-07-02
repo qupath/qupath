@@ -454,7 +454,7 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 	 * @param colorModel
 	 * @return
 	 */
-	public static BufferedImage convertToBufferedImage(ImagePlus imp2, int z, int t, ColorModel colorModel) {
+	private static BufferedImage convertToBufferedImage(ImagePlus imp2, int z, int t, ColorModel colorModel) {
 		// Extract processor
 		int nChannels = imp2.getNChannels();
 		int ind = imp2.getStackIndex(1, z, t);
