@@ -1,0 +1,33 @@
+name: Update gradle version
+
+on:
+  workflow_dispatch:
+    inputs:
+      gradle-version:
+        description: Gradle version
+        default: latest
+        type: string
+        required: false
+
+jobs:
+  update:
+    env:
+      GH_TOKEN: ${{ github.token }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update gradlew
+        run: |
+          ./gradlew wrapper --gradle-version ${{ inputs.gradle-version }}
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b gradle-update
+          git add .
+          git commit --allow-empty -m "Update gradle via qupath/actions/.github/workflows/update-gradle.yml"
+          git push -u origin gradle-update
+          gh pr create --title "Update gradle via actions" --body "$(./gradlew --version)"
