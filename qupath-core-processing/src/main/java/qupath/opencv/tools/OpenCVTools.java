@@ -2322,7 +2322,7 @@ public class OpenCVTools {
 	public static void gaussianFilter(Mat mat, double sigma, int borderType) {
 		int s = (int)Math.ceil(sigma * 4) * 2 + 1;
 		try (var size = new Size(s, s)) {
-			opencv_imgproc.GaussianBlur(mat, mat, size, sigma, sigma, borderType);
+			opencv_imgproc.GaussianBlur(mat, mat, size, sigma, sigma, borderType, opencv_core.ALGO_HINT_DEFAULT);
 		}
 	}
 	
