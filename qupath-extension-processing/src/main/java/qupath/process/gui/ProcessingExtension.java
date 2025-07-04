@@ -27,6 +27,7 @@ import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.global.opencv_ml;
+import org.bytedeco.opencv.opencv_core.Mat;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -239,6 +240,14 @@ public class ProcessingExtension implements QuPathExtension {
 	
     @Override
     public void installExtension(QuPathGUI qupath) {
+
+		try (var mat = new Mat()) {
+			// Able to load Mat properly, so OpenCV should work
+		} catch (LinkageError e) {
+			logger.error("Unable to load OpenCV: {}", e.getMessage());
+			logger.debug(e.getMessage(), e);
+			return;
+		}
     	
     	logger.debug("Installing extension");
     	
