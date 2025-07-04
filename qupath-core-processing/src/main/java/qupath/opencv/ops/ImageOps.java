@@ -1215,7 +1215,7 @@ public class ImageOps {
 					return Collections.singletonList(input);
 				var padding = getPadding();
 				var size = new Size(padding.getX1()*2+1, padding.getY1()*2+1);
-				OpenCVTools.applyToChannels(input, mat -> opencv_imgproc.GaussianBlur(mat, mat, size, sigmaX, sigmaY, opencv_core.BORDER_REFLECT));
+				OpenCVTools.applyToChannels(input, mat -> opencv_imgproc.GaussianBlur(mat, mat, size, sigmaX, sigmaY, opencv_core.BORDER_REFLECT, opencv_core.ALGO_HINT_DEFAULT));
 				return Collections.singletonList(input);
 			}
 
