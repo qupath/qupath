@@ -30,10 +30,12 @@ import java.util.WeakHashMap;
 
 import javafx.geometry.HPos;
 import javafx.geometry.VPos;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.Control;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.stage.Window;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.decoration.Decorator;
 import org.controlsfx.control.decoration.GraphicDecoration;
@@ -201,12 +203,21 @@ class ToolBarComponent {
 		nodes.add(createButton(commonActions.SHOW_LOG));
 		nodes.add(createButton(commonActions.PREFERENCES));
 
-		toolbar.getItems().addListener(this::handleItemsChanged);
 		toolbar.getItems().setAll(nodes);
+		toolbar.getItems().addListener(this::handleItemsChanged);
+		// Ensure that buttons are sized whenever the toolbar is shown
+		toolbar.sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).addListener((v, o, n) -> {
+			if (Boolean.TRUE.equals(n))
+				standardizeButtonHeight();
+		});
 	}
 
 	private void handleItemsChanged(Change<? extends Node> change) {
-		var buttons = change.getList().stream()
+		standardizeButtonHeight();
+	}
+
+	private void standardizeButtonHeight() {
+		var buttons = toolbar.getItems().stream()
 				.filter(p -> p instanceof ButtonBase)
 				.map(ButtonBase.class::cast)
 				.toList();
