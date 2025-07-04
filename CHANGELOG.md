@@ -1,3 +1,8 @@
+## Version 0.7.0-SNAPSHOT
+
+Version in progress...
+
+
 ## Version 0.6.0
 
 ### Major features
