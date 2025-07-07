@@ -263,8 +263,14 @@ public class QP {
 		var predicates = new PathObjectPredicates();
 		@SuppressWarnings("unused")
 		var colorModels = new ColorModels();
-		@SuppressWarnings("unused")
-		var dnnTools = new DnnTools();
+
+		try {
+			@SuppressWarnings("unused")
+			var dnnTools = new DnnTools();
+		} catch (LinkageError e) {
+			logger.warn("Unable to initialize DnnTools: {}", e.getMessage());
+			logger.debug(e.getMessage(), e);
+		}
 		
 	}
 
