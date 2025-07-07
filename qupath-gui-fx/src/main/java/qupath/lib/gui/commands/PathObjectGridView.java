@@ -599,7 +599,14 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 			var out = new Label("", imageView);
 			StackPane.setAlignment(out, Pos.TOP_LEFT);
 
-			Tooltip.install(out, new Tooltip(pathObject.getName()));
+			// Names for TMA cores aren't expected to change, and are useful to display.
+			// (Names for annotations might be important, but also might change more often)
+			if (pathObject.isTMACore()) {
+				String name = pathObject.getName();
+				if (name != null && !name.isEmpty()) {
+					Tooltip.install(out, new Tooltip(name));
+				}
+			}
 			out.setOnMouseClicked(e -> {
 				var imageData = imageDataProperty.get();
 				if (imageData != null) {
