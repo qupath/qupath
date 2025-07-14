@@ -441,6 +441,8 @@ public final class GeneralTools {
 	 * to a valid form. Finally, a reconstructed valid URI is returned. Note: this method will 
 	 * only encode the Query part of the URI (i.e. Fragments, if present, will be ignored ).
 	 * <p>
+	 * The provided path is also {@link String#strip() stripped} before the conversion.
+	 * <p>
 	 * E.g. "{@code https://host?query=first|second}" will return "{@code https://host?query%3Dfirst%7Csecond}".
 	 * 
 	 * @param path
@@ -452,6 +454,7 @@ public final class GeneralTools {
 	public static URI toEncodedURI(String path) throws URISyntaxException, UnsupportedEncodingException, MalformedURLException {
 		if (path == null || path.isEmpty())
 			return new URI("");
+		path = path.strip();
 		if (path.startsWith("http:") || path.startsWith("https:")) {
 			String urlQuery = new URL(path).getQuery();
 			if (urlQuery != null && !urlQuery.isEmpty()) {
