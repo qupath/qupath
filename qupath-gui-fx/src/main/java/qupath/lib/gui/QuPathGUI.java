@@ -261,8 +261,10 @@ public class QuPathGUI {
 	 * can result in exceptions (or even segfaults...).
 	 */
 	private BooleanProperty menusInitializing = new SimpleBooleanProperty(false);
-	
-	
+
+	private final List<Runnable> onCloseRunnables = new ArrayList<>();
+
+
 	/**
 	 * Create a new QuPath instance.
 	 * 
@@ -1075,6 +1077,10 @@ public class QuPathGUI {
 
 		// Shut down all our image servers
 		closeAllOpenImagesWithoutPrompts();
+
+		for (Runnable runnable: onCloseRunnables) {
+			runnable.run();
+		}
 
 		// Reset the instance
 		instance = null;
@@ -2990,6 +2996,29 @@ public class QuPathGUI {
 		if (viewerActions == null)
 			viewerActions = new ViewerActions(getViewerManager());
 		return viewerActions;
+	}
+
+	/**
+	 * Add a runnable that will be called just before closing this QuPathGUI.
+	 * It can be removed with {@link #removeOnCloseRunnable(Runnable)}.
+	 *
+	 * @param runnable a function that will be executed in the JavaFX Application Thread
+	 *                 just before this QuPathGUI is closed
+	 * @throws NullPointerException if the provided runnable is null
+	 */
+	public void addOnCloseRunnable(Runnable runnable) {
+		onCloseRunnables.add(Objects.requireNonNull(runnable));
+	}
+
+	/**
+	 * Remove a runnable that was previously added with {@link #addOnCloseRunnable(Runnable)}.
+	 * It won't be called anymore before this QuPathGUI is closed.
+	 *
+	 * @param runnable the runnable to remove
+	 * @throws NullPointerException if the provided runnable is null
+	 */
+	public void removeOnCloseRunnable(Runnable runnable) {
+		onCloseRunnables.remove(Objects.requireNonNull(runnable));
 	}
 
 
