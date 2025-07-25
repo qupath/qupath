@@ -13,8 +13,8 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
 import qupath.lib.regions.ImageRegion;
 
 import java.awt.image.BufferedImage;
@@ -24,11 +24,10 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,21 +38,21 @@ public class PyramidalOMEZarrWriter {
     private final ImageServer<BufferedImage> server;
     private final String path;
     private final ExecutorService executorService;
-    private final OMEZarrAttributesCreator attributes;
     private final ZarrGroup root;
-    private final double[] downsamples = new double[] {1, 4, 16};
-    private final Compressor compressor = CompressorFactory.nullCompressor;
+    private final double[] downsamples = new double[] {1, 4, 16, 64};
+    private final Compressor compressor = CompressorFactory.createDefaultCompressor();
     private final int tileWidth = 512;
     private final int tileHeight = 512;
+    private OMEZarrAttributesCreator attributes;
 
-    private PyramidalOMEZarrWriter(ImageServer<BufferedImage> server, String path) throws IOException {
+    public PyramidalOMEZarrWriter(ImageServer<BufferedImage> server, String path ) throws IOException {
         int numberOfThreads = ThreadTools.getParallelism();
 
         this.server = server;
         this.path = path;
 
         this.attributes = new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
-                .levelsFromDownsamples(downsamples)
+                .levelsFromDownsamples(1)
                 .build()
         );
         this.root = ZarrGroup.create(
@@ -68,59 +67,29 @@ public class PyramidalOMEZarrWriter {
         );
     }
 
-    public void writeImage() throws InterruptedException, IOException {
-        ZarrArray level0 = root.createArray(
-                "s0",
-                new ArrayParams()
-                        .shape(getDimensionsOfImage(server, 1))
-                        .chunks(getChunksOfImage(server))
-                        .compressor(compressor)
-                        .dataType(switch (server.getPixelType()) {
-                            case UINT8 -> DataType.u1;
-                            case INT8 -> DataType.i1;
-                            case UINT16 -> DataType.u2;
-                            case INT16 -> DataType.i2;
-                            case UINT32 -> DataType.u4;
-                            case INT32 -> DataType.i4;
-                            case FLOAT32 -> DataType.f4;
-                            case FLOAT64 -> DataType.f8;
-                        })
-                        .dimensionSeparator(DimensionSeparator.SLASH),
-                attributes.getLevelAttributes()
-        );
-        Collection<TileRequest> tileRequests0 = getTileRequestsForLevel(
-                path,
-                0,
-                1,
-                tileWidth,
-                tileHeight,
-                server.nTimepoints(),
-                server.nZSlices(),
-                (int) (server.getWidth() / 1.),     // same as in getDimensionsOfImage()
-                (int) (server.getHeight() / 1.)
-        );
-        ImageServer<BufferedImage> server0 = server;
-        CountDownLatch latch0 = new CountDownLatch(tileRequests0.size());
-        for (TileRequest tileRequest: tileRequests0) {
-            executorService.execute(() -> {
-                try {
-                    level0.write(
-                            getData(server0.readRegion(tileRequest.getRegionRequest())),
-                            getDimensionsOfTile(tileRequest),
-                            getOffsetsOfTile(tileRequest)
-                    );
-                } catch (Exception e) {
-                    logger.error("Error when writing tile", e);
-                }
-                latch0.countDown();
-            });
-        }
-        latch0.await();
+    public void writeImage() throws Exception {
+        System.err.println("Level 0");
+        writeLevel(0, 1, server);
 
-        ZarrArray level1 = root.createArray(
-                "s1",
+        for (int i=1; i<downsamples.length; i++) {
+            System.err.println("Level " + i);
+            try (ImageServer<BufferedImage> server = new BioFormatsImageServer(Paths.get(path).toUri())) {
+                writeLevel(i, downsamples[i], server);
+            }
+
+            this.attributes = new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
+                    .levelsFromDownsamples(Arrays.stream(downsamples).limit(i+1).toArray())
+                    .build()
+            );
+            root.writeAttributes(attributes.getGroupAttributes());
+        }
+    }
+
+    private void writeLevel(int level, double downsample, ImageServer<BufferedImage> server) throws Exception {
+        ZarrArray zarrArray = root.createArray(
+                String.format("s%d", level),
                 new ArrayParams()
-                        .shape(getDimensionsOfImage(server, 4))
+                        .shape(getDimensionsOfImage(server, downsample))
                         .chunks(getChunksOfImage(server))
                         .compressor(compressor)
                         .dataType(switch (server.getPixelType()) {
@@ -136,34 +105,33 @@ public class PyramidalOMEZarrWriter {
                         .dimensionSeparator(DimensionSeparator.SLASH),
                 attributes.getLevelAttributes()
         );
-        Collection<TileRequest> tileRequests1 = getTileRequestsForLevel(
+        Collection<TileRequest> tileRequests = getTileRequestsForLevel(
                 path,
-                1,
-                4,
+                level,
+                downsample,
                 tileWidth,
                 tileHeight,
                 server.nTimepoints(),
                 server.nZSlices(),
-                (int) (server.getWidth() / 4.),     // same as in getDimensionsOfImage()
-                (int) (server.getHeight() / 4.)
+                (int) (server.getWidth() / downsample),     // same as in getDimensionsOfImage()
+                (int) (server.getHeight() / downsample)
         );
-        ImageServer<BufferedImage> server1 = server;
-        CountDownLatch latch1 = new CountDownLatch(tileRequests1.size());
-        for (TileRequest tileRequest: tileRequests1) {
+        CountDownLatch latch = new CountDownLatch(tileRequests.size());
+        for (TileRequest tileRequest: tileRequests) {
             executorService.execute(() -> {
                 try {
-                    level1.write(
-                            getData(server1.readRegion(tileRequest.getRegionRequest())),
+                    zarrArray.write(
+                            getData(server.readRegion(tileRequest.getRegionRequest())),
                             getDimensionsOfTile(tileRequest),
                             getOffsetsOfTile(tileRequest)
                     );
                 } catch (Exception e) {
                     logger.error("Error when writing tile", e);
                 }
-                latch1.countDown();
+                latch.countDown();
             });
         }
-        latch1.await();
+        latch.await();
     }
 
     private static Collection<TileRequest> getTileRequestsForLevel(
