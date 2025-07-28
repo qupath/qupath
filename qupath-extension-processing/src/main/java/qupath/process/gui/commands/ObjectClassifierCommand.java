@@ -1471,7 +1471,8 @@ public class ObjectClassifierCommand implements Runnable {
 			// Ensure we have closed any cached images
 			for (var data : trainingMap.values()) {
 				try {
-					data.getServer().close();
+					if (data.isLoaded())
+						data.getServer().close();
 				} catch (Exception e) {
 					logger.warn("Error closing server: " + e.getLocalizedMessage(), e);
 				}

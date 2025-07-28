@@ -397,7 +397,8 @@ class ScriptCommand implements Runnable {
 						if (imagePath != null && imagePath.equals(entry.getImageName()))
 							throw new RuntimeException(e);
 					} finally {
-						imageData.getServer().close();						
+						if (imageData.isLoaded())
+							imageData.getServer().close();
 					}
 				}
 				if (save) {
