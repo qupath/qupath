@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -366,8 +366,6 @@ class ScriptCommand implements Runnable {
 			// Unfortunately necessary to force initialization (including GsonTools registration of some classes)
 			QP.getCoreClasses();
 			
-			ImageData<BufferedImage> imageData;
-			
 			if (projectPath != null && !projectPath.equals("")) {
 				
 				String path = QuPath.getEncodedPath(projectPath);
@@ -383,8 +381,7 @@ class ScriptCommand implements Runnable {
 				for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
 					var entry = imageList.get(batchIndex);
 					logger.info("Running script for {} ({}/{})", entry.getImageName(), batchIndex, batchSize);
-					imageData = entry.readImageData();
-					try {
+					try (var imageData = entry.readImageData()) {
 						Object result = runBatchScript(project, imageData, batchIndex, batchSize, save);
 						if (result != null)
 							logger.info("Script result: {}", result);
@@ -396,8 +393,6 @@ class ScriptCommand implements Runnable {
 						// Otherwise, try to recover and continue processing images
 						if (imagePath != null && imagePath.equals(entry.getImageName()))
 							throw new RuntimeException(e);
-					} finally {
-						imageData.getServer().close();						
 					}
 				}
 				if (save) {
@@ -407,7 +402,7 @@ class ScriptCommand implements Runnable {
 				String path = QuPath.getEncodedPath(imagePath);
 				URI uri = GeneralTools.toURI(path);
 				ImageServer<BufferedImage> server = ImageServers.buildServer(uri, parseArgs(serverArgs));
-				imageData = new ImageData<>(server);
+				var imageData = new ImageData<>(server);
 				Object result = runSingleScript(null, imageData);
 				if (result != null)
 					logger.info("Script result: {}", result);
