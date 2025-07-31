@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -605,7 +605,7 @@ public class PixelClassifierPane {
 						logger.debug("Will not load data for {} - will use the training annotations from the open viewer", entry);
 						var tempData = trainingMap.remove(entry);
 						if (tempData != null)
-							tempData.getServer().close();
+							tempData.close();
 					} else {
 						var tempData = trainingMap.get(entry);
 						if (tempData == null) {
@@ -1156,9 +1156,9 @@ public class PixelClassifierPane {
 		// Ensure we have closed any cached images
 		for (var data : trainingMap.values()) {
 			try {
-				data.getServer().close();
+				data.close();
 			} catch (Exception e) {
-				logger.warn("Error closing server: " + e.getLocalizedMessage(), e);
+                logger.warn("Error closing server: {}", e.getMessage(), e);
 			}
 		}
 		trainingEntries.clear();

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -416,15 +416,14 @@ class ProjectImportImagesCommand {
 					else
 						updateMessage("Importing " + existingDataFiles.size() + " images from existing data files");
 					for (var file : existingDataFiles) {
-						try {
-							ImageData<BufferedImage> imageData = PathIO.readImageData(file);
+						try (ImageData<BufferedImage> imageData = PathIO.readImageData(file)) {
 							var entry = project.addImage(imageData.getServer().getBuilder());
 							initializeEntry(entry, imageData.getImageType(), false, false);
 							entry.saveImageData(imageData);
 							updateProgress(counter.incrementAndGet(), max);
-							imageData.getServer().close();
 						} catch (Exception e) {
-							logger.warn("Unable to read image data from file: {}", file, e.getMessage());
+							logger.warn("Unable to read image data from file: {} ({})", file, e.getMessage());
+							logger.debug(e.getMessage(), e);
 						}
 					}
 				}
