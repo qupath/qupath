@@ -16,6 +16,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.regions.RegionRequest;
 
 import java.awt.image.BufferedImage;
 import java.io.FileOutputStream;
@@ -45,20 +46,13 @@ public class PyramidalOMEZarrWriter {
     private final int tileHeight = 512;
     private OMEZarrAttributesCreator attributes;
 
-    public PyramidalOMEZarrWriter(ImageServer<BufferedImage> server, String path ) throws IOException {
+    public PyramidalOMEZarrWriter(ImageServer<BufferedImage> server, String path) throws IOException {
         int numberOfThreads = ThreadTools.getParallelism();
 
         this.server = server;
         this.path = path;
 
-        this.attributes = new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
-                .levelsFromDownsamples(1)
-                .build()
-        );
-        this.root = ZarrGroup.create(
-                path,
-                attributes.getGroupAttributes()
-        );
+        this.root = ZarrGroup.create(path, null);
         OMEXMLCreator.create(server.getMetadata()).ifPresent(omeXML -> createOmeSubGroup(root, path, omeXML));
 
         this.executorService = Executors.newFixedThreadPool(
@@ -70,6 +64,11 @@ public class PyramidalOMEZarrWriter {
     public void writeImage() throws Exception {
         System.err.println("Level 0");
         writeLevel(0, 1, server);
+        this.attributes = new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
+                .levelsFromDownsamples(1)
+                .build()
+        );
+        root.writeAttributes(attributes.getGroupAttributes());
 
         for (int i=1; i<downsamples.length; i++) {
             System.err.println("Level " + i);
@@ -120,11 +119,28 @@ public class PyramidalOMEZarrWriter {
         for (TileRequest tileRequest: tileRequests) {
             executorService.execute(() -> {
                 try {
-                    zarrArray.write(
-                            getData(server.readRegion(tileRequest.getRegionRequest())),
-                            getDimensionsOfTile(tileRequest),
-                            getOffsetsOfTile(tileRequest)
-                    );
+                    if (server instanceof BioFormatsImageServer) {
+                        zarrArray.write(
+                                getData(server.readRegion(RegionRequest.createInstance(
+                                        tileRequest.getRegionRequest().getPath(),
+                                        tileRequest.getDownsample(),
+                                        tileRequest.getTileX(),
+                                        tileRequest.getTileY(),
+                                        tileRequest.getTileWidth(),
+                                        tileRequest.getTileHeight(),
+                                        tileRequest.getZ(),
+                                        tileRequest.getT()
+                                ))),
+                                getDimensionsOfTile(tileRequest),
+                                getOffsetsOfTile(tileRequest)
+                        );
+                    } else {
+                        zarrArray.write(
+                                getData(server.readRegion(tileRequest.getRegionRequest())),
+                                getDimensionsOfTile(tileRequest),
+                                getOffsetsOfTile(tileRequest)
+                        );
+                    }
                 } catch (Exception e) {
                     logger.error("Error when writing tile", e);
                 }
@@ -134,7 +150,7 @@ public class PyramidalOMEZarrWriter {
         latch.await();
     }
 
-    private static Collection<TileRequest> getTileRequestsForLevel(
+    public static Collection<TileRequest> getTileRequestsForLevel(
             String path,
             int level,
             double downsample,
