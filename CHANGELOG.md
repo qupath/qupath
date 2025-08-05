@@ -2,6 +2,15 @@
 
 Version in progress...
 
+### Bug fixes
+* Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
+* Avoid empty tooltips in grid view (https://github.com/qupath/qupath/pull/1952)
+* Don't open servers to immediately close them (https://github.com/qupath/qupath/pull/1959)
+
+### Dependency updates
+* Bio-Formats 8.3.0
+* CommonMark 0.25.1
+* Groovy 4.0.28
 
 ## Version 0.6.0
 
