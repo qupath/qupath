@@ -1,18 +1,18 @@
 [versions]
 
-bioformats      = "8.2.0"
+bioformats      = "8.3.0"
 bioimageIoSpec  = "0.2.0"
 omeZarrReader   = "0.6.0"
 blosc           = "1.21.6+01"
 
-commonmark      = "0.24.0"
+commonmark      = "0.25.1"
 commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.2.2"
 
 deepJavaLibrary = "0.33.0"
 
-groovy          = "4.0.26"
+groovy          = "4.0.28"
 gson            = "2.13.1"
 guava           = "33.4.8-jre"
 
