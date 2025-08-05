@@ -16,7 +16,6 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.regions.RegionRequest;
 
 import java.awt.image.BufferedImage;
 import java.io.FileOutputStream;
@@ -27,8 +26,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,14 +37,15 @@ import java.util.concurrent.Executors;
 public class PyramidalOMEZarrWriter {
 
     private static final Logger logger = LoggerFactory.getLogger(PyramidalOMEZarrWriter.class);
+    private static final double[] downsamples = new double[] {1, 4, 16, 64};
+    private static final Compressor compressor = CompressorFactory.createDefaultCompressor();
+    private static final int tileWidth = 1024;
+    private static final int tileHeight = 1024;
     private final ImageServer<BufferedImage> server;
     private final String path;
     private final ExecutorService executorService;
     private final ZarrGroup root;
-    private final double[] downsamples = new double[] {1, 4, 16, 64};
-    private final Compressor compressor = CompressorFactory.createDefaultCompressor();
-    private final int tileWidth = 512;
-    private final int tileHeight = 512;
+    private final Map<Integer, ZarrArray> levels = new HashMap<>();
     private OMEZarrAttributesCreator attributes;
 
     public PyramidalOMEZarrWriter(ImageServer<BufferedImage> server, String path) throws IOException {
@@ -55,6 +57,32 @@ public class PyramidalOMEZarrWriter {
         this.root = ZarrGroup.create(path, null);
         OMEXMLCreator.create(server.getMetadata()).ifPresent(omeXML -> createOmeSubGroup(root, path, omeXML));
 
+        this.attributes = new OMEZarrAttributesCreator(server.getMetadata());
+        for (int i=0; i<downsamples.length; i++) {
+            levels.put(
+                    i,
+                    root.createArray(
+                            String.format("s%d", i),
+                            new ArrayParams()
+                                    .shape(getDimensionsOfImage(server, downsamples[i]))
+                                    .chunks(getChunksOfImage(server))
+                                    .compressor(compressor)
+                                    .dataType(switch (server.getPixelType()) {
+                                        case UINT8 -> DataType.u1;
+                                        case INT8 -> DataType.i1;
+                                        case UINT16 -> DataType.u2;
+                                        case INT16 -> DataType.i2;
+                                        case UINT32 -> DataType.u4;
+                                        case INT32 -> DataType.i4;
+                                        case FLOAT32 -> DataType.f4;
+                                        case FLOAT64 -> DataType.f8;
+                                    })
+                                    .dimensionSeparator(DimensionSeparator.SLASH),
+                            attributes.getLevelAttributes()
+                    )
+            );
+        }
+
         this.executorService = Executors.newFixedThreadPool(
                 numberOfThreads,
                 ThreadTools.createThreadFactory("pyramidal_zarr_writer_", false)
@@ -62,17 +90,19 @@ public class PyramidalOMEZarrWriter {
     }
 
     public void writeImage() throws Exception {
-        System.err.println("Level 0");
-        writeLevel(0, 1, server);
         this.attributes = new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
                 .levelsFromDownsamples(1)
                 .build()
         );
         root.writeAttributes(attributes.getGroupAttributes());
+        writeLevel(0, 1, server);
 
         for (int i=1; i<downsamples.length; i++) {
-            System.err.println("Level " + i);
-            try (ImageServer<BufferedImage> server = new BioFormatsImageServer(Paths.get(path).toUri())) {
+            try (ImageServer<BufferedImage> server = new BioFormatsImageServer(
+                    Paths.get(path).toUri(),
+                    "--series",
+                    String.valueOf(downsamples.length - i)
+            )) {
                 writeLevel(i, downsamples[i], server);
             }
 
@@ -85,25 +115,7 @@ public class PyramidalOMEZarrWriter {
     }
 
     private void writeLevel(int level, double downsample, ImageServer<BufferedImage> server) throws Exception {
-        ZarrArray zarrArray = root.createArray(
-                String.format("s%d", level),
-                new ArrayParams()
-                        .shape(getDimensionsOfImage(server, downsample))
-                        .chunks(getChunksOfImage(server))
-                        .compressor(compressor)
-                        .dataType(switch (server.getPixelType()) {
-                            case UINT8 -> DataType.u1;
-                            case INT8 -> DataType.i1;
-                            case UINT16 -> DataType.u2;
-                            case INT16 -> DataType.i2;
-                            case UINT32 -> DataType.u4;
-                            case INT32 -> DataType.i4;
-                            case FLOAT32 -> DataType.f4;
-                            case FLOAT64 -> DataType.f8;
-                        })
-                        .dimensionSeparator(DimensionSeparator.SLASH),
-                attributes.getLevelAttributes()
-        );
+        ZarrArray zarrArray = levels.get(level);
         Collection<TileRequest> tileRequests = getTileRequestsForLevel(
                 path,
                 level,
@@ -119,29 +131,12 @@ public class PyramidalOMEZarrWriter {
         for (TileRequest tileRequest: tileRequests) {
             executorService.execute(() -> {
                 try {
-                    if (server instanceof BioFormatsImageServer) {
-                        zarrArray.write(
-                                getData(server.readRegion(RegionRequest.createInstance(
-                                        tileRequest.getRegionRequest().getPath(),
-                                        tileRequest.getDownsample(),
-                                        tileRequest.getTileX(),
-                                        tileRequest.getTileY(),
-                                        tileRequest.getTileWidth(),
-                                        tileRequest.getTileHeight(),
-                                        tileRequest.getZ(),
-                                        tileRequest.getT()
-                                ))),
-                                getDimensionsOfTile(tileRequest),
-                                getOffsetsOfTile(tileRequest)
-                        );
-                    } else {
-                        zarrArray.write(
-                                getData(server.readRegion(tileRequest.getRegionRequest())),
-                                getDimensionsOfTile(tileRequest),
-                                getOffsetsOfTile(tileRequest)
-                        );
-                    }
-                } catch (Exception e) {
+                    zarrArray.write(
+                            getData(server.readRegion(tileRequest.getRegionRequest())),
+                            getDimensionsOfTile(tileRequest),
+                            getOffsetsOfTile(tileRequest)
+                    );
+                } catch (Throwable e) {
                     logger.error("Error when writing tile", e);
                 }
                 latch.countDown();
@@ -220,7 +215,7 @@ public class PyramidalOMEZarrWriter {
         return dimensions.stream().mapToInt(i -> i).toArray();
     }
 
-    private int[] getChunksOfImage(ImageServer<BufferedImage> server) {
+    private static int[] getChunksOfImage(ImageServer<BufferedImage> server) {
         List<Integer> chunks = new ArrayList<>();
         if (server.nTimepoints() > 1) {
             chunks.add(1);
