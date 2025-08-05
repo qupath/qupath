@@ -34,25 +34,25 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class PyramidalOMEZarrWriter {
+public class PyramidalOMEZarrWriter implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(PyramidalOMEZarrWriter.class);
-    private static final double[] downsamples = new double[] {1, 4, 16, 64};
-    private static final Compressor compressor = CompressorFactory.createDefaultCompressor();
-    private static final int tileWidth = 1024;
-    private static final int tileHeight = 1024;
+    private final Map<Integer, ZarrArray> levels = new HashMap<>();
     private final ImageServer<BufferedImage> server;
     private final String path;
-    private final ExecutorService executorService;
+    private final double[] downsamples;
+    private final int tileWidth;
+    private final int tileHeight;
     private final ZarrGroup root;
-    private final Map<Integer, ZarrArray> levels = new HashMap<>();
+    private final ExecutorService executorService;
     private OMEZarrAttributesCreator attributes;
 
-    public PyramidalOMEZarrWriter(ImageServer<BufferedImage> server, String path) throws IOException {
-        int numberOfThreads = ThreadTools.getParallelism();
-
-        this.server = server;
+    public PyramidalOMEZarrWriter(Builder builder, String path) throws IOException {
+        this.server = builder.server;
         this.path = path;
+        this.downsamples = builder.downsamples;
+        this.tileWidth = builder.tileWidth;
+        this.tileHeight = builder.tileHeight;
 
         this.root = ZarrGroup.create(path, null);
         OMEXMLCreator.create(server.getMetadata()).ifPresent(omeXML -> createOmeSubGroup(root, path, omeXML));
@@ -65,8 +65,8 @@ public class PyramidalOMEZarrWriter {
                             String.format("s%d", i),
                             new ArrayParams()
                                     .shape(getDimensionsOfImage(server, downsamples[i]))
-                                    .chunks(getChunksOfImage(server))
-                                    .compressor(compressor)
+                                    .chunks(getChunksOfImage(server, tileWidth, tileHeight))
+                                    .compressor(builder.compressor)
                                     .dataType(switch (server.getPixelType()) {
                                         case UINT8 -> DataType.u1;
                                         case INT8 -> DataType.i1;
@@ -84,9 +84,14 @@ public class PyramidalOMEZarrWriter {
         }
 
         this.executorService = Executors.newFixedThreadPool(
-                numberOfThreads,
+                builder.numberOfThreads,
                 ThreadTools.createThreadFactory("pyramidal_zarr_writer_", false)
         );
+    }
+
+    @Override
+    public void close() {
+        executorService.shutdown();
     }
 
     public void writeImage() throws Exception {
@@ -112,6 +117,97 @@ public class PyramidalOMEZarrWriter {
             );
             root.writeAttributes(attributes.getGroupAttributes());
         }
+    }
+
+    public static class Builder {
+
+        private static final String FILE_EXTENSION = ".ome.zarr";
+        private final ImageServer<BufferedImage> server;
+        private final double[] downsamples;
+        private Compressor compressor = CompressorFactory.createDefaultCompressor();
+        private int numberOfThreads = ThreadTools.getParallelism();
+        private int tileWidth = 1024;
+        private int tileHeight = 1024;
+
+        public Builder(ImageServer<BufferedImage> server, double[] downsamples) {
+            this.server = server;
+            this.downsamples = downsamples;
+        }
+
+        public Builder compression(Compressor compressor) {
+            this.compressor = compressor;
+            return this;
+        }
+
+        public Builder parallelize(int numberOfThreads) {
+            this.numberOfThreads = numberOfThreads;
+            return this;
+        }
+
+        public Builder tileSize(int tileWidth, int tileHeight) {
+            this.tileWidth = tileWidth;
+            this.tileHeight = tileHeight;
+            return this;
+        }
+
+        public PyramidalOMEZarrWriter build(String path) throws IOException {
+            if (!path.endsWith(FILE_EXTENSION)) {
+                throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
+            }
+            if (Files.exists(Paths.get(path))) {
+                throw new IllegalArgumentException(String.format("The provided path (%s) already exists", path));
+            }
+
+            return new PyramidalOMEZarrWriter(this, path);
+        }
+    }
+
+    private static void createOmeSubGroup(ZarrGroup mainGroup, String imagePath, String omeXMLContent) {
+        String fileName = "OME";
+
+        try {
+            mainGroup.createSubGroup(fileName);
+
+            try (OutputStream outputStream = new FileOutputStream(Files.createFile(Paths.get(imagePath, fileName, "METADATA.ome.xml")).toString())) {
+                outputStream.write(omeXMLContent.getBytes());
+            }
+        } catch (IOException e) {
+            logger.error("Error while creating OME group or metadata XML file", e);
+        }
+    }
+
+    private static int[] getDimensionsOfImage(ImageServer<BufferedImage> server, double downsample) {
+        List<Integer> dimensions = new ArrayList<>();
+        if (server.nTimepoints() > 1) {
+            dimensions.add(server.nTimepoints());
+        }
+        if (server.nChannels() > 1) {
+            dimensions.add(server.nChannels());
+        }
+        if (server.nZSlices() > 1) {
+            dimensions.add(server.nZSlices());
+        }
+        dimensions.add((int) (server.getHeight() / downsample));
+        dimensions.add((int) (server.getWidth() / downsample));
+
+        return dimensions.stream().mapToInt(i -> i).toArray();
+    }
+
+    private static int[] getChunksOfImage(ImageServer<BufferedImage> server, int tileWidth, int tileHeight) {
+        List<Integer> chunks = new ArrayList<>();
+        if (server.nTimepoints() > 1) {
+            chunks.add(1);
+        }
+        if (server.nChannels() > 1) {
+            chunks.add(1);
+        }
+        if (server.nZSlices() > 1) {
+            chunks.add(1);
+        }
+        chunks.add(tileHeight);
+        chunks.add(tileWidth);
+
+        return chunks.stream().mapToInt(i -> i).toArray();
     }
 
     private void writeLevel(int level, double downsample, ImageServer<BufferedImage> server) throws Exception {
@@ -182,54 +278,6 @@ public class PyramidalOMEZarrWriter {
         }
 
         return set;
-    }
-
-    private static void createOmeSubGroup(ZarrGroup mainGroup, String imagePath, String omeXMLContent) {
-        String fileName = "OME";
-
-        try {
-            mainGroup.createSubGroup(fileName);
-
-            try (OutputStream outputStream = new FileOutputStream(Files.createFile(Paths.get(imagePath, fileName, "METADATA.ome.xml")).toString())) {
-                outputStream.write(omeXMLContent.getBytes());
-            }
-        } catch (IOException e) {
-            logger.error("Error while creating OME group or metadata XML file", e);
-        }
-    }
-
-    private static int[] getDimensionsOfImage(ImageServer<BufferedImage> server, double downsample) {
-        List<Integer> dimensions = new ArrayList<>();
-        if (server.nTimepoints() > 1) {
-            dimensions.add(server.nTimepoints());
-        }
-        if (server.nChannels() > 1) {
-            dimensions.add(server.nChannels());
-        }
-        if (server.nZSlices() > 1) {
-            dimensions.add(server.nZSlices());
-        }
-        dimensions.add((int) (server.getHeight() / downsample));
-        dimensions.add((int) (server.getWidth() / downsample));
-
-        return dimensions.stream().mapToInt(i -> i).toArray();
-    }
-
-    private static int[] getChunksOfImage(ImageServer<BufferedImage> server) {
-        List<Integer> chunks = new ArrayList<>();
-        if (server.nTimepoints() > 1) {
-            chunks.add(1);
-        }
-        if (server.nChannels() > 1) {
-            chunks.add(1);
-        }
-        if (server.nZSlices() > 1) {
-            chunks.add(1);
-        }
-        chunks.add(tileHeight);
-        chunks.add(tileWidth);
-
-        return chunks.stream().mapToInt(i -> i).toArray();
     }
 
     private Object getData(BufferedImage image) {
