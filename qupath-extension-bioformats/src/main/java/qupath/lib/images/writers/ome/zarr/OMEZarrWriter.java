@@ -7,7 +7,6 @@ import com.bc.zarr.DataType;
 import com.bc.zarr.DimensionSeparator;
 import com.bc.zarr.ZarrArray;
 import com.bc.zarr.ZarrGroup;
-import loci.formats.gui.AWTImageTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ThreadTools;
@@ -19,15 +18,11 @@ import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.regions.ImageRegion;
 
 import java.awt.image.BufferedImage;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
- * Create an OME-Zarr file writer as described by version 0.4 of the specifications of the
+ * An OME-Zarr file writer as described by version 0.4 of the specifications of the
  * <a href="https://ngff.openmicroscopy.org/0.4/index.html">Next-generation file formats (NGFF)</a>.
  * The transitional "bioformats2raw.layout" and "omero" metadata are also considered.
  * <p>
@@ -44,6 +39,8 @@ import java.util.function.Consumer;
  * This class is thread-safe but already uses concurrency internally to write tiles.
  * <p>
  * This writer has to be {@link #close() closed} once no longer used.
+ * <p>
+ * See {@link PyramidalOMEZarrWriter} for a more memory friendly Zarr writer.
  */
 public class OMEZarrWriter implements AutoCloseable {
 
@@ -54,12 +51,12 @@ public class OMEZarrWriter implements AutoCloseable {
     private final Consumer<TileRequest> onTileWritten;
 
     private OMEZarrWriter(Builder builder, String path) throws IOException {
-        int tileWidth = getChunkSize(
+        int tileWidth = WriterUtils.getChunkSize(
                 builder.tileWidth > 0 ? builder.tileWidth : builder.server.getMetadata().getPreferredTileWidth(),
                 builder.maxNumberOfChunks,
                 builder.server.getWidth()
         );
-        int tileHeight = getChunkSize(
+        int tileHeight = WriterUtils.getChunkSize(
                 builder.tileHeight > 0 ? builder.tileHeight : builder.server.getMetadata().getPreferredTileHeight(),
                 builder.maxNumberOfChunks,
                 builder.server.getHeight()
@@ -93,7 +90,12 @@ public class OMEZarrWriter implements AutoCloseable {
                 attributes.getGroupAttributes()
         );
 
-        OMEXMLCreator.create(server.getMetadata()).ifPresent(omeXML -> createOmeSubGroup(root, path, omeXML));
+        try {
+            WriterUtils.createOmeSubGroup(root, path, server.getMetadata());
+        } catch (Exception e) {
+            logger.warn("Error while creating OME XML file of {}. Some image metadata won't be written", path, e);
+        }
+
         this.levelArrays = createLevelArrays(
                 server,
                 root,
@@ -161,9 +163,9 @@ public class OMEZarrWriter implements AutoCloseable {
         executorService.execute(() -> {
             try {
                 levelArrays.get(tileRequest.getLevel()).write(
-                        getData(server.readRegion(tileRequest.getRegionRequest())),
-                        getDimensionsOfTile(tileRequest),
-                        getOffsetsOfTile(tileRequest)
+                        WriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest()), server.getMetadata()),
+                        WriterUtils.getDimensionsOfTile(tileRequest, server.getMetadata()),
+                        WriterUtils.getOffsetsOfTile(tileRequest, server.getMetadata())
                 );
             } catch (Exception e) {
                 logger.error("Error when writing tile", e);
@@ -230,9 +232,8 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         /**
-         * Tiles will be written from a pool of thread. This function
-         * specifies the number of threads to use. By default, 12 threads are
-         * used.
+         * Tiles will be written from a pool of thread. This function specifies the number of threads to use.
+         * By default, {@link ThreadTools#getParallelism()} threads are used.
          *
          * @param numberOfThreads the number of threads to use when writing tiles
          * @return this builder
@@ -258,7 +259,7 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         /**
-         * In Zarr files, data is stored in chunks. This parameter defines the maximum number
+         * In Zarr images, data is stored in chunks. This parameter defines the maximum number
          * of chunks on the x,y, and z dimensions. By default, this value is set to -1.
          * <p>
          * Use a negative value to not define any maximum number of chunks.
@@ -272,7 +273,7 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         /**
-         * In Zarr files, data is stored in chunks. This parameter defines the size
+         * In Zarr images, data is stored in chunks. This parameter defines the size
          * of chunks on the x and y dimensions. By default, these values are set to -1.
          * <p>
          * Use a negative value to use the tile width/height of the provided image server.
@@ -288,7 +289,7 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         /**
-         * In Zarr files, data is stored in chunks. This parameter defines the size
+         * In Zarr images, data is stored in chunks. This parameter defines the size
          * of chunks on the x and y dimensions. By default, these values are set to -1.
          * <p>
          * Use a negative value to use the tile width/height of the provided image server.
@@ -311,7 +312,7 @@ public class OMEZarrWriter implements AutoCloseable {
          *
          * @param boundingBox the region to consider. Only the x, y, width, and height
          *                    of this region are taken into account. Can be null to use
-         *                    the entire image
+         *                    the entire image. Null by default
          * @return this builder
          */
         public Builder region(ImageRegion boundingBox) {
@@ -322,8 +323,9 @@ public class OMEZarrWriter implements AutoCloseable {
         /**
          * Define the z-slices of the input image to consider.
          *
-         * @param zStart the 0-based inclusive index of the first z-slice to consider
-         * @param zEnd the 0-based exclusive index of the last z-slice to consider
+         * @param zStart the 0-based inclusive index of the first z-slice to consider. 0 by default
+         * @param zEnd the 0-based exclusive index of the last z-slice to consider. Equal to the number
+         *             of z-slices of the image by default
          * @return this builder
          */
         public Builder zSlices(int zStart, int zEnd) {
@@ -335,8 +337,9 @@ public class OMEZarrWriter implements AutoCloseable {
         /**
          * Define the timepoints of the input image to consider.
          *
-         * @param tStart the 0-based inclusive index of the first timepoint to consider
-         * @param tEnd the 0-based exclusive index of the last timepoint to consider
+         * @param tStart the 0-based inclusive index of the first timepoint to consider. 0 by default
+         * @param tEnd the 0-based exclusive index of the last timepoint to consider. Equal to the number
+         *             of timepoints of the image by default
          * @return this builder
          */
         public Builder timePoints(int tStart, int tEnd) {
@@ -361,8 +364,7 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         /**
-         * Create a new instance of {@link OMEZarrWriter}. This will also
-         * create an empty image on the provided path.
+         * Create a new instance of {@link OMEZarrWriter}. This will also create an empty image on the provided path.
          *
          * @param path the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
          * @return the new {@link OMEZarrWriter}
@@ -383,29 +385,6 @@ public class OMEZarrWriter implements AutoCloseable {
         }
     }
 
-    private static int getChunkSize(int tileSize, int maxNumberOfChunks, int imageSize) {
-        return Math.min(
-                imageSize,
-                maxNumberOfChunks > 0 ?
-                        Math.max(tileSize, imageSize / maxNumberOfChunks) :
-                        tileSize
-        );
-    }
-
-    private static void createOmeSubGroup(ZarrGroup mainGroup, String imagePath, String omeXMLContent) {
-        String fileName = "OME";
-
-        try {
-            mainGroup.createSubGroup(fileName);
-
-            try (OutputStream outputStream = new FileOutputStream(Files.createFile(Paths.get(imagePath, fileName, "METADATA.ome.xml")).toString())) {
-                outputStream.write(omeXMLContent.getBytes());
-            }
-        } catch (IOException e) {
-            logger.error("Error while creating OME group or metadata XML file", e);
-        }
-    }
-
     private static Map<Integer, ZarrArray> createLevelArrays(
             ImageServer<BufferedImage> server,
             ZarrGroup root,
@@ -418,8 +397,15 @@ public class OMEZarrWriter implements AutoCloseable {
             levelArrays.put(level, root.createArray(
                     "s" + level,
                     new ArrayParams()
-                            .shape(getDimensionsOfImage(server, level))
-                            .chunks(getChunksOfImage(server))
+                            .shape(WriterUtils.getDimensionsOfImage(
+                                    server.getMetadata(),
+                                    server.getDownsampleForResolution(level)
+                            ))
+                            .chunks(WriterUtils.getChunksOfImage(
+                                    server.getMetadata(),
+                                    server.getMetadata().getPreferredTileWidth(),
+                                    server.getMetadata().getPreferredTileHeight()
+                            ))
                             .compressor(compressor)
                             .dataType(switch (server.getPixelType()) {
                                 case UINT8 -> DataType.u1;
@@ -437,171 +423,5 @@ public class OMEZarrWriter implements AutoCloseable {
         }
 
         return levelArrays;
-    }
-
-    private static int[] getDimensionsOfImage(ImageServer<BufferedImage> server, int level) {
-        List<Integer> dimensions = new ArrayList<>();
-        if (server.nTimepoints() > 1) {
-            dimensions.add(server.nTimepoints());
-        }
-        if (server.nChannels() > 1) {
-            dimensions.add(server.nChannels());
-        }
-        if (server.nZSlices() > 1) {
-            dimensions.add(server.nZSlices());
-        }
-        dimensions.add((int) (server.getHeight() / server.getDownsampleForResolution(level)));
-        dimensions.add((int) (server.getWidth() / server.getDownsampleForResolution(level)));
-
-        return dimensions.stream().mapToInt(i -> i).toArray();
-    }
-
-    private static int[] getChunksOfImage(ImageServer<BufferedImage> server) {
-        List<Integer> chunks = new ArrayList<>();
-        if (server.nTimepoints() > 1) {
-            chunks.add(1);
-        }
-        if (server.nChannels() > 1) {
-            chunks.add(1);
-        }
-        if (server.nZSlices() > 1) {
-            chunks.add(1);
-        }
-        chunks.add(server.getMetadata().getPreferredTileHeight());
-        chunks.add(server.getMetadata().getPreferredTileWidth());
-
-        return chunks.stream().mapToInt(i -> i).toArray();
-    }
-
-    private Object getData(BufferedImage image) {
-        Object pixels = AWTImageTools.getPixels(image);
-
-        if (server.isRGB()) {
-            int[][] data = (int[][]) pixels;
-
-            int[] output = new int[server.nChannels() * image.getWidth() * image.getHeight()];
-            int i = 0;
-            for (int c=0; c<server.nChannels(); ++c) {
-                for (int y=0; y<image.getHeight(); ++y) {
-                    for (int x=0; x<image.getWidth(); ++x) {
-                        output[i] = data[c][x + image.getWidth()*y];
-                        i++;
-                    }
-                }
-            }
-            return output;
-        } else {
-            return switch (server.getPixelType()) {
-                case UINT8, INT8 -> {
-                    byte[][] data = (byte[][]) pixels;
-
-                    byte[] output = new byte[server.nChannels() * image.getWidth() * image.getHeight()];
-                    int i = 0;
-                    for (int c=0; c<server.nChannels(); ++c) {
-                        for (int y=0; y<image.getHeight(); ++y) {
-                            for (int x=0; x<image.getWidth(); ++x) {
-                                output[i] = data[c][x + image.getWidth()*y];
-                                i++;
-                            }
-                        }
-                    }
-                    yield output;
-                }
-                case UINT16, INT16 -> {
-                    short[][] data = (short[][]) pixels;
-
-                    short[] output = new short[server.nChannels() * image.getWidth() * image.getHeight()];
-                    int i = 0;
-                    for (int c=0; c<server.nChannels(); ++c) {
-                        for (int y=0; y<image.getHeight(); ++y) {
-                            for (int x=0; x<image.getWidth(); ++x) {
-                                output[i] = data[c][x + image.getWidth()*y];
-                                i++;
-                            }
-                        }
-                    }
-                    yield output;
-                }
-                case UINT32, INT32 -> {
-                    int[][] data = (int[][]) pixels;
-
-                    int[] output = new int[server.nChannels() * image.getWidth() * image.getHeight()];
-                    int i = 0;
-                    for (int c=0; c<server.nChannels(); ++c) {
-                        for (int y=0; y<image.getHeight(); ++y) {
-                            for (int x=0; x<image.getWidth(); ++x) {
-                                output[i] = data[c][x + image.getWidth()*y];
-                                i++;
-                            }
-                        }
-                    }
-                    yield output;
-                }
-                case FLOAT32 -> {
-                    float[][] data = (float[][]) pixels;
-
-                    float[] output = new float[server.nChannels() * image.getWidth() * image.getHeight()];
-                    int i = 0;
-                    for (int c=0; c<server.nChannels(); ++c) {
-                        for (int y=0; y<image.getHeight(); ++y) {
-                            for (int x=0; x<image.getWidth(); ++x) {
-                                output[i] = data[c][x + image.getWidth()*y];
-                                i++;
-                            }
-                        }
-                    }
-                    yield output;
-                }
-                case FLOAT64 -> {
-                    double[][] data = (double[][]) pixels;
-
-                    double[] output = new double[server.nChannels() * image.getWidth() * image.getHeight()];
-                    int i = 0;
-                    for (int c=0; c<server.nChannels(); ++c) {
-                        for (int y=0; y<image.getHeight(); ++y) {
-                            for (int x=0; x<image.getWidth(); ++x) {
-                                output[i] = data[c][x + image.getWidth()*y];
-                                i++;
-                            }
-                        }
-                    }
-                    yield output;
-                }
-            };
-        }
-    }
-
-    private int[] getDimensionsOfTile(TileRequest tileRequest) {
-        List<Integer> dimensions = new ArrayList<>();
-        if (server.nTimepoints() > 1) {
-            dimensions.add(1);
-        }
-        if (server.nChannels() > 1) {
-            dimensions.add(server.nChannels());
-        }
-        if (server.nZSlices() > 1) {
-            dimensions.add(1);
-        }
-        dimensions.add(tileRequest.getTileHeight());
-        dimensions.add(tileRequest.getTileWidth());
-
-        return dimensions.stream().mapToInt(i -> i).toArray();
-    }
-
-    private int[] getOffsetsOfTile(TileRequest tileRequest) {
-        List<Integer> offset = new ArrayList<>();
-        if (server.nTimepoints() > 1) {
-            offset.add(tileRequest.getT());
-        }
-        if (server.nChannels() > 1) {
-            offset.add(0);
-        }
-        if (server.nZSlices() > 1) {
-            offset.add(tileRequest.getZ());
-        }
-        offset.add(tileRequest.getTileY());
-        offset.add(tileRequest.getTileX());
-
-        return offset.stream().mapToInt(i -> i).toArray();
     }
 }
