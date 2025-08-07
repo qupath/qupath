@@ -213,92 +213,62 @@ class WriterUtils {
 
         if (metadata.isRGB()) {
             int[][] data = (int[][]) pixels;
+            int channelSize = image.getWidth() * image.getHeight();
 
-            int[] output = new int[metadata.getSizeC() * image.getWidth() * image.getHeight()];
-            int i = 0;
+            int[] output = new int[metadata.getSizeC() * channelSize];
             for (int c=0; c<metadata.getSizeC(); ++c) {
-                for (int y=0; y<image.getHeight(); ++y) {
-                    for (int x=0; x<image.getWidth(); ++x) {
-                        output[i] = data[c][x + image.getWidth()*y];
-                        i++;
-                    }
-                }
+                System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
             }
             return output;
         } else {
             return switch (metadata.getPixelType()) {
                 case UINT8, INT8 -> {
                     byte[][] data = (byte[][]) pixels;
+                    int channelSize = image.getWidth() * image.getHeight();
 
-                    byte[] output = new byte[metadata.getSizeC() * image.getWidth() * image.getHeight()];
-                    int i = 0;
+                    byte[] output = new byte[metadata.getSizeC() * channelSize];
                     for (int c=0; c<metadata.getSizeC(); ++c) {
-                        for (int y=0; y<image.getHeight(); ++y) {
-                            for (int x=0; x<image.getWidth(); ++x) {
-                                output[i] = data[c][x + image.getWidth()*y];
-                                i++;
-                            }
-                        }
+                        System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
                     }
                     yield output;
                 }
                 case UINT16, INT16 -> {
                     short[][] data = (short[][]) pixels;
+                    int channelSize = image.getWidth() * image.getHeight();
 
-                    short[] output = new short[metadata.getSizeC() * image.getWidth() * image.getHeight()];
-                    int i = 0;
+                    short[] output = new short[metadata.getSizeC() * channelSize];
                     for (int c=0; c<metadata.getSizeC(); ++c) {
-                        for (int y=0; y<image.getHeight(); ++y) {
-                            for (int x=0; x<image.getWidth(); ++x) {
-                                output[i] = data[c][x + image.getWidth()*y];
-                                i++;
-                            }
-                        }
+                        System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
                     }
                     yield output;
                 }
                 case UINT32, INT32 -> {
                     int[][] data = (int[][]) pixels;
+                    int channelSize = image.getWidth() * image.getHeight();
 
-                    int[] output = new int[metadata.getSizeC() * image.getWidth() * image.getHeight()];
-                    int i = 0;
+                    int[] output = new int[metadata.getSizeC() * channelSize];
                     for (int c=0; c<metadata.getSizeC(); ++c) {
-                        for (int y=0; y<image.getHeight(); ++y) {
-                            for (int x=0; x<image.getWidth(); ++x) {
-                                output[i] = data[c][x + image.getWidth()*y];
-                                i++;
-                            }
-                        }
+                        System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
                     }
                     yield output;
                 }
                 case FLOAT32 -> {
                     float[][] data = (float[][]) pixels;
+                    int channelSize = image.getWidth() * image.getHeight();
 
-                    float[] output = new float[metadata.getSizeC() * image.getWidth() * image.getHeight()];
-                    int i = 0;
+                    float[] output = new float[metadata.getSizeC() * channelSize];
                     for (int c=0; c<metadata.getSizeC(); ++c) {
-                        for (int y=0; y<image.getHeight(); ++y) {
-                            for (int x=0; x<image.getWidth(); ++x) {
-                                output[i] = data[c][x + image.getWidth()*y];
-                                i++;
-                            }
-                        }
+                        System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
                     }
                     yield output;
                 }
                 case FLOAT64 -> {
                     double[][] data = (double[][]) pixels;
+                    int channelSize = image.getWidth() * image.getHeight();
 
-                    double[] output = new double[metadata.getSizeC() * image.getWidth() * image.getHeight()];
-                    int i = 0;
+                    double[] output = new double[metadata.getSizeC() * channelSize];
                     for (int c=0; c<metadata.getSizeC(); ++c) {
-                        for (int y=0; y<image.getHeight(); ++y) {
-                            for (int x=0; x<image.getWidth(); ++x) {
-                                output[i] = data[c][x + image.getWidth()*y];
-                                i++;
-                            }
-                        }
+                        System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
                     }
                     yield output;
                 }

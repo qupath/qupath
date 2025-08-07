@@ -21,13 +21,12 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -432,7 +431,7 @@ public class PyramidalOMEZarrWriter implements AutoCloseable {
             int levelWidth,
             int levelHeight
     ) {
-        Set<TileRequest> tiles = new LinkedHashSet<>();
+        List<TileRequest> tiles = new ArrayList<>(timepoints * zSlices * (levelHeight / tileHeight) * (levelWidth / tileWidth));
 
         for (int t = 0; t < timepoints; t++) {
             for (int z = 0; z < zSlices; z++) {
@@ -456,6 +455,11 @@ public class PyramidalOMEZarrWriter implements AutoCloseable {
             }
         }
 
-        return tiles;
+        // Reverse tiles every two levels so that cache is more used
+        if (level % 2 == 0) {
+            return tiles;
+        } else {
+            return tiles.reversed();
+        }
     }
 }
