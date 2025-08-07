@@ -91,7 +91,7 @@ public class OMEZarrWriter implements AutoCloseable {
         );
 
         try {
-            WriterUtils.createOmeSubGroup(root, path, server.getMetadata());
+            WriterUtils.createOmeSubGroup(root, Paths.get(path), server.getMetadata());
         } catch (Exception e) {
             logger.warn("Error while creating OME XML file of {}. Some image metadata won't be written", path, e);
         }
@@ -368,9 +368,10 @@ public class OMEZarrWriter implements AutoCloseable {
          *
          * @param path the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
          * @return the new {@link OMEZarrWriter}
-         * @throws IOException when the empty image cannot be created. This can happen if the provided path is incorrect
+         * @throws java.nio.file.InvalidPathException if a path object cannot be created from the provided path
+         * @throws IOException if the empty image cannot be created. This can happen if the provided path is incorrect
          * or if the user doesn't have enough permissions
-         * @throws IllegalArgumentException when the provided path doesn't end with ".ome.zarr" or a file/directory already
+         * @throws IllegalArgumentException if the provided path doesn't end with ".ome.zarr" or a file/directory already
          * exists at this location
          */
         public OMEZarrWriter build(String path) throws IOException {

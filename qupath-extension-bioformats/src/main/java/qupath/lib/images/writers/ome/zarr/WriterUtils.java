@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -61,10 +61,10 @@ class WriterUtils {
      * @throws SecurityException if the calling thread doesn't have the permission to write the XML file
      * @throws InvalidPathException if the XML file path cannot be created
      */
-    public static void createOmeSubGroup(ZarrGroup group, String path, ImageServerMetadata metadata) throws ParserConfigurationException, IOException, TransformerException {
+    public static void createOmeSubGroup(ZarrGroup group, Path path, ImageServerMetadata metadata) throws ParserConfigurationException, IOException, TransformerException {
         group.createSubGroup(OME_FOLDER_NAME);
 
-        try (OutputStream outputStream = new FileOutputStream(Files.createFile(Paths.get(path, OME_FOLDER_NAME, OME_METADATA_FILE_NAME)).toString())) {
+        try (OutputStream outputStream = new FileOutputStream(Files.createFile(path.resolve(OME_FOLDER_NAME).resolve(OME_METADATA_FILE_NAME)).toString())) {
             outputStream.write(OMEXMLCreator.create(metadata));
         }
     }
