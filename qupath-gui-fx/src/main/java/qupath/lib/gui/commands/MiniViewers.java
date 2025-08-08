@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -112,15 +112,21 @@ public class MiniViewers {
 	
 	private static final Logger logger = LoggerFactory.getLogger(MiniViewers.class);
 	
-	private static BooleanProperty showAllChannels = PathPrefs.createPersistentPreference("channelViewerAllChannels", false);
+	private static final BooleanProperty showAllChannels = PathPrefs.createPersistentPreference("channelViewerAllChannels", false);
 
 	/**
 	 * Style binding to use the same background color as the main viewer.
 	 */
-	private static ObservableStringValue style = Bindings.createStringBinding(() -> {
+	private static final ObservableStringValue style = Bindings.createStringBinding(
+			MiniViewers::computeStyle,
+			PathPrefs.viewerBackgroundColorProperty());
+
+
+	private static String computeStyle() {
 		int rgb = PathPrefs.viewerBackgroundColorProperty().get();
 		return String.format("-fx-background-color: rgb(%d, %d, %d)", ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb));
-	}, PathPrefs.viewerBackgroundColorProperty());
+	}
+
 
 	static Stage createDialog(QuPathViewer viewer, boolean channelViewer) {
 		if (channelViewer)
@@ -263,7 +269,7 @@ public class MiniViewers {
 	 * @param isChannelViewer 
 	 * @return
 	 */
-	static ContextMenu createPopup(final MiniViewerManager manager, boolean isChannelViewer) {
+	private static void createPopup(final MiniViewerManager manager, boolean isChannelViewer) {
 		
 		List<RadioMenuItem> radioItems = Arrays.asList(
 				ActionUtils.createRadioMenuItem(createDownsampleAction("400 %", manager.downsample, 0.25)),
@@ -308,8 +314,6 @@ public class MiniViewers {
 		pane.setOnContextMenuRequested(e -> {
 			popup.show(pane, e.getScreenX(), e.getScreenY());
 		});
-
-		return popup;
 	}
 	
 	
@@ -353,68 +357,56 @@ public class MiniViewers {
 	 */
 	public static class MiniViewerManager implements EventHandler<MouseEvent> {
 		
-		private GridPane pane = new GridPane();
+		private final GridPane pane = new GridPane();
 		
-		private List<MiniViewer> miniViewers = new ArrayList<>();
+		private final List<MiniViewer> miniViewers = new ArrayList<>();
 		
-		private BooleanProperty showChannelNames = new SimpleBooleanProperty(true);
-		private BooleanProperty showCursor = new SimpleBooleanProperty(true);
-		private BooleanProperty showOverlays = new SimpleBooleanProperty(true);
-		private BooleanProperty synchronizeToMainViewer = new SimpleBooleanProperty(true);
+		private final BooleanProperty showChannelNames = new SimpleBooleanProperty(true);
+		private final BooleanProperty showCursor = new SimpleBooleanProperty(true);
+		private final BooleanProperty showOverlays = new SimpleBooleanProperty(true);
+		private final BooleanProperty synchronizeToMainViewer = new SimpleBooleanProperty(true);
 		
 		/**
 		 * Track if the shift button is pressed; temporarily suspend synchronization if so.
 		 */
-		private BooleanProperty shiftDown = new SimpleBooleanProperty(false);
+		private final BooleanProperty shiftDown = new SimpleBooleanProperty(false);
 		
-		private DoubleProperty downsample = new SimpleDoubleProperty(1.0);
+		private final DoubleProperty downsample = new SimpleDoubleProperty(1.0);
 		
 		private boolean requestUpdate = false;
 		
-		private QuPathViewer mainViewer;
-		private List<ChannelDisplayInfo> channels = new ArrayList<>();
+		private final QuPathViewer mainViewer;
+		private final List<ChannelDisplayInfo> channels = new ArrayList<>();
 		
-		private Point2D centerPosition = new Point2D.Double();
+		private final Point2D centerPosition = new Point2D.Double();
 		private Point2D mousePosition;
 		
-		private ExecutorService pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("mini-viewer", true));
+		private final ExecutorService pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("mini-viewer", true));
 		
-		private ChangeListener<Number> changeListener = new ChangeListener<>() {
+		private final ChangeListener<Number> changeListener = this::handleFullUpdateChange;
 
-            @Override
-            public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
-                pool.submit(() -> requestFullUpdate());
-            }
-
-        };
+		private final ChangeListener<Number> fastChangeListener = this::handleFastUpdateChange;
 		
-		private ChangeListener<Number> fastChangeListener = new ChangeListener<>() {
+		private final InvalidationListener invalidationListener = this::handleInvalidation;
 
-            @Override
-            public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
-                pool.submit(() -> requestUpdate());
-            }
+		private void handleFullUpdateChange(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+			pool.submit(this::requestFullUpdate);
+		}
 
-        };
-		
-		private InvalidationListener invalidationListener = new InvalidationListener() {
+		private void handleFastUpdateChange(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+			pool.submit(this::requestUpdate);
+		}
 
-			@Override
-			public void invalidated(Observable observable) {
-				pool.submit(() -> requestUpdate());
-			}
-			
-		};
-		
+		private void handleInvalidation(Observable observable) {
+			pool.submit(this::requestUpdate);
+		}
+
 		/**
 		 * Constructor specifying a primary viewer and number of channels.
 		 * @param mainViewer the viewer that the mini viewers relate to (i.e. tracking the cursor location)
 		 * @param channels the channels to include
-		 * 
-		 * @deprecated use {@link MiniViewers#createManager(QuPathViewer, Collection)} instead.
 		 */
-		@Deprecated
-		public MiniViewerManager(final QuPathViewer mainViewer, final Collection<? extends ChannelDisplayInfo> channels) {
+		private MiniViewerManager(final QuPathViewer mainViewer, final Collection<? extends ChannelDisplayInfo> channels) {
 			this.mainViewer = mainViewer;
 			setChannels(channels);
 
@@ -447,7 +439,7 @@ public class MiniViewers {
 		
 		void setChannels(Collection<? extends ChannelDisplayInfo> channels) {
 			
-			miniViewers.stream().forEach(v -> v.close());
+			miniViewers.forEach(MiniViewer::close);
 			miniViewers.clear();
 			
 			int nChannels = channels.size();
@@ -571,18 +563,13 @@ public class MiniViewers {
 				return;
 			// TODO: Look to improve the performance of this & discard requests appropriately
 			requestUpdate = true;
-			Platform.runLater(() -> updateViewers());
-//			updateViewers();
+			Platform.runLater(this::updateViewers);
 		}
 		
 		void updateViewers() {
 			if (!requestUpdate)
 				return;
-//			if (!Platform.isFxApplicationThread()) {
-//				Platform.runLater(() -> updateViewers());
-//				return;
-//			}
-			if (this.pane != null && this.pane.isVisible()) {
+			if (pane.isVisible()) {
 				// Update mouse position if we are synchronizing
 				mousePosition = mainViewer.getMousePosition();
 				if (mousePosition != null) {
@@ -609,15 +596,15 @@ public class MiniViewers {
 		
 		class MiniViewer extends Canvas {
 			
-			private ImageRenderer renderer;
+			private final ImageRenderer renderer;
 						
-			private StringProperty nameBinding = new SimpleStringProperty();
+			private final StringProperty nameBinding = new SimpleStringProperty();
 			private BufferedImage imgRGB;
 			private BufferedImage img;
 			private WritableImage imgFX;
 			
 			private Point2D localCursorPosition = null;
-			private AffineTransform transform = new AffineTransform();
+			private final AffineTransform transform = new AffineTransform();
 
 			
 			public MiniViewer(ImageRenderer renderer) {
@@ -628,9 +615,8 @@ public class MiniViewers {
 				
 				// Create binding to indicate the current channel name
 				nameBinding.bind(Bindings.createStringBinding(() -> {
-						if (renderer instanceof ImageDisplaySingleChannelRenderer) {
-							ImageDisplaySingleChannelRenderer channelRenderer = (ImageDisplaySingleChannelRenderer)renderer;
-							int channel = channelRenderer.channel;
+						if (renderer instanceof ImageDisplaySingleChannelRenderer channelRenderer) {
+                            int channel = channelRenderer.channel;
 							if (channel < 0 || channel >= channels.size())
 								return null;
 							return channels.get(channel).getName();
