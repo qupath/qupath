@@ -24,6 +24,7 @@
 package qupath.lib.common;
 
 import java.awt.Desktop;
+import java.awt.GraphicsEnvironment;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -757,14 +758,20 @@ public final class GeneralTools {
 
 
 	/**
-	 * Delete a file, optionally requesting that it be moved to the trash rather than permanently deleted.
+	 * Delete a file or an empty directory, optionally requesting that it be moved to the trash rather than permanently deleted.
 	 * <p>
-	 * Note that the behavior of this method is system-dependent, and there is no guarantee the file will 
+	 * Note that the behavior of this method is system-dependent, and there is no guarantee the file/empty directory will
 	 * indeed be moved to the trash.
 	 * 
-	 * @param fileToDelete
-	 * @param preferTrash
-	 * @return true if the file is successfully deleted, false otherwise
+	 * @param fileToDelete the file or empty directory to delete
+	 * @param preferTrash whether an attempt should be made to move the provided file/empty directory to trash before deleting it
+	 * @return true if the provided file/empty directory is successfully deleted, false otherwise
+	 * @throws java.awt.HeadlessException if the preferTrash parameter and {@link GraphicsEnvironment#isHeadless()} are true
+	 * @throws UnsupportedOperationException if the preferTrash parameter is true and the {@link Desktop} class is not supported
+	 * on the current platform
+	 * @throws NullPointerException if the provided file/empty directory is null
+	 * @throws SecurityException if the calling thread doesn't have the permission to read or delete the provided file/directory
+	 * @throws IllegalArgumentException if the provided file/directory doesn't exit
 	 */
 	public static boolean deleteFile(File fileToDelete, boolean preferTrash) {
 		if (preferTrash && Desktop.isDesktopSupported()) {
@@ -775,7 +782,18 @@ public final class GeneralTools {
 		return fileToDelete.delete();
 	}
 
-	private static boolean moveToTrash(Desktop desktop, File fileToDelete) {
+	/**
+	 * Attempt to move the provided file or directory to trash. This may fail depending on the current platform.
+	 *
+	 * @param desktop the desktop to use when moving the provided file/directory to trash
+	 * @param fileToDelete the file or directory to move to trash
+	 * @return whether the provided file/directory was moved to trash
+	 * @throws NullPointerException if one of the provided parameters is null
+	 * @throws SecurityException if the calling thread doesn't have the permission to read or move the provided file/directory
+	 * @throws UnsupportedOperationException if the provided desktop doesn't support the {@link Desktop.Action#MOVE_TO_TRASH} action
+	 * @throws IllegalArgumentException if the provided file/directory doesn't exit
+	 */
+	public static boolean moveToTrash(Desktop desktop, File fileToDelete) {
 		if (SwingUtilities.isEventDispatchThread() || !GeneralTools.isWindows()) {
 			// It seems safe to call move to trash from any thread on macOS and Linux
 			// We can't use the EDT on macOS because of https://bugs.openjdk.org/browse/JDK-8087465
