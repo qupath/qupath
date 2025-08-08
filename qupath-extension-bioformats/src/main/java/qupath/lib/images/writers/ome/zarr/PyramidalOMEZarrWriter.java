@@ -169,10 +169,8 @@ public class PyramidalOMEZarrWriter {
                         .build()
                 ).getGroupAttributes());
             }
-            executorService.shutdown();
-        } catch (Exception e) {
+        } finally {
             executorService.shutdownNow();
-            throw e;
         }
     }
 
@@ -408,12 +406,7 @@ public class PyramidalOMEZarrWriter {
                 }
             });
         }
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            executorService.shutdownNow();
-            throw e;
-        }
+        latch.await();
     }
 
     private static Collection<TileRequest> getTileRequestsForLevel(
