@@ -146,7 +146,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
         filteredChannels.predicateProperty().bind(filter.predicateProperty());
         table.setItems(filteredChannels);
         table.sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).addListener((v, o, n) -> {
-            if (n) updateShowTableColumnHeader();
+            if (n != null && n) updateShowTableColumnHeader();
         });
         initializeShowAllCheckbox();
         initializeColorPicker();

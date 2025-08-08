@@ -176,7 +176,7 @@ public class BrightnessContrastSettingsPane extends GridPane {
      */
     private void tryToKeepSearchText() {
         comboSettings.sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).addListener((v, o, n) -> {
-            if (n && defaultName == null)
+            if (n != null && n && defaultName == null)
                 handleComboShowing();
         });
     }
