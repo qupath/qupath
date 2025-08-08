@@ -28,7 +28,6 @@ import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -36,7 +35,7 @@ import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -80,7 +79,6 @@ import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Text;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -511,14 +509,18 @@ public class IconFactory {
 	}
 
 	private static Node drawPointsIcon(int sizeOrig) {
-		return drawPointsIcon(sizeOrig, null, PathPrefs.multipointToolProperty().not());
+		return drawPointsIcon(sizeOrig, null, PathPrefs.multipointToolProperty().map(b -> b ? 3 : 1), -1);
 	}
 
 	private static Node drawPointsIcon(int sizeOrig, Color color) {
-		return drawPointsIcon(sizeOrig, color, null);
+		return drawPointsIcon(sizeOrig, color, null, -1);
 	}
 
-	private static Node drawPointsIcon(int sizeOrig, Color color, ObservableBooleanValue isSinglePoint) {
+	private static Node drawPointsIcon(int sizeOrig, Color color, int nPointsFixed) {
+		return drawPointsIcon(sizeOrig, color, null, nPointsFixed);
+	}
+
+	private static Node drawPointsIcon(int sizeOrig, Color color, ObservableValue<? extends Number> nPoints, int nPointsFixed) {
 		
 		double pad = 1.0;
 		double size = sizeOrig - pad*2;
@@ -530,10 +532,18 @@ public class IconFactory {
 					new Circle(pad+size-radius, pad+size-radius, radius, Color.TRANSPARENT)
 			);
 
-		if (isSinglePoint != null) {
-			var opacity = isSinglePoint.map(v -> v ? 0.15 : 1);
-			circles.get(1).opacityProperty().bind(opacity);
-			circles.get(2).opacityProperty().bind(opacity);
+		double translucent = 0.15;
+		if (nPoints != null) {
+			circles.get(0).opacityProperty().bind(nPoints.map(n -> n.doubleValue() >= 1 ? 1.0 : translucent));
+			circles.get(1).opacityProperty().bind(nPoints.map(n -> n.doubleValue() >= 2 ? 1.0 : translucent));
+			circles.get(2).opacityProperty().bind(nPoints.map(n -> n.doubleValue() >= 3 ? 1.0 : translucent));
+		} else if (nPointsFixed >= 0 && nPointsFixed < 3) {
+			if (nPointsFixed < 1)
+				circles.get(0).setOpacity(translucent);
+			if (nPointsFixed < 2)
+				circles.get(1).setOpacity(translucent);
+			if (nPointsFixed < 3)
+				circles.get(2).setOpacity(translucent);
 		}
 
 		if (color != null) {
@@ -934,7 +944,7 @@ public class IconFactory {
 			return line;
 		} else if (roi.isPoint()) {
 			// Just show generic points
-			return drawPointsIcon(Math.min(width, height), color);
+			return drawPointsIcon(Math.min(width, height), color, roi.getNumPoints());
 		} else {
 			var path = roiIconCache.computeIfAbsent(roi, r -> createPath(r, scale, color));
 			if (path != null) {
