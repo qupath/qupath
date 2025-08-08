@@ -175,8 +175,8 @@ public class BrightnessContrastSettingsPane extends GridPane {
      * And, to make it harder, the text is reset before the 'save' action is handled.
      */
     private void tryToKeepSearchText() {
-        comboSettings.sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).addListener((v, o, n) -> {
-            if (n != null && n && defaultName == null)
+        comboSettings.sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).orElse(Boolean.FALSE).addListener((v, o, n) -> {
+            if (n && defaultName == null)
                 handleComboShowing();
         });
     }
