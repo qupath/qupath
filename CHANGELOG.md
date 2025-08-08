@@ -2,6 +2,10 @@
 
 Version in progress...
 
+### Enhancements
+* Sync mini/channel viewers with a main viewer in multiple ways
+  * Sync to the cursor, sync to the selected object or sync to the viewer center
+
 ### Bug fixes
 * Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
 * Avoid empty tooltips in grid view (https://github.com/qupath/qupath/pull/1952)
