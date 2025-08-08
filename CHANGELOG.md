@@ -3,8 +3,9 @@
 Version in progress...
 
 ### Enhancements
-* Sync mini/channel viewers with a main viewer in multiple ways
+* Sync mini/channel viewers with a main viewer in multiple ways (https://github.com/qupath/qupath/pull/1970)
   * Sync to the cursor, sync to the selected object or sync to the viewer center
+* Improve toggling between point and multipoint tools (https://github.com/qupath/qupath/pull/1972)
 
 ### Bug fixes
 * Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
