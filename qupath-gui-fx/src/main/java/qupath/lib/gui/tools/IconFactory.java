@@ -27,6 +27,8 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -34,6 +36,7 @@ import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -77,6 +80,7 @@ import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
 import javafx.scene.text.Text;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -507,34 +511,41 @@ public class IconFactory {
 	}
 
 	private static Node drawPointsIcon(int sizeOrig) {
-		return drawPointsIcon(sizeOrig, null);
+		return drawPointsIcon(sizeOrig, null, PathPrefs.multipointToolProperty().not());
 	}
 
 	private static Node drawPointsIcon(int sizeOrig, Color color) {
+		return drawPointsIcon(sizeOrig, color, null);
+	}
+
+	private static Node drawPointsIcon(int sizeOrig, Color color, ObservableBooleanValue isSinglePoint) {
 		
 		double pad = 1.0;
 		double size = sizeOrig - pad*2;
 		double radius = size/5.0;
-		
-		var c1 = new Circle(pad+size/2.0, pad+radius, radius, Color.TRANSPARENT);
 
-		var c2 = new Circle(pad+radius, pad+size-radius, radius, Color.TRANSPARENT);
+		List<Circle> circles = Arrays.asList(
+					new Circle(pad+size/2.0, pad+radius, radius, Color.TRANSPARENT),
+					new Circle(pad+radius, pad+size-radius, radius, Color.TRANSPARENT),
+					new Circle(pad+size-radius, pad+size-radius, radius, Color.TRANSPARENT)
+			);
 
-		var c3 = new Circle(pad+size-radius, pad+size-radius, radius, Color.TRANSPARENT);
+		if (isSinglePoint != null) {
+			var opacity = isSinglePoint.map(v -> v ? 0.15 : 1);
+			circles.get(1).opacityProperty().bind(opacity);
+			circles.get(2).opacityProperty().bind(opacity);
+		}
+
 		if (color != null) {
 			// Use fixed color
-			c1.setStroke(color);
-			c2.setStroke(color);
-			c3.setStroke(color);
+			circles.forEach(c -> c.setStroke(color));
 		} else {
 			// Use default object color
-			bindShapeColorToObjectColor(c1);
-			bindShapeColorToObjectColor(c2);
-			bindShapeColorToObjectColor(c3);
+			circles.forEach(IconFactory::bindShapeColorToObjectColor);
 		}
 
 //		return new Group(c1, c2, c3);
-		return wrapInGroup(sizeOrig, c1, c2, c3);
+		return wrapInGroup(sizeOrig, circles.toArray(Node[]::new));
 	}
 	
 	

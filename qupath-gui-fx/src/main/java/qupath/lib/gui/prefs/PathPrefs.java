@@ -1239,7 +1239,7 @@ public class PathPrefs {
 	}
 		
 	
-	private static BooleanProperty multipointTool = MANAGER.createTransientBooleanProperty("multipointTool", true);
+	private static final BooleanProperty multipointTool = MANAGER.createPersistentBooleanProperty("multipointTool", true);
 	
 	/**
 	 * Create multiple points within the same annotation when using the counting tool.

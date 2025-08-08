@@ -226,20 +226,25 @@ public class CountingDialogCommand implements Runnable, ChangeListener<ImageData
 		labelDelete.setContentDisplay(ContentDisplay.CENTER);
 		labelDelete.setStyle("-fx-font-style: italic; -fx-opacity: 0.8;");
 		labelDelete.setTextAlignment(TextAlignment.CENTER);
-		
+
+		var actionMultipoint = ActionTools.createSelectableAction(PathPrefs.multipointToolProperty(), "Create multipoint annotations");
+		actionMultipoint.setLongText("Add points to the same annotation, instead of creating a new annotation for every new point.");
+
 		var actionConvexPoints = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
 		var actionSelectedColor = ActionTools.createSelectableAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
 		var actionDetectionsToPoints = qupath.createImageDataAction(imageData -> Commands.convertDetectionsToPoints(imageData, true));
 		actionDetectionsToPoints.setText("Convert detections to points");
-		
+
 		var btnConvert = ActionTools.createButton(actionDetectionsToPoints);
 		var convertPane = new Pane(btnConvert);
 		btnConvert.prefWidthProperty().bind(convertPane.widthProperty());
-		
+
+		var cbMultipoint = ActionTools.createCheckBox(actionMultipoint);
 		var cbConvex = ActionTools.createCheckBox(actionConvexPoints);
 		var cbSelected = ActionTools.createCheckBox(actionSelectedColor);
 //		panel.setSpacing(5);
 		panel.getChildren().addAll(
+				cbMultipoint,
 				cbConvex,
 				cbSelected,
 				sliderPane,
