@@ -179,9 +179,6 @@ public class CountingDialogCommand implements Runnable, ChangeListener<ImageData
 				var selection = listView.getSelectionModel().getSelectedItems();
 				List<PathObject> pointsList = countingPane.getPathObjects();
 				if (!selection.isEmpty()) {
-					ArrayList<String> choiceList = new ArrayList<>();
-					choiceList.addAll(Arrays.asList("All point annotations", "Selected objects"));
-					
 					var choice = Dialogs.showChoiceDialog("Save points", "Choose point annotations to save", Arrays.asList("All points", "Selected points"), savingOption);
 					if (choice == null)
 						return;
