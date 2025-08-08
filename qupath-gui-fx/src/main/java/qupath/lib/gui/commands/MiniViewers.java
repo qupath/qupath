@@ -88,6 +88,7 @@ import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
@@ -199,19 +200,26 @@ public class MiniViewers {
 			return false;
 		}
 	}
-	
-	private static boolean isRGBChannel(ChannelDisplayInfo c) {
+
+	/*
+	 * Check whether a channel of an RGB image is a 'direct' channel
+	 * (i.e. the band or a raster, or Red, Green or Blue for an RGB image).
+	 * Reject other 'derived' channels, i.e. those computed by a color transform
+	 * (e.g. color deconvolved, brightness, saturation).
+	 */
+	private static boolean isDirectChannel(ChannelDisplayInfo c) {
+		if (c instanceof DirectServerChannelInfo) {
+			// Fixes https://github.com/qupath/qupath/issues/1948 introduced in v0.6.0.
+			// Note that this would also return channels for non-RGB images.
+			return true;
+		}
 		var method = c.getMethod();
 		if (method == null)
 			return false;
-		switch (method) {
-		case Red:
-		case Green:
-		case Blue:
-			return true;
-		default:
-			return false;
-		}
+        return switch (method) {
+            case Red, Green, Blue -> true;
+            default -> false;
+        };
 	}
 	
 	private static List<ChannelDisplayInfo> getChannels(ImageDisplay display) {
@@ -219,7 +227,9 @@ public class MiniViewers {
 	}
 	
 	private static List<ChannelDisplayInfo> getChannels(ImageDisplay display, boolean allChannels) {
-		var imageData = display == null ? null : display.getImageData();
+		if (display == null)
+			return Collections.emptyList();
+		var imageData = display.getImageData();
 		if (allChannels || imageData == null) {
 			return display.availableChannels();
 		}
@@ -232,7 +242,7 @@ public class MiniViewers {
 			} else {
 				return display.availableChannels()
 						.stream()
-						.filter(MiniViewers::isRGBChannel)
+						.filter(MiniViewers::isDirectChannel)
 						.toList();
 			}			
 		} else {
@@ -240,7 +250,7 @@ public class MiniViewers {
 			var selected = new HashSet<>(display.selectedChannels());
 			return display.availableChannels()
 					.stream()
-					.filter(c -> selected.contains(c))
+					.filter(selected::contains)
 					.toList();
 		}
 	}
