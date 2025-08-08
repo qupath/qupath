@@ -6,6 +6,7 @@ Version in progress...
 * Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
 * Avoid empty tooltips in grid view (https://github.com/qupath/qupath/pull/1952)
 * Don't open servers to immediately close them (https://github.com/qupath/qupath/pull/1959)
+* Confusing error with 'Transform annotations' when there is no main selection (https://github.com/qupath/qupath/issues/1963)
 
 ### Dependency updates
 * Bio-Formats 8.3.0

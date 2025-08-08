@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -32,6 +32,7 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -134,14 +135,31 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
 		List<PathObject> allSelected = hierarchy.getSelectionModel().getSelectedObjects()
 				.stream()
-				.filter(p -> p.isAnnotation())
+				.filter(PathObject::isAnnotation)
 				.collect(Collectors.toCollection(ArrayList::new));
+
+		// It's possible we have multiple selected objects, but no main selection.
+		// If this happens, choose the largest annotation.
+		// See https://github.com/qupath/qupath/issues/1963
+		if (pathObject == null && !allSelected.isEmpty()) {
+			pathObject = allSelected.stream()
+					.filter(p -> p.hasROI() && !p.getROI().isEmpty())
+					.max(
+							Comparator.comparingDouble((PathObject p) -> p.getROI().getArea())
+									.thenComparing(p -> p.getROI().getLength())
+									.thenComparing(p -> p.getROI().getNumPoints())
+					)
+					.orElse(null);
+			if (pathObject != null) {
+				logger.warn("No primary annotation selected to transform - I will use the largest");
+			}
+		}
 		
 		if (pathObject == null || !pathObject.isAnnotation()) {
 			Dialogs.showErrorNotification(TITLE, "Please select an annotation!");
 			return;
 		}
-		if (pathObject.isLocked() || allSelected.stream().anyMatch(p -> p.isLocked())) {
+		if (pathObject.isLocked() || allSelected.stream().anyMatch(PathObject::isLocked)) {
 			var response = Dialogs.builder()
 				.title(TITLE)
 				.contentText("Selection includes at least one locked annotation - do you want to transform them anyway?")
@@ -155,7 +173,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		// Shouldn't happen... but conceivably could if we permit TMA cores to be the main selection
 		// In any case, best sort it out sooner rather than later
 		if (!allSelected.contains(pathObject)) {
-			allSelected.add(0, pathObject);
+			allSelected.addFirst(pathObject);
 		}
 		
 		ImageRegion bounds = viewer.getServerBounds();
