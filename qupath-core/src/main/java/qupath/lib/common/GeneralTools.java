@@ -757,43 +757,65 @@ public final class GeneralTools {
 
 
 	/**
-	 * Delete a file, optionally requesting that it be moved to the trash rather than permanently deleted.
+	 * Delete a file or an empty directory, optionally requesting that it be moved to the trash rather than permanently deleted.
 	 * <p>
-	 * Note that the behavior of this method is system-dependent, and there is no guarantee the file will 
+	 * Note that the behavior of this method is system-dependent, and there is no guarantee the file/empty directory will
 	 * indeed be moved to the trash.
 	 * 
-	 * @param fileToDelete
-	 * @param preferTrash
-	 * @return true if the file is successfully deleted, false otherwise
+	 * @param fileToDelete the file or empty directory to delete
+	 * @param preferTrash whether an attempt should be made to move the provided file/empty directory to trash before deleting it
+	 * @return true if the provided file/empty directory is successfully deleted, false otherwise
+	 * @throws NullPointerException if the provided file/empty directory is null
+	 * @throws IllegalArgumentException if the provided file/directory doesn't exist
 	 */
 	public static boolean deleteFile(File fileToDelete, boolean preferTrash) {
-		if (preferTrash && Desktop.isDesktopSupported()) {
-			var desktop = Desktop.getDesktop();
-			if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH) && moveToTrash(desktop, fileToDelete))
-				return true;
+		if (preferTrash && moveToTrash(fileToDelete)) {
+			return true;
 		}
 		return fileToDelete.delete();
 	}
 
-	private static boolean moveToTrash(Desktop desktop, File fileToDelete) {
+	/**
+	 * Attempt to move the provided file or directory to trash. This may fail depending on the current platform.
+	 *
+	 * @param fileOrDirectory the file or directory to move to trash
+	 * @return whether the provided file/directory was moved to trash
+	 * @throws NullPointerException if the provided file/directory is null
+	 * @throws IllegalArgumentException if the provided file/directory doesn't exist
+	 */
+	public static boolean moveToTrash(File fileOrDirectory) {
+		if (Desktop.isDesktopSupported()) {
+			try {
+				var desktop = Desktop.getDesktop();
+				return desktop.isSupported(Desktop.Action.MOVE_TO_TRASH) && moveToTrash(desktop, fileOrDirectory);
+			} catch (UnsupportedOperationException e) {
+				logger.warn("Cannot move {} to trash", fileOrDirectory, e);
+				return false;
+			}
+		} else {
+			logger.warn("Desktop class not supported. Cannot move {} to trash", fileOrDirectory);
+			return false;
+		}
+	}
+
+	private static boolean moveToTrash(Desktop desktop, File fileOrDirectory) {
 		if (SwingUtilities.isEventDispatchThread() || !GeneralTools.isWindows()) {
 			// It seems safe to call move to trash from any thread on macOS and Linux
 			// We can't use the EDT on macOS because of https://bugs.openjdk.org/browse/JDK-8087465
-			return desktop.moveToTrash(fileToDelete);
+			return desktop.moveToTrash(fileOrDirectory);
 		} else {
 			// EXCEPTION_ACCESS_VIOLATION associated with moveToTrash reported on Windows 11.
 			// https://github.com/qupath/qupath/issues/1738
 			// Could not be replicated (but we didn't have Windows 11...); taking a guess that this might help.
 			try {
- 				SwingUtilities.invokeAndWait(() -> moveToTrash(desktop, fileToDelete));
+				SwingUtilities.invokeAndWait(() -> moveToTrash(desktop, fileOrDirectory));
 			} catch (Exception e) {
 				logger.error("Exception moving file to trash: {}", e.getMessage(), e);
 				return false;
 			}
-			return !fileToDelete.exists();
+			return !fileOrDirectory.exists();
 		}
 	}
-
 
 	/**
 	 * Read URL as String, with specified timeout in milliseconds.
