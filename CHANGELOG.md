@@ -7,6 +7,7 @@ Version in progress...
 * Avoid empty tooltips in grid view (https://github.com/qupath/qupath/pull/1952)
 * Don't open servers to immediately close them (https://github.com/qupath/qupath/pull/1959)
 * Confusing error with 'Transform annotations' when there is no main selection (https://github.com/qupath/qupath/issues/1963)
+* Channel viewer does not split channels in RGB fluorescence image by default (https://github.com/qupath/qupath/issues/1948)
 
 ### Dependency updates
 * Bio-Formats 8.3.0
