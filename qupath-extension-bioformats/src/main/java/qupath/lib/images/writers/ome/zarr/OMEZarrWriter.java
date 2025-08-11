@@ -167,8 +167,12 @@ public class OMEZarrWriter implements AutoCloseable {
                         WriterUtils.getDimensionsOfTile(tileRequest, server.getMetadata()),
                         WriterUtils.getOffsetsOfTile(tileRequest, server.getMetadata())
                 );
-            } catch (Exception e) {
-                logger.error("Error when writing tile", e);
+            } catch (Throwable e) {
+                if (e.getCause() instanceof InterruptedException) {
+                    logger.debug("Tile {} writing interrupted", tileRequest, e);
+                } else {
+                    logger.error("Error when writing tile {}", tileRequest, e);
+                }
             }
             if (onTileWritten != null) {
                 onTileWritten.accept(tileRequest);
