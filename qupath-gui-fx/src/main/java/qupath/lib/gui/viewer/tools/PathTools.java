@@ -139,7 +139,7 @@ public class PathTools {
 			createIcon(PathIcons.POINTS_TOOL));
 	
 	
-	private static List<PathTool> ALL_TOOLS = Arrays.asList(
+	private static final List<PathTool> ALL_TOOLS = Arrays.asList(
 			MOVE, RECTANGLE, ELLIPSE, LINE, POLYGON, POLYLINE, BRUSH, POINTS
 			);
 	

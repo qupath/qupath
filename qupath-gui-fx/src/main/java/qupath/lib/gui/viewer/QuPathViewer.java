@@ -777,9 +777,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		setOverlayOptions(overlayOptions);
 		
-		// We need a simple repaint for color changes & simple (thick) line changes
+		// We need a simple repaint for color changes and simple (thick) line changes
 		manager.attachListener(PathPrefs.annotationStrokeThicknessProperty(), repainter);
 		manager.attachListener(PathPrefs.newDetectionRenderingProperty(), repainter);
+		manager.attachListener(PathPrefs.pointRadiusProperty(), repainter);
 
 		gammaProperty.set(PathPrefs.viewerGammaProperty().get());
 		gammaProperty.bind(PathPrefs.viewerGammaProperty());

@@ -2,6 +2,22 @@
 
 Version in progress...
 
+### Enhancements
+* Sync mini/channel viewers with a main viewer in multiple ways (https://github.com/qupath/qupath/pull/1970)
+  * Sync to the cursor, sync to the selected object or sync to the viewer center
+* Improve toggling between point and multipoint tools (https://github.com/qupath/qupath/pull/1972)
+
+### Bug fixes
+* Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
+* Avoid empty tooltips in grid view (https://github.com/qupath/qupath/pull/1952)
+* Don't open servers to immediately close them (https://github.com/qupath/qupath/pull/1959)
+* Confusing error with 'Transform annotations' when there is no main selection (https://github.com/qupath/qupath/issues/1963)
+* Channel viewer does not split channels in RGB fluorescence image by default (https://github.com/qupath/qupath/issues/1948)
+
+### Dependency updates
+* Bio-Formats 8.3.0
+* CommonMark 0.25.1
+* Groovy 4.0.28
 
 ## Version 0.6.0
 

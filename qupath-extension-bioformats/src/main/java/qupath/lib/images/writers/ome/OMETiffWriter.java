@@ -31,7 +31,6 @@ import java.util.UUID;
 import loci.common.ByteArrayHandle;
 import loci.common.IRandomAccess;
 import loci.common.Location;
-import loci.formats.FormatException;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.writers.ImageWriter;
@@ -98,12 +97,8 @@ public class OMETiffWriter implements ImageWriter<BufferedImage> {
 	@Override
 	public void writeImage(ImageServer<BufferedImage> server, RegionRequest region, String pathOutput)
 			throws IOException {
-		try {
-			OMEPyramidWriter.writeImage(server, pathOutput, CompressionType.DEFAULT, region);
-		} catch (FormatException e) {
-			throw new IOException(e);
-		}
-	}
+        OMEPyramidWriter.writeImage(server, pathOutput, CompressionType.DEFAULT, region);
+    }
 
 	@Override
 	public void writeImage(BufferedImage img, String pathOutput) throws IOException {
@@ -115,12 +110,8 @@ public class OMETiffWriter implements ImageWriter<BufferedImage> {
 	
 	@Override
 	public void writeImage(ImageServer<BufferedImage> server, String pathOutput) throws IOException {
-		try {
-			OMEPyramidWriter.writeImage(server, pathOutput, CompressionType.DEFAULT);
-		} catch (FormatException e) {
-			throw new IOException(e);
-		}
-	}
+        OMEPyramidWriter.writeImage(server, pathOutput, CompressionType.DEFAULT);
+    }
 	
 	private String createInMemoryID(IRandomAccess access) {
 		String id = UUID.randomUUID().toString() + "." + getDefaultExtension();

@@ -281,9 +281,10 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		btnDelete.setDisabled(!hasPoints);
 		if (pathObjectSelected == listCounts.getSelectionModel().getSelectedItem())
 			return;
-		if (pathObjectSelected != null && PathObjectTools.hasPointROI(pathObjectSelected))
+		if (pathObjectSelected != null && PathObjectTools.hasPointROI(pathObjectSelected)) {
 			listCounts.getSelectionModel().select(pathObjectSelected);
-		else
+			listCounts.scrollTo(pathObjectSelected);
+		} else
 			listCounts.getSelectionModel().clearSelection();
 	}
 
@@ -304,11 +305,12 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> hierarchyChanged(event));
+			return;
+		}
 		if (hierarchy == null) {
 			listCounts.getItems().clear();
-			return;
-		} else if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> hierarchyChanged(event));
 			return;
 		}
 		
@@ -326,7 +328,9 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		}
 		
 		// We want to retain selection status
-		selectedPathObjectChanged(hierarchy.getSelectionModel().getSelectedObject(), null, hierarchy.getSelectionModel().getSelectedObjects());
+		var selected = hierarchy.getSelectionModel().getSelectedObject();
+		var allSelected = hierarchy.getSelectionModel().getSelectedObjects();
+		selectedPathObjectChanged(selected, null, allSelected);
 	}	
 	
 	

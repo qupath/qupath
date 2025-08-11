@@ -868,25 +868,25 @@ public class PathObjectPainter {
 		RectangularShape ellipse;
 
 		//		double radius = pathPointsROI == null ? PointsROI.defaultPointRadiusProperty().get() : pathPointsROI.getPointRadius();
-		// Ensure that points are drawn with at least a radius of one, after any transforms have been applied
+		// Ensure that points are drawn with at least a radius of 1, after any transforms have been applied
 		double scale = Math.max(1, downsample);
-		radius = (Math.max(1 / scale, radius));
+		double radius2 = (Math.max(1.0 / scale, radius));
 
 		// Get clip bounds
 		Rectangle2D bounds = g2d.getClipBounds();
 		if (bounds != null) {
-			bounds.setRect(bounds.getX()-radius, bounds.getY()-radius, bounds.getWidth()+radius*2, bounds.getHeight()+radius*2);
+			bounds.setRect(bounds.getX()-radius2, bounds.getY()-radius2, bounds.getWidth()+radius2*2, bounds.getHeight()+radius2*2);
 		}
 		// Don't fill if we have a small radius, and use a rectangle instead of an ellipse (as this repaints much faster)
 		Graphics2D g = g2d;
-		if (radius / downsample < 0.5) {
+		if (radius2 / downsample < 0.5) {
 			if (colorStroke == null)
 				colorStroke = colorFill;
 			colorFill = null;
 			ellipse = new Rectangle2D.Double();
 			// Use opacity to avoid obscuring points completely
 			int rule = AlphaComposite.SRC_OVER;
-			float alpha = (float)(radius / downsample);
+			float alpha = (float)(radius2 / downsample);
 			var composite = g.getComposite();
 			if (composite instanceof AlphaComposite) {
 				var temp = (AlphaComposite)composite;
@@ -906,7 +906,7 @@ public class PathObjectPainter {
 		for (Point2 p : pathPoints.getAllPoints()) {
 			if (bounds != null && !bounds.contains(p.getX(), p.getY()))
 				continue;
-			ellipse.setFrame(p.getX()-radius, p.getY()-radius, radius*2, radius*2);
+			ellipse.setFrame(p.getX()-radius2, p.getY()-radius2, radius2*2, radius2*2);
 			if (colorFill != null) {
 				g.setColor(colorFill);
 				g.fill(ellipse);
