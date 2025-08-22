@@ -18,6 +18,7 @@ Version in progress...
 * Bio-Formats 8.3.0
 * CommonMark 0.25.1
 * Groovy 4.0.28
+* SciJava POM 42.0.0 (for Fiji builds)
 
 ## Version 0.6.0
 
