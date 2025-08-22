@@ -13,6 +13,7 @@ Version in progress...
 * Don't open servers to immediately close them (https://github.com/qupath/qupath/pull/1959)
 * Confusing error with 'Transform annotations' when there is no main selection (https://github.com/qupath/qupath/issues/1963)
 * Channel viewer does not split channels in RGB fluorescence image by default (https://github.com/qupath/qupath/issues/1948)
+* "Split annotations by lines" with line thickness 0 px doesn’t work with multiple lines (https://github.com/qupath/qupath/issues/1978)
 
 ### Dependency updates
 * Bio-Formats 8.3.0
