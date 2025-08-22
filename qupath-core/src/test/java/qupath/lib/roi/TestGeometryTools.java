@@ -24,6 +24,7 @@ package qupath.lib.roi;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,6 +45,7 @@ import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.util.AffineTransformation;
@@ -188,6 +190,16 @@ public class TestGeometryTools {
 		// The fast polygon union discards lines
 		assertEquals(1, FastPolygonUnion.union(g1, gLine).getNumGeometries());
 	}
+
+    @Test
+    public void testUnionLines() {
+        var gLine = GeometryTools.createLineString(1000, 2000, 3000, 4000).norm();
+        var gLine2 = GeometryTools.createLineString(1000, 4000, 3000, 6000).norm();
+        var gLine3 = GeometryTools.createLineString(1000, 6000, 3000, 8000).norm();
+        var union = GeometryTools.union(gLine, gLine2, gLine3);
+        assertInstanceOf(MultiLineString.class, union);
+        assertEquals(3, union.getNumGeometries());
+    }
 
 
 	@Test
