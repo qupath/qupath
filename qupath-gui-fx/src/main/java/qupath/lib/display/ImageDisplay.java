@@ -797,8 +797,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 			return Collections.emptyMap();
 		// Try to get the first image 'normally', so that if there is an exception it can be handled
 		Map<RegionRequest, BufferedImage> map = new TreeMap<>(regionComparator);
-		// Request the central slice at the lowest resolution
-		double downsample = server.getDownsampleForResolution(server.nResolutions()-1);
+		// Request the central slice at the preferred resolution
+		double downsample = server.getDownsampleForResolution(getPreferredHistogramPyramidLevel(server));
 		var request = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(),
 				server.nZSlices()/2, server.nTimepoints()/2);
 		map.put(request, server.readRegion(request));
@@ -806,6 +806,28 @@ public class ImageDisplay extends AbstractImageRenderer {
 		// (and also require too much memory)
 		return map;
 	}
+
+    /**
+     * Get the resolution level to use by default when building histograms here.
+     * In v0.6.0 the lowest resolution was always chosen, but this could cause trouble:
+     * see https://github.com/qupath/qupath/issues/1958
+     * Therefore here we <i>usually</i> select the lowest resolution - but may be slightly higher
+     * the resulting image still has no more than 2<sup>20</sup> pixels.
+     * @param server the image
+     * @return the resolution level
+     */
+    private static int getPreferredHistogramPyramidLevel(ImageServer<?> server) {
+        int level = server.nResolutions()-1;
+        long maxPixels = 1024L * 1024L;
+        for (var i = server.nResolutions()-2; i >= 0; i--) {
+            var tempLevel = server.getMetadata().getLevel(i);
+            if ((long)tempLevel.getWidth() * tempLevel.getHeight() <= maxPixels)
+                level = i;
+        }
+        // Log using 1-based level index (for easier comparison with total number of resolutions)
+        logger.debug("Building histograms for level {} of {}", level+1, server.nResolutions());
+        return level;
+    }
 
 
 	private void autoSetDisplayRange(ChannelDisplayInfo info, Histogram histogram, double saturation, boolean fireUpdate) {
@@ -917,7 +939,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 		// Get all the cached tiles we can
 		Map<RegionRequest, BufferedImage> images = new TreeMap<>(regionComparator);
-		int level = server.nResolutions()-1;
+        int level = getPreferredHistogramPyramidLevel(server);
 		long nPixelsCached = 0;
 		for (var tile : server.getTileRequestManager().getTileRequestsForLevel(level)) {
 			var img = server.getCachedTile(tile);
