@@ -37,6 +37,7 @@ gradle.extra["qupath.package.per-user"] = providers.gradleProperty("per-user-ins
 gradle.extra["qupath.package.git-commit"] = providers.gradleProperty("git-commit").getOrElse("false")
 
 // Optionally include extra libraries/extensions
+// Use -Pinclude-extras=true
 val includeExtras = "true".equals(providers.gradleProperty("include-extras").getOrElse("false"), true)
 
 // Main application
@@ -86,28 +87,28 @@ dependencyResolutionManagement {
 
         // Extra version catalog for bundled extensions
         // This can be useful to make custom QuPath builds with specific versions of extensions
+        // (It was used for v0.6.0 release candidates to bundle some extensions, but is no longer needed)
         create("extraLibs") {
-            library("djl", qupathGroup, "qupath-extension-djl").version("0.4.0-20240911.172830-2")
-            library("instanseg", qupathGroup, "qupath-extension-instanseg").version("0.0.1-20241020.174720-4")
-            library("training", qupathGroup, "qupath-extension-training").version("0.0.1-20241022.065038-2")
-            library("py4j", qupathGroup, "qupath-extension-py4j").version("0.1.0-20241021.201937-1")
+            // Define the libraries needed here
+//            library("djl", qupathGroup, "qupath-extension-djl").version("0.4.0-20240911.172830-2")
             // Include or exclude bundled extensions
-            if (includeExtras)
-                bundle("extensions", listOf("djl", "instanseg", "training", "py4j"))
-            else
+            if (includeExtras) {
+                println("Extra libs requested, but none have been defined")
+//                bundle("extensions", listOf("djl", "instanseg", "training", "py4j"))
+            } else {
                 bundle("extensions", listOf())
+            }
         }
 
         create("sciJava") {
-            from("org.scijava:pom-scijava:40.0.0")
-            // Override scripting-groovy version for compatibility with Groovy 4 (and anything after 3.0.4)
-            version("scijava.scriptingGroovy", "1.0.0")
+            from("org.scijava:pom-scijava:42.0.0")
         }
 
     }
 
     repositories {
         maven("https://maven.scijava.org/content/groups/public/")
+        mavenCentral()
     }
 
 }

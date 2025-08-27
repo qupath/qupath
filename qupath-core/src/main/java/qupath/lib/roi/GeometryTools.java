@@ -523,7 +523,7 @@ public class GeometryTools {
     	if (geometries.size() == 1)
     		return geometries.iterator().next();
 		try {
-			if (geometries.size() > 2 || geometries.stream().allMatch(g -> g instanceof Polygonal)) {
+			if (geometries.size() > 2 && geometries.stream().allMatch(g -> g instanceof Polygonal)) {
 				// If we have multiple polygonal geometries, do things the 'fast' way
 				// (which may admittedly be slightly slower in some cases, but orders of magnitude faster in others)
 				return FastPolygonUnion.union(geometries);

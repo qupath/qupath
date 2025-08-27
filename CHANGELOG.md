@@ -14,12 +14,16 @@ Version in progress...
 * Don't open servers to immediately close them (https://github.com/qupath/qupath/pull/1959)
 * Confusing error with 'Transform annotations' when there is no main selection (https://github.com/qupath/qupath/issues/1963)
 * Channel viewer does not split channels in RGB fluorescence image by default (https://github.com/qupath/qupath/issues/1948)
+* "Split annotations by lines" with line thickness 0 px doesn’t work with multiple lines (https://github.com/qupath/qupath/issues/1978)
+* `TransformedServerBuilder.subtractOffset()` can thrown an `IllegalArgumentException` when being serialized (https://github.com/qupath/qupath/issues/1976)
+* Using the lowest resolution image for brightness/contrast settings can be problematic (https://github.com/qupath/qupath/issues/1958)
 
 ### Dependency updates
 * Bio-Formats 8.3.0
 * CommonMark 0.25.1
 * Deep Java Library 0.34.0
 * Groovy 4.0.28
+* SciJava POM 42.0.0 (for Fiji builds)
 
 ## Version 0.6.0
 
