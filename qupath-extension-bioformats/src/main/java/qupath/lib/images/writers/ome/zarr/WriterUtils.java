@@ -60,6 +60,7 @@ class WriterUtils {
      * @throws TransformerException if an error occurs while converting the XML content to a byte array
      * @throws SecurityException if the calling thread doesn't have the permission to write the XML file
      * @throws InvalidPathException if the XML file path cannot be created
+     * @throws IllegalArgumentException if the provided metadata contains an unexpected entry (e.g. no channels)
      */
     public static void createOmeSubGroup(ZarrGroup group, Path path, ImageServerMetadata metadata) throws ParserConfigurationException, IOException, TransformerException {
         group.createSubGroup(OME_FOLDER_NAME);
@@ -113,7 +114,7 @@ class WriterUtils {
      * @param chunkHeight the height the chunks should have
      * @return the size of the chunks as described above
      */
-    public static int[] getChunksOfImage(ImageServerMetadata metadata, int chunkWidth, int chunkHeight) {
+    public static int[] getDimensionsOfChunks(ImageServerMetadata metadata, int chunkWidth, int chunkHeight) {
         List<Integer> chunks = new ArrayList<>();
         if (metadata.getSizeT() > 1) {
             chunks.add(1);
@@ -138,11 +139,11 @@ class WriterUtils {
      * If the number of timepoints, number of channels, or number of z-stacks is equal to 1, then the returned
      * array won't contain the corresponding dimension.
      *
-     * @param tileRequest the tile whose dimensions should be computed
      * @param metadata the metadata of the image the tile corresponds to
+     * @param tileRequest the tile whose dimensions should be computed
      * @return the size of the tile as described above
      */
-    public static int[] getDimensionsOfTile(TileRequest tileRequest, ImageServerMetadata metadata) {
+    public static int[] getDimensionsOfTile(ImageServerMetadata metadata, TileRequest tileRequest) {
         List<Integer> dimensions = new ArrayList<>();
         if (metadata.getSizeT() > 1) {
             dimensions.add(1);
@@ -167,11 +168,11 @@ class WriterUtils {
      * If the number of timepoints, number of channels, or number of z-stacks is equal to 1, then the returned
      * array won't contain the corresponding dimension.
      *
-     * @param tileRequest the tile whose offsets should be computed
      * @param metadata the metadata of the image the tile corresponds to
+     * @param tileRequest the tile whose offsets should be computed
      * @return the offsets of the tile as described above
      */
-    public static int[] getOffsetsOfTile(TileRequest tileRequest, ImageServerMetadata metadata) {
+    public static int[] getOffsetsOfTile(ImageServerMetadata metadata, TileRequest tileRequest) {
         List<Integer> offset = new ArrayList<>();
         if (metadata.getSizeT() > 1) {
             offset.add(tileRequest.getT());

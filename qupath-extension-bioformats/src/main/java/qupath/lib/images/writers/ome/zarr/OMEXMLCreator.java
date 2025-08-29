@@ -60,6 +60,7 @@ class OMEXMLCreator {
      * @throws org.w3c.dom.DOMException if an error occurs while creating the XML content
      * @throws IOException if an error occurs while converting the XML content to a byte array
      * @throws TransformerException if an error occurs while converting the XML content to a byte array
+     * @throws IllegalArgumentException if the provided metadata contains an unexpected entry (e.g. no channels)
      */
     public static byte[] create(ImageServerMetadata metadata) throws ParserConfigurationException, IOException, TransformerException {
         OME ome = new OME();

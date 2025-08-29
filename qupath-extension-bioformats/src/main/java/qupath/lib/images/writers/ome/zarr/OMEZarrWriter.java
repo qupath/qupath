@@ -24,6 +24,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -164,8 +165,8 @@ public class OMEZarrWriter implements AutoCloseable {
             try {
                 levelArrays.get(tileRequest.getLevel()).write(
                         WriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest()), server.getMetadata()),
-                        WriterUtils.getDimensionsOfTile(tileRequest, server.getMetadata()),
-                        WriterUtils.getOffsetsOfTile(tileRequest, server.getMetadata())
+                        WriterUtils.getDimensionsOfTile(server.getMetadata(), tileRequest),
+                        WriterUtils.getOffsetsOfTile(server.getMetadata(), tileRequest)
                 );
             } catch (Throwable e) {
                 if (e.getCause() instanceof InterruptedException) {
@@ -217,6 +218,7 @@ public class OMEZarrWriter implements AutoCloseable {
          * Create the builder.
          *
          * @param server the image to write
+         * @throws NullPointerException if the provided server is null
          */
         public Builder(ImageServer<BufferedImage> server) {
             this.server = server;
@@ -229,9 +231,10 @@ public class OMEZarrWriter implements AutoCloseable {
          *
          * @param compressor the compressor to use when writing tiles
          * @return this builder
+         * @throws NullPointerException if the provided compressor is null
          */
         public Builder compression(Compressor compressor) {
-            this.compressor = compressor;
+            this.compressor = Objects.requireNonNull(compressor);
             return this;
         }
 
@@ -241,8 +244,13 @@ public class OMEZarrWriter implements AutoCloseable {
          *
          * @param numberOfThreads the number of threads to use when writing tiles
          * @return this builder
+         * @throws IllegalArgumentException if the provided number of threads is less than 1
          */
         public Builder parallelize(int numberOfThreads) {
+            if (numberOfThreads < 1) {
+                throw new IllegalArgumentException(String.format("The provided number of threads %d is less than 1", numberOfThreads));
+            }
+
             this.numberOfThreads = numberOfThreads;
             return this;
         }
@@ -330,9 +338,14 @@ public class OMEZarrWriter implements AutoCloseable {
          * @param zStart the 0-based inclusive index of the first z-slice to consider. 0 by default
          * @param zEnd the 0-based exclusive index of the last z-slice to consider. Equal to the number
          *             of z-slices of the image by default
+         * @throws IllegalArgumentException if the min z-slice index is greater than the max z-slice index
          * @return this builder
          */
         public Builder zSlices(int zStart, int zEnd) {
+            if (zStart > zEnd) {
+                throw new IllegalArgumentException(String.format("The min z-slice index %d is greater than the max z-slice index %d", zStart, zEnd));
+            }
+
             this.zStart = zStart;
             this.zEnd = zEnd;
             return this;
@@ -344,9 +357,14 @@ public class OMEZarrWriter implements AutoCloseable {
          * @param tStart the 0-based inclusive index of the first timepoint to consider. 0 by default
          * @param tEnd the 0-based exclusive index of the last timepoint to consider. Equal to the number
          *             of timepoints of the image by default
+         * @throws IllegalArgumentException if the min timepoint index is greater than the max timepoint index
          * @return this builder
          */
         public Builder timePoints(int tStart, int tEnd) {
+            if (tStart > tEnd) {
+                throw new IllegalArgumentException(String.format("The min timepoint index %d is greater than the max timepoint index %d", tStart, tEnd));
+            }
+
             this.tStart = tStart;
             this.tEnd = tEnd;
             return this;
@@ -406,7 +424,7 @@ public class OMEZarrWriter implements AutoCloseable {
                                     server.getMetadata(),
                                     server.getDownsampleForResolution(level)
                             ))
-                            .chunks(WriterUtils.getChunksOfImage(
+                            .chunks(WriterUtils.getDimensionsOfChunks(
                                     server.getMetadata(),
                                     server.getMetadata().getPreferredTileWidth(),
                                     server.getMetadata().getPreferredTileHeight()

@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -197,21 +198,24 @@ public class PyramidalOMEZarrWriter {
          *
          * @param server the image to write. Only the level with downsample 1 will be considered (so it must exist)
          * @param downsamples the downsamples the output image should have. There must be at least one downsample,
-         *                    and the first downsample should be equal to 1
+         *                    and one downsample should be equal to 1
+         * @throws IllegalArgumentException if the downsample list is empty or doesn't contain 1, or if the provided
+         * server doesn't contain a level with downsample 1
+         * @throws NullPointerException if one of the provided parameter is null
          */
         public Builder(ImageServer<BufferedImage> server, List<Double> downsamples) {
             if (downsamples.isEmpty()) {
                 throw new IllegalArgumentException("At least one downsample should be provided");
             }
-            if (downsamples.getFirst() != 1) {
-                throw new IllegalArgumentException(String.format("The first downsample should be equal to 1 (got %f)", downsamples.getFirst()));
+            if (downsamples.stream().noneMatch(downsample -> downsample == 1)) {
+                throw new IllegalArgumentException(String.format("There should be a downsample equal to 1 (got %s)", downsamples));
             }
             if (Arrays.stream(server.getPreferredDownsamples()).noneMatch(d -> d == 1)) {
                 throw new IllegalArgumentException(String.format("The input image %s must contain a level with downsample 1", server));
             }
 
             this.server = server;
-            this.downsamples = downsamples;
+            this.downsamples = downsamples.stream().distinct().sorted().toList();
             this.zEnd = this.server.nZSlices();
             this.tEnd = this.server.nTimepoints();
         }
@@ -221,9 +225,10 @@ public class PyramidalOMEZarrWriter {
          *
          * @param compressor the compressor to use when writing the image
          * @return this builder
+         * @throws NullPointerException if the provided compressor is null
          */
         public Builder compression(Compressor compressor) {
-            this.compressor = compressor;
+            this.compressor = Objects.requireNonNull(compressor);
             return this;
         }
 
@@ -233,8 +238,13 @@ public class PyramidalOMEZarrWriter {
          *
          * @param numberOfThreads the number of threads to use when writing tiles
          * @return this builder
+         * @throws IllegalArgumentException if the provided number of threads is less than 1
          */
         public Builder parallelize(int numberOfThreads) {
+            if (numberOfThreads < 1) {
+                throw new IllegalArgumentException(String.format("The provided number of threads %d is less than 1", numberOfThreads));
+            }
+
             this.numberOfThreads = numberOfThreads;
             return this;
         }
@@ -307,8 +317,13 @@ public class PyramidalOMEZarrWriter {
          * @param zEnd the 0-based exclusive index of the last z-slice to consider. Equal to the number
          *             of z-slices of the image by default
          * @return this builder
+         * @throws IllegalArgumentException if the min z-slice index is greater than the max z-slice index
          */
         public Builder zSlices(int zStart, int zEnd) {
+            if (zStart > zEnd) {
+                throw new IllegalArgumentException(String.format("The min z-slice index %d is greater than the max z-slice index %d", zStart, zEnd));
+            }
+
             this.zStart = zStart;
             this.zEnd = zEnd;
             return this;
@@ -321,8 +336,13 @@ public class PyramidalOMEZarrWriter {
          * @param tEnd the 0-based exclusive index of the last timepoint to consider. Equal to the number
          *             of timepoints of the image by default
          * @return this builder
+         * @throws IllegalArgumentException if the min timepoint index is greater than the max timepoint index
          */
         public Builder timePoints(int tStart, int tEnd) {
+            if (tStart > tEnd) {
+                throw new IllegalArgumentException(String.format("The min timepoint index %d is greater than the max timepoint index %d", tStart, tEnd));
+            }
+
             this.tStart = tStart;
             this.tEnd = tEnd;
             return this;
@@ -347,7 +367,7 @@ public class PyramidalOMEZarrWriter {
                             String.format("s%d", i),
                             new ArrayParams()
                                     .shape(WriterUtils.getDimensionsOfImage(server.getMetadata(), downsamples.get(i)))
-                                    .chunks(WriterUtils.getChunksOfImage(server.getMetadata(), tileWidth, tileHeight))
+                                    .chunks(WriterUtils.getDimensionsOfChunks(server.getMetadata(), tileWidth, tileHeight))
                                     .compressor(compressor)
                                     .dataType(switch (server.getPixelType()) {
                                         case UINT8 -> DataType.u1;
@@ -389,8 +409,8 @@ public class PyramidalOMEZarrWriter {
                 try {
                     zarrArray.write(
                             WriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest()), server.getMetadata()),
-                            WriterUtils.getDimensionsOfTile(tileRequest, server.getMetadata()),
-                            WriterUtils.getOffsetsOfTile(tileRequest, server.getMetadata())
+                            WriterUtils.getDimensionsOfTile(server.getMetadata(), tileRequest),
+                            WriterUtils.getOffsetsOfTile(server.getMetadata(), tileRequest)
                     );
                 } catch (Throwable e) {
                     if (e.getCause() instanceof InterruptedException) {
