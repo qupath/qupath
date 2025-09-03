@@ -22,7 +22,8 @@ Version in progress...
 * Bio-Formats 8.3.0
 * CommonMark 0.25.1
 * Deep Java Library 0.34.0
-* Groovy 4.0.28
+* Groovy 5.0.0
+* RichTextFX 0.11.6
 * SciJava POM 42.0.0 (for Fiji builds)
 
 ## Version 0.6.0
