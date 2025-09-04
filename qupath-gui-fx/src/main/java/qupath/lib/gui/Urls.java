@@ -132,7 +132,7 @@ public final class Urls {
 	 * @return
 	 */
 	public static String getUserForumUrl() {
-		return "https://forum.image.sc/tags/qupath";
+		return "https://forum.image.sc/tag/qupath";
 	}
 
 }
