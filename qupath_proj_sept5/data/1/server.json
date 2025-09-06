@@ -1,0 +1,9 @@
+{
+  "builderType": "uri",
+  "providerClassName": "qupath.lib.images.servers.bioformats.BioFormatsServerBuilder",
+  "uri": "file:/Users/nasif92/Desktop/QuPath%20Work/Qupath%20WSIs/1-PDL1-TNBC.svs",
+  "args": [
+    "--series",
+    "0"
+  ]
+}
