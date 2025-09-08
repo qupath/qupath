@@ -11,26 +11,10 @@ on:
 
 jobs:
   update:
-    env:
-      GH_TOKEN: ${{ github.token }}
-    runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v4
-      - name: Update gradlew
-        run: |
-          ./gradlew wrapper --gradle-version ${{ inputs.gradle-version }}
-      - name: Commit and push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b gradle-update
-          git add .
-          git commit --allow-empty -m "Update gradle via qupath/qupath/.github/workflows/update-gradle.yml"
-          git push -u origin gradle-update
-          gh pr create --title "Update gradle via actions" --body "$(./gradlew --version)"
+    uses: qupath/actions/.github/workflows/update-gradle.yml@main
+    name: Update gradle
+    with:
+      gradle-version: ${{ inputs.gradle-version }}
