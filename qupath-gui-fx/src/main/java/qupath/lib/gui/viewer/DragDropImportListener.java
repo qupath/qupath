@@ -545,7 +545,12 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			return;
 		} else if (qupath.getProject() != null) {
 			// Try importing multiple images to a project
-			String[] potentialFiles = list.stream().filter(File::isFile).map(File::getAbsolutePath).toArray(String[]::new);
+			String[] potentialFiles = list.stream()
+					.filter(potentialFile -> potentialFile.isFile() ||
+							(potentialFile.isDirectory() && potentialFile.getName().toLowerCase().endsWith(".zarr"))
+					)
+					.map(File::getAbsolutePath)
+					.toArray(String[]::new);
 			if (potentialFiles.length > 0) {
 				ProjectCommands.promptToImportImages(qupath, potentialFiles);
 				return;
