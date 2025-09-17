@@ -260,8 +260,8 @@ class ProjectImportImagesCommand {
 				try {
 					var paths = dragboard.getFiles()
 							.stream()
-							.filter(f -> f.isFile() && !f.isHidden())
-							.map(f -> f.getAbsolutePath())
+							.filter(f -> (f.isFile() || f.isDirectory() && f.getName().toLowerCase().endsWith(".zarr")) && !f.isHidden())
+							.map(File::getAbsolutePath)
 							.collect(Collectors.toCollection(ArrayList::new));
 					paths.removeAll(listView.getItems());
 					if (!paths.isEmpty())
