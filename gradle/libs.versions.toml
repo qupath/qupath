@@ -25,7 +25,7 @@ jdk             = "21"
 # For gradle-javacpp-platform (no 1.5.11 available)
 javacpp         = "1.5.10"
 
-opencv          = "4.10.0-1.5.11"
+opencv          = "4.11.0-1.5.12"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
 javafx          = "23.0.2"
