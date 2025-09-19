@@ -188,6 +188,7 @@ public final class InteractiveObjectImporter {
 				pathObjects.removeAll(tmaCores);
 			}
 		} catch (IOException | IllegalArgumentException ex) {
+			logger.error("Error importing objects", ex);
 			Dialogs.showErrorNotification("Error importing objects", ex.getLocalizedMessage());
 			return false;
 		}
