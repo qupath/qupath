@@ -217,7 +217,7 @@ class WriterUtils {
             int channelSize = image.getWidth() * image.getHeight();
 
             int[] output = new int[metadata.getSizeC() * channelSize];
-            for (int c=0; c<metadata.getSizeC(); ++c) {
+            for (int c=0; c<metadata.getSizeC(); c++) {
                 System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
             }
             return output;
@@ -228,7 +228,7 @@ class WriterUtils {
                     int channelSize = image.getWidth() * image.getHeight();
 
                     byte[] output = new byte[metadata.getSizeC() * channelSize];
-                    for (int c=0; c<metadata.getSizeC(); ++c) {
+                    for (int c=0; c<metadata.getSizeC(); c++) {
                         System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
                     }
                     yield output;
@@ -238,7 +238,7 @@ class WriterUtils {
                     int channelSize = image.getWidth() * image.getHeight();
 
                     short[] output = new short[metadata.getSizeC() * channelSize];
-                    for (int c=0; c<metadata.getSizeC(); ++c) {
+                    for (int c=0; c<metadata.getSizeC(); c++) {
                         System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
                     }
                     yield output;
@@ -248,7 +248,7 @@ class WriterUtils {
                     int channelSize = image.getWidth() * image.getHeight();
 
                     int[] output = new int[metadata.getSizeC() * channelSize];
-                    for (int c=0; c<metadata.getSizeC(); ++c) {
+                    for (int c=0; c<metadata.getSizeC(); c++) {
                         System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
                     }
                     yield output;
@@ -258,7 +258,7 @@ class WriterUtils {
                     int channelSize = image.getWidth() * image.getHeight();
 
                     float[] output = new float[metadata.getSizeC() * channelSize];
-                    for (int c=0; c<metadata.getSizeC(); ++c) {
+                    for (int c=0; c<metadata.getSizeC(); c++) {
                         System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
                     }
                     yield output;
@@ -268,7 +268,7 @@ class WriterUtils {
                     int channelSize = image.getWidth() * image.getHeight();
 
                     double[] output = new double[metadata.getSizeC() * channelSize];
-                    for (int c=0; c<metadata.getSizeC(); ++c) {
+                    for (int c=0; c<metadata.getSizeC(); c++) {
                         System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
                     }
                     yield output;

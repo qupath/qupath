@@ -33,7 +33,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
 
 /**
  * An OME-Zarr file writer as described by version 0.4 of the specifications of the
@@ -55,6 +55,7 @@ public class PyramidalOMEZarrWriter {
 
     private static final Logger logger = LoggerFactory.getLogger(PyramidalOMEZarrWriter.class);
     private static final String FILE_EXTENSION = ".ome.zarr";
+    private final static DoubleConsumer NOP_CONSUMER = d -> {};
     private final ImageServer<BufferedImage> server;
     private final List<Double> downsamples;
     private final int tileWidth;
@@ -97,13 +98,27 @@ public class PyramidalOMEZarrWriter {
      * until all levels are written.
      *
      * @param path the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
-     * @param onProgress a function that will be called at different steps when the writing occurs. Its parameter will be a float
-     *                   between 0 and 1 indicating the progress of the operation (0: beginning, 1: finished). This function may
-     *                   be called from any thread. Can be null
-     * @throws Exception if the provided path cannot be created, if it doesn't end with ".ome.zarr", if a file/directory already
-     * exists at the path location, if a reading or writing error occurs, or if this function is interrupted
+     * @throws Exception if one of the parameters is null, the provided path cannot be created, if it doesn't end with ".ome.zarr",
+     * if a file/directory already exists at the path location, if a reading or writing error occurs, or if this function is interrupted
      */
-    public void writeImage(String path, Consumer<Float> onProgress) throws Exception {
+    public void writeImage(String path) throws Exception {
+        writeImage(path, NOP_CONSUMER);
+    }
+
+    /**
+     * Write the image level by level as described in {@link PyramidalOMEZarrWriter}. This function will block
+     * until all levels are written.
+     *
+     * @param path the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
+     * @param onProgress a function that will be called at different steps when the writing occurs. Its parameter will be a double
+     *                   between 0 and 1 indicating the progress of the operation (0: beginning, 1: finished). This function may
+     *                   be called from any thread. See {@link #writeImage(String)} if you want to omit this parameter
+     * @throws Exception if one of the parameters is null, the provided path cannot be created, if it doesn't end with ".ome.zarr",
+     * if a file/directory already exists at the path location, if a reading or writing error occurs, or if this function is interrupted
+     */
+    public void writeImage(String path, DoubleConsumer onProgress) throws Exception {
+        Objects.requireNonNull(onProgress);
+
         Path outputPath = Paths.get(path);
         if (!path.endsWith(FILE_EXTENSION)) {
             throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
@@ -127,21 +142,19 @@ public class PyramidalOMEZarrWriter {
         );
 
         try {
-            root.writeAttributes(new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
-                    .levelsFromDownsamples(1)
-                    .build()
-            ).getGroupAttributes());
+            root.writeAttributes(
+                    new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
+                            .levelsFromDownsamples(downsamples.getFirst())
+                            .build()
+                    ).getGroupAttributes()
+            );
             writeLevel(
                     path,
                     0,
                     levels.get(0),
                     server,
                     executorService,
-                    progress -> {
-                        if (onProgress != null) {
-                            onProgress.accept(progress / downsamples.size());
-                        }
-                    }
+                    progress -> onProgress.accept(progress / downsamples.size())
             );
 
             for (int i=1; i<downsamples.size(); i++) {
@@ -150,25 +163,23 @@ public class PyramidalOMEZarrWriter {
                         "--series",                         // since all level zarr subgroups are already created (see the constructor), BioFormats treat each subgroup
                         String.valueOf(downsamples.size() - i)  // as a different series, so the series we are interested in must be specified
                 )) {
-                    float progressOffset = (float) i / downsamples.size();
+                    double progressOffset = (double) i / downsamples.size();
                     writeLevel(
                             path,
                             i,
                             levels.get(i),
                             server,
                             executorService,
-                            progress -> {
-                                if (onProgress != null) {
-                                    onProgress.accept(progressOffset + progress / downsamples.size());
-                                }
-                            }
+                            progress -> onProgress.accept(progressOffset + progress / downsamples.size())
                     );
                 }
 
-                root.writeAttributes(new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
-                        .levelsFromDownsamples(downsamples.stream().limit(i+1).mapToDouble(d -> d).toArray())
-                        .build()
-                ).getGroupAttributes());
+                root.writeAttributes(
+                        new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
+                                .levelsFromDownsamples(downsamples.stream().limit(i+1).mapToDouble(d -> d).toArray())
+                                .build()
+                        ).getGroupAttributes()
+                );
             }
         } finally {
             executorService.shutdownNow();
@@ -196,26 +207,25 @@ public class PyramidalOMEZarrWriter {
         /**
          * Create the builder.
          *
-         * @param server the image to write. Only the level with downsample 1 will be considered (so it must exist)
-         * @param downsamples the downsamples the output image should have. There must be at least one downsample,
-         *                    and one downsample should be equal to 1
-         * @throws IllegalArgumentException if the downsample list is empty or doesn't contain 1, or if the provided
-         * server doesn't contain a level with downsample 1
+         * @param server the image to write
+         * @param downsamples the downsamples the output image should have. There must be at least one downsample
+         *                    of value 1 and each downsample should be greater than or equal to 1
+         * @throws IllegalArgumentException if no downsample with value 1 is provided or if one provided downsample
+         * is less than 1
          * @throws NullPointerException if one of the provided parameter is null
          */
-        public Builder(ImageServer<BufferedImage> server, List<Double> downsamples) {
-            if (downsamples.isEmpty()) {
-                throw new IllegalArgumentException("At least one downsample should be provided");
+        public Builder(ImageServer<BufferedImage> server, double... downsamples) {
+            List<Double> downsampleList = Arrays.stream(downsamples).boxed().toList();
+
+            if (downsampleList.stream().noneMatch(downsample -> downsample == 1)) {
+                throw new IllegalArgumentException("At least one downsample with value 1 should be provided");
             }
-            if (downsamples.stream().noneMatch(downsample -> downsample == 1)) {
-                throw new IllegalArgumentException(String.format("There should be a downsample equal to 1 (got %s)", downsamples));
-            }
-            if (Arrays.stream(server.getPreferredDownsamples()).noneMatch(d -> d == 1)) {
-                throw new IllegalArgumentException(String.format("The input image %s must contain a level with downsample 1", server));
+            if (downsampleList.stream().anyMatch(downsample -> downsample < 1)) {
+                throw new IllegalArgumentException(String.format("One of the provided downsamples %s is less than or equal to 0", downsampleList));
             }
 
             this.server = server;
-            this.downsamples = downsamples.stream().distinct().sorted().toList();
+            this.downsamples = downsampleList.stream().distinct().sorted().toList();
             this.zEnd = this.server.nZSlices();
             this.tEnd = this.server.nTimepoints();
         }
@@ -387,7 +397,14 @@ public class PyramidalOMEZarrWriter {
         return levels;
     }
 
-    private void writeLevel(String path, int level, ZarrArray zarrArray, ImageServer<BufferedImage> server, ExecutorService executorService, Consumer<Float> onProgress) throws InterruptedException {
+    private void writeLevel(
+            String path,
+            int level,
+            ZarrArray zarrArray,
+            ImageServer<BufferedImage> server,
+            ExecutorService executorService,
+            DoubleConsumer onProgress
+    ) throws InterruptedException {
         int[] imageDimensions = WriterUtils.getDimensionsOfImage(server.getMetadata(), downsamples.get(level));
         Collection<TileRequest> tileRequests = getTileRequestsForLevel(
                 path,
@@ -421,9 +438,7 @@ public class PyramidalOMEZarrWriter {
                 }
 
                 latch.countDown();
-                if (onProgress != null) {
-                    onProgress.accept((float) numberOfTilesProcessed.incrementAndGet() / numberOfTiles);
-                }
+                onProgress.accept((double) numberOfTilesProcessed.incrementAndGet() / numberOfTiles);
             });
         }
         latch.await();

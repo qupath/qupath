@@ -175,9 +175,7 @@ public class OMEZarrWriter implements AutoCloseable {
                     logger.error("Error when writing tile {}", tileRequest, e);
                 }
             }
-            if (onTileWritten != null) {
-                onTileWritten.accept(tileRequest);
-            }
+            onTileWritten.accept(tileRequest);
         });
     }
 
@@ -200,6 +198,7 @@ public class OMEZarrWriter implements AutoCloseable {
     public static class Builder {
 
         private static final String FILE_EXTENSION = ".ome.zarr";
+        private final static Consumer<TileRequest> NOP_CONSUMER = t -> {};
         private final ImageServer<BufferedImage> server;
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = ThreadTools.getParallelism();
@@ -212,7 +211,7 @@ public class OMEZarrWriter implements AutoCloseable {
         private int zEnd;
         private int tStart = 0;
         private int tEnd;
-        private Consumer<TileRequest> onTileWritten = null;
+        private Consumer<TileRequest> onTileWritten = NOP_CONSUMER;
 
         /**
          * Create the builder.
@@ -266,7 +265,7 @@ public class OMEZarrWriter implements AutoCloseable {
          * @return this builder
          */
         public Builder downsamples(double... downsamples) {
-            this.downsamples = downsamples;
+            this.downsamples = downsamples.clone();
             return this;
         }
 
@@ -379,9 +378,10 @@ public class OMEZarrWriter implements AutoCloseable {
          * @param onTileWritten a function that will be called each time a {@link TileRequest} is successfully
          *                      or unsuccessfully written
          * @return this builder
+         * @throws NullPointerException if the provided parameter is null
          */
         public Builder onTileWritten(Consumer<TileRequest> onTileWritten) {
-            this.onTileWritten = onTileWritten;
+            this.onTileWritten = Objects.requireNonNull(onTileWritten);
             return this;
         }
 
