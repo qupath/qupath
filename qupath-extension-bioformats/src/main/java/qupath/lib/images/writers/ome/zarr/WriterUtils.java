@@ -199,6 +199,7 @@ class WriterUtils {
      * @param image the image to convert
      * @return a one-dimensional array as described above. The pixel located at coordinates [x; y; c] can be accessed with
      * returnedArray[x + imageWidth * y + imageWidth * imageHeight * c]
+     * @throws UnsupportedOperationException if the provided image contains unexpected content
      */
     public static Object convertBufferedImageToArray(BufferedImage image) {
         int channelSize = image.getWidth() * image.getHeight();
@@ -261,7 +262,7 @@ class WriterUtils {
                 }
                 yield output;
             }
-            case null, default -> throw new UnsupportedOperationException("Unknown data type");
+            case null, default -> throw new UnsupportedOperationException(String.format("Unknown data type %s", pixels));
         };
     }
 }
