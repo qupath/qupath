@@ -192,9 +192,9 @@ public class PyramidalOMEZarrWriter {
     public static class Builder {
 
         private final ImageServer<BufferedImage> server;
-        private final List<Double> downsamples;
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = ThreadTools.getParallelism();
+        private List<Double> downsamples = List.of(1d);
         private int maxNumberOfChunks = -1;
         private int tileWidth = 1024;
         private int tileHeight = 1024;
@@ -208,24 +208,10 @@ public class PyramidalOMEZarrWriter {
          * Create the builder.
          *
          * @param server the image to write
-         * @param downsamples the downsamples the output image should have. There must be at least one downsample
-         *                    of value 1 and each downsample should be greater than or equal to 1
-         * @throws IllegalArgumentException if no downsample with value 1 is provided or if one provided downsample
-         * is less than 1
-         * @throws NullPointerException if one of the provided parameter is null
+         * @throws NullPointerException if the provided server is null
          */
-        public Builder(ImageServer<BufferedImage> server, double... downsamples) {
-            List<Double> downsampleList = Arrays.stream(downsamples).boxed().toList();
-
-            if (downsampleList.stream().noneMatch(downsample -> downsample == 1)) {
-                throw new IllegalArgumentException("At least one downsample with value 1 should be provided");
-            }
-            if (downsampleList.stream().anyMatch(downsample -> downsample < 1)) {
-                throw new IllegalArgumentException(String.format("One of the provided downsamples %s is less than or equal to 0", downsampleList));
-            }
-
+        public Builder(ImageServer<BufferedImage> server) {
             this.server = server;
-            this.downsamples = downsampleList.stream().distinct().sorted().toList();
             this.zEnd = this.server.nZSlices();
             this.tEnd = this.server.nTimepoints();
         }
@@ -256,6 +242,30 @@ public class PyramidalOMEZarrWriter {
             }
 
             this.numberOfThreads = numberOfThreads;
+            return this;
+        }
+
+        /**
+         * Enable the creation of a pyramidal image with the provided downsamples. By default, only one downsample of
+         * value 1 is used.
+         *
+         * @param downsamples the downsamples the output image should have. There must be at least one downsample
+         *                    of value 1 and each downsample should be greater than or equal to 1
+         * @throws IllegalArgumentException if no downsample with value 1 is provided or if one provided downsample
+         * is less than 1
+         * @return this builder
+         */
+        public Builder downsamples(double... downsamples) {
+            List<Double> downsampleList = Arrays.stream(downsamples).boxed().toList();
+
+            if (downsampleList.stream().noneMatch(downsample -> downsample == 1)) {
+                throw new IllegalArgumentException("At least one downsample with value 1 should be provided");
+            }
+            if (downsampleList.stream().anyMatch(downsample -> downsample < 1)) {
+                throw new IllegalArgumentException(String.format("One of the provided downsamples %s is less than or equal to 0", downsampleList));
+            }
+
+            this.downsamples = downsampleList.stream().distinct().sorted().toList();
             return this;
         }
 

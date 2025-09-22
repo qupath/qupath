@@ -37,7 +37,7 @@ public class TestPyramidalOMEZarrWriter {
 
         Assertions.assertThrows(
                 IllegalArgumentException.class,
-                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer, downsamples)
+                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples)
         );
 
         sampleImageServer.close();
@@ -50,7 +50,7 @@ public class TestPyramidalOMEZarrWriter {
 
         Assertions.assertThrows(
                 IllegalArgumentException.class,
-                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer, downsamples)
+                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples)
         );
 
         sampleImageServer.close();
@@ -63,7 +63,7 @@ public class TestPyramidalOMEZarrWriter {
 
         Assertions.assertThrows(
                 NullPointerException.class,
-                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer, downsamples)
+                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples)
         );
     }
 
@@ -77,7 +77,7 @@ public class TestPyramidalOMEZarrWriter {
 
         Assertions.assertThrows(
                 Exception.class,
-                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer, downsamples).build().writeImage(outputImagePath)
+                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build().writeImage(outputImagePath)
         );
 
         sampleImageServer.close();
@@ -94,7 +94,7 @@ public class TestPyramidalOMEZarrWriter {
 
         Assertions.assertThrows(
                 Exception.class,
-                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer, downsamples).build().writeImage(outputImagePath)
+                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build().writeImage(outputImagePath)
         );
 
         sampleImageServer.close();
@@ -119,7 +119,7 @@ public class TestPyramidalOMEZarrWriter {
                 z,
                 t
         );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer, downsamples).build();
+        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build();
 
         writer.writeImage(outputImagePath);
 
@@ -164,7 +164,7 @@ public class TestPyramidalOMEZarrWriter {
                 (int) (sampleImageServer.getHeight() / downsample),
                 true
         );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer, downsamples).build();
+        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build();
 
         writer.writeImage(outputImagePath);
 
@@ -209,7 +209,7 @@ public class TestPyramidalOMEZarrWriter {
                 (int) (sampleImageServer.getHeight() / downsample),
                 true
         );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer, downsamples).build();
+        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build();
 
         writer.writeImage(outputImagePath);
 
@@ -249,7 +249,7 @@ public class TestPyramidalOMEZarrWriter {
                 z,
                 t
         );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer, downsamples).build();
+        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build();
 
         writer.writeImage(outputImagePath);
 
@@ -294,7 +294,7 @@ public class TestPyramidalOMEZarrWriter {
                 (int) (sampleImageServer.getHeight() / downsample),
                 true
         );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer, downsamples).build();
+        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build();
 
         writer.writeImage(outputImagePath);
 
