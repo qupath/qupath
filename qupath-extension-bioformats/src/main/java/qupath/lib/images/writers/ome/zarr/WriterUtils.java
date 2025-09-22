@@ -195,6 +195,8 @@ class WriterUtils {
     /**
      * Convert the provided image to a one-dimensional array. See {@link AWTImageTools#getPixels(BufferedImage)} for
      * more information.
+     * <p>
+     * The returned array may or may not be a copy of the provided image pixel values, so its content shouldn't be modified.
      *
      * @param image the image to convert
      * @return a one-dimensional array as described above. The pixel located at coordinates [x; y; c] can be accessed with

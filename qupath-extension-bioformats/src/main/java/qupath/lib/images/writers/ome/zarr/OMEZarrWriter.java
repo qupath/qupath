@@ -164,7 +164,7 @@ public class OMEZarrWriter implements AutoCloseable {
         executorService.execute(() -> {
             try {
                 levelArrays.get(tileRequest.getLevel()).write(
-                        WriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest()), server.getMetadata()),
+                        WriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest())),
                         WriterUtils.getDimensionsOfTile(server.getMetadata(), tileRequest),
                         WriterUtils.getOffsetsOfTile(server.getMetadata(), tileRequest)
                 );

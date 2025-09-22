@@ -425,7 +425,7 @@ public class PyramidalOMEZarrWriter {
             executorService.execute(() -> {
                 try {
                     zarrArray.write(
-                            WriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest()), server.getMetadata()),
+                            WriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest())),
                             WriterUtils.getDimensionsOfTile(server.getMetadata(), tileRequest),
                             WriterUtils.getOffsetsOfTile(server.getMetadata(), tileRequest)
                     );
