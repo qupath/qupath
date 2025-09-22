@@ -267,7 +267,7 @@ public class TestWriterUtils {
                 0,
                 width
         );
-        int[] expectedPixels = new int[] {
+        byte[] expectedPixels = new byte[] {
                 // red
                 1, 4,
                 7, 10,
@@ -287,7 +287,7 @@ public class TestWriterUtils {
                 .rgb(true)
                 .build();
 
-        int[] pixels = (int[]) WriterUtils.convertBufferedImageToArray(image, metadata);
+        byte[] pixels = (byte[]) WriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -342,7 +342,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        byte[] pixels = (byte[]) WriterUtils.convertBufferedImageToArray(image, metadata);
+        byte[] pixels = (byte[]) WriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -397,7 +397,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        byte[] pixels = (byte[]) WriterUtils.convertBufferedImageToArray(image, metadata);
+        byte[] pixels = (byte[]) WriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -452,7 +452,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        short[] pixels = (short[]) WriterUtils.convertBufferedImageToArray(image, metadata);
+        short[] pixels = (short[]) WriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -507,7 +507,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        short[] pixels = (short[]) WriterUtils.convertBufferedImageToArray(image, metadata);
+        short[] pixels = (short[]) WriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -562,7 +562,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        int[] pixels = (int[]) WriterUtils.convertBufferedImageToArray(image, metadata);
+        int[] pixels = (int[]) WriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -617,7 +617,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        int[] pixels = (int[]) WriterUtils.convertBufferedImageToArray(image, metadata);
+        int[] pixels = (int[]) WriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -672,7 +672,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        float[] pixels = (float[]) WriterUtils.convertBufferedImageToArray(image, metadata);
+        float[] pixels = (float[]) WriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -727,7 +727,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        double[] pixels = (double[]) WriterUtils.convertBufferedImageToArray(image, metadata);
+        double[] pixels = (double[]) WriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }

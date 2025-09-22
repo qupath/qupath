@@ -2,6 +2,8 @@ package qupath.lib.images.writers.ome.zarr;
 
 import com.bc.zarr.ZarrGroup;
 import loci.formats.gui.AWTImageTools;
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 
@@ -11,6 +13,7 @@ import java.awt.image.BufferedImage;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Array;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -190,90 +193,75 @@ class WriterUtils {
     }
 
     /**
-     * Convert the provided image to a one-dimensional array.
-     * <p>
-     * The returned array is an integer array if the provided image is {@link ImageServerMetadata#isRGB() RGB}. Otherwise, the type of the
-     * returned array depends on the {@link ImageServerMetadata#getPixelType() pixel type} of the provided metadata:
-     * <ul>
-     *     <li>byte for {@link qupath.lib.images.servers.PixelType#UINT8} and {@link qupath.lib.images.servers.PixelType#INT8}.</li>
-     *     <li>short for {@link qupath.lib.images.servers.PixelType#UINT16} and {@link qupath.lib.images.servers.PixelType#INT16}.</li>
-     *     <li>int for {@link qupath.lib.images.servers.PixelType#UINT32} and {@link qupath.lib.images.servers.PixelType#INT32}.</li>
-     *     <li>float for {@link qupath.lib.images.servers.PixelType#FLOAT32}.</li>
-     *     <li>double for {@link qupath.lib.images.servers.PixelType#FLOAT64}.</li>
-     * </ul>
+     * Convert the provided image to a one-dimensional array. See {@link AWTImageTools#getPixels(BufferedImage)} for
+     * more information.
      *
      * @param image the image to convert
-     * @param metadata the metadata of the image to convert. It must match the provided image (e.g. it must be RGB if the
-     *                 provided image has the RGB format, they must have the same number of channels and pixel type), except
-     *                 for the width and height that can be different
      * @return a one-dimensional array as described above. The pixel located at coordinates [x; y; c] can be accessed with
      * returnedArray[x + imageWidth * y + imageWidth * imageHeight * c]
      */
-    public static Object convertBufferedImageToArray(BufferedImage image, ImageServerMetadata metadata) {
+    public static Object convertBufferedImageToArray(BufferedImage image) {
+        int channelSize = image.getWidth() * image.getHeight();
+
+        if (BufferedImageTools.is8bitColorType(image.getType())) {
+            int[] rgb = image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
+
+            byte[] pixels = new byte[image.getWidth() * image.getHeight() * 3];
+            for (int i = 0; i < channelSize; i++) {
+                int val = rgb[i];
+                pixels[i] = (byte) ColorTools.red(val);
+                pixels[channelSize + i] = (byte) ColorTools.green(val);
+                pixels[channelSize*2 + i] = (byte) ColorTools.blue(val);
+            }
+
+            return pixels;
+        }
+
         Object pixels = AWTImageTools.getPixels(image);
 
-        if (metadata.isRGB()) {
-            int[][] data = (int[][]) pixels;
-            int channelSize = image.getWidth() * image.getHeight();
-
-            int[] output = new int[metadata.getSizeC() * channelSize];
-            for (int c=0; c<metadata.getSizeC(); c++) {
-                System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
-            }
-            return output;
-        } else {
-            return switch (metadata.getPixelType()) {
-                case UINT8, INT8 -> {
-                    byte[][] data = (byte[][]) pixels;
-                    int channelSize = image.getWidth() * image.getHeight();
-
-                    byte[] output = new byte[metadata.getSizeC() * channelSize];
-                    for (int c=0; c<metadata.getSizeC(); c++) {
-                        System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
-                    }
-                    yield output;
-                }
-                case UINT16, INT16 -> {
-                    short[][] data = (short[][]) pixels;
-                    int channelSize = image.getWidth() * image.getHeight();
-
-                    short[] output = new short[metadata.getSizeC() * channelSize];
-                    for (int c=0; c<metadata.getSizeC(); c++) {
-                        System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
-                    }
-                    yield output;
-                }
-                case UINT32, INT32 -> {
-                    int[][] data = (int[][]) pixels;
-                    int channelSize = image.getWidth() * image.getHeight();
-
-                    int[] output = new int[metadata.getSizeC() * channelSize];
-                    for (int c=0; c<metadata.getSizeC(); c++) {
-                        System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
-                    }
-                    yield output;
-                }
-                case FLOAT32 -> {
-                    float[][] data = (float[][]) pixels;
-                    int channelSize = image.getWidth() * image.getHeight();
-
-                    float[] output = new float[metadata.getSizeC() * channelSize];
-                    for (int c=0; c<metadata.getSizeC(); c++) {
-                        System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
-                    }
-                    yield output;
-                }
-                case FLOAT64 -> {
-                    double[][] data = (double[][]) pixels;
-                    int channelSize = image.getWidth() * image.getHeight();
-
-                    double[] output = new double[metadata.getSizeC() * channelSize];
-                    for (int c=0; c<metadata.getSizeC(); c++) {
-                        System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
-                    }
-                    yield output;
-                }
-            };
+        // No need to copy for single array
+        int nChannels = Array.getLength(pixels);
+        if (nChannels == 1) {
+            return Array.get(pixels, 0);
         }
+
+        return switch (pixels) {
+            case byte[][] data -> {
+                byte[] output = new byte[nChannels * channelSize];
+                for (int c = 0; c < nChannels; c++) {
+                    System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
+                }
+                yield output;
+            }
+            case short[][] data -> {
+                short[] output = new short[nChannels * channelSize];
+                for (int c = 0; c < nChannels; c++) {
+                    System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
+                }
+                yield output;
+            }
+            case int[][] data -> {
+                int[] output = new int[nChannels * channelSize];
+                for (int c = 0; c < nChannels; c++) {
+                    System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
+                }
+                yield output;
+            }
+            case float[][] data -> {
+                float[] output = new float[nChannels * channelSize];
+                for (int c = 0; c < nChannels; c++) {
+                    System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
+                }
+                yield output;
+            }
+            case double[][] data -> {
+                double[] output = new double[nChannels * channelSize];
+                for (int c = 0; c < nChannels; c++) {
+                    System.arraycopy(data[c], 0, output, c * channelSize, channelSize);
+                }
+                yield output;
+            }
+            case null, default -> throw new UnsupportedOperationException("Unknown data type");
+        };
     }
 }
