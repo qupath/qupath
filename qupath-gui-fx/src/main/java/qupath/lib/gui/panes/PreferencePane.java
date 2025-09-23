@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -30,7 +30,6 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.Property;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -46,7 +45,6 @@ import org.controlsfx.control.PropertySheet.Item;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
-import qupath.fx.dialogs.Dialogs;
 import qupath.fx.localization.LocaleManager;
 import qupath.fx.localization.LocaleSnapshot;
 import qupath.fx.prefs.annotations.FilePref;
@@ -238,7 +236,7 @@ public class PreferencePane {
 		public final ObjectProperty<AutoUpdateType> autoUpdate = PathPrefs.autoUpdateCheckProperty();
 
 		@DoublePref("Prefs.General.maxMemory")
-		public final DoubleProperty maxMemoryGB = PathPrefs.hasJavaPreferences() ? createMaxMemoryProperty() : null;
+		public final DoubleProperty maxMemoryPercent = PathPrefs.hasJavaPreferences() ? PathPrefs.maxMemoryPercentProperty() : null;
 
 		@DoublePref("Prefs.General.tileCache")
 		public final DoubleProperty tileCache = PathPrefs.tileCachePercentageProperty();
@@ -278,34 +276,7 @@ public class PreferencePane {
 		
 		@Pref(value = "Prefs.General.hierarchyDisplay", type = DetectionTreeDisplayModes.class)
 		public final ObjectProperty<DetectionTreeDisplayModes> hierarchyDisplayMode = PathPrefs.detectionTreeDisplayModeProperty();
-		
-		
-		private DoubleProperty createMaxMemoryProperty() {
-			long maxMemoryMB = Runtime.getRuntime().maxMemory() / 1024 / 1024;
-			DoubleProperty propMemoryGB = new SimpleDoubleProperty(maxMemoryMB / 1024.0);
-			propMemoryGB.addListener((v, o, n) -> {
-				int requestedMemoryMB = (int)Math.round(propMemoryGB.get() * 1024.0);
-				if (requestedMemoryMB > 1024) {
-					boolean success = false;
-					try {
-						PathPrefs.maxMemoryMBProperty().set(requestedMemoryMB);		
-						success = requestedMemoryMB == PathPrefs.maxMemoryMBProperty().get();
-					} catch (Exception e) {
-						logger.error(e.getLocalizedMessage(), e);
-					}
-					if (success) {
-						Dialogs.showInfoNotification(QuPathResources.getString("Prefs.General.maxMemory"),
-								QuPathResources.getString("Prefs.maxMemoryChanged")
-								);
-					} else {
-						Dialogs.showErrorMessage(QuPathResources.getString("Prefs.General.maxMemory"),
-								QuPathResources.getString("Prefs.maxMemoryFailed"));						
-					}
-				}
-			});	
-			return propMemoryGB;
-		}
-				
+
 	}	
 	
 	@PrefCategory("Prefs.Locale")

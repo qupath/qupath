@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.*;
 import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -362,7 +363,7 @@ public class PathPrefs {
 	}
 	
 		
-	private static IntegerProperty maxMemoryMB;
+	private static DoubleProperty maxMemoryPercent;
 	
 	/**
 	 * Attempt to load user JVM defaults - may fail if packager.jar (and any required native library) isn't found.
@@ -431,73 +432,120 @@ public class PathPrefs {
 	 * 
 	 * @return
 	 */
-	public static synchronized IntegerProperty maxMemoryMBProperty() {
-		if (maxMemoryMB == null) {
-			maxMemoryMB = createPersistentPreference("maxMemoryMB", -1);
-			long requestedMaxMemoryMB = maxMemoryMB.get();
-			long currentMaxMemoryMB = Runtime.getRuntime().maxMemory() / (1024L * 1024L);
-			if (requestedMaxMemoryMB > 0 && requestedMaxMemoryMB != currentMaxMemoryMB) {
-				logger.debug("Requested max memory ({} MB) does not match the current max ({} MB) - resetting preference to default value", 
-						requestedMaxMemoryMB, currentMaxMemoryMB);
-				maxMemoryMB.set(-1);
-			}
-			// Update Java preferences for restart
-			maxMemoryMB.addListener((v, o, n) -> {
-				try {
-					if (n.intValue() <= 512) {
-						logger.warn("Cannot set memory to {}, must be >= 512 MB", n);
-						n = 512;
-					}
-					// Note: with jpackage 14, the following was used
-//					String memory = "-Xmx" + n.intValue() + "M";
-					// With jpackage 15+, this should work
-					String memory = "java-options=-Xmx" + n.intValue() + "M";
-					Path config = getConfigPath();
-					if (config == null || !Files.exists(config)) {
-						logger.error("Cannot find config file!");
-						return;
-					}
-					logger.info("Reading config file {}", config);
-					List<String> lines = Files.readAllLines(config);
-					int jvmOptions = -1;
-					int argOptions = -1;
-					int lineXx = -1;
-					int lineXmx = -1;
-					int i = 0;
-					for (String line : lines) {
-					    if (line.startsWith("[JVMOptions]") || line.startsWith("[JavaOptions]"))
-					        jvmOptions = i;
-					    if (line.startsWith("[ArgOptions]"))
-					        argOptions = i;
-					    if (line.toLowerCase().contains("-xx:maxrampercentage"))
-					    	lineXx = i;
-					    if (line.toLowerCase().contains("-xmx"))
-					        lineXmx = i;
-					    i++;
-					}
-					if (lineXx >= 0)
-						lines.set(lineXx, memory);
-					else if (lineXmx >= 0)
-					    lines.set(lineXmx, memory);
-					else if (argOptions > jvmOptions && jvmOptions >= 0) {
-					    lines.add(jvmOptions+1, memory);
-					} else {
-					    logger.error("Cannot find where to insert memory request to .cfg file!");
-					    return;
-					}
-					logger.info("Setting JVM option to {}", memory);
-					Files.copy(config, Paths.get(config.toString() + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
-					Files.write(config, lines);
-					return;
-				} catch (AccessDeniedException e) {
-					logger.error("I'm not allowed to access the config file - see the QuPath installation instructions to set the memory manually", e);
-				} catch (Exception e) {
-					logger.error("Unable to set max memory: " + e.getLocalizedMessage(), e);
-				}
-			});
-		}
-		return maxMemoryMB;
+	public static synchronized DoubleProperty maxMemoryPercentProperty() {
+		if (maxMemoryPercent == null) {
+            maxMemoryPercent = createPersistentPreference("maxMemoryMB", 50.0);
+            var maxMemoryFromConfig = getMaxMemoryFromConfig();
+            if (maxMemoryFromConfig > 0 && maxMemoryFromConfig <= 100 &&
+                    !GeneralTools.almostTheSame(maxMemoryFromConfig, maxMemoryPercent.get(), 1e-3)) {
+                logger.debug("Updating max memory from config {} -> {}", maxMemoryPercent.get(), maxMemoryFromConfig);
+                maxMemoryPercent.set(maxMemoryFromConfig);
+            }
+            // Update Java preferences for restart
+            maxMemoryPercent.addListener(PathPrefs::handleMaxMemoryChange);
+        }
+        return maxMemoryPercent;
 	}
+
+    private static void handleMaxMemoryChange(ObservableValue<? extends Number> value, Number oldValue, Number newValue) {
+        if (newValue == null) {
+            logger.debug("Attempt to set max memory to null");
+            return;
+        }
+        logger.trace("Attempt to set max memory {} -> {}", oldValue, newValue);
+        try {
+            double percent = newValue.doubleValue();
+            if (percent < 10) {
+                logger.warn("Cannot set max memory to {}%, using minimum of 10% instead", percent);
+                maxMemoryPercent.set(10);
+                return;
+            } else if (percent > 90) {
+                logger.warn("Cannot set max memory to {}%, using maximum of 90% instead", percent);
+                maxMemoryPercent.set(90);
+                return;
+            }
+            // With jpackage 15+, this should work
+            String memory = "java-options=-XX:MaxRAMPercentage=" + percent;
+            Path config = getConfigPath();
+            if (config == null || !Files.exists(config)) {
+                logger.error("Cannot find config file!");
+                return;
+            }
+            logger.info("Reading config file {}", config);
+            List<String> lines = Files.readAllLines(config);
+            // Find lines where the memory could be inserted in the config file
+            // (replacing existing values, or added in the right section)
+            int jvmOptions = -1;
+            int argOptions = -1;
+            int lineXx = -1;
+            int lineXmx = -1;
+            int i = 0;
+            for (String line : lines) {
+                if (line.startsWith("[JVMOptions]") || line.startsWith("[JavaOptions]"))
+                    jvmOptions = i;
+                if (line.startsWith("[ArgOptions]"))
+                    argOptions = i;
+                if (line.toLowerCase().contains("-xx:maxrampercentage"))
+                    lineXx = i;
+                if (line.toLowerCase().contains("-xmx"))
+                    lineXmx = i;
+                i++;
+            }
+            if (lineXx >= 0)
+                lines.set(lineXx, memory);
+            else if (lineXmx >= 0)
+                lines.set(lineXmx, memory);
+            else if (argOptions > jvmOptions && jvmOptions >= 0) {
+                lines.add(jvmOptions+1, memory);
+            } else {
+                logger.error("Cannot find where to insert memory request to .cfg file!");
+                return;
+            }
+            logger.info("Setting JVM option to {}", memory);
+            Files.copy(config, Paths.get(config + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
+            Files.write(config, lines);
+            return;
+        } catch (AccessDeniedException e) {
+            logger.error("I'm not allowed to access the config file - see the QuPath installation instructions to set the memory manually", e);
+        } catch (Exception e) {
+            logger.error("Unable to set max memory: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Try to get the max memory from the config file.
+     * @return a max memory value, or -1 if none could be found
+     */
+    private static double getMaxMemoryFromConfig() {
+        // Try to get the current max memory from the config file
+        try {
+            Path config = getConfigPath();
+            if (config != null && Files.exists(config)) {
+                var currentMax = Files.readAllLines(config).stream().mapToDouble(PathPrefs::tryToParseMaxMemory).max().orElse(-1);
+                if (currentMax > 0 && currentMax < 100) {
+                    return currentMax;
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error trying to parse max memory: {}", e.getMessage(), e);
+        }
+        return -1;
+    }
+
+    private static double tryToParseMaxMemory(String line) {
+        if (line.startsWith("java-options=")) {
+            String key = "-XX:MaxRAMPercentage=";
+            int ind = line.indexOf(key);
+            if (ind >= 0) {
+                try {
+                    return Double.parseDouble(line.substring(ind + key.length()).strip());
+                } catch (NumberFormatException e) {
+                    logger.debug("Exception trying to parse max memory from {}: {}", line, e.getMessage(), e);
+                }
+            }
+        }
+        return -1;
+    }
 	
 	/**
 	 * Get the {@link Preferences} object for storing user preferences.
