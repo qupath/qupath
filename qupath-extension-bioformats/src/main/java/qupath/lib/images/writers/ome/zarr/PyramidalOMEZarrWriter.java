@@ -1,10 +1,7 @@
 package qupath.lib.images.writers.ome.zarr;
 
-import com.bc.zarr.ArrayParams;
 import com.bc.zarr.Compressor;
 import com.bc.zarr.CompressorFactory;
-import com.bc.zarr.DataType;
-import com.bc.zarr.DimensionSeparator;
 import com.bc.zarr.ZarrArray;
 import com.bc.zarr.ZarrGroup;
 import org.slf4j.Logger;
@@ -25,7 +22,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,22 +44,22 @@ import java.util.function.DoubleConsumer;
  * <p>
  * Use a {@link Builder} to create an instance of this class.
  * <p>
- * This class is thread-safe (as long as parallel writes are done on different paths), but already uses concurrency
- * internally to write tiles.
+ * This class is not thread-safe but already uses concurrency internally to write tiles.
  */
 public class PyramidalOMEZarrWriter {
 
     private static final Logger logger = LoggerFactory.getLogger(PyramidalOMEZarrWriter.class);
-    private static final String FILE_EXTENSION = ".ome.zarr";
-    private final static DoubleConsumer NOP_CONSUMER = d -> {};
     private final ImageServer<BufferedImage> server;
     private final List<Double> downsamples;
     private final int tileWidth;
     private final int tileHeight;
-    private final Compressor compressor;
     private final int numberOfThreads;
+    private final Path path;
+    private final ZarrGroup root;
+    private final Map<Integer, ZarrArray> levels;
+    private final DoubleConsumer onProgress;
 
-    private PyramidalOMEZarrWriter(Builder builder) {
+    private PyramidalOMEZarrWriter(Builder builder, Path path) throws IOException {
         TransformedServerBuilder transformedServerBuilder = new TransformedServerBuilder(builder.server);
         if (builder.zStart != 0 || builder.zEnd != builder.server.nZSlices() || builder.tStart != 0 || builder.tEnd != builder.server.nTimepoints()) {
             transformedServerBuilder.slice(
@@ -79,63 +75,47 @@ public class PyramidalOMEZarrWriter {
         this.server = transformedServerBuilder.build();
 
         this.downsamples = builder.downsamples;
-        this.tileWidth = WriterUtils.getChunkSize(
+        this.tileWidth = ZarrWriterUtils.getChunkSize(
                 builder.tileWidth > 0 ? builder.tileWidth : builder.server.getMetadata().getPreferredTileWidth(),
                 builder.maxNumberOfChunks,
                 builder.server.getWidth()
         );
-        this.tileHeight = WriterUtils.getChunkSize(
+        this.tileHeight = ZarrWriterUtils.getChunkSize(
                 builder.tileHeight > 0 ? builder.tileHeight : builder.server.getMetadata().getPreferredTileHeight(),
                 builder.maxNumberOfChunks,
                 builder.server.getHeight()
         );
-        this.compressor = builder.compressor;
         this.numberOfThreads = builder.numberOfThreads;
-    }
+        this.path = path;
 
-    /**
-     * Write the image level by level as described in {@link PyramidalOMEZarrWriter}. This function will block
-     * until all levels are written.
-     *
-     * @param path the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
-     * @throws Exception if one of the parameters is null, the provided path cannot be created, if it doesn't end with ".ome.zarr",
-     * if a file/directory already exists at the path location, if a reading or writing error occurs, or if this function is interrupted
-     */
-    public void writeImage(String path) throws Exception {
-        writeImage(path, NOP_CONSUMER);
-    }
+        this.root = ZarrGroup.create(path, null);
 
-    /**
-     * Write the image level by level as described in {@link PyramidalOMEZarrWriter}. This function will block
-     * until all levels are written.
-     *
-     * @param path the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
-     * @param onProgress a function that will be called at different steps when the writing occurs. Its parameter will be a double
-     *                   between 0 and 1 indicating the progress of the operation (0: beginning, 1: finished). This function may
-     *                   be called from any thread. See {@link #writeImage(String)} if you want to omit this parameter
-     * @throws Exception if one of the parameters is null, the provided path cannot be created, if it doesn't end with ".ome.zarr",
-     * if a file/directory already exists at the path location, if a reading or writing error occurs, or if this function is interrupted
-     */
-    public void writeImage(String path, DoubleConsumer onProgress) throws Exception {
-        Objects.requireNonNull(onProgress);
-
-        Path outputPath = Paths.get(path);
-        if (!path.endsWith(FILE_EXTENSION)) {
-            throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
-        }
-        if (Files.exists(outputPath)) {
-            throw new IllegalArgumentException(String.format("The provided path (%s) already exists", path));
-        }
-
-        ZarrGroup root = ZarrGroup.create(path, null);
         try {
-            WriterUtils.createOmeSubGroup(root, outputPath, server.getMetadata());
+            ZarrWriterUtils.createOmeSubGroup(root, path, server.getMetadata());
         } catch (Exception e) {
             logger.warn("Error while creating OME XML file of {}. Some image metadata won't be written", path, e);
         }
 
-        Map<Integer, ZarrArray> levels = createLevels(root);
+        this.levels = ZarrWriterUtils.createLevels(
+                server.getMetadata(),
+                downsamples,
+                root,
+                tileWidth,
+                tileHeight,
+                new OMEZarrAttributesCreator(server.getMetadata()).getLevelAttributes(),
+                builder.compressor
+        );
 
+        this.onProgress = builder.onProgress;
+    }
+
+    /**
+     * Write the image level by level as described in {@link PyramidalOMEZarrWriter}. This function will block
+     * until all levels are written.
+     *
+     * @throws Exception if a reading or writing error occurs or if this function is interrupted
+     */
+    public void writeImage() throws Exception {
         ExecutorService executorService = Executors.newFixedThreadPool(
                 numberOfThreads,
                 ThreadTools.createThreadFactory("pyramidal_zarr_writer_", false)
@@ -149,7 +129,7 @@ public class PyramidalOMEZarrWriter {
                     ).getGroupAttributes()
             );
             writeLevel(
-                    path,
+                    path.toString(),
                     0,
                     levels.get(0),
                     server,
@@ -159,13 +139,13 @@ public class PyramidalOMEZarrWriter {
 
             for (int i=1; i<downsamples.size(); i++) {
                 try (ImageServer<BufferedImage> server = new BioFormatsImageServer(
-                        outputPath.toUri(),
+                        path.toUri(),
                         "--series",                         // since all level zarr subgroups are already created (see the constructor), BioFormats treat each subgroup
                         String.valueOf(downsamples.size() - i)  // as a different series, so the series we are interested in must be specified
                 )) {
                     double progressOffset = (double) i / downsamples.size();
                     writeLevel(
-                            path,
+                            path.toString(),
                             i,
                             levels.get(i),
                             server,
@@ -191,6 +171,8 @@ public class PyramidalOMEZarrWriter {
      */
     public static class Builder {
 
+        private static final String FILE_EXTENSION = ".ome.zarr";
+        private final static DoubleConsumer NOP_CONSUMER = d -> {};
         private final ImageServer<BufferedImage> server;
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = ThreadTools.getParallelism();
@@ -203,6 +185,7 @@ public class PyramidalOMEZarrWriter {
         private int zEnd;
         private int tStart = 0;
         private int tEnd;
+        private DoubleConsumer onProgress = NOP_CONSUMER;
 
         /**
          * Create the builder.
@@ -369,42 +352,42 @@ public class PyramidalOMEZarrWriter {
         }
 
         /**
-         * Create a new instance of {@link PyramidalOMEZarrWriter}.
+         * Set a function that will be called at different steps when the writing occurs. Its parameter will be a double
+         * between 0 and 1 indicating the progress of the operation (0: beginning, 1: finished). This function may be
+         * called from any thread.
          *
-         * @return the new {@link OMEZarrWriter}
+         * @param onProgress a function that will be called at different steps when the writing occurs
+         * @return this builder
+         * @throws NullPointerException if the provided parameter is null
          */
-        public PyramidalOMEZarrWriter build() {
-            return new PyramidalOMEZarrWriter(this);
+        public Builder onProgress(DoubleConsumer onProgress) {
+            this.onProgress = Objects.requireNonNull(onProgress);
+            return this;
         }
-    }
 
-    private Map<Integer, ZarrArray> createLevels(ZarrGroup root) throws IOException {
-        Map<Integer, ZarrArray> levels = new HashMap<>();
-        for (int i=0; i<downsamples.size(); i++) {
-            levels.put(
-                    i,
-                    root.createArray(
-                            String.format("s%d", i),
-                            new ArrayParams()
-                                    .shape(WriterUtils.getDimensionsOfImage(server.getMetadata(), downsamples.get(i)))
-                                    .chunks(WriterUtils.getDimensionsOfChunks(server.getMetadata(), tileWidth, tileHeight))
-                                    .compressor(compressor)
-                                    .dataType(switch (server.getPixelType()) {
-                                        case UINT8 -> DataType.u1;
-                                        case INT8 -> DataType.i1;
-                                        case UINT16 -> DataType.u2;
-                                        case INT16 -> DataType.i2;
-                                        case UINT32 -> DataType.u4;
-                                        case INT32 -> DataType.i4;
-                                        case FLOAT32 -> DataType.f4;
-                                        case FLOAT64 -> DataType.f8;
-                                    })
-                                    .dimensionSeparator(DimensionSeparator.SLASH),
-                            new OMEZarrAttributesCreator(server.getMetadata()).getLevelAttributes()
-                    )
-            );
+        /**
+         * Create a new instance of {@link PyramidalOMEZarrWriter}. This will also create an empty image on the provided path.
+         *
+         * @param path the path where to write the image. It must end with ".ome.zarr" and shouldn't already exist
+         * @return the new {@link PyramidalOMEZarrWriter}
+         * @throws java.nio.file.InvalidPathException if a path object cannot be created from the provided path
+         * @throws IOException if the empty image cannot be created. This can happen if the provided path is incorrect
+         * or if the user doesn't have enough permissions
+         * @throws IllegalArgumentException if the provided path doesn't end with ".ome.zarr" or a file/directory already
+         * exists at this location
+         */
+        public PyramidalOMEZarrWriter build(String path) throws IOException {
+            Path outputPath = Paths.get(path);
+
+            if (!path.endsWith(FILE_EXTENSION)) {
+                throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
+            }
+            if (Files.exists(outputPath)) {
+                throw new IllegalArgumentException(String.format("The provided path (%s) already exists", path));
+            }
+
+            return new PyramidalOMEZarrWriter(this, outputPath);
         }
-        return levels;
     }
 
     private void writeLevel(
@@ -415,7 +398,7 @@ public class PyramidalOMEZarrWriter {
             ExecutorService executorService,
             DoubleConsumer onProgress
     ) throws InterruptedException {
-        int[] imageDimensions = WriterUtils.getDimensionsOfImage(server.getMetadata(), downsamples.get(level));
+        int[] imageDimensions = ZarrWriterUtils.getDimensionsOfImage(server.getMetadata(), downsamples.get(level));
         Collection<TileRequest> tileRequests = getTileRequestsForLevel(
                 path,
                 level,
@@ -435,9 +418,9 @@ public class PyramidalOMEZarrWriter {
             executorService.execute(() -> {
                 try {
                     zarrArray.write(
-                            WriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest())),
-                            WriterUtils.getDimensionsOfTile(server.getMetadata(), tileRequest),
-                            WriterUtils.getOffsetsOfTile(server.getMetadata(), tileRequest)
+                            ZarrWriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest())),
+                            ZarrWriterUtils.getDimensionsOfTile(server.getMetadata(), tileRequest),
+                            ZarrWriterUtils.getOffsetsOfTile(server.getMetadata(), tileRequest)
                     );
                 } catch (Throwable e) {
                     if (e.getCause() instanceof InterruptedException) {

@@ -77,7 +77,7 @@ public class TestPyramidalOMEZarrWriter {
 
         Assertions.assertThrows(
                 Exception.class,
-                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build().writeImage(outputImagePath)
+                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build(outputImagePath).writeImage()
         );
 
         sampleImageServer.close();
@@ -94,7 +94,7 @@ public class TestPyramidalOMEZarrWriter {
 
         Assertions.assertThrows(
                 Exception.class,
-                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build().writeImage(outputImagePath)
+                () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build(outputImagePath).writeImage()
         );
 
         sampleImageServer.close();
@@ -119,9 +119,9 @@ public class TestPyramidalOMEZarrWriter {
                 z,
                 t
         );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build();
+        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build(outputImagePath);
 
-        writer.writeImage(outputImagePath);
+        writer.writeImage();
 
         BufferedImage image;
         try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
@@ -164,9 +164,9 @@ public class TestPyramidalOMEZarrWriter {
                 (int) (sampleImageServer.getHeight() / downsample),
                 true
         );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build();
+        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build(outputImagePath);
 
-        writer.writeImage(outputImagePath);
+        writer.writeImage();
 
         BufferedImage image;
         try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
@@ -209,9 +209,9 @@ public class TestPyramidalOMEZarrWriter {
                 (int) (sampleImageServer.getHeight() / downsample),
                 true
         );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build();
+        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build(outputImagePath);
 
-        writer.writeImage(outputImagePath);
+        writer.writeImage();
 
         BufferedImage image;
         try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
@@ -249,9 +249,9 @@ public class TestPyramidalOMEZarrWriter {
                 z,
                 t
         );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build();
+        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build(outputImagePath);
 
-        writer.writeImage(outputImagePath);
+        writer.writeImage();
 
         BufferedImage image;
         try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
@@ -294,9 +294,9 @@ public class TestPyramidalOMEZarrWriter {
                 (int) (sampleImageServer.getHeight() / downsample),
                 true
         );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build();
+        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build(outputImagePath);
 
-        writer.writeImage(outputImagePath);
+        writer.writeImage();
 
         BufferedImage image;
         try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {

@@ -1,5 +1,10 @@
 package qupath.lib.images.writers.ome.zarr;
 
+import com.bc.zarr.ArrayParams;
+import com.bc.zarr.Compressor;
+import com.bc.zarr.DataType;
+import com.bc.zarr.DimensionSeparator;
+import com.bc.zarr.ZarrArray;
 import com.bc.zarr.ZarrGroup;
 import loci.formats.gui.AWTImageTools;
 import qupath.lib.awt.common.BufferedImageTools;
@@ -18,17 +23,19 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Utility functions used by the zarr writers.
  */
-class WriterUtils {
+class ZarrWriterUtils {
 
     private static final String OME_FOLDER_NAME = "OME";
     private static final String OME_METADATA_FILE_NAME = "METADATA.ome.xml";
 
-    private WriterUtils() {
+    private ZarrWriterUtils() {
         throw new AssertionError("This class is not instantiable.");
     }
 
@@ -71,6 +78,60 @@ class WriterUtils {
         try (OutputStream outputStream = new FileOutputStream(Files.createFile(path.resolve(OME_FOLDER_NAME).resolve(OME_METADATA_FILE_NAME)).toString())) {
             outputStream.write(OMEXMLCreator.create(metadata));
         }
+    }
+
+    /**
+     * Create and return {@link ZarrArray} corresponding to the resolution levels of an image.
+     * <p>
+     * The pixels of the returned {@link ZarrArray} are not written, but basic information (e.g. attributes) is.
+     *
+     * @param metadata the metadata of the image to represent
+     * @param downsamples the downsamples to use for each level
+     * @param root the {@link ZarrGroup} that should contain the {@link ZarrArray}
+     * @param chunkWidth the width the chunks of the image should have
+     * @param chunkHeight the height the chunks of the image should have
+     * @param levelAttributes the attributes each {@link ZarrArray} should have
+     * @param compressor the compressor to use for pixel values
+     * @return a map whose keys are the level indices and values the {@link ZarrArray} corresponding to each level
+     * @throws IOException if an error occurs while writing the levels basic information
+     */
+    public static Map<Integer, ZarrArray> createLevels(
+            ImageServerMetadata metadata,
+            List<Double> downsamples,
+            ZarrGroup root,
+            int chunkWidth,
+            int chunkHeight,
+            Map<String, Object> levelAttributes,
+            Compressor compressor
+    ) throws IOException {
+        Map<Integer, ZarrArray> levels = new HashMap<>();
+
+        for (int level=0; level<downsamples.size(); level++) {
+            levels.put(
+                    level,
+                    root.createArray(
+                            String.format("s%d", level),
+                            new ArrayParams()
+                                    .shape(ZarrWriterUtils.getDimensionsOfImage(metadata, downsamples.get(level)))
+                                    .chunks(ZarrWriterUtils.getDimensionsOfChunks(metadata, chunkWidth, chunkHeight))
+                                    .compressor(compressor)
+                                    .dataType(switch (metadata.getPixelType()) {
+                                        case UINT8 -> DataType.u1;
+                                        case INT8 -> DataType.i1;
+                                        case UINT16 -> DataType.u2;
+                                        case INT16 -> DataType.i2;
+                                        case UINT32 -> DataType.u4;
+                                        case INT32 -> DataType.i4;
+                                        case FLOAT32 -> DataType.f4;
+                                        case FLOAT64 -> DataType.f8;
+                                    })
+                                    .dimensionSeparator(DimensionSeparator.SLASH),
+                            levelAttributes
+                    )
+            );
+        }
+
+        return levels;
     }
 
     /**

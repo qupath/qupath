@@ -1,5 +1,8 @@
 package qupath.lib.images.writers.ome.zarr;
 
+import com.bc.zarr.Compressor;
+import com.bc.zarr.CompressorFactory;
+import com.bc.zarr.ZarrArray;
 import com.bc.zarr.ZarrGroup;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Assertions;
@@ -29,9 +32,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
-public class TestWriterUtils {
+public class TestZarrWriterUtils {
 
     @Test
     void Check_Chunk_Size_With_Small_Image_Size() {
@@ -40,7 +44,7 @@ public class TestWriterUtils {
         int imageSize = 5;
         int expectedChunkSize = 5;
 
-        int chunkSize = WriterUtils.getChunkSize(tileSize, maxNumberOfChunks, imageSize);
+        int chunkSize = ZarrWriterUtils.getChunkSize(tileSize, maxNumberOfChunks, imageSize);
 
         Assertions.assertEquals(expectedChunkSize, chunkSize);
     }
@@ -52,7 +56,7 @@ public class TestWriterUtils {
         int imageSize = 50;
         int expectedChunkSize = 25;
 
-        int chunkSize = WriterUtils.getChunkSize(tileSize, maxNumberOfChunks, imageSize);
+        int chunkSize = ZarrWriterUtils.getChunkSize(tileSize, maxNumberOfChunks, imageSize);
 
         Assertions.assertEquals(expectedChunkSize, chunkSize);
     }
@@ -64,7 +68,7 @@ public class TestWriterUtils {
         int imageSize = 50;
         int expectedChunkSize = 10;
 
-        int chunkSize = WriterUtils.getChunkSize(tileSize, maxNumberOfChunks, imageSize);
+        int chunkSize = ZarrWriterUtils.getChunkSize(tileSize, maxNumberOfChunks, imageSize);
 
         Assertions.assertEquals(expectedChunkSize, chunkSize);
     }
@@ -75,9 +79,135 @@ public class TestWriterUtils {
         Path groupPath = Paths.get(path.toString(), "group.ome.zarr");
         ZarrGroup group = ZarrGroup.create(groupPath);
 
-        WriterUtils.createOmeSubGroup(group, groupPath, new ImageServerMetadata.Builder().width(1).height(1).rgb(true).build());
+        ZarrWriterUtils.createOmeSubGroup(group, groupPath, new ImageServerMetadata.Builder().width(1).height(1).rgb(true).build());
 
         Assertions.assertTrue(Files.exists(groupPath.resolve("OME").resolve("METADATA.ome.xml")));
+
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
+    void Check_Levels_Chunk_Width() throws IOException {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        Path groupPath = Paths.get(path.toString(), "group.ome.zarr");
+        ZarrGroup group = ZarrGroup.create(groupPath);
+        ImageServerMetadata metadata = new ImageServerMetadata.Builder()
+                .width(2)
+                .height(4)
+                .channels(List.of(ImageChannel.RED, ImageChannel.GREEN))
+                .build();
+        List<Double> downsamples = List.of(1d, 4.45d);
+        int expectedChunkWidth = 24;
+        int chunkHeight = 84;
+        Map<String, Object> levelAttributes = Map.of("key1", "value1", "key2", "value2");
+        Compressor compressor = CompressorFactory.createDefaultCompressor();
+
+        Map<Integer, ZarrArray> levels = ZarrWriterUtils.createLevels(
+                metadata,
+                downsamples,
+                group,
+                expectedChunkWidth,
+                chunkHeight,
+                levelAttributes,
+                compressor
+        );
+
+        // see ZarrWriterUtils.getDimensionsOfChunks() to see why index 2 is used
+        Assertions.assertEquals(expectedChunkWidth, levels.get(downsamples.size() - 1).getChunks()[2]);
+
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
+    void Check_Levels_Chunk_Height() throws IOException {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        Path groupPath = Paths.get(path.toString(), "group.ome.zarr");
+        ZarrGroup group = ZarrGroup.create(groupPath);
+        ImageServerMetadata metadata = new ImageServerMetadata.Builder()
+                .width(2)
+                .height(4)
+                .channels(List.of(ImageChannel.RED, ImageChannel.GREEN))
+                .build();
+        List<Double> downsamples = List.of(1d, 4.45d);
+        int chunkWidth = 24;
+        int expectedChunkHeight = 84;
+        Map<String, Object> levelAttributes = Map.of("key1", "value1", "key2", "value2");
+        Compressor compressor = CompressorFactory.createDefaultCompressor();
+
+        Map<Integer, ZarrArray> levels = ZarrWriterUtils.createLevels(
+                metadata,
+                downsamples,
+                group,
+                chunkWidth,
+                expectedChunkHeight,
+                levelAttributes,
+                compressor
+        );
+
+        // see ZarrWriterUtils.getDimensionsOfChunks() to see why index 1 is used
+        Assertions.assertEquals(expectedChunkHeight, levels.get(downsamples.size() - 1).getChunks()[1]);
+
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
+    void Check_Levels_Attribute() throws IOException {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        Path groupPath = Paths.get(path.toString(), "group.ome.zarr");
+        ZarrGroup group = ZarrGroup.create(groupPath);
+        ImageServerMetadata metadata = new ImageServerMetadata.Builder()
+                .width(2)
+                .height(4)
+                .channels(List.of(ImageChannel.RED, ImageChannel.GREEN))
+                .build();
+        List<Double> downsamples = List.of(1d, 4.45d);
+        int chunkWidth = 24;
+        int chunkHeight = 84;
+        Map<String, Object> expectedAttributes = Map.of("key1", "value1", "key2", "value2");
+        Compressor compressor = CompressorFactory.createDefaultCompressor();
+
+        Map<Integer, ZarrArray> levels = ZarrWriterUtils.createLevels(
+                metadata,
+                downsamples,
+                group,
+                chunkWidth,
+                chunkHeight,
+                expectedAttributes,
+                compressor
+        );
+
+        Assertions.assertEquals(expectedAttributes, levels.get(downsamples.size() - 1).getAttributes());
+
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
+    void Check_Levels_Compressor() throws IOException {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        Path groupPath = Paths.get(path.toString(), "group.ome.zarr");
+        ZarrGroup group = ZarrGroup.create(groupPath);
+        ImageServerMetadata metadata = new ImageServerMetadata.Builder()
+                .width(2)
+                .height(4)
+                .channels(List.of(ImageChannel.RED, ImageChannel.GREEN))
+                .build();
+        List<Double> downsamples = List.of(1d, 4.45d);
+        int chunkWidth = 24;
+        int chunkHeight = 84;
+        Map<String, Object> levelAttributes = Map.of("key1", "value1", "key2", "value2");
+        Compressor expectedCompressor = CompressorFactory.createDefaultCompressor();
+
+        Map<Integer, ZarrArray> levels = ZarrWriterUtils.createLevels(
+                metadata,
+                downsamples,
+                group,
+                chunkWidth,
+                chunkHeight,
+                levelAttributes,
+                expectedCompressor
+        );
+
+        Assertions.assertEquals(expectedCompressor, levels.get(downsamples.size() - 1).getCompressor());
 
         FileUtils.deleteDirectory(path.toFile());
     }
@@ -94,7 +224,7 @@ public class TestWriterUtils {
         double downsample = 2;
         int[] expectedDimensions = new int[] {9, 2, 5, 2, 1};
 
-        int[] dimensions = WriterUtils.getDimensionsOfImage(metadata, downsample);
+        int[] dimensions = ZarrWriterUtils.getDimensionsOfImage(metadata, downsample);
 
         Assertions.assertArrayEquals(expectedDimensions, dimensions);
     }
@@ -111,7 +241,7 @@ public class TestWriterUtils {
         double downsample = 1;
         int[] expectedDimensions = new int[] {9, 2, 5, 4, 2};
 
-        int[] dimensions = WriterUtils.getDimensionsOfImage(metadata, downsample);
+        int[] dimensions = ZarrWriterUtils.getDimensionsOfImage(metadata, downsample);
 
         Assertions.assertArrayEquals(expectedDimensions, dimensions);
     }
@@ -126,7 +256,7 @@ public class TestWriterUtils {
         double downsample = 1;
         int[] expectedDimensions = new int[] {3, 4, 2};
 
-        int[] dimensions = WriterUtils.getDimensionsOfImage(metadata, downsample);
+        int[] dimensions = ZarrWriterUtils.getDimensionsOfImage(metadata, downsample);
 
         Assertions.assertArrayEquals(expectedDimensions, dimensions);
     }
@@ -144,7 +274,7 @@ public class TestWriterUtils {
         int chunkHeight = 2;
         int[] expectedDimensions = new int[] {1, 1, 1, 2, 1};
 
-        int[] dimensions = WriterUtils.getDimensionsOfChunks(metadata, chunkWidth, chunkHeight);
+        int[] dimensions = ZarrWriterUtils.getDimensionsOfChunks(metadata, chunkWidth, chunkHeight);
 
         Assertions.assertArrayEquals(expectedDimensions, dimensions);
     }
@@ -160,7 +290,7 @@ public class TestWriterUtils {
         int chunkHeight = 2;
         int[] expectedDimensions = new int[] {1, 2, 1};
 
-        int[] dimensions = WriterUtils.getDimensionsOfChunks(metadata, chunkWidth, chunkHeight);
+        int[] dimensions = ZarrWriterUtils.getDimensionsOfChunks(metadata, chunkWidth, chunkHeight);
 
         Assertions.assertArrayEquals(expectedDimensions, dimensions);
     }
@@ -182,7 +312,7 @@ public class TestWriterUtils {
         );
         int[] expectedDimensions = new int[] {1, 2, 1, 4, 3};
 
-        int[] dimensions = WriterUtils.getDimensionsOfTile(metadata, tileRequest);
+        int[] dimensions = ZarrWriterUtils.getDimensionsOfTile(metadata, tileRequest);
 
         Assertions.assertArrayEquals(expectedDimensions, dimensions);
     }
@@ -202,7 +332,7 @@ public class TestWriterUtils {
         );
         int[] expectedDimensions = new int[] {3, 4, 3};
 
-        int[] dimensions = WriterUtils.getDimensionsOfTile(metadata, tileRequest);
+        int[] dimensions = ZarrWriterUtils.getDimensionsOfTile(metadata, tileRequest);
 
         Assertions.assertArrayEquals(expectedDimensions, dimensions);
     }
@@ -224,7 +354,7 @@ public class TestWriterUtils {
         );
         int[] expectedOffsets = new int[] {5, 0, 4, 2, 1};
 
-        int[] offsets = WriterUtils.getOffsetsOfTile(metadata, tileRequest);
+        int[] offsets = ZarrWriterUtils.getOffsetsOfTile(metadata, tileRequest);
 
         Assertions.assertArrayEquals(expectedOffsets, offsets);
     }
@@ -244,7 +374,7 @@ public class TestWriterUtils {
         );
         int[] expectedOffsets = new int[] {0, 2, 1};
 
-        int[] offsets = WriterUtils.getOffsetsOfTile(metadata, tileRequest);
+        int[] offsets = ZarrWriterUtils.getOffsetsOfTile(metadata, tileRequest);
 
         Assertions.assertArrayEquals(expectedOffsets, offsets);
     }
@@ -287,7 +417,7 @@ public class TestWriterUtils {
                 .rgb(true)
                 .build();
 
-        byte[] pixels = (byte[]) WriterUtils.convertBufferedImageToArray(image);
+        byte[] pixels = (byte[]) ZarrWriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -342,7 +472,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        byte[] pixels = (byte[]) WriterUtils.convertBufferedImageToArray(image);
+        byte[] pixels = (byte[]) ZarrWriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -397,7 +527,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        byte[] pixels = (byte[]) WriterUtils.convertBufferedImageToArray(image);
+        byte[] pixels = (byte[]) ZarrWriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -452,7 +582,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        short[] pixels = (short[]) WriterUtils.convertBufferedImageToArray(image);
+        short[] pixels = (short[]) ZarrWriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -507,7 +637,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        short[] pixels = (short[]) WriterUtils.convertBufferedImageToArray(image);
+        short[] pixels = (short[]) ZarrWriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -562,7 +692,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        int[] pixels = (int[]) WriterUtils.convertBufferedImageToArray(image);
+        int[] pixels = (int[]) ZarrWriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -617,7 +747,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        int[] pixels = (int[]) WriterUtils.convertBufferedImageToArray(image);
+        int[] pixels = (int[]) ZarrWriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -672,7 +802,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        float[] pixels = (float[]) WriterUtils.convertBufferedImageToArray(image);
+        float[] pixels = (float[]) ZarrWriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
@@ -727,7 +857,7 @@ public class TestWriterUtils {
                 .channels(channels)
                 .build();
 
-        double[] pixels = (double[]) WriterUtils.convertBufferedImageToArray(image);
+        double[] pixels = (double[]) ZarrWriterUtils.convertBufferedImageToArray(image);
 
         Assertions.assertArrayEquals(expectedPixels, pixels);
     }
