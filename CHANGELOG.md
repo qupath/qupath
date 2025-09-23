@@ -7,6 +7,8 @@ Version in progress...
   * Sync to the cursor, sync to the selected object or sync to the viewer center
 * Improve toggling between point and multipoint tools (https://github.com/qupath/qupath/pull/1972)
 * Update to Deep Java Library 0.34.0 (supports PyTorch 2.7.1)
+* *Downgrade* of OpenCV to 4.9.0
+  * This is needed for https://github.com/qupath/qupath-extension-align to work
 
 ### Bug fixes
 * Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
@@ -20,9 +22,13 @@ Version in progress...
 
 ### Dependency updates
 * Bio-Formats 8.3.0
-* CommonMark 0.25.1
+* CommonMark 0.26.0
 * Deep Java Library 0.34.0
-* Groovy 5.0.0
+* Groovy 5.0.1
+* Gson 2.13.2
+* Guava 33.5.0-jre
+* JavaCPP 1.5.10
+* OpenCV 4.9.0
 * RichTextFX 0.11.6
 * SciJava POM 42.0.0 (for Fiji builds)
 
