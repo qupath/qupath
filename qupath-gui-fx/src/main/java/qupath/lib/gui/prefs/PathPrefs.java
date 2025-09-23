@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.*;
 import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -434,88 +435,101 @@ public class PathPrefs {
 	public static synchronized DoubleProperty maxMemoryPercentProperty() {
 		if (maxMemoryPercent == null) {
             maxMemoryPercent = createPersistentPreference("maxMemoryMB", 50.0);
-            // Note that this might be wrong on startup if we've read an old preference with a value that doesn't match
-            // how Java was started - so try to update our memory setting if necessary
-            try {
-                var currentMax = getDefaultMaxMemory();
-                if (currentMax > 0 && currentMax < 100 && !GeneralTools.almostTheSame(currentMax, maxMemoryPercent.get(), 1e-3)) {
-                    logger.debug("Max memory does not match - updating value {} -> {}", maxMemoryPercent.get(), currentMax);
-                    maxMemoryPercent.set(currentMax);
-                }
-            } catch (Exception e) {
-                logger.error("Error trying to parse max memory: {}", e.getMessage(), e);
+            var maxMemoryFromConfig = getMaxMemoryFromConfig();
+            if (maxMemoryFromConfig > 0 && maxMemoryFromConfig <= 100 &&
+                    !GeneralTools.almostTheSame(maxMemoryFromConfig, maxMemoryPercent.get(), 1e-3)) {
+                logger.debug("Updating max memory from config {} -> {}", maxMemoryPercent.get(), maxMemoryFromConfig);
+                maxMemoryPercent.set(maxMemoryFromConfig);
             }
-			// Update Java preferences for restart
-            maxMemoryPercent.addListener((v, o, n) -> {
-				try {
-                    double percent = maxMemoryPercent.get();
-                    if (percent < 10) {
-                        logger.warn("Cannot set max memory to {}%, using minimum of 10% instead", percent);
-                        maxMemoryPercent.set(10);
-                        return;
-                    } else if (percent > 90) {
-                        logger.warn("Cannot set max memory to {}%, using maximum of 90% instead", percent);
-                        maxMemoryPercent.set(90);
-                        return;
-                    }
-					// With jpackage 15+, this should work
-					String memory = "java-options=-XX:MaxRAMPercentage=" + percent;
-					Path config = getConfigPath();
-					if (config == null || !Files.exists(config)) {
-						logger.error("Cannot find config file!");
-						return;
-					}
-					logger.info("Reading config file {}", config);
-					List<String> lines = Files.readAllLines(config);
-                    // Find lines where the memory could be inserted in the config file
-                    // (replacing existing values, or added in the right section)
-					int jvmOptions = -1;
-					int argOptions = -1;
-					int lineXx = -1;
-					int lineXmx = -1;
-					int i = 0;
-					for (String line : lines) {
-					    if (line.startsWith("[JVMOptions]") || line.startsWith("[JavaOptions]"))
-					        jvmOptions = i;
-					    if (line.startsWith("[ArgOptions]"))
-					        argOptions = i;
-					    if (line.toLowerCase().contains("-xx:maxrampercentage"))
-					    	lineXx = i;
-					    if (line.toLowerCase().contains("-xmx"))
-					        lineXmx = i;
-					    i++;
-					}
-					if (lineXx >= 0)
-						lines.set(lineXx, memory);
-					else if (lineXmx >= 0)
-					    lines.set(lineXmx, memory);
-					else if (argOptions > jvmOptions && jvmOptions >= 0) {
-					    lines.add(jvmOptions+1, memory);
-					} else {
-					    logger.error("Cannot find where to insert memory request to .cfg file!");
-					    return;
-					}
-					logger.info("Setting JVM option to {}", memory);
-					Files.copy(config, Paths.get(config + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
-					Files.write(config, lines);
-					return;
-				} catch (AccessDeniedException e) {
-					logger.error("I'm not allowed to access the config file - see the QuPath installation instructions to set the memory manually", e);
-				} catch (Exception e) {
-                    logger.error("Unable to set max memory: {}", e.getMessage(), e);
-				}
-			});
-		}
+            // Update Java preferences for restart
+            maxMemoryPercent.addListener(PathPrefs::handleMaxMemoryChange);
+        }
         return maxMemoryPercent;
 	}
 
-    private static double getDefaultMaxMemory() throws IOException, URISyntaxException {
-        Path config = getConfigPath();
-        if (config == null || !Files.exists(config)) {
-            logger.error("Cannot find config file!");
-            return -1;
+    private static void handleMaxMemoryChange(ObservableValue<? extends Number> value, Number oldValue, Number newValue) {
+        if (newValue == null) {
+            logger.debug("Attempt to set max memory to null");
+            return;
         }
-        return Files.readAllLines(config).stream().mapToDouble(PathPrefs::tryToParseMaxMemory).max().orElse(-1);
+        logger.trace("Attempt to set max memory {} -> {}", oldValue, newValue);
+        try {
+            double percent = newValue.doubleValue();
+            if (percent < 10) {
+                logger.warn("Cannot set max memory to {}%, using minimum of 10% instead", percent);
+                maxMemoryPercent.set(10);
+                return;
+            } else if (percent > 90) {
+                logger.warn("Cannot set max memory to {}%, using maximum of 90% instead", percent);
+                maxMemoryPercent.set(90);
+                return;
+            }
+            // With jpackage 15+, this should work
+            String memory = "java-options=-XX:MaxRAMPercentage=" + percent;
+            Path config = getConfigPath();
+            if (config == null || !Files.exists(config)) {
+                logger.error("Cannot find config file!");
+                return;
+            }
+            logger.info("Reading config file {}", config);
+            List<String> lines = Files.readAllLines(config);
+            // Find lines where the memory could be inserted in the config file
+            // (replacing existing values, or added in the right section)
+            int jvmOptions = -1;
+            int argOptions = -1;
+            int lineXx = -1;
+            int lineXmx = -1;
+            int i = 0;
+            for (String line : lines) {
+                if (line.startsWith("[JVMOptions]") || line.startsWith("[JavaOptions]"))
+                    jvmOptions = i;
+                if (line.startsWith("[ArgOptions]"))
+                    argOptions = i;
+                if (line.toLowerCase().contains("-xx:maxrampercentage"))
+                    lineXx = i;
+                if (line.toLowerCase().contains("-xmx"))
+                    lineXmx = i;
+                i++;
+            }
+            if (lineXx >= 0)
+                lines.set(lineXx, memory);
+            else if (lineXmx >= 0)
+                lines.set(lineXmx, memory);
+            else if (argOptions > jvmOptions && jvmOptions >= 0) {
+                lines.add(jvmOptions+1, memory);
+            } else {
+                logger.error("Cannot find where to insert memory request to .cfg file!");
+                return;
+            }
+            logger.info("Setting JVM option to {}", memory);
+            Files.copy(config, Paths.get(config + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
+            Files.write(config, lines);
+            return;
+        } catch (AccessDeniedException e) {
+            logger.error("I'm not allowed to access the config file - see the QuPath installation instructions to set the memory manually", e);
+        } catch (Exception e) {
+            logger.error("Unable to set max memory: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Try to get the max memory from the config file.
+     * @return a max memory value, or -1 if none could be found
+     */
+    private static double getMaxMemoryFromConfig() {
+        // Try to get the current max memory from the config file
+        try {
+            Path config = getConfigPath();
+            if (config != null && Files.exists(config)) {
+                var currentMax = Files.readAllLines(config).stream().mapToDouble(PathPrefs::tryToParseMaxMemory).max().orElse(-1);
+                if (currentMax > 0 && currentMax < 100) {
+                    return currentMax;
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error trying to parse max memory: {}", e.getMessage(), e);
+        }
+        return -1;
     }
 
     private static double tryToParseMaxMemory(String line) {
