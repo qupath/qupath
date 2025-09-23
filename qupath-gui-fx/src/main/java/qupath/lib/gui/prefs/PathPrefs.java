@@ -433,9 +433,18 @@ public class PathPrefs {
 	 */
 	public static synchronized DoubleProperty maxMemoryPercentProperty() {
 		if (maxMemoryPercent == null) {
-            // Note that this might be wrong on startup if we've read an old preference with a value that doesn't match
-            // how Java was started
             maxMemoryPercent = createPersistentPreference("maxMemoryMB", 50.0);
+            // Note that this might be wrong on startup if we've read an old preference with a value that doesn't match
+            // how Java was started - so try to update our memory setting if necessary
+            try {
+                var currentMax = getDefaultMaxMemory();
+                if (currentMax > 0 && currentMax < 100 && !GeneralTools.almostTheSame(currentMax, maxMemoryPercent.get(), 1e-3)) {
+                    logger.debug("Max memory does not match - updating value {} -> {}", maxMemoryPercent.get(), currentMax);
+                    maxMemoryPercent.set(currentMax);
+                }
+            } catch (Exception e) {
+                logger.error("Error trying to parse max memory: {}", e.getMessage(), e);
+            }
 			// Update Java preferences for restart
             maxMemoryPercent.addListener((v, o, n) -> {
 				try {
@@ -497,8 +506,32 @@ public class PathPrefs {
 				}
 			});
 		}
-		return maxMemoryPercent;
+        return maxMemoryPercent;
 	}
+
+    private static double getDefaultMaxMemory() throws IOException, URISyntaxException {
+        Path config = getConfigPath();
+        if (config == null || !Files.exists(config)) {
+            logger.error("Cannot find config file!");
+            return -1;
+        }
+        return Files.readAllLines(config).stream().mapToDouble(PathPrefs::tryToParseMaxMemory).max().orElse(-1);
+    }
+
+    private static double tryToParseMaxMemory(String line) {
+        if (line.startsWith("java-options=")) {
+            String key = "-XX:MaxRAMPercentage=";
+            int ind = line.indexOf(key);
+            if (ind >= 0) {
+                try {
+                    return Double.parseDouble(line.substring(ind + key.length()).strip());
+                } catch (NumberFormatException e) {
+                    logger.debug("Exception trying to parse max memory from {}: {}", line, e.getMessage(), e);
+                }
+            }
+        }
+        return -1;
+    }
 	
 	/**
 	 * Get the {@link Preferences} object for storing user preferences.
