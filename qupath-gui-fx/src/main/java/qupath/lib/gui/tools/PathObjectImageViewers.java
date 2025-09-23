@@ -31,6 +31,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+
+import javafx.beans.value.ChangeListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -159,10 +161,15 @@ public class PathObjectImageViewers {
 		
 		private final ExecutorService pool;
 
-		private WeakChangeListener<Number> numberListenerFalse = new WeakChangeListener<>((v, o, n) -> updateImage(false));
-		private WeakChangeListener<Number> numberListenerTrue = new WeakChangeListener<>((v, o, n) -> updateImage(true));
+        private final ChangeListener<Number> numberListenerNoCache = (v, o, n) -> updateImage(false);
+        private final ChangeListener<Number> numberListenerWithCache = (v, o, n) -> updateImage(true);
+        private final ChangeListener<Boolean> booleanListenerWithCache = (v, o, n) -> updateImage(true);
 
-		private final Map<PathObject, Image> cache = Collections.synchronizedMap(new LinkedHashMap<>() {
+        private final WeakChangeListener<Number> weakNumberListenerNoCache = new WeakChangeListener<>(numberListenerNoCache);
+        private final WeakChangeListener<Number> weakNumberListenerWithCache = new WeakChangeListener<>(numberListenerWithCache);
+        private final WeakChangeListener<Boolean> weakBooleanListenerWithCache = new WeakChangeListener<>(booleanListenerWithCache);
+
+        private final Map<PathObject, Image> cache = Collections.synchronizedMap(new LinkedHashMap<>() {
 			
 			private static final long serialVersionUID = 1L;
 
@@ -182,15 +189,15 @@ public class PathObjectImageViewers {
 			this.pool = pool == null ? ForkJoinPool.commonPool() : pool;
 			if (paintObject && viewer != null) {
 				var options = viewer.getOverlayOptions();
-				options.lastChangeTimestamp().addListener(numberListenerFalse);
-				viewer.getImageDisplay().eventCountProperty().addListener(numberListenerFalse);
+				options.lastChangeTimestamp().addListener(weakNumberListenerNoCache);
+				viewer.getImageDisplay().eventCountProperty().addListener(weakNumberListenerNoCache);
 			}
 			this.node = node;
 			this.widthProperty = widthProperty;
 			this.heightProperty = heightProperty;
-			widthProperty.addListener(numberListenerTrue);
-			heightProperty.addListener(numberListenerTrue);
-			node.visibleProperty().addListener(new WeakChangeListener<>((v, o, n) -> updateImage(true)));
+			widthProperty.addListener(weakNumberListenerWithCache);
+			heightProperty.addListener(weakNumberListenerWithCache);
+			node.visibleProperty().addListener(weakBooleanListenerWithCache);
 		}
 
 		@Override
