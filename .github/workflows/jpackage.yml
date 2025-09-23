@@ -30,9 +30,9 @@ jobs:
         include:
           - platform: ubuntu-latest
             name: Linux
-          - platform: macos-13 # x64
+          - platform: macos-15-intel # x64
             name: Mac-x64
-          - platform: macos-14 # aarch64
+          - platform: macos-latest # aarch64
             name: Mac-arm64
           - platform: windows-latest
             name: Windows
