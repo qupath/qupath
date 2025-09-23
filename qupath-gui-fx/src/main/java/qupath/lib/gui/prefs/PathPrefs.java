@@ -362,7 +362,7 @@ public class PathPrefs {
 	}
 	
 		
-	private static IntegerProperty maxMemoryMB;
+	private static DoubleProperty maxMemoryPercent;
 	
 	/**
 	 * Attempt to load user JVM defaults - may fail if packager.jar (and any required native library) isn't found.
@@ -431,30 +431,26 @@ public class PathPrefs {
 	 * 
 	 * @return
 	 */
-	public static synchronized IntegerProperty maxMemoryMBProperty() {
-		if (maxMemoryMB == null) {
-			maxMemoryMB = createPersistentPreference("maxMemoryMB", -1);
-			long requestedMaxMemoryMB = maxMemoryMB.get();
-			long currentMaxMemoryMB = Runtime.getRuntime().maxMemory() / (1024L * 1024L);
-			if (requestedMaxMemoryMB > 0 && requestedMaxMemoryMB != currentMaxMemoryMB) {
-				logger.debug("Requested max memory ({} MB) does not match the current max ({} MB) - resetting preference to default value", 
-						requestedMaxMemoryMB, currentMaxMemoryMB);
-				maxMemoryMB.set(-1);
-			}
+	public static synchronized DoubleProperty maxMemoryPercentProperty() {
+		if (maxMemoryPercent == null) {
+            // Note that this might be wrong on startup if we've read an old preference with a value that doesn't match
+            // how Java was started
+            maxMemoryPercent = createPersistentPreference("maxMemoryMB", 50.0);
 			// Update Java preferences for restart
-			maxMemoryMB.addListener((v, o, n) -> {
+            maxMemoryPercent.addListener((v, o, n) -> {
 				try {
-                    boolean resetToDefault = n.intValue() <= 0;
-					if (!resetToDefault && n.intValue() <= 512) {
-						logger.warn("Cannot set memory to {}, must be >= 512 MB", n);
-						n = 512;
-					}
-					// Note: with jpackage 14, the following was used
-//					String memory = "-Xmx" + n.intValue() + "M";
+                    double percent = maxMemoryPercent.get();
+                    if (percent < 10) {
+                        logger.warn("Cannot set max memory to {}%, using minimum of 10% instead", percent);
+                        maxMemoryPercent.set(10);
+                        return;
+                    } else if (percent > 90) {
+                        logger.warn("Cannot set max memory to {}%, using maximum of 90% instead", percent);
+                        maxMemoryPercent.set(90);
+                        return;
+                    }
 					// With jpackage 15+, this should work
-					String memory = resetToDefault ?
-                            "-XX:MaxRAMPercentage=50" :
-                            "java-options=-Xmx" + n.intValue() + "M";
+					String memory = "java-options=-XX:MaxRAMPercentage=" + percent;
 					Path config = getConfigPath();
 					if (config == null || !Files.exists(config)) {
 						logger.error("Cannot find config file!");
@@ -462,6 +458,8 @@ public class PathPrefs {
 					}
 					logger.info("Reading config file {}", config);
 					List<String> lines = Files.readAllLines(config);
+                    // Find lines where the memory could be inserted in the config file
+                    // (replacing existing values, or added in the right section)
 					int jvmOptions = -1;
 					int argOptions = -1;
 					int lineXx = -1;
@@ -499,7 +497,7 @@ public class PathPrefs {
 				}
 			});
 		}
-		return maxMemoryMB;
+		return maxMemoryPercent;
 	}
 	
 	/**

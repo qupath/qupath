@@ -9,6 +9,7 @@ Version in progress...
 * Update to Deep Java Library 0.34.0 (supports PyTorch 2.7.1)
 * *Downgrade* of OpenCV to 4.9.0
   * This is needed for https://github.com/qupath/qupath-extension-align to work
+* The maximum memory preference now uses a percentage, not a number of GB
 
 ### Bug fixes
 * Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
