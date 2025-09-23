@@ -20,6 +20,7 @@ Version in progress...
 * `TransformedServerBuilder.subtractOffset()` can thrown an `IllegalArgumentException` when being serialized (https://github.com/qupath/qupath/issues/1976)
 * Using the lowest resolution image for brightness/contrast settings can be problematic (https://github.com/qupath/qupath/issues/1958)
 * Incorrect error message when merging projects (https://github.com/qupath/qupath/issues/1990)
+* Resetting preferences on Windows set max memory to 512 MB (Resetting preferences on Windows set max memory to 512 MB)
 
 ### Dependency updates
 * Bio-Formats 8.3.0

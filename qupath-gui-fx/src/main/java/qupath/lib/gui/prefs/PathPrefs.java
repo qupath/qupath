@@ -444,14 +444,17 @@ public class PathPrefs {
 			// Update Java preferences for restart
 			maxMemoryMB.addListener((v, o, n) -> {
 				try {
-					if (n.intValue() <= 512) {
+                    boolean resetToDefault = n.intValue() <= 0;
+					if (!resetToDefault && n.intValue() <= 512) {
 						logger.warn("Cannot set memory to {}, must be >= 512 MB", n);
 						n = 512;
 					}
 					// Note: with jpackage 14, the following was used
 //					String memory = "-Xmx" + n.intValue() + "M";
 					// With jpackage 15+, this should work
-					String memory = "java-options=-Xmx" + n.intValue() + "M";
+					String memory = resetToDefault ?
+                            "-XX:MaxRAMPercentage=50" :
+                            "java-options=-Xmx" + n.intValue() + "M";
 					Path config = getConfigPath();
 					if (config == null || !Files.exists(config)) {
 						logger.error("Cannot find config file!");
@@ -486,13 +489,13 @@ public class PathPrefs {
 					    return;
 					}
 					logger.info("Setting JVM option to {}", memory);
-					Files.copy(config, Paths.get(config.toString() + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
+					Files.copy(config, Paths.get(config + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
 					Files.write(config, lines);
 					return;
 				} catch (AccessDeniedException e) {
 					logger.error("I'm not allowed to access the config file - see the QuPath installation instructions to set the memory manually", e);
 				} catch (Exception e) {
-					logger.error("Unable to set max memory: " + e.getLocalizedMessage(), e);
+                    logger.error("Unable to set max memory: {}", e.getMessage(), e);
 				}
 			});
 		}
