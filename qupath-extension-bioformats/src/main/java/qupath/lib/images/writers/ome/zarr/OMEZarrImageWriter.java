@@ -73,12 +73,11 @@ public class OMEZarrImageWriter implements ImageWriter<BufferedImage> {
 
     @Override
     public void writeImage(ImageServer<BufferedImage> server, RegionRequest region, String pathOutput) throws IOException {
-        try (
-                OMEZarrWriter writer = new OMEZarrWriter.Builder(server)
-                        .region(region)
-                        .build(pathOutput)
-        ) {
-            writer.writeImage();
+        try {
+            new OMEZarrWriter.Builder(server)
+                    .region(region)
+                    .build(pathOutput)
+                    .writeImage();
         } catch (InterruptedException e) {
             logger.debug("Zarr image writing to {} interrupted", pathOutput, e);
             Thread.currentThread().interrupt();

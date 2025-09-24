@@ -44,11 +44,8 @@ public class TestConvertCommand {
         static void createInputImage() throws Exception {
             deleteFileOrDirectory(inputImagePath);
 
-            try (
-                    ImageServer<BufferedImage> sampleServer = new SampleImageServer();
-                    OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleServer).build(inputImagePath)
-            ) {
-                writer.writeImage();
+            try (ImageServer<BufferedImage> sampleServer = new SampleImageServer()) {
+                new OMEZarrWriter.Builder(sampleServer).build(inputImagePath).writeImage();
             }
         }
 
