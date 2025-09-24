@@ -233,7 +233,7 @@ public class PyramidalOMEZarrWriter {
          * value 1 is used.
          *
          * @param downsamples the downsamples the output image should have. There must be at least one downsample
-         *                    of value 1 and each downsample should be greater than or equal to 1
+         *                    and each downsample should be greater than or equal to 1
          * @throws IllegalArgumentException if no downsample with value 1 is provided or if one provided downsample
          * is less than 1
          * @return this builder
@@ -241,8 +241,8 @@ public class PyramidalOMEZarrWriter {
         public Builder downsamples(double... downsamples) {
             List<Double> downsampleList = Arrays.stream(downsamples).boxed().toList();
 
-            if (downsampleList.stream().noneMatch(downsample -> downsample == 1)) {
-                throw new IllegalArgumentException("At least one downsample with value 1 should be provided");
+            if (downsampleList.isEmpty()) {
+                throw new IllegalArgumentException("At least one downsample should be provided");
             }
             if (downsampleList.stream().anyMatch(downsample -> downsample < 1)) {
                 throw new IllegalArgumentException(String.format("One of the provided downsamples %s is less than or equal to 0", downsampleList));

@@ -3,6 +3,8 @@ package qupath.lib.images.writers.ome.zarr;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
@@ -31,9 +33,9 @@ import java.util.UUID;
 public class TestPyramidalOMEZarrWriter {
 
     @Test
-    void Check_Error_When_No_Downsample_With_Value_1_Given() throws Exception {
-        SampleImageServer sampleImageServer = new SampleImageServer(1);
-        double[] downsamples = new double[] {2, 4};
+    void Check_Error_When_No_Downsample_Given() throws Exception {
+        SampleImageServer sampleImageServer = new SampleImageServer();
+        double[] downsamples = new double[] {};
 
         Assertions.assertThrows(
                 IllegalArgumentException.class,
@@ -45,7 +47,7 @@ public class TestPyramidalOMEZarrWriter {
 
     @Test
     void Check_Error_When_Downsample_Less_Than_Zero_Given() throws Exception {
-        SampleImageServer sampleImageServer = new SampleImageServer(1);
+        SampleImageServer sampleImageServer = new SampleImageServer();
         double[] downsamples = new double[] {-1, 1, 4};
 
         Assertions.assertThrows(
@@ -72,7 +74,7 @@ public class TestPyramidalOMEZarrWriter {
         String extension = ".wrong.extension";
         Path path = Files.createTempDirectory(UUID.randomUUID().toString());
         String outputImagePath = Paths.get(path.toString(), "image" + extension).toString();
-        SampleImageServer sampleImageServer = new SampleImageServer(1);
+        SampleImageServer sampleImageServer = new SampleImageServer();
         double[] downsamples = new double[] {1d, 2d, 6d};
 
         Assertions.assertThrows(
@@ -89,7 +91,7 @@ public class TestPyramidalOMEZarrWriter {
         Path path = Files.createTempDirectory(UUID.randomUUID().toString());
         String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
         Files.createFile(Paths.get(outputImagePath));
-        SampleImageServer sampleImageServer = new SampleImageServer(1);
+        SampleImageServer sampleImageServer = new SampleImageServer();
         double[] downsamples = new double[] {1d, 2d, 6d};
 
         Assertions.assertThrows(
@@ -101,15 +103,16 @@ public class TestPyramidalOMEZarrWriter {
         FileUtils.deleteDirectory(path.toFile());
     }
 
-    @Test
-    void Check_Image_Pixels_Of_First_Level() throws Exception {
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2})
+    void Check_Image_Pixels(int level) throws Exception {
         Path path = Files.createTempDirectory(UUID.randomUUID().toString());
         String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
-        SampleImageServer sampleImageServer = new SampleImageServer(1);
+        SampleImageServer sampleImageServer = new SampleImageServer();
         int z = 1;
         int t = 1;
         double[] downsamples = new double[] {1d, 2d, 6d};
-        double downsample = downsamples[0];
+        double downsample = downsamples[level];
         BufferedImage expectedImage = sampleImageServer.readRegion(
                 downsample,
                 0,
@@ -141,105 +144,16 @@ public class TestPyramidalOMEZarrWriter {
         FileUtils.deleteDirectory(path.toFile());
     }
 
-    @Test
-    void Check_Image_Pixels_Of_Second_Level() throws Exception {
-        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
-        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
-        SampleImageServer sampleImageServer = new SampleImageServer(1);
-        int z = 1;
-        int t = 1;
-        double[] downsamples = new double[] {1d, 2d, 6d};
-        double downsample = downsamples[1];
-        BufferedImage expectedImage = BufferedImageTools.resize(
-                sampleImageServer.readRegion(
-                        1,
-                        0,
-                        0,
-                        sampleImageServer.getWidth(),
-                        sampleImageServer.getHeight(),
-                        z,
-                        t
-                ),
-                (int) (sampleImageServer.getWidth() / downsample),
-                (int) (sampleImageServer.getHeight() / downsample),
-                true
-        );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build(outputImagePath);
-
-        writer.writeImage();
-
-        BufferedImage image;
-        try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
-            image = server.readRegion(
-                    downsample,
-                    0,
-                    0,
-                    server.getWidth(),
-                    server.getHeight(),
-                    z,
-                    t
-            );
-        }
-        assertDoubleBufferedImagesEqual(expectedImage, image);
-
-        sampleImageServer.close();
-        FileUtils.deleteDirectory(path.toFile());
-    }
-
-    @Test
-    void Check_Image_Pixels_Of_Third_Level() throws Exception {
-        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
-        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
-        SampleImageServer sampleImageServer = new SampleImageServer(1);
-        int z = 1;
-        int t = 1;
-        double[] downsamples = new double[] {1d, 2d, 6d};
-        double downsample = downsamples[2];
-        BufferedImage expectedImage = BufferedImageTools.resize(
-                sampleImageServer.readRegion(
-                        1,
-                        0,
-                        0,
-                        sampleImageServer.getWidth(),
-                        sampleImageServer.getHeight(),
-                        z,
-                        t
-                ),
-                (int) (sampleImageServer.getWidth() / downsample),
-                (int) (sampleImageServer.getHeight() / downsample),
-                true
-        );
-        PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build(outputImagePath);
-
-        writer.writeImage();
-
-        BufferedImage image;
-        try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
-            image = server.readRegion(
-                    downsample,
-                    0,
-                    0,
-                    server.getWidth(),
-                    server.getHeight(),
-                    z,
-                    t
-            );
-        }
-        assertDoubleBufferedImagesEqual(expectedImage, image);
-
-        sampleImageServer.close();
-        FileUtils.deleteDirectory(path.toFile());
-    }
-
-    @Test
-    void Check_Image_Pixels_Of_First_Level_With_Base_Server_With_Downsample_2() throws Exception {
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2})
+    void Check_Image_Pixels_With_Base_Server_With_Downsample_2(int level) throws Exception {
         Path path = Files.createTempDirectory(UUID.randomUUID().toString());
         String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer(2);
         int z = 1;
         int t = 1;
         double[] downsamples = new double[] {1d, 2d, 6d};
-        double downsample = downsamples[0];
+        double downsample = downsamples[level];
         BufferedImage expectedImage = sampleImageServer.readRegion(
                 downsample,
                 0,
@@ -271,28 +185,26 @@ public class TestPyramidalOMEZarrWriter {
         FileUtils.deleteDirectory(path.toFile());
     }
 
-    @Test
-    void Check_Image_Pixels_Of_Second_Level_With_Base_Server_With_Downsample_2() throws Exception {
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1})
+    void Check_Image_Pixels_With_Base_Downsample_2(int level) throws Exception {
         Path path = Files.createTempDirectory(UUID.randomUUID().toString());
         String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
-        SampleImageServer sampleImageServer = new SampleImageServer(2);
+        SampleImageServer sampleImageServer = new SampleImageServer();
         int z = 1;
         int t = 1;
-        double[] downsamples = new double[] {1d, 2d, 6d};
-        double downsample = downsamples[1];
-        BufferedImage expectedImage = BufferedImageTools.resize(
-                sampleImageServer.readRegion(
-                        1,
-                        0,
-                        0,
-                        sampleImageServer.getWidth(),
-                        sampleImageServer.getHeight(),
-                        z,
-                        t
-                ),
-                (int) (sampleImageServer.getWidth() / downsample),
-                (int) (sampleImageServer.getHeight() / downsample),
-                true
+        double[] downsamples = new double[] {2d, 6d};
+        double[] downsamplesInExportedImage = new double[] {1d, 3d};
+        double downsample = downsamples[level];
+        double exportedImageDownsample = downsamplesInExportedImage[level];
+        BufferedImage expectedImage = sampleImageServer.readRegion(
+                downsample,
+                0,
+                0,
+                sampleImageServer.getWidth(),
+                sampleImageServer.getHeight(),
+                z,
+                t
         );
         PyramidalOMEZarrWriter writer = new PyramidalOMEZarrWriter.Builder(sampleImageServer).downsamples(downsamples).build(outputImagePath);
 
@@ -301,7 +213,7 @@ public class TestPyramidalOMEZarrWriter {
         BufferedImage image;
         try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
             image = server.readRegion(
-                    downsample,
+                    exportedImageDownsample,
                     0,
                     0,
                     server.getWidth(),
@@ -337,6 +249,10 @@ public class TestPyramidalOMEZarrWriter {
                     }
                 }
             }
+        }
+
+        public SampleImageServer() {
+            this(1);
         }
 
         public SampleImageServer(double baseDownsample) {
@@ -387,13 +303,13 @@ public class TestPyramidalOMEZarrWriter {
         public BufferedImage readRegion(RegionRequest request) {
             DataBuffer dataBuffer = createDataBuffer(request);
 
-            return new BufferedImage(
+            BufferedImage fullSizedImage = new BufferedImage(
                     ColorModelFactory.createColorModel(getMetadata().getPixelType(), getMetadata().getChannels()),
                     WritableRaster.createWritableRaster(
                             new BandedSampleModel(
                                     dataBuffer.getDataType(),
-                                    (int) (request.getWidth() / request.getDownsample()),
-                                    (int) (request.getHeight() / request.getDownsample()),
+                                    request.getWidth(),
+                                    request.getHeight(),
                                     nChannels()
                             ),
                             dataBuffer,
@@ -402,6 +318,17 @@ public class TestPyramidalOMEZarrWriter {
                     false,
                     null
             );
+
+            if (request.getDownsample() == 1) {
+                return fullSizedImage;
+            } else {
+                return BufferedImageTools.resize(
+                        fullSizedImage,
+                        (int) (request.getWidth() / request.getDownsample()),
+                        (int) (request.getHeight() / request.getDownsample()),
+                        true
+                );
+            }
         }
 
         private DataBuffer createDataBuffer(RegionRequest request) {
@@ -428,7 +355,7 @@ public class TestPyramidalOMEZarrWriter {
         }
     }
 
-    private void assertDoubleBufferedImagesEqual(BufferedImage expectedImage, BufferedImage actualImage) {
+    private static void assertDoubleBufferedImagesEqual(BufferedImage expectedImage, BufferedImage actualImage) {
         Assertions.assertEquals(expectedImage.getWidth(), actualImage.getWidth());
         Assertions.assertEquals(expectedImage.getHeight(), actualImage.getHeight());
 
