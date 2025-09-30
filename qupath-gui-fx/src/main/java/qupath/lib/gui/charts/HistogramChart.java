@@ -95,7 +95,7 @@ public class HistogramChart extends AreaChart<Number, Number> {
 				case NORMALIZED:
 					return "Normalized";
 				case LOGARITHM:
-					return "Log10";
+					return "Log₁₀";
 				default:
 					throw new IllegalArgumentException("Unknown count transform mode: " + this);
 			}
