@@ -1,22 +1,22 @@
 {
-  "version": "0.6.0",
+  "version": "0.7.0-SNAPSHOT",
   "createTimestamp": 1757089043119,
   "modifyTimestamp": 1757089043119,
-  "uri": "file:/Users/nasif92/Desktop/QuPath%20Work/qupath/qupath_proj_sept5/project.qpproj",
+  "uri": "file:/Users/nasif92/Desktop/QuPath_project_Bigras/qupath/qupath_proj_sept5/project.qpproj",
   "lastID": 1,
   "images": [
     {
       "serverBuilder": {
         "builderType": "uri",
         "providerClassName": "qupath.lib.images.servers.bioformats.BioFormatsServerBuilder",
-        "uri": "file:/Users/nasif92/Desktop/QuPath%20Work/Qupath%20WSIs/1-PDL1-TNBC.svs",
+        "uri": "file:///Users/nasif92/Desktop/QuPath_project_Bigras/Qupath%20WSIs/1-PDL1-TNBC.svs",
         "args": [
           "--series",
           "0"
         ]
       },
       "entryID": 1,
-      "randomizedName": "56ee7c65-c024-4c83-8550-2e12aa7f3bf9",
+      "randomizedName": "ef87d2ed-211a-483c-bdc7-32d7e2400ca6",
       "imageName": "1-PDL1-TNBC.svs",
       "metadata": {},
       "tags": []

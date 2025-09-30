@@ -63,6 +63,14 @@ public class PathTools {
 			PathToolEventHandlers.createRectangleEventHandler(),
 			QuPathResources.getString("Tools.rectangle"),
 			createIcon(PathIcons.RECTANGLE_TOOL));
+
+	/**
+	 * PDL1
+	 */
+	public static final PathTool PDL1RECTANGLE = createTool(
+			PathToolEventHandlers.createPDL1RectangleEventHandler(),
+			QuPathResources.getString("Tools.rectangle"),
+			createIcon(PathIcons.CELL_NUCLEI_BOTH));
 	/**
 	 * Ellipse drawing tool
 	 */

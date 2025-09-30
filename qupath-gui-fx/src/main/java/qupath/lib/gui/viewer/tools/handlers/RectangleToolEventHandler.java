@@ -34,7 +34,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-class RectangleToolEventHandler extends AbstractPathDraggingROIToolEventHandler {
+public class RectangleToolEventHandler extends AbstractPathDraggingROIToolEventHandler {
 
 	@Override
 	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {

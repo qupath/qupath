@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.stream.Stream;
 
 import javafx.geometry.HPos;
 import javafx.geometry.VPos;
@@ -73,14 +74,18 @@ import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
+import qupath.lib.gui.tools.PDL1Tools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.tools.ExtendedPathTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.images.ImageData;
+import qupath.lib.measurements.MeasurementList;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 
 class ToolBarComponent {
@@ -101,6 +106,8 @@ class ToolBarComponent {
 	private final ObservableValue<? extends QuPathViewer> viewerProperty; // Keep to prevent garbage collection
 
 	private final ToolBar toolbar = new ToolBar();
+
+
 
 	ToolBarComponent(ToolManager toolManager,
 					 ViewerActions viewerManagerActions,
@@ -128,7 +135,24 @@ class ToolBarComponent {
 		toolIdx = nodes.size();
 
 		addToolButtons(nodes, availableTools);
+		var btnPdl1 = new javafx.scene.control.Button();
+		btnPdl1.setId("pdl1BoxButton");
+		btnPdl1.setTooltip(new javafx.scene.control.Tooltip("Drop a PD-L1 box centered in the view"));
+		btnPdl1.setGraphic(qupath.lib.gui.tools.IconFactory.createNode(
+				QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.CELL_NUCLEI_BOTH));
 
+		btnPdl1.setOnAction(event -> {
+			var viewer = viewerProperty.getValue();
+			if (viewer == null || viewer.getImageData() == null) {
+				Dialogs.showErrorMessage("PD-L1 Tool", "Open an image first");
+				return;
+			}
+			PDL1Tools.run(viewer);
+		});
+
+
+		nodes.add(btnPdl1);
+		nodes.add(createSeparator());
 		nodes.add(createSeparator());
 
 		nodes.add(createToggleButton(toolManager.getSelectionModeAction()));

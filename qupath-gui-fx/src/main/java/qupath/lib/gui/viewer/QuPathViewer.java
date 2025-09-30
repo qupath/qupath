@@ -43,17 +43,11 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorConvertOp;
 import java.awt.image.LookupOp;
 import java.awt.image.ByteLookupTable;
-import java.io.IOException;
+import java.io.*;
 import java.lang.reflect.Method;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -105,6 +99,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
@@ -118,6 +113,7 @@ import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.images.stores.TileListener;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
@@ -135,10 +131,8 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.objects.PathDetectionObject;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.*;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -147,9 +141,11 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.scripting.QP;
 
 
 /**
@@ -276,6 +272,27 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private double borderLineWidth = 6;
 	private javafx.scene.paint.Color borderColor;
 
+	// Get the current day, month, and year
+	String current_date = "PD-L1 Assessment Data_" + System.currentTimeMillis();
+
+	// Naming the file
+	String fileName = current_date + ".csv";
+	private boolean pdl1Counter = false;
+	private boolean upperGiSelected = true;
+	private boolean cervixSelected = false;
+	private boolean headNeckSelected = false;
+	private boolean breastSelected = false;
+	private boolean lungSelected = false;
+	private boolean isPdL1ToolOn = false;
+	private static double dStartPdL1Time;
+
+	private double imageTopLeftX_Pixels = 0;
+	private double imageTopRightX_Pixels = 0;
+	private double imageTopLeftY_Pixels = 0;
+	private double imageBottomLeftY_Pixels = 0;
+
+	private static Map<Integer, Map<Integer, Integer>> cellDetections;
+	private static Map<Integer, Integer> cellDetectionsX;
 	/**
 	 * Get the main JavaFX component representing this viewer.
 	 * This is what should be added to a scene.
@@ -288,6 +305,475 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		return pane;
 	}
 
+	/**
+	 * Compute the number of detections within a boxed area.
+	 * @param x1 The left X coordinate of the box.
+	 * @param x2 The right X coordinate of the box.
+	 * @param y1 The top Y coordinate of the box.
+	 * @param y2 The bottom Y coordinate of the box.
+	 * @return Number of cell detections within defined area.
+	 */
+	public int getNumberOfDetectionsInArea(int x1, int x2, int y1, int y2) {
+
+		int numberOfDetections = 0;
+
+		// Initialize a counter to iterate thtough the y values in the area.
+		int counterX = x1;
+
+		// Iterate though the defined area, and count the number of 1's.
+		while (counterX <= x2) {
+
+			// Check if there are any detections at this x level.
+			if (cellDetectionsX.containsKey(counterX)) {
+
+				// There is at least one detection at this x level. Iterate through the
+				// relative y levels to determine how many detections there are.
+				// Initialize a coutner for the y levels.
+				int counterY = y1;
+
+				while (counterY <= y2) {
+
+					if (cellDetections.containsKey(counterY) && cellDetections.get(counterY).getOrDefault(counterX, 0) == 1) {
+
+						// There is a cell detection whose centroid is here. Add one to numberOfDetections.
+						numberOfDetections++;
+					}
+
+					counterY++;
+				}
+			}
+
+			counterX++;
+		}
+
+		return numberOfDetections;
+
+	}
+
+	/**
+	 * Get a string to give the PD-L1 count for the current instance within the defined box,
+	 * or "" if the there are no cells in the box.
+	 *
+	 * @return
+	 */
+	protected String getPdL1String() {
+
+		if (pdl1Counter) {
+
+			// In the event another ROI is drawn or the current PD-L1 box is no longer selected,
+			// trying to get the "current ROI" will throw an error every time the cursor moves because
+			// nothing is selected, so there is no ROI. Thus, first check that .getSelectedObject() is
+			// not null AND check that the name of the selected object is the PD-L1 box. If yes to both,
+			// the proceed, if not, do nothing.
+			if (getSelectedObject() != null && getSelectedObject().getName() != null && getSelectedObject().getName().equals("PD-L1 Box")) {
+
+				// The PD-L1 tool is on. Determine which tissue type.
+				if (upperGiSelected) {
+
+					ROI currentRoi = getSelectedObject().getROI();
+
+					int x1 = (int)currentRoi.getBoundsX();
+					int y1 = (int)currentRoi.getBoundsY();
+					int x2 = x1 + (int)currentRoi.getBoundsWidth();
+					int y2 = y1 + (int)currentRoi.getBoundsHeight();
+
+					int numberOfTumorCells = getNumberOfDetectionsInArea(x1, x2, y1, y2);
+
+					int val1 = (int)((1.0 / 100.0) * numberOfTumorCells);
+					int val2 = (int)((4.0 / 100.0) * numberOfTumorCells);
+					int val3 = (int)((9.0 / 100.0) * numberOfTumorCells);
+					int val4 = (int)((10.0 / 100.0) * numberOfTumorCells);
+
+					String values = "UpperGI \n CPS < 1 : < " + String.valueOf(val1) + "\n" + " CPS 1 - 4 : " + String.valueOf(val1 + 1) + " - " + String.valueOf(val2) + "\n" + "  CPS 5 - 9 : " + String.valueOf(val2 + 1) + " - " + String.valueOf(val3) + "\n" + " CPS \u2265 10 : \u2265 " + String.valueOf(val4);
+
+					return values;
+
+				}
+				else if (cervixSelected) {
+
+					ROI currentRoi = getSelectedObject().getROI();
+
+					int x1 = (int)currentRoi.getBoundsX();
+					int y1 = (int)currentRoi.getBoundsY();
+					int x2 = x1 + (int)currentRoi.getBoundsWidth();
+					int y2 = y1 + (int)currentRoi.getBoundsHeight();
+
+					int numberOfTumorCells = getNumberOfDetectionsInArea(x1, x2, y1, y2);
+
+					int val1 = (int)((1.0 / 100.0) * numberOfTumorCells);
+					int val2 = (int)((2.0 / 100.0) * numberOfTumorCells);
+
+					String values = "Cervix \n CPS < 1 : < " + String.valueOf(val1) + "\n" + "CPS \u2265 1 : \u2265 " + String.valueOf(val2);
+
+					return values;
+
+				}
+				else if (headNeckSelected) {
+
+					ROI currentRoi = getSelectedObject().getROI();
+
+					int x1 = (int)currentRoi.getBoundsX();
+					int y1 = (int)currentRoi.getBoundsY();
+					int x2 = x1 + (int)currentRoi.getBoundsWidth();
+					int y2 = y1 + (int)currentRoi.getBoundsHeight();
+
+					int numberOfTumorCells = getNumberOfDetectionsInArea(x1, x2, y1, y2);
+
+					int val1 = (int)((1.0 / 100.0) * numberOfTumorCells);
+					int val2 = (int)((19.0 / 100.0) * numberOfTumorCells);
+					int val3 = (int)((20.0 / 100.0) * numberOfTumorCells);
+
+					String values = "Head and Neck \n CPS < 1 : < " + String.valueOf(val1) + "\n" + "CPS 1 - 19 : " + String.valueOf(val1 + 1) + " - " + String.valueOf(val2) + "\n" + "CPS \u2265 20 = \u2265 " + String.valueOf(val3);
+
+					return values;
+
+				}
+				else if (breastSelected) {
+
+					ROI currentRoi = getSelectedObject().getROI();
+
+					int x1 = (int)currentRoi.getBoundsX();
+					int y1 = (int)currentRoi.getBoundsY();
+					int x2 = x1 + (int)currentRoi.getBoundsWidth();
+					int y2 = y1 + (int)currentRoi.getBoundsHeight();
+
+					int numberOfTumorCells = getNumberOfDetectionsInArea(x1, x2, y1, y2);
+
+					int val1 = (int)((10.0 / 100.0) * numberOfTumorCells);
+					int val2 = (int)((11.0 / 100.0) * numberOfTumorCells);
+
+					String values = "Breast \n CPS < 10 : < " + String.valueOf(val1) + "\n" + "CPS \u2265 10 : \u2265 " + String.valueOf(val2);
+
+					return values;
+
+				}
+				else if (lungSelected) {
+
+					ROI currentRoi = getSelectedObject().getROI();
+
+					int x1 = (int)currentRoi.getBoundsX();
+					int y1 = (int)currentRoi.getBoundsY();
+					int x2 = x1 + (int)currentRoi.getBoundsWidth();
+					int y2 = y1 + (int)currentRoi.getBoundsHeight();
+
+					int numberOfTumorCells = getNumberOfDetectionsInArea(x1, x2, y1, y2);
+
+					int val1 = (int)((1.0 / 100.0) * numberOfTumorCells);
+					int val2 = (int)((10.0 / 100.0) * numberOfTumorCells);
+					int val3 = (int)((20.0 / 100.0) * numberOfTumorCells);
+					int val4 = (int)((30.0 / 100.0) * numberOfTumorCells);
+					int val5 = (int)((40.0 / 100.0) * numberOfTumorCells);
+					int val6 = (int)((49.0 / 100.0) * numberOfTumorCells);
+					int val7 = (int)((50.0 / 100.0) * numberOfTumorCells);
+
+					String values = "Lung \n TPS < 1% : < " + String.valueOf(val1) + "\n" + "TPS 1% - 10% :  " + String.valueOf(val1 + 1) + " - " + String.valueOf(val2) + "\n" + "TPS 11% - 20% :  " + String.valueOf(val2 + 1) + " - " + String.valueOf(val3) + "\n" + "TPS 21% - 30% :  " + String.valueOf(val3 + 1) + " - " + String.valueOf(val4) + "\n" + "TPS 31% - 40% :  " + String.valueOf(val4 + 1) + " - " + String.valueOf(val5) + "\n" + "TPS 41% - 49% :  " + String.valueOf(val5 + 1) + " - " + String.valueOf(val6) + "\n" + "TPS \u2265 50% : " + String.valueOf(val7);
+
+					return values;
+
+				}
+				else {
+					return "";
+				}
+			}
+			else {
+				return "";
+			}
+
+		} else
+			return "";
+	}
+
+	/**
+	 * Function to turn PD-L1 counter on. This should place a rectangle over the viewer.
+	 * @return.
+	 */
+	public void turnPdL1CounterOn() {
+
+		// Open a pop-up menu for the user to select the tissue type for PD-L1 assessment.
+		// This list selection will need to be MANUALLY modified if different
+		// tissue types are to be supported with this PD-L1 tool.
+		var choice = Dialogs.showChoiceDialog("PD-L1 Tool", "Select the PD-L1 tissue type", Arrays.asList("Upper GI", "Cervix", "Head and Neck", "Breast", "Lung"), "Upper GI");
+
+		Dialogs.showInfoNotification("PD-L1 Counter", "PD-L1 Counter turned ON");
+
+		// This line is here for debugging purposes. It can be commented out if needed.
+		System.out.println(choice);
+
+		// Ensure an option was selected and choice is not null.
+		// This list selection will need to be MANUALLY modified if different
+		// tissue types are to be supported with this PD-L1 tool.
+		if (choice != null){
+
+			if (choice.equals("Upper GI")) {
+				upperGiSelected = true;
+				cervixSelected = false;
+				headNeckSelected = false;
+				breastSelected = false;
+				lungSelected = false;
+			}
+			else if (choice.equals("Cervix")) {
+				upperGiSelected = false;
+				cervixSelected = true;
+				headNeckSelected = false;
+				breastSelected = false;
+				lungSelected = false;
+
+			}
+			else if (choice.equals("Head and Neck")) {
+				upperGiSelected = false;
+				cervixSelected = false;
+				headNeckSelected = true;
+				breastSelected = false;
+				lungSelected = false;
+			}
+			else if (choice.equals("Breast")) {
+				upperGiSelected = false;
+				cervixSelected = false;
+				headNeckSelected = false;
+				breastSelected = true;
+				lungSelected = false;
+			}
+			else if (choice.equals("Lung")) {
+				upperGiSelected = false;
+				cervixSelected = false;
+				headNeckSelected = false;
+				breastSelected = false;
+				lungSelected = true;
+			}
+			else {
+				return;
+			}
+
+			// Get the bounds of the current viewport in the viewer.
+			double topRightImageXScreen = getImageTopRightX_Pixel();
+			double topLeftImageXScreen = getImageTopLeftX_Pixel();
+			double topLeftImageYScreen = getImageTopLeftY_Pixel();
+			double bottomLeftImageYScreen = getImageBottomLeftY_Pixel();
+
+			// Get the pixel coordinates of the center of the scren.
+			double centerScreenX = ((topRightImageXScreen - topLeftImageXScreen) / 2) + topLeftImageXScreen;
+			double centerScreenY = ((bottomLeftImageYScreen - topLeftImageYScreen) / 2) + topLeftImageYScreen;
+
+			// Set the size of the PD-L1 box. This size is arbitrary and can be
+			// changed by the user if needed.
+			double sizeOfBoxX = 1274;
+			double sizeOfBoxY = 794;
+
+			// Draw a rectangle ROI to compute the PD-L1 numerator within.
+			ROI pdL1ROI = ROIs.createRectangleROI((centerScreenX - (sizeOfBoxX / 2)), (centerScreenY - (sizeOfBoxY / 2)), sizeOfBoxX, sizeOfBoxY, getImagePlane());
+
+			// Set the square colour, in this case red.
+			Integer pdL1RGB = ColorTools.packRGB(255, 0, 0);
+
+			// Set the class name.
+			PathClass PdL1Class = PathClass.getInstance("PD-L1 Box", pdL1RGB);
+
+			// Make a square annotation from the square ROI.
+			PathObject PdL1Annotation = PathObjects.createAnnotationObject(pdL1ROI, PdL1Class);
+
+			PdL1Annotation.setName("PD-L1 Box");
+
+			// Plot the square annotation.
+			getHierarchy().addObject(PdL1Annotation);
+
+			// Make the PathObject into an ROI object.
+			PathROIObject currentObject = (PathROIObject)PdL1Annotation;
+
+			// Select this object.
+			setSelectedObject(currentObject);
+
+			pdl1Counter = true;
+
+			repaint();
+
+		}
+		else {
+
+			return;
+		}
+	}
+
+	/**
+	 * This will check if any of the existing PathObject objects
+	 * have the same name as the input name. If so, return the path object.
+	 * If not, return an empty PathObject to be built upon.
+	 */
+	static PathObject determineWhetherPathObjectExistsPdL1(String objectName, Collection<PathObject> allPathObjects) {
+
+		for (PathObject objectInCollection : allPathObjects) {
+
+			try {
+
+				// Check if this PathObject has the same name as the input objectName.
+				if (objectInCollection.getName().equals(objectName)) {
+
+					// This object already exists. Return this object.
+					return objectInCollection;
+				}
+
+			}
+			catch (Exception e) {
+
+				// System.out.println("Skipping object " + String.valueOf(objectInCollection));
+
+			}
+		}
+
+		// If we get here, then none of the existing PathObjects have this
+		// name, making it a new object to label. Return null.
+		return null;
+	}
+
+	/**
+	 * Function to turn PD-L1 counter off. This should remove the rectangle over the viewer.
+	 * @return.
+	 */
+	public void turnPdL1CounterOff() {
+
+		// Get all annotation objects in the viewer.
+		Collection<PathObject> allAnnotationPathObjects = getHierarchy().getAnnotationObjects();
+
+		// Ensure that there is a PD-L1 box to find in the viewer. If
+		// so, retreive it and set it as the current PathObject.
+		PathObject pdL1Object = determineWhetherPathObjectExistsPdL1("PD-L1 Box", allAnnotationPathObjects);
+
+		// If the PD-L1 object was found, try to delete it.
+		if (pdL1Object != null) {
+
+			try {
+				getHierarchy().getSelectionModel().deselectObject(pdL1Object);
+				getHierarchy().removeObject(pdL1Object, true);
+				pdl1Counter = false;
+			}
+			catch (Exception e) {
+				System.out.println("Unable to remove existing PD-L1 Box");
+			}
+			repaint();
+		}
+	}
+
+
+	/**
+	 * This is a little function to stop the invisible timer in the background when the user
+	 * is performing a PD-L1 search task and clicks "Done".
+	 * @return.
+	 */
+	public static void stopTimingAndRecordPdL1() {
+		double dEndPdL1Time = System.currentTimeMillis();
+		double dAssessmentTime = (dEndPdL1Time - dStartPdL1Time) / 1000.0;
+		QuPathGUI qupath = QuPathGUI.getInstance();
+		QuPathViewer viewer = qupath.getViewer();
+		if (viewer != null) {
+			viewer.savePdL1Position(dAssessmentTime);
+		}
+	}
+
+	public String getCurrentImageName() {
+
+		String imageNameWithExtension = QP.getCurrentImageName();
+
+		System.out.println(imageNameWithExtension);
+
+		// Remove the file extension from the image name.
+		int dotIndex = imageNameWithExtension.lastIndexOf(".");
+		String imageName = (dotIndex > 0) ? imageNameWithExtension.substring(0, dotIndex) : imageNameWithExtension;
+
+		return imageName;
+	}
+
+
+	/**
+	 * This function is used to save the PD-L1 user data to a .csv file in real-time.
+	 * @param dAssessmentTime The time (in seconds) the user took to assess the current image in the viewer.
+	 * @return.
+	 */
+	public void savePdL1Position(double dAssessmentTime) {
+		try {
+			// Get the project browser from QuPath GUI
+//			ProjectBrowser browser = QuPathGUI.getInstance();
+//			if (browser == null)
+//				return;
+//
+//			// Get the scores and average
+			List<Integer> scores = new ArrayList<>();
+			scores.add(1000);
+//			double averageScore = browser.getAverageScore();
+
+			// Get current date and time
+			String dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+
+			// Get image name
+			String imageName = getCurrentImageName();
+
+			// Create or append to CSV file
+			File file = new File(fileName);
+			boolean writeHeader = !file.exists();
+
+			try (FileWriter fw = new FileWriter(file, true);
+				 BufferedWriter bw = new BufferedWriter(fw);
+				 PrintWriter out = new PrintWriter(bw)) {
+
+				// Write header if new file. This will manually need to be changed to change the file output structure.
+				if (writeHeader) {
+					out.println("Date and Time,Image Name,TPS/CPS Score,Average Score,Duration of Assessment (s)");
+				}
+
+				// Write a row for each score. This will manually need to be changed to change the file output structure.
+				for (Integer score : scores) {
+					out.printf("%s,%s,%d,%.2f,%.2f%n",
+							dateTime,
+							imageName,
+							score,
+							scores,
+							dAssessmentTime
+					);
+				}
+			}
+
+		} catch (Exception e) {
+			logger.error("Error saving PD-L1 data: " + e.getMessage(), e);
+		}
+	}
+	/*
+	 * This method is to retreive the top left X coordinate of the viewer.
+	 */
+	public double getImageTopLeftX_Pixel() {
+		return imageTopLeftX_Pixels;
+	}
+
+	/*
+	 * This method is to retreive the top left Y coordinate of the viewer.
+	 */
+	public double getImageTopRightX_Pixel() {
+		return imageTopRightX_Pixels;
+	}
+
+	/*
+	 * This method is to retreive the bottom right X coordinate of the viewer.
+	 */
+	public double getImageTopLeftY_Pixel() {
+		return imageTopLeftY_Pixels;
+	}
+
+	/*
+	 * This method is to retreive the bottom right Y coordinate of the viewer.
+	 */
+	public double getImageBottomLeftY_Pixel() {
+		return imageBottomLeftY_Pixels;
+	}
+
+	/*
+	 * This method will be used to set the values of the top left and bottom right coordinates
+	 * of the image viewer, as the viewer changes/updates.
+	 */
+	public void setImageCoordinates(double topLeftX, double topRightX, double topLeftY, double bottomLeftY) {
+
+		imageTopLeftX_Pixels = topLeftX;
+		imageTopRightX_Pixels = topRightX;
+		imageTopLeftY_Pixels = topLeftY;
+		imageBottomLeftY_Pixels = bottomLeftY;
+
+	}
 	private void setupCanvas() {
 		canvas = new Canvas();
 		addViewerListener(new QuPathViewerListener() {
@@ -432,6 +918,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// (Should be the case anyway)
 		if (imageUpdated) {
 			repaintRequested = true;
+
 		}
 
 		if (!repaintRequested || canvas == null || canvas.getWidth() <= 0 || canvas.getHeight() <= 0) {
@@ -1276,7 +1763,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		return selectedObject == null ? null : selectedObject.getROI();
 	}
 
+	public void setCellDetectionsArray(Map<Integer, Map<Integer, Integer>> tempCellDetections) {
+		cellDetections = tempCellDetections;
+	}
 
+	public void setCellDetectionsXArray(Map<Integer, Integer> tempCellDetectionsX) {
+		cellDetectionsX = tempCellDetectionsX;
+	}
 	/**
 	 * Set selected object in the current hierarchy, without centering the viewer.
 	 *

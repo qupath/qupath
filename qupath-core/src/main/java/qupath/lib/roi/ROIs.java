@@ -105,6 +105,44 @@ public class ROIs {
 	}
 
 	/**
+	 * Create a PDL1 rectangle ROI defined by its bounding box on the default image plane.
+	 *
+	 * @param x x coordinate of the top left of the rectangle
+	 * @param y y coordinate of the top left of the rectangle
+	 * @param width width of the rectangle
+	 * @param height height of the rectangle
+	 * @return a new rectangle ROI
+	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
+	 */
+	public static ROI createPDL1RectangleROI(double x, double y, double width, double height, ImagePlane plane) {
+		return createRectangleROI(x, y, width, height, plane);
+	}
+
+	/**
+	 * Create a PDL1 rectangle ROI defined by its bounding box on the default image plane.
+	 *
+	 * @param x x coordinate of the top left of the rectangle
+	 * @param y y coordinate of the top left of the rectangle
+	 * @param width width of the rectangle
+	 * @param height height of the rectangle
+	 * @return a new rectangle ROI
+	 * @see ImagePlane#getDefaultPlane()
+	 * @since v0.6.0
+	 */
+	public static ROI createPDL1RectangleROI(double x, double y, double width, double height) {
+		return createRectangleROI(x, y, width, height, ImagePlane.getDefaultPlane());
+	}
+
+	/**
+	 * Create a rectangle ROI that matches an ImageRegion.
+	 * @param region an image region defining the rectangle location
+	 * @return a new rectangle ROI
+	 */
+	public static ROI createPDL1RectangleROI(ImageRegion region) {
+		return new PDL1ROI(region.getX(), region.getY(), region.getWidth(), region.getHeight(), region.getImagePlane());
+	}
+	/**
 	 * Create an ellipse ROI defined by its bounding box.
 	 *
 	 * @param x x coordinate of the top left of the ellipse bounding box

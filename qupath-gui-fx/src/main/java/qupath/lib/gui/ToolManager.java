@@ -62,7 +62,7 @@ public class ToolManager {
 	private ObjectProperty<PathTool> selectedToolProperty = new SimpleObjectProperty<>(PathTools.MOVE);
 	
 	private ObservableList<PathTool> tools = FXCollections.observableArrayList(
-			PathTools.MOVE, PathTools.RECTANGLE, PathTools.ELLIPSE, PathTools.LINE_OR_ARROW,
+			PathTools.MOVE, PathTools.RECTANGLE, PathTools.PDL1RECTANGLE, PathTools.ELLIPSE, PathTools.LINE_OR_ARROW,
 			PathTools.POLYGON, PathTools.POLYLINE, PathTools.BRUSH, PathTools.POINTS
 			);
 	
@@ -81,6 +81,10 @@ public class ToolManager {
 	@ActionAccelerator("r")
 	@ActionConfig("Tools.rectangle")
 	public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
+
+	@ActionAccelerator("p")
+	@ActionConfig("Tools.pdl1")
+	public final Action PDL1_TOOL = getToolAction(PathTools.PDL1RECTANGLE);
 	
 	@ActionAccelerator("o")
 	@ActionConfig("Tools.ellipse")
