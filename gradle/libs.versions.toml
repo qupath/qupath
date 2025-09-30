@@ -5,16 +5,16 @@ bioimageIoSpec  = "0.2.0"
 omeZarrReader   = "0.6.0"
 blosc           = "1.21.6+01"
 
-commonmark      = "0.25.1"
+commonmark      = "0.26.0"
 commonsMath3    = "3.6.1"
 commonsText     = "1.10.0"
 controlsFX      = "11.2.2"
 
 deepJavaLibrary = "0.34.0"
 
-groovy          = "4.0.28"
-gson            = "2.13.1"
-guava           = "33.4.8-jre"
+groovy          = "5.0.1"
+gson            = "2.13.2"
+guava           = "33.5.0-jre"
 
 ikonli          = "12.3.1"
 imagej          = "1.54k"
@@ -25,7 +25,7 @@ jdk             = "21"
 # For gradle-javacpp-platform (no 1.5.11 available)
 javacpp         = "1.5.10"
 
-opencv          = "4.10.0-1.5.11"
+opencv          = "4.9.0-1.5.10"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
 javafx          = "23.0.2"
@@ -50,10 +50,10 @@ qupath-fxtras   = "0.2.0"
 qupath-training = "0.1.0"
 qupath-djl      = "0.4.0"
 
-richtextfx      = "0.11.5"
+richtextfx      = "0.11.6"
 
-slf4j           = "2.0.16"
-snakeyaml       = "2.3"
+slf4j           = "2.0.17"
+snakeyaml       = "2.5"
 
 
 [libraries]

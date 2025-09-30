@@ -260,8 +260,8 @@ class ProjectImportImagesCommand {
 				try {
 					var paths = dragboard.getFiles()
 							.stream()
-							.filter(f -> f.isFile() && !f.isHidden())
-							.map(f -> f.getAbsolutePath())
+							.filter(f -> (f.isFile() || f.isDirectory() && f.getName().toLowerCase().endsWith(".zarr")) && !f.isHidden())
+							.map(File::getAbsolutePath)
 							.collect(Collectors.toCollection(ArrayList::new));
 					paths.removeAll(listView.getItems());
 					if (!paths.isEmpty())
@@ -336,15 +336,19 @@ class ProjectImportImagesCommand {
 				List<Future<List<ServerBuilder<BufferedImage>>>> results = new ArrayList<>();
 				List<ProjectImageEntry<BufferedImage>> projectImages = new ArrayList<>();
 				List<File> existingDataFiles = new ArrayList<>();
-				for (var item : items) {
+                var itemIterator = items.iterator();
+				while (itemIterator.hasNext()) {
+                    var item = itemIterator.next();
 					// Try to load items from a project if possible
 					String lower = item.toLowerCase();
 					if (lower.endsWith(ProjectIO.DEFAULT_PROJECT_EXTENSION)) {
 						try {
 							var tempProject = ProjectIO.loadProject(GeneralTools.toURI(item), BufferedImage.class);
 							projectImages.addAll(tempProject.getImageList());
+                            // Drop items that refer to projects, so we don't mistake them for failed images later
+                            itemIterator.remove();
 						} catch (Exception e) {
-							logger.error("Unable to add images from {} ({})", item, e.getLocalizedMessage());
+							logger.error("Unable to add images from {} ({})", item, e.getMessage());
 						}
 						continue;
 					} else if (lower.endsWith(".qpdata")) {
@@ -372,7 +376,7 @@ class ProjectImportImagesCommand {
 							else
 								return support.getBuilders();
 						} catch (Exception e) {
-							logger.error("Unable to add " + item, e);
+                            logger.error("Unable to add {}", item, e);
 						}
 						return new ArrayList<>();
 					}));
@@ -483,7 +487,7 @@ class ProjectImportImagesCommand {
 				try {
 					pool.awaitTermination(60, TimeUnit.MINUTES);
 				} catch (Exception e) {
-					logger.error("Exception waiting for project import to complete: " + e.getLocalizedMessage(), e);
+                    logger.error("Exception waiting for project import to complete: {}", e.getMessage(), e);
 				}
 
 				String errorMessage = null;
@@ -550,10 +554,10 @@ class ProjectImportImagesCommand {
 				Dialogs.showMessageDialog(commandName, textArea);
 		}
 		// TODO: Add failed and successful paths to pathFailed/pathSucceeded, so the line below prints something
-		if (sb.length() > 0)
+		if (!sb.isEmpty())
 			logger.info(sb.toString());
 
-		List<ProjectImageEntry<BufferedImage>> results = new ArrayList<>();
+		List<ProjectImageEntry<BufferedImage>> results;
 		try {
 			results = worker.get();
 		} catch (Exception e) {

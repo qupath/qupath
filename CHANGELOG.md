@@ -7,6 +7,9 @@ Version in progress...
   * Sync to the cursor, sync to the selected object or sync to the viewer center
 * Improve toggling between point and multipoint tools (https://github.com/qupath/qupath/pull/1972)
 * Update to Deep Java Library 0.34.0 (supports PyTorch 2.7.1)
+* *Downgrade* of OpenCV to 4.9.0
+  * This is needed for https://github.com/qupath/qupath-extension-align to work
+* The maximum memory preference now uses a percentage, not a number of GB
 
 ### Bug fixes
 * Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
@@ -17,12 +20,20 @@ Version in progress...
 * "Split annotations by lines" with line thickness 0 px doesn’t work with multiple lines (https://github.com/qupath/qupath/issues/1978)
 * `TransformedServerBuilder.subtractOffset()` can thrown an `IllegalArgumentException` when being serialized (https://github.com/qupath/qupath/issues/1976)
 * Using the lowest resolution image for brightness/contrast settings can be problematic (https://github.com/qupath/qupath/issues/1958)
+* Incorrect error message when merging projects (https://github.com/qupath/qupath/issues/1990)
+* Resetting preferences on Windows set max memory to 512 MB (https://github.com/qupath/qupath/issues/1946)
+* Grid view images can become 'locked' to a color transform (https://github.com/qupath/qupath/issues/1953)
 
 ### Dependency updates
 * Bio-Formats 8.3.0
-* CommonMark 0.25.1
+* CommonMark 0.26.0
 * Deep Java Library 0.34.0
-* Groovy 4.0.28
+* Groovy 5.0.1
+* Gson 2.13.2
+* Guava 33.5.0-jre
+* JavaCPP 1.5.10
+* OpenCV 4.9.0
+* RichTextFX 0.11.6
 * SciJava POM 42.0.0 (for Fiji builds)
 
 ## Version 0.6.0

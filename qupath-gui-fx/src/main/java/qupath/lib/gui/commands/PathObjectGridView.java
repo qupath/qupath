@@ -456,10 +456,14 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	}
 
 	private void updateClasses(CheckComboBox<PathClass> classComboBox) {
+        if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> updateClasses(classComboBox));
+			return;
+        }
 		// if a new class is added to the hierarchy, then update the list but leave the set of checked classes unchanged
 		var previouslyChecked = new ArrayList<>(classComboBox.getCheckModel().getCheckedItems());
-		List<PathClass> representedClasses = qupath.getImageData().getHierarchy().getFlattenedObjectList(null).stream()
-				.filter(p -> !p.isRootObject())
+		List<PathClass> representedClasses = qupath.getImageData().getHierarchy().getAllObjects(false)
+                .stream()
 				.map(PathObject::getPathClass)
 				.filter(p -> p != null && p != PathClass.NULL_CLASS)
 				.distinct()
@@ -591,6 +595,11 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 					qupath.getViewer(), imageDataProperty.get().getServer(), true);
 
 			var imageView = painter.getNode();
+            // Unpleasant! But because the painter is a local variable, we need some way to maintain a strong
+            // reference so that the listeners it adds aren't garbage collected too soon.
+            // See https://github.com/qupath/qupath/issues/1953
+            imageView.setUserData(painter);
+
 			imageView.fitWidthProperty().bind(imageSize);
 			imageView.fitHeightProperty().bind(imageSize);
 
