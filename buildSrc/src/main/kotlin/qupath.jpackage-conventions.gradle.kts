@@ -42,8 +42,9 @@ runtime {
         "--no-header-files",
         "--no-man-pages",
         "--strip-native-commands",
-        "--compress", "zip-6", // jlink option; can be zip-0 (no compression) to zip-9; default is zip-6
-        "--bind-services"
+        "--compress", "zip-6" // jlink option; can be zip-0 (no compression) to zip-9; default is zip-6
+//        "--bind-services"   // Fails on Temurin JDK 25 Temurin with
+                              // Error: This JDK does not contain packaged modules and cannot be used to create another image with the jdk.jlink module
     ))
     modules.addAll(listOf(
         "java.desktop",
@@ -57,8 +58,7 @@ runtime {
 
         "java.net.http",        // Add HttpClient support (might be used by scripts)
         "java.management",      // Useful to check memory usage
-        "jdk.management.agent", // Enables VisualVM to connect and sample CPU use
-        "jdk.jsobject",         // Needed to interact with WebView through JSObject
+        "jdk.management.agent"  // Enables VisualVM to connect and sample CPU use
     ))
 
     val params = JPackageParams(

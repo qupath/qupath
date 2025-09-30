@@ -2,11 +2,11 @@ import org.apache.tools.ant.taskdefs.condition.Os
 
 pluginManagement {
     plugins {
-        kotlin("jvm") version "2.0.21"
+        kotlin("jvm") version "2.2.20"
     }
 }
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0" // to download JDK if needed
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0" // to download JDK if needed
 }
 
 // Define project name
