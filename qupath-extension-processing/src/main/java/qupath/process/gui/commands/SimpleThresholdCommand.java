@@ -336,9 +336,7 @@ public class SimpleThresholdCommand implements Runnable {
 		stage.show();
 
 		stage.setMinHeight(320);
-		stage.setMaxHeight(420);
 		stage.setMinWidth(320);
-		stage.setMaxWidth(420);
 		stage.sizeToScene();
 		stage.setResizable(true);
 		
