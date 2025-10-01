@@ -360,6 +360,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 //		menuOpenDirectories.visibleProperty().bind(hasProjectBinding);
 		var separatorOpenDirectories = new SeparatorMenuItem();
 		separatorOpenDirectories.visibleProperty().bind(menuOpenDirectories.visibleProperty());
+        var separatorTest = new SeparatorMenuItem();
 
 		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
 		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
@@ -400,6 +401,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			miRefreshThumbnail.setVisible(isImageEntry && isCurrentImage(selectedEntry));
 			miRemoveImage.setVisible(selected != null && project != null && !project.getImageList().isEmpty());
 
+            separatorTest.visibleProperty().bind(miEditDescription.visibleProperty());
+
 			if (project == null) {
 				menuSort.setVisible(false);
 				return;
@@ -420,7 +423,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				miOpenImage,
 				miRemoveImage,
 				miDuplicateImage,
-				new SeparatorMenuItem(),
+                separatorTest,
 				miSetImageName,
 				miAddMetadata,
 				miEditDescription,
