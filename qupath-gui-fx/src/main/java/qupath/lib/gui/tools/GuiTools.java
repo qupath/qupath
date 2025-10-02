@@ -127,7 +127,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * Assorted static methods to help with JavaFX and QuPath GUI-related tasks.
@@ -1490,14 +1489,26 @@ public class GuiTools {
 	 * @since v0.6.0
 	 */
 	public static TitledPane createLeftRightTitledPane(String name, Node... rightNodes) {
-		var label = new Label(name);
-		label.setMaxWidth(Double.MAX_VALUE);
-		label.setMaxHeight(Double.MAX_VALUE);
-		label.setAlignment(Pos.CENTER_LEFT);
-		label.setPadding(new Insets(0, 2, 0, 0));
-		var right = rightNodes.length == 1 ? rightNodes[0] : new HBox(rightNodes);
-		var pane = createLeftRightTitledPane(label, right);
-		pane.textProperty().bindBidirectional(label.textProperty());
+		var right = new HBox(rightNodes);
+        right.getStyleClass().add("titled-button-pane");
+		var pane = new TitledPane(name, null);
+        pane.setGraphic(right);
+        pane.setGraphicTextGap(5);
+        pane.setContentDisplay(ContentDisplay.RIGHT);
+        pane.setAlignment(Pos.CENTER_LEFT);
+        // See https://stackoverflow.com/questions/52457813/javafx-11-add-a-graphic-to-a-titledpane-on-the-right-side
+        right.translateXProperty().bind(Bindings.createDoubleBinding(
+                () -> pane.getWidth() - right.getLayoutX() - right.getWidth() - 10,
+                pane.widthProperty(), right.widthProperty())
+        );
+        pane.setMaxHeight(Double.MAX_VALUE);
+        pane.setCollapsible(false);
+        pane.paddingProperty().bind(Bindings.createObjectBinding(() -> {
+            if (pane.isCollapsible())
+                return new Insets(0, 0, 0, 25);
+            else
+                return Insets.EMPTY;
+        }, pane.collapsibleProperty()));
 		return pane;
 	}
 
@@ -1507,14 +1518,15 @@ public class GuiTools {
 	 * @param right the right content
 	 * @return the titled pane
 	 * @since v0.6.0
+     * @deprecated v0.7.0 because it was broken in JavaFX 25
 	 */
+    @Deprecated
 	public static TitledPane createLeftRightTitledPane(Node left, Node right) {
 		var pane = new BorderPane();
 		pane.getStyleClass().add("titled-button-pane");
 		pane.setLeft(left);
 		pane.setRight(right);
 		pane.setMaxWidth(Double.MAX_VALUE);
-		pane.setPadding(Insets.EMPTY);
 		var titled = new TitledPane();
 		titled.setGraphic(pane);
 		titled.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
@@ -1524,11 +1536,12 @@ public class GuiTools {
 		titled.setCollapsible(false);
 		pane.paddingProperty().bind(Bindings.createObjectBinding(() -> {
 			if (titled.isCollapsible())
-				return new Insets(0, 5, 0, 25);
+				return new Insets(0, 0, 0, 25);
 			else
-				return new Insets(0, 5, 0, 5);
+				return new Insets(0, 0, 0, 0);
 		}, titled.collapsibleProperty()));
-		pane.minWidthProperty().bind(titled.widthProperty());
+        // This line breaks in JavaFX 25
+//		pane.minWidthProperty().bind(titled.widthProperty());
 		return titled;
 	}
 
