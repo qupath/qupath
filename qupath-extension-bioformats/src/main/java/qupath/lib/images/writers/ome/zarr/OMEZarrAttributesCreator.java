@@ -105,7 +105,7 @@ class OMEZarrAttributesCreator {
 
         return IntStream.range(0, downsamples.length)
                 .mapToObj(level -> Map.of(
-                        "path", "s" + level,
+                        "path", String.valueOf(level),
                         "coordinateTransformations", List.of(getCoordinateTransformation((float) downsamples[level]))
                 ))
                 .toList();

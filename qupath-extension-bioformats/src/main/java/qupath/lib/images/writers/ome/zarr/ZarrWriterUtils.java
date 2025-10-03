@@ -110,7 +110,7 @@ class ZarrWriterUtils {
             levels.put(
                     level,
                     root.createArray(
-                            String.format("s%d", level),
+                            String.valueOf(level),
                             new ArrayParams()
                                     .shape(ZarrWriterUtils.getDimensionsOfImage(metadata, downsamples.get(level)))
                                     .chunks(ZarrWriterUtils.getDimensionsOfChunks(metadata, chunkWidth, chunkHeight))
