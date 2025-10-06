@@ -313,7 +313,7 @@ public class TestOMEZarrAttributesCreator {
     void Check_Multiscale_Array_Full_Image_Datasets_Path() {
         String label = "path";
         int level = 0;
-        String expectedPath = "s0";
+        String expectedPath = "0";
 
         Map<String, Object> groupAttributes = new OMEZarrAttributesCreator(sampleMetadata).getGroupAttributes();
 
@@ -494,7 +494,7 @@ public class TestOMEZarrAttributesCreator {
     void Check_Multiscale_Array_Lower_Resolution_Image_Datasets_Path() {
         String label = "path";
         int level = 1;
-        String expectedPath = "s1";
+        String expectedPath = "1";
 
         Map<String, Object> groupAttributes = new OMEZarrAttributesCreator(sampleMetadata).getGroupAttributes();
 
