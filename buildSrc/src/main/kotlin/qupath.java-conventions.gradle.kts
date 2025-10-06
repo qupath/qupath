@@ -99,12 +99,12 @@ tasks.withType<Javadoc> {
         links(
             "https://docs.oracle.com/en/java/javase/${libs.versions.jdk.get()}/docs/api/",
             "https://openjfx.io/javadoc/${libs.versions.javafx.get().split(".")[0]}/",
+            "https://javadoc.scijava.org/Bio-Formats/",
             "https://javadoc.io/doc/org.bytedeco/javacpp/${libs.versions.javacpp.get()}/",
             "https://javadoc.io/doc/org.bytedeco/opencv/${libs.versions.opencv.get()}/",
             "https://javadoc.io/doc/com.google.code.gson/gson/${libs.versions.gson.get()}/",
             "https://javadoc.io/doc/org.locationtech.jts/jts-core/${libs.versions.jts.get()}/",
             "https://javadoc.io/doc/net.imagej/ij/${libs.versions.imagej.get()}/",
-            "https://javadoc.scijava.org/Bio-Formats/",
             "https://javadoc.io/doc/ai.djl/api/${libs.versions.deepJavaLibrary.get()}/"
         )
     }
