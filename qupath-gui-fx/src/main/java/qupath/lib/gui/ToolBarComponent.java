@@ -135,21 +135,25 @@ class ToolBarComponent {
 		toolIdx = nodes.size();
 
 		addToolButtons(nodes, availableTools);
-		var btnPdl1 = new javafx.scene.control.Button();
-		btnPdl1.setId("pdl1BoxButton");
-		btnPdl1.setTooltip(new javafx.scene.control.Tooltip("Drop a PD-L1 box centered in the view"));
+		var btnPdl1 = new javafx.scene.control.ToggleButton();
+		btnPdl1.setId("pdl1Button");
+		btnPdl1.setTooltip(new javafx.scene.control.Tooltip("Count PD-L1 events in the view"));
 		btnPdl1.setGraphic(qupath.lib.gui.tools.IconFactory.createNode(
 				QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.CELL_NUCLEI_BOTH));
 
-		btnPdl1.setOnAction(event -> {
+		btnPdl1.selectedProperty().addListener((obs, was, is) -> {
 			var viewer = viewerProperty.getValue();
 			if (viewer == null || viewer.getImageData() == null) {
-				Dialogs.showErrorMessage("PD-L1 Tool", "Open an image first");
+				Dialogs.showInfoNotification("PD-L1", "Open an image first.");
+				btnPdl1.setSelected(false);
 				return;
 			}
-			PDL1Tools.run(viewer);
+			if (Boolean.TRUE.equals(is)) {
+				PDL1Tools.startViewportCounter(viewer);
+			} else {
+				PDL1Tools.stopViewportCounter();
+			}
 		});
-
 
 		nodes.add(btnPdl1);
 		nodes.add(createSeparator());
