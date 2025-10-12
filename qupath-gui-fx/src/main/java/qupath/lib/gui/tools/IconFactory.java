@@ -239,9 +239,6 @@ public class IconFactory {
 			return i -> new DuplicatableNode(() -> drawRectangleIcon(i));
 		}
 
-		static IntFunction<Node> PDL1rectangleToolIcon() {
-			return i -> new DuplicatableNode(() -> drawPDL1RectangleIcon(i));
-		}
 		static IntFunction<Node> ellipseToolIcon() {
 			return i -> new DuplicatableNode(() -> drawEllipseIcon(i));
 		}
@@ -357,7 +354,6 @@ public class IconFactory {
 
 									RECENT_COMMANDS(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_OL)),
 									RECTANGLE_TOOL(IconSuppliers.rectangleToolIcon()),
-									PDL1_TOOL(IconSuppliers.PDL1rectangleToolIcon()),
 									REFRESH(IconSuppliers.fontAwesome(FontAwesome.Glyph.REFRESH)),
 
 									SELECTION_MODE(IconSuppliers.selectionModeIcon()),
@@ -465,16 +461,6 @@ public class IconFactory {
 		return wrapInGroup(size, shape);
 	}
 
-	private static Node drawPDL1RectangleIcon(int size) {
-		double padX = 2.0;
-		double padY = size/5.0;
-		var shape = new Rectangle(padX, padY, size-padX*2.0, size-padY*2.0);
-		shape.setStrokeWidth(1.0);
-		bindShapeColorToObjectColor(shape);
-		bindStrokeToSelectionMode(shape.getStrokeDashArray());
-		shape.setFill(Color.TRANSPARENT);
-		return wrapInGroup(size, shape);
-	}
 
 	// A dash array that depends upon the selection mode property
 	private static ObservableList<Double> strokeDashArray;

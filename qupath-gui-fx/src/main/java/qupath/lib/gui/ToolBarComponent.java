@@ -155,8 +155,8 @@ class ToolBarComponent {
 			}
 		});
 
-		nodes.add(btnPdl1);
 		nodes.add(createSeparator());
+		nodes.add(btnPdl1);
 		nodes.add(createSeparator());
 
 		nodes.add(createToggleButton(toolManager.getSelectionModeAction()));

@@ -13,10 +13,6 @@ public class PathToolEventHandlers {
 		return new RectangleToolEventHandler();
 	}
 
-	public static EventHandler<MouseEvent> createPDL1RectangleEventHandler() {
-		return new PDL1ToolEventHandler();
-	}
-
 	public static EventHandler<MouseEvent> createEllipseEventHandler() {
 		return new EllipseToolEventHandler();
 	}
