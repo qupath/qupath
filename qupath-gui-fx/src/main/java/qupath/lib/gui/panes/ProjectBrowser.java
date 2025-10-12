@@ -357,9 +357,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				actionOpenProjectDirectory,
 				actionOpenProjectEntryDirectory,
 				actionOpenImageServerDirectory);
-//		menuOpenDirectories.visibleProperty().bind(hasProjectBinding);
 		var separatorOpenDirectories = new SeparatorMenuItem();
 		separatorOpenDirectories.visibleProperty().bind(menuOpenDirectories.visibleProperty());
+        var separatorTop = new SeparatorMenuItem();
 
 		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
 		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
@@ -390,12 +390,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				actionDuplicateImages.setText("Duplicate " + nSelectedEntries + " images");
 				actionRemoveImage.setText("Remove " + nSelectedEntries + " images");				
 			}
-			
-//			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
+
 			miOpenImage.setVisible(isImageEntry);
 			miDuplicateImage.setVisible(isImageEntry);
 			miSetImageName.setVisible(isImageEntry);
 			miAddMetadata.setVisible(!entries.isEmpty());
+            separatorTop.setVisible(isImageEntry);
 			miEditDescription.setVisible(isImageEntry);
 			miRefreshThumbnail.setVisible(isImageEntry && isCurrentImage(selectedEntry));
 			miRemoveImage.setVisible(selected != null && project != null && !project.getImageList().isEmpty());
@@ -416,11 +416,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		SeparatorMenuItem separator = new SeparatorMenuItem();
 		separator.visibleProperty().bind(menuSort.visibleProperty());
+
 		menu.getItems().addAll(
 				miOpenImage,
 				miRemoveImage,
 				miDuplicateImage,
-				new SeparatorMenuItem(),
+                separatorTop,
 				miSetImageName,
 				miAddMetadata,
 				miEditDescription,
