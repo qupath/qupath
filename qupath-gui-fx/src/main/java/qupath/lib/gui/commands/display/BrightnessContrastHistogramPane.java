@@ -231,7 +231,7 @@ public class BrightnessContrastHistogramPane extends BorderPane {
                 .orElse(1.0);
         double yMax;
         if (doLogCounts.get())
-            yMax = Math.log(maxCount);
+            yMax = Math.log10(maxCount);
         else
             yMax = maxCount;
         if (!yAxis.lowerBoundProperty().isBound())
