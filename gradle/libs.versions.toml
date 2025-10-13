@@ -20,7 +20,7 @@ ikonli          = "12.3.1"
 imagej          = "1.54k"
 
 # Compatibility with Java 21 with QuPath v0.6.x
-jdk             = "21"
+jdk             = "25"
 
 # For gradle-javacpp-platform (no 1.5.11 available)
 javacpp         = "1.5.10"
@@ -28,7 +28,7 @@ javacpp         = "1.5.10"
 opencv          = "4.9.0-1.5.10"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
-javafx          = "23.0.2"
+javafx          = "25"
 jna             = "5.16.0"
 jfreeSvg        = "5.0.6"
 jfxtras         = "17-r1"
@@ -133,7 +133,7 @@ javacpp        = { id = "org.bytedeco.gradle-javacpp-platform",     version.ref 
 # If javafx plugin causes trouble, see https://github.com/openjfx/javafx-gradle-plugin#migrating-from-0014-to-010
 javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.1.0" }
 # For jpackage
-jpackage       = { id = "org.beryx.runtime",                        version = "1.13.1" } # Non-modular
+jpackage       = { id = "org.beryx.runtime",                        version = "2.0.0" } # Non-modular
 # For license report (including 3rd party licenses)
 license-report = { id = "com.github.jk1.dependency-license-report", version = "2.9" }
 # For checksums when creating builds
