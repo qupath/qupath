@@ -33,6 +33,10 @@ val platform: PlatformPlugin.Platform = Utils.currentPlatform()
 // Requested package type (image, installer, all, pkg, dmg, msi, exe, deb, rpm...)
 val packageType = (gradle.extra["qupath.package"] as String).lowercase()
 
+// Request to bind services (only possible if jmods is available)
+val bindServices = gradle.extra["qupath.bind-services"] as Boolean
+
+
 /**
  * Create Java Runtime & call jpackage
  */
@@ -43,23 +47,18 @@ runtime {
         "--no-man-pages",
         "--strip-native-commands",
         "--compress", "zip-6" // jlink option; can be zip-0 (no compression) to zip-9; default is zip-6
-//        "--bind-services"   // Fails on Temurin JDK 25 Temurin with
-                              // Error: This JDK does not contain packaged modules and cannot be used to create another image with the jdk.jlink module
     ))
-    modules.addAll(listOf(
-        "java.desktop",
-        "java.xml",
-        "java.scripting",
-        "java.sql",
-        "java.naming",
-        "jdk.unsupported",
+    if (bindServices) {
+        options.add("--bind-services")
+    }
 
+    modules = listOf(
+        "java.se",              // Java standard edition
+
+        "jdk.unsupported",      // May be needed by some dependencies for sun.misc.Unsafe
         "jdk.zipfs",            // Needed for zip filesystem support
-
-        "java.net.http",        // Add HttpClient support (might be used by scripts)
-        "java.management",      // Useful to check memory usage
         "jdk.management.agent"  // Enables VisualVM to connect and sample CPU use
-    ))
+    )
 
     val params = JPackageParams(
         getDistOutputDir(),
@@ -173,7 +172,7 @@ class JPackageParams(val outputDir: File, val resourceDir: File? = null) {
                 "--win-menu-group", "QuPath"
             )
             // Per-user install can be controlled in settings.gradle.kts
-            if (gradle.extra["qupath.package.per-user"] as String == "true")
+            if (gradle.extra["qupath.package.per-user"] as Boolean)
                 this.installerOptions += "--win-per-user-install"
         }
 

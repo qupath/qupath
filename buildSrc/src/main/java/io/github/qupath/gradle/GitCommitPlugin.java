@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 public class GitCommitPlugin implements Plugin<Project> {
 
-    private static Logger logger = LoggerFactory.getLogger(GitCommitPlugin.class);
+    private static final Logger logger = LoggerFactory.getLogger(GitCommitPlugin.class);
 
     @Override
     public void apply(Project project) {
