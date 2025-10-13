@@ -134,14 +134,7 @@ public class ROIs {
 		return createRectangleROI(x, y, width, height, ImagePlane.getDefaultPlane());
 	}
 
-	/**
-	 * Create a rectangle ROI that matches an ImageRegion.
-	 * @param region an image region defining the rectangle location
-	 * @return a new rectangle ROI
-	 */
-	public static ROI createPDL1RectangleROI(ImageRegion region) {
-		return new PDL1ROI(region.getX(), region.getY(), region.getWidth(), region.getHeight(), region.getImagePlane());
-	}
+
 	/**
 	 * Create an ellipse ROI defined by its bounding box.
 	 *
