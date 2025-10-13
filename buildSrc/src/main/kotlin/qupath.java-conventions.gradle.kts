@@ -87,6 +87,8 @@ tasks.withType<Javadoc> {
         if (strictJavadoc.getOrElse("false") != "true") {
             // This should be made more strict in the future
             addStringOption("Xdoclint:none", "-quiet")
+            // Failures can occur e.g. because javadoc.io is inaccessible
+            isFailOnError = false
         }
 
         tags(
