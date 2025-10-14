@@ -23,6 +23,38 @@
 
 package qupath.imagej.images.servers;
 
+import ij.CompositeImage;
+import ij.IJ;
+import ij.ImagePlus;
+import ij.ImageStack;
+import ij.gui.Roi;
+import ij.io.Opener;
+import ij.measure.Calibration;
+import ij.plugin.Duplicator;
+import ij.plugin.ImageInfo;
+import ij.process.ByteProcessor;
+import ij.process.ColorProcessor;
+import ij.process.FloatProcessor;
+import ij.process.ImageProcessor;
+import ij.process.LUT;
+import ij.process.ShortProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.imagej.tools.IJTools;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
+import qupath.lib.objects.PathObjects;
+
 import java.awt.Rectangle;
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
@@ -42,38 +74,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import ij.CompositeImage;
-import ij.IJ;
-import ij.ImagePlus;
-import ij.ImageStack;
-import ij.gui.Roi;
-import ij.io.Opener;
-import ij.measure.Calibration;
-import ij.plugin.Duplicator;
-import ij.plugin.ImageInfo;
-import ij.process.ByteProcessor;
-import ij.process.ColorProcessor;
-import ij.process.FloatProcessor;
-import ij.process.ImageProcessor;
-import ij.process.LUT;
-import ij.process.ShortProcessor;
-import qupath.imagej.tools.IJTools;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.servers.AbstractTileableImageServer;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.TileRequest;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectReader;
-import qupath.lib.objects.PathObjects;
 
 /**
  * ImageServer that uses ImageJ's image-reading capabilities.
@@ -347,7 +347,7 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 
 	@Override
 	protected String createID() {
-		return getClass().getName() + ": " + uri.toString();
+		return ServerTools.createDefaultID(getClass(), uri, args);
 	}
 	
 	@Override
