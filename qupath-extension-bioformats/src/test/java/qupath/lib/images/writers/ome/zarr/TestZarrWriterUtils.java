@@ -95,8 +95,8 @@ public class TestZarrWriterUtils {
                 .width(2)
                 .height(4)
                 .channels(List.of(ImageChannel.RED, ImageChannel.GREEN))
+                .levelsFromDownsamples(1, 4.45)
                 .build();
-        List<Double> downsamples = List.of(1d, 4.45d);
         int expectedChunkWidth = 24;
         int chunkHeight = 84;
         Map<String, Object> levelAttributes = Map.of("key1", "value1", "key2", "value2");
@@ -104,7 +104,6 @@ public class TestZarrWriterUtils {
 
         Map<Integer, ZarrArray> levels = ZarrWriterUtils.createLevels(
                 metadata,
-                downsamples,
                 group,
                 expectedChunkWidth,
                 chunkHeight,
@@ -112,8 +111,8 @@ public class TestZarrWriterUtils {
                 compressor
         );
 
-        // see ZarrWriterUtils.getDimensionsOfChunks() to see why index 2 is used
-        Assertions.assertEquals(expectedChunkWidth, levels.get(downsamples.size() - 1).getChunks()[2]);
+        // see ZarrWriterUtils.getDimensionsOfChunks() to see why index 1 is used
+        Assertions.assertEquals(expectedChunkWidth, levels.get(1).getChunks()[2]);
 
         FileUtils.deleteDirectory(path.toFile());
     }
@@ -127,8 +126,8 @@ public class TestZarrWriterUtils {
                 .width(2)
                 .height(4)
                 .channels(List.of(ImageChannel.RED, ImageChannel.GREEN))
+                .levelsFromDownsamples(1, 4.45)
                 .build();
-        List<Double> downsamples = List.of(1d, 4.45d);
         int chunkWidth = 24;
         int expectedChunkHeight = 84;
         Map<String, Object> levelAttributes = Map.of("key1", "value1", "key2", "value2");
@@ -136,7 +135,6 @@ public class TestZarrWriterUtils {
 
         Map<Integer, ZarrArray> levels = ZarrWriterUtils.createLevels(
                 metadata,
-                downsamples,
                 group,
                 chunkWidth,
                 expectedChunkHeight,
@@ -145,7 +143,7 @@ public class TestZarrWriterUtils {
         );
 
         // see ZarrWriterUtils.getDimensionsOfChunks() to see why index 1 is used
-        Assertions.assertEquals(expectedChunkHeight, levels.get(downsamples.size() - 1).getChunks()[1]);
+        Assertions.assertEquals(expectedChunkHeight, levels.get(1).getChunks()[1]);
 
         FileUtils.deleteDirectory(path.toFile());
     }
@@ -159,8 +157,8 @@ public class TestZarrWriterUtils {
                 .width(2)
                 .height(4)
                 .channels(List.of(ImageChannel.RED, ImageChannel.GREEN))
+                .levelsFromDownsamples(1, 4.45)
                 .build();
-        List<Double> downsamples = List.of(1d, 4.45d);
         int chunkWidth = 24;
         int chunkHeight = 84;
         Map<String, Object> expectedAttributes = Map.of("key1", "value1", "key2", "value2");
@@ -168,7 +166,6 @@ public class TestZarrWriterUtils {
 
         Map<Integer, ZarrArray> levels = ZarrWriterUtils.createLevels(
                 metadata,
-                downsamples,
                 group,
                 chunkWidth,
                 chunkHeight,
@@ -176,7 +173,7 @@ public class TestZarrWriterUtils {
                 compressor
         );
 
-        Assertions.assertEquals(expectedAttributes, levels.get(downsamples.size() - 1).getAttributes());
+        Assertions.assertEquals(expectedAttributes, levels.get(1).getAttributes());
 
         FileUtils.deleteDirectory(path.toFile());
     }
@@ -190,8 +187,8 @@ public class TestZarrWriterUtils {
                 .width(2)
                 .height(4)
                 .channels(List.of(ImageChannel.RED, ImageChannel.GREEN))
+                .levelsFromDownsamples(1, 4.45)
                 .build();
-        List<Double> downsamples = List.of(1d, 4.45d);
         int chunkWidth = 24;
         int chunkHeight = 84;
         Map<String, Object> levelAttributes = Map.of("key1", "value1", "key2", "value2");
@@ -199,7 +196,6 @@ public class TestZarrWriterUtils {
 
         Map<Integer, ZarrArray> levels = ZarrWriterUtils.createLevels(
                 metadata,
-                downsamples,
                 group,
                 chunkWidth,
                 chunkHeight,
@@ -207,7 +203,7 @@ public class TestZarrWriterUtils {
                 expectedCompressor
         );
 
-        Assertions.assertEquals(expectedCompressor, levels.get(downsamples.size() - 1).getCompressor());
+        Assertions.assertEquals(expectedCompressor, levels.get(1).getCompressor());
 
         FileUtils.deleteDirectory(path.toFile());
     }

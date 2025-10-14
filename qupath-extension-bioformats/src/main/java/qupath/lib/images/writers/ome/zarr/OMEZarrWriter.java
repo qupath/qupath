@@ -92,7 +92,6 @@ public class OMEZarrWriter {
 
         this.levels = ZarrWriterUtils.createLevels(
                 server.getMetadata(),
-                Arrays.stream(server.getPreferredDownsamples()).boxed().toList(),
                 root,
                 server.getMetadata().getPreferredTileWidth(),
                 server.getMetadata().getPreferredTileHeight(),

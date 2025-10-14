@@ -86,7 +86,6 @@ class ZarrWriterUtils {
      * The pixels of the returned {@link ZarrArray} are not written, but basic information (e.g. attributes) is.
      *
      * @param metadata the metadata of the image to represent
-     * @param downsamples the downsamples to use for each level
      * @param root the {@link ZarrGroup} that should contain the {@link ZarrArray}
      * @param chunkWidth the width the chunks of the image should have
      * @param chunkHeight the height the chunks of the image should have
@@ -97,7 +96,6 @@ class ZarrWriterUtils {
      */
     public static Map<Integer, ZarrArray> createLevels(
             ImageServerMetadata metadata,
-            List<Double> downsamples,
             ZarrGroup root,
             int chunkWidth,
             int chunkHeight,
@@ -105,14 +103,15 @@ class ZarrWriterUtils {
             Compressor compressor
     ) throws IOException {
         Map<Integer, ZarrArray> levels = new HashMap<>();
+        double[] downsamples = metadata.getPreferredDownsamplesArray();
 
-        for (int level=0; level<downsamples.size(); level++) {
+        for (int level=0; level<downsamples.length; level++) {
             levels.put(
                     level,
                     root.createArray(
                             String.valueOf(level),
                             new ArrayParams()
-                                    .shape(ZarrWriterUtils.getDimensionsOfImage(metadata, downsamples.get(level)))
+                                    .shape(ZarrWriterUtils.getDimensionsOfImage(metadata, downsamples[level]))
                                     .chunks(ZarrWriterUtils.getDimensionsOfChunks(metadata, chunkWidth, chunkHeight))
                                     .compressor(compressor)
                                     .dataType(switch (metadata.getPixelType()) {

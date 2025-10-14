@@ -50,7 +50,8 @@ public class PyramidalOMEZarrWriter {
 
     private static final Logger logger = LoggerFactory.getLogger(PyramidalOMEZarrWriter.class);
     private final ImageServer<BufferedImage> server;
-    private final List<Double> downsamples;
+    private final double firstDownsampleOnInputImage;
+    private final List<Double> downsamplesOutputImage;
     private final int tileWidth;
     private final int tileHeight;
     private final int numberOfThreads;
@@ -74,7 +75,10 @@ public class PyramidalOMEZarrWriter {
         }
         this.server = transformedServerBuilder.build();
 
-        this.downsamples = builder.downsamples;
+        this.firstDownsampleOnInputImage = builder.downsamples.getFirst();
+        this.downsamplesOutputImage = builder.downsamples.stream()
+                .map(downsample -> downsample / this.firstDownsampleOnInputImage)
+                .toList();
         this.tileWidth = ZarrWriterUtils.getChunkSize(
                 builder.tileWidth > 0 ? builder.tileWidth : builder.server.getMetadata().getPreferredTileWidth(),
                 builder.maxNumberOfChunks,
@@ -97,8 +101,11 @@ public class PyramidalOMEZarrWriter {
         }
 
         this.levels = ZarrWriterUtils.createLevels(
-                server.getMetadata(),
-                downsamples,
+                new ImageServerMetadata.Builder(server.getMetadata())
+                        .width((int) (server.getWidth() / firstDownsampleOnInputImage))
+                        .height((int) (server.getHeight() / firstDownsampleOnInputImage))
+                        .levelsFromDownsamples(downsamplesOutputImage.stream().mapToDouble(Double::doubleValue).toArray())
+                        .build(),
                 root,
                 tileWidth,
                 tileHeight,
@@ -122,41 +129,44 @@ public class PyramidalOMEZarrWriter {
         );
 
         try {
+            int numberOfDownsamples = downsamplesOutputImage.size();
             root.writeAttributes(
                     new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
-                            .levelsFromDownsamples(downsamples.getFirst())
+                            .levelsFromDownsamples(firstDownsampleOnInputImage)
                             .build()
                     ).getGroupAttributes()
             );
             writeLevel(
-                    path.toString(),
+                    server.getPath(),
                     0,
+                    firstDownsampleOnInputImage,
                     levels.get(0),
                     server,
                     executorService,
-                    progress -> onProgress.accept(progress / downsamples.size())
+                    progress -> onProgress.accept(progress / numberOfDownsamples)
             );
 
-            for (int i=1; i<downsamples.size(); i++) {
+            for (int i=1; i<numberOfDownsamples; i++) {
                 try (ImageServer<BufferedImage> server = new BioFormatsImageServer(
                         path.toUri(),
-                        "--series",                         // since all level zarr subgroups are already created (see the constructor), BioFormats treat each subgroup
-                        String.valueOf(downsamples.size() - i)  // as a different series, so the series we are interested in must be specified
+                        "--series",                          // since all level zarr subgroups are already created (see the constructor), BioFormats treat each subgroup
+                        String.valueOf(numberOfDownsamples - i)  // as a different series, so the series we are interested in must be specified
                 )) {
-                    double progressOffset = (double) i / downsamples.size();
+                    double progressOffset = (double) i / numberOfDownsamples;
                     writeLevel(
                             path.toString(),
                             i,
+                            downsamplesOutputImage.get(i),
                             levels.get(i),
                             server,
                             executorService,
-                            progress -> onProgress.accept(progressOffset + progress / downsamples.size())
+                            progress -> onProgress.accept(progressOffset + progress / numberOfDownsamples)
                     );
                 }
 
                 root.writeAttributes(
                         new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
-                                .levelsFromDownsamples(downsamples.stream().limit(i+1).mapToDouble(d -> d).toArray())
+                                .levelsFromDownsamples(downsamplesOutputImage.stream().limit(i+1).mapToDouble(d -> d).toArray())
                                 .build()
                         ).getGroupAttributes()
                 );
@@ -245,7 +255,7 @@ public class PyramidalOMEZarrWriter {
                 throw new IllegalArgumentException("At least one downsample should be provided");
             }
             if (downsampleList.stream().anyMatch(downsample -> downsample < 1)) {
-                throw new IllegalArgumentException(String.format("One of the provided downsamples %s is less than or equal to 0", downsampleList));
+                throw new IllegalArgumentException(String.format("One of the provided downsamples %s is less than 1", downsampleList));
             }
 
             this.downsamples = downsampleList.stream().distinct().sorted().toList();
@@ -393,16 +403,17 @@ public class PyramidalOMEZarrWriter {
     private void writeLevel(
             String path,
             int level,
+            double downsample,
             ZarrArray zarrArray,
             ImageServer<BufferedImage> server,
             ExecutorService executorService,
             DoubleConsumer onProgress
     ) throws InterruptedException {
-        int[] imageDimensions = ZarrWriterUtils.getDimensionsOfImage(server.getMetadata(), downsamples.get(level));
+        int[] imageDimensions = ZarrWriterUtils.getDimensionsOfImage(server.getMetadata(), downsample);
         Collection<TileRequest> tileRequests = getTileRequestsForLevel(
                 path,
                 level,
-                downsamples.get(level),
+                downsample,
                 tileWidth,
                 tileHeight,
                 server.nTimepoints(),
