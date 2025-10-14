@@ -290,9 +290,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 						).toArray());
 					}
 
-					try (OMEZarrWriter writer = builder.build(outputFile.getAbsolutePath())) {
-						writer.writeImage();
-					}
+					builder.build(outputFile.getAbsolutePath()).writeImage();
 				}
 			}
 			long duration = System.currentTimeMillis() - startTime;

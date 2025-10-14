@@ -100,10 +100,12 @@ class OMEZarrAttributesCreator {
     }
 
     private List<Map<String, Object>> getDatasets() {
-        return IntStream.range(0, metadata.getPreferredDownsamplesArray().length)
+        double[] downsamples = metadata.getPreferredDownsamplesArray();
+
+        return IntStream.range(0, downsamples.length)
                 .mapToObj(level -> Map.of(
-                        "path", "s" + level,
-                        "coordinateTransformations", List.of(getCoordinateTransformation((float) metadata.getPreferredDownsamplesArray()[level]))
+                        "path", String.valueOf(level),
+                        "coordinateTransformations", List.of(getCoordinateTransformation((float) downsamples[level]))
                 ))
                 .toList();
     }

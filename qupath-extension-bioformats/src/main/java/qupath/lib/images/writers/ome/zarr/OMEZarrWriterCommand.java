@@ -90,15 +90,17 @@ public class OMEZarrWriterCommand implements Runnable {
 
         OMEZarrWriter.Builder builder = createBuilder(parameters, imageData);
 
+        Dialogs.showInfoNotification(
+                QuPathResources.getString("Action.BioFormats.omeZarrWriter"),
+                MessageFormat.format(
+                        QuPathResources.getString("Action.BioFormats.exportingTo"),
+                        fileOutput.getAbsolutePath()
+                )
+        );
+
         task = executor.submit(() -> {
-            try (OMEZarrWriter writer = builder.build(fileOutput.getAbsolutePath())) {
-                Dialogs.showInfoNotification(
-                        QuPathResources.getString("Action.BioFormats.omeZarrWriter"),
-                        MessageFormat.format(
-                                QuPathResources.getString("Action.BioFormats.exportingTo"),
-                                fileOutput.getAbsolutePath()
-                        )
-                );
+            try {
+                OMEZarrWriter writer = builder.build(fileOutput.getAbsolutePath());
                 writer.writeImage();
             } catch (IOException e) {
                 logger.error("Error while writing Zarr image", e);
