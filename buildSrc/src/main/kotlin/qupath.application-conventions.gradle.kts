@@ -21,6 +21,15 @@ application {
     applicationDefaultJvmArgs += "--add-opens"
     applicationDefaultJvmArgs += "javafx.graphics/com.sun.javafx.css=ALL-UNNAMED"
 
+    // Necessary when using JavaFX 24+
+    // See https://gluonhq.com/products/javafx/openjfx-24-release-notes/
+    applicationDefaultJvmArgs += "--enable-native-access"
+    applicationDefaultJvmArgs += "javafx.graphics,javafx.media,javafx.web"
+
+    // Necessary when using JavaCPP (for now anyway)
+    applicationDefaultJvmArgs += "--enable-native-access"
+    applicationDefaultJvmArgs += "ALL-UNNAMED"
+
     // Necessary when using ./gradlew run to support project metadata autocomplete
     // See https://github.com/controlsfx/controlsfx/issues/1505
     applicationDefaultJvmArgs += "--add-opens"

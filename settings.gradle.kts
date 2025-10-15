@@ -2,11 +2,11 @@ import org.apache.tools.ant.taskdefs.condition.Os
 
 pluginManagement {
     plugins {
-        kotlin("jvm") version "2.0.21"
+        kotlin("jvm") version "2.2.20"
     }
 }
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0" // to download JDK if needed
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0" // to download JDK if needed
 }
 
 // Define project name
@@ -30,15 +30,19 @@ gradle.extra["qupath.jvm.args"] = listOf(
 // By default, create an image with jpackage (not an installer, which is slower)
 gradle.extra["qupath.package"] = providers.gradleProperty("package").getOrElse("image")
 
-// By default, create a per-user installer on Windows
-gradle.extra["qupath.package.per-user"] = providers.gradleProperty("per-user-install").getOrElse("true")
+// By default, don't bind services; this can only be used if jmods is available in the JDK (it isn't or Temurin)
+// Activate this with -Pbind-services or -Pbind-services=true
+gradle.extra["qupath.bind-services"] = !"false".equals(providers.gradleProperty("bind-services").getOrElse("false"), true)
 
-// Optionally request that the git commit ID be included in the build
-gradle.extra["qupath.package.git-commit"] = providers.gradleProperty("git-commit").getOrElse("false")
+// By default, create a per-user installer on Windows
+gradle.extra["qupath.package.per-user"] = "true".equals(providers.gradleProperty("per-user-install").getOrElse("true"), true)
 
 // Optionally include extra libraries/extensions
 // Use -Pinclude-extras=true
 val includeExtras = "true".equals(providers.gradleProperty("include-extras").getOrElse("false"), true)
+
+// Optionally request that the git commit ID be included in the build
+gradle.extra["qupath.package.git-commit"] = providers.gradleProperty("git-commit").getOrElse("false")
 
 // Main application
 include("qupath-app")

@@ -61,6 +61,7 @@ import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectReader;
@@ -890,11 +891,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	
 	@Override
 	public String createID() {
-		String id = getClass().getSimpleName() + ": " + uri.toString();
-		if (args.length > 0) {
-			id += "[" + String.join(", ", args) + "]";
-		}
-		return id;
+		return ServerTools.createDefaultID(getClass(), uri, args);
 	}
 
 	@Override

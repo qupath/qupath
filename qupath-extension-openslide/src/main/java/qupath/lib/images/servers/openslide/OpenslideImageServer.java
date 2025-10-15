@@ -23,6 +23,22 @@
 
 package qupath.lib.images.servers.openslide;
 
+import com.google.gson.GsonBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.openslide.jna.OpenSlide;
+import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
+
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -37,23 +53,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.GsonBuilder;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.servers.AbstractTileableImageServer;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.TileRequest;
-import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.images.servers.openslide.jna.OpenSlide;
-import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
 
 /**
  * ImageServer implementation using OpenSlide.
@@ -284,7 +283,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	@Override
 	protected String createID() {
-		return getClass().getName() + ": " + uri.toString();
+		return ServerTools.createDefaultID(getClass(), uri, args);
 	}
 	
 	@Override
