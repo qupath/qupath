@@ -60,7 +60,7 @@ snakeyaml       = "2.5"
 [libraries]
 bioimageio-spec = { module = "io.github.qupath:qupath-bioimageio-spec", version.ref = "bioimageIoSpec" }
 
-caffeine      = { module = "com.github.ben-manes.caffeine",     version.ref = "caffeine" }
+caffeine      = { module = "com.github.ben-manes.caffeine:caffeine",     version.ref = "caffeine" }
 commonmark    = { module = "org.commonmark:commonmark",         version.ref = "commonmark" }
 commonmark-yaml = { module = "org.commonmark:commonmark-ext-yaml-front-matter", version.ref = "commonmark" }
 commons-math  = { module = "org.apache.commons:commons-math3",  version.ref = "commonsMath3" }
