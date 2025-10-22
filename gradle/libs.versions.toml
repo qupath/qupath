@@ -5,14 +5,15 @@ bioimageIoSpec  = "0.2.0"
 omeZarrReader   = "0.6.0"
 blosc           = "1.21.6+01"
 
-commonmark      = "0.26.0"
+caffeine        = "3.2.2"
+commonmark      = "0.27.0"
 commonsMath3    = "3.6.1"
-commonsText     = "1.10.0"
+commonsText     = "1.14.0"
 controlsFX      = "11.2.2"
 
-deepJavaLibrary = "0.34.0"
+deepJavaLibrary = "0.35.0"
 
-groovy          = "5.0.1"
+groovy          = "5.0.2"
 gson            = "2.13.2"
 guava           = "33.5.0-jre"
 
@@ -28,7 +29,7 @@ javacpp         = "1.5.10"
 opencv          = "4.9.0-1.5.10"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
-javafx          = "25"
+javafx          = "25.0.1"
 jna             = "5.16.0"
 jfreeSvg        = "5.0.6"
 jfxtras         = "17-r1"
@@ -59,6 +60,7 @@ snakeyaml       = "2.5"
 [libraries]
 bioimageio-spec = { module = "io.github.qupath:qupath-bioimageio-spec", version.ref = "bioimageIoSpec" }
 
+caffeine      = { module = "com.github.ben-manes.caffeine",     version.ref = "caffeine" }
 commonmark    = { module = "org.commonmark:commonmark",         version.ref = "commonmark" }
 commonmark-yaml = { module = "org.commonmark:commonmark-ext-yaml-front-matter", version.ref = "commonmark" }
 commons-math  = { module = "org.apache.commons:commons-math3",  version.ref = "commonsMath3" }
