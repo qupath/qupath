@@ -1,20 +1,27 @@
 package qupath.lib.gui.tools;
 
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import qupath.lib.common.ColorTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.ROIs;
-import java.util.Set;
+import qupath.lib.roi.interfaces.ROI;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -113,17 +120,91 @@ public class PDL1Tools{
         Platform.runLater(() -> HUD.setText(s == null ? "" : s));
     }
 
-    public static void startViewportCounter(QuPathViewer viewer) {
+    public static double[] showPdl1Popup() {
+        Dialog<double[]> dialog = new Dialog<>();
+        dialog.setTitle("CPS or TPS thresholds");
+
+        ButtonType applyType = new ButtonType("Apply", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(applyType, ButtonType.CANCEL);
+
+        TextField t1 = new TextField("1");
+        TextField t2 = new TextField("5");
+        TextField t3 = new TextField("10");
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10); grid.setVgap(10); grid.setPadding(new Insets(10));
+        grid.addRow(0, new Label("Threshold 1:"), t1);
+        grid.addRow(1, new Label("Threshold 2:"), t2);
+        grid.addRow(2, new Label("Threshold 3:"), t3);
+
+        // simple numeric guard
+        Node applyBtn = dialog.getDialogPane().lookupButton(applyType);
+        applyBtn.setDisable(false);
+        ChangeListener<String> guard = (obs, o, n) -> {
+            try {
+                Double.parseDouble(t1.getText());
+                Double.parseDouble(t2.getText());
+                Double.parseDouble(t3.getText());
+                applyBtn.setDisable(false);
+            } catch (Exception ex) {
+                applyBtn.setDisable(true);
+            }
+        };
+        t1.textProperty().addListener(guard);
+        t2.textProperty().addListener(guard);
+        t3.textProperty().addListener(guard);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(btn -> {
+            if (btn == applyType) {
+                return new double[] {
+                        Double.parseDouble(t1.getText()),
+                        Double.parseDouble(t2.getText()),
+                        Double.parseDouble(t3.getText())
+                };
+            }
+            return null;
+        });
+
+        var result = dialog.showAndWait();
+        if (result.isEmpty()) return null;
+
+        return result.get();
+    }
+
+    public static void startViewportCounter(QuPathViewer viewer, double[] vals) {
         stopViewportCounter(); // ensure only one running at a time
+
         attachHud(viewer);
+
+        final double t1 = vals[0], t2 = vals[1], t3 = vals[2];
+
         viewFuture = PDL1_EXEC.scheduleAtFixedRate(() -> {
             try {
                 int[] events = countNucleiInViewport(viewer);
-                if (events[0] == 0 && events[1] == 0)
-                    setHudText("No cells detected");
-                else
-                    setHudText(String.format("PD-L1 events — Tumor: %d | Nuclei: %d\nCPS: %d", events[0], events[1], events[2]));
+                // Defensive checks
+                int denomTumor = (events != null && events.length > 0) ? events[0] : 0;
+                int nuclei     = (events != null && events.length > 1) ? events[1] : 0;
+                // 4) Update HUD on the JavaFX thread
+                Platform.runLater(() -> {
+                    if (denomTumor == 0 && nuclei == 0) {
+                        setHudText("No cells detected");
+                    } else {
+                        double th1Count = denomTumor * t1 / 100.0;
+                        double th2Count = denomTumor * t2 / 100.0;
+                        double th3Count = denomTumor * t3 / 100.0;
 
+                        setHudText(String.format(
+                                "CPS or TPS Helpers — Tumor: %d (Denominator) | Nuclei: %d%n" +
+                                        "Thresholds: %.0f (%.0f), %.0f (%.0f), %.0f (%.0f)",
+                                denomTumor, nuclei,
+                                t1, th1Count,
+                                t2, th2Count,
+                                t3, th3Count
+                        ));
+                    }
+                });
 
             } catch (Throwable err) {
                 err.printStackTrace();
@@ -131,6 +212,26 @@ public class PDL1Tools{
         }, 0, 250, TimeUnit.MILLISECONDS);
     }
 
+    static boolean isTumor(String name) {
+        if (name == null)
+            return false;
+
+        String n = name.toLowerCase().trim();
+
+        // Ignore "non-tumor" cases first
+        if (n.contains("non-tumor") || n.contains("non tumour") || n.contains("nontumor"))
+            return false;
+
+        // Check if it contains any tumor-related keywords
+        return n.contains("tumor") || n.contains("tumour") || n.contains("cancer");
+    }
+
+    static boolean isImmune(String s) {
+        if (s == null)
+            return false;
+        String n = s.toLowerCase();
+        return n.contains("immune");
+    }
     /*/
     Function to count PD-L1 events in the view
      */
@@ -158,19 +259,29 @@ public class PDL1Tools{
         if (w <= 0 || h <= 0) return new int[]{0,0,0,0,0,0};
 
         var plane  = viewer.getImagePlane();
-        var region = qupath.lib.regions.ImageRegion.createInstance(x, y, w, h, plane.getZ(), plane.getT());
+        var region = ImageRegion.createInstance(x, y, w, h, plane.getZ(), plane.getT());
 
         // Prefer detections collection typed as PathDetectionObject if your API returns it
         var hits = hier.getAllDetectionsForRegion(region, null); // Collection<? extends PathDetectionObject>
 
+        // Build a single list that includes both detections & annotations
+        List<PathObject> objs = new ArrayList<>();
+        objs.addAll(hier.getAllDetectionsForRegion((region)));
+        objs.addAll(hier.getAllPointAnnotations());
         int total = 0, tumor = 0;
-        int denomTumor = 0, pTumor = 0, pImmune = 0;
+        int pTumor = 0, pImmune = 0;
 
         final int rx = region.getX(), ry = region.getY(), rw = region.getWidth(), rh = region.getHeight();
 
-        for (var det : hits) {
+        for (PathObject obj : objs) {
             // If your API returns PathObject, guard/cast:
-            if (!(det instanceof qupath.lib.objects.PathDetectionObject d)) continue;
+//            if (!(det instanceof qupath.lib.objects.PathDetectionObject d)) continue;
+
+            if (!(obj instanceof PathDetectionObject)) continue;
+            PathDetectionObject d = (PathDetectionObject) obj;
+
+            ROI roi = d.getROI();
+            if (roi == null) continue;
 
             var cxDet = d.getROI().getCentroidX();
             var cyDet = d.getROI().getCentroidY();
@@ -179,16 +290,18 @@ public class PDL1Tools{
                 continue;
 
             total++;
+            String name =
+                    obj.getPathClass() != null ? obj.getPathClass().getName()
+                            : (obj.getName() != null ? obj.getName() : "");
+            if (obj.getPathClass() != null) name = obj.getPathClass().getName();
+            else if (obj.getName() != null) name = obj.getName();
 
-            var pc = d.getPathClass();
-            String name = pc == null ? "" : pc.getName().toLowerCase();
-            boolean isTumorCell  = name.contains("tumor")  || name.startsWith("cancer");   // adjust to your class names
-            boolean isImmuneCell = !isTumorCell && (name.contains("immune") || name.contains("lymph"));
+            boolean isTumorCell  = isTumor(name);
+            boolean isImmuneCell = !isTumorCell && isImmune(name);
 
             if (isTumorCell) {
                 tumor++;
-                denomTumor++;                               // denominator = viable tumor cells in view
-                if (isPDL1Positive(d)) pTumor++;           // your positivity rule (flag or DAB threshold)
+                if (isPDL1Positive(d)) pTumor++;
             } else if (isImmuneCell) {
                 if (isPDL1Positive(d)) pImmune++;
             }
@@ -218,26 +331,9 @@ public class PDL1Tools{
         return (int)Math.floor(cps);
     }
 
-    // Label for breast PD-L1 (CPS 10 cutoff)
-
 
     private static double m(MeasurementList ml, String key) {
         return (ml == null) ? Double.NaN : ml.get(key);
-    }
-
-
-    // class name sets — adjust to your segmentation labels
-    static final Set<String> TUMOR = Set.of("Tumor", "Tumor cell", "Cancer");
-    static final Set<String> IMMUNE = Set.of("Immune", "Immune cell", "Lymphocyte");
-
-    // is cell in class set?
-    static boolean isClass(PathDetectionObject d, Set<String> names) {
-        var pc = d.getPathClass();
-        var n = (pc == null) ? null : pc.getName();
-        if (n == null) return false;
-        if (names.contains(n)) return true;
-        for (var s : names) if (n.startsWith(s)) return true;
-        return false;
     }
 
 

@@ -88,6 +88,8 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 
+import static qupath.lib.gui.tools.PDL1Tools.showPdl1Popup;
+
 class ToolBarComponent {
 
 	private static final Logger logger = LoggerFactory.getLogger(ToolBarComponent.class);
@@ -149,7 +151,13 @@ class ToolBarComponent {
 				return;
 			}
 			if (Boolean.TRUE.equals(is)) {
-				PDL1Tools.startViewportCounter(viewer);
+				double[] vals = showPdl1Popup();              // expected: double[3]
+				if (vals == null || vals.length < 3) {
+					Platform.runLater(() -> btnPdl1.setSelected(false));
+				}
+				else{
+					PDL1Tools.startViewportCounter(viewer,vals);
+				}
 			} else {
 				PDL1Tools.stopViewportCounter();
 			}
