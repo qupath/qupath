@@ -140,7 +140,7 @@ public class PDL1Tools{
         // simple numeric guard
         Node applyBtn = dialog.getDialogPane().lookupButton(applyType);
         applyBtn.setDisable(false);
-        ChangeListener<String> guard = (obs, o, n) -> {
+        ChangeListener<String> guard = (_, _, _) -> {
             try {
                 Double.parseDouble(t1.getText());
                 Double.parseDouble(t2.getText());
@@ -168,9 +168,8 @@ public class PDL1Tools{
         });
 
         var result = dialog.showAndWait();
-        if (result.isEmpty()) return null;
+        return result.orElse(null);
 
-        return result.get();
     }
 
     public static void startViewportCounter(QuPathViewer viewer, double[] vals) {
@@ -184,8 +183,8 @@ public class PDL1Tools{
             try {
                 int[] events = countNucleiInViewport(viewer);
                 // Defensive checks
-                int denomTumor = (events != null && events.length > 0) ? events[0] : 0;
-                int nuclei     = (events != null && events.length > 1) ? events[1] : 0;
+                int denomTumor = events.length > 0 ? events[0] : 0;
+                int nuclei     = events.length > 1 ? events[1] : 0;
                 // 4) Update HUD on the JavaFX thread
                 Platform.runLater(() -> {
                     if (denomTumor == 0 && nuclei == 0) {
@@ -262,7 +261,6 @@ public class PDL1Tools{
         var region = ImageRegion.createInstance(x, y, w, h, plane.getZ(), plane.getT());
 
         // Prefer detections collection typed as PathDetectionObject if your API returns it
-        var hits = hier.getAllDetectionsForRegion(region, null); // Collection<? extends PathDetectionObject>
 
         // Build a single list that includes both detections & annotations
         List<PathObject> objs = new ArrayList<>();
@@ -332,8 +330,8 @@ public class PDL1Tools{
     }
 
 
-    private static double m(MeasurementList ml, String key) {
-        return (ml == null) ? Double.NaN : ml.get(key);
+    private static double m(MeasurementList ml) {
+        return (ml == null) ? Double.NaN : ml.get("PD-L1 positive");
     }
 
 
@@ -351,7 +349,7 @@ public class PDL1Tools{
         var ml = d.getMeasurementList();
 
         // Prefer explicit flag if present
-        double flag = m(ml, "PD-L1 positive");
+        double flag = m(ml);
         if (!Double.isNaN(flag)) return flag >= 0.5;
 
         // Fallback to intensity-based (adjust keys to your data)
