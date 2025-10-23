@@ -105,7 +105,7 @@ dependencyResolutionManagement {
         }
 
         create("sciJava") {
-            from("org.scijava:pom-scijava:42.0.0")
+            from("org.scijava:pom-scijava:43.0.0")
         }
 
     }
