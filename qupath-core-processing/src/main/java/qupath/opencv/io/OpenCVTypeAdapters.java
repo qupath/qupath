@@ -21,23 +21,38 @@
 
 package qupath.opencv.io;
 
-import java.io.IOException;
-import java.util.Map;
-
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.opencv_core.*;
-import org.bytedeco.opencv.opencv_ml.*;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.Strictness;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.FileNode;
+import org.bytedeco.opencv.opencv_core.FileStorage;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
+import org.bytedeco.opencv.opencv_core.SparseMat;
+import org.bytedeco.opencv.opencv_ml.ANN_MLP;
+import org.bytedeco.opencv.opencv_ml.Boost;
+import org.bytedeco.opencv.opencv_ml.DTrees;
+import org.bytedeco.opencv.opencv_ml.EM;
+import org.bytedeco.opencv.opencv_ml.KNearest;
+import org.bytedeco.opencv.opencv_ml.LogisticRegression;
+import org.bytedeco.opencv.opencv_ml.NormalBayesClassifier;
+import org.bytedeco.opencv.opencv_ml.RTrees;
+import org.bytedeco.opencv.opencv_ml.SVM;
+import org.bytedeco.opencv.opencv_ml.SVMSGD;
+import org.bytedeco.opencv.opencv_ml.StatModel;
+
+import java.io.IOException;
+import java.util.Map;
 
 
 /**
@@ -64,7 +79,7 @@ public class OpenCVTypeAdapters {
 	 * Get a TypeAdapterFactory to pass to a GsonBuilder to aid with serializing OpenCV objects 
 	 * (e.g. Mat, StatModel).
 	 * 
-	 * @return
+	 * @return the type adapter factory
 	 */
 	public static TypeAdapterFactory getOpenCVTypeAdaptorFactory() {
 		return new OpenCVTypeAdaptorFactory();
@@ -72,10 +87,9 @@ public class OpenCVTypeAdapters {
 	
 	
 	/**
-	 * Get a TypeAdapter to pass to a GsonBuilder for a specific supported OpenCV class, 
-	 * i.e. Mat, SparseMat or StatModel.
+	 * Get a TypeAdapter to pass to a GsonBuilder for a specific supported OpenCV class.
 	 * 
-	 * @param cls
+	 * @param cls the OpenCV class, i.e. {@link Mat}, {@link SparseMat} or {@link StatModel}
 	 * @return the required TypeAdaptor, or null if no supported adapter is available for the class.
 	 */
 	@SuppressWarnings("unchecked")
@@ -184,11 +198,11 @@ public class OpenCVTypeAdapters {
 	 */
 	public abstract static class OpenCVTypeAdapter<T> extends TypeAdapter<T> {
 		
-		Gson gson = new GsonBuilder().setLenient().create();
+		Gson gson = new GsonBuilder().setStrictness(Strictness.LENIENT).create();
 
 		@Override
 		public void write(JsonWriter out, T value) throws IOException {
-			boolean lenient = out.isLenient();
+			var strictness = out.getStrictness();
 			String json = null;
 			try (FileStorage fs = new FileStorage()) {
 				fs.open("anything.json", FileStorage.FORMAT_JSON + FileStorage.WRITE + FileStorage.MEMORY);
@@ -198,7 +212,7 @@ public class OpenCVTypeAdapters {
 				JsonObject element = gson.fromJson(json.trim(), JsonObject.class);
 				gson.toJson(element, out);
 			} finally {
-				out.setLenient(lenient);
+				out.setStrictness(strictness);
 			}
 		}
 		
@@ -208,7 +222,7 @@ public class OpenCVTypeAdapters {
 
 		@Override
 		public T read(JsonReader in) throws IOException {
-			boolean lenient = in.isLenient();
+			var strictness = in.getStrictness();
 			try {
 				JsonElement element = JsonParser.parseReader(in);
 				JsonObject obj = element.getAsJsonObject();
@@ -218,7 +232,7 @@ public class OpenCVTypeAdapters {
 					return read(fs);
 				}
 			} finally {
-				in.setLenient(lenient);
+				in.setStrictness(strictness);
 			}
 		}
 		
@@ -258,7 +272,7 @@ public class OpenCVTypeAdapters {
 	
 	private static class StatModelTypeAdapter extends TypeAdapter<StatModel> {
 		
-		Gson gson = new GsonBuilder().setLenient().create();
+		Gson gson = new GsonBuilder().setStrictness(Strictness.LENIENT).create();
 
 		@Override
 		public void write(JsonWriter out, StatModel value) throws IOException {
@@ -283,10 +297,16 @@ public class OpenCVTypeAdapters {
 			}
 		}
 
-		@Override
+        // model.read(FileNode) is reported to be deprecated in JavaCPP,
+        // but I can't find evidence in OpenCV that this is correct -
+        // and I can't find a replacement.
+        // The warning appears on every QuPath launch, so I'd like to remove it
+        // so that (real, actionable) warnings don't get ignored.
+        @SuppressWarnings("deprecation")
+        @Override
 		public StatModel read(JsonReader in) throws IOException {
 			
-			boolean lenient = in.isLenient();
+			var strictness = in.getStrictness();
 			
 			try {
 				JsonElement element = JsonParser.parseReader(in);
@@ -341,7 +361,7 @@ public class OpenCVTypeAdapters {
 					return model;
 				}
 			} finally {
-				in.setLenient(lenient);
+				in.setStrictness(strictness);
 			}
 		}
 		

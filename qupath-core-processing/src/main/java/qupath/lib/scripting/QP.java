@@ -23,47 +23,10 @@
 
 package qupath.lib.scripting;
 
-import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Member;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.UUID;
-import java.util.WeakHashMap;
-import java.util.function.Predicate;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
+import com.google.common.collect.ObjectArrays;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.ObjectArrays;
-
 import qupath.imagej.processing.IJFilters;
 import qupath.imagej.tools.IJProperties;
 import qupath.imagej.tools.IJTools;
@@ -107,16 +70,16 @@ import qupath.lib.io.PathIO.GeoJsonExportOptions;
 import qupath.lib.io.PointIO;
 import qupath.lib.io.UriResource;
 import qupath.lib.io.UriUpdater;
+import qupath.lib.objects.CellTools;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectPredicates;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
-import qupath.lib.objects.CellTools;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
@@ -155,6 +118,41 @@ import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.GroovyCV;
 import qupath.opencv.tools.NumpyTools;
 import qupath.opencv.tools.OpenCVTools;
+
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Member;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Scanner;
+import java.util.Set;
+import java.util.UUID;
+import java.util.WeakHashMap;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Collection of static methods that are useful for scripting.
@@ -996,8 +994,8 @@ public class QP {
 	 * 
 	 * @see #getCurrentImageData()
 	 */
-	public static ImageServer<?> getCurrentServer() {
-		ImageData<?> imageData = getCurrentImageData();
+	public static ImageServer<BufferedImage> getCurrentServer() {
+		ImageData<BufferedImage> imageData = getCurrentImageData();
 		if (imageData == null)
 			return null;
 		return imageData.getServer();

@@ -21,37 +21,18 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import com.google.gson.Strictness;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.Strictness;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Unmatched;
@@ -72,6 +53,23 @@ import qupath.lib.io.GsonTools;
 import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.ImageRegion;
+
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Helper class for working with {@link ImageServer} objects.
@@ -1012,15 +1010,7 @@ public class ImageServers {
 		ImageServerTypeAdapter(boolean includeMetadata) {
 			this.includeMetadata = includeMetadata;
 		}
-		
-		
-//		private Gson gson = new GsonBuilder()
-//				.setLenient()
-//				.serializeSpecialFloatingPointValues()
-//				.setPrettyPrinting()
-//				.registerTypeAdapterFactory(serverBuilderFactory)
-////				.registerTypeAdapterFactory(new ImageServerTypeAdapterFactory())
-//				.create();
+
 		
 		@Override
 		public void write(JsonWriter out, ImageServer<BufferedImage> server) throws IOException {

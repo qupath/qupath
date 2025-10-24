@@ -21,25 +21,6 @@
 
 package qupath.opencv.ops;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
 import org.apache.commons.math3.util.FastMath;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
@@ -54,7 +35,6 @@ import org.bytedeco.opencv.opencv_core.Size;
 import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -80,6 +60,25 @@ import qupath.opencv.tools.LocalNormalization;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleResultsBuilder;
 import qupath.opencv.tools.OpenCVTools;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Create and use {@link ImageOp} and {@link ImageDataOp} objects.
@@ -1215,7 +1214,7 @@ public class ImageOps {
 					return Collections.singletonList(input);
 				var padding = getPadding();
 				var size = new Size(padding.getX1()*2+1, padding.getY1()*2+1);
-				OpenCVTools.applyToChannels(input, mat -> opencv_imgproc.GaussianBlur(mat, mat, size, sigmaX, sigmaY, opencv_core.BORDER_REFLECT));
+				OpenCVTools.applyToChannels(input, mat -> opencv_imgproc.GaussianBlur(mat, mat, size, sigmaX, sigmaY, opencv_core.ALGO_HINT_ACCURATE, opencv_core.BORDER_REFLECT));
 				return Collections.singletonList(input);
 			}
 
