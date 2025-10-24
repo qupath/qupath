@@ -1100,18 +1100,29 @@ public class OpenCVTools {
 	
 	/**
 	 * Get the standard deviation of image channels, ignoring NaNs.
-	 * @param mat
+	 * @param mat input mat
 	 * @return an array of channel standard deviation; the length equals mat.channels()
 	 * @implNote this uses OpenCV's meanStdDev method, which is not corrected for bias; 
 	 *           it provides the square root of the population variance.
 	 */
 	public static double[] channelStdDev(Mat mat) {
-		var mean = new Mat();
-		var stdDev = new Mat();
-		opencv_core.meanStdDev(mat, mean, stdDev);
-		double[] output = extractDoubles(stdDev);
-		mean.close();
-		stdDev.close();
+        int nChannels = mat.channels();
+        double[] output = new double[nChannels];
+        try (var scope = new PointerScope()) {
+            var channel = new Mat();
+            var mean = new Mat();
+            var stdDev = new Mat();
+            for (int c = 0; c < nChannels; c++) {
+                opencv_core.extractChannel(mat, channel, c);
+                opencv_core.meanStdDev(channel, mean, stdDev);
+                try (var indexer = stdDev.createIndexer()) {
+                    output[c] = indexer.getDouble(0L);
+                }
+            }
+        }
+        // Previously used this - but it failed with OpenCV 4.12.0 on Windows (not macOS)
+        // docs suggest should not have more than 4 channels as input
+//		opencv_core.meanStdDev(mat, mean, stdDev);
 		return output;
 	}
 	

@@ -21,22 +21,6 @@
 
 package qupath.opencv.tools;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Random;
-import java.util.stream.IntStream;
-
-import javax.imageio.ImageIO;
-
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -48,13 +32,28 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.imagej.tools.IJTools;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Timeit;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
+
+import javax.imageio.ImageIO;
+import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+import java.util.stream.IntStream;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("javadoc")
 public class TestOpenCVTools {
@@ -481,8 +480,39 @@ public class TestOpenCVTools {
 		assertArrayEquals(values, OpenCVTools.channelMaximum(mat), eps);
 		
 		// Standard deviations should be zero
+        System.err.println(mat);
+        System.err.println(mat.size());
+        System.err.println(mat.createIndexer());
 		assertArrayEquals(new double[mat.channels()], OpenCVTools.channelStdDev(mat), eps);
 	}
+
+    @Test
+    public void testChannelStdDev() {
+        // See failed test at https://github.com/qupath/qupath/actions/runs/18785570829/job/53602838138?pr=2017
+        // Previously, using opencv_core.meanStdDev() caused an unexpected failure when updating OpenCV.
+        // This tries to ensure that the new code returns sensible results, even for images with more than 4 channels.
+        double[] values = new double[] {1, 2, 3, 4, 4, 5, 6, 7};
+        double stdDev = Math.sqrt(28.0 / 8.0);
+        try (var scope = new PointerScope()) {
+            var mat = new Mat();
+            OpenCVTools.mergeChannels(
+                    List.of(
+                            new Mat(values),
+                            new Mat(Arrays.stream(values).map(d -> d*2).toArray()),
+                            new Mat(Arrays.stream(values).map(d -> d*3).toArray()),
+                            new Mat(Arrays.stream(values).map(d -> d*4).toArray()),
+                            new Mat(Arrays.stream(values).map(d -> d*5).toArray()),
+                            new Mat(Arrays.stream(values).map(d -> d*6).toArray()),
+                            new Mat(Arrays.stream(values).map(d -> d*7).toArray()),
+                            new Mat(Arrays.stream(values).map(d -> d*8).toArray())
+                    ),
+                    mat);
+
+            assertArrayEquals(new double[]{
+                    stdDev, stdDev*2, stdDev*3, stdDev*4, stdDev*5, stdDev*6, stdDev*7, stdDev*8
+            }, OpenCVTools.channelStdDev(mat), 1e-3);
+        }
+    }
 	
 	@Test
 	public void testPercentilePerformance() {
