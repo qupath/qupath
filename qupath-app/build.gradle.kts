@@ -23,6 +23,7 @@ dependencies {
     // Bundled extensions
     implementation(libs.qupath.training)
     implementation(libs.qupath.djl)
+    implementation(libs.qupath.imglib2)
 
     implementation(libs.extensionmanager)
 }
