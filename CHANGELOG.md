@@ -6,9 +6,7 @@ Version in progress...
 * Sync mini/channel viewers with a main viewer in multiple ways (https://github.com/qupath/qupath/pull/1970)
   * Sync to the cursor, sync to the selected object or sync to the viewer center
 * Improve toggling between point and multipoint tools (https://github.com/qupath/qupath/pull/1972)
-* Update to Deep Java Library 0.34.0 (supports PyTorch 2.7.1)
-* *Downgrade* of OpenCV to 4.9.0
-  * This is needed for https://github.com/qupath/qupath-extension-align to work
+* Update to Deep Java Library 0.35.0 (supports PyTorch 2.7.1)
 * The maximum memory preference now uses a percentage, not a number of GB
 
 ### Bug fixes
@@ -33,9 +31,9 @@ Version in progress...
 * Groovy 5.0.2
 * Gson 2.13.2
 * Guava 33.5.0-jre
-* JavaCPP 1.5.10
+* JavaCPP 1.5.12
 * JavaFX 25.0.1
-* OpenCV 4.9.0
+* OpenCV 4.11.0
 * RichTextFX 0.11.6
 * SciJava POM 43.0.0 (for Fiji builds)
 

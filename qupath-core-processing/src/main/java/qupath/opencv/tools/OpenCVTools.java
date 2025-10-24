@@ -23,6 +23,52 @@
 
 package qupath.opencv.tools;
 
+import ij.CompositeImage;
+import ij.ImagePlus;
+import ij.ImageStack;
+import ij.process.ByteProcessor;
+import ij.process.FloatProcessor;
+import ij.process.ImageProcessor;
+import ij.process.ShortProcessor;
+import org.apache.commons.math3.stat.descriptive.rank.Percentile;
+import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
+import org.apache.commons.math3.stat.ranking.NaNStrategy;
+import org.bytedeco.javacpp.IntPointer;
+import org.bytedeco.javacpp.Pointer;
+import org.bytedeco.javacpp.PointerScope;
+import org.bytedeco.javacpp.indexer.ByteIndexer;
+import org.bytedeco.javacpp.indexer.DoubleIndexer;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.Index;
+import org.bytedeco.javacpp.indexer.Indexer;
+import org.bytedeco.javacpp.indexer.IntIndexer;
+import org.bytedeco.javacpp.indexer.ShortIndexer;
+import org.bytedeco.javacpp.indexer.UByteIndexer;
+import org.bytedeco.javacpp.indexer.UShortIndexer;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.analysis.images.ContourTracing;
+import qupath.lib.analysis.images.SimpleImage;
+import qupath.lib.analysis.images.SimpleImages;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.objects.PathObject;
+import qupath.lib.regions.Padding;
+import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -44,54 +90,6 @@ import java.util.function.DoublePredicate;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_imgproc;
-import org.apache.commons.math3.stat.descriptive.rank.Percentile;
-import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
-import org.apache.commons.math3.stat.ranking.NaNStrategy;
-import org.bytedeco.javacpp.IntPointer;
-import org.bytedeco.javacpp.Pointer;
-import org.bytedeco.javacpp.PointerScope;
-import org.bytedeco.javacpp.indexer.ByteIndexer;
-import org.bytedeco.javacpp.indexer.DoubleIndexer;
-import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.indexer.Index;
-import org.bytedeco.javacpp.indexer.Indexer;
-import org.bytedeco.javacpp.indexer.IntIndexer;
-import org.bytedeco.javacpp.indexer.ShortIndexer;
-import org.bytedeco.javacpp.indexer.UByteIndexer;
-import org.bytedeco.javacpp.indexer.UShortIndexer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import ij.CompositeImage;
-import ij.ImagePlus;
-import ij.ImageStack;
-import ij.process.ByteProcessor;
-import ij.process.FloatProcessor;
-import ij.process.ImageProcessor;
-import ij.process.ShortProcessor;
-
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
-import org.bytedeco.opencv.opencv_core.Point;
-import org.bytedeco.opencv.opencv_core.Rect;
-import org.bytedeco.opencv.opencv_core.Scalar;
-import org.bytedeco.opencv.opencv_core.Size;
-
-import qupath.lib.analysis.images.ContourTracing;
-import qupath.lib.analysis.images.SimpleImage;
-import qupath.lib.analysis.images.SimpleImages;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.objects.PathObject;
-import qupath.lib.regions.Padding;
-import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Collection of static methods to help with using OpenCV from Java.
@@ -1102,18 +1100,29 @@ public class OpenCVTools {
 	
 	/**
 	 * Get the standard deviation of image channels, ignoring NaNs.
-	 * @param mat
+	 * @param mat input mat
 	 * @return an array of channel standard deviation; the length equals mat.channels()
 	 * @implNote this uses OpenCV's meanStdDev method, which is not corrected for bias; 
 	 *           it provides the square root of the population variance.
 	 */
 	public static double[] channelStdDev(Mat mat) {
-		var mean = new Mat();
-		var stdDev = new Mat();
-		opencv_core.meanStdDev(mat, mean, stdDev);
-		double[] output = extractDoubles(stdDev);
-		mean.close();
-		stdDev.close();
+        int nChannels = mat.channels();
+        double[] output = new double[nChannels];
+        try (var scope = new PointerScope()) {
+            var channel = new Mat();
+            var mean = new Mat();
+            var stdDev = new Mat();
+            for (int c = 0; c < nChannels; c++) {
+                opencv_core.extractChannel(mat, channel, c);
+                opencv_core.meanStdDev(channel, mean, stdDev);
+                try (var indexer = stdDev.createIndexer()) {
+                    output[c] = indexer.getDouble(0L);
+                }
+            }
+        }
+        // Previously used this - but it failed with OpenCV 4.12.0 on Windows (not macOS)
+        // docs suggest should not have more than 4 channels as input
+//		opencv_core.meanStdDev(mat, mean, stdDev);
 		return output;
 	}
 	
@@ -2322,7 +2331,7 @@ public class OpenCVTools {
 	public static void gaussianFilter(Mat mat, double sigma, int borderType) {
 		int s = (int)Math.ceil(sigma * 4) * 2 + 1;
 		try (var size = new Size(s, s)) {
-			opencv_imgproc.GaussianBlur(mat, mat, size, sigma, sigma, borderType);
+			opencv_imgproc.GaussianBlur(mat, mat, size, sigma, sigma, opencv_core.ALGO_HINT_ACCURATE, borderType);
 		}
 	}
 	
