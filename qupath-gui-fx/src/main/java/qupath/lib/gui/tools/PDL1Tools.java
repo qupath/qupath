@@ -27,7 +27,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-
 public class PDL1Tools{
     // Debounce state for the box updater
     private static final ScheduledExecutorService PDL1_EXEC =
@@ -141,14 +140,18 @@ public class PDL1Tools{
         Node applyBtn = dialog.getDialogPane().lookupButton(applyType);
         applyBtn.setDisable(false);
         ChangeListener<String> guard = (_, _, _) -> {
-            try {
-                Double.parseDouble(t1.getText());
-                Double.parseDouble(t2.getText());
-                Double.parseDouble(t3.getText());
-                applyBtn.setDisable(false);
-            } catch (Exception ex) {
-                applyBtn.setDisable(true);
+            boolean anyValid = false;
+            for (TextField tf : new TextField[]{t1, t2, t3}) {
+                String txt = tf.getText().trim();
+                if (!txt.isEmpty()) {
+                    try {
+                        Double.parseDouble(txt);
+                        anyValid = true;
+                        break;
+                    } catch (Exception ignored) {}
+                }
             }
+            applyBtn.setDisable(!anyValid);
         };
         t1.textProperty().addListener(guard);
         t2.textProperty().addListener(guard);
@@ -156,13 +159,19 @@ public class PDL1Tools{
 
         dialog.getDialogPane().setContent(grid);
 
+        // ✅ return only entered numeric thresholds
         dialog.setResultConverter(btn -> {
             if (btn == applyType) {
-                return new double[] {
-                        Double.parseDouble(t1.getText()),
-                        Double.parseDouble(t2.getText()),
-                        Double.parseDouble(t3.getText())
-                };
+                List<Double> vals = new ArrayList<>();
+                for (TextField tf : new TextField[]{t1, t2, t3}) {
+                    String txt = tf.getText().trim();
+                    if (!txt.isEmpty()) {
+                        try {
+                            vals.add(Double.parseDouble(txt));
+                        } catch (Exception ignored) {}
+                    }
+                }
+                return vals.stream().mapToDouble(Double::doubleValue).toArray();
             }
             return null;
         });
@@ -174,10 +183,7 @@ public class PDL1Tools{
 
     public static void startViewportCounter(QuPathViewer viewer, double[] vals) {
         stopViewportCounter(); // ensure only one running at a time
-
         attachHud(viewer);
-
-        final double t1 = vals[0], t2 = vals[1], t3 = vals[2];
 
         viewFuture = PDL1_EXEC.scheduleAtFixedRate(() -> {
             try {
@@ -190,18 +196,24 @@ public class PDL1Tools{
                     if (denomTumor == 0 && nuclei == 0) {
                         setHudText("No cells detected");
                     } else {
-                        double th1Count = denomTumor * t1 / 100.0;
-                        double th2Count = denomTumor * t2 / 100.0;
-                        double th3Count = denomTumor * t3 / 100.0;
+                        if (vals != null && vals.length > 0) {
+                            StringBuilder sb = new StringBuilder();
+                            sb.append(String.format(
+                                    "CPS or TPS Helpers — Tumor: %d (Denominator) | Nuclei: %d%nThresholds: ",
+                                    denomTumor, nuclei
+                            ));
 
-                        setHudText(String.format(
-                                "CPS or TPS Helpers — Tumor: %d (Denominator) | Nuclei: %d%n" +
-                                        "Thresholds: %.0f (%.0f), %.0f (%.0f), %.0f (%.0f)",
-                                denomTumor, nuclei,
-                                t1, th1Count,
-                                t2, th2Count,
-                                t3, th3Count
-                        ));
+                            // Loop through only the thresholds provided
+                            for (int i = 0; i < vals.length; i++) {
+                                double t = vals[i];
+                                double thCount = denomTumor * t / 100.0;
+                                sb.append(String.format("%.0f (%.0f)", t, thCount));
+                                if (i < vals.length - 1) sb.append(", "); // comma only between entries
+                            }
+
+                            setHudText(sb.toString());
+                        }
+
                     }
                 });
 
@@ -277,7 +289,6 @@ public class PDL1Tools{
 
             if (!(obj instanceof PathDetectionObject)) continue;
             PathDetectionObject d = (PathDetectionObject) obj;
-
             ROI roi = d.getROI();
             if (roi == null) continue;
 

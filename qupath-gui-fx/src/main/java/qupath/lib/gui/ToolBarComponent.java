@@ -152,7 +152,7 @@ class ToolBarComponent {
 			}
 			if (Boolean.TRUE.equals(is)) {
 				double[] vals = showPdl1Popup();              // expected: double[3]
-				if (vals == null || vals.length < 3) {
+				if (vals == null) {
 					Platform.runLater(() -> btnPdl1.setSelected(false));
 				}
 				else{
