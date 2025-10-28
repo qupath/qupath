@@ -37,7 +37,7 @@ jts             = "1.20.0"
 junit           = "5.11.0"
 
 logback         = "1.5.8"
-logviewer       = "0.2.0"
+logviewer       = "0.3.0"
 
 extensionmanager= "1.0.2"
 
