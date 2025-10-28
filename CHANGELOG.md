@@ -21,6 +21,7 @@ Version in progress...
 * Incorrect error message when merging projects (https://github.com/qupath/qupath/issues/1990)
 * Resetting preferences on Windows set max memory to 512 MB (https://github.com/qupath/qupath/issues/1946)
 * Grid view images can become 'locked' to a color transform (https://github.com/qupath/qupath/issues/1953)
+* ZProjectedImageServer fails with out-of-memory error for large, non-RGB images (https://github.com/qupath/qupath/issues/2021)
 
 ### Dependency updates
 * Bio-Formats 8.3.0

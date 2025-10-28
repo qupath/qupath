@@ -33,7 +33,6 @@ import java.awt.image.DataBufferFloat;
 import java.awt.image.DataBufferInt;
 import java.awt.image.DataBufferShort;
 import java.awt.image.DataBufferUShort;
-import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.net.URI;
@@ -485,7 +484,7 @@ public class ZProjectedImageServer extends AbstractTileableImageServer {
         return new BufferedImage(
                 ColorModelFactory.createColorModel(getMetadata().getPixelType(), getMetadata().getChannels()),
                 WritableRaster.createWritableRaster(
-                        new BandedSampleModel(dataBuffer.getDataType(), getWidth(), getHeight(), nChannels()),
+                        new BandedSampleModel(dataBuffer.getDataType(), tileRequest.getTileWidth(), tileRequest.getTileHeight(), nChannels()),
                         dataBuffer,
                         null
                 ),
