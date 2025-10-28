@@ -253,16 +253,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						channelsCell.put(stain.getName() + " OD", fps[i]);
 					}
 				}
-//				channels.put("Hematoxylin OD",  fps[0]);
-//				if (stains.isH_DAB()) {
-//					channels.put("DAB OD", fps[1]);
-//					channelsCell.put("DAB OD", fps[1]);
-//				}
-//				else if (stains.isH_E()) {
-//					channels.put("Eosin OD", fps[1]);
-//					channelsCell.put("Eosin OD", fps[1]);
-//				}
-				
 
 				if (!params.getParameters().get("detectionImageBrightfield").isHidden()) {
 					String stainChoice = (String)params.getChoiceParameterValue("detectionImageBrightfield");
@@ -297,13 +287,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						}
 					}
 				}
-				
-				// Temporary test of the usefulness of RGB measurements...
-//				channels.put("Red", ((ColorProcessor)ip).toFloat(0, null));
-//				channels.put("Green", ((ColorProcessor)ip).toFloat(1, null));
-//				channels.put("Blue", ((ColorProcessor)ip).toFloat(2, null));
-				
-			} //else {
+
+			}
 			if (fpDetection == null) {
 				List<ImageChannel> imageChannels = imageData.getServerMetadata().getChannels();
 				if (ip instanceof ColorProcessor) {
@@ -319,25 +304,23 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 							logger.warn("Channel with duplicate name '{}' - will be skipped", name);
 						else
 							channels.put(name, imp.getStack().getProcessor(imp.getStackIndex(c, 0, 0)).convertToFloatProcessor());
-//						channels.put("Channel " + c, imp.getStack().getProcessor(imp.getStackIndex(c, 0, 0)).convertToFloatProcessor());
 					}
 				}
-				// For fluorescence, measure everything
+
+                // For fluorescence, measure everything
 				channelsCell.putAll(channels);
-				
-				// Try to get detection channel for fluorescence
+
+
+                // Try to get detection channel for fluorescence
 				String detectionChannelName;
 				if (!isBrightfield) {
+                    if (params.containsKey("detectionImageBrightfield")) {
+                        throw new IllegalStateException("Non-brightfield image has brightfield detection image...");
+                    }
 					detectionChannelName = (String)params.getChoiceParameterValue("detectionImage");
 					fpDetection = channels.get(detectionChannelName);
-//					detectionChannel = params.getIntParameterValue("detectionImageFluorescence");
 				}
 				else throw new IllegalArgumentException("No valid detection channel is selected!");
-//				if (detectionChannelName == null) {
-//					detectionChannelName = imageChannels.get(detectionChannel-1).getName();
-//					logger.warn("Unable to find specified Channel {} - will default to Channel 1", detectionChannel);
-//				}
-//				fpDetection = channels.get(detectionChannelName);
 			}
 			WatershedCellDetector detector2 = new WatershedCellDetector(fpDetection, channels, channelsCell, roi, pathImage);
 			

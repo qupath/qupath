@@ -61,9 +61,7 @@ public class ParameterList implements Serializable {
 	private static final Logger logger = LoggerFactory.getLogger(ParameterList.class);
 	
 	private Map<String, Parameter<?>> params = new LinkedHashMap<>();
-	
-//	public ParameterList() {};
-	
+
 	private static ParameterList copyParameters(ParameterList params) {
 		ParameterList paramsCopy = new ParameterList();
 		for (Entry<String, Parameter<?>> entry : params.params.entrySet()) {
@@ -71,20 +69,6 @@ public class ParameterList implements Serializable {
 		}
 		return paramsCopy;
 	}
-	
-	
-//	/**
-//	 * Add all the parameters from a second ParameterList to this one.
-//	 * <p>
-//	 * Note that the parameters are added directly (not copied), therefore changes
-//	 * in one list will be reflected in the other.  If this is not desired, then
-//	 * a copy should be made first.
-//	 * @param params2
-//	 */
-//	public void addParameters(ParameterList params2) {
-//		params.putAll(params2.params);
-//	}
-	
 	
 	/**
 	 * Set the 'hidden' flag for parameters with the specified keys.
@@ -339,48 +323,7 @@ public class ParameterList implements Serializable {
 	public boolean containsKey(final Object key) {
 		return params.containsKey(key);
 	}
-	
-	
-	
-//	public Parameter<?> getParameter(String key) {
-//		return params.get(key);
-//	}
-//	
-//	public BooleanParameter getBooleanParameter(String key) {
-//		Parameter<?> p = params.get(key);
-//		if (p instanceof BooleanParameter)
-//			return (BooleanParameter)p;
-//		return null;
-//	}
-//	
-//	public DoubleParameter getDoubleParameter(String key) {
-//		Parameter<?> p = params.get(key);
-//		if (p instanceof DoubleParameter)
-//			return (DoubleParameter)p;
-//		return null;
-//	}
-//	
-//	public IntParameter getIntParameter(String key) {
-//		Parameter<?> p = params.get(key);
-//		if (p instanceof IntParameter)
-//			return (IntParameter)p;
-//		return null;
-//	}
-//	
-//	public StringParameter getStringParameter(String key) {
-//		Parameter<?> p = params.get(key);
-//		if (p instanceof StringParameter)
-//			return (StringParameter)p;
-//		return null;
-//	}
-//	
-//	public ChoiceParameter<?> getChoiceParameter(String key) {
-//		Parameter<?> p = params.get(key);
-//		if (p instanceof ChoiceParameter<?>)
-//			return (ChoiceParameter<?>)p;
-//		return null;
-//	}
-	
+
 	
 	Boolean getBooleanParameterValue(String key, Boolean defaultValue) {
 		Parameter<?> p = params.get(key);
@@ -507,15 +450,6 @@ public class ParameterList implements Serializable {
 			String key = entry.getKey();
 			Parameter<?> parameter = mapParams.get(key);
 			if (parameter == null || !parameter.setStringLastValue(locale, entry.getValue())) {
-//				if (parameter != null && parameter.isHidden())
-//					logger.info("Skipping hidden parameter " + key + " with value " + entry.getValue());
-//				else
-				
-//				if (key.equals(InteractivePluginTools.KEY_REGIONS))
-//					params.addChoiceParameter(InteractivePluginTools.KEY_REGIONS, "Regions", entry.getValue(), new String[]{entry.getValue()});
-//				else if (key.equals(InteractivePluginTools.KEY_SKIP_NON_EMPTY))
-//					params.addBooleanParameter(InteractivePluginTools.KEY_SKIP_NON_EMPTY, "Skip non-empty", Boolean.parseBoolean(entry.getValue()));
-//				else
 					logger.warn("Unable to set parameter {} with value {}", key, entry.getValue());
 			} else
 				parameter.setStringLastValue(locale, entry.getValue());
@@ -612,7 +546,6 @@ public class ParameterList implements Serializable {
 			else if (value instanceof Boolean)
 				sb.append(value.toString());
 			else if (value instanceof Number) {
-//				sb.append(NumberFormat.getInstance().format(value));
 				sb.append(value.toString());
 			} else
 				sb.append("\"").append(value).append("\"");
@@ -662,18 +595,5 @@ public class ParameterList implements Serializable {
 		var json = convertToJson(map);
 		return json;
 	}
-	
-	
-//	/**
-//	 * Put a parameter into the list, possibly replacing a previous parameter.
-//	 * 
-//	 * @param key
-//	 * @param parameter
-//	 * @return
-//	 */
-//	public Parameter<? extends Object> putParameter(String key, Parameter<?> parameter) {
-//		return params.put(key, parameter);
-//	}
-	
 
 }
