@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,8 +23,17 @@
 
 package qupath.lib.plugins.parameters;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.io.GsonTools;
+import qupath.lib.objects.classes.PathClass;
+
 import java.io.Serializable;
 import java.lang.reflect.Type;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -32,16 +41,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.JsonElement;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
-
-import qupath.lib.io.GsonTools;
-import qupath.lib.objects.classes.PathClass;
 
 
 /**
@@ -94,9 +93,21 @@ public class ParameterList implements Serializable {
 	 * @param keys
 	 */
 	public void setHiddenParameters(final boolean hidden, String...keys) {
-		for (String key : keys)
-			params.get(key).setHidden(hidden);
+		setHiddenParameters(hidden, List.of(keys));
 	}
+
+    /**
+     * Set the 'hidden' flag for parameters with the specified keys.
+     * This can be used to notify any consumer that certain parameters are not required,
+     * or otherwise should not be presented to the user.
+     * @param hidden
+     * @param keys
+     * @since v0.7.0
+     */
+    public void setHiddenParameters(final boolean hidden, Collection<String> keys) {
+        for (String key : keys)
+            params.get(key).setHidden(hidden);
+    }
 	
 	/**
 	 * Create a deep copy of this parameter list.
