@@ -281,6 +281,23 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			Map<String, String> map = GeneralTools.parseArgStringValues(arg);
 			if (map.containsKey("detectionImageFluorescence"))
 				throw new IllegalArgumentException("'detectionImageFluorescence' is not supported in this version of QuPath - use 'detectionImage' instead");
+
+            // Do validity check for detection image
+            if (imageData.isBrightfield()) {
+                if (map.getOrDefault("detectionImageBrightfield", null) == null)
+                    throw new IllegalArgumentException("No valid brightfield detection image specified! " +
+                            "You may need to change the image type or re-run cell detection with different parameters.");
+            } else {
+                var channel = map.getOrDefault("detectionImage", null);
+                if (channel == null)
+                    throw new IllegalArgumentException("No valid detection channel specified! " +
+                            "You may need to change the image type or re-run cell detection with a different channel selected.");
+                else {
+                    var availableChannels = imageData.getServer().getMetadata().getChannels().stream().map(ImageChannel::getName).toList();
+                    if (!availableChannels.contains(channel))
+                        throw new IllegalArgumentException("Specified channel '" + channel + "' was not found - available channels are " + availableChannels);
+                }
+            }
 		}
 		return super.parseArgument(imageData, arg);
 	}
@@ -295,18 +312,27 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		// Show/hide parameters depending on whether the pixel size is known
 		Map<String, Parameter<?>> map = params.getParameters();
 		boolean pixelSizeKnown = imageData.getServer() != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
-		for (String name : micronParameters)
-			map.get(name).setHidden(!pixelSizeKnown);
-		for (String name : pixelParameters)
-			map.get(name).setHidden(pixelSizeKnown);
-		
 		params.setHiddenParameters(!pixelSizeKnown, micronParameters);
 		params.setHiddenParameters(pixelSizeKnown, pixelParameters);
 
+        // Since v0.7.0 we remove non-matching parameters depending upon image type.
+        // This is to prevent the user from running with the wrong parameters for the type, and getting unexpected
+        // results because a default value for the correct image type manages to sneak in.
 		boolean isBrightfield = imageData.isBrightfield();
-		params.setHiddenParameters(!isBrightfield, brightfieldParameters);
-		params.setHiddenParameters(isBrightfield, fluorescenceParameters);
-		
+        if (isBrightfield) {
+            for (var param : fluorescenceParameters) {
+                params.removeParameter(param);
+            }
+        } else {
+            for (var param : brightfieldParameters) {
+                params.removeParameter(param);
+            }
+        }
+        // What we did before v0.7.0
+//		params.setHiddenParameters(!isBrightfield, brightfieldParameters);
+//		params.setHiddenParameters(isBrightfield, fluorescenceParameters);
+
+        // Set default threshold for non-brightfield images (this is a complete guess, we don't know the pixel values!)
 		if (!isBrightfield) {
             if (params.getParameters().get("threshold") instanceof DoubleParameter thresholdParameter) {
                 if (imageData.getServer().getPixelType().getBitsPerPixel() > 8)
@@ -392,6 +418,14 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
             if (pathROI == null)
                 throw new IOException("Cell detection requires a ROI!");
 
+            if (imageData.isBrightfield()) {
+                if (params.getParameters().get("detectionImageBrightfield") == null) {
+                    throw new IllegalArgumentException("Parameters are for a non-brightfield image but that doesn't match the current image type!");
+                }
+            } else if (params.getParameters().get("detectionImage") == null) {
+                throw new IllegalArgumentException("Parameters are for a brightfield image but that doesn't match the current image type!");
+            }
+
             ImageServer<BufferedImage> server = imageData.getServer();
             double downsample = ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params));
             var request = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
@@ -406,6 +440,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
             Map<String, FloatProcessor> channels = new LinkedHashMap<>();
             Map<String, FloatProcessor> channelsCell = new LinkedHashMap<>();
             Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
+            // For a brightfield image, cell detection is intended to be used with color deconvolution
+            // (at least, it requires low values in the background, high values within nuclei)
             if (stains != null && isBrightfield) {
                 FloatProcessor[] fps;
                 if (ip instanceof ColorProcessor cp) {
@@ -463,12 +499,14 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
                     }
                 }
             }
+
+            // If we have a non-brightfield image, we won't have a detection image yet - so keep looking for one
             if (fpDetection == null) {
                 List<ImageChannel> imageChannels = imageData.getServerMetadata().getChannels();
-                if (ip instanceof ColorProcessor) {
+                if (ip instanceof ColorProcessor cp) {
                     for (int c = 0; c < 3; c++) {
                         String name = imageChannels.get(c).getName();
-                        channels.put(name, ((ColorProcessor)ip).toFloat(c, null));
+                        channels.put(name, cp.toFloat(c, null));
                     }
                 } else {
                     ImagePlus imp = pathImage.getImage();
@@ -478,7 +516,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
                             logger.warn("Channel with duplicate name '{}' - will be skipped", name);
                         else
                             channels.put(name, imp.getStack().getProcessor(imp.getStackIndex(c, 0, 0)).convertToFloatProcessor());
-//						channels.put("Channel " + c, imp.getStack().getProcessor(imp.getStackIndex(c, 0, 0)).convertToFloatProcessor());
                     }
                 }
                 // For fluorescence, measure everything

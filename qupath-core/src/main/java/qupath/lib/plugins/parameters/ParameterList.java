@@ -517,17 +517,13 @@ public class ParameterList implements Serializable {
 		for (Entry<String, String> entry : mapNew.entrySet()) {
 			String key = entry.getKey();
 			Parameter<?> parameter = mapParams.get(key);
-			if (parameter == null || !parameter.setStringLastValue(locale, entry.getValue())) {
-//				if (parameter != null && parameter.isHidden())
-//					logger.info("Skipping hidden parameter " + key + " with value " + entry.getValue());
-//				else
-				
-//				if (key.equals(InteractivePluginTools.KEY_REGIONS))
-//					params.addChoiceParameter(InteractivePluginTools.KEY_REGIONS, "Regions", entry.getValue(), new String[]{entry.getValue()});
-//				else if (key.equals(InteractivePluginTools.KEY_SKIP_NON_EMPTY))
-//					params.addBooleanParameter(InteractivePluginTools.KEY_SKIP_NON_EMPTY, "Skip non-empty", Boolean.parseBoolean(entry.getValue()));
-//				else
-					logger.warn("Unable to set parameter {} with value {}", key, entry.getValue());
+            // Before v0.7.0 we only logged a warning - but this could result in unexpected behavior through the use of
+            // default values (e.g. for cell detection with the wrong image type, or if there was a typo in the key)
+            if (parameter == null) {
+                throw new IllegalArgumentException("No parameter exists with name '" + key + "'");
+            }
+			if (!parameter.setStringLastValue(locale, entry.getValue())) {
+    			logger.warn("Unable to set parameter {} with value {} - value will remain {}", key, entry.getValue(), parameter.getValue());
 			} else
 				parameter.setStringLastValue(locale, entry.getValue());
 		}

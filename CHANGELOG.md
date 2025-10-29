@@ -8,6 +8,7 @@ Version in progress...
 * Improve toggling between point and multipoint tools (https://github.com/qupath/qupath/pull/1972)
 * Update to Deep Java Library 0.35.0 (supports PyTorch 2.7.1)
 * The maximum memory preference now uses a percentage, not a number of GB
+* Cell detection is more strict about valid inputs to reduce risk of unexpected behavior
 
 ### Bug fixes
 * Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
