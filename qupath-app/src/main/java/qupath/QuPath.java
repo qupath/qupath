@@ -51,6 +51,7 @@ import qupath.lib.common.Version;
 import qupath.lib.gui.BuildInfo;
 import qupath.lib.gui.QuPathApp;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.extensions.Subcommand;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
@@ -359,9 +360,15 @@ class ScriptCommand implements Runnable {
 			// Ensure we have a tile cache set
 			createTileCache();
 
-			// Load image server builders from extensions
-			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader()));
-			Thread.currentThread().setContextClassLoader(QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader());
+			// Load image server builders from extensions and install extensions in headless mode
+			ClassLoader extensionClassLoader = QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader();
+
+			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
+			Thread.currentThread().setContextClassLoader(extensionClassLoader);
+
+			for (QuPathExtension extension : ServiceLoader.load(QuPathExtension.class, extensionClassLoader)) {
+				extension.installHeadless();
+			}
 			
 			// Unfortunately necessary to force initialization (including GsonTools registration of some classes)
 			QP.getCoreClasses();
