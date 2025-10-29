@@ -620,7 +620,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		private double sigma = 2.5;
 		private double threshold = 0.3;
 		private boolean mergeAll = true;
-		private boolean watershedPostProcess = true; // TODO: COMBINE WITH MERGEALL OPTION
+		private boolean watershedPostProcess = true;
 		private boolean excludeDAB = false;
 		private boolean smoothBoundaries = false;
 
@@ -784,7 +784,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
             // Threshold the main LoG image
             ByteProcessor bpLoG = SimpleThresholding.thresholdAbove(fpLoG, 0.0);
             // Need to set the threshold very slightly above zero for ImageJ
-            // TODO: DECIDE ON USING MY WATERSHED OR IMAGEJ'S....
             fpLoG.setRoi(roi);
 
             ImageProcessor ipTemp = MorphologicalReconstruction.findRegionalMaxima(fpLoG, 0.001f, false);
@@ -796,7 +795,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
             }
 
             ipNucleusLabels.setThreshold(0.5, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
-            // TODO: Consider 4/8 connectivity for watershed nucleus ROIs
             List<PolygonRoi> rois = RoiLabeling.getFilledPolygonROIs(ipNucleusLabels, Wand.FOUR_CONNECTED);
 
             if (Thread.currentThread().isInterrupted())
@@ -830,7 +828,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				bp.filter(ImageProcessor.MAX);
 				bp.copyBits(bpLoG, 0, 0, Blitter.AND);	
 				if (watershedPostProcess) {
-					// TODO: ARRANGE A MORE EFFICIENT FILL HOLES
 					List<PolygonRoi> rois2 = RoiLabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
 					bp.setValue(255);
 					for (Roi r : rois2)
@@ -919,7 +916,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			double downsampleSqrt = Math.sqrt(downsample);
 			
 			// Create nucleus objects
-			// TODO: Set the measurement capacity to improve efficiency
 			List<PathObject> nucleiObjects = new ArrayList<>();
 			Calibration cal = pathImage.getImage().getCalibration();
 			ImagePlane plane = ImagePlane.getPlane(z, t);
@@ -989,7 +985,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				}
 							
 				// Create labelled image for cytoplasm, i.e. remove all nucleus pixels
-				// TODO: Make a buffer zone between nucleus and cytoplasm!
 				for (int i = 0; i < ipLabels.getWidth() * ipLabels.getHeight(); i++) {
 					if (ipLabels.getf(i) != 0)
 						ipLabelsCells.setf(i, 0f);
