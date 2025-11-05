@@ -21,15 +21,6 @@
 
 package qupath.process.gui.commands;
 
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -47,10 +38,10 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
@@ -65,6 +56,15 @@ import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.process.gui.commands.ml.ClassificationResolution;
 import qupath.process.gui.commands.ml.PixelClassifierUI;
+
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Apply simple thresholding to an image via the pixel classification framework to support 
@@ -409,7 +409,8 @@ public class SimpleThresholdCommand implements Runnable {
 		var newTransforms = new ArrayList<>(getAvailableTransforms(imageData));
 		if (!newTransforms.equals(transforms.getItems()))
 			transforms.getItems().setAll(newTransforms);
-		if (transforms.getSelectionModel().getSelectedItem() == null)
+		if (transforms.getSelectionModel().getSelectedItem() == null ||
+                !transforms.getItems().contains(transforms.getSelectionModel().getSelectedItem()))
 			transforms.getSelectionModel().selectFirst();
 		
 	}
