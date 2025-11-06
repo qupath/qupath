@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -62,7 +63,7 @@ public class IJProperties {
 
 
     /**
-     * Set the {@code IMAGE_REGION} property as a string representation of the region's bounding box.
+     * Set the IMAGE_REGION_ROOT property as a string representation of the region's bounding box.
      * <p>
      * This also stores additional properties under {@code "qupath.image.region.x"}, {@code "qupath.image.region.y"},
      * {@code "qupath.image.region.width"} and {@code "qupath.image.region.height"} to encode the values separately,
@@ -89,6 +90,11 @@ public class IJProperties {
         return prop;
     }
 
+    /**
+     * Get the IMAGE_REGION_ROOT property, if set.
+     * @param imp
+     * @return the image region stored in the image properties, or null if a valid region could not be found
+     */
     public static ImageRegion getImageRegion(ImagePlus imp) {
         String sx = imp.getProp(IMAGE_REGION_ROOT + "x");
         String sy = imp.getProp(IMAGE_REGION_ROOT + "y");
@@ -190,8 +196,10 @@ public class IJProperties {
      */
     public static final String OBJECT_NAME = "qupath.object.name";
 
-    // TODO: Support object type as a property
-//    public static final String OBJECT_TYPE = "qupath.object.type";
+    /**
+     * Set property that stores the type of an object.
+     */
+    public static final String OBJECT_TYPE = "qupath.object.type";
 
     /**
      * Set property for {@link PathObject#getID()} ()}
@@ -272,6 +280,7 @@ public class IJProperties {
      * Set a property storing a QuPath object ID within a specified Roi.
      * @param roi the roi with the property to set
      * @param pathObject the object whose ID should be stored
+     * @return a string representation of the object id
      * @see #OBJECT_ID
      */
     public static String setObjectId(Roi roi, PathObject pathObject) {
@@ -282,6 +291,7 @@ public class IJProperties {
      * Set a property storing a QuPath object ID within a specified Roi.
      * @param roi the roi with the property to set
      * @param id the id value
+     * @return a string representation of the object id
      * @see #OBJECT_ID
      */
     public static String setObjectId(Roi roi, UUID id) {
@@ -304,6 +314,48 @@ public class IJProperties {
             logger.warn("Invalid object ID in Roi: {}", id);
             return null;
         }
+    }
+
+    /**
+     * Set a property storing the type of an object (e.g. annotation, detection, cell).
+     * @param roi the roi with the property to set
+     * @param pathObject the object whose type should be set
+     * @return a string representation of the object type
+     * @see #OBJECT_TYPE
+     * @see #setObjectType(Roi, PathObject, String)
+     */
+    public static String setObjectType(Roi roi, PathObject pathObject) {
+        return setObjectType(roi, pathObject, null);
+    }
+
+    /**
+     * Set a property storing the type of an object (e.g. annotation, detection, cell),
+     * optionally appending an additional string.
+     * @param roi the roi with the property to set
+     * @param pathObject the object whose type should be set
+     * @param append an additional string to append; the main use of this is to add {@code ".nucleus"} to distinguish
+     *               a cell boundary from its nucleus.
+     * @return a string representation of the object type
+     * @see #OBJECT_TYPE
+     * @see #setObjectType(Roi, PathObject)
+     */
+    public static String setObjectType(Roi roi, PathObject pathObject, String append) {
+        var val = PathObjectTools.getSuitableName(pathObject.getClass(), false);
+        if (append != null && !append.isEmpty()) {
+
+            val += append;
+        }
+        roi.setProperty(OBJECT_TYPE, val);
+        return val;
+    }
+
+    /**
+     * Get the value of a Roi's OBJECT_TYPE property.
+     * @param roi the roi
+     * @return the value of OBJECT_TYPE, or null if no type property is set
+     */
+    public static String getObjectType(Roi roi) {
+        return roi.getProperty(OBJECT_TYPE);
     }
 
     /**

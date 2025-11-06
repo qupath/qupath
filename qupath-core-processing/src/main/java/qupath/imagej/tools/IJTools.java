@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022, 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022, 2024, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,27 +23,6 @@
 
 package qupath.imagej.tools;
 
-import java.awt.Color;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
-import java.awt.image.SampleModel;
-import java.io.File;
-import java.io.IOException;
-import java.text.DecimalFormat;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.function.Function;
-import java.util.zip.ZipFile;
-
-import javax.swing.SwingUtilities;
-
-import org.locationtech.jts.geom.Polygon;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import ij.CompositeImage;
 import ij.ImagePlus;
 import ij.ImageStack;
@@ -51,7 +30,6 @@ import ij.gui.Line;
 import ij.gui.PointRoi;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
-import ij.gui.ShapeRoi;
 import ij.gui.Wand;
 import ij.io.FileInfo;
 import ij.measure.Calibration;
@@ -64,6 +42,9 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
+import org.locationtech.jts.geom.Polygon;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.imagej.processing.IJProcessing;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
@@ -96,6 +77,22 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
+import javax.swing.SwingUtilities;
+import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.SampleModel;
+import java.io.File;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.function.Function;
+import java.util.zip.ZipFile;
+
 /**
  * Collection of static methods to help with using ImageJ with QuPath.
  * 
@@ -106,7 +103,7 @@ public class IJTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(IJTools.class);
 	
-	private static List<String> micronList = Arrays.asList("micron", "microns", "um", GeneralTools.micrometerSymbol());
+	private static final List<String> micronList = Arrays.asList("micron", "microns", "um", GeneralTools.micrometerSymbol());
 	
 	// Defines what fraction of total available memory can be allocated to transferring a single image to ImageJ 
 	private static double MEMORY_THRESHOLD = 0.5;
@@ -619,7 +616,7 @@ public class IJTools {
 		IJProperties.setClassification(roi, pathObject);
 		IJProperties.setObjectName(roi, pathObject);
 		IJProperties.setObjectId(roi, pathObject);
-		roi.setProperty("qupath.object.type", PathObjectTools.getSuitableName(pathObject.getClass(), false));
+        IJProperties.setObjectType(roi, pathObject);
 		// Set the Roi color, if a color is used
 		Integer colorRGB = pathObject.getColor();
 		var pc = pathObject.getPathClass();
@@ -672,7 +669,7 @@ public class IJTools {
 	 * @param plane the {@link ImagePlane} defining where ROIs should be added
 	 * @return a {@link SortedMap} containing integer labels from the original labeled images mapped to the corresponding cells that have been created
 	 */
-	public static SortedMap<Number, PathObject> convertLabelsToCells(
+	public static SortedMap<Integer, PathObject> convertLabelsToCells(
 			ImageProcessor ipNuclei, ImageProcessor ipCells,
 			Calibration cal, double downsample, ImagePlane plane) {
 		
@@ -693,13 +690,13 @@ public class IJTools {
 	 * @param plane the {@link ImagePlane} defining where ROIs should be added
 	 * @return a {@link SortedMap} containing integer labels from the original labeled images mapped to the corresponding cells that have been created
 	 */
-	public static SortedMap<Number, PathObject> convertLabelsToCells(
+	public static SortedMap<Integer, PathObject> convertLabelsToCells(
 			ImageProcessor ipNuclei, ImageProcessor ipCells,
 			double xOrigin, double yOrigin, double downsample, ImagePlane plane) {
 		
 		int width = ipCells.getWidth();
 		int height = ipCells.getHeight();
-		SortedMap<Number, PathObject> cells = new TreeMap<>();
+		SortedMap<Integer, PathObject> cells = new TreeMap<>();
 		
 		// First, go through and get all nuclei & associated cells
 		var wandCells = new Wand(ipCells);
