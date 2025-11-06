@@ -36,7 +36,7 @@ jfxtras         = "17-r1"
 jts             = "1.20.0"
 junit           = "5.11.0"
 
-logback         = "1.5.8"
+logback         = "1.5.20"
 logviewer       = "0.3.0"
 
 extensionmanager= "1.0.2"
@@ -47,7 +47,7 @@ openslide       = "4.0.0.6"
 
 picocli         = "4.7.7"
 
-qupath-fxtras   = "0.2.0"
+qupath-fxtras   = "0.2.1"
 qupath-training = "0.1.0"
 qupath-djl      = "0.4.0"
 
@@ -135,7 +135,7 @@ javacpp        = { id = "org.bytedeco.gradle-javacpp-platform",     version.ref 
 # If javafx plugin causes trouble, see https://github.com/openjfx/javafx-gradle-plugin#migrating-from-0014-to-010
 javafx         = { id = "org.openjfx.javafxplugin",                 version = "0.1.0" }
 # For jpackage
-jpackage       = { id = "org.beryx.runtime",                        version = "2.0.0" } # Non-modular
+jpackage       = { id = "org.beryx.runtime",                        version = "2.0.1" } # Non-modular
 # For license report (including 3rd party licenses)
 license-report = { id = "com.github.jk1.dependency-license-report", version = "3.0.1" }
 # For checksums when creating builds

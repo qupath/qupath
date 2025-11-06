@@ -35,7 +35,9 @@ Version in progress...
 * Guava 33.5.0-jre
 * JavaCPP 1.5.12
 * JavaFX 25.0.1
+* Logback 1.5.20
 * OpenCV 4.11.0
+* QuPath fxtras 0.2.1
 * RichTextFX 0.11.6
 * SciJava POM 43.0.0 (for Fiji builds)
 
