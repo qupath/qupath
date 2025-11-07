@@ -599,12 +599,14 @@ public class ImageJScriptRunner {
             defaultName += " (" + count + ")";
         roi.setName(defaultName);
         IJTools.calibrateRoi(roi, pathObject);
+        IJProperties.setDefaultRoiName(roi, roi.getName());
         if (pathObject instanceof PathCellObject cell) {
             var nucleusRoi = cell.getNucleusROI();
             if (nucleusRoi != null) {
                 var roi2 = IJTools.convertToIJRoi(nucleusRoi, request);
                 IJTools.calibrateRoi(roi2, pathObject);
                 roi2.setName(roi.getName() + "-nucleus");
+                IJProperties.setDefaultRoiName(roi2, roi2.getName());
                 IJProperties.setObjectType(roi2, cell, ".nucleus");
                 return List.of(roi, roi2);
             }

@@ -213,6 +213,15 @@ public class IJProperties {
      */
     public static final String OBJECT_MEASUREMENT_ROOT = "qupath.object.measurements.";
 
+    /**
+     * Property to store the name for a {@link Roi}.
+     * The purpose of this is to allow QuPath to set the name of a {@code Roi} for processing within ImageJ,
+     * but then identify whether that name has been changed within ImageJ or not.
+     * <p>
+     * It addresses the problem of figuring out when the name of a {@code Roi} should be used to update a QuPath
+     * object (because the name was intentionally set elsewhere), and when it should not.
+     */
+    public static final String DEFAULT_ROI_NAME = "qupath.default.roi.name";
 
     /**
      * Set a property storing a QuPath object classification within a specified Roi.
@@ -274,6 +283,36 @@ public class IJProperties {
      */
     public static String getObjectName(Roi roi) {
         return roi.getProperty(OBJECT_NAME);
+    }
+
+    /**
+     * Set the value of the DEFAULT_ROI_NAME property.
+     * @param roi the roi
+     * @param name the name to set
+     * @return the name that was set
+     */
+    public static String setDefaultRoiName(Roi roi, String name) {
+        roi.setProperty(DEFAULT_ROI_NAME, name);
+        return name;
+    }
+
+    /**
+     * Get the value of the DEFAULT_ROI_NAME property.
+     * @param roi the roi to query
+     * @return the value of the property, or null if no value is found
+     */
+    public static String getDefaultRoiName(Roi roi) {
+        return roi.getProperty(DEFAULT_ROI_NAME);
+    }
+
+    /**
+     * Check whether the name of a Roi matches any (non-null) value of DEFAULT_ROI_NAME.
+     * @param roi the roi to query
+     * @return true if the default Roi name is not null, and matches the name of the Roi
+     */
+    public static boolean hasDefaultRoiName(Roi roi) {
+        var defaultName = getDefaultRoiName(roi);
+        return defaultName != null && defaultName.equals(roi.getName());
     }
 
     /**

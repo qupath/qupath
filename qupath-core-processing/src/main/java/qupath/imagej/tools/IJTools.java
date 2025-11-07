@@ -566,9 +566,12 @@ public class IJTools {
 	public static void calibrateObject(PathObject pathObject, Roi roi) {
 		Color color = roi.getStrokeColor();
 		Integer colorRGB = color == null ? null : color.getRGB();
-		// Take name from properties
-		// Don't use Roi.getName() because it may not have the same purpose
+		// Take name from properties if we can, or from Roi.getName() only if we haven't stored it
+		// as a default name in the properties (e.g. if this is a Roi we created within QuPath, setting
+		// the name to reflect a QuPath class or object type)
 		String name = IJProperties.getObjectName(roi);
+		if (name == null && roi.getName() != null && !IJProperties.hasDefaultRoiName(roi))
+			name = roi.getName();
 		if (name != null && !name.isBlank()) {
 			pathObject.setName(name);
 		}
