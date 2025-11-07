@@ -227,7 +227,7 @@ public class ImageServerProvider {
 			try (var server = support.getBuilders().get(0).build()) {
 				return support;
 			} catch (Exception e) {
-				logger.debug("Unable to open {}", support);
+				logger.debug("Unable to open {}", support, e);
 				exceptions.put(support, e);
 			}
 		}
