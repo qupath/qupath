@@ -6,15 +6,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.interfaces.ROI;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Store QuPath-related information within the properties of ImageJ objects.
@@ -355,37 +363,88 @@ public class IJProperties {
         }
     }
 
-    /**
-     * Set a property storing the type of an object (e.g. annotation, detection, cell).
-     * @param roi the roi with the property to set
-     * @param pathObject the object whose type should be set
-     * @return a string representation of the object type
-     * @see #OBJECT_TYPE
-     * @see #setObjectType(Roi, PathObject, String)
-     */
-    public static String setObjectType(Roi roi, PathObject pathObject) {
-        return setObjectType(roi, pathObject, null);
-    }
 
     /**
      * Set a property storing the type of an object (e.g. annotation, detection, cell),
      * optionally appending an additional string.
      * @param roi the roi with the property to set
      * @param pathObject the object whose type should be set
-     * @param append an additional string to append; the main use of this is to add {@code ".nucleus"} to distinguish
-     *               a cell boundary from its nucleus.
      * @return a string representation of the object type
      * @see #OBJECT_TYPE
-     * @see #setObjectType(Roi, PathObject)
      */
-    public static String setObjectType(Roi roi, PathObject pathObject, String append) {
-        var val = PathObjectTools.getSuitableName(pathObject.getClass(), false);
-        if (append != null && !append.isEmpty()) {
+    public static String setObjectType(Roi roi, PathObject pathObject) {
+        return switch (pathObject) {
+            case PathAnnotationObject _ -> setObjectTypeAnnotation(roi);
+            case PathCellObject _ -> setObjectTypeCell(roi);
+            case PathTileObject _ -> setObjectTypeTile(roi);
+            case PathDetectionObject _ -> setObjectTypeDetection(roi);
+            case PathRootObject _ -> setObjectType(roi, "root");
+            case null, default -> null;
+        };
+    }
 
-            val += append;
-        }
-        roi.setProperty(OBJECT_TYPE, val);
-        return val;
+    /**
+     * Set the object type property of a Roi to indicate it should be an annotation in QuPath.
+     * @param roi the ImageJ roi
+     * @return the string representing the object type
+     */
+    public static String setObjectTypeAnnotation(Roi roi) {
+        return setObjectType(roi, "annotation");
+    }
+
+    /**
+     * Set the object type property of a Roi to indicate it should be an detection in QuPath.
+     * @param roi the ImageJ roi
+     * @return the string representing the object type
+     */
+    public static String setObjectTypeDetection(Roi roi) {
+        return setObjectType(roi, "detection");
+    }
+
+    /**
+     * Set the object type property of a Roi to indicate it should be a tile in QuPath.
+     * @param roi the ImageJ roi
+     * @return the string representing the object type
+     */
+    public static String setObjectTypeTile(Roi roi) {
+        return setObjectType(roi, "tile");
+    }
+
+    /**
+     * Set the object type property of a Roi to indicate it should be a cell in QuPath.
+     * @param roi the ImageJ roi
+     * @return the string representing the object type
+     */
+    public static String setObjectTypeCell(Roi roi) {
+        return setObjectType(roi, "cell");
+    }
+
+    /**
+     * Set the object type property of a Roi to indicate it should be a cell nucleus in QuPath.
+     * <p>
+     * Note that this may be useful for ImageJ, but it is not possible to create a QuPath cell object from a single
+     * nucleus ROI.
+     * @param roi the ImageJ roi
+     * @return the string representing the object type
+     */
+    public static String setObjectTypeCellNucleus(Roi roi) {
+        return setObjectType(roi, "cell.nucleus");
+    }
+
+    private static String setObjectType(Roi roi, String typeName) {
+        roi.setProperty(OBJECT_TYPE, typeName);
+        return typeName;
+    }
+
+    private static Function<ROI, PathObject> getObjectCreatorForType(String typeString) {
+        return switch (typeString) {
+            case "annotation" -> PathObjects::createAnnotationObject;
+            case "cell" -> r -> PathObjects.createCellObject(r, null);
+            case "cell.nucleus" -> PathObjects::createDetectionObject; // Can't create a cell with a nucleus only
+            case "detection" -> PathObjects::createDetectionObject;
+            case "tile" -> PathObjects::createTileObject;
+            case null, default -> null;
+        };
     }
 
     /**
@@ -395,6 +454,33 @@ public class IJProperties {
      */
     public static String getObjectType(Roi roi) {
         return roi.getProperty(OBJECT_TYPE);
+    }
+
+    /**
+     * Get a function to create a new object based upon the stored object type property, if available.
+     * <p>
+     * Note that not all object types can be created in this way (e.g., it isn't possible to create a root object or
+     * TMA core object; it also isn't possible to create a cell containing a nucleus only, but rather only a detection).
+     *
+     * @param roi the Roi that may contain an object type property
+     * @return an optional that contains an object creator, if known
+     */
+    public static Optional<Function<ROI, PathObject>> getObjectCreator(Roi roi) {
+        var typeString = getObjectType(roi);
+        return getObjectCreator(typeString);
+    }
+
+    /**
+     * Get a function to create a new object based upon a property value of OBJECT_TYPE.
+     * <p>
+     * Note that not all object types can be created in this way (e.g., it isn't possible to create a root object or
+     * TMA core object; it also isn't possible to create a cell containing a nucleus only, but rather only a detection).
+     *
+     * @param typeString the type string, as would be set by {@link #setObjectType(Roi, PathObject)}
+     * @return an optional that contains an object creator, if known
+     */
+    public static Optional<Function<ROI, PathObject>> getObjectCreator(String typeString) {
+        return Optional.ofNullable(getObjectCreatorForType(typeString));
     }
 
     /**

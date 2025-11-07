@@ -607,7 +607,7 @@ public class ImageJScriptRunner {
                 IJTools.calibrateRoi(roi2, pathObject);
                 roi2.setName(roi.getName() + "-nucleus");
                 IJProperties.setDefaultRoiName(roi2, roi2.getName());
-                IJProperties.setObjectType(roi2, cell, ".nucleus");
+                IJProperties.setObjectTypeCellNucleus(roi2);
                 return List.of(roi, roi2);
             }
         }
