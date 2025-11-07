@@ -225,7 +225,7 @@ public class ImageServerProvider {
 			try (var server = support.getBuilders().get(0).build()) {
 				return support;
 			} catch (Exception e) {
-				logger.warn("Unable to open {}", support);
+				logger.warn("Unable to open {}", support, e);
 			}
 		}
 		return supports.isEmpty() ? null : supports.get(0);
