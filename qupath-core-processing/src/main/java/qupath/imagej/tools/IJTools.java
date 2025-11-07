@@ -372,31 +372,6 @@ public class IJTools {
 		return downsampleFactor;
 	}
 
-	/**
-	 * Create a {@link PathObject} for a specific ImageJ Roi.
-	 * This method has been deprecated, since its signature was misleading (the server was not used).
-	 * 
-	 * @param imp
-	 * @param server
-	 * @param roi
-	 * @param downsampleFactor
-	 * @param creator
-	 * @param plane
-	 * @return
-	 * @deprecated use instead {@link #convertToPathObject(Roi, double, double, double, Function, ImagePlane)}
-	 */
-	@Deprecated
-	public static PathObject convertToPathObject(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, Function<ROI, PathObject> creator, ImagePlane plane) {
-		Calibration cal = imp == null ? null : imp.getCalibration();
-		if (plane == null)
-			plane = getImagePlane(roi, imp);
-		ROI pathROI = IJTools.convertToROI(roi, cal, downsampleFactor, plane);
-		if (pathROI == null)
-			return null;
-		PathObject pathObject = creator.apply(pathROI);
-		calibrateObject(pathObject, roi);
-		return pathObject;
-	}
 	
 	/**
 	 * Create a {@link PathObject} for a specific ImageJ Roi.
@@ -454,7 +429,7 @@ public class IJTools {
 	 * @param plane the specific plane to use for the QuPath ROI; if null, the ImageJ Roi position properties will be used instead, where possible
 	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
 	 * 
-	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 * @see #convertToPathObject(Roi, double, double, double, Function, ImagePlane)
 	 * @see #convertToAnnotation(Roi, double, ImagePlus)
 	 * @since v0.4.0
 	 */
@@ -471,13 +446,13 @@ public class IJTools {
 	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
 	 * @param plane the specific plane to use for the QuPath ROI; if null, the ImageJ Roi position properties will be used instead, where possible
 	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
-	 * 
-	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 *
+	 * @see #convertToPathObject(Roi, double, double, double, Function, ImagePlane)
 	 * @see #convertToDetection(Roi, double, ImagePlus)
 	 * @since v0.4.0
 	 */
 	public static PathObject convertToDetection(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
-		return convertToPathObject(roi, xOrigin, yOrigin, downsampleFactor, r -> PathObjects.createDetectionObject(r), plane);
+		return convertToPathObject(roi, xOrigin, yOrigin, downsampleFactor, PathObjects::createDetectionObject, plane);
 	}
 
 	/**
@@ -487,13 +462,13 @@ public class IJTools {
 	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
 	 * @param imp the {@link ImagePlus} associated with this Roi; it is used to determine the xOrigin, yOrigin and image plane
 	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
-	 * 
-	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 *
+	 * @see #convertToPathObject(Roi, double, double, double, Function, ImagePlane)
 	 * @see #convertToAnnotation(Roi, double, double, double, ImagePlane)
 	 * @since v0.4.0
 	 */
 	public static PathObject convertToAnnotation(Roi roi, double downsampleFactor, ImagePlus imp) {
-		return convertToPathObject(roi, downsampleFactor, r -> PathObjects.createAnnotationObject(r), imp);
+		return convertToPathObject(roi, downsampleFactor, PathObjects::createAnnotationObject, imp);
 	}
 	
 	/**
@@ -503,13 +478,13 @@ public class IJTools {
 	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
 	 * @param imp the {@link ImagePlus} associated with this Roi; it is used to determine the xOrigin, yOrigin and image plane
 	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
-	 * 
-	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 *
+	 * @see #convertToPathObject(Roi, double, double, double, Function, ImagePlane)
 	 * @see #convertToDetection(Roi, double, double, double, ImagePlane)
 	 * @since v0.4.0
 	 */
 	public static PathObject convertToDetection(Roi roi, double downsampleFactor, ImagePlus imp) {
-		return convertToPathObject(roi, downsampleFactor, r -> PathObjects.createDetectionObject(r), imp);
+		return convertToPathObject(roi, downsampleFactor, PathObjects::createDetectionObject, imp);
 	}
 	
 	
@@ -629,38 +604,7 @@ public class IJTools {
 			roi.setStrokeColor(ColorToolsAwt.getCachedColor(colorRGB));
 	}
 	
-	
-	/**
-	 * Create an annotation object for a specific ImageJ Roi.
-	 * @param imp
-	 * @param server
-	 * @param roi
-	 * @param downsampleFactor
-	 * @param plane
-	 * @return
-	 * @deprecated use instead {@link #convertToAnnotation(Roi, double, double, double, ImagePlane)}
-	 */
-	@Deprecated
-	public static PathObject convertToAnnotation(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, ImagePlane plane) {
-		logger.debug("Called deprecated method convertToAnnotation - please update the method signature for v0.4.0+");
-		return convertToPathObject(imp, server, roi, downsampleFactor, r -> PathObjects.createAnnotationObject(r), plane);
-	}
-	
-	/**
-	 * Create an detection object for a specific ImageJ Roi.
-	 * @param imp
-	 * @param server
-	 * @param roi
-	 * @param downsampleFactor
-	 * @param plane
-	 * @return
-	 * @deprecated use instead {@link #convertToDetection(Roi, double, double, double, ImagePlane)}
-	 */
-	@Deprecated
-	public static PathObject convertToDetection(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, ImagePlane plane) {
-		logger.debug("Called deprecated method convertToDetection - please update the method signature for v0.4.0+");
-		return convertToPathObject(imp, server, roi, downsampleFactor, r -> PathObjects.createDetectionObject(r), plane);
-	}
+
 	
 	/**
 	 * Convert integer labeled images into cell objects.
