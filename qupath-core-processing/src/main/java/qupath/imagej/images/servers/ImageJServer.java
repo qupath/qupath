@@ -322,7 +322,7 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 	private PathObject roiToPathObject(Roi roiIJ) {
 		// Note that because we are reading from the ImagePlus directly, we have to avoid using any calibration information
 		var roi = IJTools.convertToROI(roiIJ, 0, 0, 1, IJTools.getImagePlane(roiIJ, imp));
-		// Create an annotation, unless an other object type is specified in the properties
+		// Create an annotation, unless another object type is specified in the properties
         var pathObject = IJProperties.getObjectCreator(roiIJ).orElse(PathObjects::createAnnotationObject).apply(roi);
         pathObject.setLocked(true);
 		IJTools.calibrateObject(pathObject, roiIJ);
