@@ -599,16 +599,15 @@ public class ImageJScriptRunner {
             defaultName += " (" + count + ")";
         roi.setName(defaultName);
         IJTools.calibrateRoi(roi, pathObject);
+        IJProperties.setDefaultRoiName(roi, roi.getName());
         if (pathObject instanceof PathCellObject cell) {
             var nucleusRoi = cell.getNucleusROI();
-            String key = "qupath.object.type";
-            roi.setProperty(key, "cell");
             if (nucleusRoi != null) {
                 var roi2 = IJTools.convertToIJRoi(nucleusRoi, request);
-                roi2.setName(defaultName);
                 IJTools.calibrateRoi(roi2, pathObject);
-                roi2.setName(roi2.getName() + "-nucleus");
-                roi2.setProperty(key, "cell.nucleus");
+                roi2.setName(roi.getName() + "-nucleus");
+                IJProperties.setDefaultRoiName(roi2, roi2.getName());
+                IJProperties.setObjectTypeCellNucleus(roi2);
                 return List.of(roi, roi2);
             }
         }
