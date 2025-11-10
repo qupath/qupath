@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -221,11 +222,19 @@ public class ImageServerProvider {
 	 */
 	public static <T> UriImageSupport<T> getPreferredUriImageSupport(final Class<T> cls, final String path, String...args) throws IOException {
 		List<UriImageSupport<T>> supports = getServerBuilders(cls, path, args);
+		Map<UriImageSupport<T>, Exception> exceptions = new LinkedHashMap<>();
 		for (UriImageSupport<T> support : supports) {
 			try (var server = support.getBuilders().get(0).build()) {
 				return support;
 			} catch (Exception e) {
-				logger.warn("Unable to open {}", support);
+				logger.debug("Unable to open {}", support, e);
+				exceptions.put(support, e);
+			}
+		}
+		if (!supports.isEmpty()) {
+			logger.warn("Unable to open any servers");
+			for (var es: exceptions.entrySet()) {
+				logger.warn(es.getKey().toString(), es.getValue());
 			}
 		}
 		return supports.isEmpty() ? null : supports.get(0);
