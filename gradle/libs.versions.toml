@@ -49,7 +49,7 @@ picocli         = "4.7.7"
 
 qupath-fxtras   = "0.2.1"
 qupath-training = "0.1.0"
-qupath-djl      = "0.4.0"
+qupath-djl      = "0.4.1"
 
 richtextfx      = "0.11.6"
 
