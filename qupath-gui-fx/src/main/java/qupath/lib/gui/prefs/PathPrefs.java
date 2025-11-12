@@ -23,6 +23,31 @@
 
 package qupath.lib.gui.prefs;
 
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener.Change;
+import javafx.collections.ObservableList;
+import javafx.scene.text.FontWeight;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.prefs.PreferenceManager;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.common.Version;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.objects.classes.PathClass;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -44,26 +69,6 @@ import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
-
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.*;
-import javafx.beans.value.ObservableBooleanValue;
-import javafx.beans.value.ObservableValue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener.Change;
-import javafx.collections.ObservableList;
-import javafx.scene.text.FontWeight;
-import qupath.fx.prefs.PreferenceManager;
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.common.Version;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.localization.QuPathResources;
-import qupath.lib.objects.classes.PathClass;
 
 /**
  * Central storage of QuPath preferences.
@@ -620,7 +625,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static IntegerProperty navigationSpeedProperty = createPersistentPreference("Navigation speed %", 100);
+	private static IntegerProperty navigationSpeedProperty = createPersistentPreference("Navigation speed %", 10);
 	
 	/**
 	 * Percentage to scale navigation speed.
