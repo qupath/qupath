@@ -43,10 +43,13 @@ class BioFormatsShapeConverter {
 
     /**
      * Convert the provided shape to a ROI.
+     * <p>
+     * Note that compressed masks are not supported.
      *
      * @param shape the shape to convert
      * @return the ROI corresponding to the provided shape, or an empty Optional
-     * if it was not possible to convert the shape
+     * if it was not possible to convert the shape (in which case the reason is logged with the
+     * WARN log level)
      * @throws NullPointerException if the provided shape is null
      */
     public static Optional<ROI> convertShapeToRoi(Shape shape) {
@@ -62,7 +65,7 @@ class BioFormatsShapeConverter {
             case Polygon polygon -> Optional.of(convertPolygon(polygon));
             case Polyline polyline -> Optional.of(convertPolyLine(polyline));
             default -> {
-                logger.debug("Unknown shape {}. Cannot convert it to QuPath ROI", shape);
+                logger.warn("Unknown shape {}. Cannot convert it to QuPath ROI", shape);
                 yield Optional.empty();
             }
         };
@@ -93,26 +96,44 @@ class BioFormatsShapeConverter {
 
         BinData binData = mask.getBinData();
         if (binData == null) {
-            logger.debug("Binary data of {} null, cannot convert it to ROI", mask);
+            logger.warn("Binary data of {} null, cannot convert it to ROI", mask);
             return null;
         }
-        long nPixels = binData.getLength() == null ? binData.getBase64Binary().length : binData.getLength().getValue();
 
-        double maskWidth = mask.getWidth() == null ? 0 : mask.getWidth();
-        double maskHeight = mask.getHeight() == null ? 0 : mask.getHeight();
-        // Aspect ratios of binData and mask are the same, hence the formula below. We assume square pixels
-        int width = (int) Math.round(Math.sqrt(nPixels * (maskWidth / maskHeight)));
-        int height = (int)(nPixels / width);
-        if (((long)width * height) != nPixels) {
-            logger.debug("Couldn't figure out dimensions: {}x{} != {} pixels. Cannot convert {}", width, height, nPixels, mask);
+        if (binData.getCompression() != null && binData.getCompression().getValue() != null && !binData.getCompression().getValue().equals("none")) {
+            logger.warn("Binary data of {} uses the {} compression, which is not supported. Cannot convert it to ROI", mask, binData.getCompression().getValue());
             return null;
         }
 
         byte[] array = binData.getBase64Binary();
         if (array == null) {
-            logger.debug("Base64 byte array of {} null, cannot convert it to ROI", mask);
+            logger.warn("Base64 byte array of {} null, cannot convert it to ROI", mask);
             return null;
         }
+        int nPixels = array.length;
+
+        if (mask.getWidth() == null) {
+            logger.warn("Width of {} not set, cannot convert it to ROI", mask);
+            return null;
+        }
+        double maskWidth = mask.getWidth();
+
+        if (mask.getHeight() == null) {
+            logger.warn("Height of {} not set, cannot convert it to ROI", mask);
+            return null;
+        }
+        double maskHeight = mask.getHeight();
+
+        // Aspect ratios of binData and mask are the same, hence the formula below. We assume square pixels
+        double preciseWidth = Math.sqrt(nPixels * (maskWidth / maskHeight));
+        double preciseHeight = nPixels / preciseWidth;
+        int width = (int) Math.round(preciseWidth);
+        int height = (int) Math.round(preciseHeight);
+        if (width * height != nPixels) {
+            logger.warn("Couldn't figure out dimensions: {}x{}={} != {} pixels. Cannot convert {}", width, height, width*height, nPixels, mask);
+            return null;
+        }
+
         SimpleModifiableImage simpleImage = SimpleImages.createFloatImage(width, height);
         for (int i = 0; i < nPixels; i++) {
             if (array[i] != 0) {
@@ -240,11 +261,11 @@ class BioFormatsShapeConverter {
                         try {
                             return new Point2(Double.parseDouble(point[0]), Double.parseDouble(point[1]));
                         } catch (NumberFormatException e) {
-                            logger.debug("Cannot convert {} to two double elements", pointStr, e);
+                            logger.warn("Cannot convert {} to two double elements. Skipping it when parsing {}", pointStr, pointsString, e);
                             return null;
                         }
                     } else {
-                        logger.debug("Cannot find two elements in {}", pointStr);
+                        logger.warn("Cannot find two elements in {}. Skipping it when parsing {}", pointStr, pointsString);
                         return null;
                     }
                 })
