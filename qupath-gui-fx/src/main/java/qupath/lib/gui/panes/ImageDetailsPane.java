@@ -148,7 +148,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
         PIXEL_HEIGHT("Pixel height", "The height of each pixel in physical space"),
         Z_SPACING("Z spacing", "The spacing of Z-slices in physical space"),
         UNCOMPRESSED_SIZE("Uncompressed size", "The total data size without any compression"),
-        SERVER_TYPE("Server type", "The type of ImageServer used to open the image"),
+        SERVER_TYPE("Server type", "The type of ImageServer used to retrieve pixel values"),
         PYRAMID("Pyramid", "The pyramidal magnification levels available in the image"),
 		METADATA_CHANGED("Metadata changed", "Has the original metadata been changed in QuPath?"),
         IMAGE_TYPE("Image type", "The image type setting used in QuPath"),
