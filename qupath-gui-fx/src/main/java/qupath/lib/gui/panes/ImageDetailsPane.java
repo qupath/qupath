@@ -129,23 +129,60 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 
 	private ImageData<BufferedImage> imageData;
 
-	private StackPane pane = new StackPane();
+	private final StackPane pane = new StackPane();
 
-	private TableView<ImageDetailRow> table = new TableView<>();
-	private ListView<String> listAssociatedImages = new ListView<>();
+	private final TableView<ImageDetailRow> table = new TableView<>();
+	private final ListView<String> listAssociatedImages = new ListView<>();
 
-	private Map<String, SimpleImageViewer> associatedImageViewers = new HashMap<>();
+	private final Map<String, SimpleImageViewer> associatedImageViewers = new HashMap<>();
 
 	private enum ImageDetailRow {
-		NAME, URI, PIXEL_TYPE, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS,
-		PIXEL_WIDTH, PIXEL_HEIGHT, Z_SPACING, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID,
-		METADATA_CHANGED, IMAGE_TYPE,
-		STAIN_1, STAIN_2, STAIN_3, BACKGROUND;
-	};
+		NAME("Name", "The image name"),
+        URI("URI(s)", "The uniform resource identifier of the image"),
+        PIXEL_TYPE("Pixel type", "The data type of the pixel values"),
+        MAGNIFICATION("Magnification", "The magnification at which the image was captured"),
+        WIDTH("Width", "The image width in pixels"),
+        HEIGHT("Height", "The image height in pixels"),
+        DIMENSIONS("Dimensions (CZT)", "The number of channels, Z-slices, and time points present in the image, respectively"),
+		PIXEL_WIDTH("Pixel width", "The width of each pixel in physical space"),
+        PIXEL_HEIGHT("Pixel height", "The height of each pixel in physical space"),
+        Z_SPACING("Z spacing", "The spacing of Z-slices in physical space"),
+        UNCOMPRESSED_SIZE("Uncompressed size", "The total size of the full resolution image without any compression"),
+        SERVER_TYPE("Server type", "The type of ImageServer used to retrieve pixel values"),
+        PYRAMID("Pyramid", "The pyramidal zoom levels available in the image (if any)"),
+		METADATA_CHANGED("Metadata changed", "Has the original metadata been changed in QuPath?"),
+        IMAGE_TYPE("Image type", "The image type setting used in QuPath"),
+        STAIN_1("Stain 1", "The first stain used for color deconvolution"),
+        STAIN_2("Stain 2", "The second stain used for color deconvolution"),
+        STAIN_3("Stain 3", "The third stain used for color deconvolution"),
+        BACKGROUND("Background", "The pixel values used as background for color deconvolution");
 
-	private static List<ImageDetailRow> brightfieldRows;
-	private static List<ImageDetailRow> otherRows;
-	
+        private final String name;
+        private final String description;
+        static final Set<ImageDetailRow> doubleClickable = Set.of(MAGNIFICATION, PIXEL_WIDTH, PIXEL_HEIGHT, Z_SPACING, IMAGE_TYPE, STAIN_1, STAIN_2, STAIN_3, BACKGROUND);
+
+        public boolean isDoubleClickable() {
+            return doubleClickable.contains(this);
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        ImageDetailRow(String name, String description) {
+            this.name = name;
+            this.description = description;
+        }
+
+    }
+
+	private static final List<ImageDetailRow> brightfieldRows;
+	private static final List<ImageDetailRow> otherRows;
+
 	static {
 		brightfieldRows = Arrays.asList(ImageDetailRow.values());
 		otherRows = new ArrayList<>(brightfieldRows);
@@ -156,8 +193,8 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 	}
 
 	/**
-	 * Constructor.
-	 * @param imageDataProperty 
+	 * Create an instance of the class.
+	 * @param imageDataProperty the image data to be represented
 	 */
 	public ImageDetailsPane(final ObservableValue<ImageData<BufferedImage>> imageDataProperty) {
 		imageDataProperty.addListener(this);
@@ -167,16 +204,17 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		table.setMinHeight(200);
 		table.setPrefHeight(250);
 		table.setMaxHeight(Double.MAX_VALUE);
-		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 		TableColumn<ImageDetailRow, String> columnName = new TableColumn<>("Name");
-		columnName.setCellValueFactory(v -> new ReadOnlyStringWrapper(getName(v.getValue())));
+		columnName.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue().getName()));
 		columnName.setEditable(false);
 		columnName.setPrefWidth(150);
+        columnName.setCellFactory(_ -> new ImageDetailNameTableCell());
 		TableColumn<ImageDetailRow, Object> columnValue = new TableColumn<>("Value");
 		columnValue.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(getValue(v.getValue())));
 		columnValue.setEditable(false);
 		columnValue.setPrefWidth(200);
-		columnValue.setCellFactory(c -> new ImageDetailTableCell(imageDataProperty));
+		columnValue.setCellFactory(_ -> new ImageDetailValueTableCell(imageDataProperty));
 		table.getColumns().add(columnName);
 		table.getColumns().add(columnValue);
 
@@ -455,13 +493,13 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		var grid = new GridPane();
 		int nHorizontal = 3;
 		int nVertical = (int)Math.ceil(buttons.length / (double)nHorizontal);
-		grid.getColumnConstraints().setAll(IntStream.range(0, nHorizontal).mapToObj(i -> {
+		grid.getColumnConstraints().setAll(IntStream.range(0, nHorizontal).mapToObj(_ -> {
 			var c = new ColumnConstraints();
 			c.setPercentWidth(100.0/nHorizontal);
 			return c;
 		}).toList());
 
-		grid.getRowConstraints().setAll(IntStream.range(0, nVertical).mapToObj(i -> {
+		grid.getRowConstraints().setAll(IntStream.range(0, nVertical).mapToObj(_ -> {
 			var c = new RowConstraints();
 			c.setPercentHeight(100.0/nVertical);
 			return c;
@@ -485,7 +523,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 				ImageTypeSetting.NONE, "Don't set the image type"
 				);
 		comboOptions.setButtonCell(FXUtils.createCustomListCell(p -> prompts.get(p)));
-		comboOptions.setCellFactory(c -> FXUtils.createCustomListCell(p -> prompts.get(p)));
+		comboOptions.setCellFactory(_ -> FXUtils.createCustomListCell(p -> prompts.get(p)));
 		comboOptions.setTooltip(
 				new Tooltip("Choose whether you want to see these prompts " +
 						"when opening an image for the first time"));
@@ -655,14 +693,12 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		table.getItems().setAll(getRows());
 		table.refresh();
 
-		if (listAssociatedImages != null) {
-			if (server == null)
-				listAssociatedImages.getItems().clear();
-			else
-				listAssociatedImages.getItems().setAll(server.getAssociatedImageList());
-		}
+        if (server == null)
+            listAssociatedImages.getItems().clear();
+        else
+            listAssociatedImages.getItems().setAll(server.getAssociatedImageList());
 
-		// Check if we're showing associated images
+        // Check if we're showing associated images
 		for (var entry : associatedImageViewers.entrySet()) {
 			var name = entry.getKey();
 			var simpleViewer = entry.getValue();
@@ -700,52 +736,6 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		return list;
 	}
 
-	private String getName(ImageDetailRow row) {
-		switch (row) {
-		case NAME:
-			return "Name";
-		case URI:
-			if (imageData != null && imageData.getServer().getURIs().size() == 1)
-				return "URI";
-			return "URIs";
-		case IMAGE_TYPE:
-			return "Image type";
-		case METADATA_CHANGED:
-			return "Metadata changed";
-		case PIXEL_TYPE:
-			return "Pixel type";
-		case MAGNIFICATION:
-			return "Magnification";
-		case WIDTH:
-			return "Width";
-		case HEIGHT:
-			return "Height";
-		case DIMENSIONS:
-			return "Dimensions (CZT)";
-		case PIXEL_WIDTH:
-			return "Pixel width";
-		case PIXEL_HEIGHT:
-			return "Pixel height";
-		case Z_SPACING:
-			return "Z-spacing";
-		case UNCOMPRESSED_SIZE:
-			return "Uncompressed size";
-		case SERVER_TYPE:
-			return "Server type";
-		case PYRAMID:
-			return "Pyramid";
-		case STAIN_1:
-			return "Stain 1";
-		case STAIN_2:
-			return "Stain 2";
-		case STAIN_3:
-			return "Stain 3";
-		case BACKGROUND:
-			return "Background";
-		default:
-			return null;
-		}
-	}
 
 	private static String decodeURI(URI uri) {
 		try {
@@ -841,20 +831,39 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			return imageData.getColorDeconvolutionStains().getStain(3);
 		case BACKGROUND:
 			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
-			double[] whitespace = new double[]{stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue()};
-			return whitespace;
+            return new double[]{stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue()};
 		default:
 			return null;
 		}
 
 	}
-	
-	
-	private static class ImageDetailTableCell extends TableCell<ImageDetailRow, Object> {
+
+    private static class ImageDetailNameTableCell extends TableCell<ImageDetailRow, String> {
+        @Override
+        protected void updateItem(String item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty) {
+                setText(null);
+                setGraphic(null);
+                return;
+            }
+            var imageDetailRow = getTableRow().getItem();
+            setText(imageDetailRow.getName());
+            String toolTipText = imageDetailRow.getDescription();
+            if (imageDetailRow.isDoubleClickable()) {
+                toolTipText += " (double-click value field to edit)";
+            } else if (imageDetailRow == ImageDetailRow.METADATA_CHANGED) {
+                toolTipText += " (double-click value field to reset original metadata)";
+            }
+            setTooltip(new Tooltip(toolTipText));
+        }
+    }
+
+	private static class ImageDetailValueTableCell extends TableCell<ImageDetailRow, Object> {
 		
 		private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
 
-		ImageDetailTableCell(ObservableValue<ImageData<BufferedImage>> imageDataProperty) {
+		ImageDetailValueTableCell(ObservableValue<ImageData<BufferedImage>> imageDataProperty) {
 			this.imageDataProperty = imageDataProperty;
 			setOnMouseClicked(this::handleMouseClick);
 		}
@@ -875,23 +884,22 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			if (item instanceof double[]) {
 				text = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])item, 2);
 				tooltipText = "Double-click to set background values for color deconvolution (either type values or use a small rectangle ROI in the image)";
-			} else if (item instanceof StainVector) {
-				StainVector stain = (StainVector)item;
-				Integer color = stain.getColor();
+			} else if (item instanceof StainVector stain) {
+                Integer color = stain.getColor();
 				style = String.format("-fx-text-fill: rgb(%d, %d, %d);", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color));
 				tooltipText = "Double-click to set stain color (either type values or use a small rectangle ROI in the image)";
 			} else {
 				var type = getTableRow().getItem();
-				if (type != null) {
-					if (type.equals(ImageDetailRow.PIXEL_WIDTH) || type.equals(ImageDetailRow.PIXEL_HEIGHT) || type.equals(ImageDetailRow.Z_SPACING)) {
-						if ("Unknown".equals(item))
-							style = "-fx-text-fill: red;";
-						tooltipText = "Double-click to set pixel calibration (can use a selected line or area ROI in the image)";
-					} else if (type.equals(ImageDetailRow.METADATA_CHANGED))
-						tooltipText = "Double-click to reset original metadata";
-					else if (type.equals(ImageDetailRow.UNCOMPRESSED_SIZE))
-						tooltipText = "Approximate memory required to store all pixels in the image uncompressed";
-				}
+                if (type.equals(ImageDetailRow.PIXEL_WIDTH) || type.equals(ImageDetailRow.PIXEL_HEIGHT) || type.equals(ImageDetailRow.Z_SPACING)) {
+                    if ("Unknown".equals(item))
+                        style = "-fx-text-fill: red;";
+                    tooltipText = "Double-click to set pixel calibration (can use a selected line or area ROI in the image)";
+                } else if (type.equals(ImageDetailRow.METADATA_CHANGED))
+                    tooltipText = "Double-click to reset original metadata";
+                else if (type.equals(ImageDetailRow.UNCOMPRESSED_SIZE))
+                    tooltipText = "Approximate memory required to store all pixels in the image uncompressed";
+                else if (type.isDoubleClickable())
+                    tooltipText += " (double-click to edit)";
 			}
 			setStyle(style);
 			setText(text);
@@ -939,11 +947,9 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			int num = -1; // Default to background values
 			String name = null;
 			String message = null;
-			if (value instanceof StainVector) {
+			if (value instanceof StainVector stainVector) {
 
-				StainVector stainVector = (StainVector)value;
-
-				if (stainVector.isResidual() && imageData.getImageType() != ImageType.BRIGHTFIELD_OTHER) {
+                if (stainVector.isResidual() && imageData.getImageType() != ImageType.BRIGHTFIELD_OTHER) {
 					logger.warn("Cannot set residual stain vector - this is computed from the known vectors");
 					return;
 				}
@@ -1035,7 +1041,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 
 			// Disable editing the name if it should be fixed
 			ParameterPanelFX parameterPanel = new ParameterPanelFX(params);
-			parameterPanel.setParameterEnabled("name", editableName);;
+			parameterPanel.setParameterEnabled("name", editableName);
 			if (!Dialogs.showConfirmDialog(title, parameterPanel.getPane()))
 				return;
 
@@ -1074,7 +1080,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			imageData.setColorDeconvolutionStains(stains);
 		}
 
-	};
+	}
 	
 
 }
