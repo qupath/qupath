@@ -847,15 +847,15 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
                 setGraphic(null);
                 return;
             }
-            var idr = getTableRow().getItem();
-            setText(idr.getName());
-            var ttt = idr.getDescription();
-            if (idr.isDoubleClickable()) {
-                ttt += " (double-click value field to edit)";
-            } else if (idr == ImageDetailRow.METADATA_CHANGED) {
-                ttt += " (double-click value field to reset original metadata)";
+            var imageDetailRow = getTableRow().getItem();
+            setText(imageDetailRow.getName());
+            var toolTipText = imageDetailRow.getDescription();
+            if (imageDetailRow.isDoubleClickable()) {
+                toolTipText += " (double-click value field to edit)";
+            } else if (imageDetailRow == ImageDetailRow.METADATA_CHANGED) {
+                toolTipText += " (double-click value field to reset original metadata)";
             }
-            setTooltip(new Tooltip(ttt));
+            setTooltip(new Tooltip(toolTipText));
         }
     }
 
