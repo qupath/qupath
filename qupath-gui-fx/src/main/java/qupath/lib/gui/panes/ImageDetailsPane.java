@@ -849,7 +849,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
             }
             var imageDetailRow = getTableRow().getItem();
             setText(imageDetailRow.getName());
-            var toolTipText = imageDetailRow.getDescription();
+            String toolTipText = imageDetailRow.getDescription();
             if (imageDetailRow.isDoubleClickable()) {
                 toolTipText += " (double-click value field to edit)";
             } else if (imageDetailRow == ImageDetailRow.METADATA_CHANGED) {
