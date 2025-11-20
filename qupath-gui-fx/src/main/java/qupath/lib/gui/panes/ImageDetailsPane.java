@@ -143,7 +143,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
         MAGNIFICATION("Magnification", "The magnification at which the image was captured"),
         WIDTH("Width", "The image width in pixels"),
         HEIGHT("Height", "The image height in pixels"),
-        DIMENSIONS("Dimensions", "The spatial and time dimensions present in the image"),
+        DIMENSIONS("Dimensions (CZT)", "The spatial and time dimensions present in the image"),
 		PIXEL_WIDTH("Pixel width", "The width of each pixel in physical space"),
         PIXEL_HEIGHT("Pixel height", "The height of each pixel in physical space"),
         Z_SPACING("Z spacing", "The spacing of Z-slices in physical space"),
