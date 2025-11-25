@@ -47,7 +47,7 @@ openslide       = "4.0.0.6"
 
 picocli         = "4.7.7"
 
-qupath-fxtras   = "0.3.0-SNAPSHOT"
+qupath-fxtras   = "0.3.0"
 qupath-training = "0.1.0"
 qupath-djl      = "0.4.0"
 
