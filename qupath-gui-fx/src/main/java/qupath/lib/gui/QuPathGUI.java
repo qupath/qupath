@@ -2831,11 +2831,20 @@ public class QuPathGUI {
 	 * @return input display property
 	 */
 	public BooleanProperty showInputDisplayProperty() {
-		// Add listener to the inputDisplayDialogProperty to show/hide dialog
-		if (inputDisplay == null)
-			inputDisplay = new InputDisplay(getStage(), Window.getWindows());
-		return inputDisplay.showProperty();
+		return getInputDisplay().showProperty();
 	}
+
+    /**
+     * Get the {@link InputDisplay} associated with this instance of QuPath.
+     * This is used to show keyboard and mouse input on screen (e.g. for workshops).
+     * @return the input display
+     */
+    public InputDisplay getInputDisplay() {
+        // Add listener to the inputDisplayDialogProperty to show/hide dialog
+        if (inputDisplay == null)
+            inputDisplay = new InputDisplay(getStage(), Window.getWindows());
+        return inputDisplay;
+    }
 	
 	
 	/**
