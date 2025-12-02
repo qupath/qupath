@@ -1068,7 +1068,7 @@ public class QP {
 			return null;
 		var selected = hierarchy.getSelectionModel().getSelectedObject();
 		if (selected == null && !hierarchy.getSelectionModel().noSelection())
-			logger.debug("getSelectedObject() is null because there is no primary selected object, "
+			logger.warn("getSelectedObject() is null because there is no primary selected object, "
 					+ "you might want getSelectedObjects() instead");
 		return selected;
 	}
