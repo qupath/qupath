@@ -41,12 +41,8 @@ import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.color.ICC_ColorSpace;
-import java.awt.color.ICC_Profile;
 import java.awt.image.BufferedImage;
-import java.awt.image.ColorConvertOp;
 import java.awt.image.DataBufferInt;
-import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.lang.ref.Cleaner;
 import java.net.URI;
@@ -94,7 +90,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 
 	private static boolean useBoundingBoxes = true;
 
-	private ImageServerMetadata originalMetadata;
+	private final ImageServerMetadata originalMetadata;
 
 	private List<String> associatedImageList = null;
 
@@ -106,8 +102,6 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	private final URI uri;
 	private final String[] args;
 
-    private transient ColorConvertOp iccOp;
-	
 	
 	private static double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
 		// Try to read a tile size
@@ -163,15 +157,12 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		
 		boolean applyBounds = useBoundingBoxes;
 		for (String arg : args) {
-			if ("--no-crop".equals(arg))
-				applyBounds = false;
+            if ("--no-crop".equals(arg)) {
+                applyBounds = false;
+                break;
+            }
 		}
-        try {
-            iccOp = parseIccProfileArgs(args, osr.getICCProfileBytes());
-        } catch (Exception e) {
-            logger.error("Exception requesting ICC profile for args {}", List.of(args), e);
-        }
-		
+
 		// Read bounds
 		boolean isCropped = false;
 		if (applyBounds && properties.keySet().containsAll(
@@ -215,7 +206,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 		
 		// Loop through the series again & determine downsamples - assume the image is not cropped for now
-		int levelCount = (int)osr.getLevelCount();
+		int levelCount = osr.getLevelCount();
 		var resolutionBuilder = new ImageResolutionLevel.Builder(width, height);
 		for (int i = 0; i < levelCount; i++) {
 			// When requesting downsamples from OpenSlide, these seem to be averaged from the width & height ratios:
@@ -291,6 +282,10 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	public Collection<URI> getURIs() {
 		return Collections.singletonList(uri);
 	}
+
+    URI getURI() {
+        return uri;
+    }
 	
 	@Override
 	protected String createID() {
@@ -346,10 +341,6 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		g2d.drawImage(img, 0, 0, tileWidth, tileHeight, null);
 		g2d.dispose();
 
-        if (iccOp != null) {
-            applyInPlace(iccOp, img2.getRaster());
-        }
-
 		return img2;
 	}
 
@@ -380,67 +371,16 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		return originalMetadata;
 	}
 
-
-    private static WritableRaster applyInPlace(ColorConvertOp op, WritableRaster raster) {
-        return op.filter(raster, raster);
+    byte[] getIccProfileBytes() {
+        return osr.getICCProfileBytes();
     }
 
-    private static ColorConvertOp parseIccProfileArgs(String[] args, byte[] embeddedProfileBytes)
-            throws IllegalArgumentException, IOException {
-        ICC_Profile source = null;
-        ICC_Profile dest = null;
-
-        String ICC_EMBED = "--icc-profile"; // Use embedded profile, nothing extra required
-        String ICC_SOURCE = "--icc-profile-source=";
-        String ICC_DEST = "--icc-profile-dest=";
-
-        for (String arg : args) {
-            arg = arg.strip();
-            if (arg.startsWith(ICC_SOURCE)) {
-                String argTemp = arg.substring(ICC_SOURCE.length());
-                logger.info("Requesting source ICC profile from {}", argTemp);
-                source = parseIccProfileFromArg(argTemp);
-            } else if (arg.startsWith(ICC_DEST)) {
-                String argTemp = arg.substring(ICC_DEST.length());
-                logger.info("Requesting dest ICC profile from {}", argTemp);
-                dest = parseIccProfileFromArg(argTemp);
-            } else if (arg.equalsIgnoreCase(ICC_EMBED)) {
-                if (embeddedProfileBytes == null) {
-                    logger.warn("No embedded ICC profile found");
-                    return null;
-                } else {
-                    logger.info("Found embedded ICC profile ({} bytes)", embeddedProfileBytes.length);
-                    source = ICC_Profile.getInstance(embeddedProfileBytes);
-                }
-            }
-        }
-        if (source == null) {
-            if (dest == null) {
-                logger.debug("No ICC profile requested");
-                return null;
-            } else {
-                logger.warn("No source ICC profile found, cannot apply dest profile only");
-                return null;
-            }
-        }
-        if (dest == null) {
-            logger.debug("Using default ICC destination CS_sRGB");
-            dest = ICC_Profile.getInstance(ICC_ColorSpace.CS_sRGB);
-        }
-        return new ColorConvertOp(
-                new ICC_Profile[] {
-                        source, dest
-                },
-                null);
-    }
-
-    private static ICC_Profile parseIccProfileFromArg(String arg) throws IOException {
-        if ("srgb".equalsIgnoreCase(arg))
-            return ICC_Profile.getInstance(ICC_ColorSpace.CS_sRGB);
-        else if ("linear".equalsIgnoreCase(arg))
-            return ICC_Profile.getInstance(ICC_ColorSpace.CS_LINEAR_RGB);
-        else
-            return ICC_Profile.getInstance(arg);
+    /**
+     * Get the optional arguments used to construct this server.
+     * @return an unmodifiable list of string arguments, or an empty list if no arguments are used
+     */
+    public List<String> getArgs() {
+        return args == null ? List.of() : List.of(args);
     }
 
 }

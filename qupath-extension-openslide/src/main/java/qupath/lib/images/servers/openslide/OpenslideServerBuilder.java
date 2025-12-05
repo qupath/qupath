@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -34,8 +34,13 @@ import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Builder for Openslide ImageServer.
@@ -52,6 +57,9 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	 */
 	private boolean failedToLoad = false;
 
+    private static final String ARG_ICC_PROFILE = "--icc-profile";
+
+
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 		if (!OpenSlideLoader.isOpenSlideAvailable() && !OpenSlideLoader.tryToLoadQuietly()) {
@@ -59,7 +67,11 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 			return null;
 		}
 		try {
-			return new OpenslideImageServer(uri, args);
+            if (Set.of(args).contains(ARG_ICC_PROFILE)) {
+                return new OpenslideIccImageServer(uri, args);
+            } else {
+                return new OpenslideImageServer(uri, args);
+            }
 		} catch (Exception e) {
 			logger.error("Unable to open {} with OpenSlide: {}", uri, e.getMessage(), e);
 		} catch (NoClassDefFoundError e) {
@@ -72,8 +84,51 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	@Override
 	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
 		float supportLevel = supportLevel(uri, args);
-		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
+        if (supportLevel > 0) {
+            args = updateArgs(uri, args);
+        }
+		return UriImageSupport.createInstance(this.getClass(), supportLevel,
+                DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
 	}
+
+    /**
+     * Update the string arguments to reflect any preferences requested by the user,
+     * while also checking that these are consistent with the image itself.
+     * <p>
+     * This was introduced to help handle ICC profile requests, so that the args may contain
+     * {@code --icc-profile} only if
+     * <ol>
+     *     <li>the user expressed they want that (through args or preferences)</li>
+     *     <li>the image has a readable ICC profile embedded.</li>
+     * </ol>
+     * @param uri the image URI
+     * @param args the initial optional args
+     * @return a new array of args suitable for the image
+     */
+    private String[] updateArgs(URI uri, String[] args) {
+        Set<String> argsSet = Arrays.stream(args).collect(Collectors.toCollection(LinkedHashSet::new));
+        var options = OpenSlideOptions.getInstance();
+        if (options.doApplyIccProfiles() || argsSet.contains(ARG_ICC_PROFILE)) {
+            try (var server = new OpenslideIccImageServer(uri, args)) {
+                argsSet.add(ARG_ICC_PROFILE);
+            } catch (IOException e) {
+                logger.warn("ICC profile requested, but not available for {}", uri);
+                argsSet.remove(ARG_ICC_PROFILE);
+            }
+        }
+        // TODO: Handle crop bounds here
+        return argsSet.toArray(String[]::new);
+    }
+
+
+
+    private boolean useIccProfile(String[] args) {
+        for (String arg : args) {
+            if (arg.strip().equalsIgnoreCase("--icc-profile"))
+                return true;
+        }
+        return OpenSlideOptions.getInstance().doApplyIccProfiles();
+    }
 
 	private float supportLevel(URI uri, String...args) {
 		if (!OpenSlideLoader.isOpenSlideAvailable() && !failedToLoad && !OpenSlideLoader.tryToLoadQuietly()) {
