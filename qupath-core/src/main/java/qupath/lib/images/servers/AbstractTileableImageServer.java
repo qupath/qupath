@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021, 2024 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -20,6 +20,13 @@
  */
 
 package qupath.lib.images.servers;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.regions.RegionRequest;
 
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -39,14 +46,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.regions.RegionRequest;
-
 /**
  * Abstract {@link ImageServer} for BufferedImages that internally breaks up requests into constituent tiles.
  * <p>
@@ -62,14 +61,14 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	private static final Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
 	
 	private ColorModel colorModel;
-	private Map<String, BufferedImage> emptyTileMap = new HashMap<>();
+	private final Map<String, BufferedImage> emptyTileMap = new HashMap<>();
 	
-	private transient Set<TileRequest> emptyTiles = new HashSet<>();
+	private final transient Set<TileRequest> emptyTiles = new HashSet<>();
 	
-	private static final Long ZERO = Long.valueOf(0L);
+	private static final Long ZERO = 0L;
 	
 	// Maintain a record of tiles that could not be cached, so we warn for each only once
-	private transient Set<RegionRequest> failedCacheTiles = new HashSet<>();
+	private final transient Set<RegionRequest> failedCacheTiles = new HashSet<>();
 		
 	protected AbstractTileableImageServer() {
 		super(BufferedImage.class);
@@ -77,9 +76,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	protected BufferedImage getEmptyTile(int width, int height) throws IOException {
 		return getEmptyTile(width, height, true);
-//		return getEmptyTile(width, height,
-//				width == getMetadata().getPreferredTileWidth() &&
-//				height == getMetadata().getPreferredTileHeight());
 	}
 	
 	/**
