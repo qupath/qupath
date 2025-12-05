@@ -149,10 +149,16 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 			String vendor = OpenSlideLoader.detectVendor(file.toString());
 			if (vendor == null)
 				return 0;
+            else if ("dicom".equals(vendor)) {
+                // (WSI) dicom support is good, particularly given ICC profile support
+                return 4;
+            }
 		} catch (Exception e) {
-			logger.debug("Unable to read with OpenSlide: {}", e.getLocalizedMessage());
+			logger.debug("Unable to read with OpenSlide: {}", e.getMessage());
+            return 0;
 		} catch (UnsatisfiedLinkError e) {
-			LogTools.warnOnce(logger, "OpenSlide is not available (" + e.getLocalizedMessage() + ")");
+			LogTools.warnOnce(logger, "OpenSlide is not available (" + e.getMessage() + ")");
+            return 0;
 		}
 		
 		// We can only handle RGB images with OpenSlide... so if we don't think it's RGB, use only as a last resort
