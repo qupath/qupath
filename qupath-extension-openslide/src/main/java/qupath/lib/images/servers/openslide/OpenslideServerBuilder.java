@@ -57,6 +57,14 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	 */
 	private boolean failedToLoad = false;
 
+    /**
+     * Argument to use when requesting that images are not cropped.
+     */
+    public static final String ARG_NO_CROP = "--no-crop";
+
+    /**
+     * Argument to use when requesting the ICC profiles are applied.
+     */
     private static final String ARG_ICC_PROFILE = "--icc-profile";
 
 
@@ -110,25 +118,20 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
         var options = OpenSlideOptions.getInstance();
         if (options.doApplyIccProfiles() || argsSet.contains(ARG_ICC_PROFILE)) {
             try (var server = new OpenslideIccImageServer(uri, args)) {
-                argsSet.add(ARG_ICC_PROFILE);
+                if (argsSet.add(ARG_ICC_PROFILE))
+                    logger.info("Adding OpenSlide arg {}", ARG_ICC_PROFILE);
             } catch (IOException e) {
                 logger.warn("ICC profile requested, but not available for {}", uri);
                 argsSet.remove(ARG_ICC_PROFILE);
             }
         }
-        // TODO: Handle crop bounds here
+        if (!options.doCropBoundingBox()) {
+            if (argsSet.add(ARG_NO_CROP))
+                logger.info("Adding OpenSlide arg {}", ARG_NO_CROP);
+        }
         return argsSet.toArray(String[]::new);
     }
 
-
-
-    private boolean useIccProfile(String[] args) {
-        for (String arg : args) {
-            if (arg.strip().equalsIgnoreCase("--icc-profile"))
-                return true;
-        }
-        return OpenSlideOptions.getInstance().doApplyIccProfiles();
-    }
 
 	private float supportLevel(URI uri, String...args) {
 		if (!OpenSlideLoader.isOpenSlideAvailable() && !failedToLoad && !OpenSlideLoader.tryToLoadQuietly()) {

@@ -58,16 +58,24 @@ public class OpenSlideExtension implements QuPathExtension {
     public final BooleanProperty openslideUseIccProfile =
             PathPrefs.createPersistentPreference("openslide.use-icc", false);
 
-    private final ChangeListener<String> openslidePathListener = this::handleOpenSlideDirectoryChange;
+    @BooleanPref("pref.openslide.crop")
+    public final BooleanProperty openslideCrop =
+            PathPrefs.createPersistentPreference("openslide.crop", true);
 
+    private final ChangeListener<String> openslidePathListener = this::handleOpenSlideDirectoryChange;
     private final ChangeListener<Boolean> iccProfileListener = this::handleUseIccProfileChange;
+    private final ChangeListener<Boolean> cropListener = this::handleCropChange;
 
     @Override
     public void installExtension(QuPathGUI qupath) {
         installPreferences(qupath);
         openslidePathProperty.addListener(openslidePathListener);
+
         openslideUseIccProfile.addListener(iccProfileListener);
         handleUseIccProfileChange(openslideUseIccProfile, null, openslideUseIccProfile.get());
+
+        openslideCrop.addListener(cropListener);
+        handleUseIccProfileChange(openslideCrop, null, openslideCrop.get());
 
         if (!OpenSlideLoader.tryToLoadQuietly(openslidePathProperty.get())) {
             logger.warn("OpenSlide not found! Please specify the directory containing the OpenSlide library in the preferences.");
@@ -112,13 +120,17 @@ public class OpenSlideExtension implements QuPathExtension {
         OpenSlideOptions.getInstance().setApplyIccProfiles(newValue);
     }
 
-        /**
-         * Quick check to see whether there is any chance a path is an OpenSlide directory.
-         * This is a workaround for the fact that we can potentially get a lot of false positives if
-         * a user is typing a directory path.
-         * @param path
-         * @return
-         */
+    private void handleCropChange(ObservableValue<? extends Boolean> value, Boolean oldValue, Boolean newValue) {
+        OpenSlideOptions.getInstance().setCropBoundingBox(newValue);
+    }
+
+    /**
+     * Quick check to see whether there is any chance a path is an OpenSlide directory.
+     * This is a workaround for the fact that we can potentially get a lot of false positives if
+     * a user is typing a directory path.
+     * @param path
+     * @return
+     */
     private static boolean isPotentialOpenSlideDirectory(String path) {
         if (path == null || path.isEmpty())
             return false;

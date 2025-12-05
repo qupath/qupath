@@ -32,12 +32,13 @@ public class OpenSlideOptions {
     private static final OpenSlideOptions instance = new OpenSlideOptions();
 
     private boolean applyIccProfiles = false;
+    private boolean cropBoundingBox = true;
 
     private OpenSlideOptions() {}
 
     /**
      * Optionally request that images read using OpenSlide are modified using embedded ICC profiles,
-     * where available.
+     * where available. The default is false.
      * @param doApply true if the ICC profile should be applied, false otherwise
      */
     public void setApplyIccProfiles(boolean doApply) {
@@ -46,10 +47,32 @@ public class OpenSlideOptions {
 
     /**
      * Query whether ICC profiles should be applied by default when new image servers are created.
+     * The default is false.
      * @return true if ICC profiles should be used, false otherwise
      */
     public boolean doApplyIccProfiles() {
         return applyIccProfiles;
+    }
+
+    /**
+     * Control whether OpenSlide images are cropped to the stored bounding box.
+     * The default is true.
+     * <p>
+     * If false, some images (e.g. mrxs, svs) may have a large amount of empty padding,
+     * and have a size that does not match the size returned by other libraries (e.g. Bio-Formats).
+     * @param doCrop true if images should be cropped to their stored bounding box, false otherwise
+     */
+    public void setCropBoundingBox(boolean doCrop) {
+        cropBoundingBox = doCrop;
+    }
+
+    /**
+     * Query whether OpenSlide images should be cropped to the stored bounding box.
+     * The default is true.
+     * @return true if images should be cropped to their stored bounding box, false otherwise
+     */
+    public boolean doCropBoundingBox() {
+        return cropBoundingBox;
     }
 
     /**

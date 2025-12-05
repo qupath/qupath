@@ -88,8 +88,6 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	private final OpenSlideState state;
 	private final Cleaner.Cleanable cleanable;
 
-	private static boolean useBoundingBoxes = true;
-
 	private final ImageServerMetadata originalMetadata;
 
 	private List<String> associatedImageList = null;
@@ -154,14 +152,9 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		int height = (int)osr.getLevel0Height();
 
 		Map<String, String> properties = osr.getProperties();
-		
-		boolean applyBounds = useBoundingBoxes;
-		for (String arg : args) {
-            if ("--no-crop".equals(arg)) {
-                applyBounds = false;
-                break;
-            }
-		}
+
+        // Crop to the bounds (if available) unless clearly told otherwise
+		boolean applyBounds = Arrays.stream(args).noneMatch(OpenslideServerBuilder.ARG_NO_CROP::equals);
 
 		// Read bounds
 		boolean isCropped = false;
