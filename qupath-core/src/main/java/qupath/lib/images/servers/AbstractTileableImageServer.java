@@ -205,7 +205,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		}
 		logger.trace("Reading tile: {}", request);
 		
-		BufferedImage imgCached;
+		BufferedImage imgCached = null;
 		var futureTask = pendingTiles.computeIfAbsent(tileRequest, t -> new TileTask(Thread.currentThread(), () -> readTile(t)));
 		var myTask = futureTask.thread == Thread.currentThread();
 		try {
@@ -220,23 +220,21 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			if (e.getCause() instanceof IOException)
 				throw (IOException)e.getCause();
 			throw new IOException(e);
-		}
-		
-//		var imgCached = readTile(tileRequest);
-		
-		// Put the tile in the appropriate cache
-		if (myTask) {
-			if (imgCached != null) {
-				if (isEmptyTile(imgCached)) {
-					emptyTiles.add(tileRequest);
-				} else if (cache != null) {
-					cache.put(request, imgCached);
-					// Check if we were able to cache the tile; sometimes we can't if it is too big
-					if (!cache.containsKey(request) && failedCacheTiles.add(request))
-						logger.warn("Unable to add {} to cache.\nYou might need to give QuPath more memory, or to increase the 'Percentage memory for tile caching' preference.", request);
+		} finally {
+			// Put the tile in the appropriate cache
+			if (myTask) {
+				if (imgCached != null) {
+					if (isEmptyTile(imgCached)) {
+						emptyTiles.add(tileRequest);
+					} else if (cache != null) {
+						cache.put(request, imgCached);
+						// Check if we were able to cache the tile; sometimes we can't if it is too big
+						if (!cache.containsKey(request) && failedCacheTiles.add(request))
+							logger.warn("Unable to add {} to cache.\nYou might need to give QuPath more memory, or to increase the 'Percentage memory for tile caching' preference.", request);
+					}
 				}
+				pendingTiles.remove(tileRequest);
 			}
-			pendingTiles.remove(tileRequest);
 		}
 		
 		return imgCached;
