@@ -23,12 +23,11 @@
 
 package qupath.lib.scripting;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-
 import org.junit.jupiter.api.Test;
-
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.io.PathIO.GeoJsonExportOptions;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 @SuppressWarnings("javadoc")
 public class TestQP {

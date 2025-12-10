@@ -21,6 +21,14 @@
 
 package qupath.lib.images.servers;
 
+import org.locationtech.jts.geom.Geometry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.GeometryTools;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.WritableRaster;
@@ -38,15 +46,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
-
-import org.locationtech.jts.geom.Geometry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.GeometryTools;
 
 /**
  * An ImageServer that combines regions from multiple separate ImageServers, 

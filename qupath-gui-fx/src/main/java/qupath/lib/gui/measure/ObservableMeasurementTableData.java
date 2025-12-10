@@ -23,6 +23,23 @@
 
 package qupath.lib.gui.measure;
 
+import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyListWrapper;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.lazy.interfaces.LazyValue;
+import qupath.lib.lazy.objects.MeasurementListValue;
+import qupath.lib.lazy.objects.PathObjectLazyValues;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.TMACoreObject;
+
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,24 +47,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.beans.property.ReadOnlyListWrapper;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.lazy.objects.MeasurementListValue;
-import qupath.lib.lazy.objects.PathObjectLazyValues;
-import qupath.lib.lazy.interfaces.LazyValue;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.TMACoreObject;
 
 /**
  * A table data model to supply observable measurements of PathObjects.

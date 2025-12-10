@@ -23,6 +23,12 @@
 
 package qupath.lib.images.servers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
+import qupath.lib.regions.RegionRequest;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -40,12 +46,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Service provider for creating ImageServers from a given path - which may be a file path or URL.

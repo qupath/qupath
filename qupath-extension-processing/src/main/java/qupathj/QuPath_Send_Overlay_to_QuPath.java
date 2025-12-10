@@ -23,20 +23,6 @@
 
 package qupathj;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.function.Function;
-
-import qupath.imagej.gui.scripts.ImageJScriptRunner;
-import qupath.imagej.tools.IJTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.images.ImageData;
-import qupath.lib.measurements.MeasurementList;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.regions.ImagePlane;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -51,7 +37,21 @@ import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
 import javafx.application.Platform;
+import qupath.imagej.gui.scripts.ImageJScriptRunner;
+import qupath.imagej.tools.IJTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.images.ImageData;
+import qupath.lib.measurements.MeasurementList;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.function.Function;
 
 /**
  * ImageJ plugin for sending back all the ROIs on an ImageJ overlay to QuPath.

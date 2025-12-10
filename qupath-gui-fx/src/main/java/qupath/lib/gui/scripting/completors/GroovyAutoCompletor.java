@@ -22,14 +22,14 @@
 
 package qupath.lib.gui.scripting.completors;
 
+import qupath.lib.scripting.languages.AutoCompletions;
+import qupath.lib.scripting.languages.AutoCompletions.Completion;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
-import qupath.lib.scripting.languages.AutoCompletions;
-import qupath.lib.scripting.languages.AutoCompletions.Completion;
 
 /**
  * Auto completion support for Groovy.

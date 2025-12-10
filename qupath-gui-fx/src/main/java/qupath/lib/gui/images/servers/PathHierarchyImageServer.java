@@ -23,6 +23,28 @@
 
 package qupath.lib.gui.images.servers;
 
+import qupath.lib.analysis.DelaunayTools;
+import qupath.lib.awt.common.AwtTools;
+import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.gui.viewer.OverlayOptions;
+import qupath.lib.gui.viewer.PathObjectPainter;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.GeneratingImageServer;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.objects.DefaultPathObjectConnectionGroup;
+import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnections;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -34,28 +56,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import qupath.lib.analysis.DelaunayTools;
-import qupath.lib.awt.common.AwtTools;
-import qupath.lib.color.ColorToolsAwt;
-import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.PathObjectPainter;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.AbstractTileableImageServer;
-import qupath.lib.images.servers.GeneratingImageServer;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.TileRequest;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.objects.DefaultPathObjectConnectionGroup;
-import qupath.lib.objects.PathDetectionObject;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectConnections;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.regions.RegionRequest;
 
 
 /**

@@ -23,13 +23,13 @@
 
 package qupath.lib.objects.hierarchy.events;
 
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
  * An event class for passing on information about modifications to a PathObjectHierarchy.

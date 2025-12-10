@@ -22,10 +22,7 @@
 
 package qupath.lib.gui.actions.menus;
 
-import java.util.List;
-
 import org.controlsfx.control.action.Action;
-
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.CommonActions;
@@ -47,6 +44,8 @@ import qupath.lib.plugins.objects.DilateAnnotationPlugin;
 import qupath.lib.plugins.objects.FillAnnotationHolesPlugin;
 import qupath.lib.plugins.objects.RefineAnnotationsPlugin;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
+
+import java.util.List;
 
 public class ObjectsMenuActions implements MenuActions {
 	

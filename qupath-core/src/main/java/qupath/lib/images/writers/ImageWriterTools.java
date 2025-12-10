@@ -21,6 +21,13 @@
 
 package qupath.lib.images.writers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -30,13 +37,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.WrappedBufferedImageServer;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Static methods to access {@link ImageWriter} objects and write images.

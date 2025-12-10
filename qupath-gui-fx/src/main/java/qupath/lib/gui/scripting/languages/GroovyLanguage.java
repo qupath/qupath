@@ -23,12 +23,12 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.Collection;
-import java.util.Collections;
-
 import qupath.lib.gui.scripting.completors.GroovyAutoCompletor;
 import qupath.lib.scripting.languages.AutoCompletions;
 import qupath.lib.scripting.languages.ExecutableLanguage;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Class for the representation of the Groovy programming language in QuPath.

@@ -1,10 +1,11 @@
 package qupath.lib.gui.panes;
 
+import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectImageEntry;
+
 import java.awt.image.BufferedImage;
 import java.util.Collection;
 import java.util.Objects;
-import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectImageEntry;
 
 /**
  * Abstract class to represent all different objects that can go into a Project browser's tree.

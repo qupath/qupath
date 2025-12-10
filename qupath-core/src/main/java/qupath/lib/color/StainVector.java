@@ -23,6 +23,11 @@
 
 package qupath.lib.color;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -30,12 +35,6 @@ import java.io.ObjectOutput;
 import java.util.Locale;
 import java.util.Locale.Category;
 import java.util.Objects;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
 
 /**
  * Representation of a color deconvolution stain vector, defined in terms of RGB optical densities.

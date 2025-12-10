@@ -22,11 +22,11 @@
 
 package qupath.opencv.dnn;
 
+import org.bytedeco.opencv.opencv_core.Mat;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import org.bytedeco.opencv.opencv_core.Mat;
 
 
 /**

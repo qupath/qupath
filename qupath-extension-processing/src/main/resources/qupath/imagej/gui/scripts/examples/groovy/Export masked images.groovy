@@ -5,12 +5,13 @@
  * Images are written to a subdirectory of the current project.
  */
 
+
 import ij.IJ
 import ij.ImagePlus
 import qupath.lib.regions.ImageRegion
 import qupath.lib.scripting.QP
 
-import java.awt.Color
+import java.awt.*
 
 // Get the image and Roi
 var imp = IJ.getImage()

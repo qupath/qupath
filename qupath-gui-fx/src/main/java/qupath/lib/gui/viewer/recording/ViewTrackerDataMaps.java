@@ -23,21 +23,20 @@
 
 package qupath.lib.gui.viewer.recording;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.color.ColorMaps.ColorMap;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.ImageRegion;
+
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import qupath.lib.color.ColorMaps.ColorMap;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.regions.ImageRegion;
 
 // TODO: What if the downsample is not rounded? (e.g. dwnsmple=1.5, then img will be rounded, and ImageRegion will be rounded again?)
 final class ViewTrackerDataMaps {

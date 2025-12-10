@@ -6,7 +6,6 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.HistogramDisplay;
-import qupath.lib.lazy.interfaces.LazyValue;
 
 class NumericTableCell<T> extends TableCell<T, Number> {
 

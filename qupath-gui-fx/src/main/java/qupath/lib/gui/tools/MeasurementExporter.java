@@ -21,6 +21,21 @@
 
 package qupath.lib.gui.tools;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.PathTableData;
+import qupath.lib.images.ImageData;
+import qupath.lib.lazy.interfaces.LazyValue;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.TMACoreObject;
+import qupath.lib.projects.ProjectImageEntry;
+
 import java.awt.image.BufferedImage;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -42,21 +57,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.DoubleConsumer;
 import java.util.function.Predicate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.gui.measure.PathTableData;
-import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.images.ImageData;
-import qupath.lib.lazy.interfaces.LazyValue;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathDetectionObject;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathRootObject;
-import qupath.lib.objects.PathTileObject;
-import qupath.lib.objects.TMACoreObject;
-import qupath.lib.projects.ProjectImageEntry;
 
 
 /**

@@ -22,6 +22,13 @@
 
 package qupath.lib.gui;
 
+import javafx.scene.control.ButtonType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
+import qupath.lib.gui.commands.Commands;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,14 +38,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import javafx.scene.control.ButtonType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.fx.dialogs.FileChoosers;
-import qupath.lib.gui.commands.Commands;
-import qupath.fx.dialogs.Dialogs;
 
 /**
  * Copy files to an output directory, prompting the user if necessary.

@@ -23,18 +23,17 @@
 
 package qupath.lib.objects;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-
 import org.junit.jupiter.api.Test;
-
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 
 @SuppressWarnings("javadoc")
 public class TestPathAnnotationObject extends TestPathObjectMethods { 

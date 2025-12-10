@@ -21,20 +21,18 @@
 
 package qupath.opencv.ml.objects.features;
 
-import java.nio.FloatBuffer;
-import java.util.Arrays;
-
+import com.google.gson.annotations.JsonAdapter;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.annotations.JsonAdapter;
-
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.Normalization;
 import qupath.opencv.io.OpenCVTypeAdapters;
+
+import java.nio.FloatBuffer;
+import java.util.Arrays;
 
 /**
  * Helper class for preprocessing input for machine learning algorithms using OpenCV Mats.

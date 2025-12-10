@@ -21,6 +21,18 @@
 
 package qupath.lib.images.servers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.color.ColorDeconvolutionHelper;
+import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.color.ColorTransformer;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+import qupath.lib.color.StainVector;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -34,19 +46,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.color.ColorDeconvolutionHelper;
-import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.color.ColorTransformer;
-import qupath.lib.color.StainVector;
-import qupath.lib.color.ColorTransformer.ColorTransformMethod;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * An ImageServer that applies color deconvolution to extract one or more stains from a wrapped (brightfield, RGB) ImageServer.

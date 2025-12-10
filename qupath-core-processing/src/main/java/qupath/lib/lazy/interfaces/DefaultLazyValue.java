@@ -1,7 +1,6 @@
 package qupath.lib.lazy.interfaces;
 
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 class DefaultLazyValue<S, T> implements LazyValue<S, T> {
 

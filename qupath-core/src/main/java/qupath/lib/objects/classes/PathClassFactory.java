@@ -23,13 +23,13 @@
 
 package qupath.lib.objects.classes;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.LogTools;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Factory for creating PathClasses.

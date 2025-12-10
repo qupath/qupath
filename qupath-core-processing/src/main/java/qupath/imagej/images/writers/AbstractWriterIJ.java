@@ -25,15 +25,15 @@ package qupath.imagej.images.writers;
 
 import ij.IJ;
 import ij.ImagePlus;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.OutputStream;
-
 import qupath.imagej.tools.IJTools;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.regions.RegionRequest;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  * Abstract ImageWriter using ImageJ.

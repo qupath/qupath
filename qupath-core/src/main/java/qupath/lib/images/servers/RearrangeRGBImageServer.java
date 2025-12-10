@@ -22,14 +22,14 @@
 
 package qupath.lib.images.servers;
 
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-
-import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Simple image server to swap the red and blue channels of an RGB image.

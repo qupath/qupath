@@ -23,13 +23,12 @@
 
 package qupath.lib.analysis.algorithms;
 
-import java.util.PriorityQueue;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleModifiableImage;
+
+import java.util.PriorityQueue;
 
 /**
  * Implementation of 2D watershed transform.

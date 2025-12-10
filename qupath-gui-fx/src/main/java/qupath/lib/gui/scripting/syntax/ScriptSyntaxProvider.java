@@ -21,13 +21,13 @@
 
 package qupath.lib.gui.scripting.syntax;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.ServiceLoader;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Class with static methods to fetch all the available {@linkplain ScriptSyntax ScriptSyntaxes}.

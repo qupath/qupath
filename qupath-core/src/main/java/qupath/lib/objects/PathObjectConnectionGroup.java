@@ -23,9 +23,10 @@
 
 package qupath.lib.objects;
 
+import qupath.lib.regions.ImageRegion;
+
 import java.util.Collection;
 import java.util.List;
-import qupath.lib.regions.ImageRegion;
 
 /**
  * Interface defining a basic structure to represent relationships between PathObjects that do not fit with  

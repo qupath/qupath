@@ -21,6 +21,8 @@
 
 package qupath.lib.objects.classes;
 
+import qupath.lib.common.ColorTools;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,7 +31,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import qupath.lib.common.ColorTools;
 
 /**
  * Static methods for use with {@link PathClass} objects.

@@ -23,12 +23,12 @@
 
 package qupath.lib.display;
 
+import qupath.lib.color.ColorTransformer;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.SampleModel;
-
-import qupath.lib.color.ColorTransformer;
-import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 
 /**
  * Interface used to control the display of single channels of image data, where

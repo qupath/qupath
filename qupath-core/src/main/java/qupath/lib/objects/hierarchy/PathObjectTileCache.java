@@ -23,6 +23,23 @@
 
 package qupath.lib.objects.hierarchy;
 
+import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.index.SpatialIndex;
+import org.locationtech.jts.index.quadtree.Quadtree;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.TemporaryObject;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,24 +51,6 @@ import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.Location;
-import org.locationtech.jts.index.SpatialIndex;
-import org.locationtech.jts.index.quadtree.Quadtree;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.TemporaryObject;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A tile cache that keeps a reference to a collection of PathObjects as flat lists.

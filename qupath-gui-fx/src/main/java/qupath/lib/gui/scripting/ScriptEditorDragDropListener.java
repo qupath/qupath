@@ -23,11 +23,6 @@
 
 package qupath.lib.gui.scripting;
 
-import java.io.File;
-import java.util.HashSet;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import javafx.event.EventHandler;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
@@ -35,6 +30,11 @@ import qupath.ext.extensionmanager.gui.ExtensionManager;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
+
+import java.io.File;
+import java.util.HashSet;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Drag and drop support for QuPath's script editor, which can support a range of different files (Plain text, JSON, Groovy,..).

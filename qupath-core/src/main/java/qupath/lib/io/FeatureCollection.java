@@ -22,10 +22,10 @@
 
 package qupath.lib.io;
 
+import qupath.lib.objects.PathObject;
+
 import java.util.ArrayList;
 import java.util.Collection;
-
-import qupath.lib.objects.PathObject;
 
 /**
  * Class to wrap a collection of objects to indicate they should be export as a GeoJSON "FeatureCollection".

@@ -23,15 +23,14 @@
 
 package qupath.lib.images.servers.bioformats;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.Version;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.Version;
 
 /**
  * Container for various options that can customize the behavior of the {@link BioFormatsImageServer}.

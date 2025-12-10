@@ -21,17 +21,16 @@
 
 package qupath.opencv.ml.objects.features;
 
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObject;
+import qupath.opencv.ml.objects.features.Preprocessing.PCAProjector;
+
 import java.nio.FloatBuffer;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.IntStream;
-
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.opencv_core.Mat;
-
-import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathObject;
-import qupath.opencv.ml.objects.features.Preprocessing.PCAProjector;
 
 class PCAProjectFeatureExtractor<T> implements FeatureExtractor<T> {
 	

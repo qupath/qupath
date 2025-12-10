@@ -21,18 +21,17 @@
 
 package qupath.lib.gui.viewer;
 
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Objects;
-import java.util.function.BiPredicate;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Objects;
+import java.util.function.BiPredicate;
 
 /**
  * Define the area of an image to which pixel classification should be applied.

@@ -24,13 +24,12 @@
 
 package qupath.lib.gui;
 
-import java.lang.Thread.UncaughtExceptionHandler;
-import java.util.Objects;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.fx.dialogs.Dialogs;
+
+import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.Objects;
 
 class QuPathUncaughtExceptionHandler implements UncaughtExceptionHandler {
 	

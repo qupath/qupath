@@ -21,6 +21,13 @@
 
 package qupath.lib.gui.scripting.completors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.scripting.QPEx;
+import qupath.lib.scripting.languages.AutoCompletions;
+import qupath.lib.scripting.languages.AutoCompletions.Completion;
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -29,14 +36,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.gui.scripting.QPEx;
-import qupath.lib.scripting.languages.AutoCompletions;
-import qupath.lib.scripting.languages.AutoCompletions.Completion;
-import qupath.lib.scripting.languages.ScriptAutoCompletor;
 
 /**
  * Default auto-completor for JVM-based languages, optionally including QuPath default imports.

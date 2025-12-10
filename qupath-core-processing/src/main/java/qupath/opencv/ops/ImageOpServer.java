@@ -21,23 +21,22 @@
 
 package qupath.opencv.ops;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.io.GsonTools;
+import qupath.opencv.tools.OpenCVTools;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.UUID;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.AbstractTileableImageServer;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.TileRequest;
-import qupath.lib.io.GsonTools;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.opencv.tools.OpenCVTools;
 
 /**
  * An {@link ImageServer} that applies an {@link ImageDataOp} to transform pixels as they are read.

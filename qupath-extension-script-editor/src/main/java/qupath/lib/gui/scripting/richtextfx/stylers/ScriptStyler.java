@@ -23,12 +23,12 @@
 
 package qupath.lib.gui.scripting.richtextfx.stylers;
 
-import java.util.Collection;
-import java.util.Set;
-
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import qupath.lib.scripting.languages.ScriptLanguage;
+
+import java.util.Collection;
+import java.util.Set;
 
 /**
  * Interface for classes that apply some styling to a RichTextFX's {@link CodeArea}.

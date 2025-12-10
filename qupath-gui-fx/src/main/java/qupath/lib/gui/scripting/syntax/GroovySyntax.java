@@ -23,9 +23,9 @@
 
 package qupath.lib.gui.scripting.syntax;
 
-import java.util.Set;
-
 import qupath.lib.gui.scripting.EditableText;
+
+import java.util.Set;
 
 /**
  * Class to take care of the Groovy syntax formatting.

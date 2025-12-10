@@ -24,7 +24,6 @@
 package qupath.lib.roi;
 
 import org.locationtech.jts.geom.Geometry;
-
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.GeometryTools.GeometryConverter;
 import qupath.lib.roi.interfaces.ROI;

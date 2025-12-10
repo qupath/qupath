@@ -21,8 +21,6 @@
 
 package qupath.lib.objects.utils;
 
-import java.util.Comparator;
-import java.util.HashMap;
 import org.junit.jupiter.api.Test;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -32,6 +30,7 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

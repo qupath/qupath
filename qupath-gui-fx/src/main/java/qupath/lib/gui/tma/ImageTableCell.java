@@ -24,8 +24,6 @@
 
 package qupath.lib.gui.tma;
 
-import org.controlsfx.control.PopOver;
-
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.canvas.Canvas;
@@ -39,6 +37,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.stage.Screen;
+import org.controlsfx.control.PopOver;
 import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 import qupath.lib.gui.tools.GuiTools;
 

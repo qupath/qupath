@@ -21,30 +21,29 @@
 
 package qupath.process.gui.commands;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
-import javafx.scene.layout.BorderPane;
-import javafx.scene.text.TextAlignment;
-import org.controlsfx.control.CheckListView;
-
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxListCell;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.text.TextAlignment;
+import org.controlsfx.control.CheckListView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
+
+import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * Command to create training images based upon channel names, and add these to a project.

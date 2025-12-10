@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.prefs.PathPrefs;
 
 import javax.imageio.ImageIO;
 import java.io.IOException;

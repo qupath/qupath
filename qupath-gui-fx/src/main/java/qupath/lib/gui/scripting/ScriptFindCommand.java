@@ -23,10 +23,7 @@
 
 package qupath.lib.gui.scripting;
 
-import java.util.regex.Pattern;
-
 import com.sun.javafx.css.PseudoClassState;
-
 import javafx.beans.binding.Bindings;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -44,6 +41,8 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
+
+import java.util.regex.Pattern;
 
 /**
  * Create a Find/Replace command window for a {@link ScriptEditorControl}.

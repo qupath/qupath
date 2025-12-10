@@ -23,14 +23,14 @@
 
 package qupathj;
 
-import qupath.imagej.tools.IJTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.regions.ImagePlane;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.plugin.PlugIn;
 import javafx.application.Platform;
+import qupath.imagej.tools.IJTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.regions.ImagePlane;
 
 /**
  * ImageJ plugin for sending back the active ROI from ImageJ to QuPath.

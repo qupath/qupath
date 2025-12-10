@@ -23,21 +23,7 @@
 
 package qupath.lib.gui.dialogs;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.WeakHashMap;
-import java.util.stream.Collectors;
-
 import javafx.application.ColorScheme;
-import org.controlsfx.control.Notifications;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -54,11 +40,24 @@ import javafx.scene.control.TextInputDialog;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import org.controlsfx.control.Notifications;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.LogTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.plugins.parameters.ParameterList;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.WeakHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Legacy class, deprecated since v0.5.0.
