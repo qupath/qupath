@@ -26,19 +26,21 @@ Version in progress...
 
 ### Dependency updates
 * Bio-Formats 8.3.0
-* Caffeine 3.2.2
+* Caffeine 3.2.3
 * CommonMark 0.26.0
 * Commons Text 1.14.0
-* Deep Java Library 0.35.0
-* Groovy 5.0.2
+* Deep Java Library 0.35.1
+* Groovy 5.0.3
 * Gson 2.13.2
 * Guava 33.5.0-jre
+* Ikonli 12.4.0
+* ImageJ 1.54p
 * JavaCPP 1.5.12
 * JavaFX 25.0.1
 * Logback 1.5.20
 * OpenCV 4.11.0
-* QuPath fxtras 0.2.1
-* RichTextFX 0.11.6
+* QuPath FXtras 0.3.0
+* RichTextFX 0.11.7
 * SciJava POM 43.0.0 (for Fiji builds)
 
 ## Version 0.6.0
