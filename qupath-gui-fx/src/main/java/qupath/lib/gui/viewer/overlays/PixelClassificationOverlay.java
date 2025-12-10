@@ -21,6 +21,12 @@
 
 package qupath.lib.gui.viewer.overlays;
 
+import javafx.application.Platform;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableBooleanValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -35,8 +41,8 @@ import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.RegionFilter;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
@@ -63,18 +69,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Function;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableBooleanValue;
 
 /**
  * {@link PathOverlay} that gives the results of pixel classification.
@@ -585,7 +582,13 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 		                }
                     }
                 } catch (Exception e) {
-                   logger.error("Error requesting tile classification", e);
+					if (pool.isShutdown())
+						logger.debug("Pool shutdown - error requesting tile classification: {}", tile, e);
+					else
+						logger.error("Error requesting tile classification: level={}, x={}, y={}, w={}, h={}, z={}, t={}",
+								tile.getLevel(),
+								tile.getTileX(), tile.getTileX(), tile.getTileWidth(), tile.getTileHeight(),
+								tile.getZ(), tile.getT(), e);
                 } finally {
                     currentRequests.remove(tile);
                     pendingRequests.remove(tile);
