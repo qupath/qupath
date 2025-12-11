@@ -21,12 +21,7 @@
 
 package qupath.lib.gui.tools;
 
-import java.util.ArrayList;
-import java.util.function.Function;
-
 import javafx.beans.binding.Bindings;
-import org.kordamp.ikonli.javafx.StackedFontIcon;
-
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -41,12 +36,16 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.TilePane;
+import org.kordamp.ikonli.javafx.StackedFontIcon;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+
+import java.util.ArrayList;
+import java.util.function.Function;
 
 /**
  * Create standardized {@link ListCell} and {@link TreeCell} instances for displaying a {@link PathObject}, 

@@ -23,12 +23,12 @@
 
 package qupath.lib.gui.viewer.overlays;
 
+import qupath.lib.images.ImageData;
+import qupath.lib.regions.ImageRegion;
+
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
-
-import qupath.lib.images.ImageData;
-import qupath.lib.regions.ImageRegion;
 
 
 /**

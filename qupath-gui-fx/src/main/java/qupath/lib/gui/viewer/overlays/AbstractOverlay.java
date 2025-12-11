@@ -23,14 +23,14 @@
 
 package qupath.lib.gui.viewer.overlays;
 
+import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.gui.viewer.OverlayOptions;
+import qupath.lib.images.ImageData;
+
 import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-
-import qupath.lib.color.ColorToolsAwt;
-import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.images.ImageData;
 
 /**
  * Abstract class to help with implementing PathOverlays.

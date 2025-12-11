@@ -21,13 +21,13 @@
 
 package qupath.lib.images.servers;
 
+import qupath.lib.common.GeneralTools;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-
-import qupath.lib.common.GeneralTools;
 
 /**
  * Class used to represent pixel sizes.

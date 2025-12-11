@@ -23,16 +23,15 @@
 
 package qupath.lib.images.writers;
 
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.regions.RegionRequest;
+
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-
-import javax.imageio.ImageIO;
-
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Abstract ImageWriter to use Java's ImageIO.

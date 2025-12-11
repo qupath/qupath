@@ -23,6 +23,10 @@
 
 package qupath.lib.roi;
 
+import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.Shape;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
@@ -32,10 +36,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-
-import qupath.lib.geom.Point2;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * ROI representing a straight line, defined by its end points.

@@ -23,17 +23,17 @@
 
 package qupath.lib.roi;
 
+import qupath.lib.common.GeneralTools;
+import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.geom.Point2;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * An implementation of AreaROI that makes use of Java AWT Shapes.

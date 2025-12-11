@@ -26,7 +26,6 @@ package qupath.lib.analysis.stats.survival;
 import org.apache.commons.math3.distribution.ChiSquaredDistribution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.GeneralTools;
 
 /**

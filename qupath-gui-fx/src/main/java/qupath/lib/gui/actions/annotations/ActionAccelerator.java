@@ -21,13 +21,13 @@
 
 package qupath.lib.gui.actions.annotations;
 
+import javafx.scene.input.KeyCombination;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-
-import javafx.scene.input.KeyCombination;
 
 /**
  * Annotation used to specify a preferred accelerator for an an action.

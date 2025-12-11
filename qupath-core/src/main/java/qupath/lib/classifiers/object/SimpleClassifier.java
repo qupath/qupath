@@ -21,18 +21,18 @@
 
 package qupath.lib.classifiers.object;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.function.Function;
-
 import qupath.lib.classifiers.object.ObjectClassifiers.ClassifyByMeasurementFunction;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.function.Function;
 
 class SimpleClassifier<T> extends AbstractObjectClassifier<T> {
 	

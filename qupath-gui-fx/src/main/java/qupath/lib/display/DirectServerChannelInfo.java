@@ -21,12 +21,12 @@
 
 package qupath.lib.display;
 
+import qupath.lib.common.ColorTools;
+import qupath.lib.images.ImageData;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.IndexColorModel;
-
-import qupath.lib.common.ColorTools;
-import qupath.lib.images.ImageData;
 
 /**
  * ChannelInfo intended for use with a single or multichannel image (possibly fluorescence)

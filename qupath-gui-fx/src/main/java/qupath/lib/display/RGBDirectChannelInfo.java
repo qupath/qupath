@@ -21,10 +21,10 @@
 
 package qupath.lib.display;
 
-import java.awt.image.BufferedImage;
-
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
+
+import java.awt.image.BufferedImage;
 
 /**
  * Class for displaying RGB image using direct color model, but perhaps with brightness/contrast adjusted.

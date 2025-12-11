@@ -23,6 +23,10 @@
 
 package qupath.lib.gui.scripting.richtextfx.stylers;
 
+import org.fxmisc.richtext.model.StyleSpans;
+import org.fxmisc.richtext.model.StyleSpansBuilder;
+import qupath.lib.scripting.languages.ScriptLanguage;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,11 +38,6 @@ import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.regex.Pattern;
-
-import org.fxmisc.richtext.model.StyleSpans;
-import org.fxmisc.richtext.model.StyleSpansBuilder;
-
-import qupath.lib.scripting.languages.ScriptLanguage;
 
 /**
  * Class with static methods to fetch all the available {@link ScriptStyler}s.

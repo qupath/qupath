@@ -21,15 +21,10 @@
 
 package qupath.lib.gui.actions.menus;
 
-import static qupath.lib.gui.actions.ActionTools.createAction;
-
-import java.io.IOException;
-import java.util.List;
-
 import org.controlsfx.control.action.Action;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.annotations.ActionAccelerator;
@@ -38,9 +33,13 @@ import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
+
+import java.io.IOException;
+import java.util.List;
+
+import static qupath.lib.gui.actions.ActionTools.createAction;
 
 public class FileMenuActions implements MenuActions {
 	

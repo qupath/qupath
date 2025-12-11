@@ -23,6 +23,18 @@
 
 package qupath.lib.gui.commands;
 
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.io.PathIO.GeoJsonExportOptions;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.scripting.QP;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,18 +44,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import qupath.fx.dialogs.FileChoosers;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.io.PathIO.GeoJsonExportOptions;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
-import qupath.lib.scripting.QP;
 
 /**
  * Command to export object(s) in GeoJSON format to an output file.

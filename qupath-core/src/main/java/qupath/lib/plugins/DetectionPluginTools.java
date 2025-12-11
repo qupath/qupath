@@ -23,18 +23,18 @@
 
 package qupath.lib.plugins;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.plugins.ParallelTileObject.Status;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Helper methods to convert ObjectDetectors into runnable tasks, which take care of resolving 

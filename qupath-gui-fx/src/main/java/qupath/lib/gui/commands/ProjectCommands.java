@@ -21,6 +21,27 @@
 
 package qupath.lib.gui.commands;
 
+import javafx.concurrent.Task;
+import org.controlsfx.dialog.ProgressDialog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.ImageData.ImageType;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.io.GsonTools;
+import qupath.lib.io.PathIO;
+import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
+
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileReader;
@@ -35,29 +56,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
-
-import javax.imageio.ImageIO;
-
-import org.controlsfx.dialog.ProgressDialog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.concurrent.Task;
-import qupath.fx.dialogs.FileChoosers;
-import qupath.lib.gui.QuPathGUI;
-import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.ImageData.ImageType;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.io.GsonTools;
-import qupath.lib.io.PathIO;
-import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectImageEntry;
-import qupath.lib.projects.Projects;
 
 /**
  * Helper class implementing simple 'single-method' commands related to projects.

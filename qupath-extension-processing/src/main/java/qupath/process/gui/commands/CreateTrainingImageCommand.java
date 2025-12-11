@@ -21,24 +21,13 @@
 
 package qupath.process.gui.commands;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.function.Predicate;
-import java.util.stream.IntStream;
-
+import javafx.concurrent.Task;
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javafx.concurrent.Task;
-import qupath.lib.gui.commands.ProjectCommands;
 import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.images.servers.CroppedImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.SparseImageServer;
@@ -50,6 +39,15 @@ import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.RectangleROI;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.function.Predicate;
+import java.util.stream.IntStream;
 
 /**
  * Command to generate a {@link SparseImageServer} from multiple image regions across a project.

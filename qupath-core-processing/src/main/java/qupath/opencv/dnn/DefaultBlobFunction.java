@@ -22,6 +22,13 @@
 
 package qupath.opencv.dnn;
 
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Size;
+import qupath.lib.io.UriResource;
+import qupath.opencv.ops.ImageOp;
+import qupath.opencv.tools.OpenCVTools;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -29,14 +36,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
-
-import org.bytedeco.opencv.global.opencv_imgproc;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Size;
-
-import qupath.lib.io.UriResource;
-import qupath.opencv.ops.ImageOp;
-import qupath.opencv.tools.OpenCVTools;
 
 class DefaultBlobFunction implements BlobFunction<Mat>, UriResource {
 	

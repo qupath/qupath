@@ -21,6 +21,9 @@
 
 package qupath.process.gui;
 
+import javafx.application.Platform;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.openblas.global.openblas;
 import org.bytedeco.opencv.global.opencv_core;
@@ -31,10 +34,6 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;

@@ -21,8 +21,6 @@
 
 package qupath.lib.objects.utils;
 
-import java.util.Comparator;
-import java.util.HashMap;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFilter;
@@ -33,8 +31,6 @@ import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.hprtree.HPRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.measurements.MeasurementList;
-import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;

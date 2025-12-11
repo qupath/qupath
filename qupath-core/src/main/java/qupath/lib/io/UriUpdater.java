@@ -21,6 +21,11 @@
 
 package qupath.lib.io;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.projects.Project;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -39,12 +44,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.projects.Project;
 
 /**
  * Helper class for updating URIs, for example whenever files have moved or projects have been transferred between computers.

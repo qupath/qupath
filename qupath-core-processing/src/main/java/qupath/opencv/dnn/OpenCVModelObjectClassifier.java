@@ -21,20 +21,9 @@
 
 package qupath.opencv.dnn;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.IntFunction;
-
 import org.bytedeco.opencv.opencv_dnn.ClassificationModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.classifiers.object.AbstractObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.images.ImageData;
@@ -44,6 +33,16 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.dnn.OpenCVDnn.ModelType;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.IntFunction;
 
 
 /**

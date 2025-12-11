@@ -23,19 +23,18 @@
 
 package qupath.lib.gui.scripting.richtextfx.stylers;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.LogTools;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Styling to apply to a {@link CodeArea}, based on Python syntax.

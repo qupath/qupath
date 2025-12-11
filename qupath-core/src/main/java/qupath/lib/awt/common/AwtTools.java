@@ -23,12 +23,12 @@
 
 package qupath.lib.awt.common;
 
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
-
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A collection of static methods useful when working with AWT shapes and {@link ImageRegion ImageRegions}.

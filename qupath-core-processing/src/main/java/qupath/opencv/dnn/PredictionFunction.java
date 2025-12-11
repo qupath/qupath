@@ -21,10 +21,10 @@
 
 package qupath.opencv.dnn;
 
+import qupath.lib.io.GsonTools;
+
 import java.util.Collections;
 import java.util.Map;
-
-import qupath.lib.io.GsonTools;
 
 /**
  * Prediction function, typically used with a deep learning framework.

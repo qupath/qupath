@@ -23,11 +23,11 @@
 
 package qupath.lib.plugins;
 
-import java.util.Collection;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterList;
+
+import java.util.Collection;
 
 /**
  * Interface to define a PathPlugin that requires a list of (user-adjustable) parameters.

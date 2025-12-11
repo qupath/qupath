@@ -23,20 +23,6 @@
 
 package qupath.imagej.detect.cells;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.Shape;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import ij.gui.PolygonRoi;
 import ij.gui.Wand;
 import ij.measure.Calibration;
@@ -46,23 +32,25 @@ import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.imagej.processing.RoiLabeling;
 import qupath.imagej.processing.SimpleThresholding;
 import qupath.imagej.tools.IJTools;
-import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.analysis.images.SimpleImage;
+import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
-import qupath.lib.color.StainVector;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
-import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
+import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -79,6 +67,18 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.Shape;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Experimental plugin to help with the quantification of subcellular structures.

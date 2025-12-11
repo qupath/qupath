@@ -21,6 +21,19 @@
 
 package qupath.lib.gui.tma;
 
+import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableValue;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.image.Image;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.objects.TMACoreObject;
+import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -34,20 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.beans.value.ObservableBooleanValue;
-import javafx.beans.value.ObservableValue;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.scene.image.Image;
-import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ServerTools;
-import qupath.lib.objects.TMACoreObject;
-import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.interfaces.ROI;
 
 class TMAEntries {
 	

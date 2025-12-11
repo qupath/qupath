@@ -21,20 +21,19 @@
 
 package qupath.lib.gui.tools;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-
-import org.controlsfx.control.action.Action;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import org.controlsfx.control.action.Action;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.localization.QuPathResources;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * Static methods to help with creating and populating JavaFX menus.

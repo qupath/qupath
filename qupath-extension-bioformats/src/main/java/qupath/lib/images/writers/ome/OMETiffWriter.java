@@ -21,13 +21,6 @@
 
 package qupath.lib.images.writers.ome;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.UUID;
-
 import loci.common.ByteArrayHandle;
 import loci.common.IRandomAccess;
 import loci.common.Location;
@@ -36,6 +29,13 @@ import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.ome.OMEPyramidWriter.CompressionType;
 import qupath.lib.regions.RegionRequest;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.UUID;
 
 /**
  * {@link ImageWriter} for writing OME-TIFF images. For greater control, see {@link OMEPyramidWriter}.

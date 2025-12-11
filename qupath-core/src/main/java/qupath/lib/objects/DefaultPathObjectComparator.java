@@ -23,11 +23,11 @@
 
 package qupath.lib.objects;
 
-import java.util.Comparator;
-import java.util.Objects;
-
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.DefaultROIComparator;
+
+import java.util.Comparator;
+import java.util.Objects;
 
 /**
  * Default comparator to enable objects to be sorted in a more predictable manner.

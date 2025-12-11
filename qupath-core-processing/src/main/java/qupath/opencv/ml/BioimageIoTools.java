@@ -21,22 +21,8 @@
 
 package qupath.opencv.ml;
 
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.bioimageio.spec.Model;
 import qupath.bioimageio.spec.Weights;
 import qupath.bioimageio.spec.tensor.InputTensor;
@@ -54,6 +40,19 @@ import qupath.opencv.dnn.DnnModels;
 import qupath.opencv.dnn.DnnShape;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
+
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static qupath.bioimageio.spec.tensor.axes.Axes.getAxesString;
 

@@ -21,19 +21,9 @@
 
 package qupath.lib.images.writers.ome;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.regex.Pattern;
-import java.util.stream.DoubleStream;
-
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -47,6 +37,15 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
 import qupath.lib.images.writers.ome.zarr.OMEZarrWriter;
 import qupath.lib.regions.ImageRegion;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.stream.DoubleStream;
 
 /**
  * Allows command line option to convert an input image to OME-TIFF or OME-Zarr.

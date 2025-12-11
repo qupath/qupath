@@ -21,16 +21,16 @@
 
 package qupath.lib.gui.scripting.richtextfx.stylers;
 
-import java.io.StringReader;
-import java.util.Collection;
-import java.util.Set;
-
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.events.ScalarEvent;
+
+import java.io.StringReader;
+import java.util.Collection;
+import java.util.Set;
 
 /**
  * Styling to apply to a {@link CodeArea}, based on YAML syntax.

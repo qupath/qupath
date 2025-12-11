@@ -22,10 +22,6 @@
 
 package qupath.process.gui.commands.ui;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.Objects;
-
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -38,17 +34,21 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.fx.dialogs.Dialogs;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ResourceManager.Manager;
 import qupath.process.gui.commands.ml.ProjectClassifierBindings;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Small JavaFX pane to support saving object/pixel classifiers and density maps within a project in a standardized way.

@@ -22,8 +22,25 @@
 
 package qupath.opencv.ml.pixel;
 
-import static org.junit.jupiter.api.Assertions.*;
+import ij.process.ByteProcessor;
+import ij.process.ImageStatistics;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.locationtech.jts.operation.valid.IsValidOp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.imagej.processing.IJProcessing;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.IOException;
@@ -36,26 +53,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
-import javax.imageio.ImageIO;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.locationtech.jts.operation.valid.IsValidOp;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import ij.process.ByteProcessor;
-import ij.process.ImageStatistics;
-import qupath.imagej.processing.IJProcessing;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.servers.ImageServers;
-import qupath.lib.images.servers.WrappedBufferedImageServer;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Test conversion of raster images (binary and labelled) to ROIs.

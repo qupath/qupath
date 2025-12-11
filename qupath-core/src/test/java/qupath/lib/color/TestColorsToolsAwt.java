@@ -21,10 +21,10 @@
 
 package qupath.lib.color;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
-
 import qupath.lib.common.ColorTools;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SuppressWarnings("javadoc")
 public class TestColorsToolsAwt {

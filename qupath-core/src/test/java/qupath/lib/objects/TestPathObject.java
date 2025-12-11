@@ -22,13 +22,13 @@
 
 package qupath.lib.objects;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import qupath.lib.measurements.MeasurementList.MeasurementListType;
+import qupath.lib.measurements.MeasurementListFactory;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.roi.ROIs;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -42,14 +42,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.IntStream;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import qupath.lib.measurements.MeasurementList.MeasurementListType;
-import qupath.lib.measurements.MeasurementListFactory;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.roi.ROIs;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class TestPathObject {
 	

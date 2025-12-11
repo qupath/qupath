@@ -22,16 +22,15 @@
 
 package qupath.opencv.dnn;
 
-import java.util.LinkedHashSet;
-import java.util.ServiceLoader;
-import java.util.Set;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
+
+import java.util.LinkedHashSet;
+import java.util.ServiceLoader;
+import java.util.Set;
 
 /**
  * Helper class for building new {@linkplain DnnModel DnnModels}.

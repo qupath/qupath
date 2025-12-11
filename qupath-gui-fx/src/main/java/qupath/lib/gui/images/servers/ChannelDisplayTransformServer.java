@@ -21,6 +21,25 @@
 
 package qupath.lib.gui.images.servers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.ChannelDisplayMode;
+import qupath.lib.display.DirectServerChannelInfo;
+import qupath.lib.display.SingleChannelDisplayInfo;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.TransformingImageServer;
+import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -32,25 +51,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.common.ColorTools;
-import qupath.lib.display.ChannelDisplayInfo;
-import qupath.lib.display.ChannelDisplayMode;
-import qupath.lib.display.DirectServerChannelInfo;
-import qupath.lib.display.SingleChannelDisplayInfo;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.TransformingImageServer;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.io.GsonTools;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectReader;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * ImageServer that applies a color transform to an image. This can either be a single RGB transform, or one or more single-channel (float) transforms.

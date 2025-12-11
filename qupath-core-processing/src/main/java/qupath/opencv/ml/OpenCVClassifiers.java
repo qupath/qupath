@@ -21,32 +21,44 @@
 
 package qupath.opencv.ml;
 
-import java.io.IOException;
-import java.nio.IntBuffer;
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_ml;
-import org.bytedeco.opencv.opencv_core.*;
-import org.bytedeco.opencv.opencv_ml.*;
-import org.bytedeco.javacpp.indexer.DoubleIndexer;
-import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.indexer.IntIndexer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.gson.TypeAdapter;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-
+import org.bytedeco.javacpp.indexer.DoubleIndexer;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.IntIndexer;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_ml;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.TermCriteria;
+import org.bytedeco.opencv.opencv_core.UMat;
+import org.bytedeco.opencv.opencv_ml.ANN_MLP;
+import org.bytedeco.opencv.opencv_ml.Boost;
+import org.bytedeco.opencv.opencv_ml.DTrees;
+import org.bytedeco.opencv.opencv_ml.EM;
+import org.bytedeco.opencv.opencv_ml.KNearest;
+import org.bytedeco.opencv.opencv_ml.LogisticRegression;
+import org.bytedeco.opencv.opencv_ml.NormalBayesClassifier;
+import org.bytedeco.opencv.opencv_ml.RTrees;
+import org.bytedeco.opencv.opencv_ml.SVM;
+import org.bytedeco.opencv.opencv_ml.SVMSGD;
+import org.bytedeco.opencv.opencv_ml.StatModel;
+import org.bytedeco.opencv.opencv_ml.TrainData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.io.GsonTools;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.opencv.io.OpenCVTypeAdapters;
 import qupath.opencv.tools.OpenCVTools;
+
+import java.io.IOException;
+import java.nio.IntBuffer;
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * QuPath wrappers for OpenCV classifiers, which are instances of StatModel.

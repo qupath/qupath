@@ -21,14 +21,14 @@
 
 package qupath.lib.objects;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.function.Predicate;
-
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.function.Predicate;
 
 
 /**

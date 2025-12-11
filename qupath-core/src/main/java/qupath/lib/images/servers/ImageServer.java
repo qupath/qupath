@@ -23,17 +23,16 @@
 
 package qupath.lib.images.servers;
 
+import org.slf4j.LoggerFactory;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.RegionRequest;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * 

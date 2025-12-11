@@ -21,10 +21,7 @@
 
 package qupath.lib.gui.actions.menus;
 
-import java.util.List;
-
 import org.controlsfx.control.action.Action;
-
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.Urls;
 import qupath.lib.gui.WelcomeStage;
@@ -34,6 +31,8 @@ import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.localization.QuPathResources;
+
+import java.util.List;
 
 public class HelpMenuActions implements MenuActions {
 	

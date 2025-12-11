@@ -21,11 +21,11 @@
 
 package qupath.lib.gui.dialogs;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import org.junit.jupiter.api.Test;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class TestDialogs {
 
