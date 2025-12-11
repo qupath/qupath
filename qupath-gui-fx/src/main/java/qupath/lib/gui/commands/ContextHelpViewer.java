@@ -307,7 +307,7 @@ public class ContextHelpViewer {
 				createHiddenClassificationsEntry(),
 				createNoImageEntry(),
 				createNoProjectEntry(),
-				createOpacityZeroEntry(),
+				createOpacityLowEntry(),
 				createGammaNotDefault(),
 				createInvertedColors(),
 				createGreyscaleColors(),
@@ -635,11 +635,11 @@ public class ContextHelpViewer {
 		return entry;
 	}
 	
-	private HelpListEntry createOpacityZeroEntry() {
+	private HelpListEntry createOpacityLowEntry() {
 		var entry = HelpListEntry.createInfo(
 				"ContextHelp.warning.opacityZero");
 		entry.visibleProperty().bind(
-				qupath.getOverlayOptions().opacityProperty().lessThanOrEqualTo(0.0));
+				qupath.getOverlayOptions().opacityProperty().lessThanOrEqualTo(0.2));
 		return entry;
 	}
 	
