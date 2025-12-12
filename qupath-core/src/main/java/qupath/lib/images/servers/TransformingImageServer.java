@@ -71,5 +71,4 @@ public abstract class TransformingImageServer<T> extends AbstractImageServer<T> 
 	public ImageServerMetadata getOriginalMetadata() {
 		return server.getOriginalMetadata();
 	}
-
 }
