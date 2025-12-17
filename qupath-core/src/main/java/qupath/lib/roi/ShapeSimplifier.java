@@ -204,7 +204,6 @@ public class ShapeSimplifier {
 
 
 	/**
-	 *
 	 * Create a simplified shape (fewer coordinates) using method based on Visvalingam's Algorithm.
 	 * <p>
 	 * See references:
@@ -212,16 +211,48 @@ public class ShapeSimplifier {
 	 * https://www.jasondavies.com/simplify/
 	 * http://bost.ocks.org/mike/simplify/
 	 *
-	 * @param shapeROI
+	 * @param roi
 	 * @param altitudeThreshold
 	 * @return
 	 */
-	public static ROI simplifyShape(ROI shapeROI, double altitudeThreshold) {
-		Shape shape = RoiTools.getShape(shapeROI);
+	public static ROI simplifyShape(ROI roi, double altitudeThreshold) {
+		if (roi == null)
+			return roi;
+		if (roi.isPoint()) {
+			logger.warn("Point ROIs cannot be simplified!");
+			return roi;
+		}
+		if (roi.isLine()) {
+			var points = roi.getAllPoints();
+			var firstPoint = points.getFirst();
+			var lastPoint = points.getLast();
+			simplifyPolygonPoints(points, altitudeThreshold);
+			if (points.size() < 2) {
+				return roi;
+			} else if (points.size() == 2) {
+				return ROIs.createLineROI(
+						points.getFirst().getX(),
+						points.getFirst().getY(),
+						points.getLast().getX(),
+						points.getLast().getY(),
+						roi.getImagePlane()
+				);
+			} else {
+				// Ensure end points have not been removed
+				if (!points.contains(firstPoint)) {
+					points.addFirst(firstPoint);
+				}
+				if (!points.contains(lastPoint)) {
+					points.addLast(lastPoint);
+				}
+				return ROIs.createPolylineROI(points);
+			}
+		}
+		Shape shape = RoiTools.getShape(roi);
 		Path2D path = shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape);
 		path = simplifyPath(path, altitudeThreshold);
 		// Construct a new polygon
-		return RoiTools.getShapeROI(path, shapeROI.getImagePlane(), 0.5);
+		return RoiTools.getShapeROI(path, roi.getImagePlane(), 0.5);
 	}
 
 	/**
