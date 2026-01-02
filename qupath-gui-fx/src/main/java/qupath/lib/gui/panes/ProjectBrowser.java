@@ -167,6 +167,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	// Record if the context menu is showing; this is to block a tooltip obscuring it
 	private BooleanProperty contextMenuShowing = new SimpleBooleanProperty();
 	
+	// Store the raw filter text
+    private StringProperty filterText = new SimpleStringProperty("");
+
 	/**
 	 * Metadata keys that will always be present
 	 */
@@ -289,6 +292,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		
 		var tfFilter = new PredicateTextField<String>();
+		filterText.bind(tfFilter.textProperty());
 		tfFilter.setPromptText("Search entry in project");
 		tfFilter.setSpacing(0.0);
 		var tooltip = new Tooltip("Type some text to filter the project entries by name or type.");
@@ -908,7 +912,43 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		}
 		return false;
 	}
-	
+
+	private boolean matchesFilter(ProjectImageEntry<?> entry, String text, List<String> tokens) {
+		if (text.isEmpty())
+			return true;
+		
+		String name = entry.getImageName().toLowerCase();
+		// 1. If the entire text is contained in the image name, it's a match
+		if (name.contains(text))
+			return true;
+		
+		// 2. If no tokens (|) are present and the name didn't match, it's a fail
+		if (tokens.isEmpty())
+			return false;
+		
+		// 3. Check individual tokens against name and metadata strings (key=value)
+		List<String> metadataStrings = entry.getMetadata().entrySet().stream()
+				.map(e -> e.getKey() + "=" + e.getValue())
+				.map(String::toLowerCase)
+				.toList();
+
+		for (var token : tokens) {
+			boolean foundMatch = name.contains(token);
+			if (!foundMatch) {
+				for (var m : metadataStrings) {
+					if (m.contains(token)) {
+						foundMatch = true;
+						break;
+					}
+				}
+			}
+			// Logic implies "AND": every token must be found somewhere
+			if (!foundMatch)
+				return false;
+		}
+		return true;
+	}
+		
 	/**
 	 * Resize an image so that its dimensions fit inside thumbnailWidth x thumbnailHeight.
 	 * 
@@ -1451,87 +1491,118 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		}
 
 		@Override
-		public boolean isLeaf() {
-			if (computed)
-				return super.getChildren().isEmpty();
+        public boolean isLeaf() {
+            if (computed)
+                return super.getChildren().isEmpty();
+
+            // Prepare filter vars
+            String textRaw = filterText.get();
+            String text = textRaw == null ? "" : textRaw.trim().toLowerCase();
+            List<String> tokens;
+            if (text.contains("|")) {
+                 tokens = Arrays.stream(text.split("\\|"))
+                         .map(String::trim)
+                         .filter(s -> !s.isEmpty())
+                         .collect(Collectors.toList()); // [cite: 10]
+            } else {
+                 tokens = Collections.emptyList();
+            }
 
             return switch (getValue().getType()) {
+                // Use custom matchesFilter instead of predicateProperty
                 case ROOT -> project != null && !project.getImageList().isEmpty() && project.getImageList().stream()
-                        .noneMatch(entry -> predicateProperty.get().test(entry.getImageName()));
+                        .noneMatch(entry -> matchesFilter(entry, text, tokens));
                 case METADATA -> false;
                 case IMAGE -> true;
                 default ->
                         throw new IllegalArgumentException("Could not understand the type of the object: " + getValue().getType());
             };
-			
-		}
-		
-		@Override
-		public ObservableList<TreeItem<ProjectTreeRow>> getChildren() {
-			if (!isLeaf() && !computed) {
-				ObservableList<TreeItem<ProjectTreeRow>> children = FXCollections.observableArrayList();
-				var filter = predicateProperty.get();
-				var metadataKey = model.getMetadataKey();
-				switch (getValue().getType()) {
-				case ROOT:
-					if (project == null)
-						break;
-					
-					if (metadataKey == null) {
-						for (var row: getAllImageRows()) {
-							if (!filter.test(row.getDisplayableString()))
-								continue;
-							children.add(new ProjectTreeRowItem(row));
-						}
-					} else {
-						var values = new ArrayList<>(getAllMetadataValues(metadataKey));
-						GeneralTools.smartStringSort(values);
-						var potentialChildren = values.stream()
-								.map(value -> new ProjectTreeRowItem(new MetadataRow(value)))
-								.toList();
-						// When sorting by name, we don't want to show grouped by name - since it looks weird,
-						// with the name effectively being repeated twice
-						if (metadataKey.equals(BaseMetadataKeys.IMAGE_NAME.getKey()))
-							potentialChildren = potentialChildren.stream().flatMap(c -> {
-								if (c.isLeaf())
-									return Stream.empty();
-								else
-									return c.getChildren().stream();
-							}).map(t -> (ProjectTreeRowItem)t).toList();
-						// When sorting by entry ID, we want to expand everything - since there should only be one
-						// entry per ID
-						if (metadataKey.equals(BaseMetadataKeys.ENTRY_ID.getKey()))
-							potentialChildren.forEach(c -> c.setExpanded(true));
+            
+        }
+        
+        @Override
+        public ObservableList<TreeItem<ProjectTreeRow>> getChildren() {
+            if (!isLeaf() && !computed) {
+                ObservableList<TreeItem<ProjectTreeRow>> children = FXCollections.observableArrayList();
+                
+                // Prepare filter variables once for this node
+                String textRaw = filterText.get();
+                String text = textRaw == null ? "" : textRaw.trim().toLowerCase();
+                List<String> tokens;
+                if (text.contains("|")) {
+                     tokens = Arrays.stream(text.split("\\|"))
+                             .map(String::trim)
+                             .filter(s -> !s.isEmpty())
+                             .collect(Collectors.toList());
+                } else {
+                     tokens = Collections.emptyList();
+                }
 
-						children.addAll(potentialChildren);
-					}
-					break;
-				case METADATA:
-					if (metadataKey == null || metadataKey.isEmpty())		// This should never happen
-						break;
-					
-					for (var row: getAllImageRows()) {
-						if (!filter.test(row.getDisplayableString()))
-							continue;
-						try {
-							var value = getDefaultValue(ProjectTreeRow.getEntry(row), metadataKey);
-							if (value != null && value.equals(((MetadataRow)getValue()).getDisplayableString()))
-								children.add(new ProjectTreeRowItem(row));
-						} catch (IOException ex) {
-							logger.warn("Could not get {} from {}", metadataKey, row.getDisplayableString(), ex);
-						}
-					}
-				case IMAGE:
-					break;
-				default:
-					throw new IllegalArgumentException("Could not understand the type of the object: " + getValue().getType());
-				}
-				computed = true;
-				super.getChildren().setAll(children);
-			}
-			return super.getChildren();
-		}
+                var metadataKey = model.getMetadataKey();
+                switch (getValue().getType()) {
+                case ROOT:
+                    if (project == null)
+                        break;
+                    
+                    if (metadataKey == null) {
+                        for (var row: getAllImageRows()) {
+                            // Use custom filter logic
+                            if (!matchesFilter(ProjectTreeRow.getEntry(row), text, tokens))
+                                continue;
+                            children.add(new ProjectTreeRowItem(row));
+                        }
+                    } else {
+                        // ... existing metadata group creation ...
+                        // (Note: metadata grouping logic stays mostly the same, 
+                        // filtering happens inside the METADATA case below for children of groups)
+                        var values = new ArrayList<>(getAllMetadataValues(metadataKey));
+                        GeneralTools.smartStringSort(values);
+                        var potentialChildren = values.stream()
+                                .map(value -> new ProjectTreeRowItem(new MetadataRow(value)))
+                                .toList();
+                        
+                        if (metadataKey.equals(BaseMetadataKeys.IMAGE_NAME.getKey()))
+                            potentialChildren = potentialChildren.stream().flatMap(c -> {
+                                if (c.isLeaf())
+                                    return Stream.empty();
+                                else
+                                    return c.getChildren().stream();
+                            }).map(t -> (ProjectTreeRowItem)t).toList();
+
+                        if (metadataKey.equals(BaseMetadataKeys.ENTRY_ID.getKey()))
+                            potentialChildren.forEach(c -> c.setExpanded(true));
+
+                        children.addAll(potentialChildren);
+                    }
+                    break;
+                case METADATA:
+                    if (metadataKey == null || metadataKey.isEmpty())
+                        break;
+                    
+                    for (var row: getAllImageRows()) {
+                        // Apply filter to images within metadata groups
+                        if (!matchesFilter(ProjectTreeRow.getEntry(row), text, tokens))
+                            continue;
+                        try {
+                            var value = getDefaultValue(ProjectTreeRow.getEntry(row), metadataKey);
+                            if (value != null && value.equals(((MetadataRow)getValue()).getDisplayableString()))
+                                children.add(new ProjectTreeRowItem(row));
+                        } catch (IOException ex) {
+                            logger.warn("Could not get {} from {}", metadataKey, row.getDisplayableString(), ex);
+                        }
+                    }
+                case IMAGE:
+                    break;
+                default:
+                    throw new IllegalArgumentException("Could not understand the type of the object: " + getValue().getType());
+                }
+                computed = true;
+                super.getChildren().setAll(children);
+            }
+            return super.getChildren();
+        }
 	}
+	
 
 	enum ProjectThumbnailSize {
 		HIDDEN, SMALL, MEDIUM, LARGE;
