@@ -1116,34 +1116,36 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			
 			try {
 				var listOfChildren = tree.getRoot().getChildren();
-				for (int i = 0; i < listOfChildren.size(); i++) {
-					if (imageToSelect == null) {
-						if (listOfChildren.get(i).getChildren().size() > 0) {
-							listOfChildren.get(i).setExpanded(true);
-							tree.refresh();
-							break;
-						}							
-					} else {
-						for (var child: listOfChildren) {
-							if (child.getValue().getType() == Type.METADATA) {
-								for (var imageChild: child.getChildren()) {
-									if (imageChild.getValue().equals(imageToSelect)) {
-										child.setExpanded(true);
-										tree.getSelectionModel().select(imageChild);
-										break;
-									}
+				// When filtering (imageToSelect is null), expand all matching group nodes
+				if (imageToSelect == null) {
+					for (var child : listOfChildren) {
+						if (child.getChildren().size() > 0) {
+							child.setExpanded(true);
+						}
+					}
+				} else {
+					// If a specific image is requested, expand only its parent group and select it
+					for (var child : listOfChildren) {
+						if (child.getValue().getType() == Type.METADATA) {
+							for (var imageChild : child.getChildren()) {
+								if (imageChild.getValue().equals(imageToSelect)) {
+									child.setExpanded(true);
+									tree.getSelectionModel().select(imageChild);
+									return; // Found and selected, exit the loop
 								}
-							} else if (child.getValue().equals(imageToSelect))
-								tree.getSelectionModel().select(child);
+							}
+						} else if (child.getValue().equals(imageToSelect)) {
+							tree.getSelectionModel().select(child);
+							return;
 						}
 					}
 				}
+				tree.refresh();
 			} catch (Exception ex) {
 				logger.error("Error getting children objects in the ProjectBrowser", ex);
 			}
 		});
 	}
-
 	private Action createSortByKeyAction(final String name, final String key) {
 		return new Action(name, e -> {
 			if (model == null)
