@@ -168,7 +168,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	private BooleanProperty contextMenuShowing = new SimpleBooleanProperty();
 	
 	// Store the raw filter text
-    private StringProperty filterText = new SimpleStringProperty("");
+	private StringProperty filterText = new SimpleStringProperty("");
 
 	/**
 	 * Metadata keys that will always be present
@@ -948,7 +948,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		}
 		return true;
 	}
-		
+
 	/**
 	 * Resize an image so that its dimensions fit inside thumbnailWidth x thumbnailHeight.
 	 * 
@@ -1146,6 +1146,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			}
 		});
 	}
+
 	private Action createSortByKeyAction(final String name, final String key) {
 		return new Action(name, e -> {
 			if (model == null)
@@ -1493,22 +1494,22 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		}
 
 		@Override
-        public boolean isLeaf() {
-            if (computed)
-                return super.getChildren().isEmpty();
+		public boolean isLeaf() {
+			if (computed)
+				return super.getChildren().isEmpty();
 
-            // Prepare filter vars
-            String textRaw = filterText.get();
-            String text = textRaw == null ? "" : textRaw.trim().toLowerCase();
-            List<String> tokens;
-            if (text.contains("|")) {
-                 tokens = Arrays.stream(text.split("\\|"))
-                         .map(String::trim)
-                         .filter(s -> !s.isEmpty())
-                         .collect(Collectors.toList()); // [cite: 10]
-            } else {
-                 tokens = Collections.emptyList();
-            }
+			// Prepare filter vars
+			String textRaw = filterText.get();
+			String text = textRaw == null ? "" : textRaw.trim().toLowerCase();
+			List<String> tokens;
+			if (text.contains("|")) {
+				 tokens = Arrays.stream(text.split("\\|"))
+						 .map(String::trim)
+						 .filter(s -> !s.isEmpty())
+						 .collect(Collectors.toList()); // [cite: 10]
+			} else {
+				 tokens = Collections.emptyList();
+			}
 
             return switch (getValue().getType()) {
                 // Use custom matchesFilter instead of predicateProperty
@@ -1519,92 +1520,92 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
                 default ->
                         throw new IllegalArgumentException("Could not understand the type of the object: " + getValue().getType());
             };
-            
-        }
-        
-        @Override
-        public ObservableList<TreeItem<ProjectTreeRow>> getChildren() {
-            if (!isLeaf() && !computed) {
-                ObservableList<TreeItem<ProjectTreeRow>> children = FXCollections.observableArrayList();
-                
-                // Prepare filter variables once for this node
-                String textRaw = filterText.get();
-                String text = textRaw == null ? "" : textRaw.trim().toLowerCase();
-                List<String> tokens;
-                if (text.contains("|")) {
-                     tokens = Arrays.stream(text.split("\\|"))
-                             .map(String::trim)
-                             .filter(s -> !s.isEmpty())
-                             .collect(Collectors.toList());
-                } else {
-                     tokens = Collections.emptyList();
-                }
+			
+		}
+		
+		@Override
+		public ObservableList<TreeItem<ProjectTreeRow>> getChildren() {
+			if (!isLeaf() && !computed) {
+				ObservableList<TreeItem<ProjectTreeRow>> children = FXCollections.observableArrayList();
+				
+				// Prepare filter variables once for this node
+				String textRaw = filterText.get();
+				String text = textRaw == null ? "" : textRaw.trim().toLowerCase();
+				List<String> tokens;
+				if (text.contains("|")) {
+					 tokens = Arrays.stream(text.split("\\|"))
+							 .map(String::trim)
+							 .filter(s -> !s.isEmpty())
+							 .collect(Collectors.toList());
+				} else {
+					 tokens = Collections.emptyList();
+				}
 
-                var metadataKey = model.getMetadataKey();
-                switch (getValue().getType()) {
-                case ROOT:
-                    if (project == null)
-                        break;
-                    
-                    if (metadataKey == null) {
-                        for (var row: getAllImageRows()) {
-                            // Use custom filter logic
-                            if (!matchesFilter(ProjectTreeRow.getEntry(row), text, tokens))
-                                continue;
-                            children.add(new ProjectTreeRowItem(row));
-                        }
-                    } else {
-                        // ... existing metadata group creation ...
-                        // (Note: metadata grouping logic stays mostly the same, 
-                        // filtering happens inside the METADATA case below for children of groups)
-                        var values = new ArrayList<>(getAllMetadataValues(metadataKey));
-                        GeneralTools.smartStringSort(values);
-                        var potentialChildren = values.stream()
-                                .map(value -> new ProjectTreeRowItem(new MetadataRow(value)))
-                                .toList();
-                        
-                        if (metadataKey.equals(BaseMetadataKeys.IMAGE_NAME.getKey()))
-                            potentialChildren = potentialChildren.stream().flatMap(c -> {
-                                if (c.isLeaf())
-                                    return Stream.empty();
-                                else
-                                    return c.getChildren().stream();
-                            }).map(t -> (ProjectTreeRowItem)t).toList();
+				var metadataKey = model.getMetadataKey();
+				switch (getValue().getType()) {
+				case ROOT:
+					if (project == null)
+						break;
+					
+					if (metadataKey == null) {
+						for (var row: getAllImageRows()) {
+							// Use custom filter logic
+							if (!matchesFilter(ProjectTreeRow.getEntry(row), text, tokens))
+								continue;
+							children.add(new ProjectTreeRowItem(row));
+						}
+					} else {
+						// (Note: metadata grouping logic stays mostly the same, 
+						// filtering happens inside the METADATA case below for children of groups)
+						var values = new ArrayList<>(getAllMetadataValues(metadataKey));
+						GeneralTools.smartStringSort(values);
+						var potentialChildren = values.stream()
+								.map(value -> new ProjectTreeRowItem(new MetadataRow(value)))
+								.toList();
+						// When sorting by name, we don't want to show grouped by name - since it looks weird,
+						// with the name effectively being repeated twice
+						if (metadataKey.equals(BaseMetadataKeys.IMAGE_NAME.getKey()))
+							potentialChildren = potentialChildren.stream().flatMap(c -> {
+								if (c.isLeaf())
+									return Stream.empty();
+								else
+									return c.getChildren().stream();
+							}).map(t -> (ProjectTreeRowItem)t).toList();
+						// When sorting by entry ID, we want to expand everything - since there should only be one
+						// entry per ID
+						if (metadataKey.equals(BaseMetadataKeys.ENTRY_ID.getKey()))
+							potentialChildren.forEach(c -> c.setExpanded(true));
 
-                        if (metadataKey.equals(BaseMetadataKeys.ENTRY_ID.getKey()))
-                            potentialChildren.forEach(c -> c.setExpanded(true));
-
-                        children.addAll(potentialChildren);
-                    }
-                    break;
-                case METADATA:
-                    if (metadataKey == null || metadataKey.isEmpty())
-                        break;
-                    
-                    for (var row: getAllImageRows()) {
-                        // Apply filter to images within metadata groups
-                        if (!matchesFilter(ProjectTreeRow.getEntry(row), text, tokens))
-                            continue;
-                        try {
-                            var value = getDefaultValue(ProjectTreeRow.getEntry(row), metadataKey);
-                            if (value != null && value.equals(((MetadataRow)getValue()).getDisplayableString()))
-                                children.add(new ProjectTreeRowItem(row));
-                        } catch (IOException ex) {
-                            logger.warn("Could not get {} from {}", metadataKey, row.getDisplayableString(), ex);
-                        }
-                    }
-                case IMAGE:
-                    break;
-                default:
-                    throw new IllegalArgumentException("Could not understand the type of the object: " + getValue().getType());
-                }
-                computed = true;
-                super.getChildren().setAll(children);
-            }
-            return super.getChildren();
-        }
+						children.addAll(potentialChildren);
+					}
+					break;
+				case METADATA:
+					if (metadataKey == null || metadataKey.isEmpty())		// This should never happen
+						break;
+					
+					for (var row: getAllImageRows()) {
+						// Apply filter to images within metadata groups
+						if (!matchesFilter(ProjectTreeRow.getEntry(row), text, tokens))
+							continue;
+						try {
+							var value = getDefaultValue(ProjectTreeRow.getEntry(row), metadataKey);
+							if (value != null && value.equals(((MetadataRow)getValue()).getDisplayableString()))
+								children.add(new ProjectTreeRowItem(row));
+						} catch (IOException ex) {
+							logger.warn("Could not get {} from {}", metadataKey, row.getDisplayableString(), ex);
+						}
+					}
+				case IMAGE:
+					break;
+				default:
+					throw new IllegalArgumentException("Could not understand the type of the object: " + getValue().getType());
+				}
+				computed = true;
+				super.getChildren().setAll(children);
+			}
+			return super.getChildren();
+		}
 	}
-	
 
 	enum ProjectThumbnailSize {
 		HIDDEN, SMALL, MEDIUM, LARGE;
