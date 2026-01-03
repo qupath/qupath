@@ -341,8 +341,32 @@ public class MeasurementExporter {
 				if (filter != null)
 					pathObjects = pathObjects.stream().filter(filter).toList();
 				model.setImageData(imageData, pathObjects);
-				var columns = model.getAllNames().stream().filter(columnPredicate).toList();
-				table.addRows(columns, model, nDecimalPlaces);
+
+				// Separate standard measurement columns and metadata columns
+				var allColumns = new ArrayList<String>();
+
+				// 1. Add measurements that match the predicate
+				model.getAllNames().stream()
+					.filter(columnPredicate)
+					.forEach(allColumns::add);
+
+				// 2. Add metadata columns that match the predicate
+				// These will have the "(metadata)" suffix defined in MeasurementExportCommand.populateColumns()
+				var metadata = entry.getMetadata();
+				Map<String, String> entryMetadata = new HashMap<>();
+				if (metadata != null) {
+					for (var key : metadata.keySet()) {
+						String combinedKey = key + " (metadata)";
+						if (columnPredicate.test(combinedKey)) {
+							allColumns.add(combinedKey);
+							entryMetadata.put(combinedKey, metadata.get(key));
+						}
+					}
+				}
+
+				// Pass the metadata map so addRows can use it
+				table.addRows(allColumns, model, entryMetadata, nDecimalPlaces);
+
 			} catch (IOException e) {
 				throw e;
 			} catch (Exception e) {
@@ -461,7 +485,7 @@ public class MeasurementExporter {
 		private List<String> headerList;
 		private Map<String, Integer> columnIndices = new HashMap<>();
 
-		public <T> void addRows(Collection<String> headerColumns, PathTableData<T> table, int nDecimalPlaces) {
+		public <T> void addRows(Collection<String> headerColumns, PathTableData<T> table, Map<String, String> entryMetadata, int nDecimalPlaces) {
 			var currentHeaderColumns = Set.copyOf(headerColumns);
 			header.addAll(headerColumns);
 			var sameColumns = header.size() == currentHeaderColumns.size();
@@ -473,7 +497,14 @@ public class MeasurementExporter {
 				for (int i = 0; i < n; i++) {
 					var col = columns[i];
 					if (sameColumns || currentHeaderColumns.contains(col)) {
-						row[i] = table.getStringValue(item, columns[i], nDecimalPlaces);
+						// Check if this is a metadata column from the entry
+						if (col.endsWith(" (metadata)")) {
+							// Get the value from entry metadata, or "NA" if not found
+							row[i] = entryMetadata.getOrDefault(col, "NA");
+						} else {
+							// Regular measurement from the object
+							row[i] = table.getStringValue(item, col, nDecimalPlaces);
+						}
 					}
 				}
 				data.add(row);

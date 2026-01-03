@@ -75,6 +75,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 /**
  * Dialog box to export measurements
@@ -327,9 +328,23 @@ public class MeasurementExportCommand implements Runnable {
 						double progress = (double)counter / n;
 						Platform.runLater(() -> progressIndicator.setProgress(progress));
 						counter++;
+
+						// 1. Get standard measurement columns
 						ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 						model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
 						allColumnsForCombo.addAll(model.getAllNames());
+
+						// 2. Get Project Entry Metadata keys
+						// Using entry.getMetadata().keySet() (v0.6 API)
+						var metadata = entry.getMetadata();
+						if (metadata != null) {
+							allColumnsForCombo.addAll(
+								metadata.keySet()
+									.stream()
+									.map(key -> key + " (metadata)")
+									.collect(Collectors.toList())
+							);
+						}
 					} catch (Exception ex) {
 						logger.warn("Error loading columns for entry {}: {}", entry.getImageName(), ex.getMessage());
 						logger.debug("{}", ex.getMessage(), ex);
@@ -346,7 +361,7 @@ public class MeasurementExportCommand implements Runnable {
 		// Reset the checks
 		includeCombo.getCheckModel().clearChecks();
 	}
-	
+
 	private void setType(String typeString){
 		if (typeString != null) {
 			switch (typeString) {
