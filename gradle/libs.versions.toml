@@ -11,7 +11,7 @@ commonsMath3    = "3.6.1"
 commonsText     = "1.14.0"
 controlsFX      = "11.2.2"
 
-deepJavaLibrary = "0.35.1"
+deepJavaLibrary = "0.36.0"
 
 groovy          = "5.0.3"
 gson            = "2.13.2"
@@ -36,7 +36,7 @@ jfxtras         = "17-r1"
 jts             = "1.20.0"
 junit           = "5.11.0"
 
-logback         = "1.5.20"
+logback         = "1.5.23"
 logviewer       = "0.3.0"
 
 extensionmanager= "1.0.2"
