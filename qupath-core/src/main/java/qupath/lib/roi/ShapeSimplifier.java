@@ -223,7 +223,20 @@ public class ShapeSimplifier {
 			return roi;
 		}
 		if (roi.isLine()) {
-			var points = roi.getAllPoints();
+			if (roi instanceof GeometryROI geom) {
+				// We don't really expect a GeometryROI to represent anything other than an area,
+				// but it's possible (via subtract/difference operations) so we should handle it as best we can
+				if (geom.getGeometry().getNumGeometries() > 1) {
+					logger.warn("GeometryROI with multiple lines detected! I will attempt shape simplification anyway (altitude={})", altitudeThreshold);
+					return RoiTools.union(
+							RoiTools.splitROI(roi)
+									.stream()
+									.map(r -> simplifyROI(r, altitudeThreshold))
+									.toList()
+					);
+				}
+			}
+			var points = new ArrayList<>(roi.getAllPoints());
 			var firstPoint = points.getFirst();
 			var lastPoint = points.getLast();
 			simplifyPolygonPoints(points, altitudeThreshold);
@@ -536,12 +549,17 @@ public class ShapeSimplifier {
 
 	private static void getNextClosedSegment(PathIterator iter, List<Point2> points) {
 		double[] seg = new double[6];
+		boolean newSegment = true;
 		while (!iter.isDone()) {
 			switch(iter.currentSegment(seg)) {
 			case PathIterator.SEG_MOVETO:
-				// Fall through
+				if (!newSegment) {
+					throw new UnsupportedOperationException("Closed segment expected!");
+				} else {
+					newSegment = false;
+					// Fall through
+				}
 			case PathIterator.SEG_LINETO:
-//				points.add(new Point2(Math.round(seg[0]), Math.round(seg[1])));
 				points.add(new Point2(seg[0], seg[1]));
 				break;
 			case PathIterator.SEG_CLOSE:
