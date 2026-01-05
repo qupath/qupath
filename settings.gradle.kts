@@ -2,7 +2,7 @@ import org.apache.tools.ant.taskdefs.condition.Os
 
 pluginManagement {
     plugins {
-        kotlin("jvm") version "2.2.20"
+        kotlin("jvm") version "2.3.0"
     }
 }
 plugins {
