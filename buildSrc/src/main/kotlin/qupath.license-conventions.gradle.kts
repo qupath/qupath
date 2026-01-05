@@ -14,12 +14,12 @@ plugins {
  * Create license report
  */
 licenseReport {
-    val fileUnknown = rootProject.file("unknown-license-details.txt")
+    val fileUnknown = project.file("unknown-license-details.txt")
     renderers = arrayOf<ReportRenderer>(
         TextReportRenderer("THIRD-PARTY.txt"),
         InventoryHtmlReportRenderer("index.html", "Third party licenses", fileUnknown))
 
-    outputDir = rootProject.layout.buildDirectory.dir("reports/dependency-license").get().asFile.absolutePath
+    outputDir = project.layout.buildDirectory.dir("reports/dependency-license").get().asFile.absolutePath
 
     // TODO: Try to remove this. It's needed (I think) due to the license plugin not supporting
     //       Gradle variants, as required by the JavaFX Gradle Plugin v0.1.0. Possibly-relevant links:
@@ -27,4 +27,6 @@ licenseReport {
     //       - https://github.com/jk1/Gradle-License-Report/issues/199
     //       The JavaFX license is still included in QuPath, but unfortunately not in this report.
     excludeGroups = arrayOf("org.openjfx")
+
+    projects = arrayOf(project) // Do not include subprojects
 }

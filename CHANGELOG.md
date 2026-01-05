@@ -29,7 +29,7 @@ Version in progress...
 * Caffeine 3.2.3
 * CommonMark 0.26.0
 * Commons Text 1.14.0
-* Deep Java Library 0.35.1
+* Deep Java Library 0.36.0
 * Groovy 5.0.3
 * Gson 2.13.2
 * Guava 33.5.0-jre
@@ -37,7 +37,7 @@ Version in progress...
 * ImageJ 1.54p
 * JavaCPP 1.5.12
 * JavaFX 25.0.1
-* Logback 1.5.20
+* Logback 1.5.23
 * OpenCV 4.11.0
 * QuPath FXtras 0.3.0
 * RichTextFX 0.11.7
