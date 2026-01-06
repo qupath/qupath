@@ -204,7 +204,6 @@ public class ShapeSimplifier {
 
 
 	/**
-	 *
 	 * Create a simplified shape (fewer coordinates) using method based on Visvalingam's Algorithm.
 	 * <p>
 	 * See references:
@@ -212,16 +211,61 @@ public class ShapeSimplifier {
 	 * https://www.jasondavies.com/simplify/
 	 * http://bost.ocks.org/mike/simplify/
 	 *
-	 * @param shapeROI
+	 * @param roi
 	 * @param altitudeThreshold
 	 * @return
 	 */
-	public static ROI simplifyShape(ROI shapeROI, double altitudeThreshold) {
-		Shape shape = RoiTools.getShape(shapeROI);
+	public static ROI simplifyShape(ROI roi, double altitudeThreshold) {
+		if (roi == null)
+			return roi;
+		if (roi.isPoint()) {
+			logger.warn("Point ROIs cannot be simplified!");
+			return roi;
+		}
+		if (roi.isLine()) {
+			if (roi instanceof GeometryROI geom) {
+				// We don't really expect a GeometryROI to represent anything other than an area,
+				// but it's possible (via subtract/difference operations) so we should handle it as best we can
+				if (geom.getGeometry().getNumGeometries() > 1) {
+					logger.warn("GeometryROI with multiple lines detected! I will attempt shape simplification anyway (altitude={})", altitudeThreshold);
+					return RoiTools.union(
+							RoiTools.splitROI(roi)
+									.stream()
+									.map(r -> simplifyROI(r, altitudeThreshold))
+									.toList()
+					);
+				}
+			}
+			var points = new ArrayList<>(roi.getAllPoints());
+			var firstPoint = points.getFirst();
+			var lastPoint = points.getLast();
+			simplifyPolygonPoints(points, altitudeThreshold);
+			if (points.size() < 2) {
+				return roi;
+			} else if (points.size() == 2) {
+				return ROIs.createLineROI(
+						points.getFirst().getX(),
+						points.getFirst().getY(),
+						points.getLast().getX(),
+						points.getLast().getY(),
+						roi.getImagePlane()
+				);
+			} else {
+				// Ensure end points have not been removed
+				if (!points.contains(firstPoint)) {
+					points.addFirst(firstPoint);
+				}
+				if (!points.contains(lastPoint)) {
+					points.addLast(lastPoint);
+				}
+				return ROIs.createPolylineROI(points);
+			}
+		}
+		Shape shape = RoiTools.getShape(roi);
 		Path2D path = shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape);
 		path = simplifyPath(path, altitudeThreshold);
 		// Construct a new polygon
-		return RoiTools.getShapeROI(path, shapeROI.getImagePlane(), 0.5);
+		return RoiTools.getShapeROI(path, roi.getImagePlane(), 0.5);
 	}
 
 	/**
@@ -505,12 +549,17 @@ public class ShapeSimplifier {
 
 	private static void getNextClosedSegment(PathIterator iter, List<Point2> points) {
 		double[] seg = new double[6];
+		boolean newSegment = true;
 		while (!iter.isDone()) {
 			switch(iter.currentSegment(seg)) {
 			case PathIterator.SEG_MOVETO:
-				// Fall through
+				if (!newSegment) {
+					throw new UnsupportedOperationException("Closed segment expected!");
+				} else {
+					newSegment = false;
+					// Fall through
+				}
 			case PathIterator.SEG_LINETO:
-//				points.add(new Point2(Math.round(seg[0]), Math.round(seg[1])));
 				points.add(new Point2(seg[0], seg[1]));
 				break;
 			case PathIterator.SEG_CLOSE:

@@ -471,9 +471,8 @@ public class RoiTools {
 			Rectangle2D bounds = shape.getBounds2D();
 			return ROIs.createEllipseROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), plane);
 		}
-		if (shape instanceof Line2D) {
-			Line2D line = (Line2D)shape;
-			return ROIs.createLineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), plane);
+		if (shape instanceof Line2D line) {
+            return ROIs.createLineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), plane);
 		}
 		boolean isClosed = false;
 		List<Point2> points = null;
