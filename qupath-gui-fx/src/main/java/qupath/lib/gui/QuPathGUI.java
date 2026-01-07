@@ -76,8 +76,7 @@ import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.extensionmanager.core.ExtensionCatalogManager;
-import qupath.ext.extensionmanager.core.savedentities.Registry;
-import qupath.ext.extensionmanager.core.savedentities.SavedCatalog;
+import qupath.ext.extensionmanager.core.catalog.DefaultCatalog;
 import qupath.fx.controls.InputDisplay;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
@@ -189,13 +188,12 @@ public class QuPathGUI {
 			UserDirectoryManager.getInstance().extensionsDirectoryProperty(),
 			QuPathGUI.class.getClassLoader(),
 			String.format("v%s", BuildInfo.getInstance().getVersion().toString()),
-			new Registry(List.of(new SavedCatalog(
+			List.of(new DefaultCatalog(
 					"QuPath catalog",
 					"Extensions maintained by the QuPath team",
 					URI.create("https://github.com/qupath/qupath-catalog"),
-					URI.create("https://raw.githubusercontent.com/qupath/qupath-catalog/refs/heads/main/catalog.json"),
-					false
-			)))
+					URI.create("https://raw.githubusercontent.com/qupath/qupath-catalog/refs/heads/main/catalog.json")
+			))
 	);
 	private static QuPathGUI instance;
 	
