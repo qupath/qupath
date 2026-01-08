@@ -84,7 +84,7 @@ public class ChartThresholdPane extends BorderPane {
                     getChildren().remove(vLines.remove(removedItem));
                 }
                 for (ObservableNumberValue addedItem : c.getAddedSubList()) {
-                    addThreshold(addedItem);
+                    createAndAddThresholdLine(addedItem);
                 }
             }
         }
@@ -141,7 +141,7 @@ public class ChartThresholdPane extends BorderPane {
      * @return
      */
     public ObservableNumberValue addThreshold(final double x) {
-        return addThreshold(x, null);
+        return addThreshold(new SimpleDoubleProperty(x));
     }
 
     /**
@@ -152,7 +152,18 @@ public class ChartThresholdPane extends BorderPane {
      * @return
      */
     public ObservableNumberValue addThreshold(final double x, final Color color) {
-        return addThreshold(new SimpleDoubleProperty(x), color);
+        ObservableNumberValue thresholdProperty = new SimpleDoubleProperty(x);
+
+        addThreshold(thresholdProperty);
+
+        if (color != null && vLines.containsKey(thresholdProperty)) {
+            Line line = vLines.get(thresholdProperty);
+
+            line.setStroke(color);
+            line.setStyle("");
+        }
+
+        return thresholdProperty;
     }
 
     /**
@@ -162,26 +173,17 @@ public class ChartThresholdPane extends BorderPane {
      * @return
      */
     public ObservableNumberValue addThreshold(final ObservableNumberValue d) {
-        return addThreshold(d, null);
+        if (!thresholds.contains(d)) {
+            thresholds.add(d);
+        }
+
+        return d;
     }
 
-    /**
-     * Add a threshold value with its display color.
-     *
-     * @param d
-     * @param color
-     * @return
-     */
-    private ObservableNumberValue addThreshold(final ObservableNumberValue d, final Color color) {
+    private void createAndAddThresholdLine(final ObservableNumberValue d) {
         Line line = new Line();
         line.getStyleClass().add("qupath-histogram-line");
-        if (color != null)
-            line.setStroke(color);
-        else
-            line.setStyle("-fx-stroke: -fx-text-base-color; -fx-opacity: 0.5;");
-//            line.setStyle("-fx-stroke: ladder(-fx-background, "
-//                    + "derive(-fx-background, 30%) 49%, "
-//                    + "derive(-fx-background, -30%) 50%);");
+        line.setStyle("-fx-stroke: -fx-text-base-color; -fx-opacity: 0.5;");
         line.strokeWidthProperty().bind(lineWidth);
 
         // Bind the requested x position of the line to the 'actual' coordinate within the parent
@@ -285,8 +287,6 @@ public class ChartThresholdPane extends BorderPane {
             thresholds.add(d);
         vLines.put(d, line);
         getChildren().add(line);
-        //			updateChart();
-        return d;
     }
 
     /**
