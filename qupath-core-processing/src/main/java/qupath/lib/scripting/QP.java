@@ -4434,20 +4434,22 @@ public class QP {
 			return false;
 		}
 
+		List<PathObject> annotationsToMerge = annotations.stream()
+				.filter(PathObject::isAnnotation)
+				.filter(PathObject::hasROI)
+				.filter(annotation -> annotation.getROI().isArea() || annotation.getROI().isPoint())
+				.toList();
+		if (annotationsToMerge.isEmpty()) {
+			logger.warn("No valid (i.e. area or point) annotation to merge");
+			return false;
+		}
+
 		List<ImagePlane> imagePlanes = annotations.stream()
 				.map(annotation -> annotation.getROI().getImagePlane())
 				.distinct()
 				.toList();
 		if (imagePlanes.size() > 1) {
 			logger.warn("Cannot merge ROIs across different image planes! Got {}", imagePlanes);
-			return false;
-		}
-
-		List<PathObject> annotationsToMerge = annotations.stream()
-				.filter(annotation -> annotation.isAnnotation() && annotation.hasROI() && (annotation.getROI().isArea() || annotation.getROI().isPoint()))
-				.toList();
-		if (annotationsToMerge.isEmpty()) {
-			logger.warn("No valid (i.e. area or point) annotation to merge");
 			return false;
 		}
 
