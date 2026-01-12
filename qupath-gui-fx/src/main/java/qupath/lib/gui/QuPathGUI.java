@@ -76,8 +76,7 @@ import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.extensionmanager.core.ExtensionCatalogManager;
-import qupath.ext.extensionmanager.core.savedentities.Registry;
-import qupath.ext.extensionmanager.core.savedentities.SavedCatalog;
+import qupath.ext.extensionmanager.core.catalog.DefaultCatalog;
 import qupath.fx.controls.InputDisplay;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
@@ -185,18 +184,7 @@ public class QuPathGUI {
 	
 	private static final Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
 
-	private static final ExtensionCatalogManager extensionCatalogManager = new ExtensionCatalogManager(
-			UserDirectoryManager.getInstance().extensionsDirectoryProperty(),
-			QuPathGUI.class.getClassLoader(),
-			String.format("v%s", BuildInfo.getInstance().getVersion().toString()),
-			new Registry(List.of(new SavedCatalog(
-					"QuPath catalog",
-					"Extensions maintained by the QuPath team",
-					URI.create("https://github.com/qupath/qupath-catalog"),
-					URI.create("https://raw.githubusercontent.com/qupath/qupath-catalog/refs/heads/main/catalog.json"),
-					false
-			)))
-	);
+	private static ExtensionCatalogManager extensionCatalogManager;
 	private static QuPathGUI instance;
 	
 	/**
@@ -362,7 +350,7 @@ public class QuPathGUI {
 		// Install extensions
 		timeit.checkpoint("Adding extensions");
 		new QP(); // Ensure initialized
-		ExtensionLoader.loadFromManager(extensionCatalogManager, this);
+		ExtensionLoader.loadFromManager(getExtensionCatalogManager(), this);
 
                 // Add scripts menu (delayed to here, since it takes a bit longer)
 		timeit.checkpoint("Adding script menus");
@@ -1244,7 +1232,20 @@ public class QuPathGUI {
 	 * @return the {@link ExtensionCatalogManager} that manage catalogs and extensions of this
 	 * QuPath GUI
 	 */
-	public static ExtensionCatalogManager getExtensionCatalogManager() {
+	public static synchronized ExtensionCatalogManager getExtensionCatalogManager() {
+		if (extensionCatalogManager == null) {
+			extensionCatalogManager = new ExtensionCatalogManager(
+					UserDirectoryManager.getInstance().extensionsDirectoryProperty(),
+					QuPathGUI.class.getClassLoader(),
+					String.format("v%s", BuildInfo.getInstance().getVersion().toString()),
+					List.of(new DefaultCatalog(
+							"QuPath catalog",
+							"Extensions maintained by the QuPath team",
+							URI.create("https://github.com/qupath/qupath-catalog"),
+							URI.create("https://raw.githubusercontent.com/qupath/qupath-catalog/refs/heads/main/catalog.json")
+					))
+			);
+		}
 		return extensionCatalogManager;
 	}
 	

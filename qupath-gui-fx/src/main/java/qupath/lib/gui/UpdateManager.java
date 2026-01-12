@@ -210,8 +210,8 @@ class UpdateManager {
 				return QuPathGUI.getExtensionCatalogManager().getAvailableUpdates().get().stream()
 						.map(extensionUpdate -> new UpdateManagerContainer.UpdateEntry(
 								extensionUpdate.extensionName(),
-								extensionUpdate.currentVersion(),
-								extensionUpdate.newVersion(),
+								extensionUpdate.currentVersion().toString(),
+								extensionUpdate.newVersion().toString(),
 								() -> Commands.showInstalledExtensions(qupath),
 								QuPathResources.getString("UpdateManager.openExtensionManager")
 						))
