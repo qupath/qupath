@@ -37,7 +37,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
-import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -49,10 +49,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.DoubleConsumer;
@@ -308,8 +306,10 @@ public class MeasurementExporter {
 	 * @throws IOException if the export files
 	 */
 	public void exportMeasurements(File file) throws IOException, InterruptedException {
-		try (var fos = new BufferedOutputStream(new FileOutputStream(file), 4096)) {
+		try (var fos = new FileOutputStream(file)) {
 			doExport(fos, getSeparatorToUse(file.getName()));
+		} catch (Exception e) {
+			throw new IOException("Error exporting measurements", e);
 		}
 	}
 
@@ -330,9 +330,9 @@ public class MeasurementExporter {
 		var columnPredicate = createColumnPredicate();
 		// TODO: Make the kind of PathTableModel<PathObject> something customizable - a caller might want to reuse
 		//       the code to export different measurements.
-		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 
 		for (ProjectImageEntry<?> entry: imageList) {
+			ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 			if (Thread.interrupted())
 				throw new InterruptedException();
 			try (ImageData<?> imageData = entry.readImageData()) {
@@ -342,7 +342,7 @@ public class MeasurementExporter {
 					pathObjects = pathObjects.stream().filter(filter).toList();
 				model.setImageData(imageData, pathObjects);
 				var columns = model.getAllNames().stream().filter(columnPredicate).toList();
-				table.addRows(columns, model, nDecimalPlaces);
+				table.addTable(columns, model);
 			} catch (IOException e) {
 				throw e;
 			} catch (Exception e) {
@@ -399,18 +399,19 @@ public class MeasurementExporter {
 
 		boolean warningLogged = false;
 
-		try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8))){
-			var header = table.getHeader();
+		try (PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8)))) {
+			var header = table.getColumnNames();
 			writeRow(writer, header, separator);
 
 			List<String> rowValues = new ArrayList<>();
 			for (int row = 0; row < table.size(); row++) {
 				rowValues.clear();
 				for (var h : header) {
-					var val = table.getString(row, h, null);
+					var val = table.getString(row, h, nDecimalPlaces);
+					var str = val == null ? "" : val;
 					if (val == null) {
 						rowValues.add("");
-					} else if (val.contains(separator)) {
+					} else if (str.contains(separator)) {
 						if (!warningLogged) {
 							logger.warn("Separator '{}' found in cell - " +
 									"this may cause the table to be misaligned in some software", separator);
@@ -418,12 +419,14 @@ public class MeasurementExporter {
 						}
 						rowValues.add("\"" + val + "\"");
 					} else {
-						rowValues.add(val);
+						rowValues.add(str);
 					}
 				}
 				writeRow(writer, rowValues, separator);
 			}
 
+		} catch (Exception e) {
+			throw new RuntimeException(e);
 		}
 		monitor.complete();
 
@@ -451,65 +454,74 @@ public class MeasurementExporter {
 			if (i < n-1)
 				writer.write(delim);
 		}
-		writer.write(System.lineSeparator());
+		writer.println();
 	}
 
 	private static class MeasurementTable {
 
 		private final Set<String> header = new LinkedHashSet<>();
-		private final List<String[]> data =  new ArrayList<>();
+		// private final List<String[]> data =  new ArrayList<>();
+		private final List<ObservableMeasurementTableData> tables = new ArrayList<>();
 		private List<String> headerList;
-		private Map<String, Integer> columnIndices = new HashMap<>();
 
-		public <T> void addRows(Collection<String> headerColumns, PathTableData<T> table, int nDecimalPlaces) {
-			var currentHeaderColumns = Set.copyOf(headerColumns);
+		public void addTable(Collection<String> headerColumns, ObservableMeasurementTableData table) {
 			header.addAll(headerColumns);
-			var sameColumns = header.size() == currentHeaderColumns.size();
-			var columns = header.toArray(String[]::new);
-			int n = columns.length;
-			for (var item : table.getItems()) {
-				// Try to avoid needing to resize the map
-				var row = new String[columns.length];
-				for (int i = 0; i < n; i++) {
-					var col = columns[i];
-					if (sameColumns || currentHeaderColumns.contains(col)) {
-						row[i] = table.getStringValue(item, columns[i], nDecimalPlaces);
-					}
-				}
-				data.add(row);
-			}
+			tables.add(table);
 		}
 
-		public synchronized List<String> getHeader() {
+		public synchronized List<String> getColumnNames() {
 			if (headerList == null || headerList.size() != header.size())
 				headerList = List.copyOf(header);
 			return headerList;
 		}
 
-		private synchronized Map<String, Integer> getColumnIndices() {
-			var list = getHeader();
-			if (columnIndices.size() != list.size()) {
-				var map = new HashMap<String, Integer>();
-				for (int i = 0; i < list.size(); i++) {
-					map.put(list.get(i), i);
-				}
-				columnIndices = map;
+
+		public String getString(int row, String column, int nDecimalPlaces) {
+			int[] sizes = sizes();
+			int[] cumSum = cumSum(sizes);
+			int tableIndex = 0, rowIndex = 0;
+			if (row > cumSum[cumSum.length - 1]) {
+				throw new ArrayIndexOutOfBoundsException();
 			}
-			return columnIndices;
+			for (int i = 0; i < cumSum.length; i++) {
+				if (row < cumSum[i]) {
+					tableIndex = i;
+					rowIndex = row;
+					if (i > 0) {
+						rowIndex -= cumSum[i-1];
+					}
+					break;
+				}
+			}
+			var table = tables.get(tableIndex);
+			var item = table.getItems().get(rowIndex);
+			if (table.isNumericMeasurement(column)) {
+
+				Number measurement = item.getMeasurements().get(column);
+				// todo format
+                return measurement == null ? "" : String.valueOf(measurement.doubleValue());
+			}
+			return table.getStringValue(item, column, nDecimalPlaces);
 		}
 
-		public String getString(int row, String column, String defaultValue) {
-			var dataRow = data.get(row);
-			int ind = getColumnIndices().getOrDefault(column, -1);
-			if (ind >= 0 && ind < dataRow.length)
-				return dataRow[ind];
-			else
-				return defaultValue;
+		private int[] cumSum(int[] in) {
+			int[] out = new int[in.length];
+			int total = 0;
+			for (int i = 0; i < in.length; i++) {
+				total += in[i];
+				out[i] = total;
+			}
+			return out;
 		}
 
 		public int size() {
-			return data.size();
+			return Arrays.stream(sizes()).sum();
 		}
+
+		public int[] sizes() {
+			return tables.stream().mapToInt(t -> t.getItems().size()).toArray();
+		}
+
 
 	}
 
@@ -535,5 +547,6 @@ public class MeasurementExporter {
 		}
 
 	}
+
 
 }

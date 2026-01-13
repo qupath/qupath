@@ -98,9 +98,31 @@ public class MeasurementExportCommand implements Runnable {
 	// GUI
 	private final TextField outputText = new TextField();
 	private ComboBox<String> pathObjectCombo;
-	private ComboBox<String> separatorCombo;
+	private ComboBox<Format> formatCombo;
 	private CheckComboBox<String> includeCombo;
-	
+
+	private enum Format {
+		TAB_SEPARATED("Tab-separated", ".tsv", "TSV (Tab delimited)", "\t"),
+		COMMA_SEPARATED("Comma-separated", ".csv", "CSV (Comma delimited)", ","),
+		SEMICOLON_SEPARATED("Semicolon-separated", ".csv", "CSV (Semicolon delimited)", ";"),
+		HDF5("HDF5", ".h5", "HDF5 (binary)", null),
+		ZARR("Zarr", ".zarr", "Zarr (binary)", null);
+		final String label;
+		final String extension;
+		final String description;
+		final String separator;
+		@Override
+		public String toString() {
+			return label + " (" + extension + ")";
+		}
+        Format(String label, String extension, String description, String separator) {
+            this.label = label;
+            this.extension = extension;
+			this.description = description;
+            this.separator = separator;
+        }
+    }
+
 	private final ButtonType btnExport = new ButtonType("Export", ButtonData.OK_DONE);
 	
 	/**
@@ -134,7 +156,7 @@ public class MeasurementExportCommand implements Runnable {
 		// TOP PANE (SELECT PROJECT ENTRY FOR EXPORT)
 		project = qupath.getProject();
 		pathObjectCombo = new ComboBox<>();
-		separatorCombo = new ComboBox<>();
+		formatCombo = new ComboBox<>();
 		includeCombo = new CheckComboBox<>();
 		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
 		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), previousImages, sameImageWarning);
@@ -144,16 +166,16 @@ public class MeasurementExportCommand implements Runnable {
 		int row = 0;
 		Label pathOutputLabel = new Label("Output file");
 		var btnChooseFile = new Button("Choose");
-		btnChooseFile.setOnAction(e -> {
-			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
-			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
-			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
+		btnChooseFile.setOnAction(_ -> {
+			Format selectedFormat = formatCombo.getSelectionModel().getSelectedItem();
+			String extSelected = selectedFormat.extension;
+			String extDesc = selectedFormat.description;
 			File pathOut = FileChoosers.promptToSaveFile("Output file",
-					new File(Projects.getBaseDirectory(project), "measurements" + ext),
-					FileChoosers.createExtensionFilter(extDesc, ext));
+					new File(Projects.getBaseDirectory(project), "measurements" + extSelected),
+					FileChoosers.createExtensionFilter(extDesc, extSelected));
 			if (pathOut != null) {
 				if (pathOut.isDirectory())
-					pathOut = new File(pathOut.getAbsolutePath() + File.separator + "measurements" + ext);
+					pathOut = new File(pathOut.getAbsolutePath() + File.separator + "measurements" + extSelected);
 				outputText.setText(pathOut.getAbsolutePath());
 			}
 		});
@@ -175,11 +197,11 @@ public class MeasurementExportCommand implements Runnable {
 	
 		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose the export type", pathObjectLabel, pathObjectCombo, pathObjectCombo, pathObjectCombo, pathObjectCombo);
 
-		Label separatorLabel = new Label("Separator");
-		separatorLabel.setLabelFor(separatorCombo);
-		separatorCombo.getItems().setAll("Tab (.tsv)", "Comma (.csv)", "Semicolon (.csv)");
-		separatorCombo.getSelectionModel().selectFirst();
-		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose a value separator", separatorLabel, separatorCombo, separatorCombo, separatorCombo, separatorCombo);
+		Label separatorLabel = new Label("Format");
+		separatorLabel.setLabelFor(formatCombo);
+		formatCombo.getItems().setAll(Format.values());
+		formatCombo.getSelectionModel().selectFirst();
+		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose a format", separatorLabel, formatCombo, formatCombo, formatCombo, formatCombo);
 		
 		
 		Label includeLabel = new Label("Columns to include (Optional)");
@@ -212,22 +234,18 @@ public class MeasurementExportCommand implements Runnable {
 		var targetItemBinding = Bindings.size(listSelectionView.getTargetItems()).isEqualTo(0);
 		btnPopulateColumns.disableProperty().bind(targetItemBinding);
 		btnResetColumns.disableProperty().bind(targetItemBinding);
-		btnResetColumns.setOnAction(e -> includeCombo.getCheckModel().clearChecks()); 
-		
+		btnResetColumns.setOnAction(e -> includeCombo.getCheckModel().clearChecks());
 		
 		// Add listener to separatorCombo
-		separatorCombo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+		formatCombo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			if (n == null)
 				return;
 			String currentOut = outputText.getText();
-			if (n.equals("Tab (.tsv)") && currentOut.endsWith(".csv"))
-				outputText.setText(currentOut.replace(".csv", ".tsv"));
-			else if ((n.equals("Comma (.csv)") || n.equals("Semicolon (.csv)")) && currentOut.endsWith(".tsv"))
-				outputText.setText(currentOut.replace(".tsv", ".csv"));
+			outputText.setText(currentOut.replace(o.extension, n.extension));
 		});
 
 		FXUtils.getContentsOfType(optionPane, Label.class, false).forEach(e -> e.setMinWidth(160));
-		GridPaneUtils.setToExpandGridPaneWidth(outputText, pathObjectCombo, separatorCombo, includeCombo);
+		GridPaneUtils.setToExpandGridPaneWidth(outputText, pathObjectCombo, formatCombo, includeCombo);
 		btnPopulateColumns.setMinWidth(75);
 		btnResetColumns.setMinWidth(75);
 		
@@ -256,9 +274,8 @@ public class MeasurementExportCommand implements Runnable {
 		String curExt = GeneralTools.getExtension(outputText.getText()).orElse("");
 		if (!curExt.equals(".csv") && !curExt.equals(".tsv")) {
 			// Fix extension, if required
-			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
-			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
-			outputText.setText(outputText.getText().substring(0, outputText.getText().length() - curExt.length()) + ext);
+			Format formatSelected = formatCombo.getSelectionModel().getSelectedItem();
+			outputText.setText(outputText.getText().substring(0, outputText.getText().length() - curExt.length()) + formatSelected.extension);
 		}
 		
 		if (new File(outputText.getText()).getParent() == null) {
@@ -277,12 +294,7 @@ public class MeasurementExportCommand implements Runnable {
 		String[] include = checkedItems.stream().toList().toArray(new String[checkedItems.size()]);
 		String separator = PathPrefs.tableDelimiterProperty().get();
 
-        separator = switch (separatorCombo.getSelectionModel().getSelectedItem()) {
-            case "Tab (.tsv)" -> "\t";
-            case "Comma (.csv)" -> ",";
-            case "Semicolon (.csv)" -> ";";
-            default -> separator;
-        };
+        separator = formatCombo.getSelectionModel().getSelectedItem().separator;
 		
 		MeasurementExporter exporter = new MeasurementExporter()
 			.imageList(listSelectionView.getTargetItems())
