@@ -399,7 +399,7 @@ public class MeasurementExporter {
 
 		boolean warningLogged = false;
 
-		try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8))){
+		try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8))) {
 			var header = table.getHeader();
 			writeRow(writer, header, separator);
 
@@ -452,6 +452,7 @@ public class MeasurementExporter {
 				writer.write(delim);
 		}
 		writer.write(System.lineSeparator());
+		writer.flush();
 	}
 
 	private static class MeasurementTable {
