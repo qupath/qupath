@@ -37,7 +37,6 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -308,7 +307,7 @@ public class MeasurementExporter {
 	 * @throws IOException if the export files
 	 */
 	public void exportMeasurements(File file) throws IOException, InterruptedException {
-		try (var fos = new BufferedOutputStream(new FileOutputStream(file), 4096)) {
+		try (var fos = new FileOutputStream(file)) {
 			doExport(fos, getSeparatorToUse(file.getName()));
 		}
 	}
@@ -399,8 +398,8 @@ public class MeasurementExporter {
 
 		boolean warningLogged = false;
 
-		try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8))) {
-			var header = table.getHeader();
+		try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8), true)) {
+			var header = table.getColumnNames();
 			writeRow(writer, header, separator);
 
 			List<String> rowValues = new ArrayList<>();
@@ -451,8 +450,7 @@ public class MeasurementExporter {
 			if (i < n-1)
 				writer.write(delim);
 		}
-		writer.write(System.lineSeparator());
-		writer.flush();
+		writer.println();
 	}
 
 	private static class MeasurementTable {
@@ -481,14 +479,14 @@ public class MeasurementExporter {
 			}
 		}
 
-		public synchronized List<String> getHeader() {
+		public synchronized List<String> getColumnNames() {
 			if (headerList == null || headerList.size() != header.size())
 				headerList = List.copyOf(header);
 			return headerList;
 		}
 
 		private synchronized Map<String, Integer> getColumnIndices() {
-			var list = getHeader();
+			var list = getColumnNames();
 			if (columnIndices.size() != list.size()) {
 				var map = new HashMap<String, Integer>();
 				for (int i = 0; i < list.size(); i++) {
