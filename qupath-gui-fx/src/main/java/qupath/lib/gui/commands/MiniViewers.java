@@ -484,7 +484,7 @@ public class MiniViewers {
 			requestFullUpdate();
 		}
 		
-		void close() {
+		public void close() {
 			mainViewer.zPositionProperty().removeListener(changeListener);
 			mainViewer.tPositionProperty().removeListener(changeListener);
 			mainViewer.repaintTimestamp().removeListener(fastChangeListener);
