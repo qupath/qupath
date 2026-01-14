@@ -25,9 +25,9 @@ Version in progress...
 * ZProjectedImageServer fails with out-of-memory error for large, non-RGB images (https://github.com/qupath/qupath/issues/2021)
 
 ### Dependency updates
-* Bio-Formats 8.3.0
+* Bio-Formats 8.4.0
 * Caffeine 3.2.3
-* CommonMark 0.26.0
+* CommonMark 0.27.1
 * Commons Text 1.14.0
 * Deep Java Library 0.36.0
 * Groovy 5.0.3
