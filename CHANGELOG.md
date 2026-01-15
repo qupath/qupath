@@ -43,6 +43,10 @@ Version in progress...
 * RichTextFX 0.11.7
 * SciJava POM 43.0.0 (for Fiji builds)
 
+### Housekeeping
+
+* Remove the v0.1.3 branch from the main qupath repo: https://github.com/qupath/qupath/pull/275 [7a15188eebff9f82435c51d730e3a23568fee642](https://github.com/qupath/qupath/commit/7a15188eebff9f82435c51d730e3a23568fee642)
+
 ## Version 0.6.0
 
 ### Major features
