@@ -50,6 +50,7 @@ picocli         = "4.7.7"
 qupath-fxtras   = "0.3.0"
 qupath-training = "0.1.0"
 qupath-djl      = "0.4.1"
+qupath-imglib2  = "0.1.0"
 
 richtextfx      = "0.11.7"
 
@@ -98,7 +99,8 @@ picocli       = { module = "info.picocli:picocli",              version.ref = "p
 qupath-fxtras = { module = "io.github.qupath:qupath-fxtras",    version.ref = "qupath-fxtras" }
 
 qupath-training = { module = "io.github.qupath:qupath-extension-training", version.ref = "qupath-training" }
-qupath-djl    = { module = "io.github.qupath:qupath-extension-djl", version.ref = "qupath-djl" }
+qupath-djl      = { module = "io.github.qupath:qupath-extension-djl", version.ref = "qupath-djl" }
+qupath-imglib2  = { module = "io.github.qupath:qupath-imglib2", version.ref = "qupath-imglib2" }
 
 richtextfx    = { module = "org.fxmisc.richtext:richtextfx",    version.ref = "richtextfx" }
 
