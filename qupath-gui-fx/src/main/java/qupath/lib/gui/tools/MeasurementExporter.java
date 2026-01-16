@@ -24,7 +24,6 @@ package qupath.lib.gui.tools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.images.ImageData;
 import qupath.lib.lazy.interfaces.LazyValue;
 import qupath.lib.objects.PathAnnotationObject;
@@ -77,7 +76,7 @@ public class MeasurementExporter {
 	 */
 	private static final String DEFAULT_SEPARATOR = "\t";
 
-	private static final DoubleConsumer NULL_PROGRESS_MONITOR = d -> {};
+	private static final DoubleConsumer NULL_PROGRESS_MONITOR = _ -> {};
 
 	private List<String> includeOnlyColumns = new ArrayList<>();
 	private List<String> excludeColumns = new ArrayList<>();
@@ -326,13 +325,13 @@ public class MeasurementExporter {
 	}
 
 	private MeasurementTable createMeasurementTable(ProgressMonitor monitor) throws IOException, InterruptedException {
-		var table = new MeasurementTable();
+		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+		var table = new MeasurementTable(model, filter, type);
 		var columnPredicate = createColumnPredicate();
 		// TODO: Make the kind of PathTableModel<PathObject> something customizable - a caller might want to reuse
 		//       the code to export different measurements.
 
 		for (ProjectImageEntry<?> entry: imageList) {
-			ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 			if (Thread.interrupted())
 				throw new InterruptedException();
 			try (ImageData<?> imageData = entry.readImageData()) {
@@ -342,7 +341,7 @@ public class MeasurementExporter {
 					pathObjects = pathObjects.stream().filter(filter).toList();
 				model.setImageData(imageData, pathObjects);
 				var columns = model.getAllNames().stream().filter(columnPredicate).toList();
-				table.addTable(columns, model);
+				table.addTable(columns, model, entry);
 			} catch (IOException e) {
 				throw e;
 			} catch (Exception e) {
@@ -460,13 +459,24 @@ public class MeasurementExporter {
 	private static class MeasurementTable {
 
 		private final Set<String> header = new LinkedHashSet<>();
-		// private final List<String[]> data =  new ArrayList<>();
-		private final List<ObservableMeasurementTableData> tables = new ArrayList<>();
+		private final List<Integer> sizes = new ArrayList<>();
+		private final ObservableMeasurementTableData tableModel;
+		private final Predicate<PathObject> filter;
+		private final Class<? extends PathObject> type;
 		private List<String> headerList;
+		private final List<ProjectImageEntry<?>> imageEntries = new ArrayList<>();
 
-		public void addTable(Collection<String> headerColumns, ObservableMeasurementTableData table) {
+
+		private MeasurementTable(ObservableMeasurementTableData model, Predicate<PathObject> filter, Class<? extends PathObject> type) {
+			this.tableModel = model;
+			this.filter = filter;
+			this.type = type;
+		}
+
+		public void addTable(Collection<String> headerColumns, ObservableMeasurementTableData table, ProjectImageEntry<?> imageEntry) {
 			header.addAll(headerColumns);
-			tables.add(table);
+			sizes.add(table.getItems().size());
+			imageEntries.add(imageEntry);
 		}
 
 		public synchronized List<String> getColumnNames() {
@@ -477,15 +487,15 @@ public class MeasurementExporter {
 
 
 		public String getString(int row, String column, int nDecimalPlaces) {
-			int[] sizes = sizes();
+			List<Integer> sizes = sizes();
 			int[] cumSum = cumSum(sizes);
-			int tableIndex = 0, rowIndex = 0;
+			int imageIndex = 0, rowIndex = 0;
 			if (row > cumSum[cumSum.length - 1]) {
 				throw new ArrayIndexOutOfBoundsException();
 			}
 			for (int i = 0; i < cumSum.length; i++) {
 				if (row < cumSum[i]) {
-					tableIndex = i;
+					imageIndex = i;
 					rowIndex = row;
 					if (i > 0) {
 						rowIndex -= cumSum[i-1];
@@ -493,33 +503,41 @@ public class MeasurementExporter {
 					break;
 				}
 			}
-			var table = tables.get(tableIndex);
-			var item = table.getItems().get(rowIndex);
-			if (table.isNumericMeasurement(column)) {
-
+            ImageData<?> imageData = null;
+            try {
+                imageData = imageEntries.get(imageIndex).readImageData();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            Collection<PathObject> pathObjects = imageData.getHierarchy().getObjects(null, type);
+			if (filter != null)
+				pathObjects = pathObjects.stream().filter(filter).toList();
+			tableModel.setImageData(imageData, pathObjects);
+			var item = tableModel.getItems().get(rowIndex);
+			if (tableModel.isNumericMeasurement(column)) {
 				Number measurement = item.getMeasurements().get(column);
 				// todo format
                 return measurement == null ? "" : String.valueOf(measurement.doubleValue());
 			}
-			return table.getStringValue(item, column, nDecimalPlaces);
+			return tableModel.getStringValue(item, column, nDecimalPlaces);
 		}
 
-		private int[] cumSum(int[] in) {
-			int[] out = new int[in.length];
+		private int[] cumSum(List<Integer> in) {
+			int[] out = new int[in.size()];
 			int total = 0;
-			for (int i = 0; i < in.length; i++) {
-				total += in[i];
+			for (int i = 0; i < in.size(); i++) {
+				total += in.get(i);
 				out[i] = total;
 			}
 			return out;
 		}
 
 		public int size() {
-			return Arrays.stream(sizes()).sum();
+			return sizes().stream().mapToInt(i -> i).sum();
 		}
 
-		public int[] sizes() {
-			return tables.stream().mapToInt(t -> t.getItems().size()).toArray();
+		public List<Integer> sizes() {
+			return sizes;
 		}
 
 
