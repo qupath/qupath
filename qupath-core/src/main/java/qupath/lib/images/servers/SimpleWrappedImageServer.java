@@ -21,17 +21,16 @@
 
 package qupath.lib.images.servers;
 
+import com.google.gson.annotations.JsonAdapter;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
+import qupath.lib.regions.RegionRequest;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
-import com.google.gson.annotations.JsonAdapter;
-
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectReader;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * An ImageServer that simply wraps around an existing ImageServer.

@@ -23,9 +23,6 @@
 
 package qupath.lib.gui;
 
-import java.util.Collection;
-import java.util.Collections;
-
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
@@ -37,7 +34,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextAlignment;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +48,9 @@ import qupath.lib.plugins.PathInteractivePlugin;
 import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.WorkflowStep;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * 

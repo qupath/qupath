@@ -23,9 +23,6 @@
 
 package qupath.imagej.processing;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.Raster;
-
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
@@ -34,6 +31,9 @@ import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.image.BufferedImage;
+import java.awt.image.Raster;
 
 /**
  * Collection of static methods to threshold images, either with single global thresholds or 

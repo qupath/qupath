@@ -24,14 +24,13 @@
 
 package qupath.lib.gui;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.ToolBar;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.tools.CommandFinderTools;
 

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022, 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022, 2024, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,27 +23,6 @@
 
 package qupath.imagej.tools;
 
-import java.awt.Color;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
-import java.awt.image.SampleModel;
-import java.io.File;
-import java.io.IOException;
-import java.text.DecimalFormat;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.function.Function;
-import java.util.zip.ZipFile;
-
-import javax.swing.SwingUtilities;
-
-import org.locationtech.jts.geom.Polygon;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import ij.CompositeImage;
 import ij.ImagePlus;
 import ij.ImageStack;
@@ -51,7 +30,6 @@ import ij.gui.Line;
 import ij.gui.PointRoi;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
-import ij.gui.ShapeRoi;
 import ij.gui.Wand;
 import ij.io.FileInfo;
 import ij.measure.Calibration;
@@ -64,6 +42,9 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
+import org.locationtech.jts.geom.Polygon;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.imagej.processing.IJProcessing;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
@@ -96,6 +77,22 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
+import javax.swing.SwingUtilities;
+import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.SampleModel;
+import java.io.File;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.function.Function;
+import java.util.zip.ZipFile;
+
 /**
  * Collection of static methods to help with using ImageJ with QuPath.
  * 
@@ -106,7 +103,7 @@ public class IJTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(IJTools.class);
 	
-	private static List<String> micronList = Arrays.asList("micron", "microns", "um", GeneralTools.micrometerSymbol());
+	private static final List<String> micronList = Arrays.asList("micron", "microns", "um", GeneralTools.micrometerSymbol());
 	
 	// Defines what fraction of total available memory can be allocated to transferring a single image to ImageJ 
 	private static double MEMORY_THRESHOLD = 0.5;
@@ -375,31 +372,6 @@ public class IJTools {
 		return downsampleFactor;
 	}
 
-	/**
-	 * Create a {@link PathObject} for a specific ImageJ Roi.
-	 * This method has been deprecated, since its signature was misleading (the server was not used).
-	 * 
-	 * @param imp
-	 * @param server
-	 * @param roi
-	 * @param downsampleFactor
-	 * @param creator
-	 * @param plane
-	 * @return
-	 * @deprecated use instead {@link #convertToPathObject(Roi, double, double, double, Function, ImagePlane)}
-	 */
-	@Deprecated
-	public static PathObject convertToPathObject(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, Function<ROI, PathObject> creator, ImagePlane plane) {
-		Calibration cal = imp == null ? null : imp.getCalibration();
-		if (plane == null)
-			plane = getImagePlane(roi, imp);
-		ROI pathROI = IJTools.convertToROI(roi, cal, downsampleFactor, plane);
-		if (pathROI == null)
-			return null;
-		PathObject pathObject = creator.apply(pathROI);
-		calibrateObject(pathObject, roi);
-		return pathObject;
-	}
 	
 	/**
 	 * Create a {@link PathObject} for a specific ImageJ Roi.
@@ -457,7 +429,7 @@ public class IJTools {
 	 * @param plane the specific plane to use for the QuPath ROI; if null, the ImageJ Roi position properties will be used instead, where possible
 	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
 	 * 
-	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 * @see #convertToPathObject(Roi, double, double, double, Function, ImagePlane)
 	 * @see #convertToAnnotation(Roi, double, ImagePlus)
 	 * @since v0.4.0
 	 */
@@ -474,13 +446,13 @@ public class IJTools {
 	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
 	 * @param plane the specific plane to use for the QuPath ROI; if null, the ImageJ Roi position properties will be used instead, where possible
 	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
-	 * 
-	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 *
+	 * @see #convertToPathObject(Roi, double, double, double, Function, ImagePlane)
 	 * @see #convertToDetection(Roi, double, ImagePlus)
 	 * @since v0.4.0
 	 */
 	public static PathObject convertToDetection(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
-		return convertToPathObject(roi, xOrigin, yOrigin, downsampleFactor, r -> PathObjects.createDetectionObject(r), plane);
+		return convertToPathObject(roi, xOrigin, yOrigin, downsampleFactor, PathObjects::createDetectionObject, plane);
 	}
 
 	/**
@@ -490,13 +462,13 @@ public class IJTools {
 	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
 	 * @param imp the {@link ImagePlus} associated with this Roi; it is used to determine the xOrigin, yOrigin and image plane
 	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
-	 * 
-	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 *
+	 * @see #convertToPathObject(Roi, double, double, double, Function, ImagePlane)
 	 * @see #convertToAnnotation(Roi, double, double, double, ImagePlane)
 	 * @since v0.4.0
 	 */
 	public static PathObject convertToAnnotation(Roi roi, double downsampleFactor, ImagePlus imp) {
-		return convertToPathObject(roi, downsampleFactor, r -> PathObjects.createAnnotationObject(r), imp);
+		return convertToPathObject(roi, downsampleFactor, PathObjects::createAnnotationObject, imp);
 	}
 	
 	/**
@@ -506,13 +478,13 @@ public class IJTools {
 	 * @param downsampleFactor the downsample factor used for rescaling (or 1.0 for no rescaling)
 	 * @param imp the {@link ImagePlus} associated with this Roi; it is used to determine the xOrigin, yOrigin and image plane
 	 * @return a {@link PathObject} or null if no object could be created (e.g. the ImageJ roi is null or incompatible)
-	 * 
-	 * @see #convertToPathObject(ImagePlus, ImageServer, Roi, double, Function, ImagePlane)
+	 *
+	 * @see #convertToPathObject(Roi, double, double, double, Function, ImagePlane)
 	 * @see #convertToDetection(Roi, double, double, double, ImagePlane)
 	 * @since v0.4.0
 	 */
 	public static PathObject convertToDetection(Roi roi, double downsampleFactor, ImagePlus imp) {
-		return convertToPathObject(roi, downsampleFactor, r -> PathObjects.createDetectionObject(r), imp);
+		return convertToPathObject(roi, downsampleFactor, PathObjects::createDetectionObject, imp);
 	}
 	
 	
@@ -569,9 +541,12 @@ public class IJTools {
 	public static void calibrateObject(PathObject pathObject, Roi roi) {
 		Color color = roi.getStrokeColor();
 		Integer colorRGB = color == null ? null : color.getRGB();
-		// Take name from properties
-		// Don't use Roi.getName() because it may not have the same purpose
+		// Take name from properties if we can, or from Roi.getName() only if we haven't stored it
+		// as a default name in the properties (e.g. if this is a Roi we created within QuPath, setting
+		// the name to reflect a QuPath class or object type)
 		String name = IJProperties.getObjectName(roi);
+		if (name == null && roi.getName() != null && !IJProperties.hasDefaultRoiName(roi))
+			name = roi.getName();
 		if (name != null && !name.isBlank()) {
 			pathObject.setName(name);
 		}
@@ -619,7 +594,7 @@ public class IJTools {
 		IJProperties.setClassification(roi, pathObject);
 		IJProperties.setObjectName(roi, pathObject);
 		IJProperties.setObjectId(roi, pathObject);
-		roi.setProperty("qupath.object.type", PathObjectTools.getSuitableName(pathObject.getClass(), false));
+        IJProperties.setObjectType(roi, pathObject);
 		// Set the Roi color, if a color is used
 		Integer colorRGB = pathObject.getColor();
 		var pc = pathObject.getPathClass();
@@ -629,38 +604,7 @@ public class IJTools {
 			roi.setStrokeColor(ColorToolsAwt.getCachedColor(colorRGB));
 	}
 	
-	
-	/**
-	 * Create an annotation object for a specific ImageJ Roi.
-	 * @param imp
-	 * @param server
-	 * @param roi
-	 * @param downsampleFactor
-	 * @param plane
-	 * @return
-	 * @deprecated use instead {@link #convertToAnnotation(Roi, double, double, double, ImagePlane)}
-	 */
-	@Deprecated
-	public static PathObject convertToAnnotation(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, ImagePlane plane) {
-		logger.debug("Called deprecated method convertToAnnotation - please update the method signature for v0.4.0+");
-		return convertToPathObject(imp, server, roi, downsampleFactor, r -> PathObjects.createAnnotationObject(r), plane);
-	}
-	
-	/**
-	 * Create an detection object for a specific ImageJ Roi.
-	 * @param imp
-	 * @param server
-	 * @param roi
-	 * @param downsampleFactor
-	 * @param plane
-	 * @return
-	 * @deprecated use instead {@link #convertToDetection(Roi, double, double, double, ImagePlane)}
-	 */
-	@Deprecated
-	public static PathObject convertToDetection(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, ImagePlane plane) {
-		logger.debug("Called deprecated method convertToDetection - please update the method signature for v0.4.0+");
-		return convertToPathObject(imp, server, roi, downsampleFactor, r -> PathObjects.createDetectionObject(r), plane);
-	}
+
 	
 	/**
 	 * Convert integer labeled images into cell objects.
@@ -672,7 +616,7 @@ public class IJTools {
 	 * @param plane the {@link ImagePlane} defining where ROIs should be added
 	 * @return a {@link SortedMap} containing integer labels from the original labeled images mapped to the corresponding cells that have been created
 	 */
-	public static SortedMap<Number, PathObject> convertLabelsToCells(
+	public static SortedMap<Integer, PathObject> convertLabelsToCells(
 			ImageProcessor ipNuclei, ImageProcessor ipCells,
 			Calibration cal, double downsample, ImagePlane plane) {
 		
@@ -693,13 +637,13 @@ public class IJTools {
 	 * @param plane the {@link ImagePlane} defining where ROIs should be added
 	 * @return a {@link SortedMap} containing integer labels from the original labeled images mapped to the corresponding cells that have been created
 	 */
-	public static SortedMap<Number, PathObject> convertLabelsToCells(
+	public static SortedMap<Integer, PathObject> convertLabelsToCells(
 			ImageProcessor ipNuclei, ImageProcessor ipCells,
 			double xOrigin, double yOrigin, double downsample, ImagePlane plane) {
 		
 		int width = ipCells.getWidth();
 		int height = ipCells.getHeight();
-		SortedMap<Number, PathObject> cells = new TreeMap<>();
+		SortedMap<Integer, PathObject> cells = new TreeMap<>();
 		
 		// First, go through and get all nuclei & associated cells
 		var wandCells = new Wand(ipCells);

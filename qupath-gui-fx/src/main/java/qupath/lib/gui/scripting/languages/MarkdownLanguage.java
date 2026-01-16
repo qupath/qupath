@@ -21,14 +21,13 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import javax.script.ScriptException;
-
 import com.google.common.collect.ImmutableSet;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
-
 import qupath.lib.scripting.ScriptParameters;
 import qupath.lib.scripting.languages.ScriptLanguage;
+
+import javax.script.ScriptException;
 
 /**
  * Class for the representation of JSON syntax in QuPath.

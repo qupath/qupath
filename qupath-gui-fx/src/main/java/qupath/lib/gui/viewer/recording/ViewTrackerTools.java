@@ -21,6 +21,15 @@
 
 package qupath.lib.gui.viewer.recording;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.tools.PathTool;
+import qupath.lib.gui.viewer.tools.PathTools;
+
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.geom.Point2D;
@@ -32,15 +41,6 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import qupath.fx.dialogs.FileChoosers;
-import qupath.lib.common.GeneralTools;
-import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.tools.PathTool;
-import qupath.lib.gui.viewer.tools.PathTools;
 
 /**
  * Static methods to help with {@link ViewTracker ViewTrackers}.

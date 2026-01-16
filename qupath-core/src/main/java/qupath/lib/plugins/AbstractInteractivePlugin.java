@@ -23,15 +23,14 @@
 
 package qupath.lib.plugins;
 
-import java.util.Locale;
-import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.parameters.ParameterList;
+
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Abstract class to help with implementing an interactive plugin.

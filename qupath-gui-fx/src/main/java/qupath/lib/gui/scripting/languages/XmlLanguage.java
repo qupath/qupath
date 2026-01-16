@@ -21,10 +21,10 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.util.Collections;
-
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
+
+import java.util.Collections;
 
 /**
  * Class for representing XML in QuPath.

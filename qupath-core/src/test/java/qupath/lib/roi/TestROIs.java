@@ -21,7 +21,15 @@
 
 package qupath.lib.roi;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Geometry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.geom.Point2;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.RoiTools.CombineOp;
+import qupath.lib.roi.interfaces.ROI;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,16 +40,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.util.List;
-import org.junit.jupiter.api.Test;
-import org.locationtech.jts.geom.Geometry;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import qupath.lib.geom.Point2;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.RoiTools.CombineOp;
-import qupath.lib.roi.interfaces.ROI;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Test ROI behavior.

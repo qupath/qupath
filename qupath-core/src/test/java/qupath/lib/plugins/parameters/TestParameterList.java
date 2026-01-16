@@ -21,21 +21,20 @@
 
 package qupath.lib.plugins.parameters;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.objects.classes.PathClass;
 
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
-
 import java.util.Set;
-import org.junit.jupiter.api.Test;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.objects.classes.PathClass;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class TestParameterList {
 

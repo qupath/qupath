@@ -23,14 +23,6 @@
 
 package qupath.lib.gui.tma;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener.Change;
@@ -39,12 +31,12 @@ import javafx.geometry.Side;
 import javafx.print.PrinterJob;
 import javafx.scene.Node;
 import javafx.scene.SnapshotParameters;
+import javafx.scene.chart.Axis;
+import javafx.scene.chart.Axis.TickMark;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.chart.XYChart.Series;
-import javafx.scene.chart.Axis;
-import javafx.scene.chart.Axis.TickMark;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -63,11 +55,18 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.transform.Transform;
 import javafx.util.StringConverter;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.control.action.ActionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.stats.survival.KaplanMeierData;
 import qupath.lib.analysis.stats.survival.LogRankTest;
 import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.ChartTools;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Wrapper class for custom chart used to show Kaplan Meier survival curves.

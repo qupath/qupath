@@ -23,8 +23,6 @@
 
 package qupath.lib.gui.commands;
 
-import java.text.NumberFormat;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.collections.FXCollections;
@@ -39,10 +37,10 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.common.GeneralTools;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PathClassListCell;
 import qupath.lib.images.servers.PixelCalibration;
@@ -51,6 +49,8 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.text.NumberFormat;
 
 /**
  * Command to create a new rectangular/ellipse annotation object by 

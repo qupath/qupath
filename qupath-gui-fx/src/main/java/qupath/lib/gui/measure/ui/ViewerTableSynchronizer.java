@@ -14,7 +14,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 
-import java.awt.*;
+import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.HashSet;

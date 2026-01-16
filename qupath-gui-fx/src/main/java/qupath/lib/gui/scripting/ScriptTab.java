@@ -23,24 +23,23 @@
 
 package qupath.lib.gui.scripting;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.Set;
-
-import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.control.action.ActionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.scripting.languages.ScriptLanguage;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Set;
 
 /**
  * Class representing a script tab (e.g. on the right side of the script editor).

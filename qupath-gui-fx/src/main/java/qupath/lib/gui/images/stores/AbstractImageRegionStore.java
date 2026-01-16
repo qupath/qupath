@@ -23,6 +23,17 @@
 
 package qupath.lib.gui.images.stores;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalCause;
+import com.google.common.cache.Weigher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.images.servers.GeneratingImageServer;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.Shape;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,19 +51,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.RemovalCause;
-import com.google.common.cache.Weigher;
-
-import qupath.lib.common.ThreadTools;
-import qupath.lib.images.servers.GeneratingImageServer;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.regions.RegionRequest;
 
 
 /**

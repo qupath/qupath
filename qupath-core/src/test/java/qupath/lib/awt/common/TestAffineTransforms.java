@@ -21,13 +21,14 @@
 
 package qupath.lib.awt.common;
 
+import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.util.AffineTransformation;
+
+import java.awt.geom.AffineTransform;
+
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.awt.geom.AffineTransform;
-import org.junit.jupiter.api.Test;
-import org.locationtech.jts.geom.util.AffineTransformation;
 
 @SuppressWarnings("javadoc")
 public class TestAffineTransforms {

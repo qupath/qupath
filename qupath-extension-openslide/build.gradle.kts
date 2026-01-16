@@ -1,4 +1,3 @@
-import io.github.qupath.gradle.PlatformPlugin
 import io.github.qupath.gradle.Utils
 
 plugins {

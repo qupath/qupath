@@ -23,6 +23,9 @@
 
 package qupath.lib.objects.hierarchy.events;
 
+import qupath.lib.objects.PathObject;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -31,9 +34,6 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-
-import qupath.lib.objects.PathObject;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Model for handling selection of single and multiple PathObjects.

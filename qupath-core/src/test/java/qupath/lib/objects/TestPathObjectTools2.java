@@ -21,7 +21,18 @@
 
 package qupath.lib.objects;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.measurements.MeasurementList;
+import qupath.lib.measurements.MeasurementListFactory;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.ROIs;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -35,19 +46,7 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.common.ColorTools;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ServerTools;
-import qupath.lib.measurements.MeasurementList;
-import qupath.lib.measurements.MeasurementListFactory;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.ROIs;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * These tests started out in the (not removed) class {@code PathClassifierTools}.

@@ -22,6 +22,11 @@
 
 package qupath.lib.gui.localization;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.localization.LocalizedResourceManager;
+import qupath.lib.gui.UserDirectoryManager;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,12 +40,6 @@ import java.util.Locale.Category;
 import java.util.MissingResourceException;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.fx.localization.LocalizedResourceManager;
-import qupath.lib.gui.UserDirectoryManager;
 
 /**
  * Load strings from the default resource bundle.

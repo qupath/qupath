@@ -23,15 +23,14 @@
 
 package qupath.lib.roi.interfaces;
 
-import java.awt.Shape;
-import java.util.List;
-
 import org.locationtech.jts.geom.Geometry;
-
 import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
+
+import java.awt.Shape;
+import java.util.List;
 
 /**
  * Base interface for defining regions of interest (ROIs) within QuPath.

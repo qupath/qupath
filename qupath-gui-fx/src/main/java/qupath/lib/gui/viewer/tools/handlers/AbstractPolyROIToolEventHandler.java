@@ -21,14 +21,9 @@
 
 package qupath.lib.gui.viewer.tools.handlers;
 
-import java.awt.geom.Point2D;
-import java.util.Collections;
-import java.util.HashSet;
-
+import javafx.scene.input.MouseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
@@ -36,6 +31,10 @@ import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.geom.Point2D;
+import java.util.Collections;
+import java.util.HashSet;
 
 abstract class AbstractPolyROIToolEventHandler extends AbstractPathROIToolEventHandler {
 	

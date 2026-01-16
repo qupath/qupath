@@ -21,14 +21,6 @@
 
 package qupath.lib.roi;
 
-import java.awt.Shape;
-import java.awt.geom.Area;
-import java.awt.geom.Path2D;
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
@@ -46,11 +38,18 @@ import org.locationtech.jts.operation.predicate.RectangleIntersects;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.Shape;
+import java.awt.geom.Area;
+import java.awt.geom.Path2D;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * ROI based on Java Topology Suite Geometry objects.

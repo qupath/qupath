@@ -23,6 +23,21 @@
 
 package qupath.lib.roi;
 
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.shape.random.RandomPointsBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.awt.common.AwtTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.geom.ImmutableDimension;
+import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
@@ -44,22 +59,6 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.prep.PreparedGeometry;
-import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
-import org.locationtech.jts.geom.util.AffineTransformation;
-import org.locationtech.jts.shape.random.RandomPointsBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.awt.common.AwtTools;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.geom.ImmutableDimension;
-import qupath.lib.geom.Point2;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A collection of static methods for working with ROIs.
@@ -472,9 +471,8 @@ public class RoiTools {
 			Rectangle2D bounds = shape.getBounds2D();
 			return ROIs.createEllipseROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), plane);
 		}
-		if (shape instanceof Line2D) {
-			Line2D line = (Line2D)shape;
-			return ROIs.createLineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), plane);
+		if (shape instanceof Line2D line) {
+            return ROIs.createLineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), plane);
 		}
 		boolean isClosed = false;
 		List<Point2> points = null;

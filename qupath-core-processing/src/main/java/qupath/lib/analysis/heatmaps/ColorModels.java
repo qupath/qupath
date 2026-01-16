@@ -21,17 +21,17 @@
 
 package qupath.lib.analysis.heatmaps;
 
+import qupath.lib.color.ColorMaps;
+import qupath.lib.color.ColorMaps.ColorMap;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.io.GsonTools;
+import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.util.Objects;
 import java.util.function.DoubleToIntFunction;
-
-import qupath.lib.color.ColorMaps;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.color.ColorMaps.ColorMap;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.io.GsonTools;
-import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 
 /**
  * Helper class for creating a JSON-serializable way to generate a {@link ColorModel}.

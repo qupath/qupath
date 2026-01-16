@@ -1,5 +1,11 @@
 package qupath.lib.gui.viewer.recording;
 
+import qupath.lib.color.ColorMaps.ColorMap;
+import qupath.lib.color.ColorModels;
+import qupath.lib.color.ColorModels.ColorModelBuilder;
+import qupath.lib.gui.viewer.recording.ViewTrackerDataMaps.Feature;
+import qupath.lib.regions.ImageRegion;
+
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
@@ -12,12 +18,6 @@ import java.awt.image.WritableRaster;
 import java.util.Arrays;
 import java.util.stream.DoubleStream;
 import java.util.stream.LongStream;
-
-import qupath.lib.color.ColorModels;
-import qupath.lib.color.ColorModels.ColorModelBuilder;
-import qupath.lib.color.ColorMaps.ColorMap;
-import qupath.lib.gui.viewer.recording.ViewTrackerDataMaps.Feature;
-import qupath.lib.regions.ImageRegion;
 
 /**
  * Class for storing the values of a data map as well as generating a proper {@link BufferedImage} with the appropriate pixel type.

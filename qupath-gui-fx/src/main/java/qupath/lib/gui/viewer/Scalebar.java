@@ -23,10 +23,6 @@
 
 package qupath.lib.gui.viewer;
 
-import java.awt.Shape;
-import java.awt.image.BufferedImage;
-import java.text.DecimalFormat;
-
 import javafx.beans.binding.Bindings;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
@@ -42,6 +38,10 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
+
+import java.awt.Shape;
+import java.awt.image.BufferedImage;
+import java.text.DecimalFormat;
 
 /**
  * Scalebar component (or at least wrapper for the displayable component) 

@@ -1,5 +1,6 @@
 package qupath.lib.images.writers.ome;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -30,7 +31,6 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
-import org.apache.commons.io.FileUtils;
 
 public class TestConvertCommand {
 

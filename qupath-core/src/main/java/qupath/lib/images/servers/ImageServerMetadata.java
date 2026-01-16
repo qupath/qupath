@@ -23,6 +23,12 @@
 
 package qupath.lib.images.servers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.objects.classes.PathClass;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,13 +37,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.objects.classes.PathClass;
 
 /**
  * Class for storing primary ImageServer metadata fields.

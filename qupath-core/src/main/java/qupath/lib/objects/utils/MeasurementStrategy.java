@@ -1,13 +1,14 @@
 package qupath.lib.objects.utils;
 
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
+
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A strategy for handling measurements between objects being merged.

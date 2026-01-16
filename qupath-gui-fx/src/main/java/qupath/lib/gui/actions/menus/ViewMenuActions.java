@@ -21,16 +21,11 @@
 
 package qupath.lib.gui.actions.menus;
 
-import static qupath.lib.gui.actions.ActionTools.createAction;
-
-import java.util.List;
-
-import org.controlsfx.control.action.Action;
-
 import javafx.scene.input.KeyCharacterCombination;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import org.controlsfx.control.action.Action;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.CommonActions;
@@ -46,6 +41,10 @@ import qupath.lib.gui.panes.SlideLabelView;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
+
+import java.util.List;
+
+import static qupath.lib.gui.actions.ActionTools.createAction;
 
 public class ViewMenuActions implements MenuActions {
 	

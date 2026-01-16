@@ -22,6 +22,9 @@
 
 package qupath.opencv.dnn;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.net.URI;
 import java.nio.file.Path;
@@ -32,8 +35,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Parameters to build a {@link DnnModel}.

@@ -21,17 +21,15 @@
 
 package qupath.lib.gui.scripting.syntax;
 
-import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonSyntaxException;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.scripting.EditableText;
 import qupath.lib.io.GsonTools;
+
+import java.util.Set;
 
 /**
  * Class that takes care of JSON syntax.

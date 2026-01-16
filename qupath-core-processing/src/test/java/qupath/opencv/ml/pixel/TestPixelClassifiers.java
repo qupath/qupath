@@ -22,16 +22,15 @@
 
 package qupath.opencv.ml.pixel;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import org.junit.jupiter.api.Test;
-
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.scripting.QP;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SuppressWarnings("javadoc")
 public class TestPixelClassifiers {

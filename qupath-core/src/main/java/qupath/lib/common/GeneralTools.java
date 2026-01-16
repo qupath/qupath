@@ -23,6 +23,14 @@
 
 package qupath.lib.common;
 
+import com.google.common.io.CharStreams;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import org.apache.commons.math3.util.Precision;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.swing.SwingUtilities;
 import java.awt.Desktop;
 import java.io.BufferedReader;
 import java.io.File;
@@ -52,6 +60,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Locale.Category;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -59,17 +68,6 @@ import java.util.Scanner;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.Locale.Category;
-
-import org.apache.commons.math3.util.Precision;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.io.CharStreams;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
-import javax.swing.SwingUtilities;
 
 /**
  * Collection of generally useful static methods.

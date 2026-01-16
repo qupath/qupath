@@ -23,19 +23,6 @@
 
 package qupath.imagej.detect.tissue;
 
-import java.awt.Rectangle;
-import java.awt.geom.Area;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import ij.ImagePlus;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
@@ -45,6 +32,9 @@ import ij.plugin.filter.RankFilters;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.imagej.processing.MorphologicalReconstruction;
 import qupath.imagej.processing.RoiLabeling;
 import qupath.imagej.processing.SimpleThresholding;
@@ -66,12 +56,22 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RoiTools.CombineOp;
-import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.Rectangle;
+import java.awt.geom.Area;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * Very basic global thresholding command to identify tissue regions.

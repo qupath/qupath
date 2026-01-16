@@ -21,6 +21,14 @@
 
 package qupath.lib.gui.extensions;
 
+import com.google.gson.reflect.TypeToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Version;
+import qupath.lib.gui.extensions.GitHubProject.GitHubRepo;
+import qupath.lib.io.GsonTools;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -32,15 +40,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.reflect.TypeToken;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.Version;
-import qupath.lib.gui.extensions.GitHubProject.GitHubRepo;
-import qupath.lib.io.GsonTools;
 
 /**
  * Helper class to query for updates using GitHub's web API.

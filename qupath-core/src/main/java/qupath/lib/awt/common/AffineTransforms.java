@@ -21,12 +21,11 @@
 
 package qupath.lib.awt.common;
 
+import org.locationtech.jts.geom.util.AffineTransformation;
+import qupath.lib.roi.GeometryTools;
+
 import java.awt.geom.AffineTransform;
 import java.util.Arrays;
-
-import org.locationtech.jts.geom.util.AffineTransformation;
-
-import qupath.lib.roi.GeometryTools;
 
 /**
  * Helper class for working with affine transforms.

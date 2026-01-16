@@ -1,12 +1,12 @@
 package qupath.lib.lazy.interfaces;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.text.DecimalFormatSymbols;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Set;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

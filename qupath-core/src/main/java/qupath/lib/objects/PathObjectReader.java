@@ -21,10 +21,10 @@
 
 package qupath.lib.objects;
 
+import qupath.lib.images.servers.ImageServer;
+
 import java.io.IOException;
 import java.util.Collection;
-
-import qupath.lib.images.servers.ImageServer;
 
 /**
  * Interface for classes capable of reading {@linkplain PathObject PathObjects} from some source.

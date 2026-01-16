@@ -23,10 +23,10 @@
 
 package qupath.lib.objects.hierarchy;
 
+import qupath.lib.objects.TMACoreObject;
+
 import java.io.Serializable;
 import java.util.List;
-
-import qupath.lib.objects.TMACoreObject;
 
 /**
  * Interface defining a (rectangular) TMA grid.

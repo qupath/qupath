@@ -23,18 +23,8 @@
 
 package qupath.lib.gui;
 
-import java.awt.Desktop;
-import java.awt.Desktop.Action;
-import java.awt.desktop.OpenFilesEvent;
-import java.awt.desktop.OpenFilesHandler;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-
+import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -46,19 +36,28 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
+import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.stage.Stage;
-import qupath.lib.common.GeneralTools;
 import qupath.fx.dialogs.Dialogs;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
+
+import java.awt.Desktop;
+import java.awt.Desktop.Action;
+import java.awt.desktop.OpenFilesEvent;
+import java.awt.desktop.OpenFilesHandler;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Launcher application to start QuPath.

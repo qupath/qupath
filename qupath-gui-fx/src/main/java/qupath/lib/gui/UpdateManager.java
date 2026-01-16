@@ -24,26 +24,25 @@
 
 package qupath.lib.gui;
 
+import javafx.beans.property.LongProperty;
+import javafx.scene.control.ButtonType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.lib.common.Version;
+import qupath.lib.gui.commands.Commands;
+import qupath.lib.gui.extensions.GitHubProject.GitHubRepo;
+import qupath.lib.gui.extensions.UpdateChecker;
+import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
+import qupath.lib.gui.tools.GuiTools;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
-
-import javafx.beans.property.LongProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.scene.control.ButtonType;
-import qupath.lib.common.Version;
-import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.commands.Commands;
-import qupath.lib.gui.extensions.UpdateChecker;
-import qupath.lib.gui.extensions.GitHubProject.GitHubRepo;
-import qupath.lib.gui.localization.QuPathResources;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
-import qupath.lib.gui.tools.GuiTools;
 
 /**
  * Class to handle the interactive user interface side of update checking.
@@ -211,8 +210,8 @@ class UpdateManager {
 				return QuPathGUI.getExtensionCatalogManager().getAvailableUpdates().get().stream()
 						.map(extensionUpdate -> new UpdateManagerContainer.UpdateEntry(
 								extensionUpdate.extensionName(),
-								extensionUpdate.currentVersion(),
-								extensionUpdate.newVersion(),
+								extensionUpdate.currentVersion().toString(),
+								extensionUpdate.newVersion().toString(),
 								() -> Commands.showInstalledExtensions(qupath),
 								QuPathResources.getString("UpdateManager.openExtensionManager")
 						))

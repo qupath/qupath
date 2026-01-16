@@ -40,6 +40,7 @@ import ij.process.LUT;
 import ij.process.ShortProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.imagej.tools.IJProperties;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.GeneralTools;
@@ -309,22 +310,23 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 			return Collections.emptyList();
 		var list = new ArrayList<PathObject>();
 		if (roi != null) {
-			list.add(roiToAnnotation(roi));
+			list.add(roiToPathObject(roi));
 		}
 		if (overlay != null) {
 			for (var r : overlay.toArray())
-				list.add(roiToAnnotation(r));
+				list.add(roiToPathObject(r));
 		}
 		return list;
 	}
 	
-	private PathObject roiToAnnotation(Roi roiIJ) {
+	private PathObject roiToPathObject(Roi roiIJ) {
 		// Note that because we are reading from the ImagePlus directly, we have to avoid using any calibration information
 		var roi = IJTools.convertToROI(roiIJ, 0, 0, 1, IJTools.getImagePlane(roiIJ, imp));
-		var annotation = PathObjects.createAnnotationObject(roi);
-		annotation.setLocked(true);
-		IJTools.calibrateObject(annotation, roiIJ);
-		return annotation;
+		// Create an annotation, unless another object type is specified in the properties
+        var pathObject = IJProperties.getObjectCreator(roiIJ).orElse(PathObjects::createAnnotationObject).apply(roi);
+        pathObject.setLocked(true);
+		IJTools.calibrateObject(pathObject, roiIJ);
+		return pathObject;
 	}
 	
 	

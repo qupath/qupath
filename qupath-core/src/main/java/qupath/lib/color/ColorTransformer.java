@@ -23,15 +23,15 @@
 
 package qupath.lib.color;
 
+import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
+import qupath.lib.common.ColorTools;
+
 import java.awt.Color;
 import java.awt.image.ColorModel;
 import java.awt.image.IndexColorModel;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-
-import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
-import qupath.lib.common.ColorTools;
 
 /**
  * Static methods for computing a range of color transforms for packed RGB values.

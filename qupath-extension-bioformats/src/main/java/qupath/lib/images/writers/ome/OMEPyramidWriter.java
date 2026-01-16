@@ -21,6 +21,39 @@
 
 package qupath.lib.images.writers.ome;
 
+import loci.formats.FormatException;
+import loci.formats.FormatWriter;
+import loci.formats.IFormatWriter;
+import loci.formats.ImageWriter;
+import loci.formats.MetadataTools;
+import loci.formats.codec.CodecOptions;
+import loci.formats.meta.IMetadata;
+import loci.formats.meta.IPyramidStore;
+import loci.formats.out.OMETiffWriter;
+import loci.formats.out.PyramidOMETiffWriter;
+import loci.formats.out.TiffWriter;
+import loci.formats.tiff.IFD;
+import ome.units.UNITS;
+import ome.units.quantity.Length;
+import ome.xml.model.enums.DimensionOrder;
+import ome.xml.model.primitives.Color;
+import ome.xml.model.primitives.PositiveInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
 import java.io.File;
@@ -42,40 +75,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import loci.formats.codec.CodecOptions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import loci.formats.FormatException;
-import loci.formats.FormatWriter;
-import loci.formats.IFormatWriter;
-import loci.formats.ImageWriter;
-import loci.formats.MetadataTools;
-import loci.formats.meta.IMetadata;
-import loci.formats.meta.IPyramidStore;
-import loci.formats.out.OMETiffWriter;
-import loci.formats.out.PyramidOMETiffWriter;
-import loci.formats.out.TiffWriter;
-import loci.formats.tiff.IFD;
-import ome.units.UNITS;
-import ome.units.quantity.Length;
-import ome.xml.model.enums.DimensionOrder;
-import ome.xml.model.primitives.Color;
-import ome.xml.model.primitives.PositiveInteger;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.common.ColorTools;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.ServerTools;
-import qupath.lib.images.servers.TileRequest;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.servers.ImageServers;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Write OME-TIFF files based on QuPath ImageServers.

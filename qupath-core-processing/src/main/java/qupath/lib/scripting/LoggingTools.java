@@ -22,13 +22,13 @@
 
 package qupath.lib.scripting;
 
-import java.io.IOException;
-import java.io.Writer;
-import java.util.Objects;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
+
+import java.io.IOException;
+import java.io.Writer;
+import java.util.Objects;
 
 
 public class LoggingTools {

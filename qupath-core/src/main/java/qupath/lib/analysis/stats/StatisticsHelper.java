@@ -23,11 +23,11 @@
 
 package qupath.lib.analysis.stats;
 
+import qupath.lib.analysis.images.SimpleImage;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import qupath.lib.analysis.images.SimpleImage;
 
 /**
  * Static methods for computing statistics from images, with or without a corresponding labeled image.

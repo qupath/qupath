@@ -23,20 +23,13 @@
 
 package qupath.process.gui;
 
-import java.awt.AlphaComposite;
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.nio.ByteBuffer;
-import java.nio.DoubleBuffer;
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.bytedeco.opencv.global.opencv_core.*;
-
+import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.scene.input.MouseEvent;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -49,24 +42,16 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryCombiner;
-import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.scene.input.MouseEvent;
-import qupath.fx.prefs.controlsfx.PropertySheetUtils;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.localization.QuPathResources;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.fx.prefs.annotations.BooleanPref;
 import qupath.fx.prefs.annotations.DoublePref;
 import qupath.fx.prefs.annotations.Pref;
 import qupath.fx.prefs.annotations.PrefCategory;
+import qupath.fx.prefs.controlsfx.PropertySheetUtils;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
@@ -74,6 +59,24 @@ import qupath.lib.gui.viewer.tools.QuPathPenManager;
 import qupath.lib.gui.viewer.tools.handlers.BrushToolEventHandler;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.GeometryTools;
+
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.nio.ByteBuffer;
+import java.nio.DoubleBuffer;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.bytedeco.opencv.global.opencv_core.CV_32FC3;
+import static org.bytedeco.opencv.global.opencv_core.CV_8UC;
+import static org.bytedeco.opencv.global.opencv_core.CV_8UC1;
+import static org.bytedeco.opencv.global.opencv_core.meanStdDev;
+import static org.bytedeco.opencv.global.opencv_core.subtractPut;
 
 /**
  * Wand tool, which acts rather like the brush - except that it expands regions 

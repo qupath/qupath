@@ -23,6 +23,8 @@
 
 package qupath.lib.color;
 
+import qupath.lib.common.ColorTools;
+
 import java.awt.Color;
 import java.awt.image.IndexColorModel;
 import java.util.Collections;
@@ -30,8 +32,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import qupath.lib.common.ColorTools;
 
 /**
  * Helper class for converting between packed RGB colors and Java's AWT representation, as well as creating some ColorModels for BufferedImages.

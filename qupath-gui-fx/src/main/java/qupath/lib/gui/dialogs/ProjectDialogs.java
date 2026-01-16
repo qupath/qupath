@@ -21,19 +21,6 @@
 
 package qupath.lib.gui.dialogs;
 
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.controlsfx.control.ListSelectionView;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Pos;
@@ -48,10 +35,22 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
+import org.controlsfx.control.ListSelectionView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.projects.ProjectImageEntry;
+
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Dialogs specifically related to managing projects.

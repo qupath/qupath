@@ -21,9 +21,9 @@
 
 package qupath.lib.images.servers;
 
-import java.util.Collection;
-
 import qupath.lib.regions.RegionRequest;
+
+import java.util.Collection;
 
 /**
  * Helper class to manage tile requests from an {@link ImageServer}.

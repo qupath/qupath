@@ -23,10 +23,10 @@
 
 package qupath.lib.objects.hierarchy.events;
 
+import qupath.lib.objects.PathObject;
+
 import java.util.Collection;
 import java.util.EventListener;
-
-import qupath.lib.objects.PathObject;
 
 /**
  * A listener to selection changes within a PathObjectSelectionModel.

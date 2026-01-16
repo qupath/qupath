@@ -21,6 +21,22 @@
 
 package qupath.lib.classifiers.pixel;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.io.GsonTools;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
@@ -31,23 +47,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.AbstractTileableImageServer;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.TileRequest;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.io.GsonTools;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * ImageServer that delivers pixels derived from applying a PixelClassifier to another ImageServer.

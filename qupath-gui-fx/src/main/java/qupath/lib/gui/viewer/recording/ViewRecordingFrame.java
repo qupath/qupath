@@ -23,6 +23,8 @@
 
 package qupath.lib.gui.viewer.recording;
 
+import qupath.lib.gui.viewer.tools.PathTool;
+
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.Shape;
@@ -32,8 +34,6 @@ import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.text.DecimalFormat;
-
-import qupath.lib.gui.viewer.tools.PathTool;
 
 /**
  * Data relating to a single recording frame.

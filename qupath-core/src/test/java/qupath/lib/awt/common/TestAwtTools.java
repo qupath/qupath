@@ -21,18 +21,17 @@
 
 package qupath.lib.awt.common;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.Test;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.ROIs;
 
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.ROIs;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SuppressWarnings("javadoc")
 public class TestAwtTools {

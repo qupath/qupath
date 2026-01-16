@@ -23,10 +23,10 @@
 
 package qupath.lib.gui.scripting.richtextfx.stylers;
 
+import org.fxmisc.richtext.model.StyleSpans;
+
 import java.util.Collection;
 import java.util.Set;
-
-import org.fxmisc.richtext.model.StyleSpans;
 
 /**
  * Styling for plain text (which really means no styling).

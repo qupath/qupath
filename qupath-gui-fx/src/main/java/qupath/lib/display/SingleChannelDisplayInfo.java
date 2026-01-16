@@ -21,9 +21,9 @@
 
 package qupath.lib.display;
 
-import java.awt.image.BufferedImage;
-
 import qupath.lib.images.ImageData;
+
+import java.awt.image.BufferedImage;
 
 /**
  * {@link ChannelDisplayInfo} that determines colors based upon a single value for each pixel.

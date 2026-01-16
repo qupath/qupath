@@ -21,6 +21,11 @@
 
 package qupath.lib.color;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.PixelType;
+
 import java.awt.image.BandedSampleModel;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
@@ -29,12 +34,6 @@ import java.awt.image.DataBufferFloat;
 import java.awt.image.DataBufferShort;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.ColorTools;
-import qupath.lib.images.servers.PixelType;
 
 /**
  * Create a ColorModel. This was originally intended for displaying probability values.

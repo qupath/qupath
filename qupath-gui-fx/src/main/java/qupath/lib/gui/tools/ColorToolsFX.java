@@ -23,11 +23,6 @@
 
 package qupath.lib.gui.tools;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import javafx.scene.paint.Color;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -36,6 +31,11 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Helper class for converting between packed RGB colors and Java's AWT representation, as well as creating some ColorModels for BufferedImages.

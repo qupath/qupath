@@ -21,15 +21,15 @@
 
 package qupath.opencv.ml.objects.features;
 
+import qupath.lib.images.ImageData;
+import qupath.lib.measurements.MeasurementList;
+import qupath.lib.objects.PathObject;
+
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
-import qupath.lib.images.ImageData;
-import qupath.lib.measurements.MeasurementList;
-import qupath.lib.objects.PathObject;
 
 /**
  * {@link FeatureExtractor} that takes features from the existing {@link MeasurementList} of each object.

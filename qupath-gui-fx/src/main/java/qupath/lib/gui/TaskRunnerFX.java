@@ -23,13 +23,6 @@
 
 package qupath.lib.gui;
 
-import java.util.Collection;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -45,12 +38,19 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.plugins.AbstractTaskRunner;
 import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.plugins.PathTask;
-import qupath.lib.plugins.AbstractTaskRunner;
 import qupath.lib.plugins.SimpleProgressMonitor;
 import qupath.lib.regions.ImageRegion;
+
+import java.util.Collection;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Plugin runner that takes care of showing progress (in the appropriate thread) using JavaFX components.

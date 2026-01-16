@@ -24,9 +24,6 @@
 package qupath.lib.gui.viewer;
 
 
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ChangeListener;
@@ -43,6 +40,9 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.images.servers.ImageServer;
+
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 
 /**
  * A whole slide viewer with optional extras... i.e. an overview, scalebar, location string...
