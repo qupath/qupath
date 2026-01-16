@@ -16,7 +16,6 @@ dependencies {
   api(project(":qupath-core-processing"))
 
   api(libs.controlsfx)
-
   implementation(libs.qupath.fxtras)
 
   implementation(libs.guava)
