@@ -465,6 +465,9 @@ public class MeasurementExporter {
 		private final Class<? extends PathObject> type;
 		private List<String> headerList;
 		private final List<ProjectImageEntry<?>> imageEntries = new ArrayList<>();
+		private ImageData<?> currentImageData;
+		private Collection<? extends PathObject> currentObjects;
+		private int currentIndex = -1;
 
 
 		private MeasurementTable(ObservableMeasurementTableData model, Predicate<PathObject> filter, Class<? extends PathObject> type) {
@@ -503,16 +506,7 @@ public class MeasurementExporter {
 					break;
 				}
 			}
-            ImageData<?> imageData = null;
-            try {
-                imageData = imageEntries.get(imageIndex).readImageData();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            Collection<PathObject> pathObjects = imageData.getHierarchy().getObjects(null, type);
-			if (filter != null)
-				pathObjects = pathObjects.stream().filter(filter).toList();
-			tableModel.setImageData(imageData, pathObjects);
+			ensureLoaded(imageIndex);
 			var item = tableModel.getItems().get(rowIndex);
 			if (tableModel.isNumericMeasurement(column)) {
 				Number measurement = item.getMeasurements().get(column);
@@ -520,6 +514,22 @@ public class MeasurementExporter {
                 return measurement == null ? "" : String.valueOf(measurement.doubleValue());
 			}
 			return tableModel.getStringValue(item, column, nDecimalPlaces);
+		}
+
+		private void ensureLoaded(int i) {
+			if (i == currentIndex) {
+				return;
+			}
+			try {
+				currentImageData = imageEntries.get(i).readImageData();
+				currentObjects = currentImageData.getHierarchy().getObjects(null, type);
+				if (filter != null)
+					currentObjects = currentObjects.stream().filter(filter).toList();
+				tableModel.setImageData(currentImageData, currentObjects);
+				currentIndex = i;
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
 		}
 
 		private int[] cumSum(List<Integer> in) {
