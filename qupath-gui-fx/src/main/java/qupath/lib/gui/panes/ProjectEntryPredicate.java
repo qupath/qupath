@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui.dialogs;
+package qupath.lib.gui.panes;
 
 import java.util.Arrays;
 import java.util.List;
@@ -36,7 +36,7 @@ import qupath.lib.projects.ProjectImageEntry;
  * Therefore, to search for images ending with ".tif" and with a metadata entry "server" with value "bioformats,
  * the filter text string would be {@code "tif|server=bioformats"}.
  */
-class ProjectEntryPredicate implements Predicate<ProjectImageEntry<?>> {
+public class ProjectEntryPredicate implements Predicate<ProjectImageEntry<?>> {
 
     private static final Predicate<ProjectImageEntry<?>> ACCEPT_ALL = p -> true;
 
@@ -44,10 +44,20 @@ class ProjectEntryPredicate implements Predicate<ProjectImageEntry<?>> {
     private final boolean ignoreCase;
     private final List<String> filterTokens;
 
+    /**
+     * Create a case-sensitive filter for project entries.
+     * @param filterText the filter text; if empty, all entries will pass through the filter
+     * @return the predicate
+     */
     public static Predicate<ProjectImageEntry<?>> createCaseSensitive(String filterText) {
         return create(filterText, false);
     }
 
+    /**
+     * Create a case-insensitive filter for project entries.
+     * @param filterText the filter text; if empty, all entries will pass through the filter
+     * @return the predicate
+     */
     public static Predicate<ProjectImageEntry<?>> createIgnoreCase(String filterText) {
         return create(filterText, true);
     }
@@ -95,7 +105,7 @@ class ProjectEntryPredicate implements Predicate<ProjectImageEntry<?>> {
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .map(t -> ignoreCase ? t.toLowerCase() : t)
                 .toList();
-
+        
         // Check the filter tokens - we need to find all of them
         for (var token : filterTokens) {
             boolean foundMatch = imageName.contains(token);

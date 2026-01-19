@@ -153,13 +153,13 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	private ProjectImageTreeModel model = new ProjectImageTreeModel(null);
 	private final TreeView<ProjectTreeRow> tree;
 
-	 // Keep a record of servers that failed- don't want to keep putting in thumbnails requests if the server is unavailable.
+	 // Keep a record of servers that failed - don't want to keep putting in thumbnails requests if the server is unavailable.
 	private final Set<ProjectTreeRow> serversFailed = Collections.synchronizedSet(new HashSet<>());
 
 	private final StringProperty descriptionText = new SimpleStringProperty();
 
 	// Predicate for filtering tree rows
-	private final ObjectProperty<Predicate<String>> predicateProperty = new SimpleObjectProperty<>(s -> true);
+	private final ObjectProperty<Predicate<ProjectImageEntry<?>>> predicateProperty = new SimpleObjectProperty<>(s -> true);
 
 	private static final ObjectProperty<ProjectThumbnailSize> thumbnailSize = PathPrefs.createPersistentPreference("projectThumbnailSize",
 			ProjectThumbnailSize.SMALL, ProjectThumbnailSize.class);
@@ -293,7 +293,13 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		tfFilter.setSpacing(0.0);
 		var tooltip = new Tooltip("Type some text to filter the project entries by name or type.");
 		Tooltip.install(tfFilter, tooltip);
-		predicateProperty.bind(tfFilter.predicateProperty());
+		predicateProperty.bind(Bindings.createObjectBinding(() -> {
+			if (tfFilter.useRegexProperty().get())
+				return (ProjectImageEntry<?> e) -> e != null && tfFilter.predicateProperty().get().test(e.getImageName());
+			else {
+				return ProjectEntryPredicate.createIgnoreCase(tfFilter.getText());
+			}
+		}, tfFilter.useRegexProperty(), tfFilter.textProperty(), tfFilter.predicateProperty()));
 		predicateProperty.addListener((m, o, n) -> refreshTree(null));
 		
 		var paneUserFilter = GridPaneUtils.createRowGrid(tfFilter);
@@ -1444,7 +1450,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
             return switch (getValue().getType()) {
                 case ROOT -> project != null && !project.getImageList().isEmpty() && project.getImageList().stream()
-                        .noneMatch(entry -> predicateProperty.get().test(entry.getImageName()));
+                        .noneMatch(entry -> predicateProperty.get().test(entry));
                 case METADATA -> false;
                 case IMAGE -> true;
                 default ->
@@ -1466,7 +1472,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					
 					if (metadataKey == null) {
 						for (var row: getAllImageRows()) {
-							if (!filter.test(row.getDisplayableString()))
+							if (!filter.test(row.getEntry()))
 								continue;
 							children.add(new ProjectTreeRowItem(row));
 						}
@@ -1498,7 +1504,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						break;
 					
 					for (var row: getAllImageRows()) {
-						if (!filter.test(row.getDisplayableString()))
+						if (!filter.test(row.getEntry()))
 							continue;
 						try {
 							var value = getDefaultValue(ProjectTreeRow.getEntry(row), metadataKey);
