@@ -36,7 +36,7 @@ import qupath.lib.projects.ProjectImageEntry;
  * Therefore, to search for images ending with ".tif" and with a metadata entry "server" with value "bioformats,
  * the filter text string would be {@code "tif|server=bioformats"}.
  */
-public class ProjectEntryPredicate implements Predicate<ProjectImageEntry<?>> {
+class ProjectEntryPredicate implements Predicate<ProjectImageEntry<?>> {
 
     private static final Predicate<ProjectImageEntry<?>> ACCEPT_ALL = p -> true;
 
