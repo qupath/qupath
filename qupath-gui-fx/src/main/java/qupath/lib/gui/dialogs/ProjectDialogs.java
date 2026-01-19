@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,6 +21,11 @@
 
 package qupath.lib.gui.dialogs;
 
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Pos;
@@ -40,17 +45,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.panes.ProjectEntryPredicate;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.projects.ProjectImageEntry;
-
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Dialogs specifically related to managing projects.
@@ -172,8 +169,8 @@ public class ProjectDialogs {
 	
 	private static class ProjectEntryListCell extends ListCell<ProjectImageEntry<BufferedImage>> {
 		
-		private Tooltip tooltip = new Tooltip();
-		private ImageView imageView = new ImageView();
+		private final Tooltip tooltip = new Tooltip();
+		private final ImageView imageView = new ImageView();
 	
 		private ProjectEntryListCell() {
 			super();
@@ -212,19 +209,11 @@ public class ProjectDialogs {
 			setTooltip(tooltip);
 		}
 	}
-	
-	
-	private static void updateImageList(final ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, 
+
+
+	private static void updateImageList(final ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView,
 			final List<ProjectImageEntry<BufferedImage>> availableImages, final String filterText, final boolean withDataOnly) {
-		
-		// This may become optional in the future
-		boolean ignoreCase = true;
-		
-		// Get the filter text
-		String text = filterText.trim();
-		if (ignoreCase)
-			text = text.toLowerCase();
-		
+
 		// Get an update source items list
 		List<ProjectImageEntry<BufferedImage>> sourceItems = new ArrayList<>(availableImages);
 		var targetItems = listSelectionView.getTargetItems();
@@ -236,57 +225,10 @@ public class ProjectDialogs {
 		}
 		
 		// Apply filter text
-		if (text.length() > 0 && text.replaceAll("|", "").length() > 0 && !sourceItems.isEmpty()) {
-			
-			// Get filter tokens
-			Collection<String> filterTokens;
-			int indSplit = filterText.indexOf("|");
-			if (indSplit >= 0) {
-				filterTokens = Arrays.stream(filterText.split("\\|"))
-						.filter(t -> !t.isBlank())
-						.toList();
-			} else {
-				filterTokens = Collections.emptyList();
-			}
-			
-			
-			Iterator<ProjectImageEntry<BufferedImage>> iter = sourceItems.iterator();
-			while (iter.hasNext()) {
-				var entry = iter.next();
-				var imageName = entry.getImageName();
-				if (ignoreCase)
-					imageName = imageName.toLowerCase();
-				// If the entire text is contained in the image name, we keep the entry
-				if (imageName.contains(text))
-					continue;
-				// If we don't have filter tokens, remove the entry
-				if (filterTokens.isEmpty()) {
-					iter.remove();
-					continue;
-				}
-				// Check the individual filter tokens if we have to
-				var metadataStrings = entry.getMetadataMap().entrySet()
-					.stream()
-					.map(e -> e.getKey() + "=" + e.getValue())
-					.map(t -> ignoreCase ? t.toLowerCase() : t)
-					.toList();
-				for (var token : filterTokens) {
-					boolean foundMatch = imageName.contains(token);
-					if (!foundMatch) {
-						for (var m : metadataStrings) {
-							if (m.contains(token)) {
-								foundMatch = true;
-								break;
-							}
-						}
-					}
-					if (!foundMatch) {
-						iter.remove();
-						break;
-					}
-				}
-			}
-		}		
+		if (!sourceItems.isEmpty()) {
+			var predicate = ProjectEntryPredicate.createIgnoreCase(filterText);
+			sourceItems.removeIf(predicate.negate());
+		}
 		
 		if (listSelectionView.getSourceItems().equals(sourceItems))
 			return;
