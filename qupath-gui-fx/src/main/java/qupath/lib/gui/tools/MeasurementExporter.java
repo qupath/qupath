@@ -24,7 +24,6 @@ package qupath.lib.gui.tools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.images.ImageData;
 import qupath.lib.lazy.interfaces.LazyValue;
 import qupath.lib.objects.PathAnnotationObject;
@@ -37,7 +36,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
-import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -49,10 +48,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.DoubleConsumer;
@@ -308,8 +305,10 @@ public class MeasurementExporter {
 	 * @throws IOException if the export files
 	 */
 	public void exportMeasurements(File file) throws IOException, InterruptedException {
-		try (var fos = new BufferedOutputStream(new FileOutputStream(file), 4096)) {
+		try (var fos = new FileOutputStream(file)) {
 			doExport(fos, getSeparatorToUse(file.getName()));
+		} catch (Exception e) {
+			throw new IOException("Error exporting measurements", e);
 		}
 	}
 
@@ -326,11 +325,11 @@ public class MeasurementExporter {
 	}
 
 	private MeasurementTable createMeasurementTable(ProgressMonitor monitor) throws IOException, InterruptedException {
-		var table = new MeasurementTable();
+		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+		var table = new MeasurementTable(model, filter, type);
 		var columnPredicate = createColumnPredicate();
 		// TODO: Make the kind of PathTableModel<PathObject> something customizable - a caller might want to reuse
 		//       the code to export different measurements.
-		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 
 		for (ProjectImageEntry<?> entry: imageList) {
 			if (Thread.interrupted())
@@ -342,7 +341,7 @@ public class MeasurementExporter {
 					pathObjects = pathObjects.stream().filter(filter).toList();
 				model.setImageData(imageData, pathObjects);
 				var columns = model.getAllNames().stream().filter(columnPredicate).toList();
-				table.addRows(columns, model, nDecimalPlaces);
+				table.addTable(columns, model, entry);
 			} catch (IOException e) {
 				throw e;
 			} catch (Exception e) {
@@ -399,18 +398,19 @@ public class MeasurementExporter {
 
 		boolean warningLogged = false;
 
-		try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8))){
-			var header = table.getHeader();
+		try (PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8)))) {
+			var header = table.getColumnNames();
 			writeRow(writer, header, separator);
 
 			List<String> rowValues = new ArrayList<>();
 			for (int row = 0; row < table.size(); row++) {
 				rowValues.clear();
 				for (var h : header) {
-					var val = table.getString(row, h, null);
+					var val = table.getString(row, h, nDecimalPlaces);
+					var str = val == null ? "" : val;
 					if (val == null) {
 						rowValues.add("");
-					} else if (val.contains(separator)) {
+					} else if (str.contains(separator)) {
 						if (!warningLogged) {
 							logger.warn("Separator '{}' found in cell - " +
 									"this may cause the table to be misaligned in some software", separator);
@@ -418,12 +418,14 @@ public class MeasurementExporter {
 						}
 						rowValues.add("\"" + val + "\"");
 					} else {
-						rowValues.add(val);
+						rowValues.add(str);
 					}
 				}
 				writeRow(writer, rowValues, separator);
 			}
 
+		} catch (Exception e) {
+			throw new IOException("Error exporting measurements", e);
 		}
 		monitor.complete();
 
@@ -451,65 +453,98 @@ public class MeasurementExporter {
 			if (i < n-1)
 				writer.write(delim);
 		}
-		writer.write(System.lineSeparator());
+		writer.println();
 	}
 
 	private static class MeasurementTable {
 
 		private final Set<String> header = new LinkedHashSet<>();
-		private final List<String[]> data =  new ArrayList<>();
+		private final List<Integer> sizes = new ArrayList<>();
+		private final ObservableMeasurementTableData tableModel;
+		private final Predicate<PathObject> filter;
+		private final Class<? extends PathObject> type;
 		private List<String> headerList;
-		private Map<String, Integer> columnIndices = new HashMap<>();
+		private final List<ProjectImageEntry<?>> imageEntries = new ArrayList<>();
+		private ImageData<?> currentImageData;
+		private Collection<? extends PathObject> currentObjects;
+		private int currentIndex = -1;
 
-		public <T> void addRows(Collection<String> headerColumns, PathTableData<T> table, int nDecimalPlaces) {
-			var currentHeaderColumns = Set.copyOf(headerColumns);
-			header.addAll(headerColumns);
-			var sameColumns = header.size() == currentHeaderColumns.size();
-			var columns = header.toArray(String[]::new);
-			int n = columns.length;
-			for (var item : table.getItems()) {
-				// Try to avoid needing to resize the map
-				var row = new String[columns.length];
-				for (int i = 0; i < n; i++) {
-					var col = columns[i];
-					if (sameColumns || currentHeaderColumns.contains(col)) {
-						row[i] = table.getStringValue(item, columns[i], nDecimalPlaces);
-					}
-				}
-				data.add(row);
-			}
+
+		private MeasurementTable(ObservableMeasurementTableData model, Predicate<PathObject> filter, Class<? extends PathObject> type) {
+			this.tableModel = model;
+			this.filter = filter;
+			this.type = type;
 		}
 
-		public synchronized List<String> getHeader() {
+		public void addTable(Collection<String> headerColumns, ObservableMeasurementTableData table, ProjectImageEntry<?> imageEntry) {
+			header.addAll(headerColumns);
+			sizes.add(table.getItems().size());
+			imageEntries.add(imageEntry);
+		}
+
+		synchronized List<String> getColumnNames() {
 			if (headerList == null || headerList.size() != header.size())
 				headerList = List.copyOf(header);
 			return headerList;
 		}
 
-		private synchronized Map<String, Integer> getColumnIndices() {
-			var list = getHeader();
-			if (columnIndices.size() != list.size()) {
-				var map = new HashMap<String, Integer>();
-				for (int i = 0; i < list.size(); i++) {
-					map.put(list.get(i), i);
-				}
-				columnIndices = map;
+
+		String getString(int row, String column, int nDecimalPlaces) {
+			List<Integer> sizes = sizes();
+			int[] cumSum = cumSum(sizes);
+			int imageIndex = 0, rowIndex = 0;
+			if (row > cumSum[cumSum.length - 1]) {
+				throw new ArrayIndexOutOfBoundsException();
 			}
-			return columnIndices;
+			for (int i = 0; i < cumSum.length; i++) {
+				if (row < cumSum[i]) {
+					imageIndex = i;
+					rowIndex = row;
+					if (i > 0) {
+						rowIndex -= cumSum[i-1];
+					}
+					break;
+				}
+			}
+			ensureLoaded(imageIndex);
+			var item = tableModel.getItems().get(rowIndex);
+			return tableModel.getStringValue(item, column, nDecimalPlaces);
 		}
 
-		public String getString(int row, String column, String defaultValue) {
-			var dataRow = data.get(row);
-			int ind = getColumnIndices().getOrDefault(column, -1);
-			if (ind >= 0 && ind < dataRow.length)
-				return dataRow[ind];
-			else
-				return defaultValue;
+		private void ensureLoaded(int i) {
+			if (i == currentIndex) {
+				return;
+			}
+			try {
+				currentImageData = imageEntries.get(i).readImageData();
+				currentObjects = currentImageData.getHierarchy().getObjects(null, type);
+				if (filter != null)
+					currentObjects = currentObjects.stream().filter(filter).toList();
+				tableModel.setImageData(currentImageData, currentObjects);
+				currentIndex = i;
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
 		}
 
-		public int size() {
-			return data.size();
+		private int[] cumSum(List<Integer> in) {
+			int[] out = new int[in.size()];
+			int total = 0;
+			for (int i = 0; i < in.size(); i++) {
+				total += in.get(i);
+				out[i] = total;
+			}
+			return out;
 		}
+
+		int size() {
+			return sizes().stream().mapToInt(i -> i).sum();
+		}
+
+		List<Integer> sizes() {
+			return sizes;
+		}
+
 
 	}
 
