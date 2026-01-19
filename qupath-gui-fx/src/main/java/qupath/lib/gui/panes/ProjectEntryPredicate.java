@@ -21,9 +21,11 @@
 
 package qupath.lib.gui.panes;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import qupath.lib.projects.ProjectImageEntry;
 
 /**
@@ -104,8 +106,13 @@ public class ProjectEntryPredicate implements Predicate<ProjectImageEntry<?>> {
                 .stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .map(t -> ignoreCase ? t.toLowerCase() : t)
-                .toList();
-        
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        // Add extra string for has_data, unless it's already included
+        if (!entry.getMetadata().containsKey("has_data")) {
+            metadataStrings.add("has_data=" + entry.hasImageData());
+        }
+
         // Check the filter tokens - we need to find all of them
         for (var token : filterTokens) {
             boolean foundMatch = imageName.contains(token);
