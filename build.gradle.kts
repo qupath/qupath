@@ -181,7 +181,21 @@ dependencies {
     }
 }
 
-
+/**
+ * Avoid bundling the DejaVu web fonts, which add >4 MB to each jar -
+ * and so 40-50 MB to a QuPath download.
+ * See https://bugs.openjdk.org/browse/JDK-8326683
+ */
+tasks.register("shrinkJavadocs") {
+    rootProject.subprojects.forEach {
+        it.tasks.javadoc {
+            options {
+                this as StandardJavadocDocletOptions
+                addBooleanOption("-no-fonts", true)
+            }
+        }
+    }
+}
 
 /**
  * Copies the Javadoc jars to a directory for access within QuPath
@@ -190,6 +204,7 @@ tasks.register<Copy>("assembleJavadocs") {
     group = "documentation"
     description = "Copies the Javadoc jars to a directory for access within QuPath"
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn("shrinkJavadocs")
 
     // Always include jars developed by all subprojects
     rootProject.subprojects.forEach {
