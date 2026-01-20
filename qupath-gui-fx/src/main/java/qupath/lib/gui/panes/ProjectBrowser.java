@@ -152,6 +152,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
 	private ProjectImageTreeModel model = new ProjectImageTreeModel(null);
 	private final TreeView<ProjectTreeRow> tree;
+	private final PredicateTextField<String> tfFilter;
 
 	 // Keep a record of servers that failed - don't want to keep putting in thumbnails requests if the server is unavailable.
 	private final Set<ProjectTreeRow> serversFailed = Collections.synchronizedSet(new HashSet<>());
@@ -288,7 +289,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		titledTree.setMaxHeight(Double.MAX_VALUE);
 		
 		
-		var tfFilter = new PredicateTextField<String>();
+		this.tfFilter = new PredicateTextField<String>();
 		tfFilter.setPromptText("Search entry in project");
 		tfFilter.setSpacing(0.0);
 		var tooltip = new Tooltip("Type some text to filter the project entries by name or type.");
@@ -838,6 +839,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		this.project = project;
 		ProjectTreeRowCell.resetUriStatus();
+		tfFilter.textProperty().set("");
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRoot());
 		tree.getRoot().setExpanded(true);
