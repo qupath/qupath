@@ -1419,10 +1419,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 					imageReader.setSeries(args.series);
 				((DimensionSwapper)imageReader).swapDimensions(swapDimensions);
 			}
-			
-			
-			cleanables.add(cleaner.register(this,
-					new ReaderCleaner(Integer.toString(cleanables.size()+1), imageReader)));
+
+			if (isClosed) {
+				imageReader.close(false);
+				return null;
+			} else {
+				cleanables.add(cleaner.register(this,
+						new ReaderCleaner(Integer.toString(cleanables.size()+1), imageReader)));
+			}
 			
 			return imageReader;
 		}
