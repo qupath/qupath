@@ -191,7 +191,7 @@ tasks.register("shrinkJavadocs") {
         it.tasks.javadoc {
             options {
                 this as StandardJavadocDocletOptions
-//                addBooleanOption("-no-fonts", true)
+                addBooleanOption("-no-fonts", true)
             }
         }
     }
