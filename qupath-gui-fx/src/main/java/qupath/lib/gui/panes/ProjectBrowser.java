@@ -1073,26 +1073,26 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			
 			try {
 				var listOfChildren = tree.getRoot().getChildren();
-				for (int i = 0; i < listOfChildren.size(); i++) {
-					if (imageToSelect == null) {
-						if (!listOfChildren.get(i).getChildren().isEmpty()) {
-							listOfChildren.get(i).setExpanded(true);
-							tree.refresh();
-							break;
-						}							
-					} else {
-						for (var child: listOfChildren) {
-							if (child.getValue().getType() == Type.METADATA) {
-								for (var imageChild: child.getChildren()) {
-									if (imageChild.getValue().equals(imageToSelect)) {
-										child.setExpanded(true);
-										tree.getSelectionModel().select(imageChild);
-										break;
-									}
-								}
-							} else if (child.getValue().equals(imageToSelect))
-								tree.getSelectionModel().select(child);
+				// When filtering (imageToSelect is null), expand all matching group nodes
+				if (imageToSelect == null) {
+					for (var child : listOfChildren) {
+						if (!child.getChildren().isEmpty()) {
+							child.setExpanded(true);
 						}
+					}
+				} else {
+					// If a specific image is requested, expand only its parent group and select it
+					for (var child: listOfChildren) {
+						if (child.getValue().getType() == Type.METADATA) {
+							for (var imageChild: child.getChildren()) {
+								if (imageChild.getValue().equals(imageToSelect)) {
+									child.setExpanded(true);
+									tree.getSelectionModel().select(imageChild);
+									break;
+								}
+							}
+						} else if (child.getValue().equals(imageToSelect))
+							tree.getSelectionModel().select(child);
 					}
 				}
 			} catch (Exception ex) {
