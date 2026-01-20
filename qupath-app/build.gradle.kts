@@ -17,15 +17,22 @@ base {
 }
 
 dependencies {
+    // Main QuPath interface (brings in most other dependencies)
     implementation(project(":qupath-gui-fx"))
+
+    // For command line
     implementation(libs.picocli)
+
+    // For extensions
+    implementation(libs.extensionmanager)
 
     // Bundled extensions
     implementation(libs.qupath.training)
     implementation(libs.qupath.djl)
-    implementation(libs.qupath.imglib2)
 
-    implementation(libs.extensionmanager)
+    // For imglib2 support (optional - included here since no other dependency needs it)
+    implementation(libs.qupath.imglib2)
+    implementation(sciJava.imglib2.algorithm)
 }
 
 /**
