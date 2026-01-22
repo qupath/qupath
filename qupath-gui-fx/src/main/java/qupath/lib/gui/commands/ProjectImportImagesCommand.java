@@ -119,7 +119,8 @@ class ProjectImportImagesCommand {
 	private enum Flip {
 		NONE(""),
 		HORIZONTAL("Flip horizontal"),
-		VERTICAL("Flip vertical");
+		VERTICAL("Flip vertical"),
+		BOTH("Flip horizontal and vertical");
 
 		private final String localizedName;
 
@@ -795,6 +796,12 @@ class ProjectImportImagesCommand {
 					AffineTransform transform = new AffineTransform();
 					transform.scale(1, -1);
 					transform.translate(0, -server2.getHeight());
+					yield transform;
+				}
+                case BOTH -> {
+					AffineTransform transform = new AffineTransform();
+					transform.scale(-1, -1);
+					transform.translate(-server2.getWidth(), -server2.getHeight());
 					yield transform;
 				}
             };
