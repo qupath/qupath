@@ -333,6 +333,17 @@ public class TransformedServerBuilder {
 		server = new RotatedImageServer(server, rotation);
 		return this;
 	}
+
+	/**
+	 * Flip the image.
+	 *
+	 * @param flip the type of flip to apply
+	 * @return this image
+	 */
+	public TransformedServerBuilder flip(FlippedImageServer.Flip flip) {
+		server = new FlippedImageServer(server, flip);
+		return this;
+	}
 	
 	/**
 	 * Extract specified channels for an image.

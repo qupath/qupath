@@ -45,6 +45,7 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.util.StringConverter;
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +64,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
+import qupath.lib.images.servers.FlippedImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -82,7 +84,6 @@ import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -115,24 +116,6 @@ class ProjectImportImagesCommand {
 	private static final BooleanProperty pyramidalizeProperty = PathPrefs.createPersistentPreference("projectImportPyramidalize", true);
 	private static final BooleanProperty importObjectsProperty = PathPrefs.createPersistentPreference("projectImportObjects", false);
 	private static final BooleanProperty showImageSelectorProperty = PathPrefs.createPersistentPreference("showImageSelectorProperty", false);
-
-	private enum Flip {
-		NONE(""),
-		HORIZONTAL("Flip horizontal"),
-		VERTICAL("Flip vertical"),
-		BOTH("Flip horizontal and vertical");
-
-		private final String localizedName;
-
-        Flip(String localizedName) {
-            this.localizedName = localizedName;
-        }
-
-        @Override
-		public String toString() {
-			return localizedName;
-		}
-	}
 	
 	/**
 	 * Prompt to import images to the current project.
@@ -221,9 +204,25 @@ class ProjectImportImagesCommand {
 		labelRotate.setLabelFor(comboRotate);
 		labelRotate.setMinWidth(Label.USE_PREF_SIZE);
 
-		ComboBox<Flip> comboFlip = new ComboBox<>();
-		comboFlip.getItems().setAll(Flip.values());
-		comboFlip.getSelectionModel().select(Flip.NONE);
+		ComboBox<FlippedImageServer.Flip> comboFlip = new ComboBox<>();
+		comboFlip.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(FlippedImageServer.Flip flip) {
+                return switch (flip) {
+                    case NONE -> "";
+                    case HORIZONTAL -> "Flip horizontal";
+                    case VERTICAL -> "Flip vertical";
+                    case BOTH -> "Flip horizontal and vertical";
+                };
+            }
+
+            @Override
+            public FlippedImageServer.Flip fromString(String string) {
+                return null;
+            }
+        });
+		comboFlip.getItems().setAll(FlippedImageServer.Flip.values());
+		comboFlip.getSelectionModel().select(FlippedImageServer.Flip.NONE);
 		Label labelFlip = new Label("Flip image");
 		labelFlip.setLabelFor(comboFlip);
 		labelRotate.setMinWidth(Label.USE_PREF_SIZE);
@@ -321,7 +320,7 @@ class ProjectImportImagesCommand {
 				
 		ImageType type = comboType.getValue();
 		Rotation rotation = comboRotate.getValue();
-		Flip flip = comboFlip.getValue();
+		FlippedImageServer.Flip flip = comboFlip.getValue();
 		boolean pyramidalize = cbPyramidalize.isSelected();
 		boolean importObjects = cbImportObjects.isSelected();
 		boolean showSelector = cbImageSelector.isSelected();
@@ -755,7 +754,7 @@ class ProjectImportImagesCommand {
 	 * @throws Exception 
 	 */
 	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type, boolean pyramidalizeSingleResolution, boolean importObjects) throws Exception {
-		return initializeEntry(entry, type, pyramidalizeSingleResolution, importObjects, Flip.NONE);
+		return initializeEntry(entry, type, pyramidalizeSingleResolution, importObjects, FlippedImageServer.Flip.NONE);
 	}
 
 	private static ProjectImageEntry<BufferedImage> initializeEntry(
@@ -763,7 +762,7 @@ class ProjectImportImagesCommand {
 			ImageType type,
 			boolean pyramidalizeSingleResolution,
 			boolean importObjects,
-			Flip flip
+			FlippedImageServer.Flip flip
 	) throws Exception {
 		try (ImageServer<BufferedImage> server = entry.getServerBuilder().build()) {
 			// Set the image name
@@ -784,32 +783,10 @@ class ProjectImportImagesCommand {
 					serverTemp.close();
 			}
 
-			AffineTransform flipTransform = switch (flip) {
-                case NONE -> null;
-                case HORIZONTAL -> {
-					AffineTransform transform = new AffineTransform();
-					transform.scale(-1, 1);
-					transform.translate(-server2.getWidth(), 0);
-					yield transform;
-				}
-                case VERTICAL -> {
-					AffineTransform transform = new AffineTransform();
-					transform.scale(1, -1);
-					transform.translate(0, -server2.getHeight());
-					yield transform;
-				}
-                case BOTH -> {
-					AffineTransform transform = new AffineTransform();
-					transform.scale(-1, -1);
-					transform.translate(-server2.getWidth(), -server2.getHeight());
-					yield transform;
-				}
+			server2 = switch (flip) {
+                case NONE -> server2;
+                case HORIZONTAL, VERTICAL, BOTH -> new TransformedServerBuilder(server2).flip(flip).build();
             };
-			if (flipTransform != null) {
-				server2 = new TransformedServerBuilder(server2)
-						.transform(flipTransform)
-						.build();
-			}
 
 			// Initialize an ImageData object with a type, if required
 			Collection<PathObject> pathObjects = importObjects && server2 instanceof PathObjectReader ? ((PathObjectReader)server2).readPathObjects() : Collections.emptyList();
