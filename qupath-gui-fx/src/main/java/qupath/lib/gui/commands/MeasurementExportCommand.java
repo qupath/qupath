@@ -389,6 +389,7 @@ public class MeasurementExportCommand implements Runnable {
 				exporter.progressMonitor(p -> updateProgress(p, 1.0))
 						.exportMeasurements(new File(pathOut));
 			} catch (IOException e) {
+				logger.error("Export failed", e);
 				Dialogs.showErrorMessage("Export failed", e);
 				return null;
 			} catch (InterruptedException e) {

@@ -47,8 +47,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -324,30 +323,13 @@ public class MeasurementExporter {
 		}
 	}
 
-	private MeasurementTable createMeasurementTable(ProgressMonitor monitor) throws IOException, InterruptedException {
-		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-		var table = new MeasurementTable(model, filter, type);
+	private MeasurementTable createMeasurementTable() throws IOException, InterruptedException {
 		var columnPredicate = createColumnPredicate();
+		var table = new MeasurementTable(filter, type, columnPredicate, nDecimalPlaces);
 		// TODO: Make the kind of PathTableModel<PathObject> something customizable - a caller might want to reuse
 		//       the code to export different measurements.
-
 		for (ProjectImageEntry<?> entry: imageList) {
-			if (Thread.interrupted())
-				throw new InterruptedException();
-			try (ImageData<?> imageData = entry.readImageData()) {
-				Collection<PathObject> pathObjects = imageData == null ? Collections.emptyList() :
-						imageData.getHierarchy().getObjects(null, type);
-				if (filter != null)
-					pathObjects = pathObjects.stream().filter(filter).toList();
-				model.setImageData(imageData, pathObjects);
-				var columns = model.getAllNames().stream().filter(columnPredicate).toList();
-				table.addTable(columns, model, entry);
-			} catch (IOException e) {
-				throw e;
-			} catch (Exception e) {
-				throw new IOException(e);
-			}
-			monitor.incrementProgress();
+				table.addEntry(entry);
 		}
 		return table;
 	}
@@ -394,34 +376,13 @@ public class MeasurementExporter {
 
 		int n = imageList.size();
 		var monitor = new ProgressMonitor(n+1, progressMonitor);
-		var table = createMeasurementTable(monitor);
-
-		boolean warningLogged = false;
+		var table = createMeasurementTable();
 
 		try (PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8)))) {
 			var header = table.getColumnNames();
 			writeRow(writer, header, separator);
-
-			List<String> rowValues = new ArrayList<>();
-			for (int row = 0; row < table.size(); row++) {
-				rowValues.clear();
-				for (var h : header) {
-					var val = table.getString(row, h, nDecimalPlaces);
-					var str = val == null ? "" : val;
-					if (val == null) {
-						rowValues.add("");
-					} else if (str.contains(separator)) {
-						if (!warningLogged) {
-							logger.warn("Separator '{}' found in cell - " +
-									"this may cause the table to be misaligned in some software", separator);
-							warningLogged = true;
-						}
-						rowValues.add("\"" + val + "\"");
-					} else {
-						rowValues.add(str);
-					}
-				}
-				writeRow(writer, rowValues, separator);
+            for (Iterator<List<String>> it = table.getIterator(); it.hasNext(); ) {
+				writeRow(writer, it.next(), separator);
 			}
 
 		} catch (Exception e) {
@@ -458,93 +419,74 @@ public class MeasurementExporter {
 
 	private static class MeasurementTable {
 
-		private final Set<String> header = new LinkedHashSet<>();
-		private final List<Integer> sizes = new ArrayList<>();
 		private final ObservableMeasurementTableData tableModel;
 		private final Predicate<PathObject> filter;
 		private final Class<? extends PathObject> type;
-		private List<String> headerList;
+		private final Predicate<String> columnPredicate;
+		private final int nDecimalPlaces;
+		private final ArrayList<String> headerList = new ArrayList<>();
 		private final List<ProjectImageEntry<?>> imageEntries = new ArrayList<>();
-		private ImageData<?> currentImageData;
-		private Collection<? extends PathObject> currentObjects;
-		private int currentIndex = -1;
+		private ProjectImageEntry<?> currentImageEntry = null;
 
-
-		private MeasurementTable(ObservableMeasurementTableData model, Predicate<PathObject> filter, Class<? extends PathObject> type) {
-			this.tableModel = model;
-			this.filter = filter;
+		private MeasurementTable(Predicate<PathObject> filter, Class<? extends PathObject> type, Predicate<String> columnPredicate, int nDecimalPlaces) {
+            this.nDecimalPlaces = nDecimalPlaces;
+            this.tableModel = new ObservableMeasurementTableData();
+            this.filter = filter;
 			this.type = type;
+			this.columnPredicate = columnPredicate;
 		}
 
-		public void addTable(Collection<String> headerColumns, ObservableMeasurementTableData table, ProjectImageEntry<?> imageEntry) {
-			header.addAll(headerColumns);
-			sizes.add(table.getItems().size());
+		public void addEntry(ProjectImageEntry<?> imageEntry) {
+			ensureLoaded(imageEntry);
+			headerList.addAll(tableModel.getAllNames().stream().filter(columnPredicate).toList());
 			imageEntries.add(imageEntry);
 		}
 
 		synchronized List<String> getColumnNames() {
-			if (headerList == null || headerList.size() != header.size())
-				headerList = List.copyOf(header);
 			return headerList;
 		}
 
+		Iterator<List<String>> getIterator() {
+			return new Iterator<>() {
+				int i = 0;
+				int imageIndex = 0;
 
-		String getString(int row, String column, int nDecimalPlaces) {
-			List<Integer> sizes = sizes();
-			int[] cumSum = cumSum(sizes);
-			int imageIndex = 0, rowIndex = 0;
-			if (row > cumSum[cumSum.length - 1]) {
-				throw new ArrayIndexOutOfBoundsException();
-			}
-			for (int i = 0; i < cumSum.length; i++) {
-				if (row < cumSum[i]) {
-					imageIndex = i;
-					rowIndex = row;
-					if (i > 0) {
-						rowIndex -= cumSum[i-1];
-					}
-					break;
+				@Override
+				public boolean hasNext() {
+					return imageIndex < imageEntries.size() && i < tableModel.getItems().size();
 				}
-			}
-			ensureLoaded(imageIndex);
-			var item = tableModel.getItems().get(rowIndex);
-			return tableModel.getStringValue(item, column, nDecimalPlaces);
+
+				@Override
+				public List<String> next() {
+					if (i >= tableModel.getItems().size()) {
+						i = 0;
+						imageIndex++;
+					}
+					ensureLoaded(imageEntries.get(imageIndex));
+					var item = tableModel.getItems().get(i++);
+					return getColumnNames()
+							.stream()
+							.map(column -> tableModel.getStringValue(item, column, nDecimalPlaces))
+							.toList();
+				}
+			};
 		}
 
-		private void ensureLoaded(int i) {
-			if (i == currentIndex) {
+		private void ensureLoaded(ProjectImageEntry<?> projectImageEntry) {
+			if (projectImageEntry == currentImageEntry) {
 				return;
 			}
+			currentImageEntry = projectImageEntry;
 			try {
-				currentImageData = imageEntries.get(i).readImageData();
-				currentObjects = currentImageData.getHierarchy().getObjects(null, type);
+                ImageData<?> currentImageData = currentImageEntry.readImageData();
+				Collection<PathObject> currentObjects = currentImageData.getHierarchy().getObjects(null, type);
 				if (filter != null)
 					currentObjects = currentObjects.stream().filter(filter).toList();
 				tableModel.setImageData(currentImageData, currentObjects);
-				currentIndex = i;
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
 		}
-
-		private int[] cumSum(List<Integer> in) {
-			int[] out = new int[in.size()];
-			int total = 0;
-			for (int i = 0; i < in.size(); i++) {
-				total += in.get(i);
-				out[i] = total;
-			}
-			return out;
-		}
-
-		int size() {
-			return sizes().stream().mapToInt(i -> i).sum();
-		}
-
-		List<Integer> sizes() {
-			return sizes;
-		}
-
 
 	}
 
