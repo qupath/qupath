@@ -62,7 +62,7 @@ public class FlippedImageServer extends TransformingImageServer<BufferedImage> {
     @Override
     public BufferedImage readRegion(RegionRequest request) throws IOException {
         return switch (flip) {
-            case NONE -> getWrappedServer().readRegion(request);
+            case NONE -> getWrappedServer().readRegion(request.updatePath(getWrappedServer().getPath()));
             case HORIZONTAL -> readTileWithHorizontalFlip(request);
             case VERTICAL -> readTileWithVerticalFlip(request);
             case BOTH -> readTileWithBothFlip(request);
@@ -76,7 +76,7 @@ public class FlippedImageServer extends TransformingImageServer<BufferedImage> {
 
     private BufferedImage readTileWithHorizontalFlip(RegionRequest request) throws IOException {
         RegionRequest requestOnInput = RegionRequest.createInstance(
-                request.getPath(),
+                getWrappedServer().getPath(),
                 request.getDownsample(),
                 getWrappedServer().getWidth() - request.getX() - request.getWidth(),
                 request.getY(),
@@ -116,7 +116,7 @@ public class FlippedImageServer extends TransformingImageServer<BufferedImage> {
 
     private BufferedImage readTileWithVerticalFlip(RegionRequest request) throws IOException {
         RegionRequest requestOnInput = RegionRequest.createInstance(
-                request.getPath(),
+                getWrappedServer().getPath(),
                 request.getDownsample(),
                 request.getX(),
                 getWrappedServer().getHeight() - request.getY() - request.getHeight(),
@@ -156,7 +156,7 @@ public class FlippedImageServer extends TransformingImageServer<BufferedImage> {
 
     private BufferedImage readTileWithBothFlip(RegionRequest request) throws IOException {
         RegionRequest requestOnInput = RegionRequest.createInstance(
-                request.getPath(),
+                getWrappedServer().getPath(),
                 request.getDownsample(),
                 getWrappedServer().getWidth() - request.getX() - request.getWidth(),
                 getWrappedServer().getHeight() - request.getY() - request.getHeight(),
