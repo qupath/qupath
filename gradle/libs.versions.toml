@@ -41,7 +41,7 @@ logviewer       = "0.3.0"
 
 extensionmanager= "1.1.1"
 
-javadocviewer   = "0.1.2"
+javadocviewer   = "0.1.3"
 
 openslide       = "4.0.0.6"
 
