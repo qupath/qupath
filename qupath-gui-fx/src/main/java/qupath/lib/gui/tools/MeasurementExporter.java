@@ -50,7 +50,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.DoubleConsumer;
 import java.util.function.Predicate;
 
@@ -375,7 +374,6 @@ public class MeasurementExporter {
 		long startTime = System.currentTimeMillis();
 
 		int n = imageList.size();
-		var monitor = new ProgressMonitor(n+1, progressMonitor);
 		var table = createMeasurementTable();
 
 		try (PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8)))) {
@@ -388,7 +386,6 @@ public class MeasurementExporter {
 		} catch (Exception e) {
 			throw new IOException("Error exporting measurements", e);
 		}
-		monitor.complete();
 
 		
 		long endTime = System.currentTimeMillis();
@@ -490,27 +487,5 @@ public class MeasurementExporter {
 
 	}
 
-	private static class ProgressMonitor {
-
-		private final int n;
-		private final DoubleConsumer monitor;
-		private final AtomicInteger counter = new AtomicInteger();
-
-		private ProgressMonitor(int n, DoubleConsumer monitor) {
-			this.n = n;
-			this.monitor = monitor;
-		}
-
-		void incrementProgress() {
-			double val = (double)counter.incrementAndGet() / n;
-			monitor.accept(val);
-		}
-
-		void complete() {
-			counter.set(n);
-			monitor.accept(1.0);
-		}
-
-	}
 
 }
