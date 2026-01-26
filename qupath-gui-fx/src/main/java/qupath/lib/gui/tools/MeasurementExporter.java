@@ -372,8 +372,6 @@ public class MeasurementExporter {
 		}
 
 		long startTime = System.currentTimeMillis();
-
-		int n = imageList.size();
 		var table = createMeasurementTable();
 
 		try (PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8)))) {
@@ -382,14 +380,11 @@ public class MeasurementExporter {
             for (Iterator<List<String>> it = table.getIterator(); it.hasNext(); ) {
 				writeRow(writer, it.next(), separator);
 			}
-
 		} catch (Exception e) {
 			throw new IOException("Error exporting measurements", e);
 		}
-
 		
 		long endTime = System.currentTimeMillis();
-		
 		long timeMillis = endTime - startTime;
 		String time;
 		if (timeMillis > 1000*60)
