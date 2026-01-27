@@ -450,17 +450,13 @@ public class MeasurementExporter {
 						// otherwise, load the next table(s) and perform the same check
 						i = 0;
 						imageIndex++;
+						monitor.incrementProgress();
 						return hasNext();
 					}
 				}
 
 				@Override
 				public List<String> next() {
-					if (i >= tableModel.getItems().size()) {
-						i = 0;
-						imageIndex++;
-						monitor.incrementProgress();
-					}
 					ensureLoaded(imageEntries.get(imageIndex));
 					var item = tableModel.getItems().get(i++);
 					return getColumnNames()
