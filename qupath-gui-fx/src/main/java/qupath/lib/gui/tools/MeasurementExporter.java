@@ -361,7 +361,7 @@ public class MeasurementExporter {
 			logger.warn("No images selected for export!");
 			return;
 		}
-		var monitor = new ProgressMonitor(imageList.size(), progressMonitor);
+		var monitor = new ProgressMonitor(imageList.size() + 1, progressMonitor);
 		long startTime = System.currentTimeMillis();
 		var table = new MeasurementTable(imageList, filter, type, createColumnPredicate(), nDecimalPlaces);
 
