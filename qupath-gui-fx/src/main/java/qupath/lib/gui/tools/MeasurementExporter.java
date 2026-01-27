@@ -21,6 +21,8 @@
 
 package qupath.lib.gui.tools;
 
+import java.util.LinkedHashSet;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
@@ -322,17 +324,6 @@ public class MeasurementExporter {
 		}
 	}
 
-	private MeasurementTable createMeasurementTable() throws IOException, InterruptedException {
-		var columnPredicate = createColumnPredicate();
-		var table = new MeasurementTable(filter, type, columnPredicate, nDecimalPlaces);
-		// TODO: Make the kind of PathTableModel<PathObject> something customizable - a caller might want to reuse
-		//       the code to export different measurements.
-		for (ProjectImageEntry<?> entry: imageList) {
-				table.addEntry(entry);
-		}
-		return table;
-	}
-
 	/**
 	 * Get the separator to use.
 	 * This always returns any separator that was explicitly requested, otherwise it determines a suitable separator
@@ -370,20 +361,20 @@ public class MeasurementExporter {
 			logger.warn("No images selected for export!");
 			return;
 		}
-
+		var monitor = new ProgressMonitor(imageList.size(), progressMonitor);
 		long startTime = System.currentTimeMillis();
-		var table = createMeasurementTable();
+		var table = new MeasurementTable(imageList, filter, type, createColumnPredicate(), nDecimalPlaces);
 
 		try (PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8)))) {
 			var header = table.getColumnNames();
 			writeRow(writer, header, separator);
-            for (Iterator<List<String>> it = table.getIterator(); it.hasNext(); ) {
+            for (Iterator<List<String>> it = table.getIterator(monitor); it.hasNext(); ) {
 				writeRow(writer, it.next(), separator);
 			}
 		} catch (Exception e) {
 			throw new IOException("Error exporting measurements", e);
 		}
-		
+		monitor.complete();
 		long endTime = System.currentTimeMillis();
 		long timeMillis = endTime - startTime;
 		String time;
@@ -416,11 +407,12 @@ public class MeasurementExporter {
 		private final Class<? extends PathObject> type;
 		private final Predicate<String> columnPredicate;
 		private final int nDecimalPlaces;
-		private final ArrayList<String> headerList = new ArrayList<>();
-		private final List<ProjectImageEntry<?>> imageEntries = new ArrayList<>();
+		private Collection<String> headers;
+		private final List<ProjectImageEntry<BufferedImage>> imageEntries;
 		private ProjectImageEntry<?> currentImageEntry = null;
 
-		private MeasurementTable(Predicate<PathObject> filter, Class<? extends PathObject> type, Predicate<String> columnPredicate, int nDecimalPlaces) {
+		private MeasurementTable(List<ProjectImageEntry<BufferedImage>> imageEntries, Predicate<PathObject> filter, Class<? extends PathObject> type, Predicate<String> columnPredicate, int nDecimalPlaces) {
+			this.imageEntries = imageEntries;
             this.nDecimalPlaces = nDecimalPlaces;
             this.tableModel = new ObservableMeasurementTableData();
             this.filter = filter;
@@ -428,24 +420,37 @@ public class MeasurementExporter {
 			this.columnPredicate = columnPredicate;
 		}
 
-		public void addEntry(ProjectImageEntry<?> imageEntry) {
-			ensureLoaded(imageEntry);
-			headerList.addAll(tableModel.getAllNames().stream().filter(columnPredicate).toList());
-			imageEntries.add(imageEntry);
+		List<String> getColumnNames() {
+			if (headers == null) {
+				headers = new LinkedHashSet<>();
+				for (var entry: imageEntries) {
+					ensureLoaded(entry);
+					headers.addAll(tableModel.getAllNames().stream().filter(columnPredicate).toList());
+				}
+			}
+			return List.copyOf(headers);
 		}
 
-		synchronized List<String> getColumnNames() {
-			return headerList;
-		}
-
-		Iterator<List<String>> getIterator() {
+		Iterator<List<String>> getIterator(ProgressMonitor monitor) {
 			return new Iterator<>() {
 				int i = 0;
 				int imageIndex = 0;
 
 				@Override
 				public boolean hasNext() {
-					return imageIndex < imageEntries.size() && i < tableModel.getItems().size();
+					// obvious case: not the last image, and something left in current table
+					if (imageIndex == imageEntries.size()) {
+						return false;
+					}
+					ensureLoaded(imageEntries.get(imageIndex));
+					if (i < tableModel.getItems().size()) {
+						return true;
+					} else {
+						// otherwise, load the next table(s) and perform the same check
+						i = 0;
+						imageIndex++;
+						return hasNext();
+					}
 				}
 
 				@Override
@@ -453,6 +458,7 @@ public class MeasurementExporter {
 					if (i >= tableModel.getItems().size()) {
 						i = 0;
 						imageIndex++;
+						monitor.incrementProgress();
 					}
 					ensureLoaded(imageEntries.get(imageIndex));
 					var item = tableModel.getItems().get(i++);
@@ -482,5 +488,26 @@ public class MeasurementExporter {
 
 	}
 
+	private static class ProgressMonitor {
 
+		private final int n;
+		private final DoubleConsumer monitor;
+		private final AtomicInteger counter = new AtomicInteger();
+
+		private ProgressMonitor(int n, DoubleConsumer monitor) {
+			this.n = n;
+			this.monitor = monitor;
+		}
+
+		void incrementProgress() {
+			double val = (double)counter.incrementAndGet() / n;
+			monitor.accept(val);
+		}
+
+		void complete() {
+			counter.set(n);
+			monitor.accept(1.0);
+		}
+
+	}
 }
