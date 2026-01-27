@@ -75,7 +75,7 @@ public class OpenSlideExtension implements QuPathExtension {
         handleUseIccProfileChange(openslideUseIccProfile, null, openslideUseIccProfile.get());
 
         openslideCrop.addListener(cropListener);
-        handleUseIccProfileChange(openslideCrop, null, openslideCrop.get());
+        handleCropChange(openslideCrop, null, openslideCrop.get());
 
         if (!OpenSlideLoader.tryToLoadQuietly(openslidePathProperty.get())) {
             logger.warn("OpenSlide not found! Please specify the directory containing the OpenSlide library in the preferences.");
