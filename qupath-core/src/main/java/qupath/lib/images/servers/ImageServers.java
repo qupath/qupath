@@ -102,6 +102,7 @@ public class ImageServers {
 			.registerSubtype(SlicedImageServerBuilder.class, "sliced")
 			.registerSubtype(ZProjectedImageServerBuilder.class, "z_projected")
 			.registerSubtype(ZConcatenatedImageServerBuilder.class, "z_concatenated")
+			.registerSubtype(FlippedImageServerBuilder.class, "flipped")
 			;
 
 	private static GsonTools.SubTypeAdapterFactory<BufferedImageNormalizer> normalizerFactory =
@@ -871,6 +872,48 @@ public class ImageServers {
 			return new RotatedImageServerBuilder(getMetadata().orElse(null), newBuilder, rotation);
 		}
 	
+	}
+
+	static class FlippedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+
+		private final ServerBuilder<BufferedImage> builder;
+		private final FlippedImageServer.Flip flip;
+
+		public FlippedImageServerBuilder(
+				ImageServerMetadata metadata,
+				ServerBuilder<BufferedImage> builder,
+				FlippedImageServer.Flip flip
+		) {
+			super(metadata);
+
+			this.builder = builder;
+			this.flip = flip;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new FlippedImageServer(builder.build(), flip);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+
+			if (newBuilder == builder) {
+				return this;
+			} else {
+				return new FlippedImageServerBuilder(
+						getMetadata().orElse(null),
+						newBuilder,
+						flip
+				);
+			}
+		}
 	}
 
 	static class NormalizedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
