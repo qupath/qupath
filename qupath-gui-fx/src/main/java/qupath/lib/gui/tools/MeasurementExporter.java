@@ -21,6 +21,7 @@
 
 package qupath.lib.gui.tools;
 
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
@@ -422,7 +423,7 @@ public class MeasurementExporter {
 
 		List<String> getColumnNames() {
 			if (headers == null) {
-				headers = new LinkedHashSet<>();
+				headers = Collections.synchronizedSet(new LinkedHashSet<>());
 				for (var entry: imageEntries) {
 					ensureLoaded(entry);
 					headers.addAll(tableModel.getAllNames().stream().filter(columnPredicate).toList());
