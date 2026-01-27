@@ -439,15 +439,16 @@ public class MeasurementExporter {
 
 				@Override
 				public boolean hasNext() {
-					// obvious case: not the last image, and something left in current table
+					// obvious case: past the last image
 					if (imageIndex == imageEntries.size()) {
 						return false;
 					}
 					ensureLoaded(imageEntries.get(imageIndex));
+					// not past the last image and something left in current table
 					if (i < tableModel.getItems().size()) {
 						return true;
 					} else {
-						// otherwise, load the next table(s) and perform the same check
+						// otherwise, load the next table(s) and perform the same checks
 						i = 0;
 						imageIndex++;
 						monitor.incrementProgress();
