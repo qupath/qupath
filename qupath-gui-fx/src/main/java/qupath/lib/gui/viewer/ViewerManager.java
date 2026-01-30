@@ -1343,15 +1343,15 @@ public class ViewerManager implements QuPathViewerListener {
 				null,
 				MenuTools.createMenu(
 						"General.add",
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddRowBeforeSelected(imageData), "Add TMA row before"),
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddRowAfterSelected(imageData), "Add TMA row after"),
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddColumnBeforeSelected(imageData), "Add TMA column before"),
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddColumnAfterSelected(imageData), "Add TMA column after")
+					qupath.createImageDataAction(TMACommands::promptToAddRowBeforeSelected, "Add TMA row before"),
+					qupath.createImageDataAction(TMACommands::promptToAddRowAfterSelected, "Add TMA row after"),
+					qupath.createImageDataAction(TMACommands::promptToAddColumnBeforeSelected, "Add TMA column before"),
+					qupath.createImageDataAction(TMACommands::promptToAddColumnAfterSelected, "Add TMA column after")
 					),
 				MenuTools.createMenu(
 						"General.remove",
-						qupath.createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridRow(imageData), "Remove TMA row"),
-						qupath.createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridColumn(imageData), "column")
+						qupath.createImageDataAction(TMACommands::promptToDeleteTMAGridRow, "Remove TMA row"),
+						qupath.createImageDataAction(TMACommands::promptToDeleteTMAGridColumn, "Remove TMA column")
 					)
 				);
 		
