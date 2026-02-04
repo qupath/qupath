@@ -581,6 +581,7 @@ public class MiniViewers {
 
 			Tooltip tooltip = new Tooltip();
 			tooltip.textProperty().bind(canvas.nameBinding);
+			tooltip.opacityProperty().bind(Bindings.when(canvas.nameBinding.isEmpty()).then(0).otherwise(1));
 			Tooltip.install(canvas, tooltip);
 			
 			return tempPane;
