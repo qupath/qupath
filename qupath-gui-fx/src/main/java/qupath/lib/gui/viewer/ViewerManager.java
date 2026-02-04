@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -117,22 +117,22 @@ public class ViewerManager implements QuPathViewerListener {
 
 	private static final Logger logger = LoggerFactory.getLogger(ViewerManager.class);
 
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 
 	/**
 	 * The current ImageData in the current QuPathViewer
 	 */
-	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+	private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 	
-	private ObservableList<QuPathViewer> viewers = FXCollections.observableArrayList();
-	private ObservableList<QuPathViewer> viewersUnmodifiable = FXCollections.unmodifiableObservableList(viewers);
+	private final ObservableList<QuPathViewer> viewers = FXCollections.observableArrayList();
+	private final ObservableList<QuPathViewer> viewersUnmodifiable = FXCollections.unmodifiableObservableList(viewers);
 	
-	private SimpleObjectProperty<QuPathViewer> activeViewerProperty = new SimpleObjectProperty<>();
+	private final SimpleObjectProperty<QuPathViewer> activeViewerProperty = new SimpleObjectProperty<>();
 
 	private SplitPaneGrid splitPaneGrid;
 
-	private ViewerPlusDisplayOptions viewerDisplayOptions = ViewerPlusDisplayOptions.getSharedInstance();
-	private OverlayOptions overlayOptions = OverlayOptions.getSharedInstance();
+	private final ViewerPlusDisplayOptions viewerDisplayOptions = ViewerPlusDisplayOptions.getSharedInstance();
+	private final OverlayOptions overlayOptions = OverlayOptions.getSharedInstance();
 	
 	/**
 	 * Since v0.5.0, this uses a Reference so that we can potentially allow garbage collection is memory is scare
@@ -142,12 +142,12 @@ public class ViewerManager implements QuPathViewerListener {
 
 	private final Color colorBorder = Color.rgb(180, 0, 0, 0.8);
 
-	private BooleanProperty synchronizeViewers = PathPrefs.createPersistentPreference("synchronizeViewers", false);
+	private final BooleanProperty synchronizeViewers = PathPrefs.createPersistentPreference("synchronizeViewers", false);
 
-	private Map<QuPathViewer, ViewerPosition> lastViewerPosition = new WeakHashMap<>();
+	private final Map<QuPathViewer, ViewerPosition> lastViewerPosition = new WeakHashMap<>();
 
 	// Hacky solution to needing a mechanism to refresh the titles of detached viewers
-	private BooleanProperty refreshTitleProperty = new SimpleBooleanProperty();
+	private final BooleanProperty refreshTitleProperty = new SimpleBooleanProperty();
 
 	private ViewerManager(final QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -685,7 +685,7 @@ public class ViewerManager implements QuPathViewerListener {
 		}
 
 		// Don't handle unselected viewers
-		if (viewer != getActiveViewer()) {
+		if (viewer != getActiveViewer() || !synchronizeViewers.get()) {
 			return;
 		}
 
@@ -696,8 +696,7 @@ public class ViewerManager implements QuPathViewerListener {
 		// Thwart the upcoming region shift
 		getLastViewerPosition(getActiveViewer()).reset();
 
-		//			aligningCores = true;
-		String coreName = ((TMACoreObject)pathObjectSelected).getName();
+		String coreName = pathObjectSelected.getName();
 		for (QuPathViewer v : viewers) {
 			if (v == viewer)
 				continue;
