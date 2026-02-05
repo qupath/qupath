@@ -393,7 +393,7 @@ public class MeasurementExportCommand implements Runnable {
 				Dialogs.showErrorMessage("Export failed", e);
 				return null;
 			} catch (InterruptedException e) {
-				Dialogs.showErrorNotification("Export interrupted", "Measurement export was cancelled");
+				Dialogs.showWarningNotification("Export interrupted", "Measurement export was cancelled");
 				logger.warn(e.getMessage(), e);
 				return null;
 			}
