@@ -23,6 +23,7 @@ package qupath.lib.gui.tools;
 
 import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -33,14 +34,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.DoubleConsumer;
 import java.util.function.Predicate;
+import java.util.zip.GZIPOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
@@ -306,11 +306,23 @@ public class MeasurementExporter {
 	 * @throws IOException if the export files
 	 */
 	public void exportMeasurements(File file) throws IOException, InterruptedException {
-		try (var fos = new FileOutputStream(file)) {
+		try (var fos = createFileOutputStream(file)) {
 			doExport(fos, getSeparatorToUse(file.getName()));
 		} catch (Exception e) {
 			throw new IOException("Error exporting measurements", e);
 		}
+	}
+
+	/**
+	 * Create a file output stream - possibly wrapped in a GZIP output stream, based upon the file extension.
+	 */
+	private static OutputStream createFileOutputStream(File file) throws IOException {
+		var stream = new FileOutputStream(file);
+		String name = file.getName().toLowerCase();
+		if (name.endsWith(".gz"))
+			return new GZIPOutputStream(stream);
+		else
+			return stream;
 	}
 
 	private Predicate<String> createColumnPredicate() {
@@ -335,6 +347,8 @@ public class MeasurementExporter {
 			return separator;
 		if (filename != null) {
 			var lower = filename.toLowerCase();
+			if (lower.endsWith(".gz"))
+				lower = lower.substring(0, lower.length()-3);
 			if (lower.endsWith(".csv"))
 				return ",";
 			else if (lower.endsWith(".tsv"))
@@ -364,163 +378,130 @@ public class MeasurementExporter {
 		}
 		var monitor = new ProgressMonitor(imageList.size() + 1, progressMonitor);
 		long startTime = System.currentTimeMillis();
-		var table = new MeasurementTable(imageList, filter, type, createColumnPredicate(), nDecimalPlaces);
 
-		try (PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8)))) {
-			var header = table.getColumnNames();
-			writeRow(writer, header, separator);
-            for (Iterator<List<String>> it = table.getIterator(monitor); it.hasNext(); ) {
-				writeRow(writer, it.next(), separator);
-				if (Thread.interrupted()) {
-					throw new InterruptedException("Export interrupted!");
+		var thread = Thread.currentThread();
+
+		try (TableWriter<PathObject> writer = createWriter(stream, separator)) {
+			writer.writeHeader();
+			for (var entry : imageList) {
+				checkInterrupted(thread);
+				var table = loadTable(entry, type, filter);
+				for (var item : table.getItems()) {
+					checkInterrupted(thread);
+					writer.writeRow(table, item);
 				}
+				monitor.incrementProgress();
 			}
 		} catch (Exception e) {
 			throw new IOException("Error exporting measurements", e);
+		} finally {
+			monitor.complete();
 		}
-		monitor.complete();
 		long endTime = System.currentTimeMillis();
 		long timeMillis = endTime - startTime;
 		String time;
 		if (timeMillis > 1000*60)
-			time = String.format("Total processing time: %.2f minutes", timeMillis/(1000.0 * 60.0));
+			time = String.format("Total export time: %.2f minutes", timeMillis/(1000.0 * 60.0));
 		else if (timeMillis > 1000)
-			time = String.format("Total processing time: %.2f seconds", timeMillis/(1000.0));
+			time = String.format("Total export time: %.2f seconds", timeMillis/(1000.0));
 		else
-			time = String.format("Total processing time: %d ms", timeMillis);
+			time = String.format("Total export time: %d ms", timeMillis);
 		logger.info("Processed {} images", imageList.size());
 		logger.info(time);
 	}
 
-	private void writeRow(PrintWriter writer, List<String> strings, String delim) {
-		int n = strings.size();
-		for (int i = 0; i < n; i++) {
-			var val = strings.get(i);
-			if (val != null)
-				writer.write(val);
-			if (i < n-1)
-				writer.write(delim);
-		}
-		writer.println();
+
+	private TableWriter<PathObject> createWriter(OutputStream stream, String separator) {
+		var columns = getColumnNames(imageList, type, filter, createColumnPredicate());
+		return new TextTableWriter<>(stream, columns, separator, nDecimalPlaces);
 	}
 
-	private static class MeasurementTable {
 
-		private final TableLoader loader;
-		private final Predicate<String> columnPredicate;
-		private final int nDecimalPlaces;
-		private final List<ProjectImageEntry<BufferedImage>> imageEntries;
-
-		private MeasurementTable(List<ProjectImageEntry<BufferedImage>> imageEntries, Predicate<PathObject> filter,
-								 Class<? extends PathObject> type, Predicate<String> columnPredicate, int nDecimalPlaces) {
-			this.loader = new TableLoader(type, filter);
-			this.imageEntries = imageEntries;
-            this.nDecimalPlaces = nDecimalPlaces;
-			this.columnPredicate = columnPredicate;
+	private static void checkInterrupted(Thread thread) throws InterruptedException {
+		if (thread.isInterrupted()) {
+			throw new InterruptedException("Export interrupted!");
 		}
+	}
 
-		private List<String> getColumnNames() {
-			var headerSet = Collections.synchronizedSet(new LinkedHashSet<String>());
-			for (var entry: imageEntries) {
-				try {
-					var tableModel = loader.getTable(entry);
-					tableModel.getAllNames().stream().filter(columnPredicate).forEach(headerSet::add);
-				} catch (IOException e) {
-					logger.error("Error loading load {}: {}", entry.getImageName(), e.getMessage(), e);
-				}
-			}
-			return List.copyOf(headerSet);
-		}
 
-		Iterator<List<String>> getIterator(ProgressMonitor monitor) {
-			List<String> columnNames = getColumnNames();
-			return new Iterator<>() {
-
-				int i = 0;
-				int imageIndex = 0;
-
-				@Override
-				public boolean hasNext() {
-					// obvious case: past the last image
-					if (imageIndex == imageEntries.size() || isInterrupted()) {
-						return false;
-					}
-					var tableModel = getTableOrThrow(imageEntries.get(imageIndex));
-					// not past the last image and something left in current table
-					if (i < tableModel.getItems().size() && !isInterrupted()) {
-						return true;
-					} else {
-						// otherwise, load the next table(s) and perform the same checks
-						i = 0;
-						imageIndex++;
-						monitor.incrementProgress();
-						return hasNext();
-					}
-				}
-
-				private boolean isInterrupted() {
-					return Thread.currentThread().isInterrupted();
-				}
-
-				@Override
-				public List<String> next() {
-					var tableModel = getTableOrThrow(imageEntries.get(imageIndex));
-					var item = tableModel.getItems().get(i++);
-					return columnNames
-							.stream()
-							.map(column -> tableModel.getStringValue(item, column, nDecimalPlaces))
-							.toList();
-				}
-
-			};
-		}
-
-		private PathTableData<PathObject> getTableOrThrow(ProjectImageEntry<?> entry) {
+	private static List<String> getColumnNames(Collection<? extends ProjectImageEntry<?>> imageEntries, Class<? extends PathObject> type, Predicate<PathObject> filter, Predicate<String> columnPredicate) {
+		var headerSet = new LinkedHashSet<String>();
+		for (var entry: imageEntries) {
 			try {
-				return loader.getTable(entry);
+				var tableModel = loadTable(entry, type, filter);
+				tableModel.getAllNames().stream().filter(columnPredicate).forEach(headerSet::add);
 			} catch (IOException e) {
-				throw new RuntimeException(e);
+				logger.error("Error loading load {}: {}", entry.getImageName(), e.getMessage(), e);
 			}
 		}
+		return List.copyOf(headerSet);
+	}
 
+	private static PathTableData<PathObject> loadTable(ProjectImageEntry<?> projectImageEntry, Class<? extends PathObject> type, Predicate<PathObject> filter) throws IOException {
+		var table = new ObservableMeasurementTableData();
+		if (projectImageEntry == null) {
+			return table;
+		}
+		ImageData<?> currentImageData = projectImageEntry.readImageData();
+		Collection<PathObject> currentObjects = currentImageData.getHierarchy().getObjects(null, type);
+		if (filter != null)
+			currentObjects = currentObjects.stream().filter(filter).toList();
+		table.setImageData(currentImageData, currentObjects);
+		return table;
 	}
 
 
-	/**
-	 * Wrapper to load {@link PathTableData} for a project entry.
-	 * This is intended for short-term use when sequential requests for the table corresponding to the same
-	 * entry should return the same table, only loading new data when a different entry is requested.
-	 */
-	private static class TableLoader {
+	interface TableWriter<T> extends Closeable {
 
-		private final Predicate<PathObject> filter;
-		private final Class<? extends PathObject> type;
+		void writeHeader() throws IOException;
 
-		private ProjectImageEntry<?> currentImageEntry;
-		private ObservableMeasurementTableData table;
+		void writeRow(PathTableData<T> table, T obj) throws IOException;
 
-		TableLoader(Class<? extends PathObject> type, Predicate<PathObject> filter) {
-			this.type = type;
-			this.filter = filter;
+	}
+
+	static class TextTableWriter<T> implements TableWriter<T> {
+
+		private final PrintWriter writer;
+		private final List<String> columns;
+		private final String separator;
+		private final int nDecimalPlaces;
+		private final int nColumns;
+
+		private TextTableWriter(OutputStream stream, Collection<String> columns, String separator, int nDecimalPlaces) {
+			this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8)));
+			this.columns = List.copyOf(columns);
+			this.nColumns = columns.size();
+			this.separator = separator;
+			this.nDecimalPlaces = nDecimalPlaces;
 		}
 
-		synchronized PathTableData<PathObject> getTable(ProjectImageEntry<?> projectImageEntry) throws IOException {
-			if (projectImageEntry == null) {
-				return new ObservableMeasurementTableData();
-			} else if (projectImageEntry == currentImageEntry) {
-				return table;
+		@Override
+		public void writeHeader() throws IOException {
+			for (int i = 0; i < nColumns; i++) {
+				var val = columns.get(i);
+				if (val != null)
+					writer.write(val);
+				if (i < nColumns-1)
+					writer.write(separator);
 			}
-			ImageData<?> currentImageData = projectImageEntry.readImageData();
-			Collection<PathObject> currentObjects = currentImageData.getHierarchy().getObjects(null, type);
-			if (filter != null)
-				currentObjects = currentObjects.stream().filter(filter).toList();
-			currentImageEntry = projectImageEntry;
-			var table = new ObservableMeasurementTableData();
-			table.setImageData(currentImageData, currentObjects);
-			this.table = table;
-			return this.table;
+			writer.println();
 		}
 
+		@Override
+		public void writeRow(PathTableData<T> table, T obj) throws IOException {
+			for (int c = 0; c < nColumns; c++) {
+				writer.write(table.getStringValue(obj, columns.get(c), nDecimalPlaces));
+				if (c < nColumns - 1) {
+					writer.write(separator);
+				}
+			}
+			writer.println();
+		}
+
+		@Override
+		public void close() throws IOException {
+			writer.close();
+		}
 	}
 
 

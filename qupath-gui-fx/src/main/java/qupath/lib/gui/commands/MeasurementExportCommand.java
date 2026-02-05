@@ -150,7 +150,8 @@ public class MeasurementExportCommand implements Runnable {
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
 			File pathOut = FileChoosers.promptToSaveFile("Output file",
 					new File(Projects.getBaseDirectory(project), "measurements" + ext),
-					FileChoosers.createExtensionFilter(extDesc, ext));
+					FileChoosers.createExtensionFilter(extDesc, ext),
+					FileChoosers.createExtensionFilter("GZipped " + extDesc, ext + ".gz"));
 			if (pathOut != null) {
 				if (pathOut.isDirectory())
 					pathOut = new File(pathOut.getAbsolutePath() + File.separator + "measurements" + ext);
@@ -254,7 +255,7 @@ public class MeasurementExportCommand implements Runnable {
 			return;
 
 		String curExt = GeneralTools.getExtension(outputText.getText()).orElse("");
-		if (!curExt.equals(".csv") && !curExt.equals(".tsv")) {
+		if (!curExt.equals(".csv") && !curExt.equals(".tsv") && !curExt.equals(".csv.gz") && !curExt.equals(".tsv.gz")) {
 			// Fix extension, if required
 			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
