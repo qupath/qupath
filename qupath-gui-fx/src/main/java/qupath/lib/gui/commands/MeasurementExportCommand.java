@@ -95,7 +95,7 @@ public class MeasurementExportCommand implements Runnable {
 	// GUI
 	private final TextField tfOutputPath = new TextField();
 	private ComboBox<ObjectType> comboObjectType;
-	private ComboBox<String> comboSeparator;
+	private ComboBox<SeparatorType> comboSeparator;
 	private CheckComboBox<String> comboColumnsToInclude;
 	
 	private static final ButtonType buttonTypeExport = new ButtonType("Export", ButtonData.OK_DONE);
@@ -143,16 +143,9 @@ public class MeasurementExportCommand implements Runnable {
 		Label pathOutputLabel = new Label("Output file");
 		var btnChooseFile = new Button("Choose");
 		btnChooseFile.setOnAction(e -> {
-			String extSelected = comboSeparator.getSelectionModel().getSelectedItem();
-			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
-			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = FileChoosers.promptToSaveFile("Output file",
-					new File(Projects.getBaseDirectory(project), "measurements" + ext),
-					FileChoosers.createExtensionFilter(extDesc, ext),
-					FileChoosers.createExtensionFilter("GZipped " + extDesc, ext + ".gz"));
+			var separator = comboSeparator.getSelectionModel().getSelectedItem();
+			File pathOut = promptToChooseOutputFile(getDefaultOutputFile(), separator);
 			if (pathOut != null) {
-				if (pathOut.isDirectory())
-					pathOut = new File(pathOut.getAbsolutePath() + File.separator + "measurements" + ext);
 				tfOutputPath.setText(pathOut.getAbsolutePath());
 			}
 		});
@@ -176,7 +169,7 @@ public class MeasurementExportCommand implements Runnable {
 
 		Label separatorLabel = new Label("Separator");
 		separatorLabel.setLabelFor(comboSeparator);
-		comboSeparator.getItems().setAll("Tab (.tsv)", "Comma (.csv)", "Semicolon (.csv)");
+		comboSeparator.getItems().setAll(SeparatorType.values());
 		comboSeparator.getSelectionModel().selectFirst();
 		GridPaneUtils.addGridRow(pane, row++, 0, "Choose a value separator", separatorLabel, comboSeparator, comboSeparator, comboSeparator, comboSeparator);
 		
@@ -191,7 +184,6 @@ public class MeasurementExportCommand implements Runnable {
 		ProgressBar progressIndicator = new ProgressBar();
 		progressIndicator.setPrefHeight(10);
 		progressIndicator.setMaxWidth(Double.MAX_VALUE);
-//		progressIndicator.setMinSize(50, 50);
 		progressIndicator.setProgress(0);
 		progressIndicator.setOpacity(0);
 		Button btnResetColumns = new Button("Reset");
@@ -216,13 +208,9 @@ public class MeasurementExportCommand implements Runnable {
 		
 		// Add listener to separatorCombo
 		comboSeparator.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			if (n == null)
-				return;
-			String currentOut = tfOutputPath.getText();
-			if (n.equals("Tab (.tsv)") && currentOut.endsWith(".csv"))
-				tfOutputPath.setText(currentOut.replace(".csv", ".tsv"));
-			else if ((n.equals("Comma (.csv)") || n.equals("Semicolon (.csv)")) && currentOut.endsWith(".tsv"))
-				tfOutputPath.setText(currentOut.replace(".tsv", ".csv"));
+			if (n != null) {
+				tfOutputPath.setText(fixFileExtension(tfOutputPath.getText(), n));
+			}
 		});
 
 		FXUtils.getContentsOfType(pane, Label.class, false).forEach(e -> e.setMinWidth(160));
@@ -248,45 +236,80 @@ public class MeasurementExportCommand implements Runnable {
 		if (result.isEmpty() || result.get() != buttonTypeExport || result.get() == ButtonType.CANCEL)
 			return;
 
-		String curExt = GeneralTools.getExtension(tfOutputPath.getText()).orElse("");
-		if (!curExt.equals(".csv") && !curExt.equals(".tsv") && !curExt.equals(".csv.gz") && !curExt.equals(".tsv.gz")) {
-			// Fix extension, if required
-			String extSelected = comboSeparator.getSelectionModel().getSelectedItem();
-			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
-			tfOutputPath.setText(tfOutputPath.getText().substring(0, tfOutputPath.getText().length() - curExt.length()) + ext);
+
+		tfOutputPath.setText(fixFileExtension(tfOutputPath.getText(), comboSeparator.getSelectionModel().getSelectedItem()));
+
+		File fileOutput = new File(tfOutputPath.getText());
+		if (fileOutput.getParent() == null || !fileOutput.getParentFile().isDirectory()) {
+			var separator = comboSeparator.getSelectionModel().getSelectedItem();
+			fileOutput = promptToChooseOutputFile(getDefaultOutputFile(), separator);
 		}
-		
-		if (new File(tfOutputPath.getText()).getParent() == null) {
-			String ext = GeneralTools.getExtension(tfOutputPath.getText()).orElse("").equals(".tsv") ? ".tsv": ".csv";
-			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = FileChoosers.promptToSaveFile("Output file",
-					new File(Projects.getBaseDirectory(project), tfOutputPath.getText()),
-					FileChoosers.createExtensionFilter(extDesc, ext));
-			if (pathOut == null)
-				return;
-			else
-				tfOutputPath.setText(pathOut.getAbsolutePath());
-		}
-				
+		if (fileOutput == null)
+			return;
+
 		var checkedItems = comboColumnsToInclude.getCheckModel().getCheckedItems();
 		String[] include = checkedItems.stream().toList().toArray(new String[checkedItems.size()]);
-		String separator = PathPrefs.tableDelimiterProperty().get();
-
-        separator = switch (comboSeparator.getSelectionModel().getSelectedItem()) {
-            case "Tab (.tsv)" -> "\t";
-            case "Comma (.csv)" -> ",";
-            case "Semicolon (.csv)" -> ";";
-            default -> separator;
-        };
+		String separatorString = comboSeparator.getSelectionModel().getSelectedItem() == null ?
+				PathPrefs.tableDelimiterProperty().get() :
+				comboSeparator.getSelectionModel().getSelectedItem().getSeparator();
 		
 		MeasurementExporter exporter = new MeasurementExporter()
 			.imageList(listSelectionView.getTargetItems())
-			.separator(separator)
+			.separator(separatorString)
 			.includeOnlyColumns(include)
 			.exportType(type.getObjectType());
 		
-		doExportWithProgressDialog(exporter, tfOutputPath.getText());
+		doExportWithProgressDialog(exporter, fileOutput.getAbsolutePath());
 	}
+
+	private File getDefaultOutputFile() {
+		var pathOutput = tfOutputPath.textProperty().getValueSafe();
+		if (isValidOutputFilePath(pathOutput))
+			return new File(pathOutput);
+		else if (project != null) {
+			var separator = comboSeparator.getSelectionModel().getSelectedItem();
+			return new File(Projects.getBaseDirectory(project), "measurements" + separator.getExtension());
+		} else {
+			return null;
+		}
+	}
+
+	private static boolean isValidOutputFilePath(String path) {
+		if (path == null || path.isEmpty())
+			return false;
+		var file = new File(path);
+		if (file.getParentFile() == null || !file.getParentFile().isDirectory())
+			return false;
+		return true;
+	}
+
+	private static File promptToChooseOutputFile(File initialFile, SeparatorType separator) {
+		var ext = separator.getExtension();
+		File pathOut = FileChoosers.promptToSaveFile("Output file",
+				initialFile,
+				FileChoosers.createExtensionFilter(separator.getDescription(), ext),
+				FileChoosers.createExtensionFilter("GZipped " + separator.getDescription(), ext + ".gz"));
+		if (pathOut != null && pathOut.isDirectory()) {
+			pathOut = new File(pathOut.getAbsolutePath(), "measurements" + ext);
+		}
+		return pathOut;
+	}
+
+
+	private static String fixFileExtension(String path, SeparatorType separatorType) {
+		if (separatorType == null)
+			return path;
+		var ext = separatorType.getExtension();
+		var pathLower = path.toLowerCase();
+		if (pathLower.endsWith(ext)) {
+			return pathLower;
+		} else if (pathLower.endsWith(".gz")) {
+			return fixFileExtension(path.substring(0, path.length()-3), separatorType) + ".gz";
+		} else {
+			return GeneralTools.stripExtension(path) + ext;
+		}
+	}
+
 
 	private void doExportWithProgressDialog(MeasurementExporter exporter, String outputPath) {
 		var worker = new MeasurementExportTask(exporter, outputPath);
@@ -413,6 +436,43 @@ public class MeasurementExportCommand implements Runnable {
 		@Override
 		public String toString() {
 			return this.str;
+		}
+
+	}
+
+	private enum SeparatorType {
+		TAB("Tab", "Tab separated", ".tsv", "\t"),
+		COMMA("Comma", "Comma separated", ".csv", ","),
+		SEMICOLON("Semicolon", "Semicolon separated", ".csv", ";")
+		;
+
+		private final String name;
+		private final String description;
+		private final String extension;
+		private final String separator;
+
+		SeparatorType(String name, String description, String extension, String separator) {
+			this.name = name;
+			this.description = description;
+			this.extension = extension;
+			this.separator = separator;
+		}
+
+		public String getDescription() {
+			return description;
+		}
+
+		public String getSeparator() {
+			return separator;
+		}
+
+		public String getExtension() {
+			return extension;
+		}
+
+		@Override
+		public String toString() {
+			return name + " (" + extension + ")";
 		}
 
 	}
