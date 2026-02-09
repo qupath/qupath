@@ -21,6 +21,18 @@
 
 package qupath.lib.gui.commands;
 
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
@@ -36,7 +48,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import org.controlsfx.control.CheckComboBox;
 import org.controlsfx.dialog.ProgressDialog;
@@ -64,19 +75,6 @@ import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
-
 /**
  * Dialog box to export measurements for a project.
  */
@@ -95,12 +93,12 @@ public class MeasurementExportCommand implements Runnable {
 	private ObjectType type = ObjectType.ROOT;
 	
 	// GUI
-	private final TextField outputText = new TextField();
-	private ComboBox<ObjectType> pathObjectCombo;
-	private ComboBox<String> separatorCombo;
-	private CheckComboBox<String> includeCombo;
+	private final TextField tfOutputPath = new TextField();
+	private ComboBox<ObjectType> comboObjectType;
+	private ComboBox<String> comboSeparator;
+	private CheckComboBox<String> comboColumnsToInclude;
 	
-	private final ButtonType btnExport = new ButtonType("Export", ButtonData.OK_DONE);
+	private static final ButtonType buttonTypeExport = new ButtonType("Export", ButtonData.OK_DONE);
 	
 	/**
 	 * Creates a simple GUI for MeasurementExporter.
@@ -121,29 +119,31 @@ public class MeasurementExportCommand implements Runnable {
 			GuiTools.showNoProjectError(title);
 			return;
 		}
-		
-		BorderPane mainPane = new BorderPane();
-		
-		BorderPane imageEntryPane = new BorderPane();
-		GridPane optionPane = new GridPane();
-		optionPane.setHgap(5.0);
-		optionPane.setVgap(5.0);
+
+		GridPane pane = new GridPane();
+		pane.setHgap(5.0);
+		pane.setVgap(5.0);
 		
 		
 		// TOP PANE (SELECT PROJECT ENTRY FOR EXPORT)
-		pathObjectCombo = new ComboBox<>();
-		separatorCombo = new ComboBox<>();
-		includeCombo = new CheckComboBox<>();
+		comboObjectType = new ComboBox<>();
+		comboSeparator = new ComboBox<>();
+		comboColumnsToInclude = new CheckComboBox<>();
 		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
 		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), previousImages, sameImageWarning);
-		
+
+		int row = 0;
+
+		// TOP PANE
+		pane.add(listSelectionView, 0, row++, GridPane.REMAINING, 1);
+		GridPaneUtils.setToExpandGridPaneHeight(listSelectionView);
+		GridPaneUtils.setToExpandGridPaneWidth(listSelectionView);
 
 		// BOTTOM PANE (OPTIONS)
-		int row = 0;
 		Label pathOutputLabel = new Label("Output file");
 		var btnChooseFile = new Button("Choose");
 		btnChooseFile.setOnAction(e -> {
-			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
+			String extSelected = comboSeparator.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
 			File pathOut = FileChoosers.promptToSaveFile("Output file",
@@ -153,39 +153,39 @@ public class MeasurementExportCommand implements Runnable {
 			if (pathOut != null) {
 				if (pathOut.isDirectory())
 					pathOut = new File(pathOut.getAbsolutePath() + File.separator + "measurements" + ext);
-				outputText.setText(pathOut.getAbsolutePath());
+				tfOutputPath.setText(pathOut.getAbsolutePath());
 			}
 		});
 		
-		pathOutputLabel.setLabelFor(outputText);
-		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose output file", pathOutputLabel, outputText, outputText, btnChooseFile, btnChooseFile);
-		outputText.setMaxWidth(Double.MAX_VALUE);
+		pathOutputLabel.setLabelFor(tfOutputPath);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Choose output file", pathOutputLabel, tfOutputPath, tfOutputPath, btnChooseFile, btnChooseFile);
+		tfOutputPath.setMaxWidth(Double.MAX_VALUE);
 		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
 		
 
 		Label pathObjectLabel = new Label("Export type");
-		pathObjectLabel.setLabelFor(pathObjectCombo);
-		pathObjectCombo.getItems().setAll(ObjectType.values());
-		pathObjectCombo.getSelectionModel().select(type);
-		pathObjectCombo.valueProperty().addListener((v, o, n) -> {
+		pathObjectLabel.setLabelFor(comboObjectType);
+		comboObjectType.getItems().setAll(ObjectType.values());
+		comboObjectType.getSelectionModel().select(type);
+		comboObjectType.valueProperty().addListener((v, o, n) -> {
 			if (n != null)
 				this.type = n;
 		});
 	
-		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose the export type", pathObjectLabel, pathObjectCombo, pathObjectCombo, pathObjectCombo, pathObjectCombo);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Choose the export type", pathObjectLabel, comboObjectType, comboObjectType, comboObjectType, comboObjectType);
 
 		Label separatorLabel = new Label("Separator");
-		separatorLabel.setLabelFor(separatorCombo);
-		separatorCombo.getItems().setAll("Tab (.tsv)", "Comma (.csv)", "Semicolon (.csv)");
-		separatorCombo.getSelectionModel().selectFirst();
-		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose a value separator", separatorLabel, separatorCombo, separatorCombo, separatorCombo, separatorCombo);
+		separatorLabel.setLabelFor(comboSeparator);
+		comboSeparator.getItems().setAll("Tab (.tsv)", "Comma (.csv)", "Semicolon (.csv)");
+		comboSeparator.getSelectionModel().selectFirst();
+		GridPaneUtils.addGridRow(pane, row++, 0, "Choose a value separator", separatorLabel, comboSeparator, comboSeparator, comboSeparator, comboSeparator);
 		
 		
 		Label includeLabel = new Label("Columns to include (Optional)");
 		includeLabel.setMinWidth(Label.USE_PREF_SIZE);
-		includeLabel.setLabelFor(includeCombo);
-		includeCombo.setShowCheckedCount(true);
-		FXUtils.installSelectAllOrNoneMenu(includeCombo);
+		includeLabel.setLabelFor(comboColumnsToInclude);
+		comboColumnsToInclude.setShowCheckedCount(true);
+		FXUtils.installSelectAllOrNoneMenu(comboColumnsToInclude);
 		
 		Button btnPopulateColumns = new Button("Populate");
 		ProgressBar progressIndicator = new ProgressBar();
@@ -195,88 +195,84 @@ public class MeasurementExportCommand implements Runnable {
 		progressIndicator.setProgress(0);
 		progressIndicator.setOpacity(0);
 		Button btnResetColumns = new Button("Reset");
-		GridPaneUtils.addGridRow(optionPane, row++, 0,
+		GridPaneUtils.addGridRow(pane, row++, 0,
 				"Choose the specific column(s) to include (default: all)",
-				includeLabel, includeCombo, btnPopulateColumns, btnResetColumns);
-		optionPane.add(progressIndicator, 1, row++);
+				includeLabel, comboColumnsToInclude, btnPopulateColumns, btnResetColumns);
+		pane.add(progressIndicator, 1, row++);
 		btnPopulateColumns.setOnAction(e ->
 				populateColumns(List.copyOf(listSelectionView.getTargetItems()), progressIndicator)
 		);
 		
 		btnPopulateColumns.disableProperty().addListener((v, o, n) -> {
 			if (n != null && n)
-				includeCombo.setDisable(true);
+				comboColumnsToInclude.setDisable(true);
 		});
 		
 		var targetItemBinding = Bindings.size(listSelectionView.getTargetItems()).isEqualTo(0);
 		btnPopulateColumns.disableProperty().bind(targetItemBinding);
 		btnResetColumns.disableProperty().bind(targetItemBinding);
-		btnResetColumns.setOnAction(e -> includeCombo.getCheckModel().clearChecks()); 
+		btnResetColumns.setOnAction(e -> comboColumnsToInclude.getCheckModel().clearChecks());
 		
 		
 		// Add listener to separatorCombo
-		separatorCombo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+		comboSeparator.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			if (n == null)
 				return;
-			String currentOut = outputText.getText();
+			String currentOut = tfOutputPath.getText();
 			if (n.equals("Tab (.tsv)") && currentOut.endsWith(".csv"))
-				outputText.setText(currentOut.replace(".csv", ".tsv"));
+				tfOutputPath.setText(currentOut.replace(".csv", ".tsv"));
 			else if ((n.equals("Comma (.csv)") || n.equals("Semicolon (.csv)")) && currentOut.endsWith(".tsv"))
-				outputText.setText(currentOut.replace(".tsv", ".csv"));
+				tfOutputPath.setText(currentOut.replace(".tsv", ".csv"));
 		});
 
-		FXUtils.getContentsOfType(optionPane, Label.class, false).forEach(e -> e.setMinWidth(160));
-		GridPaneUtils.setToExpandGridPaneWidth(outputText, pathObjectCombo, separatorCombo, includeCombo);
+		FXUtils.getContentsOfType(pane, Label.class, false).forEach(e -> e.setMinWidth(160));
+		GridPaneUtils.setToExpandGridPaneWidth(tfOutputPath, comboObjectType, comboSeparator, comboColumnsToInclude);
 		btnPopulateColumns.setMinWidth(75);
 		btnResetColumns.setMinWidth(75);
 		
 		dialog = Dialogs.builder()
 				.title(title)
 				.resizable()
-				.buttons(btnExport, ButtonType.CANCEL)
-				.content(mainPane)
+				.buttons(buttonTypeExport, ButtonType.CANCEL)
+				.content(pane)
 				.build();
 		
 		dialog.getDialogPane().setPrefSize(600, 400);
-		imageEntryPane.setCenter(listSelectionView);
-		
+
 		// Set the disabledProperty according to (1) targetItems.size() > 0 and (2) outputText.isEmpty()
-		var emptyOutputTextBinding = outputText.textProperty().isEqualTo("");
-		dialog.getDialogPane().lookupButton(btnExport).disableProperty().bind(Bindings.or(emptyOutputTextBinding, targetItemBinding));
-		
-		mainPane.setCenter(imageEntryPane);
-		mainPane.setBottom(optionPane);
+		var emptyOutputTextBinding = tfOutputPath.textProperty().isEqualTo("");
+		dialog.getDialogPane().lookupButton(buttonTypeExport).disableProperty().bind(Bindings.or(emptyOutputTextBinding, targetItemBinding));
 		
 		Optional<ButtonType> result = dialog.showAndWait();
 		
-		if (result.isEmpty() || result.get() != btnExport || result.get() == ButtonType.CANCEL)
+		if (result.isEmpty() || result.get() != buttonTypeExport || result.get() == ButtonType.CANCEL)
 			return;
 
-		String curExt = GeneralTools.getExtension(outputText.getText()).orElse("");
+		String curExt = GeneralTools.getExtension(tfOutputPath.getText()).orElse("");
 		if (!curExt.equals(".csv") && !curExt.equals(".tsv") && !curExt.equals(".csv.gz") && !curExt.equals(".tsv.gz")) {
 			// Fix extension, if required
-			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
+			String extSelected = comboSeparator.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
-			outputText.setText(outputText.getText().substring(0, outputText.getText().length() - curExt.length()) + ext);
+			tfOutputPath.setText(tfOutputPath.getText().substring(0, tfOutputPath.getText().length() - curExt.length()) + ext);
 		}
 		
-		if (new File(outputText.getText()).getParent() == null) {
-			String ext = GeneralTools.getExtension(outputText.getText()).orElse("").equals(".tsv") ? ".tsv": ".csv";
+		if (new File(tfOutputPath.getText()).getParent() == null) {
+			String ext = GeneralTools.getExtension(tfOutputPath.getText()).orElse("").equals(".tsv") ? ".tsv": ".csv";
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
 			File pathOut = FileChoosers.promptToSaveFile("Output file",
-					new File(Projects.getBaseDirectory(project), outputText.getText()),
+					new File(Projects.getBaseDirectory(project), tfOutputPath.getText()),
 					FileChoosers.createExtensionFilter(extDesc, ext));
 			if (pathOut == null)
 				return;
 			else
-				outputText.setText(pathOut.getAbsolutePath());
+				tfOutputPath.setText(pathOut.getAbsolutePath());
 		}
 				
-		var checkedItems = includeCombo.getCheckModel().getCheckedItems();
+		var checkedItems = comboColumnsToInclude.getCheckModel().getCheckedItems();
 		String[] include = checkedItems.stream().toList().toArray(new String[checkedItems.size()]);
 		String separator = PathPrefs.tableDelimiterProperty().get();
 
-        separator = switch (separatorCombo.getSelectionModel().getSelectedItem()) {
+        separator = switch (comboSeparator.getSelectionModel().getSelectedItem()) {
             case "Tab (.tsv)" -> "\t";
             case "Comma (.csv)" -> ",";
             case "Semicolon (.csv)" -> ";";
@@ -289,8 +285,17 @@ public class MeasurementExportCommand implements Runnable {
 			.includeOnlyColumns(include)
 			.exportType(type.getObjectType());
 		
-		ExportTask worker = new ExportTask(exporter, outputText.getText());
-		
+		doExportWithProgressDialog(exporter, tfOutputPath.getText());
+	}
+
+	private void doExportWithProgressDialog(MeasurementExporter exporter, String outputPath) {
+		var worker = new MeasurementExportTask(exporter, outputPath);
+		var progress = createProgressDialog(worker);
+		runningTask.set(qupath.getThreadPoolManager().getSingleThreadExecutor(this).submit(worker));
+		progress.show();
+	}
+
+	private ProgressDialog createProgressDialog(Task<?> worker) {
 		ProgressDialog progress = new ProgressDialog(worker);
 		progress.setWidth(600);
 		progress.initOwner(qupath.getStage());
@@ -306,14 +311,12 @@ public class MeasurementExportCommand implements Runnable {
 			}
 			e.consume();
 		});
-		
-		// Create & run task
-		runningTask.set(qupath.getThreadPoolManager().getSingleThreadExecutor(this).submit(worker));
-		progress.show();
+		return progress;
 	}
 
+
 	private void populateColumns(List<ProjectImageEntry<BufferedImage>> imageList, ProgressIndicator progressIndicator) {
-		includeCombo.setDisable(true);
+		comboColumnsToInclude.setDisable(true);
 		Set<String> allColumnsForCombo = Collections.synchronizedSet(new LinkedHashSet<>());
 		progressIndicator.setProgress(0);
 		progressIndicator.setOpacity(1.0);
@@ -336,23 +339,23 @@ public class MeasurementExportCommand implements Runnable {
 				}
 			}).thenRunAsync(() -> {
 				allColumnsForCombo.removeIf(Objects::isNull);
-				includeCombo.getItems().setAll(allColumnsForCombo);
-				includeCombo.getCheckModel().clearChecks();
-				includeCombo.setDisable(false);
+				comboColumnsToInclude.getItems().setAll(allColumnsForCombo);
+				comboColumnsToInclude.getCheckModel().clearChecks();
+				comboColumnsToInclude.setDisable(false);
 				progressIndicator.setOpacity(0.0);
 				progressIndicator.setProgress(1);
 		}, Platform::runLater);
 		// Reset the checks
-		includeCombo.getCheckModel().clearChecks();
+		comboColumnsToInclude.getCheckModel().clearChecks();
 	}
 	
 
-	static class ExportTask extends Task<Void> {
+	private static class MeasurementExportTask extends Task<Void> {
 		
 		private final String pathOut;
 		private final MeasurementExporter exporter;
 		
-		public ExportTask(MeasurementExporter exporter, String pathOut) {
+		MeasurementExportTask(MeasurementExporter exporter, String pathOut) {
 			this.pathOut = pathOut;
 			this.exporter = exporter;
 		}
@@ -398,7 +401,7 @@ public class MeasurementExportCommand implements Runnable {
 		private final Class<? extends PathObject> type;
 		private final String str;
 
-		private ObjectType(Class<? extends PathObject> type, String str) {
+		ObjectType(Class<? extends PathObject> type, String str) {
 			this.type = type;
 			this.str = str;
 		}
