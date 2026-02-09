@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020, 2023, 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -58,6 +58,7 @@ import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -77,9 +78,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 /**
- * Dialog box to export measurements
- * 
- * @author Melvin Gelbard
+ * Dialog box to export measurements for a project.
  */
 public class MeasurementExportCommand implements Runnable {
 
@@ -93,11 +92,11 @@ public class MeasurementExportCommand implements Runnable {
 	private Dialog<ButtonType> dialog = null;
 	private Project<BufferedImage> project;
 	private final List<ProjectImageEntry<BufferedImage>> previousImages = new ArrayList<>();
-	private Class<? extends PathObject> type = PathRootObject.class;
+	private ObjectType type = ObjectType.ROOT;
 	
 	// GUI
 	private final TextField outputText = new TextField();
-	private ComboBox<String> pathObjectCombo;
+	private ComboBox<ObjectType> pathObjectCombo;
 	private ComboBox<String> separatorCombo;
 	private CheckComboBox<String> includeCombo;
 	
@@ -132,7 +131,6 @@ public class MeasurementExportCommand implements Runnable {
 		
 		
 		// TOP PANE (SELECT PROJECT ENTRY FOR EXPORT)
-		project = qupath.getProject();
 		pathObjectCombo = new ComboBox<>();
 		separatorCombo = new ComboBox<>();
 		includeCombo = new CheckComboBox<>();
@@ -167,11 +165,11 @@ public class MeasurementExportCommand implements Runnable {
 
 		Label pathObjectLabel = new Label("Export type");
 		pathObjectLabel.setLabelFor(pathObjectCombo);
-		pathObjectCombo.getItems().setAll("Image", "Annotations", "Detections", "Cells", "TMA cores");
-		pathObjectCombo.getSelectionModel().selectFirst();
+		pathObjectCombo.getItems().setAll(ObjectType.values());
+		pathObjectCombo.getSelectionModel().select(type);
 		pathObjectCombo.valueProperty().addListener((v, o, n) -> {
 			if (n != null)
-				setType(n);
+				this.type = n;
 		});
 	
 		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose the export type", pathObjectLabel, pathObjectCombo, pathObjectCombo, pathObjectCombo, pathObjectCombo);
@@ -289,7 +287,7 @@ public class MeasurementExportCommand implements Runnable {
 			.imageList(listSelectionView.getTargetItems())
 			.separator(separator)
 			.includeOnlyColumns(include)
-			.exportType(type);
+			.exportType(type.getObjectType());
 		
 		ExportTask worker = new ExportTask(exporter, outputText.getText());
 		
@@ -317,7 +315,6 @@ public class MeasurementExportCommand implements Runnable {
 	private void populateColumns(List<ProjectImageEntry<BufferedImage>> imageList, ProgressIndicator progressIndicator) {
 		includeCombo.setDisable(true);
 		Set<String> allColumnsForCombo = Collections.synchronizedSet(new LinkedHashSet<>());
-		setType(pathObjectCombo.getSelectionModel().getSelectedItem());
 		progressIndicator.setProgress(0);
 		progressIndicator.setOpacity(1.0);
 		CompletableFuture.runAsync(() -> {
@@ -329,7 +326,8 @@ public class MeasurementExportCommand implements Runnable {
 						Platform.runLater(() -> progressIndicator.setProgress(progress));
 						counter++;
 						ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-						model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
+						model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null,
+								type.getObjectType()));
 						allColumnsForCombo.addAll(model.getAllNames());
 					} catch (Exception ex) {
 						logger.warn("Error loading columns for entry {}: {}", entry.getImageName(), ex.getMessage());
@@ -346,28 +344,6 @@ public class MeasurementExportCommand implements Runnable {
 		}, Platform::runLater);
 		// Reset the checks
 		includeCombo.getCheckModel().clearChecks();
-	}
-	
-	private void setType(String typeString){
-		if (typeString != null) {
-			switch (typeString) {
-			case "Image":
-				type = PathRootObject.class;
-				break;
-			case "Annotations":
-				type = PathAnnotationObject.class;
-				break;
-			case "Detections":
-				type = PathDetectionObject.class;
-				break;
-			case "Cells":
-				type = PathCellObject.class;
-				break;
-			case "TMA cores":
-				type = TMACoreObject.class;
-				break;
-			}
-		}
 	}
 	
 
@@ -409,4 +385,33 @@ public class MeasurementExportCommand implements Runnable {
 			return null;
 		}
 	}
+
+	private enum ObjectType {
+		ROOT(PathRootObject.class, "Image"),
+		ANNOTATIONS(PathAnnotationObject.class, "Annotations"),
+		DETECTIONS(PathDetectionObject.class, "Detections"),
+		CELLS(PathCellObject.class, "Cells"),
+		TILES(PathTileObject.class, "Tiles"),
+		TMA_CORES(TMACoreObject.class, "TMA cores"),
+		;
+
+		private final Class<? extends PathObject> type;
+		private final String str;
+
+		private ObjectType(Class<? extends PathObject> type, String str) {
+			this.type = type;
+			this.str = str;
+		}
+
+		public Class<? extends PathObject> getObjectType() {
+			return type;
+		}
+
+		@Override
+		public String toString() {
+			return this.str;
+		}
+
+	}
+
 }
