@@ -35,8 +35,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
@@ -85,19 +91,22 @@ public class MeasurementExportCommand implements Runnable {
 	private static final String title = "Export Measurements";
 
 	private final QuPathGUI qupath;
-	private final ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
-	
+
 	private Dialog<ButtonType> dialog = null;
-	private Project<BufferedImage> project;
-	private final List<ProjectImageEntry<BufferedImage>> previousImages = new ArrayList<>();
-	private ObjectType type = ObjectType.ROOT;
-	
-	// GUI
-	private final TextField tfOutputPath = new TextField();
-	private ComboBox<ObjectType> comboObjectType;
-	private ComboBox<SeparatorType> comboSeparator;
-	private CheckComboBox<String> comboColumnsToInclude;
-	
+
+	private final ObjectProperty<Project<BufferedImage>> projectProperty = new SimpleObjectProperty<>();
+	private final ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
+
+	private final ObservableList<ProjectImageEntry<BufferedImage>> availableImages = FXCollections.observableArrayList();
+	private final ObservableList<ProjectImageEntry<BufferedImage>> selectedImages = FXCollections.observableArrayList();
+
+	private final BooleanBinding noImagesSelected = Bindings.isEmpty(selectedImages);
+
+	private final ObjectProperty<ObjectType> objectTypeProperty = new SimpleObjectProperty<>(ObjectType.ROOT);
+	private final ObjectProperty<SeparatorType> separatorTypeProperty = new SimpleObjectProperty<>(SeparatorType.TAB);
+	private final StringProperty outputPathProperty = new SimpleStringProperty("");
+	private final ObservableList<String> columnsToInclude = FXCollections.observableArrayList();
+
 	private static final ButtonType buttonTypeExport = new ButtonType("Export", ButtonData.OK_DONE);
 	
 	/**
@@ -106,80 +115,162 @@ public class MeasurementExportCommand implements Runnable {
 	 */
 	public MeasurementExportCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
+		this.projectProperty.bind(qupath.projectProperty());
 	}
 
 	@Override
 	public void run() {
-		createAndShowDialog();
-	}
-	
-	private void createAndShowDialog() {
-		project = qupath.getProject();
+		var project = projectProperty.get();
 		if (project == null) {
 			GuiTools.showNoProjectError(title);
 			return;
 		}
+		if (dialog == null) {
+			createDialog();
+		}
+		updateAvailableImages(project);
+		showDialog();
+	}
 
+	private void createDialog() {
+		// Set up grid pane
 		GridPane pane = new GridPane();
 		pane.setHgap(5.0);
 		pane.setVgap(5.0);
-		
-		
-		// TOP PANE (SELECT PROJECT ENTRY FOR EXPORT)
-		comboObjectType = new ComboBox<>();
-		comboSeparator = new ComboBox<>();
-		comboColumnsToInclude = new CheckComboBox<>();
-		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
-		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), previousImages, sameImageWarning);
 
+		// Add main content
 		int row = 0;
+		addImageSelectionList(pane, row++);
+		addOutputFileChoice(pane, row++);
+		addExportFileChoice(pane, row++);
+		addSeparatorChoice(pane, row++);
+		addPopulateColumns(pane, selectedImages, row++);
 
-		// TOP PANE
-		pane.add(listSelectionView, 0, row++, GridPane.REMAINING, 1);
+		FXUtils.getContentsOfType(pane, Label.class, false).forEach(e -> e.setMinWidth(160));
+
+		dialog = Dialogs.builder()
+				.title(title)
+				.resizable()
+				.buttons(buttonTypeExport, ButtonType.CANCEL)
+				.content(pane)
+				.prefHeight(400)
+				.prefWidth(600)
+				.build();
+
+		// Disable the export button if there is no output path or no images selected
+		dialog.getDialogPane().lookupButton(buttonTypeExport).disableProperty().bind(outputPathProperty.isEmpty().or(noImagesSelected));
+	}
+
+	private void updateAvailableImages(Project<BufferedImage> project) {
+		if (project == null)
+			availableImages.clear();
+		else
+			availableImages.setAll(project.getImageList());
+	}
+
+	private void addImageSelectionList(GridPane pane, int row) {
+		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
+		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, availableImages, new ArrayList<>(), sameImageWarning);
+		pane.add(listSelectionView, 0, row, GridPane.REMAINING, 1);
+
 		GridPaneUtils.setToExpandGridPaneHeight(listSelectionView);
 		GridPaneUtils.setToExpandGridPaneWidth(listSelectionView);
 
-		// BOTTOM PANE (OPTIONS)
+		availableImages.addListener((ListChangeListener.Change<? extends ProjectImageEntry<BufferedImage>> c) -> {
+			handleAvailableImageChange(
+					c.getList(),
+					listSelectionView.getSourceItems(),
+					listSelectionView.getTargetItems());
+		});
+
+		Bindings.bindContent(selectedImages, listSelectionView.getTargetItems());
+	}
+
+	private static void handleAvailableImageChange(
+											ObservableList<? extends ProjectImageEntry<BufferedImage>> availableImages,
+											ObservableList<ProjectImageEntry<BufferedImage>> sourceImages,
+											ObservableList<ProjectImageEntry<BufferedImage>> targetImages) {
+		if (availableImages.isEmpty()) {
+			sourceImages.clear();
+			targetImages.clear();
+		} else {
+			// Remove images from existing target list if they are no longer in the project
+			var newImageSet = new LinkedHashSet<>(availableImages);
+			targetImages.removeIf(i -> !newImageSet.contains(i));
+
+			// Match the source list to include all current non-target images
+			targetImages.forEach(newImageSet::remove);
+			sourceImages.setAll(newImageSet);
+		}
+	}
+
+
+	private void addOutputFileChoice(GridPane pane, int row) {
 		Label pathOutputLabel = new Label("Output file");
 		var btnChooseFile = new Button("Choose");
 		btnChooseFile.setOnAction(e -> {
-			var separator = comboSeparator.getSelectionModel().getSelectedItem();
+			var separator = separatorTypeProperty.get();
 			File pathOut = promptToChooseOutputFile(getDefaultOutputFile(), separator);
 			if (pathOut != null) {
-				tfOutputPath.setText(pathOut.getAbsolutePath());
+				outputPathProperty.set(pathOut.getAbsolutePath());
 			}
 		});
-		
+
+		var tfOutputPath = new TextField();
+		tfOutputPath.textProperty().bindBidirectional(outputPathProperty);
 		pathOutputLabel.setLabelFor(tfOutputPath);
-		GridPaneUtils.addGridRow(pane, row++, 0, "Choose output file", pathOutputLabel, tfOutputPath, tfOutputPath, btnChooseFile, btnChooseFile);
 		tfOutputPath.setMaxWidth(Double.MAX_VALUE);
 		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
-		
+
+		GridPaneUtils.setToExpandGridPaneWidth(tfOutputPath);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Choose output file", pathOutputLabel, tfOutputPath, tfOutputPath, btnChooseFile, btnChooseFile);
+	}
+
+	private void addExportFileChoice(GridPane pane, int row) {
+		var comboObjectType = new ComboBox<ObjectType>();
 
 		Label pathObjectLabel = new Label("Export type");
 		pathObjectLabel.setLabelFor(comboObjectType);
 		comboObjectType.getItems().setAll(ObjectType.values());
-		comboObjectType.getSelectionModel().select(type);
+		comboObjectType.getSelectionModel().select(objectTypeProperty.get());
 		comboObjectType.valueProperty().addListener((v, o, n) -> {
 			if (n != null)
-				this.type = n;
+				this.objectTypeProperty.set(n);
 		});
-	
+
+		GridPaneUtils.setToExpandGridPaneWidth(comboObjectType);
 		GridPaneUtils.addGridRow(pane, row++, 0, "Choose the export type", pathObjectLabel, comboObjectType, comboObjectType, comboObjectType, comboObjectType);
+	}
+
+	private void addSeparatorChoice(GridPane pane, int row) {
+		var comboSeparator = new ComboBox<SeparatorType>();
+		separatorTypeProperty.bind(comboSeparator.getSelectionModel().selectedItemProperty());
+
+		// Update non-empty filename when separator changes
+		separatorTypeProperty.addListener((v, o, n) -> {
+			if (n != null || !outputPathProperty.getValueSafe().isEmpty()) {
+				outputPathProperty.set(fixFileExtension(outputPathProperty.get(), n));
+			}
+		});
 
 		Label separatorLabel = new Label("Separator");
 		separatorLabel.setLabelFor(comboSeparator);
 		comboSeparator.getItems().setAll(SeparatorType.values());
 		comboSeparator.getSelectionModel().selectFirst();
+
+		GridPaneUtils.setToExpandGridPaneWidth(comboSeparator);
 		GridPaneUtils.addGridRow(pane, row++, 0, "Choose a value separator", separatorLabel, comboSeparator, comboSeparator, comboSeparator, comboSeparator);
-		
-		
+	}
+
+
+	private void addPopulateColumns(GridPane pane, ObservableList<ProjectImageEntry<BufferedImage>> selectedImages, int row) {
 		Label includeLabel = new Label("Columns to include (Optional)");
 		includeLabel.setMinWidth(Label.USE_PREF_SIZE);
+		var comboColumnsToInclude = new CheckComboBox<String>();
 		includeLabel.setLabelFor(comboColumnsToInclude);
 		comboColumnsToInclude.setShowCheckedCount(true);
 		FXUtils.installSelectAllOrNoneMenu(comboColumnsToInclude);
-		
+
 		Button btnPopulateColumns = new Button("Populate");
 		ProgressBar progressIndicator = new ProgressBar();
 		progressIndicator.setPrefHeight(10);
@@ -187,87 +278,72 @@ public class MeasurementExportCommand implements Runnable {
 		progressIndicator.setProgress(0);
 		progressIndicator.setOpacity(0);
 		Button btnResetColumns = new Button("Reset");
-		GridPaneUtils.addGridRow(pane, row++, 0,
-				"Choose the specific column(s) to include (default: all)",
-				includeLabel, comboColumnsToInclude, btnPopulateColumns, btnResetColumns);
 		pane.add(progressIndicator, 1, row++);
 		btnPopulateColumns.setOnAction(e ->
-				populateColumns(List.copyOf(listSelectionView.getTargetItems()), progressIndicator)
+				populateColumns(comboColumnsToInclude, List.copyOf(selectedImages), progressIndicator)
 		);
-		
+
 		btnPopulateColumns.disableProperty().addListener((v, o, n) -> {
 			if (n != null && n)
 				comboColumnsToInclude.setDisable(true);
 		});
-		
-		var targetItemBinding = Bindings.size(listSelectionView.getTargetItems()).isEqualTo(0);
-		btnPopulateColumns.disableProperty().bind(targetItemBinding);
-		btnResetColumns.disableProperty().bind(targetItemBinding);
-		btnResetColumns.setOnAction(e -> comboColumnsToInclude.getCheckModel().clearChecks());
-		
-		
-		// Add listener to separatorCombo
-		comboSeparator.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			if (n != null) {
-				tfOutputPath.setText(fixFileExtension(tfOutputPath.getText(), n));
-			}
-		});
 
-		FXUtils.getContentsOfType(pane, Label.class, false).forEach(e -> e.setMinWidth(160));
-		GridPaneUtils.setToExpandGridPaneWidth(tfOutputPath, comboObjectType, comboSeparator, comboColumnsToInclude);
+		btnPopulateColumns.disableProperty().bind(noImagesSelected);
+		btnResetColumns.disableProperty().bind(noImagesSelected);
+		btnResetColumns.setOnAction(e -> comboColumnsToInclude.getCheckModel().clearChecks());
+
+		GridPaneUtils.setToExpandGridPaneWidth(comboColumnsToInclude);
 		btnPopulateColumns.setMinWidth(75);
 		btnResetColumns.setMinWidth(75);
-		
-		dialog = Dialogs.builder()
-				.title(title)
-				.resizable()
-				.buttons(buttonTypeExport, ButtonType.CANCEL)
-				.content(pane)
-				.build();
-		
-		dialog.getDialogPane().setPrefSize(600, 400);
 
-		// Set the disabledProperty according to (1) targetItems.size() > 0 and (2) outputText.isEmpty()
-		var emptyOutputTextBinding = tfOutputPath.textProperty().isEqualTo("");
-		dialog.getDialogPane().lookupButton(buttonTypeExport).disableProperty().bind(Bindings.or(emptyOutputTextBinding, targetItemBinding));
-		
+		GridPaneUtils.addGridRow(pane, row++, 0,
+				"Choose the specific column(s) to include (default: all)",
+				includeLabel, comboColumnsToInclude, btnPopulateColumns, btnResetColumns);
+
+
+		Bindings.bindContent(columnsToInclude, comboColumnsToInclude.getCheckModel().getCheckedItems());
+	}
+
+	private void showDialog() {
 		Optional<ButtonType> result = dialog.showAndWait();
-		
 		if (result.isEmpty() || result.get() != buttonTypeExport || result.get() == ButtonType.CANCEL)
 			return;
 
+		if (selectedImages.isEmpty()) {
+			logger.debug("No images selected for export!");
+			return;
+		}
 
-		tfOutputPath.setText(fixFileExtension(tfOutputPath.getText(), comboSeparator.getSelectionModel().getSelectedItem()));
+		outputPathProperty.set(fixFileExtension(outputPathProperty.get(), separatorTypeProperty.get()));
 
-		File fileOutput = new File(tfOutputPath.getText());
+		File fileOutput = new File(outputPathProperty.get());
 		if (fileOutput.getParent() == null || !fileOutput.getParentFile().isDirectory()) {
-			var separator = comboSeparator.getSelectionModel().getSelectedItem();
-			fileOutput = promptToChooseOutputFile(getDefaultOutputFile(), separator);
+			fileOutput = promptToChooseOutputFile(getDefaultOutputFile(), separatorTypeProperty.get());
 		}
 		if (fileOutput == null)
 			return;
 
-		var checkedItems = comboColumnsToInclude.getCheckModel().getCheckedItems();
-		String[] include = checkedItems.stream().toList().toArray(new String[checkedItems.size()]);
-		String separatorString = comboSeparator.getSelectionModel().getSelectedItem() == null ?
+		String[] include = columnsToInclude.toArray(String[]::new);
+		String separatorString = separatorTypeProperty.get() == null ?
 				PathPrefs.tableDelimiterProperty().get() :
-				comboSeparator.getSelectionModel().getSelectedItem().getSeparator();
-		
+				separatorTypeProperty.get().getSeparator();
+
 		MeasurementExporter exporter = new MeasurementExporter()
-			.imageList(listSelectionView.getTargetItems())
-			.separator(separatorString)
-			.includeOnlyColumns(include)
-			.exportType(type.getObjectType());
-		
+				.imageList(selectedImages)
+				.separator(separatorString)
+				.includeOnlyColumns(include)
+				.exportType(objectTypeProperty.get().getObjectType());
+
 		doExportWithProgressDialog(exporter, fileOutput.getAbsolutePath());
 	}
 
 	private File getDefaultOutputFile() {
-		var pathOutput = tfOutputPath.textProperty().getValueSafe();
+		var pathOutput = outputPathProperty.getValueSafe();
+		var project = projectProperty.get();
 		if (isValidOutputFilePath(pathOutput))
 			return new File(pathOutput);
 		else if (project != null) {
-			var separator = comboSeparator.getSelectionModel().getSelectedItem();
+			var separator = separatorTypeProperty.get();
 			return new File(Projects.getBaseDirectory(project), "measurements" + separator.getExtension());
 		} else {
 			return null;
@@ -297,6 +373,8 @@ public class MeasurementExportCommand implements Runnable {
 
 
 	private static String fixFileExtension(String path, SeparatorType separatorType) {
+		if (path == null || path.isEmpty())
+			return "";
 		if (separatorType == null)
 			return path;
 		var ext = separatorType.getExtension();
@@ -338,7 +416,7 @@ public class MeasurementExportCommand implements Runnable {
 	}
 
 
-	private void populateColumns(List<ProjectImageEntry<BufferedImage>> imageList, ProgressIndicator progressIndicator) {
+	private void populateColumns(CheckComboBox<String> comboColumnsToInclude, List<ProjectImageEntry<BufferedImage>> imageList, ProgressIndicator progressIndicator) {
 		comboColumnsToInclude.setDisable(true);
 		Set<String> allColumnsForCombo = Collections.synchronizedSet(new LinkedHashSet<>());
 		progressIndicator.setProgress(0);
@@ -353,7 +431,7 @@ public class MeasurementExportCommand implements Runnable {
 						counter++;
 						ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 						model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null,
-								type.getObjectType()));
+								objectTypeProperty.get().getObjectType()));
 						allColumnsForCombo.addAll(model.getAllNames());
 					} catch (Exception ex) {
 						logger.warn("Error loading columns for entry {}: {}", entry.getImageName(), ex.getMessage());

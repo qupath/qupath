@@ -22,9 +22,10 @@
 package qupath.lib.gui.dialogs;
 
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingFXUtils;
@@ -215,9 +216,10 @@ public class ProjectDialogs {
 			final List<ProjectImageEntry<BufferedImage>> availableImages, final String filterText, final boolean withDataOnly) {
 
 		// Get an update source items list
-		List<ProjectImageEntry<BufferedImage>> sourceItems = new ArrayList<>(availableImages);
+		Set<ProjectImageEntry<BufferedImage>> sourceItems = new LinkedHashSet<>(availableImages);
 		var targetItems = listSelectionView.getTargetItems();
-		sourceItems.removeAll(targetItems);
+		targetItems.forEach(sourceItems::remove);
+		
 		// Remove those without a data file, if necessary
 		if (withDataOnly) {
 			sourceItems.removeIf(p -> !p.hasImageData());
@@ -230,8 +232,6 @@ public class ProjectDialogs {
 			sourceItems.removeIf(predicate.negate());
 		}
 		
-		if (listSelectionView.getSourceItems().equals(sourceItems))
-			return;
 		listSelectionView.getSourceItems().setAll(sourceItems);
 	}
 }
