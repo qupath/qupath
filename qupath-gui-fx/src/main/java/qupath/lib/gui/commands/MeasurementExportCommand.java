@@ -102,8 +102,8 @@ public class MeasurementExportCommand implements Runnable {
 
 	private final BooleanBinding noImagesSelected = Bindings.isEmpty(selectedImages);
 
-	private final ObjectProperty<ObjectType> objectTypeProperty = new SimpleObjectProperty<>(ObjectType.ROOT);
-	private final ObjectProperty<SeparatorType> separatorTypeProperty = new SimpleObjectProperty<>(SeparatorType.TAB);
+	private final ObjectProperty<ExportObjectType> objectTypeProperty = new SimpleObjectProperty<>(ExportObjectType.ROOT);
+	private final ObjectProperty<ExportSeparatorType> separatorTypeProperty = new SimpleObjectProperty<>(ExportSeparatorType.TAB);
 	private final StringProperty outputPathProperty = new SimpleStringProperty("");
 	private final ObservableList<String> columnsToInclude = FXCollections.observableArrayList();
 
@@ -140,7 +140,7 @@ public class MeasurementExportCommand implements Runnable {
 
 		// Add main content
 		int row = 0;
-		addImageSelectionList(pane, row++);
+		addImageSelectionLists(pane, row++);
 		addOutputFileChoice(pane, row++);
 		addExportFileChoice(pane, row++);
 		addSeparatorChoice(pane, row++);
@@ -168,7 +168,7 @@ public class MeasurementExportCommand implements Runnable {
 			availableImages.setAll(project.getImageList());
 	}
 
-	private void addImageSelectionList(GridPane pane, int row) {
+	private void addImageSelectionLists(GridPane pane, int row) {
 		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
 		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, availableImages, new ArrayList<>(), sameImageWarning);
 		pane.add(listSelectionView, 0, row, GridPane.REMAINING, 1);
@@ -204,34 +204,35 @@ public class MeasurementExportCommand implements Runnable {
 		}
 	}
 
-
 	private void addOutputFileChoice(GridPane pane, int row) {
-		Label pathOutputLabel = new Label("Output file");
+		Label labelOutputFile = new Label("Output file");
 		var btnChooseFile = new Button("Choose");
-		btnChooseFile.setOnAction(e -> {
-			var separator = separatorTypeProperty.get();
-			File pathOut = promptToChooseOutputFile(getDefaultOutputFile(), separator);
-			if (pathOut != null) {
-				outputPathProperty.set(pathOut.getAbsolutePath());
-			}
-		});
+		btnChooseFile.setOnAction(this::handleChooseFileButtonClick);
 
 		var tfOutputPath = new TextField();
 		tfOutputPath.textProperty().bindBidirectional(outputPathProperty);
-		pathOutputLabel.setLabelFor(tfOutputPath);
+		labelOutputFile.setLabelFor(tfOutputPath);
 		tfOutputPath.setMaxWidth(Double.MAX_VALUE);
 		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
 
 		GridPaneUtils.setToExpandGridPaneWidth(tfOutputPath);
-		GridPaneUtils.addGridRow(pane, row++, 0, "Choose output file", pathOutputLabel, tfOutputPath, tfOutputPath, btnChooseFile, btnChooseFile);
+		GridPaneUtils.addGridRow(pane, row++, 0, "Choose output file", labelOutputFile, tfOutputPath, tfOutputPath, btnChooseFile, btnChooseFile);
+	}
+
+	private void handleChooseFileButtonClick(ActionEvent e) {
+		var separator = separatorTypeProperty.get();
+		File pathOut = promptToChooseOutputFile(getDefaultOutputFile(), separator);
+		if (pathOut != null) {
+			outputPathProperty.set(pathOut.getAbsolutePath());
+		}
 	}
 
 	private void addExportFileChoice(GridPane pane, int row) {
-		var comboObjectType = new ComboBox<ObjectType>();
+		var comboObjectType = new ComboBox<ExportObjectType>();
 
 		Label pathObjectLabel = new Label("Export type");
 		pathObjectLabel.setLabelFor(comboObjectType);
-		comboObjectType.getItems().setAll(ObjectType.values());
+		comboObjectType.getItems().setAll(ExportObjectType.values());
 		comboObjectType.getSelectionModel().select(objectTypeProperty.get());
 		comboObjectType.valueProperty().addListener((v, o, n) -> {
 			if (n != null)
@@ -239,11 +240,11 @@ public class MeasurementExportCommand implements Runnable {
 		});
 
 		GridPaneUtils.setToExpandGridPaneWidth(comboObjectType);
-		GridPaneUtils.addGridRow(pane, row++, 0, "Choose the export type", pathObjectLabel, comboObjectType, comboObjectType, comboObjectType, comboObjectType);
+		GridPaneUtils.addGridRow(pane, row, 0, "Choose the export type", pathObjectLabel, comboObjectType, comboObjectType, comboObjectType, comboObjectType);
 	}
 
 	private void addSeparatorChoice(GridPane pane, int row) {
-		var comboSeparator = new ComboBox<SeparatorType>();
+		var comboSeparator = new ComboBox<ExportSeparatorType>();
 		separatorTypeProperty.bind(comboSeparator.getSelectionModel().selectedItemProperty());
 
 		// Update non-empty filename when separator changes
@@ -255,7 +256,7 @@ public class MeasurementExportCommand implements Runnable {
 
 		Label separatorLabel = new Label("Separator");
 		separatorLabel.setLabelFor(comboSeparator);
-		comboSeparator.getItems().setAll(SeparatorType.values());
+		comboSeparator.getItems().setAll(ExportSeparatorType.values());
 		comboSeparator.getSelectionModel().selectFirst();
 
 		GridPaneUtils.setToExpandGridPaneWidth(comboSeparator);
@@ -359,7 +360,7 @@ public class MeasurementExportCommand implements Runnable {
 		return true;
 	}
 
-	private static File promptToChooseOutputFile(File initialFile, SeparatorType separator) {
+	private static File promptToChooseOutputFile(File initialFile, ExportSeparatorType separator) {
 		var ext = separator.getExtension();
 		File pathOut = FileChoosers.promptToSaveFile("Output file",
 				initialFile,
@@ -372,7 +373,7 @@ public class MeasurementExportCommand implements Runnable {
 	}
 
 
-	private static String fixFileExtension(String path, SeparatorType separatorType) {
+	private static String fixFileExtension(String path, ExportSeparatorType separatorType) {
 		if (path == null || path.isEmpty())
 			return "";
 		if (separatorType == null)
@@ -490,19 +491,18 @@ public class MeasurementExportCommand implements Runnable {
 		}
 	}
 
-	private enum ObjectType {
+	private enum ExportObjectType {
 		ROOT(PathRootObject.class, "Image"),
 		ANNOTATIONS(PathAnnotationObject.class, "Annotations"),
 		DETECTIONS(PathDetectionObject.class, "Detections"),
 		CELLS(PathCellObject.class, "Cells"),
 		TILES(PathTileObject.class, "Tiles"),
-		TMA_CORES(TMACoreObject.class, "TMA cores"),
-		;
+		TMA_CORES(TMACoreObject.class, "TMA cores");
 
 		private final Class<? extends PathObject> type;
 		private final String str;
 
-		ObjectType(Class<? extends PathObject> type, String str) {
+		ExportObjectType(Class<? extends PathObject> type, String str) {
 			this.type = type;
 			this.str = str;
 		}
@@ -518,18 +518,17 @@ public class MeasurementExportCommand implements Runnable {
 
 	}
 
-	private enum SeparatorType {
+	private enum ExportSeparatorType {
 		TAB("Tab", "Tab separated", ".tsv", "\t"),
 		COMMA("Comma", "Comma separated", ".csv", ","),
-		SEMICOLON("Semicolon", "Semicolon separated", ".csv", ";")
-		;
+		SEMICOLON("Semicolon", "Semicolon separated", ".csv", ";");
 
 		private final String name;
 		private final String description;
 		private final String extension;
 		private final String separator;
 
-		SeparatorType(String name, String description, String extension, String separator) {
+		ExportSeparatorType(String name, String description, String extension, String separator) {
 			this.name = name;
 			this.description = description;
 			this.extension = extension;
