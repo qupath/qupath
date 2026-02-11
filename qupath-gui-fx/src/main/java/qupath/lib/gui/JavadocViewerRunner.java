@@ -59,13 +59,14 @@ public class JavadocViewerRunner implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(JavadocViewerRunner.class);
     private static final String JAVADOC_PATH_SYSTEM_PROPERTY = "javadoc";
     private static final String JAVADOC_PATH_PREFERENCE = "javadocPath";
+    private static final int SEARCH_DEPTH = 7;  // minimum to see javadocs installed with the extension manager
     private static final StringProperty javadocPath = PathPrefs.createPersistentPreference(JAVADOC_PATH_PREFERENCE, null);
     private final JavadocViewerCommand command;
 
     /**
      * Create the command. This will not create the viewer yet.
      *
-     * @param owner  the stage that should own the viewer window. Can be null
+     * @param owner the stage that should own the viewer window. Can be null
      */
     public JavadocViewerRunner(Stage owner) {
         command = new JavadocViewerCommand(
@@ -82,17 +83,19 @@ public class JavadocViewerRunner implements Runnable {
                             try {
                                 return GeneralTools.toURI(uri);
                             } catch (Exception e) {
-                                logger.debug(String.format("Could not create URI from %s", uri), e);
+                                logger.debug("Could not create URI from {}", uri, e);
                                 return null;
                             }
                         })
                         .filter(Objects::nonNull)
-                        .toArray(URI[]::new)
+                        .toList(),
+                SEARCH_DEPTH
         );
     }
 
     /**
      * Get a reference to the viewer launched by the {@link JavadocViewerCommand}.
+     *
      * @return A reference to the Javadoc viewer.
      */
     public JavadocViewer getJavadocViewer() {
@@ -117,7 +120,7 @@ public class JavadocViewerRunner implements Runnable {
         try {
             codePath = Paths.get(codeUri);
         } catch (Exception e) {
-            logger.debug(String.format("Could not convert URI %s to path", codeUri), e);
+            logger.debug("Could not convert URI {} to path", codeUri, e);
             return null;
         }
 
