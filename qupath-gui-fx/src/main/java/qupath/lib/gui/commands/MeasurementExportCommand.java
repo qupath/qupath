@@ -49,12 +49,15 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Control;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import org.controlsfx.control.CheckComboBox;
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
@@ -108,7 +111,12 @@ public class MeasurementExportCommand implements Runnable {
 	private final ObservableList<String> columnsToInclude = FXCollections.observableArrayList();
 
 	private static final ButtonType buttonTypeExport = new ButtonType("Export", ButtonData.OK_DONE);
-	
+
+	/**
+	 * Total number of grid pane columns, used to determine column spans.
+	 */
+	private static final int MAX_GRID_PANE_COLUMNS = 4;
+
 	/**
 	 * Creates a simple GUI for MeasurementExporter.
 	 * @param qupath the main QuPath instance
@@ -205,18 +213,19 @@ public class MeasurementExportCommand implements Runnable {
 	}
 
 	private void addOutputFileChoice(GridPane pane, int row) {
-		Label labelOutputFile = new Label("Output file");
 		var btnChooseFile = new Button("Choose");
 		btnChooseFile.setOnAction(this::handleChooseFileButtonClick);
 
 		var tfOutputPath = new TextField();
 		tfOutputPath.textProperty().bindBidirectional(outputPathProperty);
-		labelOutputFile.setLabelFor(tfOutputPath);
 		tfOutputPath.setMaxWidth(Double.MAX_VALUE);
 		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
 
-		GridPaneUtils.setToExpandGridPaneWidth(tfOutputPath);
-		GridPaneUtils.addGridRow(pane, row++, 0, "Choose output file", labelOutputFile, tfOutputPath, tfOutputPath, btnChooseFile, btnChooseFile);
+		addGridPaneRow(pane, row,
+				new Tooltip("Choose output file"),
+				"Output file",
+				tfOutputPath,
+				btnChooseFile);
 	}
 
 	private void handleChooseFileButtonClick(ActionEvent e) {
@@ -229,9 +238,6 @@ public class MeasurementExportCommand implements Runnable {
 
 	private void addExportFileChoice(GridPane pane, int row) {
 		var comboObjectType = new ComboBox<ExportObjectType>();
-
-		Label pathObjectLabel = new Label("Export type");
-		pathObjectLabel.setLabelFor(comboObjectType);
 		comboObjectType.getItems().setAll(ExportObjectType.values());
 		comboObjectType.getSelectionModel().select(objectTypeProperty.get());
 		comboObjectType.valueProperty().addListener((v, o, n) -> {
@@ -239,71 +245,121 @@ public class MeasurementExportCommand implements Runnable {
 				this.objectTypeProperty.set(n);
 		});
 
-		GridPaneUtils.setToExpandGridPaneWidth(comboObjectType);
-		GridPaneUtils.addGridRow(pane, row, 0, "Choose the export type", pathObjectLabel, comboObjectType, comboObjectType, comboObjectType, comboObjectType);
+		addGridPaneRow(pane, row,
+				new Tooltip("Choose the export type"),
+				"Export type",
+				comboObjectType);
 	}
 
 	private void addSeparatorChoice(GridPane pane, int row) {
 		var comboSeparator = new ComboBox<ExportSeparatorType>();
+		comboSeparator.getItems().setAll(ExportSeparatorType.values());
+		comboSeparator.getSelectionModel().selectFirst();
+
 		separatorTypeProperty.bind(comboSeparator.getSelectionModel().selectedItemProperty());
 
 		// Update non-empty filename when separator changes
-		separatorTypeProperty.addListener((v, o, n) -> {
+		separatorTypeProperty.subscribe(n -> {
 			if (n != null || !outputPathProperty.getValueSafe().isEmpty()) {
 				outputPathProperty.set(fixFileExtension(outputPathProperty.get(), n));
 			}
 		});
 
-		Label separatorLabel = new Label("Separator");
-		separatorLabel.setLabelFor(comboSeparator);
-		comboSeparator.getItems().setAll(ExportSeparatorType.values());
-		comboSeparator.getSelectionModel().selectFirst();
-
-		GridPaneUtils.setToExpandGridPaneWidth(comboSeparator);
-		GridPaneUtils.addGridRow(pane, row++, 0, "Choose a value separator", separatorLabel, comboSeparator, comboSeparator, comboSeparator, comboSeparator);
+		addGridPaneRow(pane, row,
+				new Tooltip("Choose a value separator"),
+				"Separator",
+				comboSeparator);
 	}
 
 
 	private void addPopulateColumns(GridPane pane, ObservableList<ProjectImageEntry<BufferedImage>> selectedImages, int row) {
-		Label includeLabel = new Label("Columns to include (Optional)");
-		includeLabel.setMinWidth(Label.USE_PREF_SIZE);
 		var comboColumnsToInclude = new CheckComboBox<String>();
-		includeLabel.setLabelFor(comboColumnsToInclude);
 		comboColumnsToInclude.setShowCheckedCount(true);
+		comboColumnsToInclude.titleProperty().bind(
+				Bindings.createStringBinding(() -> columnsToInclude.isEmpty() ? "All columns" : null, columnsToInclude));
+		comboColumnsToInclude.setShowCheckedCount(false);
 		FXUtils.installSelectAllOrNoneMenu(comboColumnsToInclude);
 
 		Button btnPopulateColumns = new Button("Populate");
 		ProgressBar progressIndicator = new ProgressBar();
 		progressIndicator.setPrefHeight(10);
+		progressIndicator.setMinHeight(10);
 		progressIndicator.setMaxWidth(Double.MAX_VALUE);
-		progressIndicator.setProgress(0);
-		progressIndicator.setOpacity(0);
-		Button btnResetColumns = new Button("Reset");
-		pane.add(progressIndicator, 1, row++);
-		btnPopulateColumns.setOnAction(e ->
-				populateColumns(comboColumnsToInclude, List.copyOf(selectedImages), progressIndicator)
-		);
+		progressIndicator.setProgress(1.0);
 
-		btnPopulateColumns.disableProperty().addListener((v, o, n) -> {
-			if (n != null && n)
-				comboColumnsToInclude.setDisable(true);
+		var populatingColumns = progressIndicator.progressProperty().lessThan(1.0);
+
+		progressIndicator.opacityProperty().bind(
+				Bindings.when(populatingColumns)
+						.then(1.0)
+						.otherwise(0.0));
+
+		Button btnResetColumns = new Button("Reset");
+		btnPopulateColumns.setOnAction(_ -> {
+			populateColumns(comboColumnsToInclude, List.copyOf(selectedImages), progressIndicator);
 		});
 
-		btnPopulateColumns.disableProperty().bind(noImagesSelected);
-		btnResetColumns.disableProperty().bind(noImagesSelected);
-		btnResetColumns.setOnAction(e -> comboColumnsToInclude.getCheckModel().clearChecks());
+		btnPopulateColumns.disableProperty().bind(populatingColumns.or(noImagesSelected));
+		comboColumnsToInclude.disableProperty().bind(populatingColumns.or(Bindings.isEmpty(comboColumnsToInclude.getItems())));
+		btnResetColumns.disableProperty().bind(btnPopulateColumns.disableProperty());
+		btnResetColumns.setOnAction(_ -> comboColumnsToInclude.getCheckModel().clearChecks());
 
-		GridPaneUtils.setToExpandGridPaneWidth(comboColumnsToInclude);
 		btnPopulateColumns.setMinWidth(75);
 		btnResetColumns.setMinWidth(75);
 
-		GridPaneUtils.addGridRow(pane, row++, 0,
-				"Choose the specific column(s) to include (default: all)",
-				includeLabel, comboColumnsToInclude, btnPopulateColumns, btnResetColumns);
+		addGridPaneRow(pane,
+				row++,
+				new Tooltip("Choose the specific column(s) to include (default: all)"),
+				"Columns to include",
+				comboColumnsToInclude,
+				btnPopulateColumns,
+				btnResetColumns);
 
+		pane.add(progressIndicator, 1, row);
 
 		Bindings.bindContent(columnsToInclude, comboColumnsToInclude.getCheckModel().getCheckedItems());
 	}
+
+	/**
+	 * Add a row to a grid pane with a label, main control (which fills the width) and optional extra controls (e.g., buttons).
+	 * @param pane the grid pane
+	 * @param row the row where controls should be added
+	 * @param tooltip optional tooltip; this will be installed in all controls that do not have their own tooltip
+	 * @param labelText text to include on the label for the row
+	 * @param rowFillControl the main control, position directly beside the label
+	 * @param extraControls optional array of additional controls, position after the main control
+	 */
+	private static void addGridPaneRow(GridPane pane, int row, Tooltip tooltip, String labelText, Control rowFillControl, Control... extraControls) {
+		Label label = new Label(labelText);
+		label.setMinWidth(Label.USE_PREF_SIZE);
+		label.setLabelFor(rowFillControl);
+		installTooltipIfNeeded(tooltip, label);
+
+		rowFillControl.setMaxWidth(Double.MAX_VALUE);
+		GridPane.setFillWidth(rowFillControl, Boolean.TRUE);
+		GridPane.setHgrow(rowFillControl, Priority.ALWAYS);
+		installTooltipIfNeeded(tooltip, rowFillControl);
+
+		pane.add(label, 0, row);
+		if (extraControls.length == 0) {
+			pane.add(rowFillControl, 1, row, GridPane.REMAINING, 1);
+		} else {
+			int mainColSpan = MAX_GRID_PANE_COLUMNS - extraControls.length - 1;
+			pane.add(rowFillControl, 1, row, mainColSpan, 1);
+			for (int i = 0; i < extraControls.length; i++) {
+				var control = extraControls[i];
+				installTooltipIfNeeded(tooltip, control);
+				pane.add(control, 1 + mainColSpan + i, row);
+			}
+		}
+	}
+
+	private static void installTooltipIfNeeded(Tooltip tooltip, Control control) {
+		if (tooltip != null && control.getTooltip() == null) {
+			control.setTooltip(tooltip);
+		}
+	}
+
 
 	private void showDialog() {
 		Optional<ButtonType> result = dialog.showAndWait();
@@ -355,10 +411,8 @@ public class MeasurementExportCommand implements Runnable {
 		if (path == null || path.isEmpty())
 			return false;
 		var file = new File(path);
-		if (file.getParentFile() == null || !file.getParentFile().isDirectory())
-			return false;
-		return true;
-	}
+        return file.getParentFile() != null && file.getParentFile().isDirectory();
+    }
 
 	private static File promptToChooseOutputFile(File initialFile, ExportSeparatorType separator) {
 		var ext = separator.getExtension();
@@ -418,10 +472,8 @@ public class MeasurementExportCommand implements Runnable {
 
 
 	private void populateColumns(CheckComboBox<String> comboColumnsToInclude, List<ProjectImageEntry<BufferedImage>> imageList, ProgressIndicator progressIndicator) {
-		comboColumnsToInclude.setDisable(true);
 		Set<String> allColumnsForCombo = Collections.synchronizedSet(new LinkedHashSet<>());
 		progressIndicator.setProgress(0);
-		progressIndicator.setOpacity(1.0);
 		CompletableFuture.runAsync(() -> {
 				int n = imageList.size();
 				int counter = 0;
@@ -443,8 +495,6 @@ public class MeasurementExportCommand implements Runnable {
 				allColumnsForCombo.removeIf(Objects::isNull);
 				comboColumnsToInclude.getItems().setAll(allColumnsForCombo);
 				comboColumnsToInclude.getCheckModel().clearChecks();
-				comboColumnsToInclude.setDisable(false);
-				progressIndicator.setOpacity(0.0);
 				progressIndicator.setProgress(1);
 		}, Platform::runLater);
 		// Reset the checks
