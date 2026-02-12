@@ -30,13 +30,13 @@ Version in progress...
 * CommonMark 0.27.1
 * Commons Text 1.14.0
 * Deep Java Library 0.36.0
-* Groovy 5.0.3
+* Groovy 5.0.4
 * Gson 2.13.2
 * Guava 33.5.0-jre
 * Ikonli 12.4.0
 * ImageJ 1.54p
 * JavaCPP 1.5.12
-* JavaFX 25.0.1
+* JavaFX 25.0.2
 * Logback 1.5.23
 * OpenCV 4.11.0
 * QuPath FXtras 0.3.0
