@@ -130,13 +130,14 @@ public class MeasurementExportCommand implements Runnable {
 	public void run() {
 		var project = projectProperty.get();
 		if (project == null) {
+			availableImages.clear();
 			GuiTools.showNoProjectError(title);
 			return;
 		}
 		if (dialog == null) {
 			createDialog();
 		}
-		updateAvailableImages(project);
+		availableImages.setAll(project.getImageList());
 		showDialog();
 	}
 
@@ -147,14 +148,11 @@ public class MeasurementExportCommand implements Runnable {
 		pane.setVgap(5.0);
 
 		// Add main content
-		int row = 0;
 		addImageSelectionLists(pane);
 		addOutputFileChoice(pane);
 		addExportFileChoice(pane);
 		addSeparatorChoice(pane);
-		addPopulateColumns(pane, selectedImages);
-
-		FXUtils.getContentsOfType(pane, Label.class, false).forEach(e -> e.setMinWidth(160));
+		addPopulateColumns(pane);
 
 		dialog = Dialogs.builder()
 				.title(title)
@@ -167,13 +165,6 @@ public class MeasurementExportCommand implements Runnable {
 
 		// Disable the export button if there is no output path or no images selected
 		dialog.getDialogPane().lookupButton(buttonTypeExport).disableProperty().bind(outputPathProperty.isEmpty().or(noImagesSelected));
-	}
-
-	private void updateAvailableImages(Project<BufferedImage> project) {
-		if (project == null)
-			availableImages.clear();
-		else
-			availableImages.setAll(project.getImageList());
 	}
 
 	private void addImageSelectionLists(GridPane pane) {
@@ -194,6 +185,9 @@ public class MeasurementExportCommand implements Runnable {
 		Bindings.bindContent(selectedImages, listSelectionView.getTargetItems());
 	}
 
+	/**
+	 * Handle the available image list changing (which usually means a project has changed).
+	 */
 	private static void handleAvailableImageChange(
 											ObservableList<? extends ProjectImageEntry<BufferedImage>> availableImages,
 											ObservableList<ProjectImageEntry<BufferedImage>> sourceImages,
@@ -272,7 +266,7 @@ public class MeasurementExportCommand implements Runnable {
 	}
 
 
-	private void addPopulateColumns(GridPane pane, ObservableList<ProjectImageEntry<BufferedImage>> selectedImages) {
+	private void addPopulateColumns(GridPane pane) {
 		var comboColumnsToInclude = new CheckComboBox<String>();
 		comboColumnsToInclude.setShowCheckedCount(true);
 		comboColumnsToInclude.titleProperty().bind(
@@ -428,7 +422,10 @@ public class MeasurementExportCommand implements Runnable {
 		return pathOut;
 	}
 
-
+	/**
+	 * Update a file extension whenever the separator type may have changed, keeping the rest of the path the same.
+	 * This should properly handle .gz being included as an additional extension.
+	 */
 	private static String fixFileExtension(String path, ExportSeparatorType separatorType) {
 		if (path == null || path.isEmpty())
 			return "";
@@ -544,7 +541,7 @@ public class MeasurementExportCommand implements Runnable {
 	}
 
 	private enum ExportObjectType {
-		ROOT(PathRootObject.class, "Image"),
+		ROOT(PathRootObject.class, "Image (summary)"),
 		ANNOTATIONS(PathAnnotationObject.class, "Annotations"),
 		DETECTIONS(PathDetectionObject.class, "Detections"),
 		CELLS(PathCellObject.class, "Cells"),
