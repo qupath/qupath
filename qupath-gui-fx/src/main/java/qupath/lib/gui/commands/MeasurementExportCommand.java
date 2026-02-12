@@ -69,6 +69,7 @@ import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.ProjectDialogs;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
@@ -91,7 +92,7 @@ public class MeasurementExportCommand implements Runnable {
 
 	private static final Logger logger = LoggerFactory.getLogger(MeasurementExportCommand.class);
 
-	private static final String title = "Export Measurements";
+	private static final String title = getResourceString("Measurements.Export.title");
 
 	private final QuPathGUI qupath;
 
@@ -110,7 +111,8 @@ public class MeasurementExportCommand implements Runnable {
 	private final StringProperty outputPathProperty = new SimpleStringProperty("");
 	private final ObservableList<String> columnsToInclude = FXCollections.observableArrayList();
 
-	private static final ButtonType buttonTypeExport = new ButtonType("Export", ButtonData.OK_DONE);
+	private static final ButtonType buttonTypeExport = new ButtonType(
+			getResourceString("Measurements.Export.button.export"), ButtonData.OK_DONE);
 
 	/**
 	 * Total number of grid pane columns, used to determine column spans.
@@ -141,6 +143,10 @@ public class MeasurementExportCommand implements Runnable {
 		showDialog();
 	}
 
+	private static String getResourceString(String key) {
+		return QuPathResources.getString(key);
+	}
+
 	private void createDialog() {
 		// Set up grid pane
 		GridPane pane = new GridPane();
@@ -168,7 +174,7 @@ public class MeasurementExportCommand implements Runnable {
 	}
 
 	private void addImageSelectionLists(GridPane pane) {
-		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
+		String sameImageWarning = getResourceString("Measurements.Export.sameImageWarning");
 		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, availableImages, new ArrayList<>(), sameImageWarning);
 		pane.add(listSelectionView, 0, pane.getRowCount(), GridPane.REMAINING, 1);
 
@@ -207,7 +213,7 @@ public class MeasurementExportCommand implements Runnable {
 	}
 
 	private void addOutputFileChoice(GridPane pane) {
-		var btnChooseFile = new Button("Choose");
+		var btnChooseFile = new Button(getResourceString("Measurements.Export.chooseFile.button"));
 		btnChooseFile.setOnAction(this::handleChooseFileButtonClick);
 
 		var tfOutputPath = new TextField();
@@ -216,8 +222,8 @@ public class MeasurementExportCommand implements Runnable {
 		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
 
 		addGridPaneRow(pane,
-				new Tooltip("Choose output file"),
-				"Output file",
+				new Tooltip(getResourceString("Measurements.Export.chooseFile.tooltip")),
+				getResourceString("Measurements.Export.chooseFile.label"),
 				tfOutputPath,
 				btnChooseFile);
 	}
@@ -240,8 +246,8 @@ public class MeasurementExportCommand implements Runnable {
 		});
 
 		addGridPaneRow(pane,
-				new Tooltip("Choose the object type to export"),
-				"Object type",
+				new Tooltip(getResourceString("Measurements.Export.objectType.tooltip")),
+				getResourceString("Measurements.Export.objectType.label"),
 				comboObjectType);
 	}
 
@@ -260,8 +266,8 @@ public class MeasurementExportCommand implements Runnable {
 		});
 
 		addGridPaneRow(pane,
-				new Tooltip("Choose a value separator"),
-				"Separator",
+				new Tooltip(getResourceString("Measurements.Export.separator.label")),
+				getResourceString("Measurements.Export.separator.tooltip"),
 				comboSeparator);
 	}
 
@@ -270,11 +276,12 @@ public class MeasurementExportCommand implements Runnable {
 		var comboColumnsToInclude = new CheckComboBox<String>();
 		comboColumnsToInclude.setShowCheckedCount(true);
 		comboColumnsToInclude.titleProperty().bind(
-				Bindings.createStringBinding(() -> columnsToInclude.isEmpty() ? "All columns" : null, columnsToInclude));
+				Bindings.createStringBinding(() -> columnsToInclude.isEmpty() ?
+						getResourceString("Measurements.Export.columns.allColumns") : null, columnsToInclude));
 		comboColumnsToInclude.setShowCheckedCount(false);
 		FXUtils.installSelectAllOrNoneMenu(comboColumnsToInclude);
 
-		Button btnPopulateColumns = new Button("Populate");
+		Button btnPopulateColumns = new Button(getResourceString("Measurements.Export.columns.button.populate"));
 		ProgressBar progressIndicator = new ProgressBar();
 		progressIndicator.setPrefHeight(10);
 		progressIndicator.setMinHeight(10);
@@ -288,7 +295,7 @@ public class MeasurementExportCommand implements Runnable {
 						.then(1.0)
 						.otherwise(0.0));
 
-		Button btnResetColumns = new Button("Reset");
+		Button btnResetColumns = new Button(getResourceString("Measurements.Export.columns.button.reset"));
 		btnPopulateColumns.setOnAction(_ -> {
 			populateColumns(comboColumnsToInclude, List.copyOf(selectedImages), progressIndicator);
 		});
@@ -302,8 +309,8 @@ public class MeasurementExportCommand implements Runnable {
 		btnResetColumns.setMinWidth(75);
 
 		addGridPaneRow(pane,
-				new Tooltip("Choose the specific column(s) to include (default: all)"),
-				"Columns to include",
+				new Tooltip(getResourceString("Measurements.Export.columns.tooltip")),
+				getResourceString("Measurements.Export.columns.label"),
 				comboColumnsToInclude,
 				btnPopulateColumns,
 				btnResetColumns);
@@ -412,7 +419,7 @@ public class MeasurementExportCommand implements Runnable {
 
 	private static File promptToChooseOutputFile(File initialFile, ExportSeparatorType separator) {
 		var ext = separator.getExtension();
-		File pathOut = FileChoosers.promptToSaveFile("Output file",
+		File pathOut = FileChoosers.promptToSaveFile(getResourceString("Measurements.Export.save.title"),
 				initialFile,
 				FileChoosers.createExtensionFilter(separator.getDescription(), ext),
 				FileChoosers.createExtensionFilter("GZipped " + separator.getDescription(), ext + ".gz"));
@@ -455,13 +462,14 @@ public class MeasurementExportCommand implements Runnable {
 		progress.setWidth(600);
 		progress.initOwner(qupath.getStage());
 		progress.setTitle(title);
-		progress.getDialogPane().setHeaderText("Exporting measurements...");
+		progress.getDialogPane().setHeaderText(getResourceString("Measurements.Export.progress.header"));
 		progress.getDialogPane().setGraphic(null);
 		progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 		progress.getDialogPane().lookupButton(ButtonType.CANCEL).addEventFilter(ActionEvent.ACTION, e -> {
-			if (Dialogs.showYesNoDialog("Cancel export", "Are you sure you want to stop the export after the current image?")) {
+			if (Dialogs.showYesNoDialog(getResourceString("Measurements.Export.progress.cancel.title"),
+					getResourceString("Measurements.Export.progress.cancel.text"))) {
 				worker.cancel(true);
-				progress.setHeaderText("Cancelling...");
+				progress.setHeaderText(getResourceString("Measurements.Export.progress.cancel.header"));
 				progress.getDialogPane().lookupButton(ButtonType.CANCEL).setDisable(true);
 			}
 			e.consume();
@@ -521,10 +529,13 @@ public class MeasurementExportCommand implements Runnable {
 						.exportMeasurements(new File(pathOut));
 			} catch (IOException e) {
 				logger.error("Export failed", e);
-				Dialogs.showErrorMessage("Export failed", e);
+				Dialogs.showErrorMessage(
+						getResourceString("Measurements.Export.failed.title"), e);
 				return null;
 			} catch (InterruptedException e) {
-				Dialogs.showWarningNotification("Export interrupted", "Measurement export was cancelled");
+				Dialogs.showWarningNotification(
+						getResourceString("Measurements.Export.interrupted.title"),
+						getResourceString("Measurements.Export.interrupted.text"));
 				logger.warn(e.getMessage(), e);
 				return null;
 			}
@@ -541,12 +552,12 @@ public class MeasurementExportCommand implements Runnable {
 	}
 
 	private enum ExportObjectType {
-		ROOT(PathRootObject.class, "Image (summary)"),
-		ANNOTATIONS(PathAnnotationObject.class, "Annotations"),
-		DETECTIONS(PathDetectionObject.class, "Detections"),
-		CELLS(PathCellObject.class, "Cells"),
-		TILES(PathTileObject.class, "Tiles"),
-		TMA_CORES(TMACoreObject.class, "TMA cores");
+		ROOT(PathRootObject.class, getResourceString("Measurements.Export.type.image")),
+		ANNOTATIONS(PathAnnotationObject.class, getResourceString("General.objects.annotations")),
+		DETECTIONS(PathDetectionObject.class, getResourceString("General.objects.detections")),
+		CELLS(PathCellObject.class, getResourceString("General.objects.cells")),
+		TILES(PathTileObject.class, getResourceString("General.objects.tiles")),
+		TMA_CORES(TMACoreObject.class, getResourceString("General.objects.tmaCores"));
 
 		private final Class<? extends PathObject> type;
 		private final String str;
