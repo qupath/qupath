@@ -148,11 +148,11 @@ public class MeasurementExportCommand implements Runnable {
 
 		// Add main content
 		int row = 0;
-		addImageSelectionLists(pane, row++);
-		addOutputFileChoice(pane, row++);
-		addExportFileChoice(pane, row++);
-		addSeparatorChoice(pane, row++);
-		addPopulateColumns(pane, selectedImages, row++);
+		addImageSelectionLists(pane);
+		addOutputFileChoice(pane);
+		addExportFileChoice(pane);
+		addSeparatorChoice(pane);
+		addPopulateColumns(pane, selectedImages);
 
 		FXUtils.getContentsOfType(pane, Label.class, false).forEach(e -> e.setMinWidth(160));
 
@@ -176,10 +176,10 @@ public class MeasurementExportCommand implements Runnable {
 			availableImages.setAll(project.getImageList());
 	}
 
-	private void addImageSelectionLists(GridPane pane, int row) {
+	private void addImageSelectionLists(GridPane pane) {
 		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
 		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, availableImages, new ArrayList<>(), sameImageWarning);
-		pane.add(listSelectionView, 0, row, GridPane.REMAINING, 1);
+		pane.add(listSelectionView, 0, pane.getRowCount(), GridPane.REMAINING, 1);
 
 		GridPaneUtils.setToExpandGridPaneHeight(listSelectionView);
 		GridPaneUtils.setToExpandGridPaneWidth(listSelectionView);
@@ -212,7 +212,7 @@ public class MeasurementExportCommand implements Runnable {
 		}
 	}
 
-	private void addOutputFileChoice(GridPane pane, int row) {
+	private void addOutputFileChoice(GridPane pane) {
 		var btnChooseFile = new Button("Choose");
 		btnChooseFile.setOnAction(this::handleChooseFileButtonClick);
 
@@ -221,7 +221,7 @@ public class MeasurementExportCommand implements Runnable {
 		tfOutputPath.setMaxWidth(Double.MAX_VALUE);
 		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
 
-		addGridPaneRow(pane, row,
+		addGridPaneRow(pane,
 				new Tooltip("Choose output file"),
 				"Output file",
 				tfOutputPath,
@@ -236,7 +236,7 @@ public class MeasurementExportCommand implements Runnable {
 		}
 	}
 
-	private void addExportFileChoice(GridPane pane, int row) {
+	private void addExportFileChoice(GridPane pane) {
 		var comboObjectType = new ComboBox<ExportObjectType>();
 		comboObjectType.getItems().setAll(ExportObjectType.values());
 		comboObjectType.getSelectionModel().select(objectTypeProperty.get());
@@ -245,13 +245,13 @@ public class MeasurementExportCommand implements Runnable {
 				this.objectTypeProperty.set(n);
 		});
 
-		addGridPaneRow(pane, row,
-				new Tooltip("Choose the export type"),
-				"Export type",
+		addGridPaneRow(pane,
+				new Tooltip("Choose the object type to export"),
+				"Object type",
 				comboObjectType);
 	}
 
-	private void addSeparatorChoice(GridPane pane, int row) {
+	private void addSeparatorChoice(GridPane pane) {
 		var comboSeparator = new ComboBox<ExportSeparatorType>();
 		comboSeparator.getItems().setAll(ExportSeparatorType.values());
 		comboSeparator.getSelectionModel().selectFirst();
@@ -265,14 +265,14 @@ public class MeasurementExportCommand implements Runnable {
 			}
 		});
 
-		addGridPaneRow(pane, row,
+		addGridPaneRow(pane,
 				new Tooltip("Choose a value separator"),
 				"Separator",
 				comboSeparator);
 	}
 
 
-	private void addPopulateColumns(GridPane pane, ObservableList<ProjectImageEntry<BufferedImage>> selectedImages, int row) {
+	private void addPopulateColumns(GridPane pane, ObservableList<ProjectImageEntry<BufferedImage>> selectedImages) {
 		var comboColumnsToInclude = new CheckComboBox<String>();
 		comboColumnsToInclude.setShowCheckedCount(true);
 		comboColumnsToInclude.titleProperty().bind(
@@ -308,28 +308,26 @@ public class MeasurementExportCommand implements Runnable {
 		btnResetColumns.setMinWidth(75);
 
 		addGridPaneRow(pane,
-				row++,
 				new Tooltip("Choose the specific column(s) to include (default: all)"),
 				"Columns to include",
 				comboColumnsToInclude,
 				btnPopulateColumns,
 				btnResetColumns);
 
-		pane.add(progressIndicator, 1, row);
+		pane.add(progressIndicator, 1, pane.getRowCount());
 
 		Bindings.bindContent(columnsToInclude, comboColumnsToInclude.getCheckModel().getCheckedItems());
 	}
 
 	/**
-	 * Add a row to a grid pane with a label, main control (which fills the width) and optional extra controls (e.g., buttons).
+	 * Add a new row to a grid pane with a label, main control (which fills the width) and optional extra controls (e.g., buttons).
 	 * @param pane the grid pane
-	 * @param row the row where controls should be added
 	 * @param tooltip optional tooltip; this will be installed in all controls that do not have their own tooltip
 	 * @param labelText text to include on the label for the row
 	 * @param rowFillControl the main control, position directly beside the label
 	 * @param extraControls optional array of additional controls, position after the main control
 	 */
-	private static void addGridPaneRow(GridPane pane, int row, Tooltip tooltip, String labelText, Control rowFillControl, Control... extraControls) {
+	private static void addGridPaneRow(GridPane pane, Tooltip tooltip, String labelText, Control rowFillControl, Control... extraControls) {
 		Label label = new Label(labelText);
 		label.setMinWidth(Label.USE_PREF_SIZE);
 		label.setLabelFor(rowFillControl);
@@ -340,9 +338,13 @@ public class MeasurementExportCommand implements Runnable {
 		GridPane.setHgrow(rowFillControl, Priority.ALWAYS);
 		installTooltipIfNeeded(tooltip, rowFillControl);
 
+		int row = pane.getRowCount();
 		pane.add(label, 0, row);
 		if (extraControls.length == 0) {
 			pane.add(rowFillControl, 1, row, GridPane.REMAINING, 1);
+		} else if (extraControls.length + 2 > MAX_GRID_PANE_COLUMNS) {
+			// Find out we've made a mistake at compile time
+			throw new IllegalArgumentException("Attempting to add more than " + MAX_GRID_PANE_COLUMNS + "columns to grid pane!");
 		} else {
 			int mainColSpan = MAX_GRID_PANE_COLUMNS - extraControls.length - 1;
 			pane.add(rowFillControl, 1, row, mainColSpan, 1);
