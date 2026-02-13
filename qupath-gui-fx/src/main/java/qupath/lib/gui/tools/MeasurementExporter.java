@@ -29,7 +29,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -590,7 +590,7 @@ public class MeasurementExporter {
 
 	private static class TextTableWriter<T> implements TableWriter<T> {
 
-		private final PrintWriter writer;
+		private final Writer writer;
 		private final List<String> columns;
 		private final String separator;
 		private final int nDecimalPlaces;
@@ -598,7 +598,7 @@ public class MeasurementExporter {
 		private final boolean isTabDelimited;
 
 		private TextTableWriter(OutputStream stream, Collection<String> columns, String separator, int nDecimalPlaces) {
-			this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8)));
+			this.writer = new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8));
 			this.columns = List.copyOf(columns);
 			this.nColumns = columns.size();
 			this.separator = separator;
@@ -615,7 +615,7 @@ public class MeasurementExporter {
 				if (i < nColumns-1)
 					writer.write(separator);
 			}
-			writer.println();
+			writer.write(System.lineSeparator());
 		}
 
 		@Override
@@ -629,7 +629,7 @@ public class MeasurementExporter {
 					writer.write(separator);
 				}
 			}
-			writer.println();
+			writer.write(System.lineSeparator());
 		}
 
 		private String cleanValue(String val) {
