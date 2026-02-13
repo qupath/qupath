@@ -642,13 +642,9 @@ public class MeasurementExporter {
 				}
 			} else {
 				// Assume CSV with a non-tab delimiter
-				if (val.contains("\"")) {
-					// Ensure quotes replaced by double quotes
-					val = Strings.CS.replace(val, "\"", "\"\"");
-				}
-				if (val.contains(separator)) {
-					// Ensure values containing separator are wrapped in quotes
-					val = "\"" + val + "\"";
+				if (val.contains("\"") || val.contains(separator)) {
+					// Ensure separators are wrapped in quotes - and existing quotes are replaced by double quotes
+					val = "\"" + Strings.CS.replace(val, "\"", "\"\"") + "\"";
 				}
 			}
 			return val;
