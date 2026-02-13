@@ -34,13 +34,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.DoubleConsumer;
 import java.util.function.Predicate;
 import java.util.zip.GZIPOutputStream;
+import org.apache.commons.lang3.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
@@ -59,8 +62,6 @@ import qupath.lib.projects.ProjectImageEntry;
 
 /**
  * Helper class for exporting the measurements of one or more entries in a project.
- * 
- * @author Melvin Gelbard
  */
 public class MeasurementExporter {
 	
@@ -80,10 +81,13 @@ public class MeasurementExporter {
 	private static final DoubleConsumer NULL_PROGRESS_MONITOR = d -> {};
 
 	private List<String> includeOnlyColumns = new ArrayList<>();
-	private List<String> excludeColumns = new ArrayList<>();
+	private List<String> excludeColumns = new ArrayList<>(); // To be removed (may replace with general predicate)
 	private Predicate<PathObject> filter;
 
 	private int nDecimalPlaces = DECIMAL_PLACES_DEFAULT;
+
+	// New in v0.7.0
+	private boolean includeProjectMetadata = false;
 	
 	// Default: Export for the entire image
 	private Class<? extends PathObject> type = PathRootObject.class;
@@ -203,9 +207,23 @@ public class MeasurementExporter {
 	 * @param excludeColumns the columns to exclude
 	 * @return this exporter
 	 * @see #includeOnlyColumns
+	 * @deprecated v0.7.0 use {@link #includeOnlyColumns(String...)} instead
 	 */
+	@Deprecated
 	public MeasurementExporter excludeColumns(String... excludeColumns) {
+		logger.warn("excludeColumns is deprecated and will be removed in a future version");
 		this.excludeColumns = Arrays.asList(excludeColumns);
+		return this;
+	}
+
+	/**
+	 * Optionally include columns for project entry metadata (key/value pairs).
+	 * @param doInclude true if metadata should be included in the table, false otherwise
+	 * @return this exporter
+	 * @since v0.7.0
+	 */
+	public MeasurementExporter includeProjectMetadata(boolean doInclude) {
+		this.includeProjectMetadata = doInclude;
 		return this;
 	}
 	
@@ -267,7 +285,9 @@ public class MeasurementExporter {
 	/**
 	 * Returns the list of columns to exclude from export.
 	 * @return list of column names
+	 * @deprecated v0.7.0 in favor of specifying columns to include only
 	 */
+	@Deprecated
 	public List<String> getExcludeColumns() {
 		return excludeColumns;
 	}
@@ -278,6 +298,14 @@ public class MeasurementExporter {
 	 */
 	public List<String> getIncludeColumns() {
 		return includeOnlyColumns;
+	}
+
+	/**
+	 * Query whether project entry metadata should be export.
+	 * @return true if project entry metadata values should be included, false otherwise
+	 */
+	public boolean getIncludeProjectMetadata() {
+		return includeProjectMetadata;
 	}
 	
 	/**
@@ -385,7 +413,7 @@ public class MeasurementExporter {
 			writer.writeHeader();
 			for (var entry : imageList) {
 				checkInterrupted(thread);
-				var table = loadTable(entry, type, filter);
+				var table = loadTable(entry, type, filter, includeProjectMetadata);
 				for (var item : table.getItems()) {
 					checkInterrupted(thread);
 					writer.writeRow(table, item);
@@ -412,7 +440,7 @@ public class MeasurementExporter {
 
 
 	private TableWriter<PathObject> createWriter(OutputStream stream, String separator) {
-		var columns = getColumnNames(imageList, type, filter, createColumnPredicate());
+		var columns = getColumnNames(imageList, type, filter, createColumnPredicate(), includeProjectMetadata);
 		return new TextTableWriter<>(stream, columns, separator, nDecimalPlaces);
 	}
 
@@ -424,11 +452,15 @@ public class MeasurementExporter {
 	}
 
 
-	private static List<String> getColumnNames(Collection<? extends ProjectImageEntry<?>> imageEntries, Class<? extends PathObject> type, Predicate<PathObject> filter, Predicate<String> columnPredicate) {
+	private static List<String> getColumnNames(Collection<? extends ProjectImageEntry<?>> imageEntries,
+											   Class<? extends PathObject> type,
+											   Predicate<PathObject> filter,
+											   Predicate<String> columnPredicate,
+											   boolean includeProjectMetadata) {
 		var headerSet = new LinkedHashSet<String>();
 		for (var entry: imageEntries) {
 			try {
-				var tableModel = loadTable(entry, type, filter);
+				var tableModel = loadTable(entry, type, filter, includeProjectMetadata);
 				tableModel.getAllNames().stream().filter(columnPredicate).forEach(headerSet::add);
 			} catch (IOException e) {
 				logger.error("Error loading load {}: {}", entry.getImageName(), e.getMessage(), e);
@@ -437,7 +469,10 @@ public class MeasurementExporter {
 		return List.copyOf(headerSet);
 	}
 
-	private static PathTableData<PathObject> loadTable(ProjectImageEntry<?> projectImageEntry, Class<? extends PathObject> type, Predicate<PathObject> filter) throws IOException {
+	private static PathTableData<PathObject> loadTable(ProjectImageEntry<?> projectImageEntry,
+													   Class<? extends PathObject> type,
+													   Predicate<PathObject> filter,
+													   boolean includeProjectMetadata) throws IOException {
 		var table = new ObservableMeasurementTableData();
 		if (projectImageEntry == null) {
 			return table;
@@ -447,7 +482,70 @@ public class MeasurementExporter {
 		if (filter != null)
 			currentObjects = currentObjects.stream().filter(filter).toList();
 		table.setImageData(currentImageData, currentObjects);
-		return table;
+		var metadata = new LinkedHashMap<>(projectImageEntry.getMetadata());
+		if (!metadata.containsKey("tags") && !projectImageEntry.getTags().isEmpty()) {
+			metadata.put("tags", "[" + String.join(",", projectImageEntry.getTags()) + "]");
+		}
+		return includeProjectMetadata ? new ExtendedTableData<>(table, Map.copyOf(projectImageEntry.getMetadata())) : table;
+	}
+
+	/**
+	 * Create an extended table data that can take a single metadata map, adding columns that return string values
+	 * for each row.
+	 * This is used to append project entry metadata to an {@link ObservableMeasurementTableData}.
+	 * @param <T>
+	 */
+	private static class ExtendedTableData<T> implements PathTableData<T> {
+
+		private final PathTableData<T> table;
+		private final Map<String, String> metadata;
+		private final Set<String> tableNames;
+		private final List<String> allNames;
+
+		ExtendedTableData(PathTableData<T> table, Map<String, String> metadata) {
+			this.table = table;
+			this.metadata = metadata;
+			this.tableNames = new LinkedHashSet<>(table.getAllNames());
+			var allNamesSet = new LinkedHashSet<>(tableNames);
+			allNamesSet.addAll(metadata.keySet());
+			this.allNames = List.copyOf(allNamesSet);
+		}
+
+		@Override
+		public List<String> getAllNames() {
+			return allNames;
+		}
+
+		@Override
+		public String getStringValue(T item, String name) {
+			return tableNames.contains(name) ? table.getStringValue(item, name) : metadata.getOrDefault(name, null);
+		}
+
+		@Override
+		public String getStringValue(T item, String name, int decimalPlaces) {
+			return tableNames.contains(name) ? table.getStringValue(item, name, decimalPlaces) : metadata.getOrDefault(name, null);
+		}
+
+		@Override
+		public List<String> getMeasurementNames() {
+			return table.getMeasurementNames();
+		}
+
+		@Override
+		public double getNumericValue(T item, String name) {
+			return table.getNumericValue(item, name);
+		}
+
+		@Override
+		public double[] getDoubleValues(String name) {
+			return table.getDoubleValues(name);
+		}
+
+		@Override
+		public List<T> getItems() {
+			return table.getItems();
+		}
+
 	}
 
 
@@ -459,13 +557,14 @@ public class MeasurementExporter {
 
 	}
 
-	static class TextTableWriter<T> implements TableWriter<T> {
+	private static class TextTableWriter<T> implements TableWriter<T> {
 
 		private final PrintWriter writer;
 		private final List<String> columns;
 		private final String separator;
 		private final int nDecimalPlaces;
 		private final int nColumns;
+		private final boolean isTabDelimited;
 
 		private TextTableWriter(OutputStream stream, Collection<String> columns, String separator, int nDecimalPlaces) {
 			this.writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8)));
@@ -473,13 +572,14 @@ public class MeasurementExporter {
 			this.nColumns = columns.size();
 			this.separator = separator;
 			this.nDecimalPlaces = nDecimalPlaces;
+			this.isTabDelimited = "\t".endsWith(separator);
 		}
 
 		@Override
 		public void writeHeader() throws IOException {
 			for (int i = 0; i < nColumns; i++) {
-				var val = columns.get(i);
-				if (val != null)
+				var val = cleanValue(columns.get(i));
+				if (!val.isEmpty())
 					writer.write(val);
 				if (i < nColumns-1)
 					writer.write(separator);
@@ -490,12 +590,37 @@ public class MeasurementExporter {
 		@Override
 		public void writeRow(PathTableData<T> table, T obj) throws IOException {
 			for (int c = 0; c < nColumns; c++) {
-				writer.write(table.getStringValue(obj, columns.get(c), nDecimalPlaces));
+				var val = cleanValue(table.getStringValue(obj, columns.get(c), nDecimalPlaces));
+				if (!val.isEmpty()) {
+					writer.write(val);
+				}
 				if (c < nColumns - 1) {
 					writer.write(separator);
 				}
 			}
 			writer.println();
+		}
+
+		private String cleanValue(String val) {
+			if(val == null || val.isEmpty())
+				return "";
+			if (isTabDelimited) {
+				// For tab-delimited, we want to escape tabs - and otherwise make no changes
+				if (val.contains("\t")) {
+					val = Strings.CS.replace(val, "\t", "\\t");
+				}
+			} else {
+				// Assume CSV with a non-tab delimiter
+				if (val.contains("\"")) {
+					// Ensure quotes replaced by double quotes
+					val = Strings.CS.replace(val, "\"", "\"\"");
+				}
+				if (val.contains(separator)) {
+					// Ensure values containing separator are wrapped in quotes
+					val = "\"" + val + "\"";
+				}
+			}
+			return val;
 		}
 
 		@Override
