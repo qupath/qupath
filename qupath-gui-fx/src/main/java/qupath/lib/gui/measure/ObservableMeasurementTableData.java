@@ -347,6 +347,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			logger.warn("Requested measurement {} for null object! Returned empty String.", column);
 			return "";
 		}
+		// Measurement is missing
+		if (!pathObject.getMeasurementList().containsKey(column))
+			return null;
+		// Measurement is present (but could be NaN!)
 		double val = pathObject.getMeasurementList().get(column);
 		if (Double.isNaN(val))
 			return "NaN";
