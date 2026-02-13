@@ -39,8 +39,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.DoubleConsumer;
+import java.util.function.ObjDoubleConsumer;
 import java.util.function.Predicate;
 import java.util.zip.GZIPOutputStream;
 import org.apache.commons.lang3.Strings;
@@ -78,7 +78,7 @@ public class MeasurementExporter {
 	 */
 	private static final String DEFAULT_SEPARATOR = "\t";
 
-	private static final DoubleConsumer NULL_PROGRESS_MONITOR = d -> {};
+	private static final ObjDoubleConsumer<String> NULL_PROGRESS_MONITOR = (message, progress) -> {};
 
 	private List<String> includeOnlyColumns = new ArrayList<>();
 	private List<String> excludeColumns = new ArrayList<>(); // To be removed (may replace with general predicate)
@@ -97,7 +97,7 @@ public class MeasurementExporter {
 	
 	private List<ProjectImageEntry<BufferedImage>> imageList;
 
-	private DoubleConsumer progressMonitor = NULL_PROGRESS_MONITOR;
+	private ObjDoubleConsumer<String> progressMonitor = NULL_PROGRESS_MONITOR;
 	
 	public MeasurementExporter() {}
 
@@ -255,8 +255,20 @@ public class MeasurementExporter {
 	 * This is a consumer that takes a value between 0.0 (at the start) and 1.0 (export complete).
 	 * @param monitor the optional progress monitor
 	 * @return this exporter
+	 * @deprecated v0.7.0, use {@link #progressMonitor(ObjDoubleConsumer)} instead
 	 */
+	@Deprecated
 	public MeasurementExporter progressMonitor(DoubleConsumer monitor) {
+		return progressMonitor((message, progress) -> monitor.accept(progress));
+	}
+
+	/**
+	 * Set a progress monitor to be notified during export.
+	 * This is a consumer that takes a value between 0.0 (at the start) and 1.0 (export complete).
+	 * @param monitor the optional progress monitor
+	 * @return this exporter
+	 */
+	public MeasurementExporter progressMonitor(ObjDoubleConsumer<String> monitor) {
 		this.progressMonitor = monitor == null ? NULL_PROGRESS_MONITOR : monitor;
 		return this;
 	}
@@ -404,26 +416,45 @@ public class MeasurementExporter {
 			logger.warn("No images selected for export!");
 			return;
 		}
-		var monitor = new ProgressMonitor(imageList.size() + 1, progressMonitor);
-		long startTime = System.currentTimeMillis();
 
+		// For progress monitoring, we assume all images have the same weight -
+		// and add 1 unit of work for preparation to determine columns.
+		// (Note this could be improved by creating a weight for each image based upon object
+		// counts, determined during the preparation phase).
+		var monitor = progressMonitor == null ? NULL_PROGRESS_MONITOR : progressMonitor;
+		double currentWork = 0;
+		double totalWork = imageList.size() + 1;
+		monitor.accept("Preparing...", 0.0);
+
+		long startTime = System.currentTimeMillis();
 		var thread = Thread.currentThread();
 
 		try (TableWriter<PathObject> writer = createWriter(stream, separator)) {
 			writer.writeHeader();
 			for (var entry : imageList) {
 				checkInterrupted(thread);
+
+				String message = entry.getImageName();
+				monitor.accept(message, (++currentWork) / totalWork);
+
 				var table = loadTable(entry, type, filter, includeProjectMetadata);
-				for (var item : table.getItems()) {
+				var items = table.getItems();
+				double i = 0;
+				for (var item : items) {
 					checkInterrupted(thread);
 					writer.writeRow(table, item);
+
+					// Increment proportionately during long exports
+					if ((++i) % 1000 == 0) {
+						monitor.accept(message, (currentWork + i / (items.size() + 1)) / totalWork);
+					}
 				}
-				monitor.incrementProgress();
+
 			}
 		} catch (Exception e) {
 			throw new IOException("Error exporting measurements", e);
 		} finally {
-			monitor.complete();
+			monitor.accept("Export complete!", 1.0);
 		}
 		long endTime = System.currentTimeMillis();
 		long timeMillis = endTime - startTime;
@@ -629,27 +660,4 @@ public class MeasurementExporter {
 		}
 	}
 
-
-	private static class ProgressMonitor {
-
-		private final int n;
-		private final DoubleConsumer monitor;
-		private final AtomicInteger counter = new AtomicInteger();
-
-		private ProgressMonitor(int n, DoubleConsumer monitor) {
-			this.n = n;
-			this.monitor = monitor;
-		}
-
-		void incrementProgress() {
-			double val = (double)counter.incrementAndGet() / n;
-			monitor.accept(val);
-		}
-
-		void complete() {
-			counter.set(n);
-			monitor.accept(1.0);
-		}
-
-	}
 }

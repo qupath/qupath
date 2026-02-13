@@ -525,8 +525,10 @@ public class MeasurementExportCommand implements Runnable {
 			long startTime = System.currentTimeMillis();
 
 			try {
-				exporter.progressMonitor(p -> updateProgress(p, 1.0))
-						.exportMeasurements(new File(pathOut));
+				exporter.progressMonitor((message, p) -> {
+					updateMessage(message);
+					updateProgress(p, 1.0);
+				}).exportMeasurements(new File(pathOut));
 			} catch (IOException e) {
 				logger.error("Export failed", e);
 				Dialogs.showErrorMessage(
