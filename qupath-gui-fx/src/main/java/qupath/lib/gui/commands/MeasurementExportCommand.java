@@ -216,13 +216,22 @@ public class MeasurementExportCommand implements Runnable {
 		var btnChooseFile = new Button(getResourceString("Measurements.Export.chooseFile.button"));
 		btnChooseFile.setOnAction(this::handleChooseFileButtonClick);
 
+		var tooltipRow = new Tooltip(getResourceString("Measurements.Export.chooseFile.tooltip"));
+		var tooltipPath = new Tooltip();
+		tooltipPath.textProperty().bind(outputPathProperty);
+
 		var tfOutputPath = new TextField();
 		tfOutputPath.textProperty().bindBidirectional(outputPathProperty);
+		tfOutputPath.tooltipProperty().bind(
+				Bindings.when(outputPathProperty.isEmpty())
+						.then(tooltipRow)
+						.otherwise(tooltipPath));
+
 		tfOutputPath.setMaxWidth(Double.MAX_VALUE);
 		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
 
 		addGridPaneRow(pane,
-				new Tooltip(getResourceString("Measurements.Export.chooseFile.tooltip")),
+				tooltipRow,
 				getResourceString("Measurements.Export.chooseFile.label"),
 				tfOutputPath,
 				btnChooseFile);
@@ -266,8 +275,8 @@ public class MeasurementExportCommand implements Runnable {
 		});
 
 		addGridPaneRow(pane,
-				new Tooltip(getResourceString("Measurements.Export.separator.label")),
-				getResourceString("Measurements.Export.separator.tooltip"),
+				new Tooltip(getResourceString("Measurements.Export.separator.tooltip")),
+				getResourceString("Measurements.Export.separator.label"),
 				comboSeparator);
 	}
 
@@ -358,7 +367,7 @@ public class MeasurementExportCommand implements Runnable {
 	}
 
 	private static void installTooltipIfNeeded(Tooltip tooltip, Control control) {
-		if (tooltip != null && control.getTooltip() == null) {
+		if (tooltip != null && control.getTooltip() == null && !control.tooltipProperty().isBound()) {
 			control.setTooltip(tooltip);
 		}
 	}
