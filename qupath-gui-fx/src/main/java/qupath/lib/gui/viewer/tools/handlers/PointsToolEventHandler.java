@@ -23,10 +23,6 @@
 
 package qupath.lib.gui.viewer.tools.handlers;
 
-import java.awt.geom.Point2D;
-import java.util.ArrayList;
-import java.util.List;
-
 import javafx.scene.Cursor;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -44,6 +40,10 @@ import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.geom.Point2D;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * PathTool for adding points to point objects.

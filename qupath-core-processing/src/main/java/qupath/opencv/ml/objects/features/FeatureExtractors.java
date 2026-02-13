@@ -21,19 +21,18 @@
 
 package qupath.opencv.ml.objects.features;
 
-import java.util.List;
-
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
-
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.opencv.ml.objects.features.Preprocessing.PCAProjector;
+
+import java.util.List;
 
 /**
  * Helper class for extracting features from objects, used along with {@linkplain ObjectClassifier ObjectClassifiers}.

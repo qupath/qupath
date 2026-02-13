@@ -21,9 +21,9 @@
 
 package qupath.lib.gui.actions.menus;
 
-import java.util.List;
-
 import org.controlsfx.control.action.Action;
+
+import java.util.List;
 
 /**
  * Common interface to define the contents of a menu in terms of actions.

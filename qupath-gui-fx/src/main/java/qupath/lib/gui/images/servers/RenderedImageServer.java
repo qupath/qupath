@@ -21,18 +21,6 @@
 
 package qupath.lib.gui.images.servers;
 
-import java.awt.AlphaComposite;
-import java.awt.Color;
-import java.awt.image.BufferedImage;
-import java.awt.image.LookupOp;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
@@ -55,6 +43,18 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.awt.image.LookupOp;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * An ImageServer that can display a rendered image, with optional overlays.

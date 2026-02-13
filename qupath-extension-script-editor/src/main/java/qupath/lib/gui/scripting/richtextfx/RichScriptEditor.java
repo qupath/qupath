@@ -23,11 +23,10 @@
 
 package qupath.lib.gui.scripting.richtextfx;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.scene.control.ContextMenu;
 import javafx.scene.layout.Region;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.ScriptEditorControl;

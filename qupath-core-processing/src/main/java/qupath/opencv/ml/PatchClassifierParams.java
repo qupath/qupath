@@ -22,6 +22,23 @@
 
 package qupath.opencv.ml;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.classifiers.object.ObjectClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
+import qupath.lib.images.servers.ColorTransforms;
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.Padding;
+import qupath.opencv.dnn.DnnModel;
+import qupath.opencv.ml.pixel.PixelClassifiers;
+import qupath.opencv.ops.ImageOp;
+import qupath.opencv.ops.ImageOps;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,24 +47,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.classifiers.object.ObjectClassifier;
-import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.images.servers.ColorTransforms;
-import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.ColorTransforms.ColorTransform;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.regions.Padding;
-import qupath.opencv.dnn.DnnModel;
-import qupath.opencv.ml.pixel.PixelClassifiers;
-import qupath.opencv.ops.ImageOp;
-import qupath.opencv.ops.ImageOps;
 
 /**
  * Parameters required to build a classifier that operates on an image patch.

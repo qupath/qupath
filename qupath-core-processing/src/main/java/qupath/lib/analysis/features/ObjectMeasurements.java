@@ -21,17 +21,10 @@
 
 package qupath.lib.analysis.features;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
-
+import ij.process.ByteProcessor;
+import ij.process.ColorProcessor;
+import ij.process.FloatProcessor;
+import ij.process.ImageProcessor;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.commons.math3.stat.descriptive.StatisticalSummary;
 import org.locationtech.jts.algorithm.Area;
@@ -45,11 +38,6 @@ import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import ij.process.ByteProcessor;
-import ij.process.ColorProcessor;
-import ij.process.FloatProcessor;
-import ij.process.ImageProcessor;
 import qupath.imagej.tools.IJTools;
 import qupath.imagej.tools.PixelImageIJ;
 import qupath.lib.analysis.images.SimpleImage;
@@ -62,6 +50,17 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Experimental class to generate object measurements.

@@ -23,11 +23,11 @@
 
 package qupath.lib.analysis.features;
 
+import qupath.lib.analysis.images.SimpleImage;
+
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-
-import qupath.lib.analysis.images.SimpleImage;
 
 /**
  * Initial test implementation of Local Binary Patterns.

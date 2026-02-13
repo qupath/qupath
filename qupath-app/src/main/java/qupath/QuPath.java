@@ -23,21 +23,8 @@
 
 package qupath;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.ServiceLoader;
-import javax.script.ScriptException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import picocli.AutoComplete.GenerateCompletion;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -51,6 +38,7 @@ import qupath.lib.common.Version;
 import qupath.lib.gui.BuildInfo;
 import qupath.lib.gui.QuPathApp;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.extensions.Subcommand;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
@@ -71,6 +59,19 @@ import qupath.lib.scripting.QP;
 import qupath.lib.scripting.ScriptParameters;
 import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
+
+import javax.script.ScriptException;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.ServiceLoader;
 
 /**
  * Main QuPath launcher.
@@ -359,9 +360,15 @@ class ScriptCommand implements Runnable {
 			// Ensure we have a tile cache set
 			createTileCache();
 
-			// Load image server builders from extensions
-			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader()));
-			Thread.currentThread().setContextClassLoader(QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader());
+			// Load image server builders from extensions and install extensions in headless mode
+			ClassLoader extensionClassLoader = QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader();
+
+			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
+			Thread.currentThread().setContextClassLoader(extensionClassLoader);
+
+			for (QuPathExtension extension : ServiceLoader.load(QuPathExtension.class, extensionClassLoader)) {
+				extension.installHeadless();
+			}
 			
 			// Unfortunately necessary to force initialization (including GsonTools registration of some classes)
 			QP.getCoreClasses();

@@ -625,7 +625,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static IntegerProperty navigationSpeedProperty = createPersistentPreference("Navigation speed %", 100);
+	private static IntegerProperty navigationSpeedProperty = createPersistentPreference("Navigation speed %", 10);
 	
 	/**
 	 * Percentage to scale navigation speed.

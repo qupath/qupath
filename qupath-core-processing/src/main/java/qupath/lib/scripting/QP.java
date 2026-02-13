@@ -1068,7 +1068,7 @@ public class QP {
 			return null;
 		var selected = hierarchy.getSelectionModel().getSelectedObject();
 		if (selected == null && !hierarchy.getSelectionModel().noSelection())
-			logger.debug("getSelectedObject() is null because there is no primary selected object, "
+			logger.warn("getSelectedObject() is null because there is no primary selected object, "
 					+ "you might want getSelectedObjects() instead");
 		return selected;
 	}
@@ -4410,58 +4410,70 @@ public class QP {
 	}
 	
 	/**
-	 * Merge the specified annotations to create a new annotation containing the union of their ROIs.
+	 * Merge the specified annotations to create a new annotation containing the union of their ROIs. The new annotation
+	 * is then added to the provided hierarchy.
 	 * <p>
 	 * Note:
 	 * <ul>
-	 * <li>The existing annotations will be removed from the hierarchy if possible, therefore should be duplicated first 
-	 * if this is not desired.</li>
-	 * <li>The new object will be set to be the selected object in the hierarchy (which can be used to retrieve it if needed).</li>
+	 *     <li>
+	 *         The provided annotations that are used during the merge will be removed from the hierarchy if possible,
+	 *         therefore should be duplicated first if this is not desired.
+ 	 *     </li>
+	 *     <li>The new object will be set to be the selected object in the hierarchy (which can be used to retrieve it if needed).</li>
+	 *     <li>The ROIs of the provided annotations must all have the same {@link ImagePlane}, otherwise the operation will fail.</li>
+	 *     <li>If the provided annotations have the same {@link PathClass}, it will be applied to the created annotation.</li>
 	 * </ul>
 	 * 
-	 * @param hierarchy
-	 * @param annotations
+	 * @param hierarchy the hierarchy in which the merged annotation should be added
+	 * @param annotations the objects to merge. Only annotations with area or point ROI are taken into account
 	 * @return true if changes are made to the hierarchy, false otherwise
 	 */
 	public static boolean mergeAnnotations(final PathObjectHierarchy hierarchy, final Collection<PathObject> annotations) {
-		if (hierarchy == null)
+		if (hierarchy == null || annotations == null) {
+			logger.warn("The provided hierarchy or collection of annotations is null");
 			return false;
-		
-		// Get all the selected annotations with area
-		ROI shapeNew = null;
-		List<PathObject> merged = new ArrayList<>();
-		Set<PathClass> pathClasses = new HashSet<>();
-		for (PathObject annotation : annotations) {
-			if (annotation.isAnnotation() && annotation.hasROI() && (annotation.getROI().isArea() || annotation.getROI().isPoint())) {
-				if (shapeNew == null)
-					shapeNew = annotation.getROI();//.duplicate();
-				else if (shapeNew.getImagePlane().equals(annotation.getROI().getImagePlane()))
-					shapeNew = RoiTools.combineROIs(shapeNew, annotation.getROI(), RoiTools.CombineOp.ADD);
-				else {
-					logger.warn("Cannot merge ROIs across different image planes!");
-					return false;
-				}
-				if (annotation.getPathClass() != null)
-					pathClasses.add(annotation.getPathClass());
-				merged.add(annotation);
-			}
 		}
-		// Check if we actually merged anything
-		if (merged.isEmpty() || merged.size() == 1)
+
+		List<PathObject> annotationsToMerge = annotations.stream()
+				.filter(PathObject::isAnnotation)
+				.filter(PathObject::hasROI)
+				.filter(annotation -> annotation.getROI().isArea() || annotation.getROI().isPoint())
+				.toList();
+		if (annotationsToMerge.isEmpty()) {
+			logger.warn("No valid (i.e. area or point) annotation to merge");
 			return false;
-	
-		// Create and add the new object, removing the old ones
-		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
-		if (pathClasses.size() == 1)
-			pathObjectNew.setPathClass(pathClasses.iterator().next());
-		else
-			logger.warn("Cannot assign class unambiguously - " + pathClasses.size() + " classes represented in selection");
-		hierarchy.removeObjects(merged, true);
-		hierarchy.addObject(pathObjectNew);
-		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
-		//				pathObject.removePathObjects(children);
-		//				pathObject.addPathObject(pathObjectNew);
-		//				hierarchy.fireHierarchyChangedEvent(pathObject);
+		}
+
+		List<ImagePlane> imagePlanes = annotations.stream()
+				.map(annotation -> annotation.getROI().getImagePlane())
+				.distinct()
+				.toList();
+		if (imagePlanes.size() > 1) {
+			logger.warn("Cannot merge ROIs across different image planes! Got {}", imagePlanes);
+			return false;
+		}
+
+		PathObject mergedAnnotation = PathObjects.createAnnotationObject(RoiTools.union(
+				annotationsToMerge.stream().map(PathObject::getROI).toList()
+		));
+
+		List<PathClass> classifications = annotations.stream()
+				.map(PathObject::getPathClass)
+				.filter(Objects::nonNull)
+				.distinct()
+				.toList();
+		if (classifications.isEmpty()) {
+			logger.debug("No classification found in the provided annotations. The merged annotation will be unclassified");
+		} else if (classifications.size() == 1) {
+			mergedAnnotation.setPathClass(classifications.getFirst());
+		} else {
+			logger.warn("Cannot assign class unambiguously to merged annotation - {} represented in selection", classifications);
+		}
+
+		hierarchy.removeObjects(annotationsToMerge, true);
+		hierarchy.addObject(mergedAnnotation);
+		hierarchy.getSelectionModel().setSelectedObject(mergedAnnotation);
+
 		return true;
 	}
 

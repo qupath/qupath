@@ -23,8 +23,6 @@
 
 package qupath.lib.gui.scripting;
 
-import java.util.Objects;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.StringProperty;
@@ -32,6 +30,8 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.IndexRange;
 import javafx.scene.control.TextArea;
+
+import java.util.Objects;
 
 /**
  * Simple text area control (JavaFX) with basic operations and no styling support.

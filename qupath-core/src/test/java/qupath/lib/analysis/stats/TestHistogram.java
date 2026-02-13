@@ -21,8 +21,8 @@
 
 package qupath.lib.analysis.stats;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,8 +33,8 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
-import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 @SuppressWarnings("javadoc")
 public class TestHistogram {

@@ -21,6 +21,28 @@
 
 package qupath.opencv.ml.pixel;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.measurements.MeasurementList;
+import qupath.lib.measurements.MeasurementList.MeasurementListType;
+import qupath.lib.measurements.MeasurementListFactory;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -49,29 +71,6 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.TileRequest;
-import qupath.lib.measurements.MeasurementList;
-import qupath.lib.measurements.MeasurementList.MeasurementListType;
-import qupath.lib.measurements.MeasurementListFactory;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassTools;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.ROI;
  
 /**
  * Helper class to compute area-based measurements for regions of interest based on pixel classification.

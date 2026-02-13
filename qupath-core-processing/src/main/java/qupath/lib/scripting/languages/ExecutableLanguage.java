@@ -21,9 +21,9 @@
 
 package qupath.lib.scripting.languages;
 
-import javax.script.ScriptException;
-
 import qupath.lib.scripting.ScriptParameters;
+
+import javax.script.ScriptException;
 
 /**
  * Functional interface for scripting languages that are runnable (e.g. Groovy, JavaScript).

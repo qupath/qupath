@@ -23,28 +23,6 @@
 
 package qupath.lib.gui.commands;
 
-import java.io.IOException;
-import java.io.Writer;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import javax.script.Bindings;
-import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineFactory;
-import javax.script.ScriptEngineManager;
-import javax.script.SimpleScriptContext;
-
-import org.controlsfx.control.MasterDetailPane;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
@@ -85,14 +63,34 @@ import javafx.scene.text.Text;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import jfxtras.scene.layout.GridPane;
+import org.controlsfx.control.MasterDetailPane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.ObjectTreeBrowser;
 import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
+
+import javax.script.Bindings;
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineFactory;
+import javax.script.ScriptEngineManager;
+import javax.script.SimpleScriptContext;
+import java.io.IOException;
+import java.io.Writer;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 
 /**

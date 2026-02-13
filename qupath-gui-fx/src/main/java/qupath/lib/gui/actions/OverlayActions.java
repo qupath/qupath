@@ -23,7 +23,6 @@
 package qupath.lib.gui.actions;
 
 import org.controlsfx.control.action.Action;
-
 import qupath.lib.gui.SelectableItem;
 import qupath.lib.gui.actions.annotations.ActionAccelerator;
 import qupath.lib.gui.actions.annotations.ActionConfig;

@@ -23,6 +23,11 @@
 
 package qupath.lib.color;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.color.StainVector.DefaultStains;
+import qupath.lib.common.GeneralTools;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -39,12 +44,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.StringTokenizer;
 import java.util.stream.IntStream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.color.StainVector.DefaultStains;
-import qupath.lib.common.GeneralTools;
 
 
 /**

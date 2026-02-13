@@ -21,14 +21,6 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.geom.AffineTransform;
-import java.awt.geom.NoninvertibleTransformException;
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
@@ -36,6 +28,14 @@ import qupath.lib.images.servers.transforms.BufferedImageNormalizer;
 import qupath.lib.images.servers.transforms.ColorDeconvolutionNormalizer;
 import qupath.lib.images.servers.transforms.SubtractOffsetAndScaleNormalizer;
 import qupath.lib.regions.ImageRegion;
+
+import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Helper class for creating an {@link ImageServer} that applies one or more transforms to another (wrapped) {@link ImageServer}.
@@ -331,6 +331,17 @@ public class TransformedServerBuilder {
 	 */
 	public TransformedServerBuilder rotate(Rotation rotation) {
 		server = new RotatedImageServer(server, rotation);
+		return this;
+	}
+
+	/**
+	 * Flip the image.
+	 *
+	 * @param flip the type of flip to apply
+	 * @return this image
+	 */
+	public TransformedServerBuilder flip(FlippedImageServer.Flip flip) {
+		server = new FlippedImageServer(server, flip);
 		return this;
 	}
 	

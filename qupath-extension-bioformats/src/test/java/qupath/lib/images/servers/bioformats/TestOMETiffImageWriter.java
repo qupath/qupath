@@ -21,9 +21,9 @@
 
 package qupath.lib.images.servers.bioformats;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.Test;
+import qupath.lib.images.writers.ImageWriter;
+import qupath.lib.images.writers.ome.OMETiffWriter;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -32,10 +32,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.images.writers.ImageWriter;
-import qupath.lib.images.writers.ome.OMETiffWriter;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings("javadoc")
 public class TestOMETiffImageWriter {

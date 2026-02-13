@@ -23,20 +23,6 @@
 
 package qupath.lib.gui.viewer.recording;
 
-import java.awt.image.BufferedImage;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-import org.controlsfx.control.RangeSlider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -75,24 +61,38 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.converter.DateTimeStringConverter;
+import org.controlsfx.control.RangeSlider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.ColorMapCanvas;
 import qupath.lib.gui.QuPathGUI;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay.LocationStringFunction;
-import qupath.lib.gui.viewer.recording.ViewTrackerDataMaps.Feature;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
+import qupath.lib.gui.viewer.recording.ViewTrackerDataMaps.Feature;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.plugins.parameters.ParameterList;
+
+import java.awt.image.BufferedImage;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * Command to export view tracking information.

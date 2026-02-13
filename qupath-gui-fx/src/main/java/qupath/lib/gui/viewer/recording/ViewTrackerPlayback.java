@@ -23,35 +23,32 @@
 
 package qupath.lib.gui.viewer.recording;
 
-import java.awt.Dimension;
-import java.awt.Rectangle;
-import java.awt.geom.Point2D;
-
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.ReadOnlyLongProperty;
-import javafx.beans.property.ReadOnlyLongWrapper;
-import javafx.beans.property.SimpleLongProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.animation.Animation;
 import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyLongProperty;
+import javafx.beans.property.ReadOnlyLongWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.stage.Window;
 import javafx.util.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.Dimension;
+import java.awt.Rectangle;
+import java.awt.geom.Point2D;
 
 /**
  * Controller for playback for view tracking data.

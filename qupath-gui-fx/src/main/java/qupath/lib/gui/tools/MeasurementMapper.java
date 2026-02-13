@@ -23,14 +23,14 @@
 
 package qupath.lib.gui.tools;
 
-import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
+
+import java.util.Collection;
 
 /**
  * Helpers class that can be used to map an object's measurement to a color (packed RGB int).

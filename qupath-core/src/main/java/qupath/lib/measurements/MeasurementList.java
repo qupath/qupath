@@ -23,14 +23,13 @@
 
 package qupath.lib.measurements;
 
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import org.slf4j.LoggerFactory;
 
 /**
  * Interface defining a feature measurement list, consisting of key value pairs.

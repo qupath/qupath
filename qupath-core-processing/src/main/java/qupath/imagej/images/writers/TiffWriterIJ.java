@@ -23,13 +23,13 @@
 
 package qupath.imagej.images.writers;
 
+import ij.ImagePlus;
+import ij.io.FileSaver;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collection;
-
-import ij.ImagePlus;
-import ij.io.FileSaver;
 
 /**
  * ImageWriter implementation to write TIFF images using ImageJ.

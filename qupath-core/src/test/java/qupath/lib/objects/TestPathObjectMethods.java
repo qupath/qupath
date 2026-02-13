@@ -23,16 +23,17 @@
 
 package qupath.lib.objects;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import qupath.lib.measurements.MeasurementList;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.roi.interfaces.ROI;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
 import java.util.HashSet;
-import qupath.lib.measurements.MeasurementList;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.roi.interfaces.ROI;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * These tests are actually called from other classes.

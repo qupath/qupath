@@ -24,11 +24,13 @@
 
 package qupath.lib.common;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
+import qupath.lib.objects.classes.PathClass;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -50,14 +52,11 @@ import java.util.Scanner;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
-import qupath.lib.objects.classes.PathClass;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("javadoc")
 public class TestGeneralTools {

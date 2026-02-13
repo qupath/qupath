@@ -23,13 +23,13 @@
 
 package qupath.imagej.processing;
 
-import java.util.ArrayDeque;
-import java.util.PriorityQueue;
-
 import ij.IJ;
 import ij.plugin.filter.EDM;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+
+import java.util.ArrayDeque;
+import java.util.PriorityQueue;
 
 /**
  * Implementation of 2D watershed transform for ImageJ.

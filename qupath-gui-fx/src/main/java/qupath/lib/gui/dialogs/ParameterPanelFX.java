@@ -23,21 +23,6 @@
 
 package qupath.lib.gui.dialogs;
 
-import java.math.BigInteger;
-import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Locale.Category;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
 import javafx.embed.swing.JFXPanel;
 import javafx.geometry.Insets;
@@ -56,8 +41,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
-import qupath.lib.common.GeneralTools;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ChoiceParameter;
 import qupath.lib.plugins.parameters.DoubleParameter;
@@ -68,6 +55,18 @@ import qupath.lib.plugins.parameters.Parameter;
 import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.parameters.StringParameter;
+
+import java.math.BigInteger;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Locale.Category;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * A panel for displaying a list of parameters suitably to aid with creating JavaFX GUIs.

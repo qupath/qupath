@@ -21,12 +21,6 @@
 
 package qupath.process.gui.commands.ml;
 
-import java.awt.image.BufferedImage;
-import java.lang.ref.WeakReference;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-
 import qupath.lib.display.ChannelDisplayMode;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
@@ -35,6 +29,12 @@ import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
+
+import java.awt.image.BufferedImage;
+import java.lang.ref.WeakReference;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 class FeatureRenderer extends AbstractImageRenderer {
 		

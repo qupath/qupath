@@ -21,16 +21,16 @@
 
 package qupath.opencv.tools;
 
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.servers.PixelCalibration;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_imgproc;
-import org.bytedeco.opencv.opencv_core.Mat;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.servers.PixelCalibration;
 
 /**
  * Methods to normalize the local image intensity within an image, to have (approximately) zero mean and unit variance.

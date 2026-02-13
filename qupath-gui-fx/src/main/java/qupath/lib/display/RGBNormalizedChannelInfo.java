@@ -21,11 +21,11 @@
 
 package qupath.lib.display;
 
-import java.awt.image.BufferedImage;
-
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
+
+import java.awt.image.BufferedImage;
 
 /**
  * Class for displaying RGB image after normalizing RGB optical densities, and thresholding unstained pixels.

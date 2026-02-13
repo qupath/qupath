@@ -21,11 +21,6 @@
 
 package qupath.lib.gui.tools;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.stream.Collectors;
-
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Control;
@@ -42,7 +37,11 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.common.LogTools;
-import qupath.lib.gui.dialogs.Dialogs;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 /**
  * Assorted static functions to help when working with a JavaFX panes.

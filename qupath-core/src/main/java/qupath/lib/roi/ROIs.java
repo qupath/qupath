@@ -23,16 +23,15 @@
 
 package qupath.lib.roi;
 
-import java.awt.Shape;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import org.locationtech.jts.geom.Geometry;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.Shape;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * This class consists exclusively of static methods that operate on or return regions of interest (ROIs).

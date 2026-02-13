@@ -22,13 +22,13 @@
 
 package qupath.opencv.dnn;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Placeholder for the future, in case a default DnnModel implementation is useful.

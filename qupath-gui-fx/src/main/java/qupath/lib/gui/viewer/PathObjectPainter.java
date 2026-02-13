@@ -23,6 +23,40 @@
 
 package qupath.lib.gui.viewer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.analysis.DelaunayTools;
+import qupath.lib.awt.common.AwtTools;
+import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.common.LogTools;
+import qupath.lib.geom.Point2;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.MeasurementMapper;
+import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnectionGroup;
+import qupath.lib.objects.PathObjectConnections;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.objects.hierarchy.TMAGrid;
+import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
+import qupath.lib.plugins.ParallelTileObject;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.EllipseROI;
+import qupath.lib.roi.LineROI;
+import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.RoiEditor;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -51,41 +85,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.analysis.DelaunayTools;
-import qupath.lib.awt.common.AwtTools;
-import qupath.lib.color.ColorToolsAwt;
-import qupath.lib.common.LogTools;
-import qupath.lib.geom.Point2;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.lib.gui.tools.MeasurementMapper;
-import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathDetectionObject;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectConnectionGroup;
-import qupath.lib.objects.PathObjectConnections;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassTools;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.objects.hierarchy.TMAGrid;
-import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
-import qupath.lib.plugins.ParallelTileObject;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.EllipseROI;
-import qupath.lib.roi.LineROI;
-import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.PointsROI;
-import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.RoiEditor;
-import qupath.lib.roi.interfaces.ROI;
 
 
 /**

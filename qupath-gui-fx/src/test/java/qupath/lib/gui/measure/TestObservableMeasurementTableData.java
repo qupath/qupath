@@ -23,13 +23,7 @@
 
 package qupath.lib.gui.measure;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.awt.image.BufferedImage;
-import java.util.Collections;
-
 import org.junit.jupiter.api.Test;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.objects.PathObject;
@@ -39,6 +33,12 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.image.BufferedImage;
+import java.util.Collections;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Some tests for observable measurements.

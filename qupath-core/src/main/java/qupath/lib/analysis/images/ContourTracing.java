@@ -22,6 +22,26 @@
 
 package qupath.lib.analysis.images;
 
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.operation.polygonize.Polygonizer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.interfaces.ROI;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
@@ -47,26 +67,6 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.operation.polygonize.Polygonizer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ImageServers;
-import qupath.lib.images.servers.TileRequest;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.GeometryTools;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Class to convert labelled images to Geometry objects, ROIs and PathObjects.

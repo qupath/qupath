@@ -21,9 +21,9 @@
 
 package qupath.lib.gui.scripting.syntax;
 
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.scripting.EditableText;
 
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
@@ -33,11 +33,9 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.gui.scripting.EditableText;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.Set;
 
 /**
  * Class that takes care of XML syntax.

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,6 +22,83 @@
  */
 
 package qupath.lib.gui.panes;
+
+import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Insets;
+import javafx.geometry.Side;
+import javafx.scene.Node;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
+import javafx.scene.control.TreeCell;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import org.controlsfx.control.MasterDetailPane;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.control.action.ActionUtils;
+import org.controlsfx.control.textfield.TextFields;
+import org.controlsfx.glyphfont.FontAwesome;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.controls.PredicateTextField;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.commands.ProjectCommands;
+import qupath.lib.gui.panes.ProjectTreeRow.ImageRow;
+import qupath.lib.gui.panes.ProjectTreeRow.MetadataRow;
+import qupath.lib.gui.panes.ProjectTreeRow.Type;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.gui.tools.IconFactory.PathIcons;
+import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.io.UriUpdater;
+import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.Desktop;
 import java.awt.Graphics2D;
@@ -43,91 +120,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.scene.Node;
-import javafx.scene.control.RadioMenuItem;
-import javafx.scene.control.ToggleButton;
-import javafx.scene.control.ToggleGroup;
-import javafx.scene.layout.HBox;
-import org.controlsfx.control.MasterDetailPane;
-import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionUtils;
-import org.controlsfx.control.textfield.TextFields;
-import org.controlsfx.glyphfont.FontAwesome;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.DoubleBinding;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.geometry.Insets;
-import javafx.geometry.Side;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SelectionMode;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
-import javafx.scene.control.TitledPane;
-import javafx.scene.control.Tooltip;
-import javafx.scene.control.TreeCell;
-import javafx.scene.control.TreeItem;
-import javafx.scene.control.TreeView;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.input.KeyCode;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
-import qupath.fx.controls.PredicateTextField;
-import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.commands.ProjectCommands;
-import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.panes.ProjectTreeRow.ImageRow;
-import qupath.lib.gui.panes.ProjectTreeRow.MetadataRow;
-import qupath.lib.gui.panes.ProjectTreeRow.Type;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.IconFactory;
-import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.lib.gui.tools.MenuTools;
-import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.io.UriUpdater;
-import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectImageEntry;
 
 /**
  * Component for previewing and selecting images within a project.
@@ -148,25 +147,26 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	private int thumbnailWidth = 1000;
 	private int thumbnailHeight = 600;
 
-	private QuPathGUI qupath;
-	private BorderPane panel;
+	private final QuPathGUI qupath;
+	private final BorderPane panel;
 
 	private ProjectImageTreeModel model = new ProjectImageTreeModel(null);
-	private TreeView<ProjectTreeRow> tree;
+	private final TreeView<ProjectTreeRow> tree;
+	private final PredicateTextField<String> tfFilter;
 
-	 // Keep a record of servers that failed- don't want to keep putting in thumbnails requests if the server is unavailable.
-	private Set<ProjectTreeRow> serversFailed = Collections.synchronizedSet(new HashSet<>());
-	
-	private StringProperty descriptionText = new SimpleStringProperty();
+	 // Keep a record of servers that failed - don't want to keep putting in thumbnails requests if the server is unavailable.
+	private final Set<ProjectTreeRow> serversFailed = Collections.synchronizedSet(new HashSet<>());
+
+	private final StringProperty descriptionText = new SimpleStringProperty();
 
 	// Predicate for filtering tree rows
-	private ObjectProperty<Predicate<String>> predicateProperty = new SimpleObjectProperty<>(s -> true);
+	private final ObjectProperty<Predicate<ProjectImageEntry<?>>> predicateProperty = new SimpleObjectProperty<>(s -> true);
 
-	private static ObjectProperty<ProjectThumbnailSize> thumbnailSize = PathPrefs.createPersistentPreference("projectThumbnailSize",
+	private static final ObjectProperty<ProjectThumbnailSize> thumbnailSize = PathPrefs.createPersistentPreference("projectThumbnailSize",
 			ProjectThumbnailSize.SMALL, ProjectThumbnailSize.class);
 	
 	// Record if the context menu is showing; this is to block a tooltip obscuring it
-	private BooleanProperty contextMenuShowing = new SimpleBooleanProperty();
+	private final BooleanProperty contextMenuShowing = new SimpleBooleanProperty();
 	
 	/**
 	 * Metadata keys that will always be present
@@ -289,12 +289,18 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		titledTree.setMaxHeight(Double.MAX_VALUE);
 		
 		
-		var tfFilter = new PredicateTextField<String>();
+		this.tfFilter = new PredicateTextField<String>();
 		tfFilter.setPromptText("Search entry in project");
 		tfFilter.setSpacing(0.0);
 		var tooltip = new Tooltip("Type some text to filter the project entries by name or type.");
 		Tooltip.install(tfFilter, tooltip);
-		predicateProperty.bind(tfFilter.predicateProperty());
+		predicateProperty.bind(Bindings.createObjectBinding(() -> {
+			if (tfFilter.useRegexProperty().get())
+				return (ProjectImageEntry<?> e) -> e != null && tfFilter.predicateProperty().get().test(e.getImageName());
+			else {
+				return ProjectEntryPredicate.createIgnoreCase(tfFilter.getText());
+			}
+		}, tfFilter.useRegexProperty(), tfFilter.textProperty(), tfFilter.predicateProperty()));
 		predicateProperty.addListener((m, o, n) -> refreshTree(null));
 		
 		var paneUserFilter = GridPaneUtils.createRowGrid(tfFilter);
@@ -592,7 +598,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		try {
 			project.syncChanges();
 		} catch (Exception ex) {
-			logger.error("Error synchronizing project changes: " + ex.getLocalizedMessage(), ex);
+            logger.error("Error synchronizing project changes: {}", ex.getMessage(), ex);
 		}
 		refreshProject();
 		if (imageRows.size() == 1)
@@ -619,7 +625,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		if (project != null && !imageRows.isEmpty()) {
 			TextField tfMetadataKey = new TextField();
 			var suggestions = project.getImageList().stream()
-					.map(p -> p.getMetadataKeys())
+					.map(p -> p.getMetadata().keySet())
 					.flatMap(Collection::stream)
 					.distinct()
 					.sorted()
@@ -635,7 +641,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			tfMetadataValue.setTooltip(new Tooltip("Enter the value for the metadata entry"));
 
 			ProjectImageEntry<BufferedImage> entry = imageRows.size() == 1 ? ProjectTreeRow.getEntry(imageRows.iterator().next()) : null;
-			int nMetadataValues = entry == null ? 0 : entry.getMetadataKeys().size();
+			int nMetadataValues = entry == null ? 0 : entry.getMetadata().size();
 
 			GridPane pane = new GridPane();
 			pane.setVgap(5);
@@ -704,9 +710,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		if (project != null) {
 			for (ProjectImageEntry<?> entry : project.getImageList()) {
 				// Add all entry metadata keys
-				for (String key : entry.getMetadataKeys()) {
-					if (!newItems.containsKey(key))
-						newItems.put(key, ActionUtils.createMenuItem(createSortByKeyAction(key, key)));
+				for (String key : entry.getMetadata().keySet()) {
+					if (!newItems.containsKey(key)) {
+						var item = ActionUtils.createMenuItem(createSortByKeyAction(key, key));
+						item.setMnemonicParsing(false);
+						newItems.put(key, item);
+					}
 				}
 			}
 		}
@@ -830,6 +839,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		this.project = project;
 		ProjectTreeRowCell.resetUriStatus();
+		tfFilter.textProperty().set("");
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRoot());
 		tree.getRoot().setExpanded(true);
@@ -845,7 +855,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	 */
 	public void refreshProject() {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> refreshProject());
+			Platform.runLater(this::refreshProject);
 			return;
 		}
 		refreshTree(null);
@@ -872,7 +882,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					logger.info("Copying ImageData to {}", entry);
 					entry.saveImageData(imageData);
 				} catch (IOException e) {
-					logger.error("Unable to save ImageData: " + e.getLocalizedMessage(), e);
+                    logger.error("Unable to save ImageData: {}", e.getMessage(), e);
 				}
 			}
 			qupath.refreshProject();
@@ -930,17 +940,6 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	private ImageData<BufferedImage> getCurrentImageData() {
 		return qupath.getViewer().getImageData();
 	}
-
-//	File getBaseDirectory() {
-//		return Projects.getBaseDirectory(project);
-//	}
-//
-//	File getProjectFile() {
-//		File dirBase = getBaseDirectory();
-//		if (dirBase == null || !dirBase.isDirectory())
-//			return null;
-//		return new File(dirBase, "project" + ProjectIO.getProjectExtension());
-//	}
 
 	private boolean isCurrentImage(final ProjectImageEntry<BufferedImage> entry) {
 		ImageData<BufferedImage> imageData = getCurrentImageData();
@@ -1042,7 +1041,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			var URIs = entry.getURIs();
 			var it = URIs.iterator();
 			
-			if (URIs.size() == 0)
+			if (URIs.isEmpty())
 				return UNDEFINED_VALUE;
 			
 			if (URIs.size() == 1) {
@@ -1050,7 +1049,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				String fullURI = uri.getPath();
 				if (uri.getAuthority() != null)
 					return "[remote] " + uri.getAuthority() + fullURI;
-				return fullURI.substring(fullURI.lastIndexOf("/")+1, fullURI.length());
+				return fullURI.substring(fullURI.lastIndexOf("/")+1);
 			}
 			return "Multiple URIs";
 		} else if (key.equals(BaseMetadataKeys.IMAGE_NAME.getKey())) {
@@ -1058,7 +1057,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		}  else if (key.equals(BaseMetadataKeys.ENTRY_ID.getKey())) {
 			return entry.getID();
 		}
-		var value = entry.getMetadataValue(key);
+		var value = entry.getMetadata().get(key);
 		return value == null ? UNASSIGNED_NODE : value;
 	}
 	
@@ -1074,26 +1073,26 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			
 			try {
 				var listOfChildren = tree.getRoot().getChildren();
-				for (int i = 0; i < listOfChildren.size(); i++) {
-					if (imageToSelect == null) {
-						if (listOfChildren.get(i).getChildren().size() > 0) {
-							listOfChildren.get(i).setExpanded(true);
-							tree.refresh();
-							break;
-						}							
-					} else {
-						for (var child: listOfChildren) {
-							if (child.getValue().getType() == Type.METADATA) {
-								for (var imageChild: child.getChildren()) {
-									if (imageChild.getValue().equals(imageToSelect)) {
-										child.setExpanded(true);
-										tree.getSelectionModel().select(imageChild);
-										break;
-									}
-								}
-							} else if (child.getValue().equals(imageToSelect))
-								tree.getSelectionModel().select(child);
+				// When filtering (imageToSelect is null), expand all matching group nodes
+				if (imageToSelect == null) {
+					for (var child : listOfChildren) {
+						if (!child.getChildren().isEmpty()) {
+							child.setExpanded(true);
 						}
+					}
+				} else {
+					// If a specific image is requested, expand only its parent group and select it
+					for (var child: listOfChildren) {
+						if (child.getValue().getType() == Type.METADATA) {
+							for (var imageChild: child.getChildren()) {
+								if (imageChild.getValue().equals(imageToSelect)) {
+									child.setExpanded(true);
+									tree.getSelectionModel().select(imageChild);
+									break;
+								}
+							}
+						} else if (child.getValue().equals(imageToSelect))
+							tree.getSelectionModel().select(child);
 					}
 				}
 			} catch (Exception ex) {
@@ -1168,10 +1167,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	
 	
 	/**
-	 * The the name for a specified ProjectImageEntry.
-	 * 
+	 * The name for a specified ProjectImageEntry.
 	 * This works hard to do its job... including renaming any data files accordingly.
-	 * 
 	 * @param entry
 	 * @param name
 	 * @return
@@ -1243,18 +1240,18 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
 	private class ProjectTreeRowCell extends TreeCell<ProjectTreeRow> {
 		
-		private Tooltip tooltip = new Tooltip();
+		private final Tooltip tooltip = new Tooltip();
 
 		private Node missingGraphic;
 
-		private StackPane viewPane = new StackPane();
-		private Canvas viewCanvas = new Canvas();
-		private ImageView viewTooltip = new ImageView();
+		private final StackPane viewPane = new StackPane();
+		private final Canvas viewCanvas = new Canvas();
+		private final ImageView viewTooltip = new ImageView();
 
 		private ProjectTreeRow objectCell = null;
-		private BooleanProperty showTooltip = new SimpleBooleanProperty();
+		private final BooleanProperty showTooltip = new SimpleBooleanProperty();
 
-		private BooleanProperty urisMissing = new SimpleBooleanProperty(false);
+		private final BooleanProperty urisMissing = new SimpleBooleanProperty(false);
 
 		/**
 		 * Cache whether or not URIs refer to missing files.
@@ -1263,7 +1260,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		 * This means that, if the file was deleted or moved later, the user will need to refresh the project to see
 		 * the change.
 		 */
-		private static Map<URI, UriUpdater.UriStatus> uriStatus = new ConcurrentHashMap<>();
+		private static final Map<URI, UriUpdater.UriStatus> uriStatus = new ConcurrentHashMap<>();
 
 		/**
 		 * Reset the cache of URI statuses (called when a new project is opened).
@@ -1272,11 +1269,11 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			uriStatus.clear();
 		}
 
-		private DoubleBinding viewWidth = Bindings.createDoubleBinding(
+		private final DoubleBinding viewWidth = Bindings.createDoubleBinding(
 				() -> thumbnailSize.get().getWidth(),
 				thumbnailSize);
 
-		private DoubleBinding viewHeight = Bindings.createDoubleBinding(
+		private final DoubleBinding viewHeight = Bindings.createDoubleBinding(
 				() -> thumbnailSize.get().getHeight(),
 				thumbnailSize);
 		
@@ -1455,7 +1452,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
             return switch (getValue().getType()) {
                 case ROOT -> project != null && !project.getImageList().isEmpty() && project.getImageList().stream()
-                        .noneMatch(entry -> predicateProperty.get().test(entry.getImageName()));
+                        .noneMatch(entry -> predicateProperty.get().test(entry));
                 case METADATA -> false;
                 case IMAGE -> true;
                 default ->
@@ -1477,7 +1474,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					
 					if (metadataKey == null) {
 						for (var row: getAllImageRows()) {
-							if (!filter.test(row.getDisplayableString()))
+							if (!filter.test(row.getEntry()))
 								continue;
 							children.add(new ProjectTreeRowItem(row));
 						}
@@ -1509,7 +1506,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						break;
 					
 					for (var row: getAllImageRows()) {
-						if (!filter.test(row.getDisplayableString()))
+						if (!filter.test(row.getEntry()))
 							continue;
 						try {
 							var value = getDefaultValue(ProjectTreeRow.getEntry(row), metadataKey);
@@ -1534,53 +1531,38 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	enum ProjectThumbnailSize {
 		HIDDEN, SMALL, MEDIUM, LARGE;
 
-		private static int hiddenSize = 20;
+		private static final int hiddenSize = 20;
 
-		private double defaultHeight = 40;
-		private double defaultWidth = 50;
+		private final double defaultHeight = 40;
+		private final double defaultWidth = 50;
 		
 		@Override
 		public String toString() {
-			switch(this) {
-			case HIDDEN:
-				return "Hidden";
-			case LARGE:
-				return "Large";
-			case MEDIUM:
-				return "Medium";
-			case SMALL:
-				return "Small";
-			default:
-				return super.toString();
-			}
+            return switch (this) {
+                case HIDDEN -> "Hidden";
+                case LARGE -> "Large";
+                case MEDIUM -> "Medium";
+                case SMALL -> "Small";
+                default -> super.toString();
+            };
 		}
 		
 		public double getWidth() {
-			switch(this) {
-			case LARGE:
-				return defaultWidth * 3.0;
-			case MEDIUM:
-				return defaultWidth * 2.0;
-			case HIDDEN:
-				return hiddenSize;
-			case SMALL:
-			default:
-				return defaultWidth;
-			}
+            return switch (this) {
+                case LARGE -> defaultWidth * 3.0;
+                case MEDIUM -> defaultWidth * 2.0;
+                case HIDDEN -> hiddenSize;
+                default -> defaultWidth;
+            };
 		}
 		
 		public double getHeight() {
-			switch(this) {
-			case LARGE:
-				return defaultHeight * 3.0;
-			case MEDIUM:
-				return defaultHeight * 2.0;
-			case HIDDEN:
-				return hiddenSize;
-			case SMALL:
-			default:
-				return defaultHeight;
-			}
+            return switch (this) {
+                case LARGE -> defaultHeight * 3.0;
+                case MEDIUM -> defaultHeight * 2.0;
+                case HIDDEN -> hiddenSize;
+                default -> defaultHeight;
+            };
 		}
 	}
 }

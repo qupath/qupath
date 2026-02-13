@@ -22,7 +22,6 @@
 package qupath.lib.extension.svg;
 
 import org.controlsfx.control.action.Action;
-
 import qupath.lib.common.Version;
 import qupath.lib.extension.svg.SvgExportCommand.SvgExportType;
 import qupath.lib.gui.QuPathGUI;

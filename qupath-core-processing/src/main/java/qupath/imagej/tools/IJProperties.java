@@ -6,14 +6,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.interfaces.ROI;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Store QuPath-related information within the properties of ImageJ objects.
@@ -62,7 +71,7 @@ public class IJProperties {
 
 
     /**
-     * Set the {@code IMAGE_REGION} property as a string representation of the region's bounding box.
+     * Set the IMAGE_REGION_ROOT property as a string representation of the region's bounding box.
      * <p>
      * This also stores additional properties under {@code "qupath.image.region.x"}, {@code "qupath.image.region.y"},
      * {@code "qupath.image.region.width"} and {@code "qupath.image.region.height"} to encode the values separately,
@@ -89,6 +98,11 @@ public class IJProperties {
         return prop;
     }
 
+    /**
+     * Get the IMAGE_REGION_ROOT property, if set.
+     * @param imp
+     * @return the image region stored in the image properties, or null if a valid region could not be found
+     */
     public static ImageRegion getImageRegion(ImagePlus imp) {
         String sx = imp.getProp(IMAGE_REGION_ROOT + "x");
         String sy = imp.getProp(IMAGE_REGION_ROOT + "y");
@@ -190,8 +204,10 @@ public class IJProperties {
      */
     public static final String OBJECT_NAME = "qupath.object.name";
 
-    // TODO: Support object type as a property
-//    public static final String OBJECT_TYPE = "qupath.object.type";
+    /**
+     * Set property that stores the type of an object.
+     */
+    public static final String OBJECT_TYPE = "qupath.object.type";
 
     /**
      * Set property for {@link PathObject#getID()} ()}
@@ -205,6 +221,15 @@ public class IJProperties {
      */
     public static final String OBJECT_MEASUREMENT_ROOT = "qupath.object.measurements.";
 
+    /**
+     * Property to store the name for a {@link Roi}.
+     * The purpose of this is to allow QuPath to set the name of a {@code Roi} for processing within ImageJ,
+     * but then identify whether that name has been changed within ImageJ or not.
+     * <p>
+     * It addresses the problem of figuring out when the name of a {@code Roi} should be used to update a QuPath
+     * object (because the name was intentionally set elsewhere), and when it should not.
+     */
+    public static final String DEFAULT_ROI_NAME = "qupath.default.roi.name";
 
     /**
      * Set a property storing a QuPath object classification within a specified Roi.
@@ -269,9 +294,40 @@ public class IJProperties {
     }
 
     /**
+     * Set the value of the DEFAULT_ROI_NAME property.
+     * @param roi the roi
+     * @param name the name to set
+     * @return the name that was set
+     */
+    public static String setDefaultRoiName(Roi roi, String name) {
+        roi.setProperty(DEFAULT_ROI_NAME, name);
+        return name;
+    }
+
+    /**
+     * Get the value of the DEFAULT_ROI_NAME property.
+     * @param roi the roi to query
+     * @return the value of the property, or null if no value is found
+     */
+    public static String getDefaultRoiName(Roi roi) {
+        return roi.getProperty(DEFAULT_ROI_NAME);
+    }
+
+    /**
+     * Check whether the name of a Roi matches any (non-null) value of DEFAULT_ROI_NAME.
+     * @param roi the roi to query
+     * @return true if the default Roi name is not null, and matches the name of the Roi
+     */
+    public static boolean hasDefaultRoiName(Roi roi) {
+        var defaultName = getDefaultRoiName(roi);
+        return defaultName != null && defaultName.equals(roi.getName());
+    }
+
+    /**
      * Set a property storing a QuPath object ID within a specified Roi.
      * @param roi the roi with the property to set
      * @param pathObject the object whose ID should be stored
+     * @return a string representation of the object id
      * @see #OBJECT_ID
      */
     public static String setObjectId(Roi roi, PathObject pathObject) {
@@ -282,6 +338,7 @@ public class IJProperties {
      * Set a property storing a QuPath object ID within a specified Roi.
      * @param roi the roi with the property to set
      * @param id the id value
+     * @return a string representation of the object id
      * @see #OBJECT_ID
      */
     public static String setObjectId(Roi roi, UUID id) {
@@ -304,6 +361,126 @@ public class IJProperties {
             logger.warn("Invalid object ID in Roi: {}", id);
             return null;
         }
+    }
+
+
+    /**
+     * Set a property storing the type of an object (e.g. annotation, detection, cell),
+     * optionally appending an additional string.
+     * @param roi the roi with the property to set
+     * @param pathObject the object whose type should be set
+     * @return a string representation of the object type
+     * @see #OBJECT_TYPE
+     */
+    public static String setObjectType(Roi roi, PathObject pathObject) {
+        return switch (pathObject) {
+            case PathAnnotationObject _ -> setObjectTypeAnnotation(roi);
+            case PathCellObject _ -> setObjectTypeCell(roi);
+            case PathTileObject _ -> setObjectTypeTile(roi);
+            case PathDetectionObject _ -> setObjectTypeDetection(roi);
+            case PathRootObject _ -> setObjectType(roi, "root");
+            case null, default -> null;
+        };
+    }
+
+    /**
+     * Set the object type property of a Roi to indicate it should be an annotation in QuPath.
+     * @param roi the ImageJ roi
+     * @return the string representing the object type
+     */
+    public static String setObjectTypeAnnotation(Roi roi) {
+        return setObjectType(roi, "annotation");
+    }
+
+    /**
+     * Set the object type property of a Roi to indicate it should be an detection in QuPath.
+     * @param roi the ImageJ roi
+     * @return the string representing the object type
+     */
+    public static String setObjectTypeDetection(Roi roi) {
+        return setObjectType(roi, "detection");
+    }
+
+    /**
+     * Set the object type property of a Roi to indicate it should be a tile in QuPath.
+     * @param roi the ImageJ roi
+     * @return the string representing the object type
+     */
+    public static String setObjectTypeTile(Roi roi) {
+        return setObjectType(roi, "tile");
+    }
+
+    /**
+     * Set the object type property of a Roi to indicate it should be a cell in QuPath.
+     * @param roi the ImageJ roi
+     * @return the string representing the object type
+     */
+    public static String setObjectTypeCell(Roi roi) {
+        return setObjectType(roi, "cell");
+    }
+
+    /**
+     * Set the object type property of a Roi to indicate it should be a cell nucleus in QuPath.
+     * <p>
+     * Note that this may be useful for ImageJ, but it is not possible to create a QuPath cell object from a single
+     * nucleus ROI.
+     * @param roi the ImageJ roi
+     * @return the string representing the object type
+     */
+    public static String setObjectTypeCellNucleus(Roi roi) {
+        return setObjectType(roi, "cell.nucleus");
+    }
+
+    private static String setObjectType(Roi roi, String typeName) {
+        roi.setProperty(OBJECT_TYPE, typeName);
+        return typeName;
+    }
+
+    private static Function<ROI, PathObject> getObjectCreatorForType(String typeString) {
+        return switch (typeString) {
+            case "annotation" -> PathObjects::createAnnotationObject;
+            case "cell" -> r -> PathObjects.createCellObject(r, null);
+            case "cell.nucleus" -> PathObjects::createDetectionObject; // Can't create a cell with a nucleus only
+            case "detection" -> PathObjects::createDetectionObject;
+            case "tile" -> PathObjects::createTileObject;
+            case null, default -> null;
+        };
+    }
+
+    /**
+     * Get the value of a Roi's OBJECT_TYPE property.
+     * @param roi the roi
+     * @return the value of OBJECT_TYPE, or null if no type property is set
+     */
+    public static String getObjectType(Roi roi) {
+        return roi.getProperty(OBJECT_TYPE);
+    }
+
+    /**
+     * Get a function to create a new object based upon the stored object type property, if available.
+     * <p>
+     * Note that not all object types can be created in this way (e.g., it isn't possible to create a root object or
+     * TMA core object; it also isn't possible to create a cell containing a nucleus only, but rather only a detection).
+     *
+     * @param roi the Roi that may contain an object type property
+     * @return an optional that contains an object creator, if known
+     */
+    public static Optional<Function<ROI, PathObject>> getObjectCreator(Roi roi) {
+        var typeString = getObjectType(roi);
+        return getObjectCreator(typeString);
+    }
+
+    /**
+     * Get a function to create a new object based upon a property value of OBJECT_TYPE.
+     * <p>
+     * Note that not all object types can be created in this way (e.g., it isn't possible to create a root object or
+     * TMA core object; it also isn't possible to create a cell containing a nucleus only, but rather only a detection).
+     *
+     * @param typeString the type string, as would be set by {@link #setObjectType(Roi, PathObject)}
+     * @return an optional that contains an object creator, if known
+     */
+    public static Optional<Function<ROI, PathObject>> getObjectCreator(String typeString) {
+        return Optional.ofNullable(getObjectCreatorForType(typeString));
     }
 
     /**

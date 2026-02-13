@@ -23,30 +23,6 @@
 
 package qupath.lib.gui.commands;
 
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Scanner;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-
-import org.controlsfx.dialog.ProgressDialog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
@@ -69,25 +45,26 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import qupath.fx.utils.FXUtils;
+import javafx.util.StringConverter;
+import org.controlsfx.dialog.ProgressDialog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.panes.ServerSelector;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
-import qupath.lib.images.servers.WrappedBufferedImageServer;
-import qupath.lib.io.PathIO;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectReader;
+import qupath.lib.images.servers.FlippedImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -96,9 +73,34 @@ import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.TransformedServerBuilder;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
+import qupath.lib.io.PathIO;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
+
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Scanner;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * Command to import image paths into an existing project.
@@ -201,6 +203,29 @@ class ProjectImportImagesCommand {
 		Label labelRotate = new Label("Rotate image");
 		labelRotate.setLabelFor(comboRotate);
 		labelRotate.setMinWidth(Label.USE_PREF_SIZE);
+
+		ComboBox<FlippedImageServer.Flip> comboFlip = new ComboBox<>();
+		comboFlip.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(FlippedImageServer.Flip flip) {
+                return switch (flip) {
+                    case NONE -> "";
+                    case HORIZONTAL -> "Flip horizontal";
+                    case VERTICAL -> "Flip vertical";
+                    case BOTH -> "Flip horizontal and vertical";
+                };
+            }
+
+            @Override
+            public FlippedImageServer.Flip fromString(String string) {
+                return null;
+            }
+        });
+		comboFlip.getItems().setAll(FlippedImageServer.Flip.values());
+		comboFlip.getSelectionModel().select(FlippedImageServer.Flip.NONE);
+		Label labelFlip = new Label("Flip image");
+		labelFlip.setLabelFor(comboFlip);
+		labelRotate.setMinWidth(Label.USE_PREF_SIZE);
 		
 		TextField tfArgs = new TextField();
 		Label labelArgs = new Label("Optional args");
@@ -216,9 +241,9 @@ class ProjectImportImagesCommand {
 		CheckBox cbImageSelector = new CheckBox("Show image selector");
 		cbImageSelector.setSelected(showImageSelectorProperty.get());
 
-		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
-		GridPaneUtils.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
-		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, comboFlip, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
+		GridPaneUtils.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, comboFlip, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, comboFlip, cbPyramidalize, cbImportObjects, tfArgs, cbImageSelector);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
@@ -229,6 +254,7 @@ class ProjectImportImagesCommand {
 			GridPaneUtils.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
 		GridPaneUtils.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
 		GridPaneUtils.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
+		GridPaneUtils.addGridRow(paneType, row++, 0, "Optionally flip images on import", labelFlip, comboFlip);
 		GridPaneUtils.addGridRow(paneType, row++, 0, "Optionally pass reader-specific arguments to the image provider.\nUsually this should just be left empty.", labelArgs, tfArgs);
 		GridPaneUtils.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidalize, cbPyramidalize);
 		GridPaneUtils.addGridRow(paneType, row++, 0, "Read and import objects (e.g. annotations) from the image file, if possible", cbImportObjects, cbImportObjects);
@@ -294,6 +320,7 @@ class ProjectImportImagesCommand {
 				
 		ImageType type = comboType.getValue();
 		Rotation rotation = comboRotate.getValue();
+		FlippedImageServer.Flip flip = comboFlip.getValue();
 		boolean pyramidalize = cbPyramidalize.isSelected();
 		boolean importObjects = cbImportObjects.isSelected();
 		boolean showSelector = cbImageSelector.isSelected();
@@ -422,7 +449,7 @@ class ProjectImportImagesCommand {
 					for (var file : existingDataFiles) {
 						try (ImageData<BufferedImage> imageData = PathIO.readImageData(file)) {
 							var entry = project.addImage(imageData.getServer().getBuilder());
-							initializeEntry(entry, imageData.getImageType(), false, false);
+							initializeEntry(entry, imageData.getImageType(), false, false, flip);
 							entry.saveImageData(imageData);
 							updateProgress(counter.incrementAndGet(), max);
 						} catch (Exception e) {
@@ -468,7 +495,7 @@ class ProjectImportImagesCommand {
 					for (var entry : entries) {
 						pool.submit(() -> {
 							try {
-								initializeEntry(entry, type, pyramidalize, importObjects);
+								initializeEntry(entry, type, pyramidalize, importObjects, flip);
 							} catch (Exception e) {
 								failures.add(entry);
 								logger.warn("Exception adding " + entry, e);
@@ -727,12 +754,22 @@ class ProjectImportImagesCommand {
 	 * @throws Exception 
 	 */
 	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type, boolean pyramidalizeSingleResolution, boolean importObjects) throws Exception {
+		return initializeEntry(entry, type, pyramidalizeSingleResolution, importObjects, FlippedImageServer.Flip.NONE);
+	}
+
+	private static ProjectImageEntry<BufferedImage> initializeEntry(
+			ProjectImageEntry<BufferedImage> entry,
+			ImageType type,
+			boolean pyramidalizeSingleResolution,
+			boolean importObjects,
+			FlippedImageServer.Flip flip
+	) throws Exception {
 		try (ImageServer<BufferedImage> server = entry.getServerBuilder().build()) {
 			// Set the image name
 			String name = ServerTools.getDisplayableImageName(server);
 			entry.setImageName(name);
 			// The thumbnail generation has been moved to ProjectBrowser to avoid overhead
-			
+
 			// Pyramidalize this if we need to
 			@SuppressWarnings("resource")
 			ImageServer<BufferedImage> server2 = server;
@@ -745,7 +782,12 @@ class ProjectImportImagesCommand {
 				} else
 					serverTemp.close();
 			}
-			
+
+			server2 = switch (flip) {
+                case NONE -> server2;
+                case HORIZONTAL, VERTICAL, BOTH -> new TransformedServerBuilder(server2).flip(flip).build();
+            };
+
 			// Initialize an ImageData object with a type, if required
 			Collection<PathObject> pathObjects = importObjects && server2 instanceof PathObjectReader ? ((PathObjectReader)server2).readPathObjects() : Collections.emptyList();
 			if (type != null || server != server2 || !pathObjects.isEmpty()) {
@@ -759,8 +801,8 @@ class ProjectImportImagesCommand {
 		}
 		return entry;
 	}
-	
-	
+
+
 //	/**
 //	 * Add a single ImageServer to a project, without considering sub-images.
 //	 * <p>

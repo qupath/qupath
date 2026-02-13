@@ -23,21 +23,10 @@
 
 package qupath.lib.gui.charts;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.BiFunction;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -47,8 +36,18 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.gui.tools.ColorToolsFX;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.BiFunction;
 
 /**
  * JavaFX chart for displaying histograms.

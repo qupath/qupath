@@ -21,12 +21,6 @@
 
 package qupath.lib.gui;
 
-import java.awt.image.BufferedImage;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
-
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
@@ -36,9 +30,14 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
-
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.gui.tools.ColorToolsFX;
+
+import java.awt.image.BufferedImage;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Canvas to show the range of a ColorMap (i.e. look-up table).

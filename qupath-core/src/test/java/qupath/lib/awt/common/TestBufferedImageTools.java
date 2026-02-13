@@ -21,10 +21,9 @@
 
 package qupath.lib.awt.common;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.Test;
+import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.PixelType;
 
 import java.awt.Color;
 import java.awt.Image;
@@ -43,10 +42,10 @@ import java.util.Random;
 import java.util.SplittableRandom;
 import java.util.stream.IntStream;
 
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.common.ColorTools;
-import qupath.lib.images.servers.PixelType;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SuppressWarnings("javadoc")
 public class TestBufferedImageTools {

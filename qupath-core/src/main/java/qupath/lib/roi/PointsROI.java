@@ -23,6 +23,10 @@
 
 package qupath.lib.roi;
 
+import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.Shape;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -31,10 +35,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-
-import qupath.lib.geom.Point2;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * ROI representing a collection of 2D points (distinct x,y coordinates).

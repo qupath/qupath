@@ -23,21 +23,12 @@
 
 package qupath.lib.gui.charts;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import javafx.beans.property.StringProperty;
-import org.controlsfx.control.SearchableComboBox;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.geometry.Insets;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -45,6 +36,9 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import org.controlsfx.control.SearchableComboBox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.HistogramChart.HistogramData;
@@ -53,6 +47,10 @@ import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.plugins.parameters.IntParameter;
 import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Wrapper close to enable the generation and display of histograms relating to a data table.

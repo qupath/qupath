@@ -23,10 +23,10 @@
 
 package qupath.lib.gui.images.stores;
 
+import qupath.lib.regions.RegionRequest;
+
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
-
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Interface for a worker to fetch an image tile related to a specified RegionRequest.

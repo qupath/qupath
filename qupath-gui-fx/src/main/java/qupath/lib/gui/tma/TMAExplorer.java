@@ -23,22 +23,9 @@
 
 package qupath.lib.gui.tma;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import javax.imageio.ImageIO;
-
+import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javafx.stage.Stage;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
@@ -52,6 +39,16 @@ import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 import qupath.lib.regions.RegionRequest;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * The aim of this is to enable the exploration of TMA data from multiple images in a project.

@@ -23,9 +23,9 @@
 
 package qupath.lib.roi;
 
-import java.util.List;
-
 import qupath.lib.geom.Point2;
+
+import java.util.List;
 
 /**
  * Interface for defining a class that can store a list of 2D vertices, i.e. x,y coordinates.

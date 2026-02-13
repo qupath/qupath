@@ -23,6 +23,24 @@
 
 package qupath.lib.gui.prefs;
 
+import javafx.application.Application;
+import javafx.application.ColorScheme;
+import javafx.application.Platform;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener.Change;
+import javafx.collections.ObservableList;
+import javafx.scene.control.ButtonType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.FXUtils;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.UserDirectoryManager;
+import qupath.lib.gui.commands.Commands;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -41,25 +59,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
-
-import javafx.application.ColorScheme;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.scene.control.ButtonType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.beans.property.ObjectProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener.Change;
-import javafx.collections.ObservableList;
-import qupath.fx.utils.FXUtils;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.UserDirectoryManager;
-import qupath.lib.gui.commands.Commands;
-import qupath.fx.dialogs.Dialogs;
 
 
 /**

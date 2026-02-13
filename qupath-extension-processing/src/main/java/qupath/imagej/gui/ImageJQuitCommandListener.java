@@ -29,7 +29,7 @@ import ij.plugin.frame.Editor;
 import javafx.application.Platform;
 import qupath.lib.gui.prefs.SystemMenuBar;
 
-import java.awt.*;
+import java.awt.Frame;
 import java.util.Set;
 
 /**

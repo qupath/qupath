@@ -21,6 +21,43 @@
 
 package qupath.process.gui.commands;
 
+import javafx.beans.binding.Bindings;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.text.TextAlignment;
+import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.classifiers.object.ObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifiers;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.UpdateUrisCommand;
+import qupath.lib.images.ImageData;
+import qupath.lib.io.GsonTools;
+import qupath.lib.io.UriResource;
+import qupath.lib.io.UriUpdater;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.plugins.workflow.WorkflowStep;
+import qupath.lib.projects.Project;
+
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -32,38 +69,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import javafx.scene.control.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.beans.binding.Bindings;
-import javafx.collections.ObservableList;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Scene;
-import javafx.scene.input.Dragboard;
-import javafx.scene.input.TransferMode;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.text.TextAlignment;
-import javafx.stage.Stage;
-import qupath.fx.dialogs.FileChoosers;
-import qupath.fx.utils.FXUtils;
-import qupath.lib.classifiers.object.ObjectClassifier;
-import qupath.lib.classifiers.object.ObjectClassifiers;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.UpdateUrisCommand;
-import qupath.fx.dialogs.Dialogs;
-import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.images.ImageData;
-import qupath.lib.io.GsonTools;
-import qupath.lib.io.UriResource;
-import qupath.lib.io.UriUpdater;
-import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
-import qupath.lib.plugins.workflow.WorkflowStep;
-import qupath.lib.projects.Project;
 /**
  * Command to apply a pre-trained object classifier to an image.
  * 

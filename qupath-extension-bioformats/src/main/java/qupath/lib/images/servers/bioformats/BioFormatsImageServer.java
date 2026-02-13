@@ -1419,10 +1419,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 					imageReader.setSeries(args.series);
 				((DimensionSwapper)imageReader).swapDimensions(swapDimensions);
 			}
-			
-			
-			cleanables.add(cleaner.register(this,
-					new ReaderCleaner(Integer.toString(cleanables.size()+1), imageReader)));
+
+			if (isClosed) {
+				imageReader.close(false);
+				return null;
+			} else {
+				cleanables.add(cleaner.register(this,
+						new ReaderCleaner(Integer.toString(cleanables.size()+1), imageReader)));
+			}
 			
 			return imageReader;
 		}
@@ -1488,7 +1492,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 					throw new IOException("Unable to request pixels for region with downsampled size " + tileWidth + " x " + tileHeight);
 				}
 		
-				synchronized(ipReader) {
+				synchronized (ipReader) {
 					ipReader.setSeries(series);
 
 					// Some files provide z scaling (the number of z stacks decreases when the resolution becomes
@@ -1524,7 +1528,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 							byte[] bytesSimple = ipReader.openBytes(ind, tileX, tileY, tileWidth, tileHeight);
 							return AWTImageTools.openImage(bytesSimple, ipReader, tileWidth, tileHeight);
 						} catch (Exception | UnsatisfiedLinkError e) {
-							logger.warn("Unable to open image " + ind + " for " + tileRequest.getRegionRequest());
+                            logger.warn("Unable to open image {} for {}", ind, tileRequest.getRegionRequest());
 							throw convertToIOException(e);
 						}
 					}
@@ -1542,6 +1546,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 					}
 				}
 			} finally {
+				if (Thread.interrupted()) {
+					logger.debug("Thread interrupted, flag will be reset: {}", Thread.currentThread());
+				}
 				queue.put(ipReader);
 			}
 

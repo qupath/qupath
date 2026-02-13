@@ -21,6 +21,22 @@
 
 package qupath.lib.gui.commands;
 
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonSyntaxException;
+import javafx.scene.control.ButtonType;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.DataFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
+import qupath.lib.images.ImageData;
+import qupath.lib.io.PathIO;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.projects.ProjectImageEntry;
+
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -33,24 +49,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
-import javafx.scene.control.ButtonType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonSyntaxException;
-
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.DataFormat;
-import qupath.fx.dialogs.Dialogs;
-import qupath.fx.dialogs.FileChoosers;
-import qupath.lib.images.ImageData;
-import qupath.lib.io.PathIO;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.projects.ProjectImageEntry;
 
 /**
  * Static methods to import object(s) from different sources.

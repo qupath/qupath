@@ -23,26 +23,13 @@
 
 package qupath.lib.gui.tma;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
@@ -61,6 +48,18 @@ import qupath.lib.plugins.AbstractPlugin;
 import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
 
 /**
  * Static methods for exporting TMA data, optionally with small images.

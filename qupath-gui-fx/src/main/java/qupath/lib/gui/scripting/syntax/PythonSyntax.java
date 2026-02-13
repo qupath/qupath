@@ -22,9 +22,9 @@
 
 package qupath.lib.gui.scripting.syntax;
 
-import java.util.Set;
-
 import qupath.lib.gui.scripting.EditableText;
+
+import java.util.Set;
 
 class PythonSyntax extends GeneralCodeSyntax {
 	

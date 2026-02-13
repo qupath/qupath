@@ -23,15 +23,14 @@
 
 package qupath.lib.roi;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.geom.Point2;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.geom.Point2;
 
 /**
  * Simple class to store x,y coordinates as floating point arrays.

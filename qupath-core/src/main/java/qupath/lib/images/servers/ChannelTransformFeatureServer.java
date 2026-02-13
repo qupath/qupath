@@ -21,6 +21,14 @@
 
 package qupath.lib.images.servers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.images.servers.ColorTransforms.ExtractChannel;
+import qupath.lib.images.servers.ColorTransforms.ExtractChannelByName;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -34,15 +42,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.images.servers.ColorTransforms.ExtractChannel;
-import qupath.lib.images.servers.ColorTransforms.ExtractChannelByName;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * A {@link TransformingImageServer} that applies color transforms to generate channels.

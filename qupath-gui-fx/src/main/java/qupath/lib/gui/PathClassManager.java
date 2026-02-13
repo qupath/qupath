@@ -24,6 +24,16 @@
 
 package qupath.lib.gui;
 
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener.Change;
+import javafx.collections.ObservableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.io.PathIO;
+import qupath.lib.objects.classes.PathClass;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -36,17 +46,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.prefs.Preferences;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.collections.ListChangeListener.Change;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.io.PathIO;
-import qupath.lib.objects.classes.PathClass;
 
 /**
  * Manage the default list of {@linkplain PathClass PathClasses} that should be presented to a user.

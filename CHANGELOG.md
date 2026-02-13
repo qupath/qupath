@@ -8,6 +8,7 @@ Version in progress...
 * Improve toggling between point and multipoint tools (https://github.com/qupath/qupath/pull/1972)
 * Update to Deep Java Library 0.35.0 (supports PyTorch 2.7.1)
 * The maximum memory preference now uses a percentage, not a number of GB
+* Cell detection is more strict about valid inputs to reduce risk of unexpected behavior (https://github.com/qupath/qupath/pull/2026)
 
 ### Bug fixes
 * Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
@@ -21,21 +22,30 @@ Version in progress...
 * Incorrect error message when merging projects (https://github.com/qupath/qupath/issues/1990)
 * Resetting preferences on Windows set max memory to 512 MB (https://github.com/qupath/qupath/issues/1946)
 * Grid view images can become 'locked' to a color transform (https://github.com/qupath/qupath/issues/1953)
+* ZProjectedImageServer fails with out-of-memory error for large, non-RGB images (https://github.com/qupath/qupath/issues/2021)
 
 ### Dependency updates
-* Bio-Formats 8.3.0
-* Caffeine 3.2.2
-* CommonMark 0.26.0
+* Bio-Formats 8.4.0
+* Caffeine 3.2.3
+* CommonMark 0.27.1
 * Commons Text 1.14.0
-* Deep Java Library 0.35.0
-* Groovy 5.0.2
+* Deep Java Library 0.36.0
+* Groovy 5.0.4
 * Gson 2.13.2
 * Guava 33.5.0-jre
+* Ikonli 12.4.0
+* ImageJ 1.54p
 * JavaCPP 1.5.12
-* JavaFX 25.0.1
+* JavaFX 25.0.2
+* Logback 1.5.23
 * OpenCV 4.11.0
-* RichTextFX 0.11.6
+* QuPath FXtras 0.3.0
+* RichTextFX 0.11.7
 * SciJava POM 43.0.0 (for Fiji builds)
+
+### Housekeeping
+
+* Remove the v0.1.3 branch from the main qupath repo: https://github.com/qupath/qupath/pull/275 [7a15188eebff9f82435c51d730e3a23568fee642](https://github.com/qupath/qupath/commit/7a15188eebff9f82435c51d730e3a23568fee642)
 
 ## Version 0.6.0
 

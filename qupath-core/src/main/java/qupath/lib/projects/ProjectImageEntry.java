@@ -23,14 +23,6 @@
 
 package qupath.lib.projects;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -38,6 +30,14 @@ import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.io.UriResource;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.ResourceManager.Manager;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  * Class to represent an image entry within a project.

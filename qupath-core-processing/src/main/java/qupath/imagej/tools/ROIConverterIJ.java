@@ -23,14 +23,14 @@
 
 package qupath.imagej.tools;
 
-import java.awt.Shape;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Area;
-import java.awt.geom.Rectangle2D;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
+import ij.gui.Line;
+import ij.gui.OvalRoi;
+import ij.gui.PointRoi;
+import ij.gui.PolygonRoi;
+import ij.gui.Roi;
+import ij.gui.ShapeRoi;
+import ij.measure.Calibration;
+import ij.process.FloatPolygon;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
@@ -43,14 +43,14 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
-import ij.gui.Line;
-import ij.gui.OvalRoi;
-import ij.gui.PointRoi;
-import ij.gui.PolygonRoi;
-import ij.gui.Roi;
-import ij.gui.ShapeRoi;
-import ij.measure.Calibration;
-import ij.process.FloatPolygon;
+
+import java.awt.Shape;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
+import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Class for converting between PathROIs and ImageJ's own Rois of various types.

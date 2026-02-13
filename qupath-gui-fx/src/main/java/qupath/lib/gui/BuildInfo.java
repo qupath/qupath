@@ -21,18 +21,17 @@
 
 package qupath.lib.gui;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Version;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Collections;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.Version;
 
 /**
  * Basic version information about the current QuPath build.

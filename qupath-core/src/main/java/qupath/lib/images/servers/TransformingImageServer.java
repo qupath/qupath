@@ -21,11 +21,11 @@
 
 package qupath.lib.images.servers;
 
+import qupath.lib.regions.RegionRequest;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
-
-import qupath.lib.regions.RegionRequest;
 
 /**
  * An ImageServer implementation used to apply transforms to another ImageServer.

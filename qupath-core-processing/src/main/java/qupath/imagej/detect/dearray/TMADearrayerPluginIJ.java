@@ -23,22 +23,12 @@
 
 package qupath.imagej.detect.dearray;
 
-import java.awt.Polygon;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import ij.ImagePlus;
 import ij.plugin.ZProjector;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.imagej.detect.dearray.TMADearrayer.TMAGridShape;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.images.ImageData;
@@ -60,6 +50,15 @@ import qupath.lib.plugins.workflow.SimplePluginWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.Polygon;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 
 

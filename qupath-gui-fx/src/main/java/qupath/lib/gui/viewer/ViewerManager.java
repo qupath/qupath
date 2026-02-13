@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,33 +24,8 @@
 
 package qupath.lib.gui.viewer;
 
-import java.awt.Shape;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Area;
-import java.awt.image.BufferedImage;
-import java.lang.ref.Reference;
-import java.lang.ref.SoftReference;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
-import java.util.stream.Collectors;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
-import javafx.scene.Scene;
-import javafx.scene.layout.BorderPane;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
-import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -62,6 +37,7 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
@@ -77,12 +53,20 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.RotateEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.input.ZoomEvent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.control.action.ActionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -90,7 +74,6 @@ import qupath.lib.gui.ToolManager;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.TMACommands;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -108,6 +91,22 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
+import java.awt.Shape;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
+import java.awt.image.BufferedImage;
+import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.stream.Collectors;
+
 /**
  * Class to manage multiple {@link QuPathViewer} instances in a UI region.
  * 
@@ -118,22 +117,22 @@ public class ViewerManager implements QuPathViewerListener {
 
 	private static final Logger logger = LoggerFactory.getLogger(ViewerManager.class);
 
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 
 	/**
 	 * The current ImageData in the current QuPathViewer
 	 */
-	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+	private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 	
-	private ObservableList<QuPathViewer> viewers = FXCollections.observableArrayList();
-	private ObservableList<QuPathViewer> viewersUnmodifiable = FXCollections.unmodifiableObservableList(viewers);
+	private final ObservableList<QuPathViewer> viewers = FXCollections.observableArrayList();
+	private final ObservableList<QuPathViewer> viewersUnmodifiable = FXCollections.unmodifiableObservableList(viewers);
 	
-	private SimpleObjectProperty<QuPathViewer> activeViewerProperty = new SimpleObjectProperty<>();
+	private final SimpleObjectProperty<QuPathViewer> activeViewerProperty = new SimpleObjectProperty<>();
 
 	private SplitPaneGrid splitPaneGrid;
 
-	private ViewerPlusDisplayOptions viewerDisplayOptions = ViewerPlusDisplayOptions.getSharedInstance();
-	private OverlayOptions overlayOptions = OverlayOptions.getSharedInstance();
+	private final ViewerPlusDisplayOptions viewerDisplayOptions = ViewerPlusDisplayOptions.getSharedInstance();
+	private final OverlayOptions overlayOptions = OverlayOptions.getSharedInstance();
 	
 	/**
 	 * Since v0.5.0, this uses a Reference so that we can potentially allow garbage collection is memory is scare
@@ -143,12 +142,12 @@ public class ViewerManager implements QuPathViewerListener {
 
 	private final Color colorBorder = Color.rgb(180, 0, 0, 0.8);
 
-	private BooleanProperty synchronizeViewers = PathPrefs.createPersistentPreference("synchronizeViewers", false);
+	private final BooleanProperty synchronizeViewers = PathPrefs.createPersistentPreference("synchronizeViewers", false);
 
-	private Map<QuPathViewer, ViewerPosition> lastViewerPosition = new WeakHashMap<>();
+	private final Map<QuPathViewer, ViewerPosition> lastViewerPosition = new WeakHashMap<>();
 
 	// Hacky solution to needing a mechanism to refresh the titles of detached viewers
-	private BooleanProperty refreshTitleProperty = new SimpleBooleanProperty();
+	private final BooleanProperty refreshTitleProperty = new SimpleBooleanProperty();
 
 	private ViewerManager(final QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -686,7 +685,7 @@ public class ViewerManager implements QuPathViewerListener {
 		}
 
 		// Don't handle unselected viewers
-		if (viewer != getActiveViewer()) {
+		if (viewer != getActiveViewer() || !synchronizeViewers.get()) {
 			return;
 		}
 
@@ -697,8 +696,7 @@ public class ViewerManager implements QuPathViewerListener {
 		// Thwart the upcoming region shift
 		getLastViewerPosition(getActiveViewer()).reset();
 
-		//			aligningCores = true;
-		String coreName = ((TMACoreObject)pathObjectSelected).getName();
+		String coreName = pathObjectSelected.getName();
 		for (QuPathViewer v : viewers) {
 			if (v == viewer)
 				continue;
@@ -1344,15 +1342,15 @@ public class ViewerManager implements QuPathViewerListener {
 				null,
 				MenuTools.createMenu(
 						"General.add",
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddRowBeforeSelected(imageData), "Add TMA row before"),
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddRowAfterSelected(imageData), "Add TMA row after"),
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddColumnBeforeSelected(imageData), "Add TMA column before"),
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddColumnAfterSelected(imageData), "Add TMA column after")
+					qupath.createImageDataAction(TMACommands::promptToAddRowBeforeSelected, "Add TMA row before"),
+					qupath.createImageDataAction(TMACommands::promptToAddRowAfterSelected, "Add TMA row after"),
+					qupath.createImageDataAction(TMACommands::promptToAddColumnBeforeSelected, "Add TMA column before"),
+					qupath.createImageDataAction(TMACommands::promptToAddColumnAfterSelected, "Add TMA column after")
 					),
 				MenuTools.createMenu(
 						"General.remove",
-						qupath.createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridRow(imageData), "Remove TMA row"),
-						qupath.createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridColumn(imageData), "column")
+						qupath.createImageDataAction(TMACommands::promptToDeleteTMAGridRow, "Remove TMA row"),
+						qupath.createImageDataAction(TMACommands::promptToDeleteTMAGridColumn, "Remove TMA column")
 					)
 				);
 		

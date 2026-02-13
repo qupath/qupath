@@ -23,26 +23,23 @@
 
 package qupath.lib.analysis.algorithms;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.ConvolveOp;
-import java.awt.image.Kernel;
-import java.util.Arrays;
-import java.util.Comparator;
-
 import org.apache.commons.math3.linear.EigenDecomposition;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
+
+import java.awt.image.BufferedImage;
+import java.awt.image.ConvolveOp;
+import java.awt.image.Kernel;
+import java.util.Arrays;
+import java.util.Comparator;
 
 /**
  * Code for estimating stain vectors automatically from an image, or to launch an editor for visually/interactively modifying stain vectors.

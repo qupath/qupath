@@ -21,18 +21,10 @@
 
 package qupath.lib.classifiers.object;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.function.Function;
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
-
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
@@ -40,6 +32,14 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.function.Function;
 
 /**
  * Helper class for creating {@linkplain ObjectClassifier ObjectClassifiers}.

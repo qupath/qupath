@@ -21,19 +21,11 @@
 
 package qupath.lib.gui.actions.menus;
 
-import static qupath.lib.gui.actions.ActionTools.createAction;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
 import javafx.application.Platform;
-import org.controlsfx.control.action.Action;
-
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
+import org.controlsfx.control.action.Action;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.UndoRedoManager;
 import qupath.lib.gui.actions.ActionTools;
@@ -44,6 +36,13 @@ import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+import static qupath.lib.gui.actions.ActionTools.createAction;
 
 public class EditMenuActions implements MenuActions {
 	

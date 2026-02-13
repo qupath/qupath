@@ -21,11 +21,8 @@
 
 package qupath.lib.gui.actions;
 
-import static qupath.lib.gui.actions.ActionTools.createAction;
-
 import javafx.collections.ListChangeListener;
 import org.controlsfx.control.action.Action;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
@@ -40,6 +37,8 @@ import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
+
+import static qupath.lib.gui.actions.ActionTools.createAction;
 
 /**
  * Default actions associated with a specific QuPath instance.
