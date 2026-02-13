@@ -36,6 +36,7 @@ import java.util.concurrent.Future;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -48,6 +49,7 @@ import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
 import javafx.scene.control.Dialog;
@@ -106,10 +108,12 @@ public class MeasurementExportCommand implements Runnable {
 
 	private final BooleanBinding noImagesSelected = Bindings.isEmpty(selectedImages);
 
-	private final ObjectProperty<ExportObjectType> objectTypeProperty = new SimpleObjectProperty<>(ExportObjectType.ROOT);
-	private final ObjectProperty<ExportSeparatorType> separatorTypeProperty = new SimpleObjectProperty<>(ExportSeparatorType.TAB);
+	private final ObjectProperty<ExportObjectType> objectTypeProperty = PathPrefs.createPersistentPreference("project.export.objectType", ExportObjectType.ROOT, ExportObjectType.class);
+	private final ObjectProperty<ExportSeparatorType> separatorTypeProperty = PathPrefs.createPersistentPreference("project.export.separator", ExportSeparatorType.TAB, ExportSeparatorType.class);
 	private final StringProperty outputPathProperty = new SimpleStringProperty("");
 	private final ObservableList<String> columnsToInclude = FXCollections.observableArrayList();
+
+	private final BooleanProperty includeProjectMetadata = PathPrefs.createPersistentPreference("project.export.projectMetadata", false);
 
 	private static final ButtonType buttonTypeExport = new ButtonType(
 			getResourceString("Measurements.Export.button.export"), ButtonData.OK_DONE);
@@ -156,9 +160,10 @@ public class MeasurementExportCommand implements Runnable {
 		// Add main content
 		addImageSelectionLists(pane);
 		addOutputFileChoice(pane);
-		addExportFileChoice(pane);
 		addSeparatorChoice(pane);
+		addExportObjectTypeChoice(pane);
 		addPopulateColumns(pane);
+		addProjectMetadataRow(pane);
 
 		dialog = Dialogs.builder()
 				.title(title)
@@ -245,7 +250,7 @@ public class MeasurementExportCommand implements Runnable {
 		}
 	}
 
-	private void addExportFileChoice(GridPane pane) {
+	private void addExportObjectTypeChoice(GridPane pane) {
 		var comboObjectType = new ComboBox<ExportObjectType>();
 		comboObjectType.getItems().setAll(ExportObjectType.values());
 		comboObjectType.getSelectionModel().select(objectTypeProperty.get());
@@ -317,6 +322,8 @@ public class MeasurementExportCommand implements Runnable {
 		btnPopulateColumns.setMinWidth(75);
 		btnResetColumns.setMinWidth(75);
 
+		pane.add(progressIndicator, 1, pane.getRowCount());
+
 		addGridPaneRow(pane,
 				new Tooltip(getResourceString("Measurements.Export.columns.tooltip")),
 				getResourceString("Measurements.Export.columns.label"),
@@ -324,10 +331,18 @@ public class MeasurementExportCommand implements Runnable {
 				btnPopulateColumns,
 				btnResetColumns);
 
-		pane.add(progressIndicator, 1, pane.getRowCount());
-
 		Bindings.bindContent(columnsToInclude, comboColumnsToInclude.getCheckModel().getCheckedItems());
 	}
+
+	private void addProjectMetadataRow(GridPane pane) {
+		var cbProject = new CheckBox();
+		cbProject.selectedProperty().bindBidirectional(includeProjectMetadata);
+		addGridPaneRow(pane,
+				new Tooltip(getResourceString("Measurements.Export.projectMetadata.tooltip")),
+				getResourceString("Measurements.Export.projectMetadata.label"),
+				cbProject);
+	}
+
 
 	/**
 	 * Add a new row to a grid pane with a label, main control (which fills the width) and optional extra controls (e.g., buttons).
@@ -392,7 +407,6 @@ public class MeasurementExportCommand implements Runnable {
 		if (fileOutput == null)
 			return;
 
-		String[] include = columnsToInclude.toArray(String[]::new);
 		String separatorString = separatorTypeProperty.get() == null ?
 				PathPrefs.tableDelimiterProperty().get() :
 				separatorTypeProperty.get().getSeparator();
@@ -400,7 +414,8 @@ public class MeasurementExportCommand implements Runnable {
 		MeasurementExporter exporter = new MeasurementExporter()
 				.imageList(selectedImages)
 				.separator(separatorString)
-				.includeOnlyColumns(include)
+				.includeOnlyColumns(columnsToInclude.toArray(String[]::new))
+				.includeProjectMetadata(includeProjectMetadata.get())
 				.exportType(objectTypeProperty.get().getObjectType());
 
 		doExportWithProgressDialog(exporter, fileOutput.getAbsolutePath());
@@ -590,9 +605,9 @@ public class MeasurementExportCommand implements Runnable {
 	}
 
 	private enum ExportSeparatorType {
-		TAB("Tab", "Tab separated", ".tsv", "\t"),
-		COMMA("Comma", "Comma separated", ".csv", ","),
-		SEMICOLON("Semicolon", "Semicolon separated", ".csv", ";");
+		TAB("Tab separated", "Tab separated", ".tsv", "\t"),
+		COMMA("Comma separated", "Comma separated", ".csv", ","),
+		SEMICOLON("Semicolon separated", "Semicolon separated", ".csv", ";");
 
 		private final String name;
 		private final String description;
