@@ -41,6 +41,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -130,6 +131,7 @@ public class MeasurementExportCommand implements Runnable {
 	public MeasurementExportCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		this.projectProperty.bind(qupath.projectProperty());
+		this.projectProperty.addListener(this::handleProjectChange);
 	}
 
 	@Override
@@ -194,6 +196,20 @@ public class MeasurementExportCommand implements Runnable {
 		});
 
 		Bindings.bindContent(selectedImages, listSelectionView.getTargetItems());
+	}
+
+	private void handleProjectChange(ObservableValue<? extends Project<BufferedImage>> observable,
+											Project<BufferedImage> oldProject, Project<BufferedImage> newProject) {
+		// Don't retain reference to images from a previous project
+		availableImages.clear();
+		// If our current output path is relative to the base directory of the old project,
+		// reset the output path - we don't want to be defaulting to export within the old project
+		var currentOutputPath = outputPathProperty.getValueSafe();
+		var currentProjectPath = oldProject == null ? null : Projects.getBaseDirectory(oldProject);
+		if (currentOutputPath.isEmpty() || currentProjectPath == null)
+			return;
+		if (currentOutputPath.startsWith(currentProjectPath.toString()))
+			outputPathProperty.set("");
 	}
 
 	/**
