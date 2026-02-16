@@ -105,9 +105,8 @@ public interface PathTableData<T> {
 	double getNumericValue(final T item, final String name);
 
 	/**
-	 * Get all double values for all items.
-	 * 
-	 * @param name
+	 * Get all double values for all items of a specified measurement.
+	 * @param name the measurement name
 	 * @return
 	 */
 	double[] getDoubleValues(final String name);
@@ -119,6 +118,31 @@ public interface PathTableData<T> {
 	 */
 	List<T> getItems();
 
+	/**
+	 * Get all String values for all items of a specified measurement.
+	 * @param name the measurement name
+	 * @return an array containing the output of {@link #getStringValue(Object, String)} for each item
+	 * @since v0.7.0
+	 */
+	default String[] getStringValues(final String name) {
+		return getItems()
+				.stream()
+				.map(v -> getStringValue(v, name))
+				.toArray(String[]::new);
+	}
+
+	/**
+	 * Get all String values for all items of a specified measurement.
+	 * @param name the measurement name
+	 * @return an array containing the output of {@link #getStringValue(Object, String, int)} for each item
+	 * @since v0.7.0
+	 */
+	default String[] getStringValues(final String name, int decimalPlaces) {
+		return getItems()
+				.stream()
+				.map(v -> getStringValue(v, name, decimalPlaces))
+				.toArray(String[]::new);
+	}
 
 	/**
 	 * Get a list of Strings representing table data for all items.
