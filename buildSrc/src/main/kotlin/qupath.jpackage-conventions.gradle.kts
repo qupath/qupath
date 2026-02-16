@@ -277,11 +277,16 @@ val jpackageFinalize by tasks.registering {
             // We need to make the macOS pkg here to incorporate the changes
             if (packageType in setOf("installer", "pkg")) {
                 println("Creating pkg")
-                makeMacOSPkg(appFile)
+                var tempAppVersion = "1.0.0" // Needed to overcome strict jpackage limitations prohibiting 0.x.x
+                val returnVal = makeMacOSPkg(appFile, tempAppVersion)
+                if (returnVal != 0) {
+                    println("Error attempting to create pkg: $returnVal")
+                }
                 // Ensure we haven't accidentally changed the name
-                val file = File(appFile.getParentFile(), "QuPath-${qupathVersion}.pkg")
+                val file = File(appFile.getParentFile(), "QuPath-${tempAppVersion}.pkg")
                 val correctName = getCorrectAppName(".pkg")
                 if (file.exists() && !file.name.equals(correctName)) {
+                    println("Renaming ${file.name} to ${correctName}")
                     file.renameTo(File(file.getParent(), correctName))
                 }
                 // Remove the .app as it's no longer needed (and just takes up space)
@@ -371,15 +376,15 @@ fun getCorrectAppName(ext: String): String {
  * This is a separate task because it needs to be run after the Info.plist has been updated.
  * @param appFile the .app file to package
  */
-fun makeMacOSPkg(appFile: File) {
-    ProcessBuilder()
+fun makeMacOSPkg(appFile: File, appVersion: String):Int {
+    return ProcessBuilder()
         .directory(appFile.getParentFile())
         .command(
             "jpackage",
             "-n", "QuPath",
             "--app-image", appFile.getCanonicalPath(),
             "--type", "pkg",
-            "--app-version", qupathVersion)
+            "--app-version", appVersion)
         .start()
         .waitFor()
 }
