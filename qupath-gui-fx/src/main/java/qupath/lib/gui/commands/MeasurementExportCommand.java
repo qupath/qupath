@@ -481,7 +481,7 @@ public class MeasurementExportCommand implements Runnable {
 		var ext = separatorType.getExtension();
 		var pathLower = path.toLowerCase();
 		if (pathLower.endsWith(ext)) {
-			return pathLower;
+			return path;
 		} else if (pathLower.endsWith(".gz")) {
 			return fixFileExtension(path.substring(0, path.length()-3), separatorType) + ".gz";
 		} else {
