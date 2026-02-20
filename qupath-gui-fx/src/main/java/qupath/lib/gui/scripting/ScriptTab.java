@@ -82,8 +82,10 @@ public class ScriptTab {
 		this.console = console;
 		initialize();
 		this.language = language;
-		if (script != null)
+		if (script != null) {
 			editor.setText(script);
+			editor.positionCaret(0);
+		}
 		untitledCounter++;
 		name = "Untitled " + untitledCounter;
 	}
