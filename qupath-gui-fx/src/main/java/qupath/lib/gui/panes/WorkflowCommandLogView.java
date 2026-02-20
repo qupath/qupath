@@ -461,10 +461,22 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	public static void showScript(final ScriptEditor scriptEditor, final Workflow workflow) {
 		if (workflow == null)
 			return;
+		String comment = """
+				/**
+				 * This script has been auto-generated from the command history in QuPath {{VERSION}}.
+				 *
+				 * Note that:
+				 *  - You may need to edit the script before applying it to new images.
+				 *  - You should not run scripts you don't understand or from untrusted sources.
+				 *
+				 * For information about citing QuPath in a paper, see "Help > Citing QuPath in a paper (web)".
+				 */
+				 
+				""".replace("{{VERSION}}", QuPathGUI.getVersion().toString());
 		String script = workflow.createScript();
 		logger.info("\n//---------------------------------\n" + script + "\n//---------------------------------");
 		if (scriptEditor != null)
-			scriptEditor.showScript("New script", script);
+			scriptEditor.showScript("New script", comment + script);
 	}
 	
 	
