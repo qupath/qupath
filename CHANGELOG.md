@@ -1,28 +1,42 @@
-## Version 0.7.0-SNAPSHOT
-
-Version in progress...
+## Version 0.7.0
 
 ### Enhancements
+* Optionally use ICC profiles with OpenSlide images (https://github.com/qupath/qupath/pull/2045)
+* Add [ImgLib2](https://imagej.net/libs/imglib2/) and[ImgLib2 algorithm](https://imagej.net/libs/imglib2/) as dependencies (https://github.com/qupath/qupath/pull/2019)
+* Update to Deep Java Library 0.36.0 (supports PyTorch 2.7.1) (https://github.com/qupath/qupath/pull/2059)
 * Sync mini/channel viewers with a main viewer in multiple ways (https://github.com/qupath/qupath/pull/1970)
   * Sync to the cursor, sync to the selected object or sync to the viewer center
 * Improve toggling between point and multipoint tools (https://github.com/qupath/qupath/pull/1972)
-* Update to Deep Java Library 0.35.0 (supports PyTorch 2.7.1)
-* The maximum memory preference now uses a percentage, not a number of GB
-* Cell detection is more strict about valid inputs to reduce risk of unexpected behavior (https://github.com/qupath/qupath/pull/2026)
+* Support importing multiple OME-Zarr images at a time (https://github.com/qupath/qupath/pull/1989)
+* The maximum memory preference now uses a percentage, not a number of GB (https://github.com/qupath/qupath/pull/1996)
+* Cell detection is stricter about valid inputs to reduce risk of unexpected behavior (https://github.com/qupath/qupath/pull/2026)
+* Improved 'Input display' behavior to make shortcut keys visible for longer (https://github.com/qupath/qupath/pull/2033)
+* Reduced default navigation speed so that arrow keys are more useful in the viewer (https://github.com/qupath/qupath/pull/2038)
+* Improved project entry filtering (https://github.com/qupath/qupath/pull/2071)
+* Add 'flip' option when importing images to a project (https://github.com/qupath/qupath/pull/2075)
+* Improve project measurement table export in multiple ways:
+  * Avoid memory errors when exporting large tables (https://github.com/qupath/qupath/pull/2069)
+  * Simplify code and externalize strings (https://github.com/qupath/qupath/pull/2085)
+  * Support persistent preferences, better escaping and gzipped output (https://github.com/qupath/qupath/pull/2087)
 
 ### Bug fixes
+* Resetting preferences on Windows set max memory to 512 MB (https://github.com/qupath/qupath/issues/1946)
+* Channel viewer does not split channels in RGB fluorescence image by default (https://github.com/qupath/qupath/issues/1948)
 * Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
 * Avoid empty tooltips in grid view (https://github.com/qupath/qupath/pull/1952)
+* Grid view images can become 'locked' to a color transform (https://github.com/qupath/qupath/issues/1953)
+* Using the lowest resolution image for brightness/contrast settings can be problematic (https://github.com/qupath/qupath/issues/1958)
 * Don't open servers to immediately close them (https://github.com/qupath/qupath/pull/1959)
 * Confusing error with 'Transform annotations' when there is no main selection (https://github.com/qupath/qupath/issues/1963)
-* Channel viewer does not split channels in RGB fluorescence image by default (https://github.com/qupath/qupath/issues/1948)
-* "Split annotations by lines" with line thickness 0 px doesn’t work with multiple lines (https://github.com/qupath/qupath/issues/1978)
 * `TransformedServerBuilder.subtractOffset()` can thrown an `IllegalArgumentException` when being serialized (https://github.com/qupath/qupath/issues/1976)
-* Using the lowest resolution image for brightness/contrast settings can be problematic (https://github.com/qupath/qupath/issues/1958)
+* "Split annotations by lines" with line thickness 0 px doesn’t work with multiple lines (https://github.com/qupath/qupath/issues/1978)
+* Fix GeometryTools.union for non-polygonal geometry (https://github.com/qupath/qupath/pull/1980)
 * Incorrect error message when merging projects (https://github.com/qupath/qupath/issues/1990)
-* Resetting preferences on Windows set max memory to 512 MB (https://github.com/qupath/qupath/issues/1946)
-* Grid view images can become 'locked' to a color transform (https://github.com/qupath/qupath/issues/1953)
+* ImageJ Roi names are ignored during import (https://github.com/qupath/qupath/issues/2005)
+* Tile caching based on image path isn't enough whenever files change on disk (https://github.com/qupath/qupath/issues/2012)
 * ZProjectedImageServer fails with out-of-memory error for large, non-RGB images (https://github.com/qupath/qupath/issues/2021)
+* Multiview behavior can be annoying for TMAs (https://github.com/qupath/qupath/issues/2078)
+* 'Simplify shape' converts a polyline to a (closed) polygon (https://github.com/qupath/qupath/issues/2053)
 
 ### Dependency updates
 * Bio-Formats 8.4.0
@@ -38,6 +52,7 @@ Version in progress...
 * JavaCPP 1.5.12
 * JavaFX 25.0.2
 * Logback 1.5.23
+* OpenJDK 25
 * OpenCV 4.11.0
 * QuPath FXtras 0.3.0
 * RichTextFX 0.11.7

@@ -21,11 +21,11 @@ To **download QuPath**, go to the [Latest Releases](https://github.com/qupath/qu
 
 For **documentation**, see [https://qupath.readthedocs.io](https://qupath.readthedocs.io)
 
-For **help & support**, try [image.sc](https://forum.image.sc/tag/qupath) or the [links here](https://qupath.readthedocs.io/en/latest/docs/starting/help.html)
+For **help & support**, try [image.sc](https://forum.image.sc/tag/qupath) or the [links here](https://qupath.readthedocs.io/en/stable/docs/starting/help.html)
 
-To **build QuPath from source** see [here](https://qupath.readthedocs.io/en/latest/docs/reference/building.html).
+To **build QuPath from source** see [here](https://qupath.readthedocs.io/en/stable/docs/reference/building.html).
 
-**If you find QuPath useful in work that you publish, please [_cite the publication_](https://qupath.readthedocs.io/en/latest/docs/intro/citing.html)!**
+**If you find QuPath useful in work that you publish, please [_cite the publication_](https://qupath.readthedocs.io/en/stable/docs/intro/citing.html)!**
 
 *QuPath is an academic project intended for research use only.*
 *The software has been made freely available under the terms of the [GPLv3](https://github.com/qupath/qupath/blob/main/LICENSE) in the hope it is useful for this purpose, and to make analysis methods open and transparent.*
@@ -51,7 +51,7 @@ For all contributors, see [here](https://github.com/qupath/qupath/graphs/contrib
 This work is made possible in part thanks to funding from:
 
 * [Wellcome Trust Technology Development Grant](https://wellcome.org/grant-funding/people-and-projects/grants-awarded/qupath-advanced-open-platform-next-generation) (2022-Present)
-* [CZI Essential Open Source Software for Science, Cycle 4](https://chanzuckerberg.com/eoss/proposals/qupath-boosting-bioimage-analysis-for-users-developers/) (2022-Present)
+* [CZI Essential Open Source Software for Science, Cycle 4](https://chanzuckerberg.com/eoss/proposals/qupath-boosting-bioimage-analysis-for-users-developers/) (2022-2025)
 * [CZI Essential Open Source Software for Science, Cycle 1](https://chanzuckerberg.com/eoss/proposals/qupath-open-source-bioimage-analysis-and-quantitative-pathology/) (2020-2022)
 * Wellcome Trust / University of Edinburgh Institutional Strategic Support Fund (ISSF3) (2019-2020)
 
