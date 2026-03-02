@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
@@ -50,6 +51,7 @@ import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -164,7 +166,7 @@ public class ProjectCommands {
 	 * @param project
 	 */
 	public static void promptToExportImageList(Project<?> project) {
-		var title = "Export image list";
+		var title = QuPathResources.getString("Commands.Project.ExportImages.title");
 		if (project == null) {
 			GuiTools.showNoProjectError(title);
 			return;
@@ -174,7 +176,7 @@ public class ProjectCommands {
 		
 		// Prompt for where to save
 		File fileOutput = FileChoosers.promptToSaveFile(title, dirBase,
-				FileChoosers.createExtensionFilter("Text files", ".txt"));
+				FileChoosers.createExtensionFilter(QuPathResources.getString("Commands.Project.ExportImages.textFiles"), ".txt"));
 		if (fileOutput == null)
 			return;
 		
@@ -219,11 +221,17 @@ public class ProjectCommands {
 					n++;
 					logger.debug(path);
 				} catch (IOException e) {
-					logger.error("Error reading URIs from " + entry, e);
+                    logger.error("Error reading URIs from {}", entry, e);
 				}
 			}		
 		} catch (IOException e) {
-			Dialogs.showErrorMessage(title, fileOutput.getAbsolutePath() + " not found!");
+			Dialogs.showErrorMessage(
+					title,
+					MessageFormat.format(
+							QuPathResources.getString("Commands.Project.ExportImages.notFound"),
+							fileOutput.getAbsolutePath()
+					)
+			);
 		}
 		long endTime = System.currentTimeMillis();
 		logger.debug("Exported {} images in {} ms", n, endTime - startTime);
@@ -246,7 +254,7 @@ public class ProjectCommands {
 	 */
 	public static boolean promptToImportLegacyProject(QuPathGUI qupath) {
 		var project = qupath.getProject();
-		String title = "Import legacy project";
+		String title = QuPathResources.getString("Commands.Project.ImportLegacy.title");
 		if (project == null) {
 			GuiTools.showNoProjectError(title);
 			return false;
@@ -254,7 +262,7 @@ public class ProjectCommands {
 		
 		// Prompt for the old project
 		var file = FileChoosers.promptForFile(title,
-				FileChoosers.createExtensionFilter("Project (v0.1.2)", "*.qpproj"));
+				FileChoosers.createExtensionFilter(QuPathResources.getString("Commands.Project.ImportLegacy.project"), "*.qpproj"));
 		if (file == null)
 		    return false;
 		
@@ -264,7 +272,7 @@ public class ProjectCommands {
 		try (var reader = new FileReader(file)) {
 			oldProject = GsonTools.getInstance().fromJson(reader, LegacyProject.class);			
 		} catch (IOException e) {
-			logger.error("Error reading file: " + e.getLocalizedMessage(), e);
+            logger.error("Error reading file: {}", e.getLocalizedMessage(), e);
 			return false;
 		}
 		if (oldProject.getEntries().isEmpty()) {
@@ -274,7 +282,7 @@ public class ProjectCommands {
 		
 		var dirData = new File(file.getParent(), "data");
 		if (!dirData.exists()) {
-		    Dialogs.showErrorMessage(title, "No data directory found for the legacy project!");
+		    Dialogs.showErrorMessage(title, QuPathResources.getString("Commands.Project.ImportLegacy.noDataDirectoryFound"));
 		    return false;
 		}
 		
@@ -283,9 +291,12 @@ public class ProjectCommands {
 		var dialog = new ProgressDialog(task);
 		dialog.setTitle(title);
 		if (nImages == 1)
-			dialog.setContentText("Importing 1 image...");
+			dialog.setContentText(QuPathResources.getString("Commands.Project.ImportLegacy.importingOneImage"));
 		else
-			dialog.setContentText("Importing " + nImages + " images...");
+			dialog.setContentText(MessageFormat.format(
+					QuPathResources.getString("Commands.Project.ImportLegacy.importingNImages"),
+					nImages
+			));
 
 		qupath.getThreadPoolManager().submitShortTask(task);
 		dialog.showAndWait();
@@ -293,12 +304,18 @@ public class ProjectCommands {
 		if (nCompleted == null)
 			nCompleted = 0;
 		if (nCompleted < nImages)
-			Dialogs.showWarningNotification(title, nCompleted + "/" + nImages + " imported successfully");
-		
+			Dialogs.showWarningNotification(
+					title,
+					MessageFormat.format(
+							QuPathResources.getString("Commands.Project.ImportLegacy.importedSuccessfully"),
+							nCompleted,
+							nImages
+					)
+			);
 		try {
 			project.syncChanges();
 		} catch (Exception e) {
-			logger.error("Error syncing project: " + e.getLocalizedMessage(), e);
+            logger.error("Error syncing project: {}", e.getLocalizedMessage(), e);
 		}
 		qupath.refreshProject();
 		return true;

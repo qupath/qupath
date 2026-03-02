@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathObjectPainter;
@@ -86,7 +87,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 
 	private static final Logger logger = LoggerFactory.getLogger(RigidObjectEditorCommand.class);
 	
-	private static final String TITLE = "Transform annotations";
+	private static final String TITLE = QuPathResources.getString("Commands.RigidObjectEditor.title");
 	
 	private QuPathGUI qupath;
 	
@@ -155,13 +156,13 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		}
 		
 		if (pathObject == null || !pathObject.isAnnotation()) {
-			Dialogs.showErrorNotification(TITLE, "Please select an annotation!");
+			Dialogs.showErrorNotification(TITLE, QuPathResources.getString("Commands.RigidObjectEditor.selectAnnotation"));
 			return;
 		}
 		if (pathObject.isLocked() || allSelected.stream().anyMatch(PathObject::isLocked)) {
 			var response = Dialogs.builder()
 				.title(TITLE)
-				.contentText("Selection includes at least one locked annotation - do you want to transform them anyway?")
+				.contentText(QuPathResources.getString("Commands.RigidObjectEditor.lockedAnnotation"))
 				.buttons(ButtonType.YES, ButtonType.NO)
 				.showAndWait()
 				.orElse(ButtonType.NO);
@@ -239,14 +240,17 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		var hierarchy = viewer.getHierarchy();
 		
 		ButtonType option = ButtonType.CANCEL;
-		var btSelected = originalObjectROIs.size() == 1 ? new ButtonType("Selected object") : new ButtonType("Selected objects");
-		var btAll = new ButtonType("All objects");
+		var btSelected = new ButtonType(QuPathResources.getString(originalObjectROIs.size() == 1 ?
+				"Commands.RigidObjectEditor.selectedObject" :
+				"Commands.RigidObjectEditor.selectedObjects"
+		));
+		var btAll = new ButtonType(QuPathResources.getString("Commands.RigidObjectEditor.allObjects"));
 
 		if (!ignoreChanges && !transform.isIdentity()) {
 					
 			option = Dialogs.builder()
 					.title(TITLE)
-					.contentText("Confirm object changes?")
+					.contentText(QuPathResources.getString("Commands.RigidObjectEditor.confirmObjectChanges"))
 					.buttons(btSelected, btAll, ButtonType.CANCEL)
 					.showAndWait()
 					.orElse(ButtonType.CANCEL);
@@ -297,9 +301,10 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 				String scriptString = String.format(
 						"transformSelectedObjects(AffineTransforms.fromRows(%f, %f, %f, %f, %f, %f))",
 						values[0], values[1], values[2], values[3], values[4], values[5]);
-				imageData.getHistoryWorkflow().addStep(
-						new DefaultScriptableWorkflowStep("Transform selected objects", scriptString)
-						);
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+						QuPathResources.getString("Commands.RigidObjectEditor.transformSelectedObjects"),
+						scriptString
+				));
 			}
 		}
 	}

@@ -48,11 +48,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +78,7 @@ class ProjectMetadataEditorCommand {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ProjectMetadataEditorCommand.class);
 
-	private static final String IMAGE_NAME = "Image name";
+	private static final String IMAGE_NAME = QuPathResources.getString("Commands.Project.MetadataEditor.imageName");
 
 	
 	public static void showProjectMetadataEditor(Project<?> project) {
@@ -130,7 +132,13 @@ class ProjectMetadataEditorCommand {
 				if (positions.size() == 1) {
 					setTextForSelectedCells(positions, null);
 				} else {
-					if (Dialogs.showConfirmDialog("Project metadata", "Clear metadata for " + positions.size() + " selected cells?")) {
+					if (Dialogs.showConfirmDialog(
+							QuPathResources.getString("Commands.Project.MetadataEditor.projectMetadata"),
+							MessageFormat.format(
+									QuPathResources.getString("Commands.Project.MetadataEditor.clearMetadata"),
+									positions.size()
+							)
+					)) {
 						setTextForSelectedCells(positions, null);
 					}
 				}
@@ -144,24 +152,28 @@ class ProjectMetadataEditorCommand {
 				);
 		
 		MenuBar menubar = new MenuBar();
-		Menu menuEdit = new Menu("Edit");
-		MenuItem miCopy = new MenuItem("Copy selected cells");
+		Menu menuEdit = new Menu(QuPathResources.getString("Commands.Project.MetadataEditor.edit"));
+		MenuItem miCopy = new MenuItem(QuPathResources.getString("Commands.Project.MetadataEditor.copySelectedCells"));
 		miCopy.disableProperty().bind(selectedCells);
 		miCopy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
 		miCopy.setOnAction(e -> copySelectedCellsToClipboard(table, true));
 
-		MenuItem miCopyFull = new MenuItem("Copy full table");
+		MenuItem miCopyFull = new MenuItem(QuPathResources.getString("Commands.Project.MetadataEditor.copyFullTable"));
 		miCopyFull.setOnAction(e -> copyEntireTableToClipboard(table));
 		
-		MenuItem miPaste = new MenuItem("Paste");
+		MenuItem miPaste = new MenuItem(QuPathResources.getString("Commands.Project.MetadataEditor.paste"));
 		miPaste.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN));
 		miPaste.disableProperty().bind(selectedCells);
 		miPaste.setOnAction(e -> pasteClipboardContentsToTable(table));
 
-		MenuItem miSet = new MenuItem("Set cell contents");
+		MenuItem miSet = new MenuItem(QuPathResources.getString("Commands.Project.MetadataEditor.setCellContents"));
 		miSet.disableProperty().bind(selectedCells);
 		miSet.setOnAction(e -> {
-			String input = Dialogs.showInputDialog("Set metadata cells", "Metadata text", "");
+			String input = Dialogs.showInputDialog(
+					QuPathResources.getString("Commands.Project.MetadataEditor.setMetadataCells"),
+					QuPathResources.getString("Commands.Project.MetadataEditor.metadataText"),
+					""
+			);
 			if (input == null)
 				return;
 			setTextForSelectedCells(table.getSelectionModel().getSelectedCells(), input);
@@ -181,7 +193,7 @@ class ProjectMetadataEditorCommand {
 		var qupath = QuPathGUI.getInstance();
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());
-		dialog.setTitle("Project metadata");
+		dialog.setTitle(QuPathResources.getString("Commands.Project.MetadataEditor.projectMetadata"));
 		dialog.setHeaderText(null);
 		dialog.setResizable(true);
 		dialog.getDialogPane().setContent(pane);
@@ -230,7 +242,10 @@ class ProjectMetadataEditorCommand {
 		boolean isContinuous = (rows[rows.length-1] - rows[0] + 1) * (cols[cols.length-1] - cols[0] + 1) == positions.size();
 		if (!isContinuous) {
 			if (warnIfDiscontinuous)
-				Dialogs.showWarningNotification("Copy table selection", "Cannot copy discontinuous selection, sorry");
+				Dialogs.showWarningNotification(
+						QuPathResources.getString("Commands.Project.MetadataEditor.copyTableSelection"),
+						QuPathResources.getString("Commands.Project.MetadataEditor.cannotCopyDiscontinuousSelection")
+				);
 			return;
 		}
 		
@@ -302,7 +317,10 @@ class ProjectMetadataEditorCommand {
 		}
 		
 		if (s.contains("\n") || s.contains("\t")) {
-			Dialogs.showWarningNotification("Paste contents", "Cannot paste clipboard contents - only simple, single-cell text supported");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Commands.Project.MetadataEditor.pasteContents"),
+					QuPathResources.getString("Commands.Project.MetadataEditor.cannotPasteClipboardContents")
+			);
 			return;
 		}
 		
@@ -326,7 +344,10 @@ class ProjectMetadataEditorCommand {
 				wrapper.putMetadataValue(key, text);
 		}
 		if (containsImageNameColumns) {
-			Dialogs.showWarningNotification("Project metadata table", "The image name cannot be changed");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Commands.Project.MetadataEditor.projectMetadataTable"),
+					QuPathResources.getString("Commands.Project.MetadataEditor.imageNameCannotBeChanged")
+			);
 		}
 	}
 	

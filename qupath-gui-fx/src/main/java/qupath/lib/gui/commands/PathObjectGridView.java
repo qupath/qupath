@@ -262,7 +262,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		Comparator<PathObject> sorter;
 		if (measurementName.equals(QuPathResources.getString("GridView.classification"))) {
 			sorter = (po1, po2) -> {
-				Comparator<PathObject> comp = Comparator.comparing(po -> po.getPathClass() == null ? "Unclassified" : po.getPathClass().toString());
+				Comparator<PathObject> comp = Comparator.comparing(po -> po.getPathClass() == null ? PathClass.NULL_CLASS.toString() : po.getPathClass().toString());
 				return comp.compare(po1, po2);
 			};
 		} else {
