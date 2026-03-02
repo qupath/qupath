@@ -46,7 +46,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
+
+import java.text.MessageFormat;
 
 /**
  * A basic GUI to help monitor memory usage in QuPath.
@@ -104,9 +107,9 @@ class MemoryMonitorDialog {
 
 		// Create a chart to show how memory use evolves over time
 		var xAxis = new NumberAxis();
-		xAxis.setLabel("Time (seconds)");
+		xAxis.setLabel(QuPathResources.getString("Commands.MemoryMonitor.time"));
 		var yAxis = new NumberAxis();
-		yAxis.setLabel("Memory (GB)");
+		yAxis.setLabel(QuPathResources.getString("Commands.MemoryMonitor.memory"));
 		var chart = new AreaChart<>(xAxis, yAxis);
 		yAxis.setAutoRanging(false);
 		yAxis.setLowerBound(0.0);
@@ -118,9 +121,19 @@ class MemoryMonitorDialog {
 		}, timeMillis));
 		// Bind the series names to the latest values, in MB
 		seriesTotal.nameProperty().bind(Bindings.createStringBinding(
-				() -> String.format("Total memory (%.1f MB)", totalMemory.get() * scaleMB), totalMemory));
+				() -> MessageFormat.format(
+						QuPathResources.getString("Commands.MemoryMonitor.totalMemory"),
+						String.format("%.1f", totalMemory.get() * scaleMB)
+				),
+				totalMemory
+		));
 		seriesUsed.nameProperty().bind(Bindings.createStringBinding(
-				() -> String.format("Used memory (%.1f MB)", usedMemory.get() * scaleMB), usedMemory));
+				() -> MessageFormat.format(
+						QuPathResources.getString("Commands.MemoryMonitor.usedMemory"),
+						String.format("%.1f", usedMemory.get() * scaleMB)
+				),
+				usedMemory
+		));
 		chart.getData().add(seriesTotal);
 		chart.getData().add(seriesUsed);
 		chart.setLegendVisible(true);
@@ -130,11 +143,12 @@ class MemoryMonitorDialog {
 
 		// Add it button to make it possible to clear the tile cache
 		Label labelClearCache = new Label();
-		labelClearCache.textProperty().bind(Bindings.createStringBinding(() -> {
-			return String.format("Num cached tiles: %d", cachedTiles.get());
-		}, cachedTiles));
-		var btnClearCache = new Button("Clear tile cache");
-		btnClearCache.setTooltip(new Tooltip("Clear the cache used to store image tiles for better viewer performance"));
+		labelClearCache.textProperty().bind(Bindings.createStringBinding(
+				() -> MessageFormat.format(QuPathResources.getString("Commands.MemoryMonitor.numCachedTiles"), cachedTiles.get()),
+				cachedTiles
+		));
+		var btnClearCache = new Button(QuPathResources.getString("Commands.MemoryMonitor.clearTileCache"));
+		btnClearCache.setTooltip(new Tooltip(QuPathResources.getString("Commands.MemoryMonitor.clearTileCacheDescription")));
 		btnClearCache.setOnAction(e -> {
 			try {
 				logger.info("Clearing cache...");
@@ -148,11 +162,15 @@ class MemoryMonitorDialog {
 
 		// Clear Undo/Redo manager
 		Label labelUndoRedo = new Label();
-		labelUndoRedo.textProperty().bind(Bindings.createStringBinding(() -> {
-			return String.format("Undo/Redo memory: %.2f GB", undoRedoSizeBytes.get()/(1024.0 * 1024.0 * 1024.0));
-		}, undoRedoSizeBytes));
-		var btnClearUndoRedo = new Button("Reset undo/redo");
-		btnClearUndoRedo.setTooltip(new Tooltip("Clear all the data needed to support undo/redo"));
+		labelUndoRedo.textProperty().bind(Bindings.createStringBinding(
+				() -> MessageFormat.format(
+						QuPathResources.getString("Commands.MemoryMonitor.undoRedoMemory"),
+						String.format("%.2f", undoRedoSizeBytes.get()/(1024.0 * 1024.0 * 1024.0))
+				),
+				undoRedoSizeBytes
+		));
+		var btnClearUndoRedo = new Button(QuPathResources.getString("Commands.MemoryMonitor.resetUndoRedo"));
+		btnClearUndoRedo.setTooltip(new Tooltip(QuPathResources.getString("Commands.MemoryMonitor.resetUndoRedoDescription")));
 		btnClearUndoRedo.setOnAction(e -> {
 			try {
 				logger.info("Clearing undo/redo...");
@@ -165,17 +183,17 @@ class MemoryMonitorDialog {
 		btnClearUndoRedo.setMaxWidth(Double.MAX_VALUE);
 
 		// Add a button to run the garbage collector
-		var btnGarbageCollector = new Button("Reclaim memory");
-		btnGarbageCollector.setTooltip(new Tooltip("Request all available memory be reclaimed (this helps give a more accurate graph)"));
+		var btnGarbageCollector = new Button(QuPathResources.getString("Commands.MemoryMonitor.reclaimMemory"));
+		btnGarbageCollector.setTooltip(new Tooltip(QuPathResources.getString("Commands.MemoryMonitor.reclaimMemoryDescription")));
 		btnGarbageCollector.setOnAction(e -> System.gc());
 		btnGarbageCollector.setMaxWidth(Double.MAX_VALUE);
 				
 		var btnToggleMonitoring = new ToggleButton();
 		btnToggleMonitoring.textProperty().bind(Bindings.createStringBinding(() -> {
 			if (btnToggleMonitoring.isSelected())
-				return "Stop monitoring";
+				return QuPathResources.getString("Commands.MemoryMonitor.stopMonitoring");
 			else
-				return "Start monitoring";
+				return QuPathResources.getString("Commands.MemoryMonitor.startMonitoring");
 		}, btnToggleMonitoring.selectedProperty()));
 		btnToggleMonitoring.setMaxWidth(Double.MAX_VALUE);
 		btnToggleMonitoring.selectedProperty().addListener((v, o, n) -> {
@@ -189,7 +207,7 @@ class MemoryMonitorDialog {
 				}
 			}
 		});
-		var btnReset = new Button("Reset monitor");
+		var btnReset = new Button(QuPathResources.getString("Commands.MemoryMonitor.resetMonitor"));
 		btnReset.setOnAction(e -> {
 			startTimeMillis = 0L;
 			seriesUsed.getData().clear();
@@ -200,7 +218,7 @@ class MemoryMonitorDialog {
 		// Add a text field to adjust the number of parallel threads
 		// This is handy to scale back memory use when running things like cell detection
 		var runtime = Runtime.getRuntime();
-		var labThreads = new Label("Parallel threads");
+		var labThreads = new Label(QuPathResources.getString("Commands.MemoryMonitor.parallelThreads"));
 		var tfThreads = new TextField(Integer.toString(PathPrefs.numCommandThreadsProperty().get()));
 		PathPrefs.numCommandThreadsProperty().addListener((v, o, n) -> {
 			var text = n.toString();
@@ -221,7 +239,16 @@ class MemoryMonitorDialog {
 		var paneRight = new GridPane();
 		int col = 0;
 		int row = 0;
-		paneRight.add(new Label("Available processors: " + runtime.availableProcessors()), col, row++, 1, 1);
+		paneRight.add(
+				new Label(MessageFormat.format(
+						QuPathResources.getString("Commands.MemoryMonitor.availableProcessors"),
+						runtime.availableProcessors()
+				)),
+				col,
+				row++,
+				1,
+				1
+		);
 		paneRight.add(labThreads, col, row, 1, 1);
 		paneRight.add(tfThreads, col+1, row++, 1, 1);
 		paneRight.add(labelClearCache, col, row++, 2, 1);
@@ -269,7 +296,7 @@ class MemoryMonitorDialog {
 		stage = new Stage();
 		stage.initOwner(qupath.getStage());
 		stage.setScene(new Scene(pane));
-		stage.setTitle("Memory monitor");
+		stage.setTitle(QuPathResources.getString("Commands.MemoryMonitor.title"));
 		FXUtils.addCloseWindowShortcuts(stage);
 
 		stage.setOnShowing(e -> {

@@ -41,12 +41,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.actions.InfoMessage;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.ui.logviewer.ui.main.LogMessageCounts;
 import qupath.ui.logviewer.ui.main.LogViewer;
 import qupath.ui.logviewer.ui.textarea.TextAreaLogViewer;
 
 import java.io.IOException;
+import java.text.MessageFormat;
 
 /**
  * A viewer for log messages.
@@ -108,7 +110,7 @@ public class LogViewerCommand {
 		}
 		if (dialog == null) {
 			dialog = new Stage();
-			dialog.setTitle("Log");
+			dialog.setTitle(QuPathResources.getString("Commands.LogViewer.title"));
 
 			errorMessageCounts.addListener((v, o, n) -> updateLastSeenErrors());
 			dialog.showingProperty().addListener((v, o, n) -> updateLastSeenErrors());
@@ -142,9 +144,12 @@ public class LogViewerCommand {
 		return Bindings.createStringBinding(() -> {
 			int value = unseenMessageCounts.intValue();
 			if (value == 1)
-				return "1 unseen error";
+				return QuPathResources.getString("Commands.LogViewer.oneUnseenError");
 			else
-				return value + " unseen errors";
+				return MessageFormat.format(
+						QuPathResources.getString("Commands.LogViewer.nUnseenErrors"),
+						value
+				);
 		}, unseenMessageCounts);
 	}
 
