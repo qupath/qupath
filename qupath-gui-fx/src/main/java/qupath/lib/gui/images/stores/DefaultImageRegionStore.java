@@ -142,7 +142,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 							if (imgTile != null)
 								cache.put(request, imgTile);
 						} catch (IOException e1) {
-							logger.warn("Unable to read tile for " + request, e1);
+                            logger.warn("Unable to read tile for {}", request, e1);
 						}
 					} else
 						try {

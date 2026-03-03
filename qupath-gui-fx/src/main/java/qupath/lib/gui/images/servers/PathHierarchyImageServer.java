@@ -26,6 +26,7 @@ package qupath.lib.gui.images.servers;
 import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.images.ImageData;
@@ -178,7 +179,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 
 	@Override
 	public String getServerType() {
-		return "Overlay";
+		return QuPathResources.getString("Images.PathHierarchyImageServer.type");
 	}
 
 	@Override

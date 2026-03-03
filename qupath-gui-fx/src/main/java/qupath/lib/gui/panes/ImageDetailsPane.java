@@ -76,6 +76,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.tools.GuiTools;
@@ -136,25 +137,25 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 	private final Map<String, SimpleImageViewer> associatedImageViewers = new HashMap<>();
 
 	private enum ImageDetailRow {
-		NAME("Name", "The image name"),
-        URI("URI(s)", "The uniform resource identifier of the image"),
-        PIXEL_TYPE("Pixel type", "The data type of the pixel values"),
-        MAGNIFICATION("Magnification", "The magnification at which the image was captured"),
-        WIDTH("Width", "The image width in pixels"),
-        HEIGHT("Height", "The image height in pixels"),
-        DIMENSIONS("Dimensions (CZT)", "The number of channels, Z-slices, and time points present in the image, respectively"),
-		PIXEL_WIDTH("Pixel width", "The width of each pixel in physical space"),
-        PIXEL_HEIGHT("Pixel height", "The height of each pixel in physical space"),
-        Z_SPACING("Z spacing", "The spacing of Z-slices in physical space"),
-        UNCOMPRESSED_SIZE("Uncompressed size", "The total size of the full resolution image without any compression"),
-        SERVER_TYPE("Server type", "The type of ImageServer used to retrieve pixel values"),
-        PYRAMID("Pyramid", "The pyramidal zoom levels available in the image (if any)"),
-		METADATA_CHANGED("Metadata changed", "Has the original metadata been changed in QuPath?"),
-        IMAGE_TYPE("Image type", "The image type setting used in QuPath"),
-        STAIN_1("Stain 1", "The first stain used for color deconvolution"),
-        STAIN_2("Stain 2", "The second stain used for color deconvolution"),
-        STAIN_3("Stain 3", "The third stain used for color deconvolution"),
-        BACKGROUND("Background", "The pixel values used as background for color deconvolution");
+		NAME("Panes.ImageDetails.name", "Panes.ImageDetails.nameDescription"),
+        URI("Panes.ImageDetails.uri", "Panes.ImageDetails.uriDescription"),
+        PIXEL_TYPE("Panes.ImageDetails.pixelType", "Panes.ImageDetails.pixelTypeDescription"),
+        MAGNIFICATION("Panes.ImageDetails.magnification", "Panes.ImageDetails.magnificationDescription"),
+        WIDTH("Panes.ImageDetails.width", "Panes.ImageDetails.widthDescription"),
+        HEIGHT("Panes.ImageDetails.height", "Panes.ImageDetails.heightDescription"),
+        DIMENSIONS("Panes.ImageDetails.dimensions", "Panes.ImageDetails.dimensionsDescription"),
+		PIXEL_WIDTH("Panes.ImageDetails.pixelWidth", "Panes.ImageDetails.pixelWidthDescription"),
+        PIXEL_HEIGHT("Panes.ImageDetails.pixelHeight", "Panes.ImageDetails.pixelHeightDescription"),
+        Z_SPACING("Panes.ImageDetails.zSpacing", "Panes.ImageDetails.zSpacingDescription"),
+        UNCOMPRESSED_SIZE("Panes.ImageDetails.uncompressedSize", "Panes.ImageDetails.uncompressedSizeDescription"),
+        SERVER_TYPE("Panes.ImageDetails.serverType", "Panes.ImageDetails.serverTypeDescription"),
+        PYRAMID("Panes.ImageDetails.pyramid", "Panes.ImageDetails.pyramidDescription"),
+		METADATA_CHANGED("Panes.ImageDetails.metadataChanged", "Panes.ImageDetails.metadataChangedDescription"),
+        IMAGE_TYPE("Panes.ImageDetails.imageType", "Panes.ImageDetails.imageTypeDescription"),
+        STAIN_1("Panes.ImageDetails.stainOne", "Panes.ImageDetails.stainOneDescription"),
+        STAIN_2("Panes.ImageDetails.stainTwo", "Panes.ImageDetails.stainTwoDescription"),
+        STAIN_3("Panes.ImageDetails.stainThree", "Panes.ImageDetails.stainThreeDescription"),
+        BACKGROUND("Panes.ImageDetails.background", "Panes.ImageDetails.backgroundDescription");
 
         private final String name;
         private final String description;
@@ -165,11 +166,11 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
         }
 
         public String getName() {
-            return name;
+            return QuPathResources.getString(name);
         }
 
         public String getDescription() {
-            return description;
+            return QuPathResources.getString(description);
         }
 
         ImageDetailRow(String name, String description) {
@@ -199,17 +200,17 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		imageDataProperty.addListener(this);
 
 		// Create the table
-		table.setPlaceholder(GuiTools.createPlaceholderText("No image selected"));
+		table.setPlaceholder(GuiTools.createPlaceholderText(QuPathResources.getString("Panes.ImageDetails.noImageSelected")));
 		table.setMinHeight(200);
 		table.setPrefHeight(250);
 		table.setMaxHeight(Double.MAX_VALUE);
 		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-		TableColumn<ImageDetailRow, String> columnName = new TableColumn<>("Name");
+		TableColumn<ImageDetailRow, String> columnName = new TableColumn<>(QuPathResources.getString("Panes.ImageDetails.name"));
 		columnName.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue().getName()));
 		columnName.setEditable(false);
 		columnName.setPrefWidth(150);
         columnName.setCellFactory(_ -> new ImageDetailNameTableCell());
-		TableColumn<ImageDetailRow, Object> columnValue = new TableColumn<>("Value");
+		TableColumn<ImageDetailRow, Object> columnValue = new TableColumn<>(QuPathResources.getString("Panes.ImageDetails.value"));
 		columnValue.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(getValue(v.getValue())));
 		columnValue.setEditable(false);
 		columnValue.setPrefWidth(200);
@@ -225,10 +226,9 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 
 		MasterDetailPane mdPane = new MasterDetailPane(Side.BOTTOM);
 		mdPane.setMasterNode(new StackPane(table));
-		var titlePaneAssociated = new TitledPane("Associated images", listAssociatedImages);
+		var titlePaneAssociated = new TitledPane(QuPathResources.getString("Panes.ImageDetails.associatedImages"), listAssociatedImages);
 		titlePaneAssociated.setCollapsible(false);
-		listAssociatedImages.setTooltip(new Tooltip(
-				"Extra images associated with the current image, e.g. a label or thumbnail"));
+		listAssociatedImages.setTooltip(new Tooltip(QuPathResources.getString("Panes.ImageDetails.associatedImagesDescription")));
 		mdPane.setDetailNode(titlePaneAssociated);
 		mdPane.showDetailNodeProperty().bind(
 				Bindings.createBooleanBinding(() -> !listAssociatedImages.getItems().isEmpty(),

@@ -22,6 +22,7 @@
 package qupath.lib.gui.dialogs;
 
 import java.awt.image.BufferedImage;
+import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -46,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.panes.ProjectEntryPredicate;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.projects.ProjectImageEntry;
@@ -77,9 +79,9 @@ public class ProjectDialogs {
 		
 		// Add a filter text field
 		TextField tfFilter = new TextField();
-		CheckBox cbWithData = new CheckBox("With data file only");
-		tfFilter.setTooltip(new Tooltip("Enter text to filter image list"));
-		cbWithData.setTooltip(new Tooltip("Filter image list to only images with associated data files"));
+		CheckBox cbWithData = new CheckBox(QuPathResources.getString("Dialogs.Project.dataFileOnly"));
+		tfFilter.setTooltip(new Tooltip(QuPathResources.getString("Dialogs.Project.filterImageList")));
+		cbWithData.setTooltip(new Tooltip(QuPathResources.getString("Dialogs.Project.onlyImagesWithDataFiles")));
 		tfFilter.textProperty().addListener((v, o, n) -> updateImageList(listSelectionView, availableImages, n, cbWithData.selectedProperty().get()));
 		cbWithData.selectedProperty().addListener((v, o, n) -> updateImageList(listSelectionView, availableImages, tfFilter.getText(), cbWithData.selectedProperty().get()));
 		
@@ -108,7 +110,10 @@ public class ProjectDialogs {
 		
 		var targetItems = listSelectionView.getTargetItems();
 		targetItems.addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
-			labelSelected.setText(e.getList().size() + " selected");
+			labelSelected.setText(MessageFormat.format(
+					QuPathResources.getString("Dialogs.Project.selected"),
+					e.getList().size()
+			));
 			var currentImages = getCurrentImages(qupath);
 			if (labelSameImageWarning != null && currentImages != null) {
 				boolean visible = false;
@@ -124,7 +129,7 @@ public class ProjectDialogs {
 		});
 		
 		var paneSelected = new GridPane();
-		GridPaneUtils.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
+		GridPaneUtils.addGridRow(paneSelected, 0, 0, QuPathResources.getString("Dialogs.Project.selectedImages"), labelSelected);
 
 		// Create a warning label to display if we need to
 		if (openImageWarning != null) {
@@ -200,7 +205,7 @@ public class ProjectDialogs {
 					tooltipGraphic = imageView;
 				}
 			} catch (Exception e) {
-				logger.debug("Unable to read thumbnail for {} ({})" + item.getImageName(), e.getLocalizedMessage());
+				logger.debug("Unable to read thumbnail for {} ({})", item.getImageName(), e.getLocalizedMessage());
 			}
 			tooltip.setText(item.getSummary());
 			if (tooltipGraphic != null)
