@@ -63,6 +63,7 @@ import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.controls.PredicateTextField;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
@@ -167,13 +168,13 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	private TableView<String> createMeasurementTable() {
 		TableView<String> tableMeasurements = new TableView<>();
 
-		tableMeasurements.setPlaceholder(GuiTools.createPlaceholderText("No image or object selected"));
+		tableMeasurements.setPlaceholder(GuiTools.createPlaceholderText(QuPathResources.getString("Panes.SelectedMeasurement.noImageOrObjectSelected")));
 		allKeys.setAll(tableModel.getAllNames());
 		tableMeasurements.setItems(filteredKeys);
 
-		TableColumn<String, String> col1 = new TableColumn<>("Key");
+		TableColumn<String, String> col1 = new TableColumn<>(QuPathResources.getString("Panes.SelectedMeasurement.key"));
 		col1.setCellValueFactory(this::tableKeyColumnValueFactory);
-		TableColumn<String, String> col2 = new TableColumn<>("Value");
+		TableColumn<String, String> col2 = new TableColumn<>(QuPathResources.getString("Panes.SelectedMeasurement.value"));
 		col2.setCellValueFactory(this::tableValueColumnValueFactory);
 		col2.setCellFactory(c -> new ValueTableCell());
 
@@ -195,7 +196,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	private TableRow<String> createTableRow(TableView<String> table) {
 		final TableRow<String> row = new TableRow<>();
 		final ContextMenu menu = new ContextMenu();
-		final MenuItem copyItem = new MenuItem("Copy");
+		final MenuItem copyItem = new MenuItem(QuPathResources.getString("Panes.SelectedMeasurement.copy"));
 		menu.getItems().add(copyItem);
 		copyItem.setOnAction(ev -> copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems()));
 
@@ -262,12 +263,12 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		filter.promptTextProperty().bind(
 				Bindings.createStringBinding(() -> {
 					if (useRegex.get())
-						return "Filter measurements by regular expression";
+						return QuPathResources.getString("Panes.SelectedMeasurement.filterByRegularExpression");
 					else
-						return "Filter measurements by key";
+						return QuPathResources.getString("Panes.SelectedMeasurement.filterByKey");
 				}, useRegex)
 		);
-		var tooltip = new Tooltip("Enter text to find specific measurements by key");
+		var tooltip = new Tooltip(QuPathResources.getString("Panes.SelectedMeasurement.findMeasurementsByKey"));
 		Tooltip.install(filter, tooltip);
 		return filter;
 	}
@@ -458,15 +459,14 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	private static Node createMeasurementListIcon(int size) {
 		var icon = IconFactory.createNode(FontAwesome.Glyph.LIST_OL, size);
 		icon.setOpacity(0.4);
-		Tooltip.install(icon, new Tooltip("Value stored in the object's measurement list.\n" +
-				"May be used as a feature for an object classifier."));
+		Tooltip.install(icon, new Tooltip(QuPathResources.getString("Panes.SelectedMeasurement.valueStoredInObjectMeasurement")));
 		return icon;
 	}
 
 	private static Node createMetadataIcon(int size) {
 		var icon = IconFactory.createNode(FontAwesome.Glyph.LIST_UL, size);
 		icon.setOpacity(0.4);
-		Tooltip.install(icon, new Tooltip("Value is stored in the object's metadata map."));
+		Tooltip.install(icon, new Tooltip(QuPathResources.getString("Panes.SelectedMeasurement.valueStoredInObjectMetadata")));
 		return icon;
 	}
 

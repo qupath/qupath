@@ -33,6 +33,7 @@ import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.io.GsonTools;
 
 import java.lang.reflect.Array;
@@ -81,7 +82,7 @@ public class ObjectTreeBrowser {
 //			}
 //		});
 		
-		TreeTableColumn<T, String> colValue = new TreeTableColumn<>("Value");
+		TreeTableColumn<T, String> colValue = new TreeTableColumn<>(QuPathResources.getString("Panes.ObjectTreeBrowser.value"));
 		colValue.setCellValueFactory(c -> {
 			if (c.getValue() instanceof ObjectTreeItem)
 				return new ReadOnlyObjectWrapper<>(String.valueOf(((ObjectTreeItem<?>)c.getValue()).getValue()));
@@ -106,7 +107,7 @@ public class ObjectTreeBrowser {
 		
 		// Enable manual refreshing
 		ContextMenu menu = new ContextMenu();
-		MenuItem miRefresh = new MenuItem("Refresh");
+		MenuItem miRefresh = new MenuItem(QuPathResources.getString("Panes.ObjectTreeBrowser.refresh"));
 		miRefresh.setOnAction(e -> {
 			for (int i = 0; i < treeTable.getExpandedItemCount(); i++) {
 				TreeItem<T> item = treeTable.getTreeItem(i);
