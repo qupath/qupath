@@ -60,6 +60,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
@@ -72,6 +73,7 @@ import qupath.lib.plugins.workflow.WorkflowListener;
 import qupath.lib.plugins.workflow.WorkflowStep;
 
 import java.awt.image.BufferedImage;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -157,9 +159,9 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	
 	protected BorderPane createPane() {
 		BorderPane pane = new BorderPane();
-		TableColumn<KeyValue<Object>, String> col1 = new TableColumn<>("Parameter");
+		TableColumn<KeyValue<Object>, String> col1 = new TableColumn<>(QuPathResources.getString("Panes.WorkflowCommandLogView.parameter"));
 		col1.setCellValueFactory(c -> c.getValue().keyProperty());
-		TableColumn<KeyValue<Object>, Object> col2 = new TableColumn<>("Value");
+		TableColumn<KeyValue<Object>, Object> col2 = new TableColumn<>(QuPathResources.getString("Panes.WorkflowCommandLogView.value"));
 		col2.setCellValueFactory(c -> c.getValue().valueProperty());
 		col2.setCellFactory(t -> new ParameterTableCell<>());
 		table.getColumns().add(col1);
@@ -179,7 +181,10 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		});
 		
 		final ContextMenu contextMenu = new ContextMenu();
-		MenuItem miCopyCommand = new MenuItem("Copy command" + (isStaticWorkflow ? "s" : ""));
+		MenuItem miCopyCommand = new MenuItem(QuPathResources.getString(isStaticWorkflow ?
+				"Panes.WorkflowCommandLogView.copyCommands" :
+				"Panes.WorkflowCommandLogView.copyCommand"
+		));
 		miCopyCommand.setOnAction(e -> {
 			List<Integer> indices = list.getSelectionModel().getSelectedIndices();
 			if (indices == null || indices.isEmpty())
@@ -190,13 +195,18 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		contextMenu.getItems().setAll(miCopyCommand);
 		
 		if (isStaticWorkflow) {
-			MenuItem miRemoveSelected = new MenuItem("Remove selected items");
+			MenuItem miRemoveSelected = new MenuItem(QuPathResources.getString("Panes.WorkflowCommandLogView.removeSelectedItems"));
 			miRemoveSelected.setOnAction(e -> {
 				var steps = getSelectedIndices();
 				if (steps == null || steps.isEmpty())
 					return;
-				String message = steps.size() == 1 ? "Remove workflow step?" : "Remove " + steps.size() + " workflow steps?";
-				if (!Dialogs.showYesNoDialog("Remove workflow steps", message))
+				String message = steps.size() == 1 ?
+						QuPathResources.getString("Panes.WorkflowCommandLogView.removeWorkflowStep") :
+						MessageFormat.format(
+								QuPathResources.getString("Panes.WorkflowCommandLogView.removeNWorkflowSteps"),
+								steps.size()
+						);
+				if (!Dialogs.showYesNoDialog(QuPathResources.getString("Panes.WorkflowCommandLogView.removeWorkflowSteps"), message))
 					return;
 				Collections.sort(steps);
 				for (int i = steps.size()-1; i >= 0; i--)
@@ -205,7 +215,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 			});
 			miRemoveSelected.disableProperty().bind(workflowProperty.isNull());
 			
-			MenuItem miMoveUp = new MenuItem("Move up");
+			MenuItem miMoveUp = new MenuItem(QuPathResources.getString("Panes.WorkflowCommandLogView.moveUp"));
 			miMoveUp.setOnAction(e -> {
 				var indices = getSelectedIndices();
 				if (indices == null || indices.isEmpty() || indices.get(0) <= 0)
@@ -230,7 +240,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 			});
 			miMoveUp.disableProperty().bind(workflowProperty.isNull());
 			
-			MenuItem miMoveDown = new MenuItem("Move down");
+			MenuItem miMoveDown = new MenuItem(QuPathResources.getString("Panes.WorkflowCommandLogView.moveDown"));
 			miMoveDown.setOnAction(e -> {
 				var indices = getSelectedIndices();
 				var workflow = getWorkflow();
@@ -313,14 +323,14 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		
 		pane.setCenter(splitPane);
 		
-		Button btnCreateScript = new Button("Create script");
+		Button btnCreateScript = new Button(QuPathResources.getString("Panes.WorkflowCommandLogView.createScript"));
 		btnCreateScript.setMaxWidth(Double.MAX_VALUE);
 		btnCreateScript.setOnAction(e -> showScript());
 		btnCreateScript.disableProperty().bind(workflowProperty.isNull());
 
 		Button btnCreateWorkflow = null;
 		if (!isStaticWorkflow) {
-			btnCreateWorkflow = new Button("Create workflow");
+			btnCreateWorkflow = new Button(QuPathResources.getString("Panes.WorkflowCommandLogView.createWorkflow"));
 			btnCreateWorkflow.setMaxWidth(Double.MAX_VALUE);
 			btnCreateWorkflow.setOnAction(e -> {
 				var workflow = getWorkflow();
@@ -329,7 +339,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 				Stage stage = new Stage();
 				FXUtils.addCloseWindowShortcuts(stage);
 				stage.initOwner(qupath.getStage());
-				stage.setTitle("Workflow");
+				stage.setTitle(QuPathResources.getString("Panes.WorkflowCommandLogView.workflow"));
 				Workflow workflowNew = new Workflow();
 				workflowNew.addSteps(workflow.getSteps());
 				stage.setScene(new Scene(new WorkflowCommandLogView(qupath, workflowNew).getPane(), 400, 600));
@@ -415,7 +425,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	private static void runWorkflowStepInteractively(final QuPathGUI qupath, final WorkflowStep step) {
 		ImageData<BufferedImage> imageData = qupath.getImageData();
 		if (imageData == null) {
-			GuiTools.showNoImageError("Run workflow step");
+			GuiTools.showNoImageError(QuPathResources.getString("Panes.WorkflowCommandLogView.runWorkflowStep"));
 			return;
 		}
 		if (step instanceof SimplePluginWorkflowStep) {
@@ -436,9 +446,21 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 					qupath.runPlugin(plugin, arg, true);
 					
 				} catch (ClassNotFoundException e1) {
-					Dialogs.showErrorNotification("Plugin class not found", "No plugin class found with name " + pluginClassName);
+					Dialogs.showErrorNotification(
+							QuPathResources.getString("Panes.WorkflowCommandLogView.pluginClassNotFound"),
+							MessageFormat.format(
+									QuPathResources.getString("Panes.WorkflowCommandLogView.pluginClassNotFoundDescription"),
+									pluginClassName
+							)
+					);
 				} catch (Exception e1) {
-					Dialogs.showErrorNotification("Plugin error", "Error running plugin " + plugin.getName() + " - see log for details");
+					Dialogs.showErrorNotification(
+							QuPathResources.getString("Panes.WorkflowCommandLogView.pluginError"),
+							MessageFormat.format(
+									QuPathResources.getString("Panes.WorkflowCommandLogView.pluginErrorDescription"),
+									plugin.getName()
+							)
+					);
 					logger.error(e1.getLocalizedMessage(), e1);
 				}
 			}
@@ -474,9 +496,9 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 				 
 				""".replace("{{VERSION}}", QuPathGUI.getVersion().toString());
 		String script = workflow.createScript();
-		logger.info("\n//---------------------------------\n" + script + "\n//---------------------------------");
+        logger.info("\n//---------------------------------\n{}\n//---------------------------------", script);
 		if (scriptEditor != null)
-			scriptEditor.showScript("New script", comment + script);
+			scriptEditor.showScript(QuPathResources.getString("Panes.WorkflowCommandLogView.newScript"), comment + script);
 	}
 	
 	

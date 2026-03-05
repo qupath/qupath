@@ -64,6 +64,7 @@ import qupath.lib.analysis.stats.survival.LogRankTest;
 import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.ChartTools;
+import qupath.lib.gui.localization.QuPathResources;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -146,7 +147,7 @@ class KaplanMeierChartWrapper {
 		//			yAxis.setUpperBound(1);
 		//			yAxis.setLowerBound(0);
 		yAxis.setTickUnit(0.1);
-		yAxis.setLabel("Probability");
+		yAxis.setLabel(QuPathResources.getString("Tma.KaplanMeierChartWrapper.probability"));
 		xAxis.setLabel(survivalKey);
 		//			yAxis.setPadding(new Insets(5, 5, 5, 5));
 		
@@ -158,7 +159,7 @@ class KaplanMeierChartWrapper {
                 String s = GeneralTools.formatNumber(d, 2);
                 if (showAtRisk.get()) {
 //					s += "\n---";
-                    s += d == 0 ? "\n-At risk-" : "\n---";
+                    s += d == 0 ? QuPathResources.getString("Tma.KaplanMeierChartWrapper.atRisk") : "\n---";
                     for (KaplanMeierData kmData : kmList) {
                         if (d == 0) {
                             s += "\n" + kmData.getName() + ": " + kmData.getAtRisk(d);
@@ -198,26 +199,49 @@ class KaplanMeierChartWrapper {
 		// TODO: Fix printing - may depend on Java bug fix https://bugs.openjdk.java.net/browse/JDK-8129364
 		ContextMenu menu = new ContextMenu();
 
-		Menu menuLegendSide = new Menu("Set legend...");
+		Menu menuLegendSide = new Menu(QuPathResources.getString("Tma.KaplanMeierChartWrapper.setLegend"));
 		ToggleGroup toggleSide = new ToggleGroup();
-		Action actionNoLegend = new Action("None", e -> chart.setLegendVisible(false));
+		Action actionNoLegend = new Action(
+				QuPathResources.getString("Tma.KaplanMeierChartWrapper.none"),
+				e -> chart.setLegendVisible(false)
+		);
 		RadioMenuItem riNone = ActionUtils.createRadioMenuItem(actionNoLegend);
 		menuLegendSide.getItems().add(riNone);
 		toggleSide.getToggles().add(riNone);
-		RadioMenuItem riTop = ActionUtils.createRadioMenuItem(new Action("Top", e -> 	{chart.setLegendSide(Side.TOP);
-		chart.setLegendVisible(true);}));
+		RadioMenuItem riTop = ActionUtils.createRadioMenuItem(new Action(
+				QuPathResources.getString("Tma.KaplanMeierChartWrapper.top"),
+				e -> {
+					chart.setLegendSide(Side.TOP);
+					chart.setLegendVisible(true);
+				}
+		));
 		menuLegendSide.getItems().add(riTop);
 		toggleSide.getToggles().add(riTop);
-		RadioMenuItem riBottom = ActionUtils.createRadioMenuItem(new Action("Bottom", e -> {chart.setLegendSide(Side.BOTTOM);
-		chart.setLegendVisible(true);}));
+		RadioMenuItem riBottom = ActionUtils.createRadioMenuItem(new Action(
+				QuPathResources.getString("Tma.KaplanMeierChartWrapper.bottom"),
+				e -> {
+					chart.setLegendSide(Side.BOTTOM);
+					chart.setLegendVisible(true);
+				}
+		));
 		menuLegendSide.getItems().add(riBottom);
 		toggleSide.getToggles().add(riBottom);
-		RadioMenuItem riRight = ActionUtils.createRadioMenuItem(new Action("Right", e -> 	{chart.setLegendSide(Side.RIGHT);
-		chart.setLegendVisible(true);}));
+		RadioMenuItem riRight = ActionUtils.createRadioMenuItem(new Action(
+				QuPathResources.getString("Tma.KaplanMeierChartWrapper.right"),
+				e -> {
+					chart.setLegendSide(Side.RIGHT);
+					chart.setLegendVisible(true);
+				}
+		));
 		menuLegendSide.getItems().add(riRight);
 		toggleSide.getToggles().add(riRight);
-		RadioMenuItem riLeft = ActionUtils.createRadioMenuItem(new Action("Left", e ->	{chart.setLegendSide(Side.LEFT);
-		chart.setLegendVisible(true);}));
+		RadioMenuItem riLeft = ActionUtils.createRadioMenuItem(new Action(
+				QuPathResources.getString("Tma.KaplanMeierChartWrapper.left"),
+				e -> {
+					chart.setLegendSide(Side.LEFT);
+					chart.setLegendVisible(true);
+				}
+		));
 		menuLegendSide.getItems().add(riLeft);
 		toggleSide.getToggles().add(riLeft);
 		toggleSide.selectToggle(riRight);
@@ -229,7 +253,7 @@ class KaplanMeierChartWrapper {
 		ChartTools.expandChartClip(chart, 5);
 		
 		
-		MenuItem miCopyPanel = new MenuItem("Entire panel");
+		MenuItem miCopyPanel = new MenuItem(QuPathResources.getString("Tma.KaplanMeierChartWrapper.entirePanel"));
 		miCopyPanel.setOnAction(e -> {
 			// Create a snapshot at 4x the current resolution
 			double scale = 2;
@@ -246,7 +270,7 @@ class KaplanMeierChartWrapper {
 			Clipboard.getSystemClipboard().setContent(content);
 		});
 
-		MenuItem miCopy = new MenuItem("Chart only");
+		MenuItem miCopy = new MenuItem(QuPathResources.getString("Tma.KaplanMeierChartWrapper.chartOnly"));
 		miCopy.setOnAction(e -> {
 			// Create a snapshot at 4x the current resolution
 			double scale = 4;
@@ -260,11 +284,11 @@ class KaplanMeierChartWrapper {
 			content.putImage(img);
 			Clipboard.getSystemClipboard().setContent(content);
 		});
-		Menu menuCopy = new Menu("Copy...");
+		Menu menuCopy = new Menu(QuPathResources.getString("Tma.KaplanMeierChartWrapper.copy"));
 		menuCopy.getItems().addAll(miCopy, miCopyPanel);
 
 
-		MenuItem miPrint = new MenuItem("Print (experimental)");
+		MenuItem miPrint = new MenuItem(QuPathResources.getString("Tma.KaplanMeierChartWrapper.print"));
 		miPrint.setOnAction(e -> {
 			PrinterJob job = PrinterJob.createPrinterJob();
 			logger.warn("Printing does not yet work properly! (At least not on OSX)");

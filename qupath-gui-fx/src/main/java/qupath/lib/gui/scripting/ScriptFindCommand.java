@@ -41,7 +41,9 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.localization.QuPathResources;
 
+import java.text.MessageFormat;
 import java.util.regex.Pattern;
 
 /**
@@ -55,10 +57,10 @@ class ScriptFindCommand implements Runnable {
 	private final DefaultScriptEditor scriptEditor;
 	private final TextField tfFind = new TextField();
 	private final TextField tfReplace = new TextField();
-	private final Button btNext = new Button("Next");
+	private final Button btNext = new Button(QuPathResources.getString("Scripting.ScriptFindCommand.next"));
 	private final Label lbReplacedOccurrences = new Label();
 	private final Label lbFoundOccurrences = new Label();
-	private final CheckBox cbIgnoreCase = new CheckBox("Ignore case");
+	private final CheckBox cbIgnoreCase = new CheckBox(QuPathResources.getString("Scripting.ScriptFindCommand.ignoreCase"));
 	private double xPos = -1;
 	private double yPos = -1;
 	
@@ -102,7 +104,7 @@ class ScriptFindCommand implements Runnable {
 	
 	private void createFindStage() {
 		stage = new Stage();
-		stage.setTitle("Find/Replace");
+		stage.setTitle(QuPathResources.getString("Scripting.ScriptFindCommand.findReplace"));
 		FXUtils.addCloseWindowShortcuts(stage);
 		stage.initOwner(scriptEditor.getStage());
 		stage.initModality(Modality.NONE);
@@ -114,10 +116,10 @@ class ScriptFindCommand implements Runnable {
 		
 		var control = scriptEditor.getCurrentEditorControl();
 		
-		Button btPrevious = new Button("Previous");
-		Button btClose = new Button("Close");
-		Button btReplaceNext = new Button("Replace/Next");
-		Button btReplaceAll = new Button("Replace all");
+		Button btPrevious = new Button(QuPathResources.getString("Scripting.ScriptFindCommand.previous"));
+		Button btClose = new Button(QuPathResources.getString("Scripting.ScriptFindCommand.close"));
+		Button btReplaceNext = new Button(QuPathResources.getString("Scripting.ScriptFindCommand.replaceNext"));
+		Button btReplaceAll = new Button(QuPathResources.getString("Scripting.ScriptFindCommand.replaceAll"));
 		
 		GridPane pane = new GridPane();
 		pane.setVgap(10);
@@ -128,9 +130,36 @@ class ScriptFindCommand implements Runnable {
 	    HBox.setHgrow(lbFoundOccurrences, Priority.ALWAYS);
 		
 		int row = 0;
-		GridPaneUtils.addGridRow(pane, row++, 0, "Enter the text to find", new Label("Find: "), tfFind, tfFind, tfFind);
-		GridPaneUtils.addGridRow(pane, row++, 0, "Replace instance of query with the specified word", new Label("Replace with: "), tfReplace, tfReplace, tfReplace);
-		GridPaneUtils.addGridRow(pane, row++, 0, "Ignore case when searching query", cbIgnoreCase, cbIgnoreCase, cbIgnoreCase, cbIgnoreCase);
+		GridPaneUtils.addGridRow(
+				pane,
+				row++,
+				0,
+				QuPathResources.getString("Scripting.ScriptFindCommand.findDescription"),
+				new Label(QuPathResources.getString("Scripting.ScriptFindCommand.find") + " "),
+				tfFind,
+				tfFind,
+				tfFind
+		);
+		GridPaneUtils.addGridRow(
+				pane,
+				row++,
+				0,
+				QuPathResources.getString("Scripting.ScriptFindCommand.replaceWithDescription"),
+				new Label(QuPathResources.getString("Scripting.ScriptFindCommand.replaceWith") + " "),
+				tfReplace,
+				tfReplace,
+				tfReplace
+		);
+		GridPaneUtils.addGridRow(
+				pane,
+				row++,
+				0,
+				QuPathResources.getString("Scripting.ScriptFindCommand.ignoreCaseDescription"),
+				cbIgnoreCase,
+				cbIgnoreCase,
+				cbIgnoreCase,
+				cbIgnoreCase
+		);
 		GridPaneUtils.addGridRow(pane, row++, 0, null, btReplaceNext, btReplaceAll, lbReplacedOccurrences, lbReplacedOccurrences);
 		GridPaneUtils.addGridRow(pane, row++, 0, null, btPrevious, btNext, lbFoundOccurrences, btClose);
 		
@@ -198,7 +227,7 @@ class ScriptFindCommand implements Runnable {
 	
 	private void findNextAction(boolean btNextFocus) {
 		int found = findNext(scriptEditor.getCurrentEditorControl(), tfFind.getText(), cbIgnoreCase.isSelected());
-		lbFoundOccurrences.setText(found == -1 ? "String not found" : "");
+		lbFoundOccurrences.setText(found == -1 ? QuPathResources.getString("Scripting.ScriptFindCommand.stringNotFound") : "");
 		lbReplacedOccurrences.setText("");
 		btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), btNextFocus);
 	}
@@ -249,7 +278,13 @@ class ScriptFindCommand implements Runnable {
 		
 		// Update labels
 		lbFoundOccurrences.setText("");
-		lbReplacedOccurrences.setText(count == 0 ? "String not found" : count + " match" + (count > 1 ? "es" : "") + " replaced");
+		lbReplacedOccurrences.setText(count == 0 ?
+				QuPathResources.getString("Scripting.ScriptFindCommand.stringNotFound") :
+				MessageFormat.format(
+						QuPathResources.getString(count > 1 ? "Scripting.ScriptFindCommand.matchesReplaced" : "Scripting.ScriptFindCommand.matchReplaced"),
+						count
+				)
+		);
 	}
 
 	/**
@@ -294,7 +329,7 @@ class ScriptFindCommand implements Runnable {
 	 * @return index of first char if found, -1 otherwise
 	 */
 	private int findPrevious(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
-		lbFoundOccurrences.setText("String not found");
+		lbFoundOccurrences.setText(QuPathResources.getString("Scripting.ScriptFindCommand.stringNotFound"));
 		if (control == null || findText == null || findText.isEmpty())
 			return -1;
 		
@@ -321,7 +356,7 @@ class ScriptFindCommand implements Runnable {
 		control.selectRange(ind, ind + toFind.length());
 		control.requestFollowCaret();
 		
-		lbFoundOccurrences.setText(ind == -1 ? "String not found" : "");
+		lbFoundOccurrences.setText(ind == -1 ? QuPathResources.getString("Scripting.ScriptFindCommand.stringNotFound") : "");
 		return ind;
 	}
 }

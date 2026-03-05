@@ -74,6 +74,7 @@ import qupath.lib.gui.charts.ChartThresholdPane;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.charts.HistogramChart;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
@@ -85,6 +86,7 @@ import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
 
 import java.text.DecimalFormat;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -95,7 +97,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Create an manage a display component for survival data.
+ * Create and manage a display component for survival data.
  * 
  * @author Pete Bankhead
  *
@@ -213,7 +215,10 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 		FXUtils.addCloseWindowShortcuts(frame);
 		if (parent != null)
 			frame.initOwner(parent);
-		frame.setTitle("Kaplan Meier: " + title);
+		frame.setTitle(MessageFormat.format(
+				QuPathResources.getString("Tma.KaplanMeierDisplay.title"),
+				title
+		));
 
 		frame.setOnCloseRequest(e -> {
 			if (hierarchy != null)

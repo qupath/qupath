@@ -38,6 +38,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.stage.Screen;
 import org.controlsfx.control.PopOver;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 import qupath.lib.gui.tools.GuiTools;
 
@@ -56,7 +57,7 @@ class ImageTableCell extends TreeTableCell<TMAEntry, TMAEntry> {
 		private boolean isOverlay;
 		private PopOver popOver = null;
 		private ContextMenu menu = new ContextMenu();
-		private MenuItem miCopy = new MenuItem("Copy");
+		private MenuItem miCopy = new MenuItem(QuPathResources.getString("Tma.ImageTableCell.copy"));
 		
 		private Image img; // Keep a reference to the last image, so the cache doesn't throw it away
 		

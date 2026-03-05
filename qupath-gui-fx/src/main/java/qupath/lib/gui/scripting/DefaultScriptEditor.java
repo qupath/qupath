@@ -95,6 +95,7 @@ import qupath.lib.gui.JavadocViewerRunner;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.dialogs.ProjectDialogs;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.SystemMenuBar;
@@ -125,6 +126,7 @@ import java.io.PrintWriter;
 import java.io.Writer;
 import java.net.URI;
 import java.nio.file.Files;
+import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -230,8 +232,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private StringBinding title = Bindings.createStringBinding(() -> {
 		if (runningTask.get() == null)
-			return "Script Editor";
-		return "Script Editor (Running)";
+			return QuPathResources.getString("Scripting.DefaultScriptEditor.scriptEditor");
+		return QuPathResources.getString("Scripting.DefaultScriptEditor.scriptEditorRunning");
 	}, runningTask);
 	
 	// Accelerators that have been assigned to actions
@@ -241,8 +243,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected KeyCombination comboPasteEscape = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
 	protected final KeyCodeCombination completionCodeCombination = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.CONTROL_DOWN);
 
-	protected Action beautifySourceAction = ActionTools.createAction(this::beautifySource, "Beautify source");
-	protected Action compressSourceAction = ActionTools.createAction(this::compressSource, "Compress source");
+	protected Action beautifySourceAction = ActionTools.createAction(
+			this::beautifySource,
+			QuPathResources.getString("Scripting.DefaultScriptEditor.beautifySource")
+	);
+	protected Action compressSourceAction = ActionTools.createAction(
+			this::compressSource,
+			QuPathResources.getString("Scripting.DefaultScriptEditor.compressSource")
+	);
 	
 	private IntegerProperty caretPosition = new SimpleIntegerProperty();
 	
@@ -328,8 +336,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected Action undoAction;
 	protected Action redoAction;
 	
-	private Action zapGremlinsAction = createReplaceTextAction("Zap gremlins", GeneralTools::zapGremlins, true);
-	private Action replaceQuotesAction = createReplaceTextAction("Replace curly quotes", GeneralTools::replaceCurlyQuotes, true);
+	private Action zapGremlinsAction = createReplaceTextAction(
+			QuPathResources.getString("Scripting.DefaultScriptEditor.zapGremlins"),
+			GeneralTools::zapGremlins,
+			true
+	);
+	private Action replaceQuotesAction = createReplaceTextAction(
+			QuPathResources.getString("Scripting.DefaultScriptEditor.replaceCurlyQuotes"),
+			GeneralTools::replaceCurlyQuotes,
+			true
+	);
 	
 	private final Action showJavadocsAction;
 	
@@ -447,26 +463,33 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 
 	private void initializeActions() {
-		copyAction = createCopyAction("Copy", null);
-		cutAction = createCutAction("Cut", null);
-		pasteAction = createPasteAction("Paste", false, null);
-		pasteAndEscapeAction = createPasteAction("Paste & escape", true, comboPasteEscape);
-		undoAction = createUndoAction("Undo", null);
-		redoAction = createRedoAction("Redo", null);
+		copyAction = createCopyAction(QuPathResources.getString("Scripting.DefaultScriptEditor.copy"), null);
+		cutAction = createCutAction(QuPathResources.getString("Scripting.DefaultScriptEditor.cut"), null);
+		pasteAction = createPasteAction(QuPathResources.getString("Scripting.DefaultScriptEditor.paste"), false, null);
+		pasteAndEscapeAction = createPasteAction(
+				QuPathResources.getString("Scripting.DefaultScriptEditor.pasteAndEscape"),
+				true,
+				comboPasteEscape
+		);
+		undoAction = createUndoAction(QuPathResources.getString("Scripting.DefaultScriptEditor.undo"), null);
+		redoAction = createRedoAction(QuPathResources.getString("Scripting.DefaultScriptEditor.redo"), null);
 		
-		runScriptAction = createRunScriptAction("Run", false);
-		runSelectedAction = createRunScriptAction("Run selected code", true);
-		runProjectScriptAction = createRunProjectScriptAction("Run for project", true);
-		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without saving)", false);
-		killRunningScriptAction = createKillRunningScriptAction("Kill running script");
+		runScriptAction = createRunScriptAction(QuPathResources.getString("Scripting.DefaultScriptEditor.run"), false);
+		runSelectedAction = createRunScriptAction(QuPathResources.getString("Scripting.DefaultScriptEditor.runSelectedCode"), true);
+		runProjectScriptAction = createRunProjectScriptAction(QuPathResources.getString("Scripting.DefaultScriptEditor.runForProject"), true);
+		runProjectScriptNoSaveAction = createRunProjectScriptAction(
+				QuPathResources.getString("Scripting.DefaultScriptEditor.runForProjectWithoutSaving"),
+				false
+		);
+		killRunningScriptAction = createKillRunningScriptAction(QuPathResources.getString("Scripting.DefaultScriptEditor.killRunningScript"));
 		
 		insertMuAction = createInsertAction(GeneralTools.SYMBOL_MU + "");
 		insertQPImportAction = createInsertAction("QP");
 		insertQPExImportAction = createInsertAction("QPEx");
-		insertAllDefaultImportAction = createInsertAction("All default");
-		insertPixelClassifiersAction = createInsertAction("Pixel classifiers");
-		insertObjectClassifiersAction = createInsertAction("Object classifiers");
-		insertDetectionMeasurementsAction = createInsertAction("Detection");
+		insertAllDefaultImportAction = createInsertAction(QuPathResources.getString("Scripting.DefaultScriptEditor.allDefault"));
+		insertPixelClassifiersAction = createInsertAction(QuPathResources.getString("Scripting.DefaultScriptEditor.pixelClassifiers"));
+		insertObjectClassifiersAction = createInsertAction(QuPathResources.getString("Scripting.DefaultScriptEditor.objectClassifiers"));
+		insertDetectionMeasurementsAction = createInsertAction(QuPathResources.getString("Scripting.DefaultScriptEditor.detection"));
 		
 		beautifySourceAction.setAccelerator(new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
 		beautifySourceAction.disabledProperty().bind(canBeautifyBinding);
@@ -477,9 +500,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 			previousImages.clear();
 		});
 		
-		findAction = createFindAction("Find");
+		findAction = createFindAction(QuPathResources.getString("Scripting.DefaultScriptEditor.find"));
 		
-		smartEditingAction = ActionTools.createSelectableAction(smartEditing, "Enable smart editing");
+		smartEditingAction = ActionTools.createSelectableAction(
+				smartEditing,
+				QuPathResources.getString("Scripting.DefaultScriptEditor.enableSmartEditing")
+		);
 	}
 	
 	
@@ -589,8 +615,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 					.replaceAll(";", "")
 					.strip();
 		}
-		String output = Dialogs.showInputDialog("Set font size",
-				"Enter the font size, in points or as a percentage \n(e.g. 16, 120%)", current);
+		String output = Dialogs.showInputDialog(
+				QuPathResources.getString("Scripting.DefaultScriptEditor.setFontSize"),
+				QuPathResources.getString("Scripting.DefaultScriptEditor.setFontSizeDescription"),
+				current
+		);
 		if (output == null) {
 			return;
 		}
@@ -768,30 +797,33 @@ public class DefaultScriptEditor implements ScriptEditor {
 		MenuBar menubar = new MenuBar();
 
 		// File menu
-		Menu menuFile = new Menu("File");
+		Menu menuFile = new Menu(QuPathResources.getString("Scripting.DefaultScriptEditor.file"));
 		MenuTools.addMenuItems(
 				menuFile,
-				createNewAction("New"),
-				createOpenAction("Open..."),
+				createNewAction(QuPathResources.getString("Scripting.DefaultScriptEditor.new")),
+				createOpenAction(QuPathResources.getString("Scripting.DefaultScriptEditor.open")),
 				createRecentScriptsMenu(),
 				null,
-				createSaveAction("Save", false),
-				createSaveAction("Save As...", true),
+				createSaveAction(QuPathResources.getString("Scripting.DefaultScriptEditor.save"), false),
+				createSaveAction(QuPathResources.getString("Scripting.DefaultScriptEditor.saveAs"), true),
 				null,
-				createRevertAction("Revert/Refresh"),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoRefreshFiles, "Auto refresh files")),
+				createRevertAction(QuPathResources.getString("Scripting.DefaultScriptEditor.revert")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						autoRefreshFiles,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.autoRefreshFiles")
+				)),
 				null,
-				createCloseAction("Close script"),
-				createExitAction("Close editor"));
+				createCloseAction(QuPathResources.getString("Scripting.DefaultScriptEditor.closeScript")),
+				createExitAction(QuPathResources.getString("Scripting.DefaultScriptEditor.closeEditor")));
 		
 		
 		menubar.getMenus().add(menuFile);
 		
-		var miWrapLines = new CheckMenuItem("Wrap lines");
+		var miWrapLines = new CheckMenuItem(QuPathResources.getString("Scripting.DefaultScriptEditor.wrapLines"));
 		miWrapLines.selectedProperty().bindBidirectional(wrapTextProperty);
 
 		// Edit menu
-		Menu menuEdit = new Menu("Edit");
+		Menu menuEdit = new Menu(QuPathResources.getString("Scripting.DefaultScriptEditor.edit"));
 		MenuTools.addMenuItems(
 				menuEdit,
 				undoAction,
@@ -816,14 +848,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 		menubar.getMenus().add(menuEdit);
 
 		// Set font size (common user request)
-		Menu menuView = new Menu("View");
-		MenuItem miSetFontSize = new MenuItem("Set font size");
+		Menu menuView = new Menu(QuPathResources.getString("Scripting.DefaultScriptEditor.view"));
+		MenuItem miSetFontSize = new MenuItem(QuPathResources.getString("Scripting.DefaultScriptEditor.setFontSize"));
 		miSetFontSize.setOnAction(e -> promptToSetFontSize());
 		menuView.getItems().add(miSetFontSize);
 		menubar.getMenus().add(menuView);
 
 		// Languages menu - ensure each language only gets added once
-		Menu menuLanguages = new Menu("Language");
+		Menu menuLanguages = new Menu(QuPathResources.getString("Scripting.DefaultScriptEditor.language"));
 		List<RadioMenuItem> nonRunnableLanguages = new ArrayList<>();
 		for (ScriptLanguage language : ScriptLanguageProvider.getAvailableLanguages()) {
 			String languageName = language.toString();
@@ -861,11 +893,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 						
 		
 		// Insert menu
-		Menu menuInsert = new Menu("Insert");
-		Menu subMenuSymbols = new Menu("Symbols");
-		Menu subMenuImports = new Menu("Imports");
-		Menu subMenuClassifiers = new Menu("Classifiers");
-		Menu subMenuMeasurements = new Menu("Measurements");
+		Menu menuInsert = new Menu(QuPathResources.getString("Scripting.DefaultScriptEditor.insert"));
+		Menu subMenuSymbols = new Menu(QuPathResources.getString("Scripting.DefaultScriptEditor.symbols"));
+		Menu subMenuImports = new Menu(QuPathResources.getString("Scripting.DefaultScriptEditor.imports"));
+		Menu subMenuClassifiers = new Menu(QuPathResources.getString("Scripting.DefaultScriptEditor.classifiers"));
+		Menu subMenuMeasurements = new Menu(QuPathResources.getString("Scripting.DefaultScriptEditor.measurements"));
 		MenuTools.addMenuItems(
 			menuInsert,
 			MenuTools.addMenuItems(
@@ -891,7 +923,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		menubar.getMenus().add(menuInsert);
 
 		// Run menu
-		Menu menuRun = new Menu("Run");
+		Menu menuRun = new Menu(QuPathResources.getString("Scripting.DefaultScriptEditor.run"));
 		MenuTools.addMenuItems(
 				menuRun,
 				runScriptAction,
@@ -901,18 +933,36 @@ public class DefaultScriptEditor implements ScriptEditor {
 				null,
 				killRunningScriptAction,
 				null,
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(clearCache, "Clear cache (batch processing)")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						useDefaultBindings,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.includeDefaultImports")
+				)),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						sendLogToConsole,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.showLogInConsole")
+				)),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						outputScriptStartTime,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.logScriptTime")
+				)),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						autoClearConsole,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.autoClearConsole")
+				)),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						clearCache,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.clearCache")
+				)),
 				null,
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useCompiled, "Use compiled scripts"))
-				);
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						useCompiled,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.useCompiledScripts")
+				))
+		);
 		menubar.getMenus().add(menuRun);
 		
 		// Help menu
-		Menu menuHelp = new Menu("Help");
+		Menu menuHelp = new Menu(QuPathResources.getString("Scripting.DefaultScriptEditor.help"));
 		MenuTools.addMenuItems(menuHelp,
 				showJavadocsAction
 				);
@@ -921,7 +971,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// File list
 		BorderPane panelList = new BorderPane();
 //		label.setFont(label.getFont().deriveFont(12f));
-		TitledPane titledScripts = new TitledPane("Scripts", listScripts);
+		TitledPane titledScripts = new TitledPane(QuPathResources.getString("Scripting.DefaultScriptEditor.scripts"), listScripts);
 		titledScripts.prefWidthProperty().bind(panelList.widthProperty());
 		titledScripts.prefHeightProperty().bind(panelList.heightProperty());
 		titledScripts.setCollapsible(false);
@@ -1008,19 +1058,34 @@ public class DefaultScriptEditor implements ScriptEditor {
 				new SeparatorMenuItem(),
 				ActionTools.createMenuItem(showJavadocsAction),
 				new SeparatorMenuItem(),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(clearCache, "Clear cache (batch processing)"))
-				);
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						useDefaultBindings,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.includeDefaultImports")
+				)),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						sendLogToConsole,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.showLogInConsole")
+				)),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						outputScriptStartTime,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.logScriptTime")
+				)),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						autoClearConsole,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.autoClearConsole")
+				)),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(
+						clearCache,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.clearCache")
+				))
+		);
 		var btnMore = GuiTools.createMoreButton(popup, Side.RIGHT);
 		
 		var labelPosition = new Label();
 		labelPosition.textProperty().bind(caretPositionText);
 		labelPosition.setOpacity(0.5);
 		labelPosition.setPadding(new Insets(0, 10, 0, 0));
-		labelPosition.setTooltip(new Tooltip("Caret position [line:column]"));
+		labelPosition.setTooltip(new Tooltip(QuPathResources.getString("Scripting.DefaultScriptEditor.caretPosition")));
 		
 		
 		var labelRunning = new Label();
@@ -1034,18 +1099,27 @@ public class DefaultScriptEditor implements ScriptEditor {
 //				return "-fx-fill: rgba(20, 200, 20);";
 //		}, runningTask));
 		var tooltip = new Tooltip();
-		tooltip.textProperty().bind(Bindings.createStringBinding(() -> {
-			return runningTask.get() == null ? "No script running" : "Script run time";
-		}, runningTask));
+		tooltip.textProperty().bind(Bindings.createStringBinding(
+				() -> QuPathResources.getString(runningTask.get() == null ?
+						"Scripting.DefaultScriptEditor.noScriptRunning" : "Scripting.DefaultScriptEditor.scriptRunTime"
+				),
+				runningTask
+		));
 //		labelRunning.setGraphic(runningGraphic);
 		labelRunning.setTooltip(tooltip);
 		labelRunning.textProperty().bind(Bindings.createStringBinding(() -> {
 			if (runningTask.get() == null) {
 				if (timeProperty.getValueSafe().isEmpty())
 					return "";
-				return "Stopped: " + timeProperty.get();
+				return MessageFormat.format(
+						QuPathResources.getString("Scripting.DefaultScriptEditor.stopped"),
+						timeProperty.get()
+				);
 			} else
-				return "Running: " + timeProperty.get();
+				return MessageFormat.format(
+						QuPathResources.getString("Scripting.DefaultScriptEditor.running"),
+						timeProperty.get()
+				);
 		}, runningTask, timeProperty));
 //		
 		int col = 0;
@@ -1227,7 +1301,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 			// TODO: Consider exception logging here, rather than via the called method
 		} catch (Exception e1) {
-			logger.error("Script error: " + e1.getLocalizedMessage(), e1);
+            logger.error("Script error: {}", e1.getLocalizedMessage(), e1);
 		} catch (Throwable t) {
 			// This can happen when something goes very wrong - like attempting to load a missing native library
 			// We need to somehow let the user know, rather than swallowing the problem silently
@@ -1245,19 +1319,35 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		// Create a recent projects list in the File menu
 		ObservableList<URI> recentScripts = PathPrefs.getRecentScriptsList();
-		Menu menuRecent = GuiTools.createRecentItemsMenu("Recent scripts...", recentScripts, uri -> {
-			try {
-				var path = GeneralTools.toPath(uri);
-				if (path != null && Files.isRegularFile(path)) {
-					showScript(path.toFile());
-				} else {
-					Dialogs.showErrorMessage("Open script", "No script found for " + path);
+		Menu menuRecent = GuiTools.createRecentItemsMenu(
+				QuPathResources.getString("Scripting.DefaultScriptEditor.recentScripts"),
+				recentScripts,
+				uri -> {
+					try {
+						var path = GeneralTools.toPath(uri);
+						if (path != null && Files.isRegularFile(path)) {
+							showScript(path.toFile());
+						} else {
+							Dialogs.showErrorMessage(
+									QuPathResources.getString("Scripting.DefaultScriptEditor.openScript"),
+									MessageFormat.format(
+											QuPathResources.getString("Scripting.DefaultScriptEditor.noScriptFound"),
+											path
+									)
+							);
+						}
+					} catch (Exception e1) {
+						Dialogs.showErrorMessage(
+								QuPathResources.getString("Scripting.DefaultScriptEditor.openScript"),
+								MessageFormat.format(
+										QuPathResources.getString("Scripting.DefaultScriptEditor.cannotLoadScript"),
+										uri
+								)
+						);
+						logger.error("Error loading script", e1);
+					}
 				}
-			} catch (Exception e1) {
-				Dialogs.showErrorMessage("Open script", "Cannot load script " + uri);
-				logger.error("Error loading script", e1);
-			}
-		});
+		);
 		
 		return menuRecent;
 	}
@@ -1300,7 +1390,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		ScriptObjectListCell() {
 			super();
-			var miOpenDirectory = new MenuItem("Open directory...");
+			var miOpenDirectory = new MenuItem(QuPathResources.getString("Scripting.DefaultScriptEditor.openDirectory"));
 			miOpenDirectory.disableProperty().bind(itemProperty().isNull());
 			miOpenDirectory.setOnAction(e -> {
 				var item = getItem();
@@ -1327,7 +1417,7 @@ public class DefaultScriptEditor implements ScriptEditor {
             }
             var text = item.toString();
             if (item.isRunning()) {
-            	text = text + " (Running)";
+            	text += " " + QuPathResources.getString("Scripting.DefaultScriptEditor.(running)");
             	setStyle("-fx-font-style: italic;");
             } else
             	setStyle(null);
@@ -1361,7 +1451,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 									try {
 										dirScripts.mkdir();
 									} catch (Exception e) {
-										logger.error("Unable to make script directory: " + e.getLocalizedMessage(), e);
+                                        logger.error("Unable to make script directory: {}", e.getLocalizedMessage(), e);
 									}
 								}
 								if (dirScripts.isDirectory())
@@ -1374,9 +1464,18 @@ public class DefaultScriptEditor implements ScriptEditor {
 				}
 				// TODO: Allow multiple extensions to be used?
 				Collection<String> extensions = tab.getRequestedExtensions();
-				File file = FileChoosers.promptToSaveFile(dialog, "Save script file",
+				File file = FileChoosers.promptToSaveFile(
+						dialog,
+						QuPathResources.getString("Scripting.DefaultScriptEditor.saveScriptFile"),
 						tab.getName() == null ? null : new File(dir, tab.getName()),
-						FileChoosers.createExtensionFilter(currentLanguage.getValue().getName() + " file", extensions));
+						FileChoosers.createExtensionFilter(
+								MessageFormat.format(
+										QuPathResources.getString("Scripting.DefaultScriptEditor.xFile"),
+										currentLanguage.getValue().getName()
+								),
+								extensions
+						)
+				);
 				if (file == null)
 					return false;
 				tab.saveToFile(getCurrentText(), file);
@@ -1492,7 +1591,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				future.cancel(true);
 		});
 		action.disabledProperty().bind(runningTask.isNull());
-		action.setLongText("Try to stop the script that's currently running");
+		action.setLongText(QuPathResources.getString("Scripting.DefaultScriptEditor.tryToStopScript"));
 		return action;
 	}
 	
@@ -1567,7 +1666,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 		});
 		
-		action.setLongText("Run the current script");
+		action.setLongText(QuPathResources.getString("Scripting.DefaultScriptEditor.runCurrentScript"));
 
 		if (selectedText) {
 			action.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
@@ -1585,9 +1684,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Action action = new Action(name, e -> handleRunProject(doSave));
 		action.disabledProperty().bind(disableRun.or(qupath.projectProperty().isNull()));
 		if (doSave)
-			action.setLongText("Run the current script for multiple images in the project and save the results");
+			action.setLongText(QuPathResources.getString("Scripting.DefaultScriptEditor.runAndSave"));
 		else
-			action.setLongText("Run the current script for multiple images in the project but don't save the results");
+			action.setLongText(QuPathResources.getString("Scripting.DefaultScriptEditor.runAndNotSave"));
 		return action;
 	}
 	
@@ -1600,23 +1699,29 @@ public class DefaultScriptEditor implements ScriptEditor {
 	void handleRunProject(final boolean doSave) {
 		Project<BufferedImage> project = qupath.getProject();
 		if (project == null) {
-			GuiTools.showNoProjectError("Script editor");
+			GuiTools.showNoProjectError(QuPathResources.getString("Scripting.DefaultScriptEditor.scriptEditor"));
 			return;
 		}
 		ScriptTab tab = getCurrentScriptTab();
 		if (tab == null || tab.getEditorControl().getText().trim().length() == 0) {
-			Dialogs.showErrorMessage("Script editor", "No script selected!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Scripting.DefaultScriptEditor.scriptEditor"),
+					QuPathResources.getString("Scripting.DefaultScriptEditor.noScriptSelected")
+			);
 			return;
 		}
 		if (tab.getLanguage() == null) {
-			Dialogs.showErrorMessage("Script editor", "Scripting language is unknown!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Scripting.DefaultScriptEditor.scriptEditor"),
+					QuPathResources.getString("Scripting.DefaultScriptEditor.languageUnknown")
+			);
 			return;			
 		}
 		
 		// Ensure that the previous images remain selected if the project still contains them
 //		FilteredList<ProjectImageEntry<?>> sourceList = new FilteredList<>(FXCollections.observableArrayList(project.getImageList()));
 		
-		String sameImageWarning = "A selected image is open in the viewer!\nAny unsaved changes will be ignored.";
+		String sameImageWarning = QuPathResources.getString("Scripting.DefaultScriptEditor.imageOpenInViewer");
 		var imageList = project.getImageList();
 		// Remove any images that have been removed from the project
 		// See https://github.com/qupath/qupath/issues/1291
@@ -1625,7 +1730,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.initOwner(qupath.getStage());
-		dialog.setTitle("Select project images");
+		dialog.setTitle(QuPathResources.getString("Scripting.DefaultScriptEditor.selectProjectImages"));
 		dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
 		dialog.getDialogPane().setContent(listSelectionView);
 		dialog.setResizable(true);
@@ -1648,14 +1753,17 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		ProgressDialog progress = new ProgressDialog(worker);
 		progress.initOwner(qupath.getStage());
-		progress.setTitle("Batch script");
-		progress.getDialogPane().setHeaderText("Batch processing...");
+		progress.setTitle(QuPathResources.getString("Scripting.DefaultScriptEditor.batchScript"));
+		progress.getDialogPane().setHeaderText(QuPathResources.getString("Scripting.DefaultScriptEditor.batchProcessing"));
 		progress.getDialogPane().setGraphic(null);
 		progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 		progress.getDialogPane().lookupButton(ButtonType.CANCEL).addEventFilter(ActionEvent.ACTION, e -> {
-			if (Dialogs.showYesNoDialog("Cancel batch script", "Are you sure you want to stop the running script after the current image?")) {
+			if (Dialogs.showYesNoDialog(
+					QuPathResources.getString("Scripting.DefaultScriptEditor.cancelBatchScript"),
+					QuPathResources.getString("Scripting.DefaultScriptEditor.stopRunningScript")
+			)) {
 				worker.quietCancel();
-				progress.setHeaderText("Cancelling...");
+				progress.setHeaderText(QuPathResources.getString("Scripting.DefaultScriptEditor.cancelling"));
 //				worker.cancel(false);
 				progress.getDialogPane().lookupButton(ButtonType.CANCEL).setDisable(true);
 			}
@@ -1678,16 +1786,23 @@ public class DefaultScriptEditor implements ScriptEditor {
 				var entry = imageData == null ? null : project.getEntry(imageData);
 				if (entry != null && imagesToProcess.contains(entry)) {
 					if (reload == null) {
-						reload = Dialogs.showYesNoDialog("Script editor", "Refresh open images?\n"
-								+ "This will show any changes from the script - \n"
-								+ "but unsaved changes in the current viewer will be lost.");
+						reload = Dialogs.showYesNoDialog(
+								QuPathResources.getString("Scripting.DefaultScriptEditor.scriptEditor"),
+								QuPathResources.getString("Scripting.DefaultScriptEditor.refreshOpenImages")
+						);
 					}
 					if (reload) {
 						try {
 							var imageDataReloaded = entry.readImageData();
 							viewer.setImageData(imageDataReloaded);
 						} catch (IOException e) {
-							Dialogs.showErrorNotification("Script editor", "Error reloading data: " + e.getLocalizedMessage());
+							Dialogs.showErrorNotification(
+									QuPathResources.getString("Scripting.DefaultScriptEditor.scriptEditor"),
+									MessageFormat.format(
+											QuPathResources.getString("Scripting.DefaultScriptEditor.errorReloadingData"),
+											e.getLocalizedMessage()
+									)
+							);
 							logger.error(e.getLocalizedMessage(), e);
 						}
 					}
@@ -1735,7 +1850,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				try {
 					// Stop
 					if (isQuietlyCancelled() || isCancelled()) {
-						logger.warn("Script cancelled with " + (imagesToProcess.size() - counter) + " image(s) remaining");
+                        logger.warn("Script cancelled with {} image(s) remaining", imagesToProcess.size() - counter);
 						break;
 					}
 					
@@ -1946,8 +2061,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 					.toList();
 
 			File file = FileChoosers.buildFileChooser()
-					.title("Choose script file")
-					.extensionFilters(FileChoosers.createExtensionFilter("Compatible files", compatibleExtensions))
+					.title(QuPathResources.getString("Scripting.DefaultScriptEditor.chooseScriptFile"))
+					.extensionFilters(FileChoosers.createExtensionFilter(
+							QuPathResources.getString("Scripting.DefaultScriptEditor.compatibleFiles"),
+							compatibleExtensions
+					))
 					.initialDirectory(dir)
 					.build().showOpenDialog(getStage());
 
@@ -2037,7 +2155,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 			String join = "," + System.lineSeparator() + "  ";
 			String listFormat = "[" + System.lineSeparator() + "  %s" + System.lineSeparator() + "]";
-			if (name.toLowerCase().equals("pixel classifiers")) {
+			if (name.equals(QuPathResources.getString("Scripting.DefaultScriptEditor.pixelClassifiers"))) {
 				try {
 					String classifiers = qupath.getProject().getPixelClassifiers().getNames().stream()
 							.map(classifierName -> "\"" + classifierName + "\"")
@@ -2047,7 +2165,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				} catch (IOException ex) {
 					logger.error("Could not fetch classifiers", ex);
 				}
-			} else if (name.toLowerCase().equals("object classifiers")) {
+			} else if (name.equals(QuPathResources.getString("Scripting.DefaultScriptEditor.objectClassifiers"))) {
 				try {
 					String classifiers = qupath.getProject().getObjectClassifiers().getNames().stream()
 							.map(classifierName -> "\"" + classifierName + "\"")
@@ -2057,7 +2175,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				} catch (IOException ex) {
 					logger.error("Could not fetch classifiers", ex);
 				}
-			} else if (name.toLowerCase().equals("detection")) {
+			} else if (name.equals(QuPathResources.getString("Scripting.DefaultScriptEditor.detection"))) {
 				var imageData = qupath.getImageData();
 				String measurements = "";
 				if (imageData != null) {
@@ -2116,9 +2234,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		if (name.equals(GeneralTools.SYMBOL_MU + ""))
 			action.setAccelerator(new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-		else if (name.toLowerCase().equals("pixel classifiers") || name.toLowerCase().equals("object classifiers"))
+		else if (name.equals(QuPathResources.getString("Scripting.DefaultScriptEditor.pixelClassifiers")) ||
+				name.equals(QuPathResources.getString("Scripting.DefaultScriptEditor.objectClassifiers"))
+		)
 			action.disabledProperty().bind(qupath.projectProperty().isNull());
-		else if (name.toLowerCase().equals("detection"))
+		else if (name.equals(QuPathResources.getString("Scripting.DefaultScriptEditor.detection")))
 			action.disabledProperty().bind(qupath.imageDataProperty().isNull());
 			
 		return action;
@@ -2133,7 +2253,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// Check if we need to save
 		if (tab.isModifiedProperty().get() && tab.hasScript()) {
 			// TODO: Consider that this previously had a different parent for the dialog... and probably should
-			ButtonType option = Dialogs.showYesNoCancelDialog("Close " + tab.getName(), String.format("Save %s before closing?", tab.getName()));
+			ButtonType option = Dialogs.showYesNoCancelDialog(
+					MessageFormat.format(
+							QuPathResources.getString("Scripting.DefaultScriptEditor.close"),
+							tab.getName()
+					),
+					MessageFormat.format(
+							QuPathResources.getString("Scripting.DefaultScriptEditor.saveBeforeClosing"),
+							tab.getName()
+					)
+			);
 			if (option == ButtonType.CANCEL)
 				return false;
 			if (option == ButtonType.YES) {

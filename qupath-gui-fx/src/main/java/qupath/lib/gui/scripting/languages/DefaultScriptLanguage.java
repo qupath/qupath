@@ -311,7 +311,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 //				updatedException.setStackTrace(cause.getStackTrace());
 				throw updatedException;
 			} catch (IOException | RuntimeException e2) {
-				logger.debug("Error fixing script exception: " + e2.getLocalizedMessage(), e2);
+                logger.debug("Error fixing script exception: {}", e2.getLocalizedMessage(), e2);
 				throw e;
 			}
 		} finally {

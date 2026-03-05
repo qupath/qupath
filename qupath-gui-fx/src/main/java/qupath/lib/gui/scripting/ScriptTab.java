@@ -33,12 +33,14 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.scripting.languages.ScriptLanguage;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.text.MessageFormat;
 import java.util.Set;
 
 /**
@@ -87,7 +89,10 @@ public class ScriptTab {
 			editor.positionCaret(0);
 		}
 		untitledCounter++;
-		name = "Untitled " + untitledCounter;
+		name = MessageFormat.format(
+				QuPathResources.getString("Scripting.ScriptTab.untitled"),
+				untitledCounter
+		);
 	}
 	
 	ScriptTab(final ScriptEditorControl<? extends Region> editor, final ScriptEditorControl<? extends Region> console, final File file) throws IOException {
@@ -137,9 +142,15 @@ public class ScriptTab {
 		var popup = console.getContextMenu();
 		if (popup == null) {
 			popup = new ContextMenu();
-			popup.getItems().add(ActionUtils.createMenuItem(new Action("Copy", e -> console.copy())));
+			popup.getItems().add(ActionUtils.createMenuItem(new Action(
+					QuPathResources.getString("Scripting.ScriptTab.copy"),
+					e -> console.copy()
+			)));
 		}
-		popup.getItems().add(ActionUtils.createMenuItem(new Action("Clear console", e -> console.setText(""))));
+		popup.getItems().add(ActionUtils.createMenuItem(new Action(
+				QuPathResources.getString("Scripting.ScriptTab.clearConsole"),
+				e -> console.setText("")
+		)));
 		popup.getStyleClass().setAll("context-menu");		
 		console.setContextMenu(popup);
 //		console.setPopup(popup);

@@ -40,6 +40,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.commands.Commands;
+import qupath.lib.gui.localization.QuPathResources;
 
 import java.io.File;
 import java.io.IOException;
@@ -52,6 +53,7 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -94,7 +96,7 @@ public class QuPathStyleManager {
 	 */
 	private static final StyleOption DEFAULT_DARK_STYLE = new CustomStylesheet(
 			"Modena Dark",
-			"Darker version of JavaFX Modena stylesheet",
+			QuPathResources.getString("Prefs.QuPathStyleManager.modenaDarkDescription"),
 			ColorScheme.DARK,
 			STYLESHEET_DARK);
 
@@ -150,7 +152,7 @@ public class QuPathStyleManager {
             return switch (this) {
                 case SANS_SERIF -> "css/sans-serif.css";
                 case SERIF -> "css/serif.css";
-                default -> null;
+				case DEFAULT -> null;
             };
 		}
 		
@@ -159,7 +161,7 @@ public class QuPathStyleManager {
             return switch (this) {
                 case SANS_SERIF -> "Sans-serif";
                 case SERIF -> "Serif";
-                default -> "Default";
+				case DEFAULT -> QuPathResources.getString("Prefs.QuPathStyleManager.default");
             };
 		}
 	}
@@ -310,7 +312,10 @@ public class QuPathStyleManager {
 					// Check if we want to overwrite - if so, retain the response so we don't 
 					// have to prompt multiple times if there are multiple files
 					if (overwriteExisting == null) {
-						var response = Dialogs.showYesNoCancelDialog("Install CSS", "Do you want to overwrite existing CSS files?");
+						var response = Dialogs.showYesNoCancelDialog(
+								QuPathResources.getString("Prefs.QuPathStyleManager.installCss"),
+								QuPathResources.getString("Prefs.QuPathStyleManager.overwriteExistingCss")
+						);
 						if (response == ButtonType.YES)
 							overwriteExisting = Boolean.TRUE;
 						else if (response == ButtonType.NO)
@@ -447,12 +452,12 @@ public class QuPathStyleManager {
 
 		@Override
 		public String getDescription() {
-			return "Use a style based on the system-wide light/dark setting";
+			return QuPathResources.getString("Prefs.QuPathStyleManager.systemThemeDescription");
 		}
 
 		@Override
 		public String getName() {
-			return "System theme";
+			return QuPathResources.getString("Prefs.QuPathStyleManager.systemTheme");
 		}
 
 		@Override
@@ -485,7 +490,10 @@ public class QuPathStyleManager {
 
 		@Override
 		public String getDescription() {
-			return "Built-in JavaFX stylesheet " + cssName;
+			return MessageFormat.format(
+					QuPathResources.getString("Prefs.QuPathStyleManager.defaultStylesheetDescription"),
+					cssName
+			);
 		}
 
 		@Override

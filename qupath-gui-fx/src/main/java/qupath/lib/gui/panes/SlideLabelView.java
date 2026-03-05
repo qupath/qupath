@@ -33,6 +33,7 @@ import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
@@ -128,12 +129,12 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 		
 		ImageServer<BufferedImage> server = imageData == null ? null : imageData.getServer();
 		if (server == null) {
-			placeholderText.set("No image open in the current viewer");
+			placeholderText.set(QuPathResources.getString("Panes.SlideLabelView.noImageOpen"));
 			simpleImageViewer.resetImage();
 		} else {
 			String labelName = searchForLabelName(server);
 			if (labelName == null) {
-				placeholderText.set("No label found");
+				placeholderText.set(QuPathResources.getString("Panes.SlideLabelView.noLabelFound"));
 				simpleImageViewer.resetImage();
 			} else
 				simpleImageViewer.updateImage(labelName, server.getAssociatedImage(labelName));

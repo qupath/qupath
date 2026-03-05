@@ -232,18 +232,12 @@ public class PathPrefs {
 		
 		@Override
 		public String toString() {
-			switch(this) {
-			case EXTENSIONS_ONLY:
-				return "Extensions only";
-			case NONE:
-				return "None";
-			case QUPATH_AND_EXTENSIONS:
-				return "QuPath + extensions";
-			case QUPATH_ONLY:
-				return "QuPath only";
-			default:
-				return super.toString();
-			}
+            return QuPathResources.getString(switch (this) {
+                case EXTENSIONS_ONLY -> "Prefs.PathPrefs.extensionsOnly";
+                case NONE -> "Prefs.PathPrefs.none";
+                case QUPATH_AND_EXTENSIONS -> "Prefs.PathPrefs.quPathExtensions";
+                case QUPATH_ONLY -> "Prefs.PathPrefs.quPathOnly";
+            });
 		}
 		
 	}
@@ -1080,16 +1074,11 @@ public class PathPrefs {
 		
 		@Override
 		public String toString() {
-			switch(this) {
-			case AUTO_ESTIMATE:
-				return "Auto estimate";
-			case NONE:
-				return "Unset";
-			case PROMPT:
-				return "Prompt";
-			default:
-				return "Unknown";
-			}
+            return QuPathResources.getString(switch (this) {
+                case AUTO_ESTIMATE -> "Prefs.PathPrefs.autoEstimate";
+                case NONE -> "Prefs.PathPrefs.unset";
+                case PROMPT -> "Prefs.PathPrefs.prompt";
+            });
 		}
 		
 	}
@@ -1425,7 +1414,7 @@ public class PathPrefs {
 	 * @since v0.4.0
 	 * @see #detectionTreeDisplayModeProperty
 	 */
-	public static enum DetectionTreeDisplayModes {
+	public enum DetectionTreeDisplayModes {
 		/**
 		 * Do not show detections
 		 */
@@ -1440,16 +1429,11 @@ public class PathPrefs {
 		WITH_ICONS;
 			@Override
 			public String toString() {
-				switch(this) {
-				case NONE:
-					return "None";
-				case WITHOUT_ICONS:
-					return "Without icons";
-				case WITH_ICONS:
-					return "With icons";
-				default:
-					return "Unknown";
-				}
+                return QuPathResources.getString(switch (this) {
+                    case NONE -> "Prefs.PathPrefs.none";
+                    case WITHOUT_ICONS -> "Prefs.PathPrefs.withoutIcons";
+                    case WITH_ICONS -> "Prefs.PathPrefs.withIcons";
+                });
 			}
 	}
 	
@@ -1499,38 +1483,24 @@ public class PathPrefs {
 		 * @return
 		 */
 		public String getFontSize() {
-			switch(this) {
-			case HUGE:
-				return "1.4em";
-			case LARGE:
-				return "1.2em";
-			case MEDIUM:
-				return "1.0em";
-			case SMALL:
-				return "0.8em";
-			case TINY:
-				return "0.6em";
-			default:
-				return "1em";
-			}
+            return switch (this) {
+                case HUGE -> "1.4em";
+                case LARGE -> "1.2em";
+                case MEDIUM -> "1.0em";
+                case SMALL -> "0.8em";
+                case TINY -> "0.6em";
+            };
 		}
 		
 		@Override
 		public String toString() {
-			switch(this) {
-			case HUGE:
-				return "Huge";
-			case LARGE:
-				return "Large";
-			case MEDIUM:
-				return "Medium";
-			case SMALL:
-				return "Small";
-			case TINY:
-				return "Tiny";
-			default:
-				return "Unknown";
-			}
+            return QuPathResources.getString(switch (this) {
+                case HUGE -> "Prefs.PathPrefs.huge";
+                case LARGE -> "Prefs.PathPrefs.large";
+                case MEDIUM -> "Prefs.PathPrefs.medium";
+                case SMALL -> "Prefs.PathPrefs.small";
+                case TINY -> "Prefs.PathPrefs.tiny";
+            });
 		}
 	}
 	
