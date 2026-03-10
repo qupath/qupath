@@ -303,9 +303,11 @@ public class ServerSelector {
 
 		BorderPane pane = new BorderPane();
 		pane.setCenter(paneSelector);
-		
-		
+
+
 		Dialog<ButtonType> dialog = new Dialog<>();
+		dialog.setResizable(true);
+
 		var qupath = QuPathGUI.getInstance();
 		
 		// Try to ensure we have a suitable owner, even if a progress dialog is visible
@@ -327,7 +329,10 @@ public class ServerSelector {
 		dialog.getDialogPane().getButtonTypes().addAll(typeImportSelected, ButtonType.CANCEL);
 
 		dialog.getDialogPane().setContent(pane);
-		
+		if (owner != null) {
+			dialog.setHeight(Math.min(dialog.getHeight(), owner.getHeight()));
+		}
+
 		listSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectedRow, selectedRow) -> {
 		    tableInfo.refresh();
 		});
@@ -361,7 +366,7 @@ public class ServerSelector {
 		} else {
 			btnSelected.disableProperty().bind(nSelected.isNotEqualTo(1));
 		}
-		
+
 		Optional<ButtonType> result = dialog.showAndWait();
 		
 		Set<ImageServer<BufferedImage>> selectedToReturn;
