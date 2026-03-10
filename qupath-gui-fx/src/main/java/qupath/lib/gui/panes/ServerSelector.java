@@ -237,7 +237,6 @@ public class ServerSelector {
 		// Info table - Changes according to selected series
 		TableView<Attribute> tableInfo = new TableView<>();
 		tableInfo.setMinHeight(200);
-		tableInfo.setMinWidth(500);
 		
 		// First column (attribute names)
 		TableColumn<Attribute, String> attributeCol = new TableColumn<>("Attribute");
@@ -248,7 +247,6 @@ public class ServerSelector {
 		
 		// Second column (attribute values)
 		TableColumn<Attribute, String> valueCol = new TableColumn<>("Value");
-		valueCol.setMinWidth(242);
 		valueCol.setResizable(true);
 		valueCol.setCellValueFactory(cellData -> {
 			int ind = listSeries.getSelectionModel().getSelectedIndex();
