@@ -73,6 +73,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.ColorMapCanvas;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -84,6 +85,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.plugins.parameters.ParameterList;
 
 import java.awt.image.BufferedImage;
+import java.text.MessageFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -166,7 +168,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			FXUtils.addCloseWindowShortcuts(dialog);
 			dialog.sizeToScene();
 			dialog.initOwner(qupath.getStage());
-			dialog.setTitle("Recording analysis");
+			dialog.setTitle(QuPathResources.getString("Viewer.ViewTrackerAnalysis.title"));
 			
 			currentFrame.set(tracker.getFrame(0));
 			
@@ -355,7 +357,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			//----------- DATA VISUALIZATION PANE ---------------//
 			//--------------------------------------------------------------//
 			
-			visualizationCheckBox = new CheckBox("Enable data overlay");
+			visualizationCheckBox = new CheckBox(QuPathResources.getString("Viewer.ViewTrackerAnalysis.enableDataOverlay"));
 //			Label normalizedByLabel = new Label("Normalized by");
 			progressIndicator = new ProgressIndicator(); // Bound below in the Binding section
 			progressIndicator.setPrefSize(15, 15);
@@ -377,7 +379,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			
 			if (colorMapCombo.getSelectionModel().isEmpty() && !colorMapCombo.getItems().isEmpty())
 				colorMapCombo.getSelectionModel().selectFirst();
-			colorMapCombo.setTooltip(new Tooltip("Select color map"));
+			colorMapCombo.setTooltip(new Tooltip(QuPathResources.getString("Viewer.ViewTrackerAnalysis.selectColorMap")));
 			
 			//------------------ TIME DISPLAYED RANGESLIDER ------------------//
 			Label timeDisplayedLeftLabel = new Label();
@@ -397,8 +399,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					} catch (ParseException ex) {
 						logger.error("Error parsing the input time", ex);
 					}
-					gp.addRow(0, new Label("Enter time"), tf);
-					var response = Dialogs.showConfirmDialog("Set min time", gp);
+					gp.addRow(0, new Label(QuPathResources.getString("Viewer.ViewTrackerAnalysis.enterTime")), tf);
+					var response = Dialogs.showConfirmDialog(QuPathResources.getString("Viewer.ViewTrackerAnalysis.setMinTime"), gp);
 
 					if (response) {
 						long time = TimeUnit.HOURS.toMillis(Integer.parseInt(tf.getText(0, 2))) +
@@ -420,8 +422,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					} catch (ParseException ex) {
 						logger.error("Error parsing the input time", ex);
 					}
-					gp.addRow(0, new Label("Enter time"), tf);
-					var response = Dialogs.showConfirmDialog("Set max time", gp);
+					gp.addRow(0, new Label(QuPathResources.getString("Viewer.ViewTrackerAnalysis.enterTime")), tf);
+					var response = Dialogs.showConfirmDialog(QuPathResources.getString("Viewer.ViewTrackerAnalysis.setMaxTime"), gp);
 					if (response) {
 						long time = ViewTrackerTools.getTimestampFromPrettyString(tf.getText());
 						timeDisplayedSlider.setHighValue(time);
@@ -454,9 +456,13 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			downsampleLeftLabel.setOnMouseClicked(e -> {
 				if (e.getButton().equals(MouseButton.PRIMARY) && e.getClickCount() == 2) {
 					ParameterList params = new ParameterList();
-					params.addDoubleParameter("downsampleFilterLow", "Enter downsample", downsampleSlider.getLowValue());
+					params.addDoubleParameter(
+							"downsampleFilterLow",
+							QuPathResources.getString("Viewer.ViewTrackerAnalysis.enterDownsample"),
+							downsampleSlider.getLowValue()
+					);
 					
-					if (!GuiTools.showParameterDialog("Set min downsample", params))
+					if (!GuiTools.showParameterDialog(QuPathResources.getString("Viewer.ViewTrackerAnalysis.setMinDownsample"), params))
 						return;
 					
 					double downFactor = params.getDoubleParameterValue("downsampleFilterLow");
@@ -468,9 +474,13 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			downsampleRightLabel.setOnMouseClicked(e -> {
 				if (e.getButton().equals(MouseButton.PRIMARY) && e.getClickCount() == 2) {
 					ParameterList params = new ParameterList();
-					params.addDoubleParameter("downsampleFilterHigh", "Enter downsample", downsampleSlider.getHighValue());
+					params.addDoubleParameter(
+							"downsampleFilterHigh",
+							QuPathResources.getString("Viewer.ViewTrackerAnalysis.enterDownsample"),
+							downsampleSlider.getHighValue()
+					);
 					
-					if (!GuiTools.showParameterDialog("Set max downsample", params))
+					if (!GuiTools.showParameterDialog(QuPathResources.getString("Viewer.ViewTrackerAnalysis.setMaxDownsample"), params))
 						return;
 					
 					double downFactor = params.getDoubleParameterValue("downsampleFilterHigh");
@@ -541,14 +551,14 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			if (zSlider.isVisible()) {
 				canvasPane.addRow(0, new HBox(), timepointLabel, tSlider);
 				canvasPane.addRow(1, zSliceLabel, zSlider, slideOverview.getCanvas());
-				zSlider.setTooltip(new Tooltip("Slide to change the visible z-slice"));
+				zSlider.setTooltip(new Tooltip(QuPathResources.getString("Viewer.ViewTrackerAnalysis.visibleZSlice")));
 			} else {
 				canvasPane.addRow(0, timepointLabel, tSlider, new HBox());
 				canvasPane.addRow(1, new HBox(), slideOverview.getCanvas());
 			}
 			
 			if (tSlider.isVisible())
-				tSlider.setTooltip(new Tooltip("Slide to change the visible timepoint"));
+				tSlider.setTooltip(new Tooltip(QuPathResources.getString("Viewer.ViewTrackerAnalysis.visibleTimepoint")));
 				
 //			normalizedByPane.addRow(0, timeNormalizedRadio, downsampleNormalizedRadio, progressIndicator);
 //			normalizedByPane.addRow(0, progressIndicator);
@@ -558,20 +568,54 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			playbackPane.setAlignment(Pos.CENTER);
 			canvasPane.setAlignment(Pos.CENTER);
 			
-			btnPlay.setTooltip(new Tooltip("Play the recording"));
-			btnRewind.setTooltip(new Tooltip("Rewind the recording"));
+			btnPlay.setTooltip(new Tooltip(QuPathResources.getString("Viewer.ViewTrackerAnalysis.playRecording")));
+			btnRewind.setTooltip(new Tooltip(QuPathResources.getString("Viewer.ViewTrackerAnalysis.rewindRecording")));
 
 			int row = 0;
 			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, null, new HBox(), canvasPane);
 			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, null, timeLabelLeft, timeSlider, timeLabelRight);
-			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, "Playback options", new HBox(), playbackPane);
+			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, QuPathResources.getString("Viewer.ViewTrackerAnalysis.playbackOptions"), new HBox(), playbackPane);
 			GridPaneUtils.addGridRow(slideOverviewPane, row++, 0, null, sep, sep, sep, sep);
 			
 			row = 0;
-			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "Show the amount of time spent in each region of the image", visualizationCheckBox, progressIndicator);
-			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Time range"), timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
-			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Downsample range"), downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
-			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, "Color map", new Label("Color map"), colorMapCombo, colorMapCombo, colorMapCombo);
+			GridPaneUtils.addGridRow(
+					dataVisualizationPane,
+					row++,
+					0,
+					QuPathResources.getString("Viewer.ViewTrackerAnalysis.amountOfTime"),
+					visualizationCheckBox,
+					progressIndicator
+			);
+			GridPaneUtils.addGridRow(
+					dataVisualizationPane,
+					row++,
+					0,
+					QuPathResources.getString("Viewer.ViewTrackerAnalysis.timeRangeDescription"),
+					new Label(QuPathResources.getString("Viewer.ViewTrackerAnalysis.timeRange")),
+					timeDisplayedLeftLabel,
+					timeDisplayedSlider,
+					timeDisplayedRightLabel
+			);
+			GridPaneUtils.addGridRow(
+					dataVisualizationPane,
+					row++,
+					0,
+					QuPathResources.getString("Viewer.ViewTrackerAnalysis.downsampleRangeDescription"),
+					new Label(QuPathResources.getString("Viewer.ViewTrackerAnalysis.downsampleRange")),
+					downsampleLeftLabel,
+					downsampleSlider,
+					downsampleRightLabel
+			);
+			GridPaneUtils.addGridRow(
+					dataVisualizationPane,
+					row++,
+					0,
+					QuPathResources.getString("Viewer.ViewTrackerAnalysis.colorMap"),
+					new Label(QuPathResources.getString("Viewer.ViewTrackerAnalysis.colorMap")),
+					colorMapCombo,
+					colorMapCombo,
+					colorMapCombo
+			);
 			GridPaneUtils.addGridRow(dataVisualizationPane, row++, 0, null, colorMapCanvas, colorMapCanvas, colorMapCanvas, colorMapCanvas);
 			
 			for (Node child: dataVisualizationPane.getChildren()) {
@@ -594,15 +638,15 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 		    slideOverviewPane.getColumnConstraints().addAll(col1, col2, col3, col4);
 			
 			//--------------------- BOTTOM BUTTON PANE---------------------//
-			Button btnExpand = new Button("Show frames");
-			Button btnOpen = new Button("Open directory");
+			Button btnExpand = new Button(QuPathResources.getString("Viewer.ViewTrackerAnalysis.showFrames"));
+			Button btnOpen = new Button(QuPathResources.getString("Viewer.ViewTrackerAnalysis.openDirectory"));
 			btnOpen.setDisable(tracker.getFile() == null);
 			List<Button> buttons = new ArrayList<>();
 			
 			btnOpen.setOnAction(e -> GuiTools.browseDirectory(tracker.getFile()));
 			
 			btnExpand.setOnAction(e -> {
-				if (btnExpand.getText().equals("Show frames")) {
+				if (btnExpand.getText().equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.showFrames"))) {
 					dialog.setWidth(initialWidth + 700);
 					dialog.setResizable(true);
 					dialog.setMinWidth(initialWidth + 50);
@@ -611,10 +655,10 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					mainLeftPane.setMaxWidth(initialWidth);
 					mainPane.getItems().add(tablePane);
 					mainPane.setDividerPositions(0.0);
-					btnExpand.setText("Hide frames");
+					btnExpand.setText(QuPathResources.getString("Viewer.ViewTrackerAnalysis.hideFrames"));
 				} else {
 					mainPane.getItems().remove(tablePane);
-					btnExpand.setText("Show frames");
+					btnExpand.setText(QuPathResources.getString("Viewer.ViewTrackerAnalysis.showFrames"));
 					dialog.setWidth(initialWidth + 30);
 					dialog.setHeight(initialHeight);
 					dialog.setResizable(false);
@@ -646,63 +690,108 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 	}
 
 	private static Object getColumnValue(final ViewRecordingFrame frame, final String columnName) {
-		switch (columnName) {
-			case "Timestamp (ms)": return frame.getTimestamp();
-			case "X": return frame.getImageBounds().x;
-			case "Y": return frame.getImageBounds().y;
-			case "Width": return frame.getImageBounds().width;
-			case "Height": return frame.getImageBounds().height;
-			case "Canvas width": return frame.getSize().width;
-			case "Canvas height": return frame.getSize().height;
-			case "Downsample factor": return frame.getDownsampleFactor();
-			case "Rotation": return frame.getRotation();
-			case "Cursor X": return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getX();
-			case "Cursor Y": return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getY();
-			case "Active Tool": return frame.getActiveTool() == null ? "Other" : frame.getActiveTool().getName();
-			case "Eye X": return frame.getEyePosition().getX();
-			case "Eye Y": return frame.getEyePosition().getY();
-			case "Fixated": return frame.isEyeFixated();
-			case "Z": return frame.getZ();
-			case "T": return frame.getT();
+		if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.timestamp"))) {
+			return frame.getTimestamp();
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.x"))) {
+			return frame.getImageBounds().x;
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.y"))) {
+			return frame.getImageBounds().y;
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.width"))) {
+			return frame.getImageBounds().width;
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.height"))) {
+			return frame.getImageBounds().height;
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.canvasWidth"))) {
+			return frame.getSize().width;
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.canvasHeight"))) {
+			return frame.getSize().height;
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.downsampleFactor"))) {
+			return frame.getDownsampleFactor();
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.rotation"))) {
+			return frame.getRotation();
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.cursorX"))) {
+			return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getX();
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.cursorY"))) {
+			return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getY();
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.activeTool"))) {
+			return frame.getActiveTool() == null ? "Other" : frame.getActiveTool().getName();
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.eyeX"))) {
+			return frame.getEyePosition().getX();
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.eyeY"))) {
+			return frame.getEyePosition().getY();
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.fixated"))) {
+			return frame.isEyeFixated();
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.z"))) {
+			return frame.getZ();
+		} else if (columnName.equals(QuPathResources.getString("Viewer.ViewTrackerAnalysis.t"))) {
+			return frame.getT();
+		} else {
+			return null;
 		}
-		return null;
-	}
+    }
 	
 	private static String getColumnName(ViewTracker tracker, int col) {
-		switch (col) {
-			case 0: return "Timestamp (ms)";
-			case 1: return "X";
-			case 2: return "Y";
-			case 3: return "Width";
-			case 4: return "Height";
-			case 5: return "Canvas width";
-			case 6: return "Canvas height";
-			case 7: return "Downsample factor";
-			case 8: return "Rotation";
-			case 9: 
-				if (tracker.hasCursorTrackingData()) return "Cursor X";
-				else if (tracker.hasActiveToolTrackingData()) return "Active Tool";
-				else if (tracker.hasEyeTrackingData()) return "Eye X";
-				else return "Z";
-			case 10: 
-				if (tracker.hasCursorTrackingData()) return "Cursor Y";
-				else if (tracker.hasEyeTrackingData()) return "Eye Y";
-				else return "T";
-			case 11: 
-				if (tracker.hasActiveToolTrackingData()) return "Active Tool";
-				else if (tracker.hasEyeTrackingData()) return "Eye X";
-			case 12: 
-				if (tracker.hasEyeTrackingData()) {
-					if (tracker.hasActiveToolTrackingData()) return "Eye X";
-					return "Eye Y";
+		return QuPathResources.getString(switch (col) {
+			case 0 -> "Viewer.ViewTrackerAnalysis.timestamp";
+			case 1 -> "Viewer.ViewTrackerAnalysis.x";
+			case 2 -> "Viewer.ViewTrackerAnalysis.y";
+			case 3 -> "Viewer.ViewTrackerAnalysis.width";
+			case 4 -> "Viewer.ViewTrackerAnalysis.height";
+			case 5 -> "Viewer.ViewTrackerAnalysis.canvasWidth";
+			case 6 -> "Viewer.ViewTrackerAnalysis.canvasHeight";
+			case 7 -> "Viewer.ViewTrackerAnalysis.downsampleFactor";
+			case 8 -> "Viewer.ViewTrackerAnalysis.rotation";
+			case 9 -> {
+				if (tracker.hasCursorTrackingData()) {
+					yield "Viewer.ViewTrackerAnalysis.cursorX";
 				}
-				return "Z";
-			case 13: return tracker.hasEyeTrackingData() ? "Eye Y" : "T";
-			case 14: return "Fixated";
-			case 15: return "Z";
-			case 16: return "T";
-		}
-		return null;
+				else if (tracker.hasActiveToolTrackingData()) {
+					yield "Viewer.ViewTrackerAnalysis.activeTool";
+				}
+				else if (tracker.hasEyeTrackingData()) {
+					yield "Viewer.ViewTrackerAnalysis.eyeX";
+				}
+				else {
+					yield "Viewer.ViewTrackerAnalysis.z";
+				}
+			}
+			case 10 -> {
+				if (tracker.hasCursorTrackingData()) {
+					yield "Viewer.ViewTrackerAnalysis.cursorY";
+				}
+				else if (tracker.hasEyeTrackingData()) {
+					yield "Viewer.ViewTrackerAnalysis.eyeY";
+				}
+				else {
+					yield "Viewer.ViewTrackerAnalysis.t";
+				}
+			}
+			case 11 -> {
+				if (tracker.hasActiveToolTrackingData()) {
+					yield "Viewer.ViewTrackerAnalysis.activeTool";
+				}
+				else if (tracker.hasEyeTrackingData()) {
+					yield "Viewer.ViewTrackerAnalysis.eyeX";
+				} else {
+					yield "Viewer.ViewTrackerAnalysis.z";
+				}
+			}
+			case 12 -> {
+				if (tracker.hasEyeTrackingData()) {
+					if (tracker.hasActiveToolTrackingData()) {
+						yield "Viewer.ViewTrackerAnalysis.eyeX";
+					} else {
+						yield "Viewer.ViewTrackerAnalysis.eyeY";
+					}
+				} else {
+					yield "Viewer.ViewTrackerAnalysis.z";
+				}
+			}
+			case 13 -> tracker.hasEyeTrackingData() ? "Viewer.ViewTrackerAnalysis.eyeY" : "Viewer.ViewTrackerAnalysis.t";
+			case 14 -> "Viewer.ViewTrackerAnalysis.fixated";
+			case 15 -> "Viewer.ViewTrackerAnalysis.z";
+			case 16 -> "Viewer.ViewTrackerAnalysis.t";
+			default -> null;
+		});
 	}
 	
 	private static int nCols(final ViewTracker tracker) {
@@ -742,8 +831,10 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			viewer.repaint();
 			
 			Number maxValue = dataMaps.getMaxValue(zSlider.getValue(), tSlider.getValue());
-			Function<Double, String> fun;
-			fun = d -> "View time: " + ViewTracker.df.format(Double.valueOf(d/255 * maxValue.longValue()/1000)) + "s";
+			Function<Double, String> fun = d -> MessageFormat.format(
+					QuPathResources.getString("Viewer.ViewTrackerAnalysis.viewTime"),
+					ViewTracker.df.format(Double.valueOf(d/255 * maxValue.longValue()/1000))
+			);
 //			if (timeNormalizedRadio.isSelected())
 //				fun = d -> "View time: " + ViewTracker.df.format(Double.valueOf(d/255 * maxValue.longValue()/1000)) + "s";
 //			else
@@ -789,7 +880,10 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			if (value == null)
 				return "";
 
-			return "View time: " + ViewTracker.df.format(Double.valueOf(value.longValue()/1000.0)) + " s";
+			return MessageFormat.format(
+					QuPathResources.getString("ViewTracker.df.format(Double.valueOf(d/255 * maxValue.longValue()/1000))"),
+					ViewTracker.df.format(Double.valueOf(value.longValue()/1000.0))
+			);
 //			return (value.doubleValue() == 0 ? "" : "Downsample: " + ViewTracker.df.format(value.doubleValue()));
 		}
 	}

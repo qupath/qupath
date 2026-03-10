@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -86,7 +87,7 @@ class ParameterDialogWrapper<T> {
 		// (I realize this is exceedingly awkward...)
 		if (panel.getParameters().getKeyValueParameters(false).isEmpty()) {
 			for (var node : dialog.getScene().getRoot().getChildrenUnmodifiable()) {
-				if (node instanceof Button && ((Button) node).getText().equals("Run")) {
+				if (node instanceof Button && ((Button) node).getText().equals(QuPathResources.getString("ParameterDialogWrapper.run"))) {
 					((Button)node).fire();
 				}
 			}
@@ -120,12 +121,12 @@ class ParameterDialogWrapper<T> {
 		panel = new ParameterPanelFX(params);
 		panel.getPane().setPadding(new Insets(5, 5, 5, 5));
 
-		final Button btnRun = new Button("Run");
+		final Button btnRun = new Button(QuPathResources.getString("ParameterDialogWrapper.run"));
 		btnRun.textProperty().bind(Bindings.createStringBinding(() -> {
 			if (btnRun.isDisabled())
-				return "Please wait...";
+				return QuPathResources.getString("ParameterDialogWrapper.pleaseWait");
 			else
-				return "Run";
+				return QuPathResources.getString("ParameterDialogWrapper.run");
 		}, btnRun.disabledProperty()));
 
 		final Stage dialog = new Stage();
@@ -182,11 +183,14 @@ class ParameterDialogWrapper<T> {
 						else
 							lastWorkflowStep = null;
 					} catch (Exception e) {
-						Dialogs.showErrorMessage("Plugin error", e);
+						Dialogs.showErrorMessage(QuPathResources.getString("ParameterDialogWrapper.pluginError"), e);
 						logger.error(e.getMessage(), e);
 					} catch (OutOfMemoryError e) {
 						// This doesn't actually work...
-						Dialogs.showErrorMessage("Out of memory error", "Out of memory - try to close other applications, or decrease the number of parallel processors in the QuPath preferences");
+						Dialogs.showErrorMessage(
+								QuPathResources.getString("ParameterDialogWrapper.outOfMemory"),
+								QuPathResources.getString("ParameterDialogWrapper.outOfMemoryDescription")
+						);
 					} finally {
 						Platform.runLater(() -> {
 							QuPathGUI.getInstance().pluginRunningProperty().set(false);
@@ -198,7 +202,7 @@ class ParameterDialogWrapper<T> {
 				}
 
 			};
-			Thread t = new Thread(runnable, "Plugin thread");
+			Thread t = new Thread(runnable, QuPathResources.getString("ParameterDialogWrapper.pluginThread"));
 			QuPathGUI.getInstance().pluginRunningProperty().set(true);
 			t.start();
 		});

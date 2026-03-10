@@ -21,6 +21,7 @@
 
 package qupath.lib.gui.viewer;
 
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -73,15 +74,14 @@ public interface RegionFilter extends BiPredicate<ImageData<?>, RegionRequest> {
 		
 		@Override
 		public String toString() {
-            return switch (this) {
-                case EVERYWHERE -> "Everywhere";
-                case IMAGE -> "Image (non-empty regions)";
-                case ANY_OBJECTS -> "Any object ROI";
-                case ANY_ANNOTATIONS -> "Any annotation ROI";
-                case ANY_OBJECTS_BOUNDS -> "Any object bounds (fast)";
-                case ANY_ANNOTATIONS_BOUNDS -> "Any annotation bounds (fast)";
-                default -> "Unknown";
-            };
+            return QuPathResources.getString(switch (this) {
+                case EVERYWHERE -> "Viewer.RegionFilter.everywhere";
+                case IMAGE -> "Viewer.RegionFilter.image";
+                case ANY_OBJECTS -> "Viewer.RegionFilter.anyObjectRoi";
+                case ANY_ANNOTATIONS -> "Viewer.RegionFilter.anyAnnotationRoi";
+                case ANY_OBJECTS_BOUNDS -> "Viewer.RegionFilter.anyObjectBounds";
+                case ANY_ANNOTATIONS_BOUNDS -> "Viewer.RegionFilter.anyAnnotationBounds";
+            });
 		}
 
 		@Override

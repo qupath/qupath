@@ -32,6 +32,7 @@ import javafx.scene.control.Label;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.images.ImageData;
@@ -141,7 +142,7 @@ class Scalebar implements QuPathViewerListener {
 			ImageServer<?> server = viewer.getServer();
 			// The scalebar is shown horizontally - so request the horizontal scale, if known
 			double scale = 1.0;
-			String unit = "px";
+			String unit = QuPathResources.getString("Viewer.Scalebar.px");
 			PixelCalibration cal = server.getPixelCalibration();
 			if (cal.hasPixelSizeMicrons()) {
 				scale = cal.getPixelWidthMicrons();
@@ -155,7 +156,7 @@ class Scalebar implements QuPathViewerListener {
 			// Switch to mm if appropriate
 			String labelText = df.format(scaledLength) + " " + unit;
 			if (scaledLength >= 1000 && GeneralTools.micrometerSymbol().equals(unit)) {
-				labelText = df.format(scaledLength / 1000) + " mm";
+				labelText = df.format(scaledLength / 1000) + " " + QuPathResources.getString("Viewer.Scalebar.mm");
 			}
 			
 //			String label = String.format("%f %s", scaledLength, unit);

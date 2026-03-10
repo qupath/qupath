@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
@@ -39,6 +40,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
@@ -234,10 +236,16 @@ final class ViewTrackerTools {
 	
 	static void handleExport(final ViewTracker tracker) {
 		if (tracker.isEmpty()) {
-			Dialogs.showErrorMessage("Tracking export", "Tracker is empty - nothing to export!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Viewer.ViewTrackerTools.trackingExport"),
+					QuPathResources.getString("Viewer.ViewTrackerTools.emptyTracker")
+			);
 			return;
 		}
-		File fileExport = FileChoosers.promptToSaveFile(FileChoosers.createExtensionFilter("QuPath tracking data (tsv)", "tsv"));
+		File fileExport = FileChoosers.promptToSaveFile(FileChoosers.createExtensionFilter(
+				QuPathResources.getString("Viewer.ViewTrackerTools.trackingData"),
+				"tsv"
+		));
 		if (fileExport == null)
 			return;
 		
@@ -256,12 +264,22 @@ final class ViewTrackerTools {
 		try (Scanner scanner =  new Scanner(in)) {
 			content = scanner.useDelimiter("\\Z").next();
 		} catch (IOException ex) {
-			Dialogs.showErrorMessage("View tracking import", "Unable to read " + in + "." + System.lineSeparator() + ex.getLocalizedMessage());
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Viewer.ViewTrackerTools.viewTrackingImport"),
+					MessageFormat.format(
+							QuPathResources.getString("Viewer.ViewTrackerTools.unableToReadDetails"),
+							in,
+							ex.getLocalizedMessage()
+					)
+			);
 			return null;
 		}
 		
 		if (content == null) {
-			Dialogs.showErrorMessage("View tracking import", "Unable to read " + in);
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Viewer.ViewTrackerTools.viewTrackingImport"),
+					MessageFormat.format(QuPathResources.getString("Viewer.ViewTrackerTools.unableToRead"), in)
+			);
 			return null;
 		}
 		
@@ -271,7 +289,14 @@ final class ViewTrackerTools {
 			tracker.setName(GeneralTools.getNameWithoutExtension(in.toFile()));
 			return tracker;
 		} catch (Exception ex) {
-			Dialogs.showErrorNotification("View tracking import", "Unable to read tracking data from " + in + ": " + ex.getLocalizedMessage());
+			Dialogs.showErrorNotification(
+					QuPathResources.getString("Viewer.ViewTrackerTools.viewTrackingImport"),
+					MessageFormat.format(
+							QuPathResources.getString("Viewer.ViewTrackerTools.unableToReadFrom"),
+							in,
+							ex.getLocalizedMessage()
+					)
+			);
 		}
 		return null;
 	}

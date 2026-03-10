@@ -88,7 +88,7 @@ public class MeasurementMapper {
 		// Set display range to match the data
 		minValue = minValueData;
 		maxValue = maxValueData;
-		logger.debug("Measurement mapper limits for " + measurement + ": " + minValueData + ", " + maxValueData);
+        logger.debug("Measurement mapper limits for {}: {}, {}", measurement, minValueData, maxValueData);
 	}
 	
 

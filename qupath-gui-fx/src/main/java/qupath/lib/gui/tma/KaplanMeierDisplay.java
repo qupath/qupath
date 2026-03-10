@@ -95,6 +95,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.IntStream;
 
 /**
  * Create and manage a display component for survival data.
@@ -355,19 +356,25 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 		double[] thresholds;
 		if (params != null) {
 			Object thresholdMethod = params.getChoiceParameterValue("scoreThresholdMethod");
-			if (thresholdMethod.equals("Median")) {
+			if (thresholdMethod.equals(QuPathResources.getString("Tma.KaplanMeierDisplay.median"))) {
 				//					panelParams.setNumericParameterValue("scoreThreshold", median);
 				//					((DoubleParameter)params.getParameters().get("scoreThreshold")).setValue(median); // TODO: UPDATE DIALOG!
 				thresholds = new double[]{median};
-			} else if (thresholdMethod.equals("Tertiles")) {
+			} else if (thresholdMethod.equals(QuPathResources.getString("Tma.KaplanMeierDisplay.tertiles"))) {
 				//						((DoubleParameter)params.getParameters().get("scoreThreshold")).setValue(median); // TODO: UPDATE DIALOG!
 				thresholds = StatisticsHelper.getTertiles(newScoreData.scores);
-			} else if (thresholdMethod.equals("Quartiles")) {
+			} else if (thresholdMethod.equals(QuPathResources.getString("Tma.KaplanMeierDisplay.quartiles"))) {
 				//					((DoubleParameter)params.getParameters().get("scoreThreshold")).setValue(median); // TODO: UPDATE DIALOG!
 				thresholds = new double[]{q1, median, q3};
-			} else if (thresholdMethod.equals("Manual (1)")) {
+			} else if (thresholdMethod.equals(MessageFormat.format(
+					QuPathResources.getString("Tma.KaplanMeierDisplay.manualI"),
+					1
+			))) {
 				thresholds = new double[]{params.getDoubleParameterValue("threshold1")};
-			} else if (thresholdMethod.equals("Manual (2)")) {
+			} else if (thresholdMethod.equals(MessageFormat.format(
+					QuPathResources.getString("Tma.KaplanMeierDisplay.manualI"),
+					2
+			))) {
 				thresholds = new double[]{params.getDoubleParameterValue("threshold1"), params.getDoubleParameterValue("threshold2")};
 			} else //if (thresholdMethod.equals("Manual (3)")) {
 				thresholds = new double[]{params.getDoubleParameterValue("threshold1"), params.getDoubleParameterValue("threshold2"), params.getDoubleParameterValue("threshold3")};
@@ -484,7 +491,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 				pValuesSmoothed = new double[pValues.length];
 				Arrays.fill(pValuesSmoothed, Double.NaN);
 				int n = (pValues.length / 20) * 2 + 1;
-				logger.info("Smoothing log-rank test p-values by " + n);
+                logger.info("Smoothing log-rank test p-values by {}", n);
 				for (int i = n/2; i < pValues.length-n/2; i++) {
 					double sum = 0;
 					for (int k = i-n/2; k < i-n/2+n; k++) {
@@ -513,7 +520,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 
 		//				if (params != null && !Double.isNaN(bestThreshold) && (params.getChoiceParameterValue("scoreThresholdMethod").equals("Lowest p-value")))
-		if (params != null && (params.getChoiceParameterValue("scoreThresholdMethod").equals("Lowest p-value"))) {
+		if (params != null && (params.getChoiceParameterValue("scoreThresholdMethod").equals(QuPathResources.getString("Tma.KaplanMeierDisplay.lowestPValue")))) {
 			int bestIdx = -1;
 			double bestPValue = Double.POSITIVE_INFINITY;
 			for (int i = pValueThresholds.length/10; i < pValueThresholds.length*9/10; i++) {
@@ -523,7 +530,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 				}
 			}
 			thresholds = bestIdx >= 0 ? new double[]{pValueThresholds[bestIdx]} : new double[0];
-		} else if (params != null && (params.getChoiceParameterValue("scoreThresholdMethod").equals("Lowest smoothed p-value"))) {
+		} else if (params != null && (params.getChoiceParameterValue("scoreThresholdMethod").equals(QuPathResources.getString("Tma.KaplanMeierDisplay.lowestSmoothedPValue")))) {
 			int bestIdx = -1;
 			double bestPValue = Double.POSITIVE_INFINITY;
 			for (int i = pValueThresholds.length/10; i < pValueThresholds.length*9/10; i++) {
@@ -537,7 +544,12 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 
 		// Split into different curves using the provided thresholds
-		List<KaplanMeierData> kms = splitByThresholds(newScoreData, thresholds, censorThreshold, params != null && "Quartiles".equals(params.getChoiceParameterValue("scoreThresholdMethod")));
+		List<KaplanMeierData> kms = splitByThresholds(
+				newScoreData,
+				thresholds,
+				censorThreshold,
+				params != null && QuPathResources.getString("Tma.KaplanMeierDisplay.quartiles").equals(params.getChoiceParameterValue("scoreThresholdMethod"))
+		);
 
 		//			for (KaplanMeier km : kms)
 		//				km.censorAtTime(censorThreshold);
@@ -556,7 +568,11 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 		}
 		KaplanMeierData[] kmArray = new KaplanMeierData[kms.size()];
 		plotter.setKaplanMeierCurves(survivalColumn + " time", kms.toArray(kmArray));
-		tableModel.setSurvivalCurves(thresholds, params != null && params.getChoiceParameterValue("scoreThresholdMethod").equals("Lowest p-value"), kmArray);
+		tableModel.setSurvivalCurves(
+				thresholds,
+				params != null && params.getChoiceParameterValue("scoreThresholdMethod").equals(QuPathResources.getString("Tma.KaplanMeierDisplay.lowestPValue")),
+				kmArray
+		);
 
 
 		// Bar width determined using 'Freedman and Diaconis' rule' (but overridden if this gives < 16 bins...)
@@ -574,18 +590,18 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 				histogramWrapper.addThreshold(val);
 			histogramWrapper.setPrefHeight(150);
 			paneHistogram.add(histogramWrapper, 0, 0);
-			Tooltip.install(histogramPanel, new Tooltip("Distribution of scores"));
+			Tooltip.install(histogramPanel, new Tooltip(QuPathResources.getString("Tma.KaplanMeierDisplay.distributionOfScores")));
 			GridPane.setHgrow(histogramWrapper, Priority.ALWAYS);
 			GridPane.setVgrow(histogramWrapper, Priority.ALWAYS);
 
 			NumberAxis xAxis = new NumberAxis();
-			xAxis.setLabel("Score threshold");
+			xAxis.setLabel(QuPathResources.getString("Tma.KaplanMeierDisplay.scoreThreshold"));
 			NumberAxis yAxis = new NumberAxis();
 			yAxis.setLowerBound(0);
 			yAxis.setUpperBound(1);
 			yAxis.setTickUnit(0.1);
 			yAxis.setAutoRanging(false);
-			yAxis.setLabel("P-value");
+			yAxis.setLabel(QuPathResources.getString("Tma.KaplanMeierDisplay.pValue"));
 			chartPValues = new LineChart<>(xAxis, yAxis);
 			chartPValues.setAnimated(false);
 			chartPValues.setLegendVisible(false);
@@ -593,7 +609,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			// Make chart so it can be navigated
 			ChartTools.makeChartInteractive(chartPValues, xAxis, yAxis);
 			pValuesChanged = true;
-			Tooltip.install(chartPValues, new Tooltip("Distribution of p-values (log-rank test) comparing low vs. high for all possible score thresholds"));
+			Tooltip.install(chartPValues, new Tooltip(QuPathResources.getString("Tma.KaplanMeierDisplay.distributionOfPValues")));
 			//				chartPValues.getYAxis().setAutoRanging(false);
 			pValuesWrapper = new ChartThresholdPane(chartPValues);
 			for (ObservableNumberValue val : threshProperties)
@@ -650,10 +666,10 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			miZoomY01.setToggleGroup(tgZoom);
 			miZoomY005.setToggleGroup(tgZoom);
 			miZoomY001.setToggleGroup(tgZoom);
-			Menu menuZoomY = new Menu("Set y-axis range");
+			Menu menuZoomY = new Menu(QuPathResources.getString("Tma.KaplanMeierDisplay.setYAxisRange"));
 			menuZoomY.getItems().addAll(miZoomY1, miZoomY05, miZoomY02, miZoomY01, miZoomY005, miZoomY001);
 
-			MenuItem miCopyData = new MenuItem("Copy chart data");
+			MenuItem miCopyData = new MenuItem(QuPathResources.getString("Tma.KaplanMeierDisplay.copyChartData"));
 			miCopyData.setOnAction(e -> {
 				String dataString = ChartTools.getChartDataAsString(chartPValues);
 				ClipboardContent content = new ClipboardContent();
@@ -709,20 +725,72 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			//				if (rfs > maxTimePoint)
 			//					maxTimePoint = rfs;
 			//			}
-			params.addIntParameter("censorTimePoints", "Max censored time", (int)(censorThreshold + 0.5), null, 0, (int)Math.ceil(maxTimePoint), "Latest time point beyond which data will be censored");
+			params.addIntParameter(
+					"censorTimePoints",
+					QuPathResources.getString("Tma.KaplanMeierDisplay.maxCensoredTime"),
+					(int)(censorThreshold + 0.5),
+					null,
+					0,
+					(int)Math.ceil(maxTimePoint),
+					QuPathResources.getString("Tma.KaplanMeierDisplay.maxCensoredTimeDescription")
+			);
 			//				params.addChoiceParameter("scoreThresholdMethod", "Threshold method", "Manual", Arrays.asList("Manual", "Median", "Log-rank test"));
+			List<String> thresholdMethods = new ArrayList<>(List.of(
+					MessageFormat.format(
+							QuPathResources.getString("Tma.KaplanMeierDisplay.manualI"),
+							1
+					),
+					MessageFormat.format(
+							QuPathResources.getString("Tma.KaplanMeierDisplay.manualI"),
+							2
+					),
+					MessageFormat.format(
+							QuPathResources.getString("Tma.KaplanMeierDisplay.manualI"),
+							3
+					),
+					QuPathResources.getString("Tma.KaplanMeierDisplay.median"),
+					QuPathResources.getString("Tma.KaplanMeierDisplay.tertiles"),
+					QuPathResources.getString("Tma.KaplanMeierDisplay.quartiles")
+			));
 			if (calculateAllPValues)
 				// Don't include "Lowest smoothed p-value" - it's not an established method and open to misinterpretation...
-				params.addChoiceParameter("scoreThresholdMethod", "Threshold method", "Median", Arrays.asList("Manual (1)", "Manual (2)", "Manual (3)", "Median", "Tertiles", "Quartiles", "Lowest p-value"));
-//				params.addChoiceParameter("scoreThresholdMethod", "Threshold method", "Median", Arrays.asList("Manual (1)", "Manual (2)", "Manual (3)", "Median", "Tertiles", "Quartiles", "Lowest p-value", "Lowest smoothed p-value"));
-			else
-				params.addChoiceParameter("scoreThresholdMethod", "Threshold method", "Median", Arrays.asList("Manual (1)", "Manual (2)", "Manual (3)", "Median", "Tertiles", "Quartiles"));
-			params.addDoubleParameter("threshold1", "Threshold 1", thresholds.length > 0 ? thresholds[0] : (minVal + maxVal)/2, null, "Threshold to distinguish between patient groups");
-			params.addDoubleParameter("threshold2", "Threshold 2", thresholds.length > 1 ? thresholds[1] : (minVal + maxVal)/2, null, "Threshold to distinguish between patient groups");
-			params.addDoubleParameter("threshold3", "Threshold 3", thresholds.length > 2 ? thresholds[2] : (minVal + maxVal)/2, null, "Threshold to distinguish between patient groups");
-			params.addBooleanParameter("showAtRisk", "Show at risk", plotter.getShowAtRisk(), "Show number of patients at risk below the plot");
-			params.addBooleanParameter("showTicks", "Show censored ticks", plotter.getShowCensoredTicks(), "Show ticks to indicate censored data");
-			params.addBooleanParameter("showKey", "Show key", plotter.getShowKey(), "Show key indicating display of each curve");
+				thresholdMethods.add(QuPathResources.getString("Tma.KaplanMeierDisplay.lowestPValue"));
+			params.addChoiceParameter(
+					"scoreThresholdMethod",
+					QuPathResources.getString("Tma.KaplanMeierDisplay.thresholdMethod"),
+					QuPathResources.getString("Tma.KaplanMeierDisplay.median"),
+					thresholdMethods
+			);
+			for (int i=0; i<3; i++) {
+				params.addDoubleParameter(
+						String.format("threshold%d", i+1),
+						MessageFormat.format(
+								QuPathResources.getString("Tma.KaplanMeierDisplay.thresholdI"),
+								i + 1
+						),
+						thresholds.length > i ? thresholds[i] : (minVal + maxVal)/2,
+						null,
+						QuPathResources.getString("Tma.KaplanMeierDisplay.thresholdDescription")
+				);
+			}
+			params.addBooleanParameter(
+					"showAtRisk",
+					QuPathResources.getString("Tma.KaplanMeierDisplay.showAtRisk"),
+					plotter.getShowAtRisk(),
+					QuPathResources.getString("Tma.KaplanMeierDisplay.showAtRiskDescription")
+			);
+			params.addBooleanParameter(
+					"showTicks",
+					QuPathResources.getString("Tma.KaplanMeierDisplay.showCensoredTicks"),
+					plotter.getShowCensoredTicks(),
+					QuPathResources.getString("Tma.KaplanMeierDisplay.showCensoredTicksDescription")
+			);
+			params.addBooleanParameter(
+					"showKey",
+					QuPathResources.getString("Tma.KaplanMeierDisplay.showKey"),
+					plotter.getShowKey(),
+					QuPathResources.getString("Tma.KaplanMeierDisplay.showKeyDescription")
+			);
 			//				params.addBooleanParameter("useColor", "Use color", plotter.getUseColor(), "Show each curve in a different color");
 			//			params.addBooleanParameter("useStrokes", "Use strokes", plotter.getUseStrokes(), "Show each curve with a differed line stroke");
 			// Hide threshold parameters if threshold can't be used
@@ -748,7 +816,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 
 			BorderPane paneBottom = new BorderPane();
-			TitledPane paneOptions = new TitledPane("Options", panelParams.getPane());
+			TitledPane paneOptions = new TitledPane(QuPathResources.getString("Tma.KaplanMeierDisplay.options"), panelParams.getPane());
 			//				paneOptions.setCollapsible(false);
 			Pane paneCanvas = new StackPane();
 			paneCanvas.getChildren().add(plotter.getCanvas());
@@ -781,7 +849,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 		if (histogram != null) {
 			histogramPanel.getHistogramData().setAll(HistogramChart.createHistogramData(histogram, (Color)null));
 			histogramPanel.getXAxis().setLabel(scoreColumn);
-			histogramPanel.getYAxis().setLabel("Count");
+			histogramPanel.getYAxis().setLabel(QuPathResources.getString("Tma.KaplanMeierDisplay.count"));
 
 			ChartTools.addChartExportMenu(histogramPanel, null);
 
@@ -817,16 +885,19 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 				//				if (dataSmoothed != null)
 				//					chartPValues.getData().setAll(new XYChart.Series<>("P-values", data), new XYChart.Series<>("Smoothed P-values", dataSmoothed));
 				//				else
-				chartPValues.getData().setAll(new XYChart.Series<>("P-values", data));
+				chartPValues.getData().setAll(new XYChart.Series<>(QuPathResources.getString("Tma.KaplanMeierDisplay.pValues"), data));
 
 				// Add line to show 0.05 significance threshold
 				if (pValueThresholds.length > 1) {
 					Data<Number, Number> sigData1 = new Data<>(pValueThresholds[0], 0.05);
 					Data<Number, Number> sigData2 = new Data<>(pValueThresholds[pValueThresholds.length-1], 0.05);
-					XYChart.Series<Number, Number> dataSignificant = new XYChart.Series<>("Significance 0.05", FXCollections.observableArrayList(
-							sigData1,
-							sigData2
-							));
+					XYChart.Series<Number, Number> dataSignificant = new XYChart.Series<>(
+							MessageFormat.format(
+									QuPathResources.getString("Tma.KaplanMeierDisplay.significance"),
+									0.05
+							),
+							FXCollections.observableArrayList(sigData1, sigData2)
+					);
 					chartPValues.getData().add(dataSignificant);
 					sigData1.getNode().setVisible(false);
 					sigData2.getNode().setVisible(false);
@@ -894,13 +965,19 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 		Arrays.sort(sortedThresholds);
 		for (int i = 0; i <= nThresholds; i++) {
 			if (nThresholds == 0)
-				kms.add(new KaplanMeierData("All"));
+				kms.add(new KaplanMeierData(QuPathResources.getString("Tma.KaplanMeierDisplay.all")));
 			else if (nThresholds == 1) {
-				kms.add(new KaplanMeierData(i == 0 ? "Low" : "High"));
+				kms.add(new KaplanMeierData(QuPathResources.getString(i == 0 ? "Tma.KaplanMeierDisplay.low" : "Tma.KaplanMeierDisplay.high")));
 			} else if (nThresholds == 2 && sortedThresholds[0] < sortedThresholds[1]) {
-				kms.add(new KaplanMeierData(i == 0 ? "Low" : (i == 1 ? "Moderate" : "High")));
+				kms.add(new KaplanMeierData(QuPathResources.getString(i == 0 ?
+						"Tma.KaplanMeierDisplay.low" :
+						(i == 1 ? "Tma.KaplanMeierDisplay.moderate" : "Tma.KaplanMeierDisplay.high")
+				)));
 			} else if (usesQuartiles) {
-				kms.add(new KaplanMeierData("Quartile " + (i + 1)));					
+				kms.add(new KaplanMeierData(MessageFormat.format(
+						QuPathResources.getString("Tma.KaplanMeierDisplay.quartileI"),
+						i + 1
+				)));
 			}
 			else {
 				if (i == 0)
@@ -1003,7 +1080,10 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 	 * @return
 	 */
 	private boolean interactiveThresholds() {
-		return params != null && Arrays.asList("Manual (1)", "Manual (2)", "Manual (3)").contains(params.getChoiceParameterValue("scoreThresholdMethod"));
+		return params != null && IntStream.range(1, 4).mapToObj(i -> MessageFormat.format(
+				QuPathResources.getString("Tma.KaplanMeierDisplay.manualI"),
+				i
+		)).toList().contains((String) params.getChoiceParameterValue("scoreThresholdMethod"));
 	}
 
 
@@ -1043,15 +1123,25 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 	private void updateThresholdsEnabled() {
 		Object value = panelParams.getParameters().getChoiceParameterValue("scoreThresholdMethod");
-		if ("Manual (1)".equals(value)) {
+
+		if (MessageFormat.format(
+				QuPathResources.getString("Tma.KaplanMeierDisplay.manualI"),
+				1
+		).equals(value)) {
 			panelParams.setParameterEnabled("threshold1", true);
 			panelParams.setParameterEnabled("threshold2", false);
 			panelParams.setParameterEnabled("threshold3", false);
-		} else if ("Manual (2)".equals(value)) {
+		} else if (MessageFormat.format(
+				QuPathResources.getString("Tma.KaplanMeierDisplay.manualI"),
+				2
+		).equals(value)) {
 			panelParams.setParameterEnabled("threshold1", true);
 			panelParams.setParameterEnabled("threshold2", true);
 			panelParams.setParameterEnabled("threshold3", false);
-		} else if ("Manual (3)".equals(value)) {
+		} else if (MessageFormat.format(
+				QuPathResources.getString("Tma.KaplanMeierDisplay.manualI"),
+				3
+		).equals(value)) {
 			panelParams.setParameterEnabled("threshold1", true);
 			panelParams.setParameterEnabled("threshold2", true);
 			panelParams.setParameterEnabled("threshold3", true);
@@ -1066,7 +1156,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 
 	static String getLogRankComparisonName(final String conditionA, final String conditionB) {
-		return String.format("%s vs %s log-rank (HR)", conditionA, conditionB);
+		return MessageFormat.format(QuPathResources.getString("Tma.KaplanMeierDisplay.logRank"), conditionA, conditionB);
 	}
 
 
@@ -1097,13 +1187,16 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			for (double t : thresholds) {
 				count++;
 				if (multipleThresholds)
-					names.add("Score threshold " + count);
+					names.add(MessageFormat.format(
+							QuPathResources.getString("Tma.KaplanMeierDisplay.scoreThresholdI"),
+							count
+					));
 				else
-					names.add("Score threshold");
+					names.add(QuPathResources.getString("Tma.KaplanMeierDisplay.scoreThreshold"));
 				values.add(df2.format(t));
 			}
 
-			names.add("Max time");
+			names.add(QuPathResources.getString("Tma.KaplanMeierDisplay.maxTime"));
 			double maxTime = Double.NEGATIVE_INFINITY;
 			int nEvents = 0;
 			int nObserved = 0;
@@ -1116,16 +1209,20 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			}
 			values.add(df2.format(maxTime));
 
-			names.add("Total events");
+			names.add(QuPathResources.getString("Tma.KaplanMeierDisplay.totalEvents"));
 			values.add(Integer.toString(nEvents));
-			names.add("Num observed");
+			names.add(QuPathResources.getString("Tma.KaplanMeierDisplay.numObserved"));
 			values.add(Integer.toString(nObserved));
-			names.add("Num censored");
+			names.add(QuPathResources.getString("Tma.KaplanMeierDisplay.numCensored"));
 			values.add(Integer.toString(nCensored));
 
 			for (KaplanMeierData km : kms) {
 				names.add(km.getName());
-				values.add(km.nEvents() + " (" + km.nObserved() + " observed)");
+				values.add(MessageFormat.format(
+						QuPathResources.getString("Tma.KaplanMeierDisplay.observed"),
+						km.nEvents(),
+						km.nObserved()
+				));
 				//					values.add(km.nEvents() + " (" + df1.format(km.nEvents()*100.0/nEvents) + "%)");
 			}
 
@@ -1158,7 +1255,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 
 					if (correctPValues) {
-						names.add("Log-rank (corrected P-value, e=0.1)");
+						names.add(QuPathResources.getString("Tma.KaplanMeierDisplay.logRankCorrected"));
 
 						//								pValue = 0.012;
 
@@ -1196,7 +1293,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 			// If we have exactly 3 thresholds, try comparing extremes (useful for P53)
 			if (kms.length == 3) {
-				KaplanMeierData kmExtreme = new KaplanMeierData("Low+High");
+				KaplanMeierData kmExtreme = new KaplanMeierData(QuPathResources.getString("Tma.KaplanMeierDisplay.lowHigh"));
 				kmExtreme.addEvents(kms[0].getEvents());
 				kmExtreme.addEvents(kms[2].getEvents());
 				LogRankResult logRankResult = LogRankTest.computeLogRankTest(kmExtreme, kms[1]);
@@ -1223,9 +1320,9 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 		public String getColumnName(int columnIndex) {
 			if (columnIndex == 0)
-				return "Name";
+				return QuPathResources.getString("Tma.KaplanMeierDisplay.name");
 			else
-				return "Value";
+				return QuPathResources.getString("Tma.KaplanMeierDisplay.value");
 		}
 		public String getValueAt(int rowIndex, int columnIndex) {
 			if (columnIndex == 0)

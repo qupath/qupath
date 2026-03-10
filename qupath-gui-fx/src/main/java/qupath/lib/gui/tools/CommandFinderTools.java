@@ -81,6 +81,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
 
@@ -126,16 +127,11 @@ public class CommandFinderTools {
 		
 		@Override
 		public String toString() {
-			switch(this) {
-			case ALWAYS:
-				return "Always";
-			case HOVER:
-				return "When cursor near";
-			case NEVER:
-				return "Never";
-			default:
-				return super.toString();
-			}
+            return QuPathResources.getString(switch (this) {
+                case ALWAYS -> "Tools.CommandFinderTools.always";
+                case HOVER -> "Tools.CommandFinderTools.whenCursorNear";
+                case NEVER -> "Tools.CommandFinderTools.never";
+            });
 		}
 		
 	};
@@ -220,16 +216,11 @@ public class CommandFinderTools {
 		
 		HiddenSidesPane paneViewer = new HiddenSidesPane();
 		paneViewer.pinnedSideProperty().bind(
-				Bindings.createObjectBinding(() -> {
-					switch (displayMode.get()) {
-					case ALWAYS:
-						return Side.TOP;
-					case NEVER:
-						return null;
-					default:
-						return textField.isFocused() ? Side.TOP : null;
-					}
-				}, textField.focusedProperty(), displayMode)
+				Bindings.createObjectBinding(() -> switch (displayMode.get()) {
+                    case ALWAYS -> Side.TOP;
+                    case NEVER -> null;
+                    default -> textField.isFocused() ? Side.TOP : null;
+                }, textField.focusedProperty(), displayMode)
 			);
 		
 		displayMode.addListener((v, o, n) -> {
@@ -284,7 +275,7 @@ public class CommandFinderTools {
 
 		Stage stage = new Stage();
 		stage.initOwner(owner);
-		stage.setTitle("Recent Commands");
+		stage.setTitle(QuPathResources.getString("Tools.CommandFinderTools.recentCommands"));
 
 		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getRecentCommands());
 		TableView<CommandEntry> table = createCommandTable(commands);
@@ -293,7 +284,7 @@ public class CommandFinderTools {
 			col.setSortable(false);
 		
 		TextField textField = createTextField(table, commands, false, stage, null);
-		textField.setPromptText("Search recent commands");
+		textField.setPromptText(QuPathResources.getString("Tools.CommandFinderTools.searchRecentCommands"));
 
 		// Control focus of the text field
 		stage.focusedProperty().addListener((v, o, n) -> {
@@ -345,16 +336,16 @@ public class CommandFinderTools {
 		
 		Stage stage = new Stage();
 		stage.initOwner(owner);
-		stage.setTitle("Command List");
+		stage.setTitle(QuPathResources.getString("Tools.CommandFinderTools.commandList"));
 		
-		CheckBox cbAutoClose = new CheckBox("Auto close");
+		CheckBox cbAutoClose = new CheckBox(QuPathResources.getString("Tools.CommandFinderTools.autoClose"));
 		cbAutoClose.selectedProperty().bindBidirectional(autoCloseCommandListProperty);
 		cbAutoClose.setPadding(new Insets(2, 2, 2, 2));
 
 		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getCommands());			
 		TableView<CommandEntry> table = createCommandTable(commands);
 		TextField textField = createTextField(table, commands, false, stage, cbAutoClose.selectedProperty());
-		textField.setPromptText("Search all commands");
+		textField.setPromptText(QuPathResources.getString("Tools.CommandFinderTools.searchAllCommands"));
 		
 		// Control focus of the text field
 		// This actually controls the table itself
@@ -553,7 +544,7 @@ public class CommandFinderTools {
 	private static TextField createTextField(final TableView<CommandEntry> table, final FilteredList<CommandEntry> commands, final boolean clearTextOnRun, final Stage dialog, final ObservableBooleanValue hideDialogOnRun) {
 		TextField textField = new TextField();
 		
-		textField.setTooltip(new Tooltip("Start typing to search through available commands, then select any you want to run"));
+		textField.setTooltip(new Tooltip(QuPathResources.getString("Tools.CommandFinderTools.typeToSearchCommands")));
 		
 		textField.textProperty().addListener((v, o, n) -> {
 			updateTableFilter(n.toLowerCase(), commands);
@@ -616,13 +607,13 @@ public class CommandFinderTools {
 		items.comparatorProperty().bind(table.comparatorProperty());
 		table.setItems(items);
 		
-		TableColumn<CommandEntry, String> col1 = new TableColumn<>("Command");
+		TableColumn<CommandEntry, String> col1 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.command"));
 		col1.setCellValueFactory(new PropertyValueFactory<>("text"));
-		TableColumn<CommandEntry, String> col2 = new TableColumn<>("Menu Path");
+		TableColumn<CommandEntry, String> col2 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.menuPath"));
 		col2.setCellValueFactory(new PropertyValueFactory<>("menuPath"));
-		TableColumn<CommandEntry, String> col3 = new TableColumn<>("Keys");
+		TableColumn<CommandEntry, String> col3 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.keys"));
 		col3.setCellValueFactory(new PropertyValueFactory<>("acceleratorText"));
-		TableColumn<CommandEntry, String> col4 = new TableColumn<>("Help");
+		TableColumn<CommandEntry, String> col4 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.help"));
 		col4.setCellValueFactory(new PropertyValueFactory<>("longText"));
 		
 		Function<CommandEntry, String> tipExtractor = entry -> entry == null ? null : entry.getLongText();
@@ -696,7 +687,7 @@ public class CommandFinderTools {
 
 		private CommandTableRow() {
 			popup = new ContextMenu();
-			var miCopyPath = new MenuItem("Copy to clipboard");
+			var miCopyPath = new MenuItem(QuPathResources.getString("Tools.CommandFinderTools.copyToClipboard"));
 			miCopyPath.setOnAction(e -> {
 				var item = getItem();
 				if (item != null)

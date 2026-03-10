@@ -40,6 +40,7 @@ import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
@@ -127,13 +128,16 @@ final class ViewTrackerSlideOverview {
 		});
 
 		canvas.setOnContextMenuRequested(e -> {
-			final MenuItem tifExportItem = new MenuItem("Export data as TIF");
-		    final MenuItem copyItem = new MenuItem("Copy image to clipboard");
+			final MenuItem tifExportItem = new MenuItem(QuPathResources.getString("Viewer.ViewTrackerSlideOverview.exportData"));
+		    final MenuItem copyItem = new MenuItem(QuPathResources.getString("Viewer.ViewTrackerSlideOverview.copyImageToClipboard"));
 		    final ContextMenu contextMenu = new ContextMenu(tifExportItem, copyItem);
 		    
 		    tifExportItem.setOnAction(event -> {
-		    	var path = FileChoosers.promptToSaveFile("Save data map", new File("data map"),
-						FileChoosers.createExtensionFilter("TIFF image", ".tif"));
+		    	var path = FileChoosers.promptToSaveFile(
+						QuPathResources.getString("Viewer.ViewTrackerSlideOverview.saveDataMap"),
+						new File("data map"),
+						FileChoosers.createExtensionFilter(QuPathResources.getString("Viewer.ViewTrackerSlideOverview.tiffImage"), ".tif")
+				);
 		    	if (path == null)
 		    		return;
 		    	

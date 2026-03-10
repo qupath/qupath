@@ -580,7 +580,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     		return files;
     	
     	new FileCopier()
-    			.title("Install localization properties")
+    			.title(QuPathResources.getString("DragDrop.installLocalizationProperties"))
     			.relativeToUserDirectory()
     			.outputPath(UserDirectoryManager.DIR_LOCALIZATION)
     			.inputFiles(propertyFiles)
