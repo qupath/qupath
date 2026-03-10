@@ -329,9 +329,6 @@ public class ServerSelector {
 		dialog.getDialogPane().getButtonTypes().addAll(typeImportSelected, ButtonType.CANCEL);
 
 		dialog.getDialogPane().setContent(pane);
-		if (owner != null) {
-			dialog.setHeight(Math.min(dialog.getHeight(), owner.getHeight()));
-		}
 
 		listSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectedRow, selectedRow) -> {
 		    tableInfo.refresh();
