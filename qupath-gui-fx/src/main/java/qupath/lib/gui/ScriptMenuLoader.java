@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
@@ -64,7 +65,7 @@ class ScriptMenuLoader {
 	private MenuItem miCreateScript;
 	private MenuItem miOpenDirectory;
 		
-	private static final String NO_SCRIPTS_NAME = "No scripts found";
+	private static final String NO_SCRIPTS_NAME = QuPathResources.getString("ScriptMenuLoader.noScriptsFound");
 	private MenuItem miPlaceholder = new MenuItem(NO_SCRIPTS_NAME);
 	private final Supplier<ScriptEditor> scriptEditorSupplier;
 
@@ -74,12 +75,19 @@ class ScriptMenuLoader {
 		this.scriptDirectory = scriptDirectory;
 		this.scriptEditorSupplier = scriptEditorSupplier;
 		
-		var actionCreateScript = ActionTools.actionBuilder("New script...", e -> {
+		var actionCreateScript = ActionTools.actionBuilder(QuPathResources.getString("ScriptMenuLoader.newScriptMenu"), e -> {
 			String dir = scriptDirectory.get();
 			if (dir == null) {
-				Dialogs.showErrorMessage("New script error", "No script directory set!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("ScriptMenuLoader.newScriptError"),
+						QuPathResources.getString("ScriptMenuLoader.noScriptDirectorySet")
+				);
 			}
-			String scriptName = Dialogs.showInputDialog("New script", "Enter script name", "");
+			String scriptName = Dialogs.showInputDialog(
+					QuPathResources.getString("ScriptMenuLoader.newScript"),
+					QuPathResources.getString("ScriptMenuLoader.enterScriptName"),
+					""
+			);
 			if (scriptName == null || scriptName.trim().isEmpty())
 				return;
 			if (!scriptName.contains("."))
@@ -94,7 +102,10 @@ class ScriptMenuLoader {
 						dirScripts.mkdir();
 					scriptFile.createNewFile();
 				} catch (Exception e1) {
-					Dialogs.showErrorMessage("New script error", "Unable to create new script!");
+					Dialogs.showErrorMessage(
+							QuPathResources.getString("ScriptMenuLoader.newScriptError"),
+							QuPathResources.getString("ScriptMenuLoader.unableToCreateScript")
+					);
 					logger.error("Create script error", e1);
 				}
 			}
@@ -104,11 +115,11 @@ class ScriptMenuLoader {
 			else
 				QuPathGUI.getInstance().getScriptEditor().showScript(scriptFile);
 		})
-				.longText("Create a new script.")
+				.longText(QuPathResources.getString("ScriptMenuLoader.createNewScript"))
 				.build();
 		
 		// Command to open directory
-		var actionOpenDirectory = ActionTools.actionBuilder("Open script directory",
+		var actionOpenDirectory = ActionTools.actionBuilder(QuPathResources.getString("ScriptMenuLoader.openScriptDirectory"),
 				e -> {
 					// Try to reveal directory in Finder/Windows Explorer etc.
 					File dir = new File(scriptDirectory.get());
@@ -119,18 +130,18 @@ class ScriptMenuLoader {
 				}
 				)
 				.disabled(Bindings.isNotNull(scriptDirectory).not())
-				.longText("Open the script directory outside QuPath.")
+				.longText(QuPathResources.getString("ScriptMenuLoader.openScriptDirectoryDescription"))
 				.build();
 		
 		
 		if (scriptDirectory instanceof StringProperty scriptDirectoryProperty) {
-			var actionSetPath = ActionTools.actionBuilder("Set script directory...", e -> {
+			var actionSetPath = ActionTools.actionBuilder(QuPathResources.getString("ScriptMenuLoader.setScriptDirectoryMenu"), e -> {
 				File dirBase = scriptDirectoryProperty.get() == null ? null : new File(scriptDirectoryProperty.get());
-				File dir = FileChoosers.promptForDirectory("Set script directory", dirBase);
+				File dir = FileChoosers.promptForDirectory(QuPathResources.getString("ScriptMenuLoader.setScriptDirectory"), dirBase);
 				if (dir != null)
 					scriptDirectoryProperty.set(dir.getAbsolutePath());
 			})
-					.longText("Set the directory containing scripts that should be shown in this menu.")
+					.longText(QuPathResources.getString("ScriptMenuLoader.setScriptDirectoryDescription"))
 					.build();
 			
 			miSetPath = ActionTools.createMenuItem(actionSetPath);
@@ -213,7 +224,10 @@ class ScriptMenuLoader {
 							try {
 								qupath.runScript(scriptFile, null);
 							} catch (IllegalArgumentException | ScriptException e1) {
-								Dialogs.showErrorNotification("Run script", e1.getLocalizedMessage());
+								Dialogs.showErrorNotification(
+										QuPathResources.getString("ScriptMenuLoader.runScript"),
+										e1.getLocalizedMessage()
+								);
 								logger.error(e1.getLocalizedMessage(), e);
 							}
 						}

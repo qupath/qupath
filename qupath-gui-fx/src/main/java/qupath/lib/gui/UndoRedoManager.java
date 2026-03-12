@@ -402,7 +402,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewer>, QuPathView
 				out.flush();
 				return stream.toByteArray();
 			} catch (IOException e) {
-				logger.error("Error serializing " + object, e);
+                logger.error("Error serializing {}", object, e);
 				return null;
 			}
 		}
