@@ -46,6 +46,7 @@ import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
@@ -57,6 +58,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -77,14 +79,14 @@ class TMADataImporter {
 
 	private static final Logger logger = LoggerFactory.getLogger(TMADataImporter.class);
 	
-	private static String TITLE = "Import TMA data";
+	private static String TITLE = QuPathResources.getString("Commands.TmaImporter.title");
 	
 	
 	private static Set<QuPathGUI> installedHandlers = Collections.newSetFromMap(new WeakHashMap<>());
 	
 	public static synchronized void installDragAndDropHandler(QuPathGUI qupath) {
 		if (installedHandlers.contains(qupath)) {
-			logger.warn(TITLE + " file drag & drop already installed for this QuPath instance!");
+            logger.warn("Import TMA data file drag & drop already installed for this QuPath instance!");
 			return;
 		}
 		installedHandlers.add(qupath);
@@ -103,7 +105,14 @@ class TMADataImporter {
 					if (success) {
 						grid.synchronizeTMAGridToInfo();
 						imageData.getHierarchy().fireObjectsChangedEvent(grid, imageData.getHierarchy().getTMAGrid().getTMACoreList());
-						Dialogs.showInfoNotification(TITLE, "TMA grid imported (" + grid.getGridWidth() + "x" + grid.getGridHeight() + ")");
+						Dialogs.showInfoNotification(
+								TITLE,
+								MessageFormat.format(
+										QuPathResources.getString("Commands.TmaImporter.gridImported"),
+										grid.getGridWidth(),
+										grid.getGridHeight()
+								)
+						);
 						return true;
 					}
 				} catch (Exception e) {
@@ -122,7 +131,7 @@ class TMADataImporter {
 		}
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		if (hierarchy.getTMAGrid() == null) {
-			Dialogs.showErrorMessage(TITLE, "No TMA grid has been set for the selected image!");
+			Dialogs.showErrorMessage(TITLE, QuPathResources.getString("Commands.TmaImporter.noGridSet"));
 			return;
 		}
 		
@@ -157,29 +166,29 @@ class TMADataImporter {
 //		Label label = new Label("Import TMA map or unique identifiers for TMA cores.");
 //		pane.setTop(label);
 		
-		Button btnImportData = new Button("Import data");
-		btnImportData.setTooltip(new Tooltip("Import TMA core data from a tab-delimited or .csv file"));
+		Button btnImportData = new Button(QuPathResources.getString("Commands.TmaImporter.importData"));
+		btnImportData.setTooltip(new Tooltip(QuPathResources.getString("Commands.TmaImporter.importDataDescription")));
 		btnImportData.setOnAction(e -> {
 			if (handleImportDataFromFile(infoGrid))
 				table.refresh();
 		});
-		Button btnPasteData = new Button("Paste data");
-		btnPasteData.setTooltip(new Tooltip("Paste tab-delimited TMA core data from the clipboard"));
+		Button btnPasteData = new Button(QuPathResources.getString("Commands.TmaImporter.pasteData"));
+		btnPasteData.setTooltip(new Tooltip(QuPathResources.getString("Commands.TmaImporter.pasteDataDescription")));
 		btnPasteData.setOnAction(e -> {
 			if (handleImportDataFromClipboard(infoGrid))
 				table.refresh();
 		});
 		
 		
-		Button btnPasteGrid = new Button("Paste grid");
-		btnPasteGrid.setTooltip(new Tooltip("Paste a tab-delimited grid containing TMA core names from the clipboard"));
+		Button btnPasteGrid = new Button(QuPathResources.getString("Commands.TmaImporter.pasteGrid"));
+		btnPasteGrid.setTooltip(new Tooltip(QuPathResources.getString("Commands.TmaImporter.pasteGridDescription")));
 		btnPasteGrid.setOnAction(e -> {
 			if (handlePasteGrid(infoGrid)) {
 				table.refresh();
 			}
 		});
-		Button btnLoadGrid = new Button("Import grid");
-		btnLoadGrid.setTooltip(new Tooltip("Import a grid containing TMA core names from a tab-delimited or .csv file"));
+		Button btnLoadGrid = new Button(QuPathResources.getString("Commands.TmaImporter.importGrid"));
+		btnLoadGrid.setTooltip(new Tooltip(QuPathResources.getString("Commands.TmaImporter.importGridDescription")));
 		btnLoadGrid.setOnAction(e -> {
 			if (handleLoadGridFromFile(infoGrid))
 				table.refresh();
@@ -212,14 +221,17 @@ class TMADataImporter {
 	private static boolean handleImportDataFromClipboard(final TMAGrid infoGrid) {
 		logger.trace("Importing TMA data from clipboard...");
 		if (!Clipboard.getSystemClipboard().hasString()) {
-			Dialogs.showErrorMessage(TITLE, "No text on clipboard!");
+			Dialogs.showErrorMessage(TITLE, QuPathResources.getString("Commands.TmaImporter.noTextOnClipboard"));
 			return false;
 		}
 		int nScores = TMAScoreImporter.importFromCSV(Clipboard.getSystemClipboard().getString(), createPseudoHierarchy(infoGrid));
 		if (nScores == 1)
-			Dialogs.showMessageDialog(TITLE, "Updated 1 core");
+			Dialogs.showMessageDialog(TITLE, QuPathResources.getString("Commands.TmaImporter.updatedOneCore"));
 		else 
-			Dialogs.showMessageDialog(TITLE, "Updated " + nScores + " cores");
+			Dialogs.showMessageDialog(
+					TITLE,
+					MessageFormat.format(QuPathResources.getString("Commands.TmaImporter.updatedNCores"), nScores)
+			);
 		return nScores > 0;
 	}
 
@@ -236,9 +248,12 @@ class TMADataImporter {
 		try {
 			int nScores = TMAScoreImporter.importFromCSV(file, createPseudoHierarchy(infoGrid));
 			if (nScores == 1)
-				Dialogs.showMessageDialog(TITLE, "Updated 1 core");
+				Dialogs.showMessageDialog(TITLE, QuPathResources.getString("Commands.TmaImporter.updatedOneCore"));
 			else 
-				Dialogs.showMessageDialog(TITLE, "Updated " + nScores + " cores");
+				Dialogs.showMessageDialog(
+						TITLE,
+						MessageFormat.format(QuPathResources.getString("Commands.TmaImporter.updatedNCores"), nScores)
+				);
 //			logger.info(String.format("Scores read for %d core(s)", nScores));
 			return nScores > 0;
 		} catch (IOException e) {
@@ -272,7 +287,7 @@ class TMADataImporter {
 	private static boolean handlePasteGrid(final TMAGrid infoGrid) {
 		logger.trace("Importing TMA grid from clipboard...");
 		if (!Clipboard.getSystemClipboard().hasString()) {
-			Dialogs.showErrorMessage(TITLE, "No text on clipboard!");
+			Dialogs.showErrorMessage(TITLE, QuPathResources.getString("Commands.TmaImporter.noTextOnClipboard"));
 			return false;
 		}
 		return handleImportGrid(infoGrid, Clipboard.getSystemClipboard().getString());
@@ -297,7 +312,13 @@ class TMADataImporter {
 			scanner.close();
 			return handleImportGrid(infoGrid, text);
 		} catch (FileNotFoundException e) {
-			Dialogs.showErrorMessage(TITLE, "File " + file.getName() + " could not be read");
+			Dialogs.showErrorMessage(
+					TITLE,
+					MessageFormat.format(
+							QuPathResources.getString("Commands.TmaImporter.fileCouldNotBeRead"),
+							file.getName()
+					)
+			);
 			return false;
 		}
 	}
@@ -327,7 +348,7 @@ class TMADataImporter {
 			rows.add(cols);
 		}
 		if (nCols < 0) {
-			Dialogs.showErrorMessage(TITLE, "Could not identify tab or comma delimited columns");
+			Dialogs.showErrorMessage(TITLE, QuPathResources.getString("Commands.TmaImporter.couldNotIdentifyTab"));
 			return false;
 		}
 		
@@ -335,7 +356,16 @@ class TMADataImporter {
 		int nRows = rows.size();
 		if ((nRows != infoGrid.getGridHeight() || nCols != infoGrid.getGridWidth()) &&
 				(nRows != infoGrid.getGridHeight()+1 || nCols != infoGrid.getGridWidth()+1)) {
-			Dialogs.showErrorMessage(TITLE, String.format("Grid sizes inconsistent: TMA grid is %d x %d, but text grid is %d x %d", infoGrid.getGridHeight(), infoGrid.getGridWidth(), nRows, nCols));
+			Dialogs.showErrorMessage(
+					TITLE,
+					MessageFormat.format(
+							QuPathResources.getString("Commands.TmaImporter.gridSizesInconsistent"),
+							infoGrid.getGridHeight(),
+							infoGrid.getGridWidth(),
+							nRows,
+							nCols
+					)
+			);
 			return false;
 		}
 		boolean hasHeaders = nRows == infoGrid.getGridHeight()+1;
@@ -578,10 +608,10 @@ class TMADataImporter {
 	
 	static String getExtendedDescription(final TMACoreObject core) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("Name:\t");
+		sb.append(QuPathResources.getString("Commands.TmaImporter.name")).append("\t");
 		sb.append(core.getName());
 		if (core.isMissing())
-			sb.append(" (missing)\n");
+			sb.append(" ").append(QuPathResources.getString("Commands.TmaImporter.missing")).append("\n");
 		sb.append("\n");
 //		sb.append("ID:\t");
 //		if (getUniqueID() != null)

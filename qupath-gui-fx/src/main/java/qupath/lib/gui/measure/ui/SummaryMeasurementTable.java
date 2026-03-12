@@ -73,6 +73,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.charts.HistogramDisplay;
 import qupath.lib.gui.charts.ScatterPlotDisplay;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -96,6 +97,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -407,13 +409,13 @@ public class SummaryMeasurementTable {
         });
 
         GridPane paneFilter = new GridPane();
-        paneFilter.add(new Label("Column filter"), 0, 0);
+        paneFilter.add(new Label(QuPathResources.getString("Measure.MeasurementTable.columnFilter")), 0, 0);
         paneFilter.add(tfColumnFilter, 1, 0);
         GridPane.setHgrow(tfColumnFilter, Priority.ALWAYS);
         paneFilter.setHgap(5);
 
         if (primaryFilter == PathObjectFilter.TMA_CORES) {
-            CheckBox cbHideMissing = new CheckBox("Hide missing cores");
+            CheckBox cbHideMissing = new CheckBox(QuPathResources.getString("Measure.MeasurementTable.hideMissingCores"));
             paneFilter.add(cbHideMissing, 2, 0);
             cbHideMissing.selectedProperty().addListener((v, o, n) -> {
                 if (n) {
@@ -449,7 +451,12 @@ public class SummaryMeasurementTable {
 
     private String getObjectCountText() {
         int n = table.getItems().size();
-        return n == 1 ? "1 object" : n + " objects";
+        return n == 1 ?
+                QuPathResources.getString("Measure.MeasurementTable.oneObject") :
+                MessageFormat.format(
+                        QuPathResources.getString("Measure.MeasurementTable.nObjects"),
+                        n
+                );
     }
 
     private void initSplitPane() {
@@ -461,11 +468,11 @@ public class SummaryMeasurementTable {
         histogramDisplay = new HistogramDisplay(model, true);
         scatterPlotDisplay = new ScatterPlotDisplay();
 
-        Tab tabHistogram = new Tab("Histogram", histogramDisplay.getPane());
+        Tab tabHistogram = new Tab(QuPathResources.getString("Measure.MeasurementTable.histogram"), histogramDisplay.getPane());
         tabHistogram.setClosable(false);
         plotTabs.getTabs().add(tabHistogram);
 
-        Tab tabScatter = new Tab("Scatter plot", scatterPlotDisplay.getPane());
+        Tab tabScatter = new Tab(QuPathResources.getString("Measure.MeasurementTable.scatterPlot"), scatterPlotDisplay.getPane());
         tabScatter.setClosable(false);
         plotTabs.getTabs().add(tabScatter);
 
@@ -494,7 +501,7 @@ public class SummaryMeasurementTable {
     private Action actionSelectNone;
 
     private Action createShowPlotsAction() {
-        var action = new Action("Show plots");
+        var action = new Action(QuPathResources.getString("Measure.MeasurementTable.showPlots"));
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.BAR_CHART));
         action.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN));
         action.selectedProperty().addListener((v, o, n) -> {
@@ -508,8 +515,8 @@ public class SummaryMeasurementTable {
     }
 
     private Action createCopyAction() {
-        var action = new Action("Copy", e -> handleCopyButton());
-        action.setLongText("Copy the table contents to the system clipboard");
+        var action = new Action(QuPathResources.getString("Measure.MeasurementTable.copy"), e -> handleCopyButton());
+        action.setLongText(QuPathResources.getString("Measure.MeasurementTable.copyDescription"));
         action.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.CLIPBOARD));
         action.disabledProperty().bind(Bindings.isEmpty(table.getSelectionModel().getSelectedItems()));
@@ -517,16 +524,16 @@ public class SummaryMeasurementTable {
     }
 
     private Action createSaveAction() {
-        var action = new Action("Save...", e -> handleSaveButton());
-        action.setLongText("Save the table contents");
+        var action = new Action(QuPathResources.getString("Measure.MeasurementTable.save"), e -> handleSaveButton());
+        action.setLongText(QuPathResources.getString("Measure.MeasurementTable.saveDescription"));
         action.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.SAVE));
         return action;
     }
 
     private Action createShowThumbnailsAction() {
-        var action = new Action("Show images");
-        action.setLongText("Show or hide object thumbnail image column (usually the first column in the table)");
+        var action = new Action(QuPathResources.getString("Measure.MeasurementTable.showImages"));
+        action.setLongText(QuPathResources.getString("Measure.MeasurementTable.showImagesDescription"));
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.IMAGE));
         action.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         action.selectedProperty().bindBidirectional(showThumbnailsProperty);
@@ -534,8 +541,8 @@ public class SummaryMeasurementTable {
     }
 
     private Action createShowIdAction() {
-        var action = new Action("Show object IDs");
-        action.setLongText("Show or hide object ID column (usually the last column in the table)");
+        var action = new Action(QuPathResources.getString("Measure.MeasurementTable.showObjectIDs"));
+        action.setLongText(QuPathResources.getString("Measure.MeasurementTable.showObjectIDsDescription"));
         action.setGraphic(IconFactory.createFontAwesome('\uf2c2'));
         action.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         action.selectedProperty().bindBidirectional(showObjectIdsProperty);
@@ -543,8 +550,8 @@ public class SummaryMeasurementTable {
     }
 
     private Action createBindVisibilityAction() {
-        var action = new Action("Apply class visibility");
-        action.setLongText("Use class visibility settings from the viewer to filter objects for display in the table");
+        var action = new Action(QuPathResources.getString("Measure.MeasurementTable.applyClassVisibility"));
+        action.setLongText(QuPathResources.getString("Measure.MeasurementTable.applyClassVisibilityDescription"));
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.EYE));
         action.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         action.selectedProperty().bindBidirectional(bindToOverlayOptions);
@@ -552,29 +559,29 @@ public class SummaryMeasurementTable {
     }
 
     private Action createToolbarShowAction() {
-        var action = new Action("Show toolbar");
-        action.setLongText("Show or hide the toolbar");
+        var action = new Action(QuPathResources.getString("Measure.MeasurementTable.showToolbar"));
+        action.setLongText(QuPathResources.getString("Measure.MeasurementTable.showToolbarDescription"));
         action.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN));
         action.selectedProperty().bindBidirectional(showToolbar);
         return action;
     }
 
     private Action createToolbarTextAction() {
-        var action = new Action("Show button text");
-        action.setLongText("Show the full text for toolbar buttons (requires more space)");
+        var action = new Action(QuPathResources.getString("Measure.MeasurementTable.showButtonText"));
+        action.setLongText(QuPathResources.getString("Measure.MeasurementTable.showButtonTextDescription"));
         action.selectedProperty().bindBidirectional(showToolbarText);
         return action;
     }
 
     private Action createSelectAllAction() {
-        var action = new Action("Select all", e -> table.getSelectionModel().selectAll());
-        action.setLongText("Select all rows in the title");
+        var action = new Action(QuPathResources.getString("Measure.MeasurementTable.selectAll"), e -> table.getSelectionModel().selectAll());
+        action.setLongText(QuPathResources.getString("Measure.MeasurementTable.selectAllDescription"));
         return action;
     }
 
     private Action createSelectNoneAction() {
-        var action = new Action("Select none", e -> table.getSelectionModel().clearSelection());
-        action.setLongText("Deselect all rows in the table");
+        var action = new Action(QuPathResources.getString("Measure.MeasurementTable.selectNone"), e -> table.getSelectionModel().clearSelection());
+        action.setLongText(QuPathResources.getString("Measure.MeasurementTable.selectNoneDescription"));
         return action;
     }
 
@@ -668,8 +675,10 @@ public class SummaryMeasurementTable {
             Clipboard.getSystemClipboard().setContent(content);
         } catch (OutOfMemoryError e) {
             logger.error("Error attempting to copy measurements: {}", e.getMessage(), e);
-            Dialogs.showErrorMessage("Copy measurements",
-                    "Measurement table is too long to copy - please select fewer items");
+            Dialogs.showErrorMessage(
+                    QuPathResources.getString("Measure.MeasurementTable.copyMeasurements"),
+                    QuPathResources.getString("Measure.MeasurementTable.measurementTableTooLong")
+            );
         }
     }
 
@@ -707,24 +716,29 @@ public class SummaryMeasurementTable {
             }
             String path = !hasProject() ? fileOutput.toURI().getPath() : fileOutput.getParentFile().toURI().getPath();
             if (primaryFilter == PathObjectFilter.TMA_CORES) {
-                step = new DefaultScriptableWorkflowStep("Save TMA measurements",
+                step = new DefaultScriptableWorkflowStep(
+                        QuPathResources.getString("Measure.MeasurementTable.saveTmaMeasurements"),
                         String.format("saveTMAMeasurements('%s'%s)", path, includeColumns)
                 );
             }
             else if (primaryFilter == PathObjectFilter.ANNOTATIONS) {
-                step = new DefaultScriptableWorkflowStep("Save annotation measurements",
+                step = new DefaultScriptableWorkflowStep(
+                        QuPathResources.getString("Measure.MeasurementTable.saveAnnotationMeasurements"),
                         String.format("saveAnnotationMeasurements('%s'%s)", path, includeColumns)
                 );
             } else if (primaryFilter == PathObjectFilter.DETECTIONS_ALL) {
-                step = new DefaultScriptableWorkflowStep("Save detection measurements",
+                step = new DefaultScriptableWorkflowStep(
+                        QuPathResources.getString("Measure.MeasurementTable.saveDetectionMeasurements"),
                         String.format("saveDetectionMeasurements('%s'%s)", path, includeColumns)
                 );
             } else if (primaryFilter == PathObjectFilter.CELLS) {
-                step = new DefaultScriptableWorkflowStep("Save cell measurements",
+                step = new DefaultScriptableWorkflowStep(
+                        QuPathResources.getString("Measure.MeasurementTable.saveCellMeasurements"),
                         String.format("saveCellMeasurements('%s'%s)", path, includeColumns)
                 );
             } else if (primaryFilter == PathObjectFilter.TILES) {
-                step = new DefaultScriptableWorkflowStep("Save tile measurements",
+                step = new DefaultScriptableWorkflowStep(
+                        QuPathResources.getString("Measure.MeasurementTable.saveTileMeasurements"),
                         String.format("saveTileMeasurements('%s'%s)", path, includeColumns)
                 );
             }  else {
@@ -914,7 +928,10 @@ public class SummaryMeasurementTable {
 
     private static File promptForOutputFile() {
         String ext = ",".equals(PathPrefs.tableDelimiterProperty().get()) ? "csv" : "txt";
-        return FileChoosers.promptToSaveFile(FileChoosers.createExtensionFilter("Results data", ext));
+        return FileChoosers.promptToSaveFile(FileChoosers.createExtensionFilter(
+                QuPathResources.getString("Measure.MeasurementTable.resultsData"),
+                ext
+        ));
     }
 
     /**
@@ -943,22 +960,26 @@ public class SummaryMeasurementTable {
 
 
     private MenuBar createMenuBar() {
-        var menuFile = MenuTools.createMenu("File",
+        var menuFile = MenuTools.createMenu(
+                QuPathResources.getString("Measure.MeasurementTable.file"),
                 actionSave
         );
 
-        var menuEdit = MenuTools.createMenu("Edit",
+        var menuEdit = MenuTools.createMenu(
+                QuPathResources.getString("Measure.MeasurementTable.edit"),
                 actionCopy
         );
 
-        var menuView = MenuTools.createMenu("View",
+        var menuView = MenuTools.createMenu(
+                QuPathResources.getString("Measure.MeasurementTable.view"),
                 ActionTools.createCheckMenuItem(actionShowPlots),
                 null,
                 ActionTools.createCheckMenuItem(actionShowToolbar),
                 ActionTools.createCheckMenuItem(actionToolbarText)
         );
 
-        var menuTable = MenuTools.createMenu("Table",
+        var menuTable = MenuTools.createMenu(
+                QuPathResources.getString("Measure.MeasurementTable.table"),
                 ActionTools.createMenuItem(actionSelectAll),
                 ActionTools.createMenuItem(actionSelectNone),
                 null,

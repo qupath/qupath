@@ -39,6 +39,7 @@ import javafx.scene.shape.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.stats.Histogram;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.ColorToolsFX;
 
 import java.util.ArrayList;
@@ -88,16 +89,11 @@ public class HistogramChart extends AreaChart<Number, Number> {
 		LOGARITHM;
 
 		public String toString() {
-			switch (this) {
-				case RAW:
-					return "Raw";
-				case NORMALIZED:
-					return "Normalized";
-				case LOGARITHM:
-					return "Log₁₀";
-				default:
-					throw new IllegalArgumentException("Unknown count transform mode: " + this);
-			}
+            return switch (this) {
+                case RAW -> QuPathResources.getString("Charts.HistogramChart.raw");
+                case NORMALIZED -> QuPathResources.getString("Charts.HistogramChart.normalized");
+                case LOGARITHM -> QuPathResources.getString("Charts.HistogramChart.log10");
+            };
 		}
 	}
 

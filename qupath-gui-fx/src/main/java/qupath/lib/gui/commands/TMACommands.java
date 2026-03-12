@@ -31,6 +31,7 @@ import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.gui.tools.GuiTools;
@@ -51,6 +52,7 @@ import qupath.lib.scripting.QP;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -68,14 +70,10 @@ public class TMACommands {
 	private enum TMARemoveType { ROW, COLUMN;
 		@Override
 		public String toString() {
-			switch(this) {
-			case COLUMN:
-				return "column";
-			case ROW:
-				return "row";
-			default:
-				return "unknown";
-			}
+            return QuPathResources.getString(switch (this) {
+                case COLUMN -> "Commands.Tma.column";
+                case ROW -> "Commands.Tma.row";
+            });
 		}
 	};
 	
@@ -87,7 +85,7 @@ public class TMACommands {
 	 * @param imageData
 	 */
 	public static void promptToAddNoteToSelectedCores(ImageData<?> imageData) {
-		String title = "Add TMA note";
+		String title = QuPathResources.getString("Commands.Tma.addTmaNote");
 		if (imageData == null) {
 			GuiTools.showNoImageError(title);
 			return;
@@ -98,7 +96,7 @@ public class TMACommands {
 				.map(c -> (TMACoreObject)c)
 				.toList();
 		if (selectedCores.isEmpty()) {
-			Dialogs.showErrorMessage(title, "No TMA cores are selected!  No note will be added.");
+			Dialogs.showErrorMessage(title, QuPathResources.getString("Commands.Tma.noTmaSelected"));
 			return;
 		}
 		
@@ -107,10 +105,15 @@ public class TMACommands {
 		String currentText = null;
 		if (selectedCores.size() == 1) {
 			var core = selectedCores.get(0);
-			prompt = core.getName() == null || core.getName().trim().isEmpty() ? "Core" : core.getName();
+			prompt = core.getName() == null || core.getName().trim().isEmpty() ?
+					QuPathResources.getString("Commands.Tma.core") :
+					core.getName();
 			currentText = core.getMetadata().get(NOTE_NAME);
 		} else {
-			prompt = selectedCores.size() + " cores";
+			prompt = MessageFormat.format(
+					QuPathResources.getString("Commands.Tma.cores"),
+					selectedCores.size()
+			);
 		}
 		
 		
@@ -133,14 +136,14 @@ public class TMACommands {
 	 * @param imageData
 	 */
 	public static void promptToExportTMAData(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
-		String title = "Export TMA data";
+		String title = QuPathResources.getString("Commands.Tma.exportTmaData");
 		if (imageData == null) {
 			GuiTools.showNoImageError(title);
 			return;
 		}
 		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
 		if (hierarchy == null || hierarchy.isEmpty() || hierarchy.getTMAGrid() == null || hierarchy.getTMAGrid().nCores() == 0) {
-			Dialogs.showErrorMessage(title, "No TMA data available!");
+			Dialogs.showErrorMessage(title, QuPathResources.getString("Commands.Tma.noTmaAvailable"));
 			return;
 		}
 		
@@ -150,14 +153,17 @@ public class TMACommands {
 
 		String defaultName = ServerTools.getDisplayableImageName(imageData.getServer());
 		File file = FileChoosers.promptToSaveFile(null, new File(defaultName),
-				FileChoosers.createExtensionFilter("TMA data", ".qptma"));
+				FileChoosers.createExtensionFilter(QuPathResources.getString("Commands.Tma.tmaData"), ".qptma"));
 		if (file != null) {
 			if (!file.getName().endsWith(".qptma"))
 				file = new File(file.getParentFile(), file.getName() + ".qptma");
 			double downsample = PathPrefs.tmaExportDownsampleProperty().get();
 			try {
 				TMADataIO.writeTMAData(file, imageData, overlayOptions, downsample);
-				WorkflowStep step = new DefaultScriptableWorkflowStep("Export TMA data", "exportTMAData(\"" + GeneralTools.escapeFilePath(file.getParentFile().getAbsolutePath()) + "\", " + downsample + ")");
+				WorkflowStep step = new DefaultScriptableWorkflowStep(
+						QuPathResources.getString("Commands.Tma.exportTmaData"),
+						"exportTMAData(\"" + GeneralTools.escapeFilePath(file.getParentFile().getAbsolutePath()) + "\", " + downsample + ")"
+				);
 				imageData.getHistoryWorkflow().addStep(step);
 			} catch (IOException e) {
 				Dialogs.showErrorMessage(title, e);
@@ -197,20 +203,36 @@ public class TMACommands {
 	 * @param imageData image containing the TMA grid
 	 */
 	public static void promptToRelabelTMAGrid(ImageData<?> imageData) {
-		String title = "Relabel TMA grid";
+		String title = QuPathResources.getString("Commands.Tma.relabelTmaGrid");
 		if (imageData == null) {
 			GuiTools.showNoImageError(title);
 			return;
 		}
 		if (imageData.getHierarchy().getTMAGrid() == null) {
-			Dialogs.showErrorMessage(title, "No TMA grid selected!");
+			Dialogs.showErrorMessage(title, QuPathResources.getString("Commands.Tma.noTmaGridSelected"));
 			return;
 		}
 		
 		ParameterList params = new ParameterList();
-		params.addStringParameter("labelsHorizontal", "Column labels", columnLabelsProperty.get(), "Enter column labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
-		params.addStringParameter("labelsVertical", "Row labels", rowLabelsProperty.get(), "Enter row labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
-		params.addChoiceParameter("labelOrder", "Label order", rowFirstProperty.get() ? "Row first" : "Column first", Arrays.asList("Column first", "Row first"), "Create TMA labels either in the form Row-Column or Column-Row");
+		params.addStringParameter(
+				"labelsHorizontal",
+				QuPathResources.getString("Commands.Tma.columnLabels"),
+				columnLabelsProperty.get(),
+				QuPathResources.getString("Commands.Tma.columnLabelsDescription")
+		);
+		params.addStringParameter(
+				"labelsVertical",
+				QuPathResources.getString("Commands.Tma.rowLabels"),
+				rowLabelsProperty.get(),
+				QuPathResources.getString("Commands.Tma.rowLabelsDescription")
+		);
+		params.addChoiceParameter(
+				"labelOrder",
+				QuPathResources.getString("Commands.Tma.labelOrder"),
+				rowFirstProperty.get() ? QuPathResources.getString("Commands.Tma.rowFirst") : QuPathResources.getString("Commands.Tma.columnFirst"),
+				Arrays.asList(QuPathResources.getString("Commands.Tma.columnFirst"), QuPathResources.getString("Commands.Tma.rowFirst")),
+				QuPathResources.getString("Commands.Tma.labelOrderDescription")
+		);
 		
 		if (!GuiTools.showParameterDialog(title, params))
 			return;
@@ -218,18 +240,18 @@ public class TMACommands {
 		// Parse the arguments
 		String labelsHorizontal = params.getStringParameterValue("labelsHorizontal");
 		String labelsVertical = params.getStringParameterValue("labelsVertical");
-		boolean rowFirst = "Row first".equals(params.getChoiceParameterValue("labelOrder"));
+		boolean rowFirst = QuPathResources.getString("Commands.Tma.rowFirst").equals(params.getChoiceParameterValue("labelOrder"));
 		
 		// Figure out if this will work
 		TMAGrid grid = imageData.getHierarchy().getTMAGrid();
 		String[] columnLabels = PathObjectTools.parseTMALabelString(labelsHorizontal);
 		String[] rowLabels = PathObjectTools.parseTMALabelString(labelsVertical);
 		if (columnLabels.length < grid.getGridWidth()) {
-			Dialogs.showErrorMessage(title, "Not enough column labels specified!");
+			Dialogs.showErrorMessage(title, QuPathResources.getString("Commands.Tma.notEnoughColumnLabels"));
 			return;			
 		}
 		if (rowLabels.length < grid.getGridHeight()) {
-			Dialogs.showErrorMessage(title, "Not enough row labels specified!");
+			Dialogs.showErrorMessage(title, QuPathResources.getString("Commands.Tma.notEnoughRowLabels"));
 			return;			
 		}
 		
@@ -241,11 +263,14 @@ public class TMACommands {
 				rowFirst);
 		
 		// Add to workflow history
-		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Relabel TMA grid",
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.Tma.relabelTmaGrid"),
 				String.format("relabelTMAGrid(\"%s\", \"%s\", %s)",
 						GeneralTools.escapeFilePath(labelsHorizontal),
 						GeneralTools.escapeFilePath(labelsVertical),
-						Boolean.toString(rowFirst))));
+                        rowFirst
+				)
+		));
 		
 		
 		// Store values
@@ -284,14 +309,17 @@ public class TMACommands {
 
 	private static boolean promptToDeleteTMAGridRowOrColumn(ImageData<?> imageData, TMARemoveType type) {
 		String typeString = type.toString();
-		String title = "Delete TMA " + typeString;
+		String title = MessageFormat.format(
+				QuPathResources.getString("Commands.Tma.deleteTma"),
+				typeString
+		);
 		boolean removeRow = type == TMARemoveType.ROW;
 		if (imageData == null) {
 			GuiTools.showNoImageError(title);
 			return false;
 		}
 		if (imageData.getHierarchy().getTMAGrid() == null) {
-			Dialogs.showErrorMessage(title, "No image with dearrayed TMA cores selected!");
+			Dialogs.showErrorMessage(title, QuPathResources.getString("Commands.Tma.noImageWithDearrayedTmaSelected"));
 			return false;
 		}
 		
@@ -320,15 +348,18 @@ public class TMACommands {
 		
 		// We need a selected core to know what to remove
 		if (row < 0 || col < 0) {
-			Dialogs.showErrorMessage(title, "Please select a TMA core to indicate which " + typeString + " to remove");
+			Dialogs.showErrorMessage(
+					title,
+					MessageFormat.format(QuPathResources.getString("Commands.Tma.selectTma"), typeString)
+			);
 			return false;
 		}
 		
 		// Check we have enough rows/columns - if not, this is just a clear operation
 		if ((removeRow && grid.getGridHeight() <= 1) || (!removeRow && grid.getGridWidth() <= 1)) {
-			if (Dialogs.showConfirmDialog(title, "Are you sure you want to delete the entire TMA grid?")) {
+			if (Dialogs.showConfirmDialog(title, QuPathResources.getString("Commands.Tma.deleteTmaGrid"))) {
 				hierarchy.setTMAGrid(null);
-				if (selected instanceof TMACoreObject || hierarchy.getSelectionModel().getSelectedObjects().stream().anyMatch(p -> p.isTMACore()))
+				if (selected instanceof TMACoreObject || hierarchy.getSelectionModel().getSelectedObjects().stream().anyMatch(PathObject::isTMACore))
 					hierarchy.getSelectionModel().clearSelection();
 			}
 			return false;
@@ -336,7 +367,14 @@ public class TMACommands {
 		
 		// Confirm the removal - add 1 due to 'base 0' probably not being expected by most users...
 		int num = removeRow ? row : col;
-		if (!Dialogs.showConfirmDialog(title, "Are you sure you want to delete " + typeString + " " + (num+1) + " from TMA grid?"))
+		if (!Dialogs.showConfirmDialog(
+				title,
+				MessageFormat.format(
+						QuPathResources.getString("Commands.Tma.deleteFromTmaGrid"),
+						typeString,
+						num + 1
+				))
+		)
 			return false;
 		
 		// Create a new grid
@@ -363,21 +401,15 @@ public class TMACommands {
 	
 	
 	
-	private static enum TMAAddType {ROW_AFTER, ROW_BEFORE, COLUMN_AFTER, COLUMN_BEFORE;
+	private enum TMAAddType {ROW_AFTER, ROW_BEFORE, COLUMN_AFTER, COLUMN_BEFORE;
 		
 		private String commandName() {
-			switch(this) {
-			case COLUMN_AFTER:
-				return "Add TMA column after";
-			case COLUMN_BEFORE:
-				return "Add TMA column before";
-			case ROW_AFTER:
-				return "Add TMA row after";
-			case ROW_BEFORE:
-				return "Add TMA row before";
-			default:
-				throw new IllegalArgumentException("Unknown enum value: " + this);
-			}
+            return QuPathResources.getString(switch (this) {
+                case COLUMN_AFTER -> "Commands.Tma.addColumnAfter";
+                case COLUMN_BEFORE -> "Commands.Tma.addColumnBefore";
+                case ROW_AFTER -> "Commands.Tma.addRowAfter";
+                case ROW_BEFORE -> "Commands.Tma.addRowBefore";
+            });
 		}
 	
 	};
@@ -391,24 +423,46 @@ public class TMACommands {
 	 * @see PathObjectTools#createTMAGrid(String, String, boolean, double, qupath.lib.regions.ImageRegion)
 	 */
 	public static boolean promptToCreateTMAGrid(final ImageData<?> imageData) {
-		String title = "Create TMA grid";
+		String title = QuPathResources.getString("Commands.Tma.createTmaGrid");
 		if (imageData == null) {
 			GuiTools.showNoImageError(title);
 			return false;
 		}
 		if (imageData.getHierarchy().getTMAGrid() != null) {
-			if (!Dialogs.showConfirmDialog(title, "Existing TMA grid will be removed - are you sure?"))
+			if (!Dialogs.showConfirmDialog(title, QuPathResources.getString("Commands.Tma.existingGridRemoved")))
 				return false;
 		}
 		
 		var units = imageData.getServer().getPixelCalibration().getPixelWidthUnit();
 		
 		ParameterList params = new ParameterList();
-		params.addStringParameter("labelsHorizontal", "Column labels", columnLabelsProperty.get(), "Enter column labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
-		params.addStringParameter("labelsVertical", "Row labels", rowLabelsProperty.get(), "Enter row labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
-		params.addChoiceParameter("labelOrder", "Label order", rowFirstProperty.get() ? "Row first" : "Column first", Arrays.asList("Column first", "Row first"), "Create TMA labels either in the form Row-Column or Column-Row");
-		params.addDoubleParameter("coreDiameter", "Core diameter", coreDiameterProperty.get(), units, "Diameter of each individual TMA core");
-		params.addEmptyParameter("Tip: You can control the size of the grid by drawing a rectangle annotation");
+		params.addStringParameter(
+				"labelsHorizontal",
+				QuPathResources.getString("Commands.Tma.columnLabels"),
+				columnLabelsProperty.get(),
+				QuPathResources.getString("Commands.Tma.columnLabelsDescription")
+		);
+		params.addStringParameter(
+				"labelsVertical",
+				QuPathResources.getString("Commands.Tma.rowLabels"),
+				rowLabelsProperty.get(),
+				QuPathResources.getString("Commands.Tma.rowLabelsDescription")
+		);
+		params.addChoiceParameter(
+				"labelOrder",
+				QuPathResources.getString("Commands.Tma.labelOrder"),
+				rowFirstProperty.get() ? QuPathResources.getString("Commands.Tma.rowFirst") : QuPathResources.getString("Commands.Tma.columnFirst"),
+				Arrays.asList(QuPathResources.getString("Commands.Tma.columnFirst"), QuPathResources.getString("Commands.Tma.rowFirst")),
+				QuPathResources.getString("Commands.Tma.labelOrderDescription")
+		);
+		params.addDoubleParameter(
+				"coreDiameter",
+				QuPathResources.getString("Commands.Tma.coreDiameter"),
+				coreDiameterProperty.get(),
+				units,
+				QuPathResources.getString("Commands.Tma.coreDiameterDescription")
+		);
+		params.addEmptyParameter(QuPathResources.getString("Commands.Tma.tip"));
 		
 		if (!GuiTools.showParameterDialog(title, params))
 			return false;
@@ -416,23 +470,25 @@ public class TMACommands {
 		// Parse the arguments
 		String labelsHorizontal = params.getStringParameterValue("labelsHorizontal");
 		String labelsVertical = params.getStringParameterValue("labelsVertical");
-		boolean rowFirst = "Row first".equals(params.getChoiceParameterValue("labelOrder"));
+		boolean rowFirst = QuPathResources.getString("Commands.Tma.rowFirst").equals(params.getChoiceParameterValue("labelOrder"));
 		double diameter = params.getDoubleParameterValue("coreDiameter");
 		
 		if (diameter <= 0) {
-			Dialogs.showErrorMessage(title, "Core diameter must be > 0!");
+			Dialogs.showErrorMessage(title, QuPathResources.getString("Commands.Tma.coreDiameterInvalid"));
 			return false;
 		}
 		
 		PathObjectTools.addTMAGrid(imageData, labelsHorizontal, labelsVertical, rowFirst, diameter);
 		
 		// Add to workflow history
-		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Relabel TMA grid",
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.Tma.relabelTmaGrid"),
 				String.format("createTMAGrid(\"%s\", \"%s\", %s, %s)",
 						GeneralTools.escapeFilePath(labelsHorizontal),
 						GeneralTools.escapeFilePath(labelsVertical),
-						Boolean.toString(rowFirst),
-						diameter)));
+                        rowFirst,
+						diameter)
+		));
 		
 		
 		// Store values
@@ -509,7 +565,7 @@ public class TMACommands {
 			return false;
 		}
 		if (imageData.getHierarchy().getTMAGrid() == null) {
-			Dialogs.showErrorMessage(NAME, "No image with dearrayed TMA cores selected!");
+			Dialogs.showErrorMessage(NAME, QuPathResources.getString("Commands.Tma.noImageWithDearrayedTmaSelected"));
 			return false;
 		}
 		
@@ -542,8 +598,15 @@ public class TMACommands {
 			}
 		}
 		if (outsideCores > 0) {
-			String label = outsideCores == 1 ? "core" : "cores";
-			if (!Dialogs.showConfirmDialog("Add to TMA Grid", "Not enough space within image to store " + outsideCores + " new " + label + " - proceed anyway?"))
+			if (!Dialogs.showConfirmDialog(
+					QuPathResources.getString("Commands.Tma.addToTmaGrid"),
+					outsideCores == 1 ?
+							QuPathResources.getString("Commands.Tma.notEnoughSpaceToStoreOneCore") :
+							MessageFormat.format(
+									QuPathResources.getString("Commands.Tma.notEnoughSpaceToStoreNCores"),
+									outsideCores
+							)
+			))
 				return false;
 		}
 		

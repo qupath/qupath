@@ -59,6 +59,7 @@ import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.UserDirectoryManager;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MeasurementMapper;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -105,7 +106,7 @@ public class MeasurementMapPane {
 	private Slider sliderMax = new Slider(0, 1, 1);
 	
 	// For not painting values outside the mapper range
-	private CheckBox cbExcludeOutside = new CheckBox("Exclude outside range");
+	private CheckBox cbExcludeOutside = new CheckBox(QuPathResources.getString("Panes.MeasurementMap.excludeOutsideRange"));
 	
 	private Canvas colorMapKey;
 	private Image colorMapKeyImage;
@@ -137,14 +138,14 @@ public class MeasurementMapPane {
 		
 		cbExcludeOutside.setSelected(false);
 		
-		final ToggleButton toggleShowMap = new ToggleButton("Show map");
-		toggleShowMap.setTooltip(new Tooltip("Show/hide the map"));
+		final ToggleButton toggleShowMap = new ToggleButton(QuPathResources.getString("Panes.MeasurementMap.showMap"));
+		toggleShowMap.setTooltip(new Tooltip(QuPathResources.getString("Panes.MeasurementMap.showHideMap")));
 		toggleShowMap.setSelected(true);
 		showMap = toggleShowMap.selectedProperty();
 		showMap.addListener((v, o, n) -> updateMap());
 		
 		listMeasurements.getSelectionModel().selectedItemProperty().addListener((e, f, g) -> updateMap());
-		listMeasurements.setTooltip(new Tooltip("List of available measurements"));
+		listMeasurements.setTooltip(new Tooltip(QuPathResources.getString("Panes.MeasurementMap.availableMeasurements")));
 		
 		pane.setCenter(listMeasurements);
 		
@@ -153,14 +154,14 @@ public class MeasurementMapPane {
 		sliderMin.valueProperty().addListener((e, f, g) -> updateDisplay());
 		sliderMax.valueProperty().addListener((e, f, g) -> updateDisplay());
 		
-		sliderMin.setTooltip(new Tooltip("Min display value"));
-		sliderMax.setTooltip(new Tooltip("Max display value"));
+		sliderMin.setTooltip(new Tooltip(QuPathResources.getString("Panes.MeasurementMap.minDisplayValue")));
+		sliderMax.setTooltip(new Tooltip(QuPathResources.getString("Panes.MeasurementMap.maxDisplayValue")));
 		
 		BorderPane panelLabels = new BorderPane();
 		labelMax.setTextAlignment(TextAlignment.RIGHT);
 		labelMin.setTextAlignment(TextAlignment.LEFT);
-		labelMin.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> setSliderValue(sliderMin, "Set minimum display"));
-		labelMax.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> setSliderValue(sliderMax, "Set maximum display"));
+		labelMin.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> setSliderValue(sliderMin, QuPathResources.getString("Panes.MeasurementMap.setMinimumDisplay")));
+		labelMax.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> setSliderValue(sliderMax, QuPathResources.getString("Panes.MeasurementMap.setMaximumDisplay")));
 //		labelMin.setOnMouseClicked(e -> {
 //			if (e.getClickCount() == 2) {
 //				String input = DisplayHelpers.showInputDialog("Set minimum value", "Enter the minimum value for the measurement map", Double.toString(sliderMin.getValue()));
@@ -177,8 +178,8 @@ public class MeasurementMapPane {
 		panelLabels.setLeft(labelMin);
 		panelLabels.setRight(labelMax);
 		
-		Button btnRefresh = new Button("Update map");
-		btnRefresh.setTooltip(new Tooltip("Update map data & recompute the min/max settings used to display colors"));
+		Button btnRefresh = new Button(QuPathResources.getString("Panes.MeasurementMap.updateMap"));
+		btnRefresh.setTooltip(new Tooltip(QuPathResources.getString("Panes.MeasurementMap.updateMapDescription")));
 		btnRefresh.setOnAction(e -> {
 			updateMeasurements();
 			mapperMap.clear();
@@ -225,10 +226,10 @@ public class MeasurementMapPane {
 			    updateColorMapperKey();
 			}
 		};
-		Tooltip.install(colorMapKey, new Tooltip("Measurement map key"));
+		Tooltip.install(colorMapKey, new Tooltip(QuPathResources.getString("Panes.MeasurementMap.measurementMapKey")));
 
 		ContextMenu colorMapContextMenu = new ContextMenu();
-		MenuItem copyColorMap = new MenuItem("Copy");
+		MenuItem copyColorMap = new MenuItem(QuPathResources.getString("Panes.MeasurementMap.copy"));
 		copyColorMap.setOnAction(event -> {
 			if (colorMapKeyImage != null) {
 				Clipboard clipboard = Clipboard.getSystemClipboard();
@@ -236,8 +237,8 @@ public class MeasurementMapPane {
 				content.putImage(colorMapKeyImage);
 				clipboard.setContent(content);
 				Dialogs.showInfoNotification(
-						"Color map",
-						"Color map copied to clipboard"
+						QuPathResources.getString("Panes.MeasurementMap.colorMap"),
+						QuPathResources.getString("Panes.MeasurementMap.colorMapCopiedToClipboard")
 				);
 			}
 		});
@@ -250,9 +251,9 @@ public class MeasurementMapPane {
 
 		// Filter to reduce visible measurements
 		var tfFilter = new PredicateTextField<String>();
-		var tooltip = new Tooltip("Enter text to filter measurement list");
+		var tooltip = new Tooltip(QuPathResources.getString("Panes.MeasurementMap.filterMeasurementListDescription"));
 		Tooltip.install(tfFilter, tooltip);
-		tfFilter.setPromptText("Filter measurement list");
+		tfFilter.setPromptText(QuPathResources.getString("Panes.MeasurementMap.filterMeasurementList"));
 		filteredList.predicateProperty().bind(tfFilter.predicateProperty());
 		BorderPane paneFilter = new BorderPane();
 		paneFilter.setPadding(new Insets(5, 0, 10, 0));
@@ -272,7 +273,7 @@ public class MeasurementMapPane {
 		}
 		if (comboMapper.getSelectionModel().isEmpty() && !comboMapper.getItems().isEmpty())
 			comboMapper.getSelectionModel().selectFirst();
-		comboMapper.setTooltip(new Tooltip("Select color map"));
+		comboMapper.setTooltip(new Tooltip(QuPathResources.getString("Panes.MeasurementMap.selectColorMap")));
 		selectedColorMap.addListener((v, o, n) -> {
 			updateMap();
 			if (n != null)
@@ -319,7 +320,7 @@ public class MeasurementMapPane {
 	
 	
 	static void setSliderValue(Slider slider, String message) {
-		Double val = Dialogs.showInputDialog("Measurement mapper", message, slider.getValue());
+		Double val = Dialogs.showInputDialog(QuPathResources.getString("Panes.MeasurementMap.measurementMapper"), message, slider.getValue());
 		if (val != null && Double.isFinite(val)) {
 			if (val > slider.getMax())
 				slider.setMax(val);
@@ -439,7 +440,7 @@ public class MeasurementMapPane {
 		Set<String> measurements = PathObjectTools.getAvailableFeatures(pathObjects);
 		for (PathObject pathObject : pathObjects) {
 			if (!Double.isNaN(pathObject.getClassProbability())) {
-				measurements.add("Class probability");
+				measurements.add(QuPathResources.getString("Panes.MeasurementMap.classProbability"));
 				break;
 			}
 		}

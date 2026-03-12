@@ -251,7 +251,7 @@ class ImageOverview implements QuPathViewerListener {
 			return;
 		logger.trace("Overview repaint requested!");
 		repaintRequested = true;
-		Platform.runLater(() -> repaint());
+		Platform.runLater(this::repaint);
 	}
 	
 

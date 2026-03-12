@@ -46,6 +46,7 @@ import java.util.zip.GZIPOutputStream;
 import org.apache.commons.lang3.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.images.ImageData;
@@ -424,7 +425,7 @@ public class MeasurementExporter {
 		var monitor = progressMonitor == null ? NULL_PROGRESS_MONITOR : progressMonitor;
 		double currentWork = 0;
 		double totalWork = imageList.size() + 1;
-		monitor.accept("Preparing...", 0.0);
+		monitor.accept(QuPathResources.getString("Tools.MeasurementExporter.preparing"), 0.0);
 
 		long startTime = System.currentTimeMillis();
 		var thread = Thread.currentThread();
@@ -454,7 +455,7 @@ public class MeasurementExporter {
 		} catch (Exception e) {
 			throw new IOException("Error exporting measurements", e);
 		} finally {
-			monitor.accept("Export complete!", 1.0);
+			monitor.accept(QuPathResources.getString("Tools.MeasurementExporter.exportComplete"), 1.0);
 		}
 		long endTime = System.currentTimeMillis();
 		long timeMillis = endTime - startTime;

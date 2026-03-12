@@ -41,12 +41,14 @@ import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.plugins.AbstractTaskRunner;
 import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.SimpleProgressMonitor;
 import qupath.lib.regions.ImageRegion;
 
+import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -139,10 +141,10 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 
 		private static final Logger logger = LoggerFactory.getLogger(PluginProgressMonitorFX.class);
 
-		private static String STARTING_MESSAGE = "Starting...";
-		private static String RUNNING_MESSAGE = "Running...";
-		private static String CANCEL_MESSAGE = "Cancelling...";
-		private static String COMPLETED_MESSAGE = "Completed!";
+		private static String STARTING_MESSAGE = QuPathResources.getString("TaskRunnerFX.starting");
+		private static String RUNNING_MESSAGE = QuPathResources.getString("TaskRunnerFX.running");
+		private static String CANCEL_MESSAGE = QuPathResources.getString("TaskRunnerFX.cancelling");
+		private static String COMPLETED_MESSAGE = QuPathResources.getString("TaskRunnerFX.completed");
 
 		private Stage owner;
 		
@@ -199,7 +201,10 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 			taskComplete = false;
 
 			if (maxProgress > 1)
-				progressLabel = new Label("Starting " + maxProgress + " tasks...");
+				progressLabel = new Label(MessageFormat.format(
+						QuPathResources.getString("TaskRunnerFX.startingTasks"),
+						maxProgress
+				));
 			else
 				progressLabel = new Label("");
 			progressDialog = new Dialog<>();
@@ -224,7 +229,7 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 				progressDialog.getDialogPane().setHeaderText(message);
 
 			BorderPane pane = new BorderPane();
-			progressDialog.setTitle("Progress");
+			progressDialog.setTitle(QuPathResources.getString("TaskRunnerFX.progress"));
 
 			int nRows = 2;
 			if (maxProgress > 1)
@@ -241,7 +246,7 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 				panel = GridPaneUtils.createRowGridControls(progressLabel);
 			}
 			if (mayCancel) {
-				Button btnCancel = new Button("Cancel");
+				Button btnCancel = new Button(QuPathResources.getString("TaskRunnerFX.cancel"));
 				panel.add(btnCancel, 0, nRows-1);
 				btnCancel.prefWidthProperty().bind(panel.widthProperty());
 				btnCancel.setOnAction(e -> {

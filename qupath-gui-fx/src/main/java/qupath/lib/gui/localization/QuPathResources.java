@@ -139,7 +139,7 @@ public class QuPathResources {
 						.toURI())
 						.getParent();
 			} catch (Exception e) {
-				logger.debug("Error identifying code directory: " + e.getLocalizedMessage(), e);
+                logger.debug("Error identifying code directory: {}", e.getLocalizedMessage(), e);
 			}
 		}
 		

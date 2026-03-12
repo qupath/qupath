@@ -71,6 +71,7 @@ import qupath.fx.prefs.controlsfx.PropertySheetUtils;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.io.GsonTools;
 
@@ -80,6 +81,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -255,7 +257,7 @@ class ExportChartPane {
 	public ExportChartPane(final Chart chart) {
 		this.chart = chart;
 
-		Button btnCopy = new Button("Copy");
+		Button btnCopy = new Button(QuPathResources.getString("Charts.ExportChartPane.copy"));
 		btnCopy.setOnAction(e -> {
 			Image img = getChartImage();
 			ClipboardContent content = new ClipboardContent();
@@ -263,18 +265,22 @@ class ExportChartPane {
 			Clipboard.getSystemClipboard().setContent(content);
 		});
 
-		Button btnSave = new Button("Save");
+		Button btnSave = new Button(QuPathResources.getString("Charts.ExportChartPane.save"));
 		btnSave.setOnAction(e -> {
 			Image img = getChartImage();
 			String title = chart.getTitle() == null || chart.getTitle().isEmpty() ? null : chart.getTitle();
 			Window owner = chart.getScene() == null ? null : chart.getScene().getWindow();
-			File fileOutput = FileChoosers.promptToSaveFile(owner, "Save chart", title == null ? null : new File(title),
-					FileChoosers.createExtensionFilter("PNG", ".png"));
+			File fileOutput = FileChoosers.promptToSaveFile(
+					owner,
+					QuPathResources.getString("Charts.ExportChartPane.saveChart"),
+					title == null ? null : new File(title),
+					FileChoosers.createExtensionFilter("PNG", ".png")
+			);
 			if (fileOutput != null) {
 				try {
 					ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", fileOutput);
 				} catch (Exception e1) {
-					Dialogs.showErrorMessage("Save chart error", e1);
+					Dialogs.showErrorMessage(QuPathResources.getString("Charts.ExportChartPane.saveChartError"), e1);
 					logger.error(e1.getMessage(), e1);
 				}
 			}
@@ -303,79 +309,185 @@ class ExportChartPane {
 		sheet.modeProperty().addListener((v, o, n) -> persistentModeProperty.set(n));
 
 		sheet.getItems().addAll(
-				new PropertyItemBuilder(chartStyleProperty, ChartStyle.class).name("Style").description("Color style for chart display").category("Display").build(),
-				new PropertyItemBuilder(chart.titleProperty(), String.class).name("Title").description("Chart title").category("Title").build(),
-				new PropertyItemBuilder(chart.titleSideProperty(), Side.class).name("Title side").description("Location of title").category("Title").build(),
-				new PropertyItemBuilder(chart.legendVisibleProperty(), Boolean.class).name("Show legend").description("Show chart legend").category("Legend").build(),
-				new PropertyItemBuilder(chart.legendSideProperty(), Side.class).name("Legend position").description("Position to display legend, relative to the chart").category("Legend").build()
-				);
+				new PropertyItemBuilder<>(chartStyleProperty, ChartStyle.class)
+						.name(QuPathResources.getString("Charts.ExportChartPane.style"))
+						.description(QuPathResources.getString("Charts.ExportChartPane.styleDescription"))
+						.category(QuPathResources.getString("Charts.ExportChartPane.display"))
+						.build(),
+				new PropertyItemBuilder<>(chart.titleProperty(), String.class)
+						.name(QuPathResources.getString("Charts.ExportChartPane.title"))
+						.description(QuPathResources.getString("Charts.ExportChartPane.titleDescription"))
+						.category(QuPathResources.getString("Charts.ExportChartPane.title"))
+						.build(),
+				new PropertyItemBuilder<>(chart.titleSideProperty(), Side.class)
+						.name(QuPathResources.getString("Charts.ExportChartPane.titleSide"))
+						.description(QuPathResources.getString("Charts.ExportChartPane.titleSideDescription"))
+						.category(QuPathResources.getString("Charts.ExportChartPane.title"))
+						.build(),
+				new PropertyItemBuilder<>(chart.legendVisibleProperty(), Boolean.class)
+						.name(QuPathResources.getString("Charts.ExportChartPane.showLegend"))
+						.description(QuPathResources.getString("Charts.ExportChartPane.showLegendDescription"))
+						.category(QuPathResources.getString("Charts.ExportChartPane.legend"))
+						.build(),
+				new PropertyItemBuilder<>(chart.legendSideProperty(), Side.class)
+						.name(QuPathResources.getString("Charts.ExportChartPane.legendPosition"))
+						.description(QuPathResources.getString("Charts.ExportChartPane.legendPositionDescription"))
+						.category(QuPathResources.getString("Charts.ExportChartPane.legend"))
+						.build()
+		);
 
-		if (chart instanceof LineChart<?, ?>) {
-			LineChart<?, ?> lineChart = (LineChart<?, ?>)chart;
-			sheet.getItems().addAll(
-					new PropertyItemBuilder(strokeWidthProperty, ChartStrokeWidth.class).name("Line width").description("Thickness of lines used to draw on the chart").category("Display").build(),
-					new PropertyItemBuilder(useSolidLines, Boolean.class).name("Solid lines").description("Use solid (rather than dashed) lines for all series").category("Display").build(),
+		if (chart instanceof LineChart<?, ?> lineChart) {
+            sheet.getItems().addAll(
+					new PropertyItemBuilder<>(strokeWidthProperty, ChartStrokeWidth.class)
+							.name(QuPathResources.getString("Charts.ExportChartPane.lineWidth"))
+							.description(QuPathResources.getString("Charts.ExportChartPane.lineWidthDescription"))
+							.category(QuPathResources.getString("Charts.ExportChartPane.display"))
+							.build(),
+					new PropertyItemBuilder<>(useSolidLines, Boolean.class)
+							.name(QuPathResources.getString("Charts.ExportChartPane.solidLines"))
+							.description(QuPathResources.getString("Charts.ExportChartPane.solidLinesDescription"))
+							.category(QuPathResources.getString("Charts.ExportChartPane.display"))
+							.build(),
 					// Warning! Toggling on and off symbols changes any special efforts that went into creating them,
 					// e.g. censored ticks for survival curves
-					new PropertyItemBuilder(lineChart.createSymbolsProperty(), Boolean.class).name("Use markers").description("Use markers to indicate each data point").category("Display").build()
-					);
+					new PropertyItemBuilder<>(lineChart.createSymbolsProperty(), Boolean.class)
+							.name(QuPathResources.getString("Charts.ExportChartPane.useMarkers"))
+							.description(QuPathResources.getString("Charts.ExportChartPane.useMarkersDescription"))
+							.category(QuPathResources.getString("Charts.ExportChartPane.display"))
+							.build()
+			);
 		}
 
-		if (chart instanceof XYChart) {
-			XYChart<?, ?> xyChart = (XYChart<?, ?>)chart;
+		if (chart instanceof XYChart<?, ?> xyChart) {
+            sheet.getItems().addAll(
+					new PropertyItemBuilder<>(xyChart.horizontalGridLinesVisibleProperty(), Boolean.class)
+							.name(QuPathResources.getString("Charts.ExportChartPane.horizontalGridLines"))
+							.description(QuPathResources.getString("Charts.ExportChartPane.horizontalGridLinesDescription"))
+							.category(QuPathResources.getString("Charts.ExportChartPane.grid"))
+							.build(),
+					new PropertyItemBuilder<>(xyChart.horizontalZeroLineVisibleProperty(), Boolean.class)
+							.name(QuPathResources.getString("Charts.ExportChartPane.horizontalZeroLine"))
+							.description(QuPathResources.getString("Charts.ExportChartPane.horizontalZeroLineDescription"))
+							.category(QuPathResources.getString("Charts.ExportChartPane.grid"))
+							.build(),
+					new PropertyItemBuilder<>(xyChart.verticalGridLinesVisibleProperty(), Boolean.class)
+							.name(QuPathResources.getString("Charts.ExportChartPane.verticalGridLines"))
+							.description(QuPathResources.getString("Charts.ExportChartPane.verticalGridLinesDescription"))
+							.category(QuPathResources.getString("Charts.ExportChartPane.grid"))
+							.build(),
+					new PropertyItemBuilder<>(xyChart.verticalZeroLineVisibleProperty(), Boolean.class)
+							.name(QuPathResources.getString("Charts.ExportChartPane.verticalZeroLine"))
+							.description(QuPathResources.getString("Charts.ExportChartPane.verticalZeroLineDescription"))
+							.category(QuPathResources.getString("Charts.ExportChartPane.grid"))
+							.build()
+			);
 
-			sheet.getItems().addAll(
-					new PropertyItemBuilder(xyChart.horizontalGridLinesVisibleProperty(), Boolean.class).name("Horizontal grid lines").description("Display horizontal grid lines").category("Grid").build(),
-					new PropertyItemBuilder(xyChart.horizontalZeroLineVisibleProperty(), Boolean.class).name("Horizontal zero line").description("Display horizontal zero line").category("Grid").build(),
-					new PropertyItemBuilder(xyChart.verticalGridLinesVisibleProperty(), Boolean.class).name("Vertical grid lines").description("Display vertical grid lines").category("Grid").build(),
-					new PropertyItemBuilder(xyChart.verticalZeroLineVisibleProperty(), Boolean.class).name("Vertical zero line").description("Display vertical zero line").category("Grid").build()
-					);
-
-			if (xyChart.getXAxis() instanceof NumberAxis) {
-				NumberAxis axis = (NumberAxis)xyChart.getXAxis();
+			if (xyChart.getXAxis() instanceof NumberAxis axis) {
 				sheet.getItems().addAll(
-						new PropertyItemBuilder(axis.labelProperty(), String.class).name("X axis label").description("X axis label").category("X axis").build(),
-						new PropertyItemBuilder(axis.autoRangingProperty(), Boolean.class).name("X axis autorange").description("Set X axis range automatically").category("X axis").build(),
-						new PropertyItemBuilder(axis.lowerBoundProperty(), Double.class).name("X lower bound").description("X lower bound").category("X axis").build(),
-						new PropertyItemBuilder(axis.upperBoundProperty(), Double.class).name("X upper bound").description("X upper bound").category("X axis").build(),
-						new PropertyItemBuilder(axis.tickUnitProperty(), Double.class).name("X tick unit").description("Spacing between ticks on x axis").category("X axis").build()
-						);
+						new PropertyItemBuilder<>(axis.labelProperty(), String.class)
+								.name(QuPathResources.getString("Charts.ExportChartPane.xAxisLabel"))
+								.description(QuPathResources.getString("Charts.ExportChartPane.xAxisLabelDescription"))
+								.category(QuPathResources.getString("Charts.ExportChartPane.xAxis"))
+								.build(),
+						new PropertyItemBuilder<>(axis.autoRangingProperty(), Boolean.class)
+								.name(QuPathResources.getString("Charts.ExportChartPane.xAxisAutorange"))
+								.description(QuPathResources.getString("Charts.ExportChartPane.xAxisAutorangeDescription"))
+								.category(QuPathResources.getString("Charts.ExportChartPane.xAxis"))
+								.build(),
+						new PropertyItemBuilder<>(axis.lowerBoundProperty(), Double.class)
+								.name(QuPathResources.getString("Charts.ExportChartPane.xLowerBound"))
+								.description(QuPathResources.getString("Charts.ExportChartPane.xLowerBoundDescription"))
+								.category(QuPathResources.getString("Charts.ExportChartPane.xAxis"))
+								.build(),
+						new PropertyItemBuilder<>(axis.upperBoundProperty(), Double.class)
+								.name(QuPathResources.getString("Charts.ExportChartPane.xUpperBound"))
+								.description(QuPathResources.getString("Charts.ExportChartPane.xUpperBoundDescription"))
+								.category(QuPathResources.getString("Charts.ExportChartPane.xAxis"))
+								.build(),
+						new PropertyItemBuilder<>(axis.tickUnitProperty(), Double.class)
+								.name(QuPathResources.getString("Charts.ExportChartPane.xTickUnit"))
+								.description(QuPathResources.getString("Charts.ExportChartPane.xTickUnitDescription"))
+								.category(QuPathResources.getString("Charts.ExportChartPane.xAxis"))
+								.build()
+				);
 
 				int counter = 0;
 				for (Series<?, ?> series : xyChart.getData()) {
 					counter++;
 					if (!series.nameProperty().isBound()) {
-						sheet.getItems().addAll(
-								new PropertyItemBuilder(series.nameProperty(), String.class).name("Series name " + counter + ":").description("Name of the data in the chart (will be used for legend)").category("Series").build()
-								);
+						sheet.getItems().add(new PropertyItemBuilder<>(series.nameProperty(), String.class)
+								.name(MessageFormat.format(
+										QuPathResources.getString("Charts.ExportChartPane.seriesName"),
+										counter
+								))
+								.description(QuPathResources.getString("Charts.ExportChartPane.seriesNameDescription"))
+								.category(QuPathResources.getString("Charts.ExportChartPane.series"))
+								.build()
+						);
 					}
 				}
-
-
 			} else
-				sheet.getItems().add(new PropertyItemBuilder(xyChart.getXAxis().labelProperty(), String.class).name("X axis label").description("X axis label").category("X axis").build());
+				sheet.getItems().add(new PropertyItemBuilder<>(xyChart.getXAxis().labelProperty(), String.class)
+						.name(QuPathResources.getString("Charts.ExportChartPane.xAxisLabel"))
+						.description(QuPathResources.getString("Charts.ExportChartPane.xAxisLabelDescription"))
+						.category(QuPathResources.getString("Charts.ExportChartPane.xAxis"))
+						.build()
+				);
 
-			if (xyChart.getYAxis() instanceof NumberAxis) {
-				NumberAxis axis = (NumberAxis)xyChart.getYAxis();
+			if (xyChart.getYAxis() instanceof NumberAxis axis) {
 				sheet.getItems().addAll(
-						new PropertyItemBuilder(axis.labelProperty(), String.class).name("Y axis label").description("Y axis label").category("Y axis").build(),
-						new PropertyItemBuilder(axis.autoRangingProperty(), Boolean.class).name("Y axis autorange").description("Set Y axis range automatically").category("Y axis").build(),
-						new PropertyItemBuilder(axis.lowerBoundProperty(), Double.class).name("Y lower bound").description("Y lower bound").category("Y axis").build(),
-						new PropertyItemBuilder(axis.upperBoundProperty(), Double.class).name("Y upper bound").description("Y upper bound").category("Y axis").build(),
-						new PropertyItemBuilder(axis.tickUnitProperty(), Double.class).name("Y tick unit").description("Spacing between ticks on y axis").category("Y axis").build()
-						);
+						new PropertyItemBuilder<>(axis.labelProperty(), String.class)
+								.name(QuPathResources.getString("Charts.ExportChartPane.yAxisLabel"))
+								.description(QuPathResources.getString("Charts.ExportChartPane.yAxisLabelDescription"))
+								.category(QuPathResources.getString("Charts.ExportChartPane.yAxis"))
+								.build(),
+						new PropertyItemBuilder<>(axis.autoRangingProperty(), Boolean.class)
+								.name(QuPathResources.getString("Charts.ExportChartPane.yAxisAutorange"))
+								.description(QuPathResources.getString("Charts.ExportChartPane.yAxisAutorangeDescription"))
+								.category(QuPathResources.getString("Charts.ExportChartPane.yAxis"))
+								.build(),
+						new PropertyItemBuilder<>(axis.lowerBoundProperty(), Double.class)
+								.name(QuPathResources.getString("Charts.ExportChartPane.yLowerBound"))
+								.description(QuPathResources.getString("Charts.ExportChartPane.yLowerBoundDescription"))
+								.category(QuPathResources.getString("Charts.ExportChartPane.yAxis"))
+								.build(),
+						new PropertyItemBuilder<>(axis.upperBoundProperty(), Double.class)
+								.name(QuPathResources.getString("Charts.ExportChartPane.yUpperBound"))
+								.description(QuPathResources.getString("Charts.ExportChartPane.yUpperBoundDescription"))
+								.category(QuPathResources.getString("Charts.ExportChartPane.yAxis"))
+								.build(),
+						new PropertyItemBuilder<>(axis.tickUnitProperty(), Double.class)
+								.name(QuPathResources.getString("Charts.ExportChartPane.yTickUnit"))
+								.description(QuPathResources.getString("Charts.ExportChartPane.yTickUnitDescription"))
+								.category(QuPathResources.getString("Charts.ExportChartPane.yAxis"))
+								.build()
+				);
 			} else
-				sheet.getItems().add(new PropertyItemBuilder(xyChart.getYAxis().labelProperty(), String.class).name("Y axis label").description("Y axis label").category("Y axis").build());
-
+				sheet.getItems().add(new PropertyItemBuilder<>(xyChart.getYAxis().labelProperty(), String.class)
+						.name(QuPathResources.getString("Charts.ExportChartPane.yAxisLabel"))
+						.description(QuPathResources.getString("Charts.ExportChartPane.yAxisLabelDescription"))
+						.category(QuPathResources.getString("Charts.ExportChartPane.yAxis"))
+						.build()
+				);
 		}
 
 		sheet.getItems().addAll(
-				new PropertyItemBuilder(exportResolutionProperty, ExportResolution.class).name("Export resolution").description("Resolution at which to copy/save the chart").category("Export").build(),
-				new PropertyItemBuilder(requestedWidth, Integer.class).name("Width").description("Requested chart width").category("Export").build(),
-				new PropertyItemBuilder(requestedHeight, Integer.class).name("Height").description("Requested chart height").category("Export").build()
-				);
-
-
+				new PropertyItemBuilder<>(exportResolutionProperty, ExportResolution.class)
+						.name(QuPathResources.getString("Charts.ExportChartPane.exportResolution"))
+						.description(QuPathResources.getString("Charts.ExportChartPane.exportResolutionDescription"))
+						.category(QuPathResources.getString("Charts.ExportChartPane.export"))
+						.build(),
+				new PropertyItemBuilder<>(requestedWidth, Integer.class)
+						.name(QuPathResources.getString("Charts.ExportChartPane.width"))
+						.description(QuPathResources.getString("Charts.ExportChartPane.widthDescription"))
+						.category(QuPathResources.getString("Charts.ExportChartPane.export"))
+						.build(),
+				new PropertyItemBuilder<>(requestedHeight, Integer.class)
+						.name(QuPathResources.getString("Charts.ExportChartPane.height"))
+						.description(QuPathResources.getString("Charts.ExportChartPane.heightDescription"))
+						.category(QuPathResources.getString("Charts.ExportChartPane.export"))
+						.build()
+		);
 
 		chartStyleProperty.addListener(o -> updateChartStyles());
 		strokeWidthProperty.addListener(o -> updateChartStyles());
@@ -423,7 +535,7 @@ class ExportChartPane {
 		Scene scene = new Scene(panel.getPane());
 		Stage stage = new Stage();
 		FXUtils.addCloseWindowShortcuts(stage);
-		stage.setTitle("Export chart");
+		stage.setTitle(QuPathResources.getString("Charts.ExportChartPane.exportChart"));
 		stage.setScene(scene);
 		stage.show();
 		panel.refreshChartDisplay();
@@ -444,7 +556,10 @@ class ExportChartPane {
 			showExportChartDialog(chart2, null);
 		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
 				| NoSuchMethodException | SecurityException e) {
-			Dialogs.showErrorNotification("Export chart display error", "Unable to duplicate chart");
+			Dialogs.showErrorNotification(
+					QuPathResources.getString("Charts.ExportChartPane.exportChartError"),
+					QuPathResources.getString("Charts.ExportChartPane.unableDuplicateChart")
+			);
 			logger.error("Error duplicating chart", e);
 		}
 	}
@@ -636,7 +751,7 @@ class ExportChartPane {
 		int count = 0;
 		for (Item item : items) {
 			// Don't want to load Series properties - these might vary
-			if ("Series".equals(item.getCategory()))
+			if (QuPathResources.getString("Charts.ExportChartPane.series").equals(item.getCategory()))
 				continue;
 			Object value = map.getOrDefault(item.getName(), null);
 			if (value != null) {
@@ -705,40 +820,61 @@ class ExportChartPane {
 	Node initializePrefsManager() {
 		
 		ComboBox<String> combo = new ComboBox<>(storedPrefs);
-		combo.setTooltip(new Tooltip("Previously stored preferences to use for export"));
+		combo.setTooltip(new Tooltip(QuPathResources.getString("Charts.ExportChartPane.previouslyStoredPreferences")));
 		combo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			if (n != null) {
 				try {
 					loadExportPreferences(sheet.getItems(), n);
 				} catch (Exception e) {
-					Dialogs.showErrorMessage("Error loading prefs", "Sorry, unable to load preferences for " + n);
+					Dialogs.showErrorMessage(
+							QuPathResources.getString("Charts.ExportChartPane.errorLoadingPrefs"),
+							MessageFormat.format(
+									QuPathResources.getString("Charts.ExportChartPane.errorLoadingPrefsMessage"),
+									n
+							)
+					);
 					logger.error("Error loading prefs", e);
 				}
 			}
 		});
 		
-		Button btnAdd = new Button("Add");
-		btnAdd.setTooltip(new Tooltip("Add current preferences to stored list"));
+		Button btnAdd = new Button(QuPathResources.getString("Charts.ExportChartPane.add"));
+		btnAdd.setTooltip(new Tooltip(QuPathResources.getString("Charts.ExportChartPane.addCurrentPreferences")));
 		btnAdd.setOnAction(e -> {
-			String name = Dialogs.showInputDialog("Export chart", "Enter name for stored preferences", chart.getTitle());
+			String name = Dialogs.showInputDialog(
+					QuPathResources.getString("Charts.ExportChartPane.exportChart"),
+					QuPathResources.getString("Charts.ExportChartPane.enterNameForPreferences"),
+					chart.getTitle()
+			);
 			if (name != null && !name.trim().isEmpty()) {
 				try {
 					saveExportPreferences(sheet.getItems(), name);
 					updateStoredPrefs();
 					combo.getSelectionModel().select(name);
 				} catch (Exception e1) {
-					Dialogs.showErrorMessage("Error loading prefs", "Sorry, unable to save preferences " + name);					
+					Dialogs.showErrorMessage(
+							QuPathResources.getString("Charts.ExportChartPane.errorSavingPrefs"),
+							MessageFormat.format(
+									QuPathResources.getString("Charts.ExportChartPane.errorSavingPrefsMessage"),
+									name
+							));
 					logger.error("Error saving prefs", e1);
 				}
 			}
 		});
 
-		Button btnRemove = new Button("Remove");
-		btnRemove.setTooltip(new Tooltip("Remove current preferences from stored list"));
+		Button btnRemove = new Button(QuPathResources.getString("Charts.ExportChartPane.remove"));
+		btnRemove.setTooltip(new Tooltip(QuPathResources.getString("Charts.ExportChartPane.removeCurrentPreferences")));
 		btnRemove.setOnAction(e -> {
 			String selected = combo.getSelectionModel().getSelectedItem();
 			if (selected != null && !selected.trim().isEmpty()) {
-				if (Dialogs.showConfirmDialog("Remove export prefs", "Remove \"" + selected + "\"?")) {
+				if (Dialogs.showConfirmDialog(
+						QuPathResources.getString("Charts.ExportChartPane.removeExportPrefs"),
+						MessageFormat.format(
+								QuPathResources.getString("Charts.ExportChartPane.removeX"),
+								selected
+						)
+				)) {
 					PathPrefs.getUserPreferences().remove(EXPORT_CHART_PREFS_KEY + selected);
 					updateStoredPrefs();
 				}
@@ -751,7 +887,7 @@ class ExportChartPane {
 		pane.setCenter(combo);
 		pane.setBottom(GridPaneUtils.createColumnGridControls(btnAdd, btnRemove));
 		
-		TitledPane titledPane = new TitledPane("Presets", pane);
+		TitledPane titledPane = new TitledPane(QuPathResources.getString("Charts.ExportChartPane.presets"), pane);
 		titledPane.setCollapsible(false);
 		return titledPane;
 	}

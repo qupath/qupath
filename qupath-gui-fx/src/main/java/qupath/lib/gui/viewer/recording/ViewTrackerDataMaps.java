@@ -122,7 +122,7 @@ final class ViewTrackerDataMaps {
 			}
 		}
 		//TODO: remove next line
-		logger.info("Processing time for populateRegionMap(): " + (System.currentTimeMillis()-startTime));
+        logger.info("Processing time for populateRegionMap(): {}", System.currentTimeMillis() - startTime);
 		return regionMaps;
 	}
 	

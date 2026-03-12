@@ -46,10 +46,12 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.LogTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.plugins.parameters.ParameterList;
 
 import java.io.File;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -336,7 +338,10 @@ public class Dialogs {
 	public static void showErrorMessage(final String title, final Throwable e) {
 		String message = e.getLocalizedMessage();
 		if (message == null)
-			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please report it with 'Help -> Report bug (web)'.\n\n" + e;
+			message = MessageFormat.format(
+					QuPathResources.getString("Dialogs.encounteredProblem"),
+					e
+			);
 		showErrorMessage(title, message);
 		logger.error(title, e);
 	}
@@ -349,11 +354,14 @@ public class Dialogs {
 	public static void showErrorNotification(final String title, final Throwable e) {
 		String message = e.getLocalizedMessage();
 		if (message != null && !message.isBlank() && !message.equals(title))
-			logger.error(title + ": " + e.getLocalizedMessage(), e);
+            logger.error("{}: {}", title, e.getLocalizedMessage(), e);
 		else
 			logger.error(title , e);
 		if (message == null)
-			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please report it with 'Help > Report bug'.\n\n" + e;
+			message = MessageFormat.format(
+					QuPathResources.getString("Dialogs.encounteredProblem"),
+					e
+			);
 		if (!isHeadless())
 			showNotifications(createNotifications().title(title).text(message), AlertType.ERROR);
 	}
@@ -364,7 +372,7 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showErrorNotification(final String title, final String message) {
-		logger.error(title + ": " + message);
+        logger.error("{}: {}", title, message);
 		if (!isHeadless())
 			showNotifications(createNotifications().title(title).text(message), AlertType.ERROR);
 	}
@@ -375,7 +383,7 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showWarningNotification(final String title, final String message) {
-		logger.warn(title + ": " + message);
+        logger.warn("{}: {}", title, message);
 		if (!isHeadless())
 			showNotifications(createNotifications().title(title).text(message), AlertType.WARNING);
 	}
@@ -386,7 +394,7 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showInfoNotification(final String title, final String message) {
-		logger.info(title + ": " + message);
+        logger.info("{}: {}", title, message);
 		if (!isHeadless())
 			showNotifications(createNotifications().title(title).text(message), AlertType.INFORMATION);
 	}
@@ -397,7 +405,7 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showPlainNotification(final String title, final String message) {
-		logger.info(title + ": " + message);
+        logger.info("{}: {}", title, message);
 		if (!isHeadless())
 			showNotifications(createNotifications().title(title).text(message), AlertType.NONE);
 	}
@@ -457,7 +465,7 @@ public class Dialogs {
 	 * @param title
 	 */
 	public static void showNoImageError(String title) {
-		showErrorMessage(title, "No image is available!");
+		showErrorMessage(title, QuPathResources.getString("Dialogs.noImageAvailable"));
 	}
 	
 	/**
@@ -466,7 +474,7 @@ public class Dialogs {
 	 * @param title
 	 */
 	public static void showNoProjectError(String title) {
-		showErrorMessage(title, "No project is available!");
+		showErrorMessage(title, QuPathResources.getString("Dialogs.projectAvailable"));
 	}
 	
 	
@@ -476,7 +484,7 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showErrorMessage(final String title, final String message) {
-		logger.error(title + ": " + message);
+        logger.error("{}: {}", title, message);
 		if (!isHeadless())
 			showErrorMessage(title, createContentLabel(message));
 	}
@@ -502,7 +510,7 @@ public class Dialogs {
 	 */
 	public static void showPlainMessage(final String title, final String message) {
 		logDeprecated();
-		logger.info(title + ": " + message);
+        logger.info("{}: {}", title, message);
 		if (!isHeadless()) {
 			new Builder()
 				.alertType(AlertType.INFORMATION)
@@ -887,20 +895,19 @@ public class Dialogs {
 		public Builder buttons(String... buttonNames) {
 			var list = new ArrayList<ButtonType>();
 			for (String name : buttonNames) {
-				ButtonType type;
-				switch (name.toLowerCase()) {
-				case "ok": type = ButtonType.OK; break;
-				case "yes": type = ButtonType.YES; break;
-				case "no": type = ButtonType.NO; break;
-				case "cancel": type = ButtonType.CANCEL; break;
-				case "apply": type = ButtonType.APPLY; break;
-				case "close": type = ButtonType.CLOSE; break;
-				case "finish": type = ButtonType.FINISH; break;
-				case "next": type = ButtonType.NEXT; break;
-				case "previous": type = ButtonType.PREVIOUS; break;
-				default: type = new ButtonType(name); break;
-				}
-				list.add(type);
+				ButtonType type = switch (name.toLowerCase()) {
+                    case "ok" -> ButtonType.OK;
+                    case "yes" -> ButtonType.YES;
+                    case "no" -> ButtonType.NO;
+                    case "cancel" -> ButtonType.CANCEL;
+                    case "apply" -> ButtonType.APPLY;
+                    case "close" -> ButtonType.CLOSE;
+                    case "finish" -> ButtonType.FINISH;
+                    case "next" -> ButtonType.NEXT;
+                    case "previous" -> ButtonType.PREVIOUS;
+                    default -> new ButtonType(name);
+                };
+                list.add(type);
 			}
 			this.buttons = list;
 			return this;

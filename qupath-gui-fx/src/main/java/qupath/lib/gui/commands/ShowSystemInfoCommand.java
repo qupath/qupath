@@ -34,8 +34,10 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 
 import java.io.File;
+import java.text.MessageFormat;
 
 /**
  * Command to display some basic system info - useful to see memory etc.
@@ -52,7 +54,7 @@ class ShowSystemInfoCommand {
 		FXUtils.addCloseWindowShortcuts(dialog);
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle("System info");
+		dialog.setTitle(QuPathResources.getString("Commands.SystemInfo.title"));
 		
 		var textArea = new TextArea();
 		textArea.setPrefColumnCount(40);
@@ -85,36 +87,51 @@ class ShowSystemInfoCommand {
 		rt.gc();
 		
 		// Java info
-		sb.append("Java version:\t\t").append(System.getProperty("java.version")).append("\n");
+		sb.append(QuPathResources.getString("Commands.SystemInfo.javaVersion")).append("\t\t")
+				.append(System.getProperty("java.version"))
+				.append("\n");
 //		sb.append("Java vendor:\t\t").append(System.getProperty("java.vendor")).append("\n");
-		sb.append("Java vendor: \t\t").append(System.getProperty("java.vendor")).append("  -  ").
-			append(System.getProperty("java.vendor.url")).append("\n");
-		sb.append("Java home:   \t\t").append(System.getProperty("java.home")).append("\n");
+		sb.append(QuPathResources.getString("Commands.SystemInfo.javaVendor")).append(" \t\t")
+				.append(System.getProperty("java.vendor")).append("  -  ").append(System.getProperty("java.vendor.url")).append("\n");
+		sb.append(QuPathResources.getString("Commands.SystemInfo.javaHome")).append("   \t\t")
+				.append(System.getProperty("java.home")).append("\n");
 
 		
 		// Operating system info
 		sb.append("\n");
-		sb.append("Operating system:\t\t").append(System.getProperty("os.name")).append("  -  ").append(System.getProperty("os.version")).append("\n");
+		sb.append(QuPathResources.getString("Commands.SystemInfo.operatingSystem")).append("\t\t")
+				.append(System.getProperty("os.name")).append("  -  ").append(System.getProperty("os.version")).append("\n");
 //		sb.append("Version:         \t\t").append(System.getProperty("os.version")).append("\n");
-		sb.append("Architecture:    \t\t").append(System.getProperty("os.arch")).append("\n");
+		sb.append(QuPathResources.getString("Commands.SystemInfo.architecture")).append("    \t\t")
+				.append(System.getProperty("os.arch")).append("\n");
 		
 		// System info
 		sb.append("\n");
-		sb.append("Number of available processors:\t\t").append(rt.availableProcessors()).append("\n");
+		sb.append(QuPathResources.getString("Commands.SystemInfo.availableProcessors")).append("\t\t")
+				.append(rt.availableProcessors()).append("\n");
 		
 		sb.append("\n");
 		
 		// Memory info
 		int toMB = (1024*1024);
 		long usedBytes = rt.totalMemory() - rt.freeMemory();
-		sb.append("Memory already used by JVM:  \t\t").append(usedBytes/toMB).append(" MB").append("\n");
+		sb.append(QuPathResources.getString("Commands.SystemInfo.memoryAlreadyUsed")).append("  \t\t")
+				.append(usedBytes/toMB).append(" MB").append("\n");
 //		sb.append("Free memory available to JVM: \t\t").append(rt.freeMemory()/toMB).append(" MB").append("\n");
-		sb.append("Total memory currently available:\t\t").append(rt.totalMemory()/toMB).append(" MB").append("\n");
-		sb.append("Max memory JVM may try to use:\t\t").append(rt.maxMemory()/toMB).append(" MB").append("\n");
+		sb.append(QuPathResources.getString("Commands.SystemInfo.memoryAvailable")).append("\t\t")
+				.append(rt.totalMemory()/toMB).append(" MB").append("\n");
+		sb.append(QuPathResources.getString("Commands.SystemInfo.maxMemory")).append("\t\t").append(rt.maxMemory()/toMB)
+				.append(" MB").append("\n");
 		if (rt.maxMemory()/toMB < 4096)
-			sb.append("--- WARNING: Max memory is quite low (< 4GB)  - may not be enough to run full whole slide analysis.").append("\n");
+			sb.append(MessageFormat.format(
+					QuPathResources.getString("Commands.SystemInfo.maxMemoryLow"),
+					4
+			)).append("\n");
 		if ((rt.maxMemory() - usedBytes)/toMB < 1024)
-			sb.append("--- WARNING: Memory almost all in use (< 1GB remaining).").append("\n");
+			sb.append(MessageFormat.format(
+					QuPathResources.getString("Commands.SystemInfo.memoryAlmostAllInUse"),
+					1
+			)).append("\n");
 		
 		
 //		// File system info - excluded (can be very slow to access!)
@@ -128,7 +145,7 @@ class ShowSystemInfoCommand {
 	    
 	    // Show paths (at the end, since they may be rather long)
 		sb.append("\n");
-		sb.append("Library path:");
+		sb.append(QuPathResources.getString("Commands.SystemInfo.libraryPath"));
 		for (String p : System.getProperty("java.library.path", "").split(File.pathSeparator))
 			sb.append("\n      ").append(p);
 		sb.append("\n\n");
@@ -137,14 +154,14 @@ class ShowSystemInfoCommand {
 		// (and will be useful for debugging as we attempt to become more modular)
 		var modulePath = System.getProperty("jdk.module.path", null);
 		if (modulePath != null) {
-			sb.append("Module path:");
+			sb.append(QuPathResources.getString("Commands.SystemInfo.modulePath"));
 			for (String p : modulePath.split(File.pathSeparator))
 				sb.append("\n      ").append(p);
 			sb.append("\n\n");
 		}
 
 		// Class path currently always important
-		sb.append("Class path:");
+		sb.append(QuPathResources.getString("Commands.SystemInfo.classPath"));
 		for (String p : System.getProperty("java.class.path", "").split(File.pathSeparator))
 			sb.append("\n      ").append(p);
 
@@ -158,7 +175,7 @@ class ShowSystemInfoCommand {
 		if (buildString == null || buildString.isBlank())
 			buildString = GeneralTools.getVersion();
 		if (buildString == null || buildString.isBlank())
-			buildString = "Unknown QuPath version!";
+			buildString = QuPathResources.getString("Commands.SystemInfo.unknownVersion");
 		textArea.setText(buildString + "\n\n" + getInfoString());
 	}
 

@@ -69,6 +69,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.panes.ObjectTreeBrowser;
 import qupath.lib.gui.prefs.SystemMenuBar;
 import qupath.lib.gui.scripting.QPEx;
@@ -87,6 +88,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -169,7 +171,7 @@ class ScriptInterpreter {
 
 		stage = new Stage();
 		FXUtils.addCloseWindowShortcuts(stage);
-		stage.setTitle("QuPath Interpreter");
+		stage.setTitle(QuPathResources.getString("Commands.ScriptInterpreter.title"));
 
 		initialize();
 	}
@@ -177,7 +179,7 @@ class ScriptInterpreter {
 
 	private void initialize() {
 		MenuBar menuBar = new MenuBar();
-		Menu menuLanguages = new Menu("Language");
+		Menu menuLanguages = new Menu(QuPathResources.getString("Commands.ScriptInterpreter.language"));
 		menuBar.getMenus().add(menuLanguages);
 		ToggleGroup group = new ToggleGroup();
 
@@ -229,11 +231,11 @@ class ScriptInterpreter {
 
 
 		// Script menu
-		Menu menuScript = new Menu("Script");
-		MenuItem miGenerateScript = new MenuItem("Generate script");
+		Menu menuScript = new Menu(QuPathResources.getString("Commands.ScriptInterpreter.script"));
+		MenuItem miGenerateScript = new MenuItem(QuPathResources.getString("Commands.ScriptInterpreter.generateScript"));
 		miGenerateScript.setOnAction(e -> {
 			String script = String.join("\n", historyList);
-			qupath.getScriptEditor().showScript("From interpreter", script);
+			qupath.getScriptEditor().showScript(QuPathResources.getString("Commands.ScriptInterpreter.fromInterpreter"), script);
 		});
 		menuScript.getItems().add(miGenerateScript);
 		menuBar.getMenus().add(menuScript);
@@ -404,26 +406,26 @@ class ScriptInterpreter {
 		textAreaInput.setFont(font);
 
 		// Create the variable table
-		TableColumn<String, String> colKeys = new TableColumn<>("Name");
+		TableColumn<String, String> colKeys = new TableColumn<>(QuPathResources.getString("Commands.ScriptInterpreter.name"));
 		colKeys.setCellValueFactory(c -> new SimpleStringProperty(c.getValue()));
 		colKeys.setCellFactory(c -> new VariableTableCell(VariableInfoType.NAME));
 
-		TableColumn<String, String> colClasses = new TableColumn<>("Class");
+		TableColumn<String, String> colClasses = new TableColumn<>(QuPathResources.getString("Commands.ScriptInterpreter.class"));
 		colClasses.setCellValueFactory(c -> new SimpleStringProperty(c.getValue()));
 		colClasses.setCellFactory(c -> new VariableTableCell(VariableInfoType.CLASS));
 
-		TableColumn<String, String> colValues = new TableColumn<>("Value");
+		TableColumn<String, String> colValues = new TableColumn<>(QuPathResources.getString("Commands.ScriptInterpreter.value"));
 		colValues.setCellValueFactory(c -> new SimpleStringProperty(c.getValue()));
 		colValues.setCellFactory(c -> new VariableTableCell(VariableInfoType.VALUE));
 
-		tableVariables.setPlaceholder(new Label("No variables set"));
+		tableVariables.setPlaceholder(new Label(QuPathResources.getString("Commands.ScriptInterpreter.noVariablesSet")));
 		tableVariables.getColumns().add(colKeys);
 		tableVariables.getColumns().add(colClasses);
 		tableVariables.getColumns().add(colValues);
 		tableVariables.setTableMenuButtonVisible(true);
 		tableVariables.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
-		Button btnClear = new Button("Clear variables");
+		Button btnClear = new Button(QuPathResources.getString("Commands.ScriptInterpreter.clearVariables"));
 		btnClear.setOnAction(e -> {
 			Bindings bindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
 			List<String> variables = getSelectedVariableNames();
@@ -432,10 +434,22 @@ class ScriptInterpreter {
 			if (variables.isEmpty())
 				return;
 			if (variables.size() == 1) {
-				if (!Dialogs.showConfirmDialog("Clear variables", "Clear variable '" + variables.get(0) + "'?"))
+				if (!Dialogs.showConfirmDialog(
+						QuPathResources.getString("Commands.ScriptInterpreter.clearVariables"),
+						MessageFormat.format(
+								QuPathResources.getString("Commands.ScriptInterpreter.clearVariable"),
+								variables.getFirst()
+						)
+				))
 					return;
 			} else {
-				if (!Dialogs.showConfirmDialog("Clear variables", "Clear " + variables.size() + " variables?"))
+				if (!Dialogs.showConfirmDialog(
+						QuPathResources.getString("Commands.ScriptInterpreter.clearVariables"),
+						MessageFormat.format(
+								QuPathResources.getString("Commands.ScriptInterpreter.clearNVariables"),
+								variables.size()
+						)
+				))
 					return;
 			}
 			for (String v : variables)
@@ -448,38 +462,38 @@ class ScriptInterpreter {
 				javafx.beans.binding.Bindings.createBooleanBinding(() -> tableVariables.getItems().isEmpty(), tableVariables.getItems())
 				);
 
-		Button btnAdd = new Button("Add...");
+		Button btnAdd = new Button(QuPathResources.getString("Commands.ScriptInterpreter.add"));
 		ContextMenu menuAdd = new ContextMenu();
-		MenuItem miAddImageData = new MenuItem("Image data");
+		MenuItem miAddImageData = new MenuItem(QuPathResources.getString("Commands.ScriptInterpreter.imageData"));
 		miAddImageData.setOnAction(e -> {
 			ImageData<?> imageData = qupath.getImageData();
 			engine.put(defaultImageDataName, imageData);
 			updateVariableTable();
 		});
-		MenuItem miAddHierarchy = new MenuItem("Hierarchy");
+		MenuItem miAddHierarchy = new MenuItem(QuPathResources.getString("Commands.ScriptInterpreter.hierarchy"));
 		miAddHierarchy.setOnAction(e -> {
 			ImageData<?> imageData = qupath.getImageData();
 			engine.put(defaultHierarchyName, imageData == null ? null : imageData.getHierarchy());
 			updateVariableTable();
 		});
-		MenuItem miAddSelectionModel = new MenuItem("Selection model");
+		MenuItem miAddSelectionModel = new MenuItem(QuPathResources.getString("Commands.ScriptInterpreter.selectionModel"));
 		miAddSelectionModel.setOnAction(e -> {
 			ImageData<?> imageData = qupath.getImageData();
 			engine.put(defaultSelectionModelName, imageData == null ? null : imageData.getHierarchy().getSelectionModel());
 			updateVariableTable();
 		});
-		MenuItem miAddServer = new MenuItem("Image server");
+		MenuItem miAddServer = new MenuItem(QuPathResources.getString("Commands.ScriptInterpreter.imageServer"));
 		miAddServer.setOnAction(e -> {
 			ImageData<?> imageData = qupath.getImageData();
 			engine.put(defaultImageServerName, imageData == null ? null : imageData.getServer());
 			updateVariableTable();
 		});
-		MenuItem miAddProject = new MenuItem("Project");
+		MenuItem miAddProject = new MenuItem(QuPathResources.getString("Commands.ScriptInterpreter.project"));
 		miAddProject.setOnAction(e -> {
 			engine.put(defaultProjectName, qupath.getProject());
 			updateVariableTable();
 		});
-		MenuItem miAddScriptingHelpers = new MenuItem("Scripting helpers");
+		MenuItem miAddScriptingHelpers = new MenuItem(QuPathResources.getString("Commands.ScriptInterpreter.scriptingHelpers"));
 		miAddScriptingHelpers.setOnAction(e -> {
 			engine.put(defaultScriptingHelperName, new QPEx());
 			updateVariableTable();
@@ -522,8 +536,8 @@ class ScriptInterpreter {
 		// Create tabbed pane
 		TabPane tabPane = new TabPane();
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
-		tabPane.getTabs().add(new Tab("Variables", paneTable));
-		tabPane.getTabs().add(new Tab("History", listHistory));
+		tabPane.getTabs().add(new Tab(QuPathResources.getString("Commands.ScriptInterpreter.variables"), paneTable));
+		tabPane.getTabs().add(new Tab(QuPathResources.getString("Commands.ScriptInterpreter.history"), listHistory));
 
 
 		// Set the stage
@@ -564,7 +578,10 @@ class ScriptInterpreter {
 
 			@Override
 			public void write(char[] cbuf, int off, int len) throws IOException {
-				addToCommandWindow("Error: " + String.copyValueOf(cbuf, off, len));
+				addToCommandWindow(MessageFormat.format(
+						QuPathResources.getString("Commands.ScriptInterpreter.errorX"),
+						String.copyValueOf(cbuf, off, len)
+				));
 			}
 
 			@Override
@@ -584,9 +601,9 @@ class ScriptInterpreter {
 
 	private void addToCommandWindow(final String newText) {
 		String lower = newText.toLowerCase();
-		if (lower.startsWith("error:"))
+		if (lower.startsWith(QuPathResources.getString("Commands.ScriptInterpreter.error")))
 			historyText.set(historyText.get() + "<pre class=\"error\">" + newText + "</pre>");
-		else if (lower.startsWith("warn"))
+		else if (lower.startsWith(QuPathResources.getString("Commands.ScriptInterpreter.warn")))
 			historyText.set(historyText.get() + "<pre class=\"warning\">" + newText + "</pre>");
 		else if (lower.startsWith("-------"))
 			historyText.set(historyText.get() + "<pre class=\"variable\">" + newText + "</pre>");
@@ -817,7 +834,10 @@ class ScriptInterpreter {
 					addToCommandWindow("" + result + "\n");
 			} catch (Exception e) {
 				logger.error("Script error", e);
-				addToCommandWindow("Error: " + e.getLocalizedMessage() + "\n");
+				addToCommandWindow(MessageFormat.format(
+						QuPathResources.getString("Commands.ScriptInterpreter.errorX"),
+						e.getLocalizedMessage() + "\n"
+				));
 			} finally {
 				currentText.set("");
 				updateVariableTable();
@@ -865,9 +885,9 @@ class ScriptInterpreter {
 				String text = item;
 				if (value != null) {
 					sb.setLength(0);
-					sb.append("Name:\t").append(item).append("\n");
-					sb.append("Class:\t").append(value.getClass().getName()).append("\n");
-					sb.append("Value:\t").append(value);
+					sb.append(QuPathResources.getString("Commands.ScriptInterpreter.nameX")).append("\t").append(item).append("\n");
+					sb.append(QuPathResources.getString("Commands.ScriptInterpreter.classX")).append("\t").append(value.getClass().getName()).append("\n");
+					sb.append(QuPathResources.getString("Commands.ScriptInterpreter.valueX")).append("\t").append(value);
 					//			        	sb.append("Value:\t").append(value).append("\n");
 
 					//			        	for (Method m : value.getClass().getMethods()) {
@@ -892,7 +912,10 @@ class ScriptInterpreter {
 
 							var treeView = ObjectTreeBrowser.createObjectTreeBrowser(item, value);
 							Stage stage = new Stage();
-							stage.setTitle("Object Inspector: " + item);
+							stage.setTitle(MessageFormat.format(
+									QuPathResources.getString("Commands.ScriptInterpreter.objectInspector"),
+									item
+							));
 							stage.initOwner(qupath.getStage());
 							stage.setScene(new Scene(new BorderPane(treeView), 400, 400));
 							stage.show();
@@ -900,16 +923,16 @@ class ScriptInterpreter {
 
 							sb.setLength(0);
 							sb.append("---------------------------------------------\n");
-							sb.append("NAME: \t").append(item);
+							sb.append(QuPathResources.getString("Commands.ScriptInterpreter.nameX").toUpperCase()).append(" \t").append(item);
 							sb.append("\n");
-							sb.append("VALUE: \t").append(String.valueOf(value));
+							sb.append(QuPathResources.getString("Commands.ScriptInterpreter.valueX").toUpperCase()).append(" \t").append(value);
 							sb.append("\n");
-							sb.append("CLASS: \t").append(value.getClass().getName());
+							sb.append(QuPathResources.getString("Commands.ScriptInterpreter.classX").toUpperCase()).append(" \t").append(value.getClass().getName());
 							sb.append("\n");
 							//			        			sb.append("---------------------------------------------\n");
 							Field[] fields = value.getClass().getFields();
 							if (fields.length > 0) {
-								sb.append("FIELDS:\n");
+								sb.append(QuPathResources.getString("Commands.ScriptInterpreter.fields")).append("\n");
 								for (Field f : value.getClass().getFields()) {
 									try {
 										Object innerValue = f.get(value);
@@ -917,14 +940,14 @@ class ScriptInterpreter {
 										sb.append(f.getName());
 										sb.append(": ");
 										sb.append("\t");
-										sb.append(String.valueOf(innerValue));
+										sb.append(innerValue);
 										sb.append("\n");
 									} catch (Exception e1) {
 										logger.trace("Could not find value for field {}", f.getName());
 									}
 								}
 							}
-							sb.append("METHODS:\n");
+							sb.append(QuPathResources.getString("Commands.ScriptInterpreter.methods")).append("\n");
 							for (Method m : value.getClass().getMethods()) {
 								sb.append("  ");
 								sb.append(m.getReturnType().getSimpleName());

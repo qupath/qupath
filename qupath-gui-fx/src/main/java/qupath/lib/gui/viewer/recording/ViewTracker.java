@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.tools.PathTool;
@@ -53,6 +54,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -122,7 +124,14 @@ public class ViewTracker implements QuPathViewerListener {
 			Files.move(recordingFile.toPath(), recordingFile.toPath().resolveSibling(newName + GeneralTools.getExtension(new File(newName)).orElse(".tsv")));
 			recordingFile = recordingFile.toPath().resolveSibling(newName + GeneralTools.getExtension(new File(newName)).orElse(".tsv")).toFile();
 		} catch (IOException ex) {
-			Dialogs.showErrorMessage("Error", "Could not rename recording  '" + newName + "': " + ex.getLocalizedMessage());
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Viewer.ViewTracker.error"),
+					MessageFormat.format(
+							QuPathResources.getString("Viewer.ViewTracker.couldNotRename"),
+							newName,
+							ex.getLocalizedMessage()
+					)
+			);
 		}
 	}
 
@@ -173,9 +182,11 @@ public class ViewTracker implements QuPathViewerListener {
 		// TODO: viewer.getDisplayedRegionShape() returns a rotated rectangle instead of non-rotated! Change that
 		visibleRegionChanged(viewer, viewer.getDisplayedRegionShape());
 
-		logger.debug("--------------------------------------\n" + 
-					"View tracking for image: " + server.getPath() + "\n" +
-					ViewTrackerTools.getSummaryHeadings(LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT()));
+        logger.debug(
+				"--------------------------------------\nView tracking for image: {}\n{}",
+				server.getPath(),
+				ViewTrackerTools.getSummaryHeadings(LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT())
+		);
 	}
 
 	private void doStopRecording() {
@@ -285,7 +296,7 @@ public class ViewTracker implements QuPathViewerListener {
 		}
 
 		if (lastFrame != null && lastFrame.getTimestamp() > timestamp) { // Shouldn't happen... but disregard out-of-order processing
-			logger.warn("View tracking frame disregarded with timestamp " + df.format((timestamp - startTime)/1000) + " seconds");
+            logger.warn("View tracking frame disregarded with timestamp {} seconds", df.format((timestamp - startTime) / 1000));
 			return null;
 		}
 	

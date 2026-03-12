@@ -82,6 +82,7 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.images.stores.ImageRenderer;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
@@ -172,7 +173,7 @@ public class MiniViewers {
 		MiniViewerManager manager = createManager(viewer, channelViewer ? channels : Collections.emptyList());
 		manager.getPane().styleProperty().bind(style);
 		if (channelViewer) {
-			dialog.setTitle("Channel viewer");
+			dialog.setTitle(QuPathResources.getString("Commands.MiniViewers.channelViewer"));
 			Scene scene = new Scene(manager.getPane(), 400, 400);
 			
 			// Listen for changes to all channels or selected channels
@@ -199,7 +200,7 @@ public class MiniViewers {
 			});
 			dialog.setScene(scene);
 		} else {
-			dialog.setTitle("Mini viewer");
+			dialog.setTitle(QuPathResources.getString("Commands.MiniViewers.miniViewer"));
 			Scene scene = new Scene(manager.getPane(), 400, 400); 
 			dialog.setScene(scene);
 			dialog.setOnHiding(e -> {
@@ -318,15 +319,15 @@ public class MiniViewers {
 	}
 
 	private static Menu createSyncToMenu(final MiniViewerManager manager) {
-		Menu menuSync = new Menu("Sync to...");
+		Menu menuSync = new Menu(QuPathResources.getString("Commands.MiniViewers.syncTo"));
 		ToggleGroup groupSync = new ToggleGroup();
 		for (SyncType syncType : SyncType.values()) {
-			var name = switch (syncType) {
-				case CURSOR -> "Cursor";
-				case VIEWER_CENTER -> "Viewer center";
-				case SELECTED_OBJECT -> "Selected object";
-				case NONE -> "Do not sync";
-			};
+			var name = QuPathResources.getString(switch (syncType) {
+				case CURSOR -> "Commands.MiniViewers.cursor";
+				case VIEWER_CENTER -> "Commands.MiniViewers.viewerCenter";
+				case SELECTED_OBJECT -> "Commands.MiniViewers.selectedObject";
+				case NONE -> "Commands.MiniViewers.doNotSync";
+			});
 			var action = new Action(name, e -> manager.syncType.setValue(syncType));
 			var item = ActionUtils.createRadioMenuItem(action);
 			groupSync.getToggles().add(item);
@@ -357,16 +358,26 @@ public class MiniViewers {
 		);
 
 		if (isChannelViewer) {
-			popup.getItems().add(
-					ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(showAllChannels, "Show all channels"))
-					);
+			popup.getItems().add(ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(
+					showAllChannels,
+					QuPathResources.getString("Commands.MiniViewers.showAllChannels")
+			)));
 		}
 
 		popup.getItems().addAll(
-				ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(manager.showChannelNames, "Show channel names")),
-				ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(manager.showCursor, "Show cursor")),
-				ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(manager.showOverlays, "Show overlays"))
-				);
+				ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(
+						manager.showChannelNames,
+						QuPathResources.getString("Commands.MiniViewers.showChannelNames")
+				)),
+				ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(
+						manager.showCursor,
+						QuPathResources.getString("Commands.MiniViewers.showCursor")
+				)),
+				ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(
+						manager.showOverlays,
+						QuPathResources.getString("Commands.MiniViewers.showOverlays")
+				))
+		);
 				
 		Pane pane = manager.getPane();
 		pane.setOnContextMenuRequested(e -> {

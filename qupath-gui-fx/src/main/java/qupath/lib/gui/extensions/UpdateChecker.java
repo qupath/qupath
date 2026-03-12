@@ -101,7 +101,7 @@ public class UpdateChecker {
 				return allVersions;
 			}
 		} catch (Exception e) {
-			logger.error("Error requesting all releases: " + e.getLocalizedMessage(), e);
+            logger.error("Error requesting all releases: {}", e.getLocalizedMessage(), e);
 		}
 		return Collections.emptyList();
 	}
@@ -281,7 +281,7 @@ public class UpdateChecker {
 			try {
 				return html_url == null ? null : html_url.toURI();
 			} catch (URISyntaxException e) {
-				logger.error("Cannot parse URI: " + e.getLocalizedMessage(), e);
+                logger.error("Cannot parse URI: {}", e.getLocalizedMessage(), e);
 				return null;
 			}
 		}

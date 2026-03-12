@@ -78,6 +78,7 @@ import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.images.stores.TileListener;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -100,6 +101,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -139,6 +141,7 @@ import java.awt.image.LookupOp;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Paths;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -2332,10 +2335,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			Point2D p = componentPointToImagePoint(x, y, null, false);
 			TMACoreObject core = PathObjectTools.getTMACoreForPixel(tmaGrid, p.getX(), p.getY());
 			if (core != null) {
-				if (core.isMissing())
-					return String.format("TMA Core %s\n(missing)", core.getName());
-				else
-					return String.format("TMA Core %s", core.getName());
+				return MessageFormat.format(
+						QuPathResources.getString(core.isMissing() ? "Viewer.QuPathViewer.tmaCoreMissing" : "Viewer.QuPathViewer.tmaCoreX"),
+						core.getName()
+				);
 			}
 		}
 		return null;
@@ -2684,7 +2687,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					.filter(pathObject -> pathObject.isDetection())
 					.map(pathObject -> {
 				var pathClass = pathObject.getPathClass();
-				return pathClass == null ? "Unclassified" : pathClass.toString();
+				return pathClass == null ? PathClass.NULL_CLASS.toString() : pathClass.toString();
 			}).collect(Collectors.joining(", "));
 		}
 		return "";
@@ -2714,7 +2717,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			xDisplay *= cal.getPixelWidthMicrons();
 			yDisplay *= cal.getPixelHeightMicrons();
 		} else {
-			units = "px";
+			units = QuPathResources.getString("Viewer.QuPathViewer.px");
 		}
 		
 		// See if we're on top of a TMA core
@@ -2724,14 +2727,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			TMACoreObject core = PathObjectTools.getTMACoreForPixel(tmaGrid, xx, yy);
 			if (core != null) {
 				if (core.getName() != null)
-					prefix = "Core: " + core.getName();
+					prefix = MessageFormat.format(QuPathResources.getString("Viewer.QuPathViewer.core"), core.getName());
 				else
-					prefix = "TMA core";
+					prefix = QuPathResources.getString("Viewer.QuPathViewer.tmaCore");
 				var pathClass = core.getPathClass();
 				if (pathClass != null)
 					prefix += " (" + pathClass + ")";
 				if (core.isMissing())
-					prefix += " (missing)";
+					prefix += " " + QuPathResources.getString("Viewer.QuPathViewer.missing");
 				prefix += "\n";
 			}
 		}

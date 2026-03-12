@@ -112,7 +112,7 @@ public class TMAExplorer implements Runnable {
 				try {
 					imageData = imageEntry.readImageData();
 				} catch (IOException e) {
-					logger.error("Error reading ImageData for " + imageEntry.getImageName(), e);
+                    logger.error("Error reading ImageData for {}", imageEntry.getImageName(), e);
 					continue;
 				}
 				TMAGrid tmaGrid = imageData.getHierarchy().getTMAGrid();

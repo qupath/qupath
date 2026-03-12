@@ -47,6 +47,7 @@ import qupath.fx.utils.FXUtils;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -612,7 +613,7 @@ public class Charts {
 		
 		@Override
 		protected String getDefaultWindowTitle() {
-			return "Scatter Chart";
+			return QuPathResources.getString("Charts.scatterChart");
 		}
 
 		/**
@@ -1061,7 +1062,7 @@ public class Charts {
 
 		@Override
 		protected String getDefaultWindowTitle() {
-			return "Bar Chart";
+			return QuPathResources.getString("Charts.barChart");
 		}
 
 		/**
@@ -1212,8 +1213,8 @@ public class Charts {
 		 * @return this builder
 		 */
 		public BarChartBuilder classifications(Collection<? extends PathObject> pathObjects) {
-			xLabel("Classification");
-			yLabel("Count");
+			xLabel(QuPathResources.getString("Charts.classification"));
+			yLabel(QuPathResources.getString("Charts.count"));
 			this.pathObjects.addAll(pathObjects);
 			return series(
 					null,

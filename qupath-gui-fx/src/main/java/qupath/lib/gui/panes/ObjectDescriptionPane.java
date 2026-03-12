@@ -46,6 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.gui.tools.PathObjectLabels.PathObjectMiniPane;
@@ -104,7 +105,7 @@ public class ObjectDescriptionPane<T> {
 			var topPane = new BorderPane(pathObjectPane.getNode());
 			topPane.setStyle("-fx-padding: 5px; -fx-border-color: -fx-body-color;");
 			
-			var btnEdit = new Button("Edit");
+			var btnEdit = new Button(QuPathResources.getString("Panes.ObjectDescription.edit"));
 			btnEdit.disableProperty().bind(Bindings.createBooleanBinding(() -> {
 				var selected = observer.selectedObjectProperty().get();
 				return !(selected instanceof PathAnnotationObject);
@@ -113,7 +114,7 @@ public class ObjectDescriptionPane<T> {
 			btnEdit.setOnAction(e -> {
 				GuiTools.promptToSetActiveAnnotationProperties(observer.hierarchyProperty().get());
 			});
-			btnEdit.setTooltip(new Tooltip("Edit properties (only available for annotations)"));
+			btnEdit.setTooltip(new Tooltip(QuPathResources.getString("Panes.ObjectDescription.editProperties")));
 			
 			BorderPane.setAlignment(btnEdit, Pos.CENTER_RIGHT);
 			topPane.setRight(btnEdit);
@@ -150,7 +151,7 @@ public class ObjectDescriptionPane<T> {
 		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setScene(scene);
 		stage.initOwner(qupath.getStage());
-		stage.setTitle("Object description");
+		stage.setTitle(QuPathResources.getString("Panes.ObjectDescription.title"));
 		return stage;
 	}
 	
@@ -180,11 +181,11 @@ public class ObjectDescriptionPane<T> {
 		if (description == null) {
 			String msg = "No description available";
 			if (n == null)
-				msg = "No object selected";
+				msg = QuPathResources.getString("Panes.ObjectDescription.noObjectSelected");
 			else if (!n.isAnnotation())
-				msg = "Selected object doesn't support descriptions";
+				msg = QuPathResources.getString("Panes.ObjectDescription.doesNotSupportDescriptions");
 			else
-				msg = "No description set";
+				msg = QuPathResources.getString("Panes.ObjectDescription.noDescriptionSet");
 			
 			String spanString = "<span style=\"color: rgba(127, 127, 127, 0.8);\">%s</span>";
 			engine.loadContent(String.format(spanString, msg));

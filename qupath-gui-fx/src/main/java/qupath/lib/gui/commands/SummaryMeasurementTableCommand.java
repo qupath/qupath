@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
@@ -72,7 +73,7 @@ public class SummaryMeasurementTableCommand {
 	public void showTable(ImageData<BufferedImage> imageData, Predicate<PathObject> filter) {
 		if (imageData == null) {
 			logger.debug("Show table called with no image");
-			GuiTools.showNoImageError("Show measurement table");
+			GuiTools.showNoImageError(QuPathResources.getString("Commands.SummaryMeasurementTable.showMeasurementTable"));
 			return;
 		}
 		logger.debug("Show table called for {} and object filter {}", imageData, filter);
@@ -89,7 +90,7 @@ public class SummaryMeasurementTableCommand {
 		String name = null;
 		if (filter instanceof PathObjectFilter f)
 			name = filterToName(f);
-		var prefix = name == null || name.isBlank() ? "Measurements" : name;
+		var prefix = name == null || name.isBlank() ? QuPathResources.getString("Commands.SummaryMeasurementTable.measurements") : name;
 		var title = createImageNameBinding(prefix + ": ", imageData);
 		stage.titleProperty().bind(title);
 
@@ -105,11 +106,11 @@ public class SummaryMeasurementTableCommand {
 
 	private static String filterToName(PathObjectFilter filter) {
 		return switch (filter) {
-			case TILES -> "Tiles";
-			case CELLS -> "Cells";
-			case DETECTIONS_ALL -> "Detections";
-			case ANNOTATIONS -> "Annotations";
-			case TMA_CORES -> "TMA cores";
+			case TILES -> QuPathResources.getString("Commands.SummaryMeasurementTable.tiles");
+			case CELLS -> QuPathResources.getString("Commands.SummaryMeasurementTable.cells");
+			case DETECTIONS_ALL -> QuPathResources.getString("Commands.SummaryMeasurementTable.detections");
+			case ANNOTATIONS -> QuPathResources.getString("Commands.SummaryMeasurementTable.annotations");
+			case TMA_CORES -> QuPathResources.getString("Commands.SummaryMeasurementTable.tmaCores");
 			default -> null;
 		};
 	}

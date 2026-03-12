@@ -230,7 +230,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 				} catch (IllegalArgumentException e) {
 					// This can happen (rarely) in a multithreaded environment if the level of a detection changes.
 					// However, protecting against this fully by caching the level with integer boxing/unboxing would be expensive.
-					logger.debug("Exception requesting detections to paint: " + e.getLocalizedMessage(), e);
+                    logger.debug("Exception requesting detections to paint: {}", e.getLocalizedMessage(), e);
 					detectionsToPaint = paintableDetections;
 				}
 				// Paint selected objects at the end
@@ -320,24 +320,13 @@ public class HierarchyOverlay extends AbstractOverlay {
 			double requestedFontSize = overlayOptions.getFontSize();
 			if (requestedFontSize <= 0 || !Double.isFinite(requestedFontSize)) {
 				// Get it from the location font size instead
-				switch (PathPrefs.locationFontSizeProperty().get()) {
-				case HUGE:
-					requestedFontSize = 24;
-					break;
-				case LARGE:
-					requestedFontSize = 18;
-					break;
-				case SMALL:
-					requestedFontSize = 10;
-					break;
-				case TINY:
-					requestedFontSize = 8;
-					break;
-				case MEDIUM:
-				default:
-					requestedFontSize = 14;
-					break;
-				}
+                requestedFontSize = switch (PathPrefs.locationFontSizeProperty().get()) {
+                    case HUGE -> 24;
+                    case LARGE -> 18;
+                    case SMALL -> 10;
+                    case TINY -> 8;
+                    default -> 14;
+                };
 			}
 			double fontDownsample = Math.min(downsampleFactor, 16);
 			float fontSize = (float)(requestedFontSize * fontDownsample);

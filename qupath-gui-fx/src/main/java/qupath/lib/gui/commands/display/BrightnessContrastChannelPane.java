@@ -78,6 +78,7 @@ import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
@@ -168,13 +169,13 @@ public class BrightnessContrastChannelPane extends BorderPane {
         filter.promptTextProperty().bind(
                 Bindings.createStringBinding(() -> {
                     if (useRegex.get())
-                        return "Filter channels by regular expression";
+                        return QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.filterChannelsRegularExpression");
                     else
-                        return "Filter channels by name";
+                        return QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.filterChannelsName");
                 }, useRegex)
         );
         filter.setSpacing(5.0);
-        var tooltip = new Tooltip("Enter text to find specific channels by name");
+        var tooltip = new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.enterText"));
         Tooltip.install(filter, tooltip);
         return filter;
     }
@@ -191,15 +192,15 @@ public class BrightnessContrastChannelPane extends BorderPane {
      * Popup menu to toggle additive channels on/off.
      */
     private void initializePopup() {
-        MenuItem miTurnOn = new MenuItem("Show channels");
+        MenuItem miTurnOn = new MenuItem(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.showChannels"));
         miTurnOn.setOnAction(e -> setTableSelectedChannels(true));
         miTurnOn.disableProperty().bind(disableToggleMenuItems);
 
-        MenuItem miTurnOff = new MenuItem("Hide channels");
+        MenuItem miTurnOff = new MenuItem(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.hideChannels"));
         miTurnOff.setOnAction(e -> setTableSelectedChannels(false));
         miTurnOff.disableProperty().bind(disableToggleMenuItems);
 
-        MenuItem miToggle = new MenuItem("Toggle channels");
+        MenuItem miToggle = new MenuItem(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.toggleChannels"));
         miToggle.setOnAction(e -> toggleTableSelectedChannels());
         miToggle.disableProperty().bind(disableToggleMenuItems);
 
@@ -261,7 +262,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
         var imageDisplay = imageDisplayObjectProperty.getValue();
         if (imageDisplay != null)
             channelList.setAll(imageDisplay.availableChannels());
-        table.setPlaceholder(GuiTools.createPlaceholderText("No channels available"));
+        table.setPlaceholder(GuiTools.createPlaceholderText(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.noChannelsAvailable")));
         table.addEventHandler(KeyEvent.KEY_PRESSED, new ChannelTableKeypressedListener());
 
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -269,14 +270,14 @@ public class BrightnessContrastChannelPane extends BorderPane {
         table.setMinHeight(100);
         table.setPrefHeight(250);
 
-        TableColumn<ChannelDisplayInfo, ChannelDisplayInfo> col1 = new TableColumn<>("Channel");
+        TableColumn<ChannelDisplayInfo, ChannelDisplayInfo> col1 = new TableColumn<>(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.channel"));
         col1.setId("channel-column");
         col1.setCellValueFactory(this::channelCellValueFactory);
         col1.setCellFactory(column -> new ChannelDisplayTableCell()); // Not using shared custom color list!
         // Could change in the future if needed
 
         col1.setSortable(false);
-        TableColumn<ChannelDisplayInfo, Boolean> col2 = new TableColumn<>("Show");
+        TableColumn<ChannelDisplayInfo, Boolean> col2 = new TableColumn<>(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.show"));
         col2.setId("show-column");
         col2.setCellValueFactory(this::showChannelCellValueFactory);
         col2.setCellFactory(column -> new ShowChannelDisplayTableCell());
@@ -345,7 +346,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
 
 
     private void initializeShowAllCheckbox() {
-        cbShowAll.setTooltip(new Tooltip("Show/hide all channels"));
+        cbShowAll.setTooltip(new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.showHideChannels")));
         cbShowAll.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         cbShowAll.setIndeterminate(true);
         // Use action listener because we may change selection status elsewhere
@@ -462,22 +463,22 @@ public class BrightnessContrastChannelPane extends BorderPane {
             picker.setValue(color);
 
             Dialog<ButtonType> colorDialog = new Dialog<>();
-            colorDialog.setTitle("Channel properties");
+            colorDialog.setTitle(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.channelProperties"));
 
             colorDialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
 
             var paneColor = new GridPane();
             int r = 0;
-            var labelName = new Label("Channel name");
+            var labelName = new Label(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.channelName"));
             var tfName = new TextField(channel.getName());
             labelName.setLabelFor(tfName);
             GridPaneUtils.addGridRow(paneColor, r++, 0,
-                    "Enter a name for the current channel", labelName, tfName);
+                    QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.channelNameDescription"), labelName, tfName);
 
             // Only show color if it can be changed
-            var labelColor = new Label("Channel color");
+            var labelColor = new Label(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.channelColor"));
             labelColor.setLabelFor(picker);
-            String colorTooltipText = "Choose the color for the current channel";
+            String colorTooltipText = QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.channelColorDescription");
 
             GridPaneUtils.setFillWidth(Boolean.TRUE, picker, tfName);
             GridPaneUtils.addGridRow(paneColor, r++, 0,
@@ -491,7 +492,10 @@ public class BrightnessContrastChannelPane extends BorderPane {
             if (result.orElse(ButtonType.CANCEL) == ButtonType.APPLY) {
                 String name = tfName.getText().trim();
                 if (name.isEmpty()) {
-                    Dialogs.showErrorMessage("Set channel name", "The channel name must not be empty!");
+                    Dialogs.showErrorMessage(
+                            QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.setChannelName"),
+                            QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.setChannelNameError")
+                    );
                     return;
                 }
                 Color color2 = picker.getValue();
@@ -947,11 +951,17 @@ public class BrightnessContrastChannelPane extends BorderPane {
             }
             var names = string.lines().toList();
             if (selected.size() != names.size()) {
-                Dialogs.showErrorNotification("Paste channel names", "The number of lines on the clipboard doesn't match the number of channel names to replace!");
+                Dialogs.showErrorNotification(
+                        QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.pasteChannelNames"),
+                        QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.numberOfLinesDoesNotMatchNumberOfChannels")
+                );
                 return;
             }
             if (names.size() != new HashSet<>(names).size()) {
-                Dialogs.showErrorNotification("Paste channel names", "Channel names should be unique!");
+                Dialogs.showErrorNotification(
+                        QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.pasteChannelNames"),
+                        QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.channelNamesUnique")
+                );
                 return;
             }
             var metadata = server.getMetadata();
@@ -972,10 +982,13 @@ public class BrightnessContrastChannelPane extends BorderPane {
             List<String> allNewNames = channels.stream().map(ImageChannel::getName).collect(Collectors.toCollection(ArrayList::new));
             Set<String> allNewNamesSet = new LinkedHashSet<>(allNewNames);
             if (allNewNames.size() != allNewNamesSet.size()) {
-                Dialogs.showErrorMessage("Channel", "Cannot paste channels - names would not be unique \n(check log for details)");
+                Dialogs.showErrorMessage(
+                        QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.channel"),
+                        QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.cannotPasteChannels")
+                );
                 for (String n : allNewNamesSet)
                     allNewNames.remove(n);
-                logger.warn("Requested channel names would result in duplicates: " + String.join(", ", allNewNames));
+                logger.warn("Requested channel names would result in duplicates: {}", String.join(", ", allNewNames));
                 return;
             }
             if (changes.isEmpty()) {
@@ -984,8 +997,8 @@ public class BrightnessContrastChannelPane extends BorderPane {
             else {
                 var dialog = new Dialog<ButtonType>();
                 dialog.getDialogPane().getButtonTypes().addAll(ButtonType.APPLY, ButtonType.CANCEL);
-                dialog.setTitle("Channels");
-                dialog.setHeaderText("Confirm new channel names?");
+                dialog.setTitle(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.channels"));
+                dialog.setHeaderText(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.confirmNewChannelNames"));
                 dialog.getDialogPane().setContent(new TextArea(String.join("\n", changes)));
                 if (dialog.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.APPLY) {
                     var newMetadata = new ImageServerMetadata.Builder(metadata)

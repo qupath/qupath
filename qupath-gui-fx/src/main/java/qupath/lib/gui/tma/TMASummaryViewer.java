@@ -114,6 +114,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.charts.HistogramDisplay;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
@@ -145,6 +146,7 @@ import javax.script.SimpleBindings;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -289,7 +291,7 @@ public class TMASummaryViewer {
 		}, predicateMeasurements, predicateHideMissing, predicateMetadataFilter);
 		
 		initialize();
-		this.stage.setTitle("TMA Results Viewer");
+		this.stage.setTitle(QuPathResources.getString("Tma.TMASummaryViewer.tmaResultsViewer"));
 		this.stage.setScene(scene);
 		new DragDropTMADataImportListener(this);
 	}
@@ -302,48 +304,54 @@ public class TMASummaryViewer {
 		groupByIDProperty.addListener((v, o, n) -> refreshTableData());
 
 		MenuBar menuBar = new MenuBar();
-		Menu menuFile = new Menu("File");
-		MenuItem miOpen = new MenuItem("Open...");
+		Menu menuFile = new Menu(QuPathResources.getString("Tma.TMASummaryViewer.file"));
+		MenuItem miOpen = new MenuItem(QuPathResources.getString("Tma.TMASummaryViewer.open"));
 		miOpen.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
 		miOpen.setOnAction(e -> {
 			File file = FileChoosers.promptForFile(stage, null,
-					FileChoosers.createExtensionFilter("TMA data files", "*.qptma"));
+					FileChoosers.createExtensionFilter(QuPathResources.getString("Tma.TMASummaryViewer.tmaDataFiles"), "*.qptma"));
 			if (file == null)
 				return;
 			setInputFile(file);
 		});
 		
-		MenuItem miSave = new MenuItem("Save As...");
+		MenuItem miSave = new MenuItem(QuPathResources.getString("Tma.TMASummaryViewer.saveAs"));
 		miSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		miSave.setOnAction(e -> SummaryMeasurementTable.saveTableModel(model, null, Collections.emptyList()));
 		
 		
-		MenuItem miImportFromImage = new MenuItem("Import from current image...");
+		MenuItem miImportFromImage = new MenuItem(QuPathResources.getString("Tma.TMASummaryViewer.importFromCurrentImage"));
 		miImportFromImage.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		miImportFromImage.setOnAction(e -> setTMAEntriesFromOpenImage());
 		
 		
-		MenuItem miImportFromProject = new MenuItem("Import from current project... (experimental)");
+		MenuItem miImportFromProject = new MenuItem(QuPathResources.getString("Tma.TMASummaryViewer.importFromCurrentProject"));
 		miImportFromProject.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		miImportFromProject.setOnAction(e -> setTMAEntriesFromOpenProject());
 		
 		
-		MenuItem miImportClipboard = new MenuItem("Import from clipboard...");
+		MenuItem miImportClipboard = new MenuItem(QuPathResources.getString("Tma.TMASummaryViewer.importFromClipboard"));
 		miImportClipboard.setOnAction(e -> {
 			String text = Clipboard.getSystemClipboard().getString();
 			if (text == null) {
-				Dialogs.showErrorMessage("Import scores", "Clipboard is empty!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Tma.TMASummaryViewer.importScores"),
+						QuPathResources.getString("Tma.TMASummaryViewer.clipboardEmpty")
+				);
 				return;
 			}
 			int n = importScores(text);
 			if (n > 0) {
 				setTMAEntries(new ArrayList<>(entriesBase));
 			}
-			Dialogs.showMessageDialog("Import scores", "Number of scores imported: " + n);
+			Dialogs.showMessageDialog(
+					QuPathResources.getString("Tma.TMASummaryViewer.importScores"),
+					MessageFormat.format(QuPathResources.getString("Tma.TMASummaryViewer.numberOfScoresImported"), n)
+			);
 		});
 		
-		Menu menuEdit = new Menu("Edit");
-		MenuItem miCopy = new MenuItem("Copy table to clipboard");
+		Menu menuEdit = new Menu(QuPathResources.getString("Tma.TMASummaryViewer.edit"));
+		MenuItem miCopy = new MenuItem(QuPathResources.getString("Tma.TMASummaryViewer.copyTable"));
 		miCopy.setOnAction(e -> {
 			SummaryMeasurementTable.copyTableContentsToClipboard(model, Collections.emptyList());
 		});
@@ -356,7 +364,7 @@ public class TMASummaryViewer {
 		});
 		
 		// Reset the scores for missing cores - this ensures they will be NaN and not influence subsequent results
-		MenuItem miResetMissingScores = new MenuItem("Reset scores for missing cores");
+		MenuItem miResetMissingScores = new MenuItem(QuPathResources.getString("Tma.TMASummaryViewer.resetScores"));
 		miResetMissingScores.setOnAction(e -> {
 			int changes = 0;
 			for (TMAEntry entry : entriesBase) {
@@ -416,7 +424,7 @@ public class TMASummaryViewer {
 //				promptForComment();
 //		});
 		
-		table.setPlaceholder(new Label("Drag TMA data folder onto window, or choose File -> Open"));
+		table.setPlaceholder(new Label(QuPathResources.getString("Tma.TMASummaryViewer.dragTma")));
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		
 		BorderPane pane = new BorderPane();
@@ -426,15 +434,18 @@ public class TMASummaryViewer {
 
 		// Create options
 		ToolBar toolbar = new ToolBar();
-		Label labelMeasurementMethod = new Label("Combination method");
+		Label labelMeasurementMethod = new Label(QuPathResources.getString("Tma.TMASummaryViewer.combinationMethod"));
 		labelMeasurementMethod.setLabelFor(comboMeasurementMethod);
-		labelMeasurementMethod.setTooltip(new Tooltip("Method whereby measurements for multiple cores with the same " + TMACoreObject.KEY_CASE_ID + " will be combined"));
+		labelMeasurementMethod.setTooltip(new Tooltip(MessageFormat.format(
+				QuPathResources.getString("Tma.TMASummaryViewer.combinationMethodDescription"),
+				TMACoreObject.KEY_CASE_ID
+		)));
 		
-		CheckBox cbHidePane = new CheckBox("Hide pane");
+		CheckBox cbHidePane = new CheckBox(QuPathResources.getString("Tma.TMASummaryViewer.hidePane"));
 		cbHidePane.setSelected(hidePaneProperty.get());
 		cbHidePane.selectedProperty().bindBidirectional(hidePaneProperty);
 		
-		CheckBox cbGroupByID = new CheckBox("Group by ID");
+		CheckBox cbGroupByID = new CheckBox(QuPathResources.getString("Tma.TMASummaryViewer.groupById"));
 		entriesBase.addListener((Change<? extends TMAEntry> event) -> {
 			if (!event.getList().stream().anyMatch(e -> e.getMetadataValue(TMACoreObject.KEY_CASE_ID) != null)) {
 				cbGroupByID.setSelected(false);
@@ -446,10 +457,10 @@ public class TMASummaryViewer {
 		cbGroupByID.setSelected(groupByIDProperty.get());
 		cbGroupByID.selectedProperty().bindBidirectional(groupByIDProperty);
 		
-		CheckBox cbUseSelected = new CheckBox("Use selection only");
+		CheckBox cbUseSelected = new CheckBox(QuPathResources.getString("Tma.TMASummaryViewer.useSelectionOnly"));
 		cbUseSelected.selectedProperty().bindBidirectional(useSelectedProperty);
 		
-		CheckBox cbSkipMissing = new CheckBox("Hide missing cores");
+		CheckBox cbSkipMissing = new CheckBox(QuPathResources.getString("Tma.TMASummaryViewer.hideMissingCores"));
 		cbSkipMissing.selectedProperty().bindBidirectional(skipMissingCoresProperty);
 		skipMissingCoresProperty.addListener((v, o, n) -> {
 			table.refresh();
@@ -479,13 +490,13 @@ public class TMASummaryViewer {
 
 		
 		ContextMenu popup = new ContextMenu();
-		MenuItem miSetMissing = new MenuItem("Set missing");
+		MenuItem miSetMissing = new MenuItem(QuPathResources.getString("Tma.TMASummaryViewer.setMissing"));
 		miSetMissing.setOnAction(e -> setSelectedMissingStatus(true));
 
-		MenuItem miSetAvailable = new MenuItem("Set available");
+		MenuItem miSetAvailable = new MenuItem(QuPathResources.getString("Tma.TMASummaryViewer.setAvailable"));
 		miSetAvailable.setOnAction(e -> setSelectedMissingStatus(false));
 		
-		MenuItem miExpand = new MenuItem("Expand all");
+		MenuItem miExpand = new MenuItem(QuPathResources.getString("Tma.TMASummaryViewer.expandAll"));
 		miExpand.setOnAction(e -> {
 			if (table.getRoot() == null)
 				return;
@@ -493,7 +504,7 @@ public class TMASummaryViewer {
 				item.setExpanded(true);
 			}
 		});
-		MenuItem miCollapse = new MenuItem("Collapse all");
+		MenuItem miCollapse = new MenuItem(QuPathResources.getString("Tma.TMASummaryViewer.collapseAll"));
 		miCollapse.setOnAction(e -> {
 			if (table.getRoot() == null)
 				return;
@@ -603,14 +614,16 @@ public class TMASummaryViewer {
 		predicateMeasurements.addListener((v, o, n) -> {
 			if (n == null)
 				labelPredicate.setText("");
-			else if (n instanceof TablePredicate) {
-				TablePredicate tp = (TablePredicate)n;
-				if (tp.getOriginalCommand().trim().isEmpty())
+			else if (n instanceof TablePredicate tp) {
+                if (tp.getOriginalCommand().trim().isEmpty())
 					labelPredicate.setText("");
 				else
-					labelPredicate.setText("Predicate: " + tp.getOriginalCommand());
+					labelPredicate.setText(MessageFormat.format(
+							QuPathResources.getString("Tma.TMASummaryViewer.predicate"),
+							tp.getOriginalCommand()
+					));
 			} else
-				labelPredicate.setText("Predicate: " + n.toString());
+				labelPredicate.setText(MessageFormat.format(QuPathResources.getString("tp.getOriginalCommand()"), n));
 		});
 //		predicate.set(new TablePredicate("\"Tumor\" > 100"));
 		
@@ -618,18 +631,15 @@ public class TMASummaryViewer {
 		if (showWarning) {
 			var paneWithWarning = new BorderPane(pane);
 			
-			var warning = createText("Warning! ", true);
-			var message = createText("The TMA data viewer is not actively maintained - "
-					+ "please use cautiously and report any bugs with 'Help > Report bug'", false);
+			var warning = createText(QuPathResources.getString("Tma.TMASummaryViewer.warning") + " ", true);
+			var message = createText(QuPathResources.getString("Tma.TMASummaryViewer.notActivelyMaintained"), false);
 			
 			var textflow = new TextFlow(warning, message);
 			textflow.setTextAlignment(TextAlignment.CENTER);
 			textflow.setStyle("-fx-background-color: rgba(150, 0, 0, 0.25);");
 			textflow.setMaxWidth(Double.MAX_VALUE);
 			textflow.setPadding(new Insets(10));
-			Tooltip.install(textflow, new Tooltip("The TMA data viewer isn't often used and isn't actively maintained, "
-					+ "which means there is a higher risk of unreported bugs.\n"
-					+ "You can double-click this warning to make it disappear."));
+			Tooltip.install(textflow, new Tooltip(QuPathResources.getString("Tma.TMASummaryViewer.notActivelyMaintainedDescription")));
 			paneWithWarning.setBottom(textflow);
 			textflow.setOnMouseClicked(e -> {
 				if (e.getClickCount() == 2) {
@@ -829,14 +839,14 @@ public class TMASummaryViewer {
 		paneKaplanMeier.setPadding(new Insets(10, 10, 10, 10));
 //		comboMainMeasurement.prefWidthProperty().bind(paneKaplanMeier.widthProperty());
 		comboMainMeasurement.setMaxWidth(Double.MAX_VALUE);
-		comboMainMeasurement.setTooltip(new Tooltip("Measurement thresholded to create survival curves etc."));
+		comboMainMeasurement.setTooltip(new Tooltip(QuPathResources.getString("Tma.TMASummaryViewer.measurementThresholded")));
 
 		GridPane kmTop = new GridPane();
-		kmTop.add(new Label("Score"), 0, 0);
+		kmTop.add(new Label(QuPathResources.getString("Tma.TMASummaryViewer.score")), 0, 0);
 		kmTop.add(comboMainMeasurement, 1, 0);
-		kmTop.add(new Label("Survival type"), 0, 1);
+		kmTop.add(new Label(QuPathResources.getString("Tma.TMASummaryViewer.survivalType")), 0, 1);
 		kmTop.add(comboSurvival, 1, 1);
-		comboSurvival.setTooltip(new Tooltip("Specify overall or recurrence-free survival (if applicable)"));
+		comboSurvival.setTooltip(new Tooltip(QuPathResources.getString("Tma.TMASummaryViewer.specifySurvival")));
 		comboSurvival.setMaxWidth(Double.MAX_VALUE);
 		GridPane.setHgrow(comboMainMeasurement, Priority.ALWAYS);
 		GridPane.setHgrow(comboSurvival, Priority.ALWAYS);
@@ -866,7 +876,7 @@ public class TMASummaryViewer {
 		
 		// Create a Tab for showing images
 		BorderPane paneImages = new BorderPane();
-		CheckBox cbShowOverlay = new CheckBox("Show overlay");
+		CheckBox cbShowOverlay = new CheckBox(QuPathResources.getString("Tma.TMASummaryViewer.showOverlay"));
 		imageAvailability.addListener((c, v, n) -> {
 			if (n == ImageAvailability.OVERLAY_ONLY)
 				cbShowOverlay.setSelected(true);
@@ -911,12 +921,12 @@ public class TMASummaryViewer {
 		scrollPane.setFitToHeight(true);
 		scrollPane.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
 		scrollPane.setHbarPolicy(ScrollBarPolicy.AS_NEEDED);
-		Tab tabSurvival = new Tab("Survival", scrollPane);
+		Tab tabSurvival = new Tab(QuPathResources.getString("Tma.TMASummaryViewer.survival"), scrollPane);
 		tabPane.getTabs().addAll(
-				new Tab("Table", getCustomizeTablePane()),
+				new Tab(QuPathResources.getString("Tma.TMASummaryViewer.table"), getCustomizeTablePane()),
 //				tabImages,
-				new Tab("Histogram", histogramDisplay.getPane()),
-				new Tab("Scatterplot", scatterPane.getPane()),
+				new Tab(QuPathResources.getString("Tma.TMASummaryViewer.histogram"), histogramDisplay.getPane()),
+				new Tab(QuPathResources.getString("Tma.TMASummaryViewer.scatterplot"), scatterPane.getPane()),
 				tabSurvival
 				);
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
@@ -946,7 +956,7 @@ public class TMASummaryViewer {
 
 	private Pane getCustomizeTablePane() {
 		TableView<TreeTableColumn<TMAEntry, ?>> tableColumns = new TableView<>();
-		tableColumns.setPlaceholder(createText("No columns available", false));
+		tableColumns.setPlaceholder(createText(QuPathResources.getString("Tma.TMASummaryViewer.noColumnsAvailable"), false));
 		tableColumns.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		tableColumns.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 		
@@ -957,9 +967,9 @@ public class TMASummaryViewer {
 //		sortedColumns.comparatorProperty().bind(tableColumns.comparatorProperty());
 
 		
-		TableColumn<TreeTableColumn<TMAEntry, ?>, String> columnName = new TableColumn<>("Column");
+		TableColumn<TreeTableColumn<TMAEntry, ?>, String> columnName = new TableColumn<>(QuPathResources.getString("Tma.TMASummaryViewer.column"));
 		columnName.setCellValueFactory(v -> v.getValue().textProperty());
-		TableColumn<TreeTableColumn<TMAEntry, ?>, Boolean> columnVisible = new TableColumn<>("Visible");
+		TableColumn<TreeTableColumn<TMAEntry, ?>, Boolean> columnVisible = new TableColumn<>(QuPathResources.getString("Tma.TMASummaryViewer.visible"));
 		columnVisible.setCellValueFactory(v -> v.getValue().visibleProperty());
 //		columnVisible.setCellValueFactory(col -> {
 //			SimpleBooleanProperty prop = new SimpleBooleanProperty(col.getValue().isVisible());
@@ -972,7 +982,7 @@ public class TMASummaryViewer {
 		tableColumns.getColumns().add(columnVisible);
 		ContextMenu contextMenu = new ContextMenu();
 		
-		Action actionShowSelected = new Action("Show selected", e -> {
+		Action actionShowSelected = new Action(QuPathResources.getString("Tma.TMASummaryViewer.showSelected"), e -> {
 			for (TreeTableColumn<?, ?> col : tableColumns.getSelectionModel().getSelectedItems()) {
 				if (col != null)
 					col.setVisible(true);
@@ -983,7 +993,7 @@ public class TMASummaryViewer {
 			}
 		});
 		
-		Action actionHideSelected = new Action("Hide selected", e -> {
+		Action actionHideSelected = new Action(QuPathResources.getString("Tma.TMASummaryViewer.hideSelected"), e -> {
 			for (TreeTableColumn<?, ?> col : tableColumns.getSelectionModel().getSelectedItems()) {
 				if (col != null)
 					col.setVisible(false);
@@ -998,7 +1008,7 @@ public class TMASummaryViewer {
 				ActionUtils.createMenuItem(actionShowSelected),
 				ActionUtils.createMenuItem(actionHideSelected));
 		tableColumns.setContextMenu(contextMenu);
-		tableColumns.setTooltip(new Tooltip("Show or hide table columns - right-click to change multiple columns at once"));
+		tableColumns.setTooltip(new Tooltip(QuPathResources.getString("Tma.TMASummaryViewer.showHideColumns")));
 		
 		BorderPane paneColumns = new BorderPane(tableColumns);
 		paneColumns.setBottom(
@@ -1015,9 +1025,9 @@ public class TMASummaryViewer {
 		ComboBox<String> comboMetadata = new ComboBox<>();
 		comboMetadata.setItems(metadataNames);
 		comboMetadata.getSelectionModel().getSelectedItem();
-		comboMetadata.setPromptText("Select column");
+		comboMetadata.setPromptText(QuPathResources.getString("Tma.TMASummaryViewer.selectColumn"));
 		TextField tfFilter = new TextField();
-		CheckBox cbExact = new CheckBox("Exact");
+		CheckBox cbExact = new CheckBox(QuPathResources.getString("Tma.TMASummaryViewer.exact"));
 		// Set listeners
 		cbExact.selectedProperty().addListener((v, o, n) -> setMetadataTextPredicate(comboMetadata.getSelectionModel().getSelectedItem(), tfFilter.getText(), cbExact.isSelected(), !cbExact.isSelected()));
 		tfFilter.textProperty().addListener((v, o, n) -> setMetadataTextPredicate(comboMetadata.getSelectionModel().getSelectedItem(), tfFilter.getText(), cbExact.isSelected(), !cbExact.isSelected()));
@@ -1035,10 +1045,10 @@ public class TMASummaryViewer {
 		GridPane.setFillWidth(comboMetadata, Boolean.TRUE);
 		GridPane.setFillWidth(tfFilter, Boolean.TRUE);
 		
-		TitledPane tpMetadata = new TitledPane("Metadata filter", paneMetadata);
+		TitledPane tpMetadata = new TitledPane(QuPathResources.getString("Tma.TMASummaryViewer.metadataFilter"), paneMetadata);
 		tpMetadata.setExpanded(false);
 //		tpMetadata.setCollapsible(false);
-		Tooltip tooltipMetadata = new Tooltip("Enter text to filter entries according to a selected metadata column");
+		Tooltip tooltipMetadata = new Tooltip(QuPathResources.getString("Tma.TMASummaryViewer.metadataFilterDescription"));
 		Tooltip.install(paneMetadata, tooltipMetadata);
 		tpMetadata.setTooltip(tooltipMetadata);
 		paneRows.getChildren().add(tpMetadata);		
@@ -1046,7 +1056,7 @@ public class TMASummaryViewer {
 		
 		// Add measurement predicate
 		TextField tfCommand = new TextField();
-		tfCommand.setTooltip(new Tooltip("Predicate used to filter entries for inclusion"));
+		tfCommand.setTooltip(new Tooltip(QuPathResources.getString("Tma.TMASummaryViewer.predicateDescription")));
 		
 		TextFields.bindAutoCompletion(tfCommand, e -> {
 			int ind = tfCommand.getText().lastIndexOf("\"");
@@ -1056,33 +1066,34 @@ public class TMASummaryViewer {
 			return measurementNames.stream().filter(n -> n.startsWith(part)).map(n -> "\"" + n + "\" ").toList();
 		});
 
-		String instructions = "Enter a predicate to filter entries.\n" + 
-				"Only entries passing the test will be included in any results.\n" + 
-				"Examples of predicates include:\n" + 
-				"    \"Num Tumor\" > 200\n" + 
-				"    \"Num Tumor\" > 100 && \"Num Stroma\" < 1000";
 //		labelInstructions.setTooltip(new Tooltip("Note: measurement names must be in \"inverted commands\" and\n" + 
 //				"&& indicates 'and', while || indicates 'or'."));
 
 		BorderPane paneMeasurementFilter = new BorderPane(tfCommand);
-		Label label = new Label("Predicate: ");
+		Label label = new Label(MessageFormat.format(QuPathResources.getString("Tma.TMASummaryViewer.predicate"), ""));
 		label.setAlignment(Pos.CENTER);
 		label.setMaxHeight(Double.MAX_VALUE);
 		paneMeasurementFilter.setLeft(label);
 		
-		Button btnApply = new Button("Apply");
+		Button btnApply = new Button(QuPathResources.getString("Tma.TMASummaryViewer.apply"));
 		btnApply.setOnAction(e -> {
 			TablePredicate predicateNew = new TablePredicate(tfCommand.getText());
 			if (predicateNew.isValid()) {
 				predicateMeasurements.set(predicateNew);
 			} else {
-				Dialogs.showErrorMessage("Invalid predicate", "Current predicate '" + tfCommand.getText() + "' is invalid!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Tma.TMASummaryViewer.invalidPredicate"),
+						MessageFormat.format(
+								QuPathResources.getString("Tma.TMASummaryViewer.currentPredicateInvalid"),
+								tfCommand.getText()
+						)
+				);
 			}
 			e.consume();
 		});
-		TitledPane tpMeasurementFilter = new TitledPane("Measurement filter", paneMeasurementFilter);
+		TitledPane tpMeasurementFilter = new TitledPane(QuPathResources.getString("Tma.TMASummaryViewer.measurementFilter"), paneMeasurementFilter);
 		tpMeasurementFilter.setExpanded(false);
-		Tooltip tooltipInstructions = new Tooltip(instructions);
+		Tooltip tooltipInstructions = new Tooltip(QuPathResources.getString("Tma.TMASummaryViewer.predicateInstructions"));
 		tpMeasurementFilter.setTooltip(tooltipInstructions);
 		Tooltip.install(paneMeasurementFilter, tooltipInstructions);
 		paneMeasurementFilter.setRight(btnApply);
@@ -1160,7 +1171,10 @@ public class TMASummaryViewer {
 	private void setTMAEntriesFromOpenImage() {
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		if (qupath == null || qupath.getImageData() == null || qupath.getImageData().getHierarchy().getTMAGrid() == null) {
-			Dialogs.showErrorMessage("Show TMA summary", "No TMA data available!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Tma.TMASummaryViewer.showTmaSummary"),
+					QuPathResources.getString("Tma.TMASummaryViewer.noDataAvailable")
+			);
 			return;
 		}
 		ImageData<BufferedImage> imageData = qupath.getImageData();
@@ -1172,7 +1186,7 @@ public class TMASummaryViewer {
 	private void setTMAEntriesFromOpenProject() {
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		if (qupath == null || qupath.getProject() == null || qupath.getProject().getImageList().isEmpty()) {
-			GuiTools.showNoProjectError("Show TMA summary");
+			GuiTools.showNoProjectError(QuPathResources.getString("Tma.TMASummaryViewer.showTmaSummary"));
 			return;
 		}
 		Project<BufferedImage> project = qupath.getProject();
@@ -1189,7 +1203,10 @@ public class TMASummaryViewer {
 			}
 		}
 		setTMAEntries(entries);
-		stage.setTitle("TMA Viewer: " + project.getName());
+		stage.setTitle(MessageFormat.format(
+				QuPathResources.getString("Tma.TMASummaryViewer.tmaViewer"),
+				project.getName()
+		));
 	}
 	
 	
@@ -1220,7 +1237,10 @@ public class TMASummaryViewer {
 			this.imageData = imageData;
 			this.imageData.getHierarchy().addListener(hierarchyListener);
 			setTMAEntries(getEntriesForTMAData(imageData));
-			stage.setTitle("TMA Viewer: " + ServerTools.getDisplayableImageName(imageData.getServer()));
+			stage.setTitle(MessageFormat.format(
+					QuPathResources.getString("Tma.TMASummaryViewer.tmaViewer"),
+					ServerTools.getDisplayableImageName(imageData.getServer())
+			));
 		}
 	}
 	
@@ -1254,13 +1274,12 @@ public class TMASummaryViewer {
 		}
 
 		if (entriesTemp.isEmpty()) {
-			logger.error("No data found for " + file.getAbsolutePath());
+            logger.error("No data found for {}", file.getAbsolutePath());
 			return;
 		}
 		
 		setTMAEntries(entriesTemp);
-		stage.setTitle("TMA Results View: " + dir.getName());
-
+		stage.setTitle(MessageFormat.format(QuPathResources.getString("Tma.TMASummaryViewer.resultsView"), dir.getName()));
 	}
 	
 	
@@ -1342,7 +1361,7 @@ public class TMASummaryViewer {
 		
 		// The next time the table is empty, show a different placeholder 
 		// from the original (which is for loading/import)
-		table.setPlaceholder(createText("No data", false));
+		table.setPlaceholder(createText(QuPathResources.getString("Tma.TMASummaryViewer.noData"), false));
 	}
 
 	
@@ -1405,8 +1424,12 @@ public class TMASummaryViewer {
 
 		// Add columns to show images, if we have them
 		if (hasImages || hasOverlay) {
-			TreeTableColumn<TMAEntry, TMAEntry> columnImage = hasImages ? new TreeTableColumn<>("Thumbnail") : null;
-			TreeTableColumn<TMAEntry, TMAEntry> columnOverlay = hasOverlay ? new TreeTableColumn<>("Overlay") : null;
+			TreeTableColumn<TMAEntry, TMAEntry> columnImage = hasImages ?
+					new TreeTableColumn<>(QuPathResources.getString("Tma.TMASummaryViewer.thumbnail")) :
+					null;
+			TreeTableColumn<TMAEntry, TMAEntry> columnOverlay = hasOverlay ?
+					new TreeTableColumn<>(QuPathResources.getString("Tma.TMASummaryViewer.overlay")) :
+					null;
 
 			if (hasImages) {
 				columnImage.setCellValueFactory(new Callback<>() {
@@ -1637,7 +1660,7 @@ public class TMASummaryViewer {
 			logger.error("Error parsing input file", e);
 		}
 		if (serverPath == null) { // || !(new File(serverPath).exists())) {
-			logger.error("Unable to find a server with path " + serverPath + " - cannot parse " + file.getAbsolutePath());
+            logger.error("Unable to find a server with path {} - cannot parse {}", serverPath, file.getAbsolutePath());
 			return;
 		}		
 
@@ -1704,10 +1727,10 @@ public class TMASummaryViewer {
 				entries.add(entry);
 			}
 		} catch (Exception e) {
-			logger.error("Error parsing input file " + file, e);
+            logger.error("Error parsing input file {}", file, e);
 		}
 
-		logger.info("Parsed " + (entries.size() - nEntries) + " from " + file.getName() + " (" + entries.size() + " total)");
+        logger.info("Parsed {} from {} ({} total)", entries.size() - nEntries, file.getName(), entries.size());
 	}
 
 
@@ -1753,11 +1776,11 @@ public class TMASummaryViewer {
 		@Override
 		public List<String> getAllNames() {
 			List<String> namesList = new ArrayList<>();
-			namesList.add("Image");
-			namesList.add("Core");
+			namesList.add(QuPathResources.getString("Tma.TMASummaryViewer.image"));
+			namesList.add(QuPathResources.getString("Tma.TMASummaryViewer.core"));
 			namesList.addAll(metadataNames);
 			namesList.addAll(measurementNames);
-			namesList.add("Comment");
+			namesList.add(QuPathResources.getString("Tma.TMASummaryViewer.comment"));
 			return namesList;
 		}
 
@@ -1768,11 +1791,11 @@ public class TMASummaryViewer {
 
 		@Override
 		public String getStringValue(TMAEntry entry, String column, int decimalPlaces) {
-			if ("Image".equals(column))
+			if (QuPathResources.getString("Tma.TMASummaryViewer.image").equals(column))
 				return entry.getImageName();
-			if ("Core".equals(column))
+			if (QuPathResources.getString("Tma.TMASummaryViewer.core").equals(column))
 				return entry.getName();
-			if ("Comment".equals(column))
+			if (QuPathResources.getString("Tma.TMASummaryViewer.comment").equals(column))
 				return entry.getComment();
 //			if ("Non missing".equals(column))
 //				return entry instanceof TMASummaryEntry ? Integer.toString(((TMASummaryEntry)entry).nNonMissingEntries()) : "";
@@ -1822,8 +1845,14 @@ public class TMASummaryViewer {
 
 	private void promptForComment() {
 		String input = Dialogs.showInputDialog( 
-				"Add comment",
-				"Type comment for " + entrySelected.getName() + "(" + entrySelected.getImageName() + ")", entrySelected.getComment());
+				QuPathResources.getString("Tma.TMASummaryViewer.addComment"),
+				MessageFormat.format(
+						QuPathResources.getString("Tma.TMASummaryViewer.typeCommentFor"),
+						entrySelected.getName(),
+						entrySelected.getImageName()
+				),
+				entrySelected.getComment()
+		);
 		if (input == null)
 			return;
 		entrySelected.setComment(input);
@@ -1853,11 +1882,11 @@ public class TMASummaryViewer {
 			comboScatterSecondaryMeasurement.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateChart());
 			
 			GridPane topGrid = new GridPane();
-			Label label = new Label("Main measurement");
+			Label label = new Label(QuPathResources.getString("Tma.TMASummaryViewer.mainMeasurement"));
 			label.minWidthProperty().bind(label.prefWidthProperty());
 			topGrid.add(label, 0, 0);
 			topGrid.add(comboScatterMainMeasurement, 1, 0);
-			label = new Label("Secondary measurement");
+			label = new Label(QuPathResources.getString("Tma.TMASummaryViewer.secondaryMeasurement"));
 			label.minWidthProperty().bind(label.prefWidthProperty());
 			topGrid.add(label, 0, 1);
 			topGrid.add(comboScatterSecondaryMeasurement, 1, 1);
@@ -1870,9 +1899,9 @@ public class TMASummaryViewer {
 			topGrid.prefWidthProperty().bind(pane.widthProperty());
 			
 			// Set up table
-			TableColumn<DoubleProperty, String> colName = new TableColumn<>("Name");
+			TableColumn<DoubleProperty, String> colName = new TableColumn<>(QuPathResources.getString("Tma.TMASummaryViewer.name"));
 			colName.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().getName()));
-			TableColumn<DoubleProperty, String> colValue = new TableColumn<>("Value");
+			TableColumn<DoubleProperty, String> colValue = new TableColumn<>(QuPathResources.getString("Tma.TMASummaryViewer.value"));
 			colValue.setCellValueFactory(v -> new SimpleStringProperty(GeneralTools.formatNumber(v.getValue().getValue(), 3)));
 			tableScatter.getColumns().add(colName);
 			tableScatter.getColumns().add(colValue);
@@ -1990,17 +2019,39 @@ public class TMASummaryViewer {
 				y = Arrays.copyOf(y, count);
 			}
 			tableScatter.getItems().setAll(
-					new SimpleDoubleProperty(null, "Total '" + xMeasurement + "'", len - nNanX),
-					new SimpleDoubleProperty(null, "Total '" + yMeasurement + "'", len - nNanY),
-					new SimpleDoubleProperty(null, String.format("Total '%s' & '%s'", xMeasurement, yMeasurement), count)
-					);
+					new SimpleDoubleProperty(
+							null,
+							MessageFormat.format(
+									QuPathResources.getString("Tma.TMASummaryViewer.total"),
+									xMeasurement
+							),
+							len - nNanX
+					),
+					new SimpleDoubleProperty(
+							null,
+							MessageFormat.format(
+									QuPathResources.getString("Tma.TMASummaryViewer.total"),
+									yMeasurement
+							),
+							len - nNanY
+					),
+					new SimpleDoubleProperty(
+							null,
+							MessageFormat.format(
+									QuPathResources.getString("Tma.TMASummaryViewer.totalXAndY"),
+									xMeasurement,
+									yMeasurement
+							),
+							count
+					)
+			);
 			if (count > 1) {
 				double pearsons = new PearsonsCorrelation().correlation(x, y);
 				double spearmans = new SpearmansCorrelation().correlation(x, y);
 				tableScatter.getItems().addAll(
-						new SimpleDoubleProperty(null, "Pearson's correlation coefficient", pearsons),
-						new SimpleDoubleProperty(null, "Spearman's correlation coefficient", spearmans)
-						);
+						new SimpleDoubleProperty(null, QuPathResources.getString("Tma.TMASummaryViewer.pearson"), pearsons),
+						new SimpleDoubleProperty(null, QuPathResources.getString("Tma.TMASummaryViewer.spearman"), spearmans)
+				);
 			}
 			
 		}
@@ -2034,7 +2085,13 @@ public class TMASummaryViewer {
 		Map<String, List<String>> data = TMAScoreImporter.readCSV(text);
 		List<String> idColumn = data.remove(TMACoreObject.KEY_CASE_ID);
 		if (idColumn == null) {
-			Dialogs.showErrorMessage("Import TMA data", "No '" + TMACoreObject.KEY_CASE_ID + "' column found!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Tma.TMASummaryViewer.importTmaData"),
+					MessageFormat.format(
+							QuPathResources.getString("Tma.TMASummaryViewer.noColumnFound"),
+							TMACoreObject.KEY_CASE_ID
+					)
+			);
 			return 0;
 		}
 		// Nothing left to import...
@@ -2073,12 +2130,15 @@ public class TMASummaryViewer {
 				}
 			}
 			if (!matched)
-				logger.warn("No match for ID: " + id);
+                logger.warn("No match for ID: {}", id);
 		}
 		
 		Optional<TMAEntry> objectEntry = entriesBase.stream().filter(t -> t instanceof TMAObjectEntry).findAny();
 		if (objectEntry.isPresent()) {
-			Dialogs.showInfoNotification("TMA data update", "TMA cores updated!");
+			Dialogs.showInfoNotification(
+					QuPathResources.getString("Tma.TMASummaryViewer.tmaDataUpdate"),
+					QuPathResources.getString("Tma.TMASummaryViewer.tmaCoresUpdated")
+			);
 		}
 		
 		return counter;

@@ -71,6 +71,7 @@ import qupath.lib.gui.commands.display.BrightnessContrastChannelPane;
 import qupath.lib.gui.commands.display.BrightnessContrastHistogramPane;
 import qupath.lib.gui.commands.display.BrightnessContrastSettingsPane;
 import qupath.lib.gui.commands.display.BrightnessContrastSliderPane;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -205,7 +206,7 @@ public class BrightnessContrastCommand implements Runnable {
 		Stage dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 		FXUtils.addCloseWindowShortcuts(dialog);
-		dialog.setTitle("Brightness & contrast");
+		dialog.setTitle(QuPathResources.getString("Commands.BrightnessContrast.Command.title"));
 
 		GridPane pane = new GridPane();
 		int row = 0;
@@ -245,7 +246,7 @@ public class BrightnessContrastCommand implements Runnable {
 		GridPane.setHgrow(labelChannel, Priority.SOMETIMES);
 
 		Label labelChannelHidden = new Label();
-		labelChannelHidden.setText("(hidden)");
+		labelChannelHidden.setText(QuPathResources.getString("Commands.BrightnessContrast.Command.hidden"));
 		labelChannelHidden.visibleProperty().bind(
 				currentChannelProperty.isNotNull().and(table.currentChannelVisible().not()));
 		labelChannelHidden.setStyle("-fx-font-weight: bold; -fx-font-style: italic; " +
@@ -253,10 +254,9 @@ public class BrightnessContrastCommand implements Runnable {
 		GridPaneUtils.setToExpandGridPaneWidth(labelChannelHidden);
 		paneChannels.add(labelChannelHidden, 1, 0);
 
-		CheckBox cbLogHistogram = new CheckBox("Log histogram");
+		CheckBox cbLogHistogram = new CheckBox(QuPathResources.getString("Commands.BrightnessContrast.Command.logHistogram"));
 		cbLogHistogram.selectedProperty().bindBidirectional(chartPane.doLogCountsProperty());
-		cbLogHistogram.setTooltip(new Tooltip("Show log values of histogram counts.\n" +
-				"This can help to see differences when the histogram values are low relative to the mode."));
+		cbLogHistogram.setTooltip(new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.Command.logHistogramDescription")));
 		paneChannels.add(cbLogHistogram, 2, 0);
 
 		pane.add(paneChannels, 0, row++);
@@ -314,9 +314,9 @@ public class BrightnessContrastCommand implements Runnable {
 
 
 	private static Pane createKeepSettingsPane() {
-		CheckBox cbKeepDisplaySettings = new CheckBox("Apply to similar images");
+		CheckBox cbKeepDisplaySettings = new CheckBox(QuPathResources.getString("Commands.BrightnessContrast.Command.applyToSimilarImages"));
 		cbKeepDisplaySettings.selectedProperty().bindBidirectional(PathPrefs.keepDisplaySettingsProperty());
-		cbKeepDisplaySettings.setTooltip(new Tooltip("Retain same display settings where possible when opening similar images"));
+		cbKeepDisplaySettings.setTooltip(new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.Command.applyToSimilarImagesDescription")));
 		return new BorderPane(cbKeepDisplaySettings);
 	}
 
@@ -324,11 +324,11 @@ public class BrightnessContrastCommand implements Runnable {
 
 	private Pane createAutoResetButtonPane() {
 
-		Button btnAuto = new Button("Auto");
+		Button btnAuto = new Button(QuPathResources.getString("Commands.BrightnessContrast.Command.auto"));
 		btnAuto.setOnAction(this::handleAutoButtonClicked);
 		btnAuto.disableProperty().bind(blockChannelAdjustment);
 
-		Button btnReset = new Button("Reset");
+		Button btnReset = new Button(QuPathResources.getString("Commands.BrightnessContrast.Command.reset"));
 		btnReset.setOnAction(this::handleResetButtonClicked);
 		btnReset.disableProperty().bind(blockChannelAdjustment);
 
@@ -380,9 +380,8 @@ public class BrightnessContrastCommand implements Runnable {
 
 
 	private Pane createWarningPane() {
-		var labelWarning = new Label("Inverted background - interpret colors cautiously!");
-		labelWarning.setTooltip(new Tooltip("Inverting the background uses processing trickery that reduces the visual information in the image.\n"
-				+ "Be careful about interpreting colors, especially for images with multiple channels"));
+		var labelWarning = new Label(QuPathResources.getString("Commands.BrightnessContrast.Command.invertedBackground"));
+		labelWarning.setTooltip(new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.Command.invertedBackgroundDescription")));
 		labelWarning.getStyleClass().add(WARNING_STYLE_CLASS);
 		labelWarning.setAlignment(Pos.CENTER);
 		labelWarning.setTextAlignment(TextAlignment.CENTER);
@@ -398,10 +397,9 @@ public class BrightnessContrastCommand implements Runnable {
 		if (labelWarning.isVisible())
 			warningList.add(labelWarning.getText());
 
-		var labelWarningGamma = new Label("Gamma is not equal to 1.0 - shift+click to reset");
+		var labelWarningGamma = new Label(QuPathResources.getString("Commands.BrightnessContrast.Command.gamma"));
 		labelWarningGamma.setOnMouseClicked(this::handleGammaWarningClicked);
-		labelWarningGamma.setTooltip(new Tooltip("Adjusting the gamma results in a nonlinear contrast adjustment -\n"
-				+ "in science, such changes should usually be disclosed in any figure legends"));
+		labelWarningGamma.setTooltip(new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.Command.gammaDescription")));
 		labelWarningGamma.getStyleClass().add(WARNING_STYLE_CLASS);
 		labelWarningGamma.setAlignment(Pos.CENTER);
 		labelWarningGamma.setTextAlignment(TextAlignment.CENTER);
@@ -428,15 +426,14 @@ public class BrightnessContrastCommand implements Runnable {
 
 
 	private Pane createCheckboxPane() {
-		CheckBox cbShowGrayscale = new CheckBox("Show grayscale");
+		CheckBox cbShowGrayscale = new CheckBox(QuPathResources.getString("Commands.BrightnessContrast.Command.showGrayscale"));
 		cbShowGrayscale.selectedProperty().bindBidirectional(showGrayscale);
-		cbShowGrayscale.setTooltip(new Tooltip("Show single channel with grayscale lookup table"));
+		cbShowGrayscale.setTooltip(new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.Command.showGrayscaleDescription")));
 //		showGrayscale.addListener(this::handleDisplaySettingInvalidated);
 
-		CheckBox cbInvertBackground = new CheckBox("Invert background");
+		CheckBox cbInvertBackground = new CheckBox(QuPathResources.getString("Commands.BrightnessContrast.Command.invertBackground"));
 		cbInvertBackground.selectedProperty().bindBidirectional(invertBackground);
-		cbInvertBackground.setTooltip(new Tooltip("Invert the background for display (i.e. switch between white and black).\n"
-				+ "Use cautiously to avoid becoming confused about how the 'original' image looks (e.g. brightfield or fluorescence)."));
+		cbInvertBackground.setTooltip(new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.Command.invertBackgroundDescription")));
 //		invertBackground.addListener(this::handleDisplaySettingInvalidated);
 
 		HBox paneCheck = new HBox();

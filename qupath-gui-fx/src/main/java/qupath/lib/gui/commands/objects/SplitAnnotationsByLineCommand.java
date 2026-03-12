@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -40,7 +41,7 @@ public class SplitAnnotationsByLineCommand {
 
     private static final Logger logger = LoggerFactory.getLogger(SplitAnnotationsByLineCommand.class);
 
-    private static final String title = "Split annotations by lines";
+    private static final String title = QuPathResources.getString("Commands.SplitAnnotations.title");
 
     private double buffer = 0.0;
     private boolean removeLines = true;
@@ -57,13 +58,25 @@ public class SplitAnnotationsByLineCommand {
         }
 
         var params = new ParameterList()
-                .addDoubleParameter("buffer", "Line thickness", buffer, "px",
-                        "Optionally increase the thickness of the lines before splitting")
-                .addBooleanParameter("removeLines", "Remove lines", removeLines,
-                        "Remove the lines after they have been used for splitting")
-                .addBooleanParameter("selectedOnly", "Selected annotations only", selectedOnly,
-                        "Use only the selected annotations for splitting (both as lines and areas). " +
-                                "If unchecked, all annotations will be used.");
+                .addDoubleParameter(
+                        "buffer",
+                        QuPathResources.getString("Commands.SplitAnnotations.lineThickness"),
+                        buffer,
+                        "px",
+                        QuPathResources.getString("Commands.SplitAnnotations.lineThicknessDescription")
+                )
+                .addBooleanParameter(
+                        "removeLines",
+                        QuPathResources.getString("Commands.SplitAnnotations.removeLines"),
+                        removeLines,
+                        QuPathResources.getString("Commands.SplitAnnotations.removeLinesDescription")
+                )
+                .addBooleanParameter(
+                        "selectedOnly",
+                        QuPathResources.getString("Commands.SplitAnnotations.selectedOnly"),
+                        selectedOnly,
+                        QuPathResources.getString("Commands.SplitAnnotations.selectedOnlyDescription")
+                );
 
         var pane = new ParameterPanelFX(params).getPane();
         var result = Dialogs.showConfirmDialog(title, pane);
@@ -83,11 +96,11 @@ public class SplitAnnotationsByLineCommand {
         String scriptName, script;
         if (doSelectedOnly) {
             QP.splitSelectedAnnotationAreasByLines(hierarchy, doBuffer, doRemove);
-            scriptName = "Split selected annotations by line";
+            scriptName = QuPathResources.getString("Commands.SplitAnnotations.splitSelectedAnnotationsByLine");
             script = String.format("splitSelectedAnnotationAreasByLines(" + doBuffer + ", " + doRemove + ")");
         } else {
             QP.splitAllAnnotationAreasByLines(hierarchy, doBuffer, doRemove);
-            scriptName = "Split all annotations by line";
+            scriptName = QuPathResources.getString("Commands.SplitAnnotations.splitAllAnnotationsByLine");
             script = String.format("splitAllAnnotationAreasByLines(" + doBuffer + ", " + doRemove + ")");
         }
         imageData.getHistoryWorkflow()

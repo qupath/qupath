@@ -68,6 +68,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.UserDirectoryManager;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.images.servers.RenderedImageServer;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.panes.MeasurementMapPane;
 import qupath.lib.gui.panes.ObjectDescriptionPane;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
@@ -121,6 +122,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.Files;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -168,7 +170,7 @@ public class Commands {
 	 */
 	public static void promptToResolveHierarchy(ImageData<?> imageData) {
 		if (imageData == null) {
-			GuiTools.showNoImageError("Resolve hierarchy");
+			GuiTools.showNoImageError(QuPathResources.getString("Commands.resolveHierarchy"));
 			return;
 		}
 		var hierarchy = imageData == null ? null : imageData.getHierarchy();
@@ -176,18 +178,18 @@ public class Commands {
 			return;
 		
 		int nObjects = hierarchy.getAllObjects(false).size();
-		String message = "Are you sure you want to resolve object relationships?";
+		String message = QuPathResources.getString("Commands.sureToResolveRelationships");
 		if (nObjects > 100) {
-			message += "\nFor large object hierarchies this can take a long time.";
+			message += QuPathResources.getString("Commands.largeObjectHierarchies");
 		}
 		
-		if (!Dialogs.showConfirmDialog("Resolve hierarchy", message)) {
+		if (!Dialogs.showConfirmDialog(QuPathResources.getString("Commands.resolveHierarchy"), message)) {
 			return;
 		}
 		hierarchy.resolveHierarchy();
 		
 		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
-				"Resolve hierarchy",
+				QuPathResources.getString("Commands.resolveHierarchy"),
 				"resolveHierarchy()"));
 	}
 	
@@ -238,9 +240,15 @@ public class Commands {
 		
 		// Log in the history
 		if (z == 0 && t == 0)
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", "createFullImageAnnotation(true)"));
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+					QuPathResources.getString("Commands.createFullImageAnnotation"),
+					"createFullImageAnnotation(true)"
+			));
 		else
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", String.format("createFullImageAnnotation(true, %d, %d)", z, t)));
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+					QuPathResources.getString("Commands.createFullImageAnnotation"),
+					String.format("createFullImageAnnotation(true, %d, %d)", z, t)
+			));
 	}
 	
 	
@@ -332,7 +340,10 @@ public class Commands {
 	 */
 	public static void promptToExportImageRegion(QuPathViewer viewer, boolean renderedImage) {
 		if (viewer == null || viewer.getServer() == null) {
-			Dialogs.showErrorMessage("Export image region", "No viewer & image selected!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.exportImageRegion"),
+					QuPathResources.getString("Commands.noViewerImageSelected")
+			);
 			return;
 		}
 		
@@ -341,7 +352,10 @@ public class Commands {
 			try {
 				server = RenderedImageServer.createRenderedServer(viewer);
 			} catch (IOException e) {
-				Dialogs.showErrorMessage("Export image region", "Unable to create rendered image server");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Commands.exportImageRegion"),
+						QuPathResources.getString("Commands.unableToCreateRendered")
+				);
 				logger.error(e.getMessage(), e);
 				return;
 			}
@@ -355,7 +369,7 @@ public class Commands {
 		// Create a dialog
 		GridPane pane = new GridPane();
 		int row = 0;
-		pane.add(new Label("Export format"), 0, row);
+		pane.add(new Label(QuPathResources.getString("Commands.exportFormat")), 0, row);
 		ComboBox<ImageWriter<BufferedImage>> comboImageType = new ComboBox<>();
 		
 		Function<ImageWriter<BufferedImage>, String> fun = (ImageWriter<BufferedImage> writer) -> writer.getName();
@@ -364,7 +378,7 @@ public class Commands {
 		
 		var writers = ImageWriterTools.getCompatibleWriters(server, null);
 		comboImageType.getItems().setAll(writers);
-		comboImageType.setTooltip(new Tooltip("Choose export image format"));
+		comboImageType.setTooltip(new Tooltip(QuPathResources.getString("Commands.chooseExportFormat")));
 		if (writers.contains(lastWriter))
 			comboImageType.getSelectionModel().select(lastWriter);
 		else
@@ -382,12 +396,12 @@ public class Commands {
 		textArea.setText(((ImageWriter<BufferedImage>)comboImageType.getValue()).getDetails());
 		pane.add(textArea, 0, row++, 2, 1);
 		
-		var label = new Label("Downsample factor");
+		var label = new Label(QuPathResources.getString("Commands.downsampleFactor"));
 		pane.add(label, 0, row);
 		TextField tfDownsample = new TextField();
 		label.setLabelFor(tfDownsample);
 		pane.add(tfDownsample, 1, row++);
-		tfDownsample.setTooltip(new Tooltip("Amount to scale down image - choose 1 to export at full resolution (note: for large images this may not succeed for memory reasons)"));
+		tfDownsample.setTooltip(new Tooltip(QuPathResources.getString("Commands.downsampleFactorDescription")));
 		ObservableDoubleValue downsample = Bindings.createDoubleBinding(() -> {
 			try {
 				return Double.parseDouble(tfDownsample.getText());
@@ -405,30 +419,29 @@ public class Commands {
 		labelSize.setContentDisplay(ContentDisplay.CENTER);
 		labelSize.setAlignment(Pos.CENTER);
 		labelSize.setMaxWidth(Double.MAX_VALUE);
-		labelSize.setTooltip(new Tooltip("Estimated size of exported image"));
+		labelSize.setTooltip(new Tooltip(QuPathResources.getString("Commands.estimatedSize")));
 		pane.add(labelSize, 0, row++, 2, 1);
 		labelSize.textProperty().bind(Bindings.createStringBinding(() -> {
 			if (!Double.isFinite(downsample.get())) {
 				labelSize.setStyle("-fx-text-fill: red;");
-				return "Invalid downsample value!  Must be >= 1";
+				return QuPathResources.getString("Commands.invalidDownsample");
 			}
 			else {
 				long w = (long)(regionWidth / downsample.get() + 0.5);
 				long h = (long)(regionHeight / downsample.get() + 0.5);
-				String warning = "";
 				var writer = comboImageType.getSelectionModel().getSelectedItem();
 				boolean supportsPyramid = writer == null ? false : writer.supportsPyramidal();
+
 				if (!supportsPyramid && w * h > maxPixels) {
 					labelSize.setStyle("-fx-text-fill: red;");
-					warning = " (too big!)";
+					return MessageFormat.format(QuPathResources.getString("Commands.outputImageSizeTooBig"), w, h);
 				} else if (w < 5 || h < 5) {
 					labelSize.setStyle("-fx-text-fill: red;");
-					warning = " (too small!)";					
-				} else
+					return MessageFormat.format(QuPathResources.getString("Commands.outputImageSizeTooSmall"), w, h);
+				} else {
 					labelSize.setStyle(null);
-				return String.format("Output image size: %d x %d pixels%s",
-						w, h, warning
-						);
+					return MessageFormat.format(QuPathResources.getString("Commands.outputImageSize"), w, h);
+				}
 			}
 		}, downsample, comboImageType.getSelectionModel().selectedIndexProperty()));
 		
@@ -440,7 +453,7 @@ public class Commands {
 		pane.setVgap(5);
 		pane.setHgap(5);
 		
-		if (!Dialogs.showConfirmDialog("Export image region", pane))
+		if (!Dialogs.showConfirmDialog(QuPathResources.getString("Commands.exportImageRegion"), pane))
 			return;
 		
 		var writer = comboImageType.getSelectionModel().getSelectedItem();
@@ -448,12 +461,18 @@ public class Commands {
 		int w = (int)(regionWidth / downsample.get() + 0.5);
 		int h = (int)(regionHeight / downsample.get() + 0.5);
 		if (!supportsPyramid && w * h > maxPixels) {
-			Dialogs.showErrorNotification("Export image region", "Requested export region too large - try selecting a smaller region, or applying a higher downsample factor");
+			Dialogs.showErrorNotification(
+					QuPathResources.getString("Commands.exportImageRegion"),
+					QuPathResources.getString("Commands.exportRegionTooLarge")
+			);
 			return;
 		}
 		
 		if (downsample.get() < 1 || !Double.isFinite(downsample.get())) {
-			Dialogs.showErrorMessage("Export image region", "Downsample factor must be >= 1!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.exportImageRegion"),
+					QuPathResources.getString("Commands.downsampleGreaterThanOne")
+			);
 			return;
 		}
 				
@@ -464,7 +483,10 @@ public class Commands {
 			try {
 				server = new RenderedImageServer.Builder(viewer).downsamples(downsample.get()).build();
 			} catch (IOException e) {
-				Dialogs.showErrorMessage("Export image region", "Unable to create rendered image server");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Commands.exportImageRegion"),
+						QuPathResources.getString("Commands.unableToCreateRendered")
+				);
 				logger.error(e.getMessage(), e);
 				return;
 			}
@@ -486,7 +508,7 @@ public class Commands {
 					GeneralTools.formatNumber(request.getDownsample(), 2),
 					request.getX(), request.getY(), request.getWidth(), request.getHeight());
 		}
-		File fileOutput = FileChoosers.promptToSaveFile("Export image region",
+		File fileOutput = FileChoosers.promptToSaveFile(QuPathResources.getString("Commands.exportImageRegion"),
 				new File(defaultName),
 				FileChoosers.createExtensionFilter(writerName, ext));
 		if (fileOutput == null)
@@ -508,7 +530,7 @@ public class Commands {
 				writer.writeImage(server, request, fileOutput.getAbsolutePath());
 			lastWriter = writer;
 		} catch (IOException e) {
-			Dialogs.showErrorMessage("Export region", e.getLocalizedMessage());
+			Dialogs.showErrorMessage(QuPathResources.getString("Commands.exportRegion"), e.getLocalizedMessage());
 			logger.error(e.getMessage(), e);
 		}
 	}
@@ -544,8 +566,10 @@ public class Commands {
 			return false;
 		}
 		QP.resetTMAMetadata(imageData.getHierarchy(), true);
-		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Reset TMA metadata", "resetTMAMetadata(true)"));
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.resetTmaMetadata"),
+				"resetTMAMetadata(true)"
+		));
 		return true;
 	}
 	
@@ -605,7 +629,7 @@ public class Commands {
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());
 		FXUtils.addCloseWindowShortcuts(dialog);
-		dialog.setTitle("Measurement maps");
+		dialog.setTitle(QuPathResources.getString("Commands.measurementMaps"));
 		
 		var panel = new MeasurementMapPane(qupath);
 		BorderPane pane = new BorderPane();
@@ -672,17 +696,17 @@ public class Commands {
 		dialog.initOwner(qupath.getStage());
 		FXUtils.addCloseWindowShortcuts(dialog);
 //			dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle("Preferences");
+		dialog.setTitle(QuPathResources.getString("Commands.preferences"));
 		
-		Button btnExport = new Button("Export");
+		Button btnExport = new Button(QuPathResources.getString("Commands.export"));
 		btnExport.setOnAction(e -> exportPreferences(dialog));
 		btnExport.setMaxWidth(Double.MAX_VALUE);
 
-		Button btnImport = new Button("Import");
+		Button btnImport = new Button(QuPathResources.getString("Commands.import"));
 		btnImport.setOnAction(e -> importPreferences(dialog));
 		btnImport.setMaxWidth(Double.MAX_VALUE);
 		
-		Button btnReset = new Button("Reset");
+		Button btnReset = new Button(QuPathResources.getString("Commands.reset"));
 		btnReset.setOnAction(e -> PathPrefs.resetPreferences());
 		btnReset.setMaxWidth(Double.MAX_VALUE);
 		
@@ -713,15 +737,15 @@ public class Commands {
 
 	private static boolean exportPreferences(Stage parent) {
 		var file = FileChoosers.promptToSaveFile(parent,
-				"Export preferences", null,
-				FileChoosers.createExtensionFilter("Preferences file", "xml"));
+				QuPathResources.getString("Commands.exportPreferences"), null,
+				FileChoosers.createExtensionFilter(QuPathResources.getString("Commands.preferencesFile"), "xml"));
 		if (file != null) {
 			try (var stream = Files.newOutputStream(file.toPath())) {
 				logger.info("Exporting preferences to {}", file.getAbsolutePath());
 				PathPrefs.exportPreferences(stream);
 				return true;
 			} catch (Exception e) {
-				Dialogs.showErrorMessage("Import preferences", e.getLocalizedMessage());
+				Dialogs.showErrorMessage(QuPathResources.getString("Commands.importPreferences"), e.getLocalizedMessage());
 				logger.error(e.getMessage(), e);
 			}
 		}
@@ -730,17 +754,19 @@ public class Commands {
 	
 	private static boolean importPreferences(Stage parent) {
 		var file = FileChoosers.promptForFile(parent,
-				"Import preferences",
-				FileChoosers.createExtensionFilter("Preferences file", "xml"));
+				QuPathResources.getString("Commands.importPreferences"),
+				FileChoosers.createExtensionFilter(QuPathResources.getString("Commands.preferencesFile"), "xml"));
 		if (file != null) {
 			try (var stream = Files.newInputStream(file.toPath())) {
 				logger.info("Importing preferences from {}", file.getAbsolutePath());
 				PathPrefs.importPreferences(stream);
-				Dialogs.showMessageDialog("Import preferences", 
-						"Preferences have been imported - please restart QuPath to see the changes.");
+				Dialogs.showMessageDialog(
+						QuPathResources.getString("Commands.importPreferences"),
+						QuPathResources.getString("Commands.preferencesImported")
+				);
 				return true;
 			} catch (Exception e) {
-				Dialogs.showErrorMessage("Import preferences", e);
+				Dialogs.showErrorMessage(QuPathResources.getString("Commands.importPreferences"), e);
 				logger.error(e.getMessage(), e);
 			}
 		}
@@ -785,7 +811,7 @@ public class Commands {
 		stage.setWidth(300);
 		stage.setMinHeight(200);
 		stage.setMinWidth(200);
-		stage.setTitle("Specify annotation");
+		stage.setTitle(QuPathResources.getString("Commands.specifyAnnotation"));
 		stage.initOwner(qupath.getStage());
 		return stage;
 	}
@@ -811,14 +837,20 @@ public class Commands {
 	 */
 	public static boolean promptToSaveImageData(QuPathGUI qupath, ImageData<BufferedImage> imageData, boolean overwriteExisting) {
 		if (imageData == null) {
-			GuiTools.showNoImageError("Serialization error");
+			GuiTools.showNoImageError(QuPathResources.getString("Commands.serializationError"));
 			return false;
 		}
 		try {
 			var project = qupath.getProject();
 			var entry = project == null ? null : project.getEntry(imageData);
 			if (entry != null) {
-				if (overwriteExisting || Dialogs.showConfirmDialog("Save changes", "Save changes to " + entry.getImageName() + "?")) {
+				if (overwriteExisting || Dialogs.showConfirmDialog(
+						QuPathResources.getString("Commands.saveChanges"),
+						MessageFormat.format(
+								QuPathResources.getString("Commands.saveChangesTo"),
+								entry.getImageName()
+						)
+				)) {
 					entry.saveImageData(imageData);
 					return true;
 				} else
@@ -835,7 +867,10 @@ public class Commands {
 						file = FileChoosers.promptToSaveFile(
 								null,
 								fileDefault,
-						FileChoosers.createExtensionFilter("QuPath Serialized Data", PathPrefs.getSerializationExtension()));
+						FileChoosers.createExtensionFilter(
+								QuPathResources.getString("Commands.quPathSerializedData"),
+								PathPrefs.getSerializationExtension()
+						));
 					}
 				}
 				else {
@@ -846,8 +881,14 @@ public class Commands {
 							name = GeneralTools.getNameWithoutExtension(new File(name));
 						} catch (Exception e) {}
 					}
-					file = FileChoosers.promptToSaveFile(null, new File(name),
-							FileChoosers.createExtensionFilter("QuPath Serialized Data", PathPrefs.getSerializationExtension()));
+					file = FileChoosers.promptToSaveFile(
+							null,
+							new File(name),
+							FileChoosers.createExtensionFilter(
+									QuPathResources.getString("Commands.quPathSerializedData"),
+									PathPrefs.getSerializationExtension()
+							)
+					);
 				}
 				if (file == null)
 					return false;
@@ -855,7 +896,7 @@ public class Commands {
 				return true;
 			}
 		} catch (IOException e) {
-			Dialogs.showErrorMessage("Save ImageData", e);
+			Dialogs.showErrorMessage(QuPathResources.getString("Commands.saveImageData"), e);
 			logger.error(e.getMessage(), e);
 			return false;
 		}
@@ -939,7 +980,7 @@ public class Commands {
 		List<ImageWriter<BufferedImage>> compatibleWriters = ext == null ? Collections.emptyList() :
 				ImageWriterTools.getCompatibleWriters(BufferedImage.class, ext);
 		if (compatibleWriters.isEmpty()) {
-			logger.error("No compatible image writers found for extension: " + ext);
+            logger.error("No compatible image writers found for extension: {}", ext);
 			return false;
 		}
 
@@ -951,7 +992,7 @@ public class Commands {
 				defaultScreenshotExtension.set(extChosen);
 				return true;
 			} catch (Exception e) {
-				logger.error("Error saving snapshot " + type + " to " + fileOutput.getAbsolutePath(), e);
+                logger.error("Error saving snapshot {} to {}", type, fileOutput.getAbsolutePath(), e);
 			}
 		}
 		return false;
@@ -967,8 +1008,10 @@ public class Commands {
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		logger.debug("Merging selected annotations");
 		QP.mergeSelectedAnnotations(hierarchy);
-		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Merge selected annotations",
-				"mergeSelectedAnnotations()"));
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.mergeSelectedAnnotations"),
+				"mergeSelectedAnnotations()"
+		));
 	}
 
 	
@@ -978,14 +1021,15 @@ public class Commands {
 	 */
 	public static void duplicateSelectedAnnotations(ImageData<?> imageData) {
 		if (imageData == null) {
-			GuiTools.showNoImageError("Duplicate annotations");
+			GuiTools.showNoImageError(QuPathResources.getString("Commands.duplicateAnnotations"));
 			return;
 		}
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		PathObjectTools.duplicateSelectedAnnotations(hierarchy);
-		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Duplicate selected annotations",
-						"duplicateSelectedAnnotations()"));
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.duplicateSelectedAnnotations"),
+				"duplicateSelectedAnnotations()"
+		));
 	}
 	
 	/**
@@ -997,16 +1041,17 @@ public class Commands {
 	public static void copySelectedAnnotationsToCurrentPlane(QuPathViewer viewer) {
 		var imageData = viewer == null ? null : viewer.getImageData();
 		if (imageData == null) {
-			GuiTools.showNoImageError("Copy selected annotations to plane");
+			GuiTools.showNoImageError(QuPathResources.getString("Commands.copySelectedAnnotations"));
 			return;
 		}
 		var plane = viewer.getImagePlane();
 		int z = plane.getZ();
 		int t = plane.getT();
 		QP.copySelectedAnnotationsToPlane(z, t);
-		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Copy selected annotations to plane",
-						String.format("copySelectedAnnotationsToPlane(%d, %d)", z, t)));
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.copySelectedAnnotations"),
+				String.format("copySelectedAnnotationsToPlane(%d, %d)", z, t)
+		));
 	}
 
 	/**
@@ -1019,8 +1064,10 @@ public class Commands {
 			return;
 		logger.debug("Make inverse annotation");
 		QP.makeInverseAnnotation(imageData);
-		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Invert selected annotation",
-				"makeInverseAnnotation()"));
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.invertSelectedAnnotation"),
+				"makeInverseAnnotation()"
+		));
 	}
 	
 	
@@ -1042,7 +1089,7 @@ public class Commands {
 	public static boolean combineSelectedAnnotations(ImageData<?> imageData, RoiTools.CombineOp op) {
 		// TODO: CONSIDER MAKING THIS SCRIPTABLE!
 		if (imageData == null) {
-			GuiTools.showNoImageError("Combine annotations");
+			GuiTools.showNoImageError(QuPathResources.getString("Commands.combineAnnotations"));
 			return false;
 		}
 		var hierarchy = imageData.getHierarchy();
@@ -1131,7 +1178,12 @@ public class Commands {
 	public static void promptToSelectObjectsByClassification(QuPathGUI qupath, ImageData<?> imageData) {
 		if (imageData == null)
 			return;
-		var pathClass = Dialogs.showChoiceDialog("Select objects", "", qupath.getAvailablePathClasses(), null);
+		var pathClass = Dialogs.showChoiceDialog(
+				QuPathResources.getString("Commands.selectObjects"),
+				"",
+				qupath.getAvailablePathClasses(),
+				null
+		);
 		if (pathClass == null)
 			return;
 		selectObjectsByClassification(imageData, pathClass);
@@ -1156,7 +1208,7 @@ public class Commands {
 		Color color;
 
 		if (defaultColor) {
-			name = "Default object color";
+			name = QuPathResources.getString("Commands.defaultObjectColor");
 			color = ColorToolsFX.getCachedColor(PathPrefs.colorDefaultObjectsProperty().get());
 			Label label = new Label(name);
 			label.setPadding(new Insets(5, 0, 10, 0));
@@ -1176,7 +1228,7 @@ public class Commands {
 
 		panel.setCenter(panelColor);
 
-		if (!Dialogs.showConfirmDialog("Edit class", panel))
+		if (!Dialogs.showConfirmDialog(QuPathResources.getString("Commands.editClass"), panel))
 			return false;
 
 		Color newColor = panelColor.getValue();
@@ -1210,9 +1262,10 @@ public class Commands {
 		QP.selectObjectsByPathClass(hierarchy, pathClasses);
 		var s = Arrays.stream(pathClasses)
 				.map(p -> p == null || p == PathClass.NULL_CLASS ? "null" : "\"" + p.toString() + "\"").collect(Collectors.joining(", "));
-		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Select objects by classification",
-				"selectObjectsByClassification(" + s + ");"));
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.selectObjectsByClassification"),
+				"selectObjectsByClassification(" + s + ");"
+		));
 		return true;
 	}
 	
@@ -1234,15 +1287,16 @@ public class Commands {
 				return;
 			String message;
 			if (n == 1)
-				message = "Delete object?";
+				message = QuPathResources.getString("Commands.deleteObject");
 			else
-				message = "Delete all " + n + " objects?";
-			if (Dialogs.showYesNoDialog("Delete objects", message)) {
+				message = MessageFormat.format(QuPathResources.getString("Commands.deleteAllNObjects"), n);
+			if (Dialogs.showYesNoDialog(QuPathResources.getString("Commands.deleteObjects"), message)) {
 				hierarchy.clearAll();
 				hierarchy.getSelectionModel().setSelectedObject(null);
-				imageData.getHistoryWorkflow().addStep(
-						new DefaultScriptableWorkflowStep("Delete all objects",
-								"removeAllObjects()"));
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+						QuPathResources.getString("Commands.deleteAllObjects"),
+						"removeAllObjects()"
+				));
 			}
 			return;
 		}
@@ -1250,16 +1304,20 @@ public class Commands {
 		// Handle clearing TMA grid
 		if (TMACoreObject.class.equals(cls)) {
 			if (hierarchy.getTMAGrid() != null) {
-				if (Dialogs.showYesNoDialog("Delete objects", "Remove TMA grid?")) {
+				if (Dialogs.showYesNoDialog(
+						QuPathResources.getString("Commands.deleteObjects"),
+						QuPathResources.getString("Commands.removeTmaGridQuestion")
+				)) {
 					hierarchy.setTMAGrid(null);
 					
 					PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
 					if (selected instanceof TMACoreObject)
 						hierarchy.getSelectionModel().setSelectedObject(null);
 
-					imageData.getHistoryWorkflow().addStep(
-							new DefaultScriptableWorkflowStep("Remove TMA Grid",
-									"removeTMAGrid()"));
+					imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+							QuPathResources.getString("Commands.removeTmaGrid"),
+							"removeTMAGrid()"
+					));
 				}
 				return;
 			}
@@ -1271,8 +1329,10 @@ public class Commands {
 		if (pathObjects.isEmpty())
 			return;
 		int n = pathObjects.size();
-		String message = n == 1 ? "Delete 1 object?" : "Delete " + n + " objects?";
-		if (Dialogs.showYesNoDialog("Delete objects", message)) {
+		String message = n == 1 ?
+				QuPathResources.getString("Commands.deleteOneObject") :
+				MessageFormat.format(QuPathResources.getString("Commands.deleteNObjects"), n);
+		if (Dialogs.showYesNoDialog(QuPathResources.getString("Commands.deleteObjects"), message)) {
 			hierarchy.removeObjects(pathObjects, true);
 			
 			PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
@@ -1283,14 +1343,20 @@ public class Commands {
 				hierarchy.getSelectionModel().setSelectedObject(null);
 			
 			if (cls == PathDetectionObject.class)
-				imageData.getHistoryWorkflow().addStep(
-						new DefaultScriptableWorkflowStep("Delete detections", "removeDetections()"));
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+						QuPathResources.getString("Commands.deleteDetections"),
+						"removeDetections()"
+				));
 			else if (cls == PathAnnotationObject.class)
-				imageData.getHistoryWorkflow().addStep(
-						new DefaultScriptableWorkflowStep("Delete annotations", "removeAnnotations()"));
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+						QuPathResources.getString("Commands.deleteAnnotations"),
+						"removeAnnotations()"
+				));
 			else if (cls == TMACoreObject.class)
-				imageData.getHistoryWorkflow().addStep(
-						new DefaultScriptableWorkflowStep("Delete TMA grid", "removeTMAGrid()"));
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+						QuPathResources.getString("Commands.deleteTmaGrid"),
+						"removeTMAGrid()"
+				));
 			else
 				logger.warn("Cannot remove all objects for class {}", cls);
 		}
@@ -1308,11 +1374,10 @@ public class Commands {
 			return;
 		}
 		QP.removeObjectsTouchingImageBounds(imageData, null);
-		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep(
-						"Remove objects on image boundary",
-						"removeObjectsTouchingImageBounds()")
-		);
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.removeObjectsOnBoundary"),
+				"removeObjectsTouchingImageBounds()"
+		));
 	}
 
 	
@@ -1322,7 +1387,10 @@ public class Commands {
 	 * @return true if the preferences were reset, false otherwise
 	 */
 	public static boolean promptToResetPreferences() {
-		if (Dialogs.showConfirmDialog("Reset Preferences", "Do you want to reset all custom preferences?\n\nYou may have to restart QuPath to see all changes.")) {
+		if (Dialogs.showConfirmDialog(
+				QuPathResources.getString("Commands.resetPreferences"),
+				QuPathResources.getString("Commands.resetPreferencesConfirmation")
+		)) {
 			PathPrefs.resetPreferences();
 			return true;
 		}
@@ -1359,16 +1427,19 @@ public class Commands {
 	 * @return true if a project was created, false otherwise (e.g. the user cancelled).
 	 */
 	public static boolean promptToCreateProject(QuPathGUI qupath) {
-		File dir = FileChoosers.promptForDirectory("Select empty directory for project", null);
+		File dir = FileChoosers.promptForDirectory(QuPathResources.getString("Commands.selectEmptyDirectory"), null);
 		if (dir == null)
 			return false;
 		if (!dir.isDirectory()) {
-			logger.error(dir + " is not a valid project directory!");
+            logger.error("{} is not a valid project directory!", dir);
 		}
 		for (File f : dir.listFiles()) {
 			if (!f.isHidden()) {
 				logger.error("Cannot create project for non-empty directory {}", dir);
-				Dialogs.showErrorMessage("Project creator", "Project directory must be empty!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Commands.projectCreator"),
+						QuPathResources.getString("Commands.projectDirectoryEmpty")
+				);
 				return false;
 			}
 		}
@@ -1384,15 +1455,20 @@ public class Commands {
 	 */
 
 	public static boolean promptToOpenProject(QuPathGUI qupath) {
-		File fileProject = FileChoosers.promptForFile("Choose project file",
-				FileChoosers.createExtensionFilter("QuPath projects", ProjectIO.getProjectExtension()));
+		File fileProject = FileChoosers.promptForFile(
+				QuPathResources.getString("Commands.chooseProjectFile"),
+				FileChoosers.createExtensionFilter(QuPathResources.getString("Commands.quPathProjects"), ProjectIO.getProjectExtension())
+		);
 		if (fileProject != null) {
 			try {
 				Project<BufferedImage> project = ProjectIO.loadProject(fileProject, BufferedImage.class);
 				qupath.setProject(project);
 				return true;
 			} catch (Exception e) {
-				Dialogs.showErrorMessage("Load project", "Could not read project from " + fileProject.getName());
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Commands.loadProject"),
+						MessageFormat.format(QuPathResources.getString("Commands.couldNotReadProject"), fileProject.getName())
+				);
 				logger.error(e.getLocalizedMessage(), e);
 			}
 		}
@@ -1435,7 +1511,9 @@ public class Commands {
 	 * @param signedDistances if true, use signed distances
 	 */
 	public static void distanceToAnnotations2D(ImageData<?> imageData, boolean signedDistances) {
-		String title = signedDistances ? "Signed distance to annotations 2D" : "Distance to annotations 2D";
+		String title = signedDistances ?
+				QuPathResources.getString("Commands.signedDistanceToAnnotations") :
+				QuPathResources.getString("Commands.distanceToAnnotations");
 		if (imageData == null) {
 			GuiTools.showNoImageError(title);
 			return;
@@ -1443,14 +1521,13 @@ public class Commands {
 		
 		if (imageData.getServer().nZSlices() > 1) {
 			logger.debug("Warning user that measurements will be 2D...");
-			if (!Dialogs.showConfirmDialog(title, 
-					"Distance to annotations command works only in 2D - distances will not be calculated for objects on different z-slices or time-points")) {
+			if (!Dialogs.showConfirmDialog(title, QuPathResources.getString("Commands.distanceToAnnotationsOnly2d"))) {
 				logger.debug("Command cancelled");
 				return;
 			}
 		}
 		
-		var result = Dialogs.showYesNoCancelDialog(title, "Split multi-part classifications?\nIf yes, each component of classifications such as \"Class1: Class2\" will be treated separately.");
+		var result = Dialogs.showYesNoCancelDialog(title, QuPathResources.getString("Commands.splitMultiPartClassifications"));
 		boolean doSplit = false;
 		if (result == ButtonType.YES)
 			doSplit = true;
@@ -1460,13 +1537,15 @@ public class Commands {
 		if (signedDistances) {
 			DistanceTools.detectionToAnnotationDistancesSigned(imageData, doSplit);
 			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
-					"Signed distance to annotations 2D",
-					doSplit ? "detectionToAnnotationDistancesSigned(true)" : "detectionToAnnotationDistancesSigned(false)"));
+					QuPathResources.getString("Commands.signedDistanceToAnnotations"),
+					doSplit ? "detectionToAnnotationDistancesSigned(true)" : "detectionToAnnotationDistancesSigned(false)"
+			));
 		} else {
 			DistanceTools.detectionToAnnotationDistances(imageData, doSplit);
 			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
-					"Distance to annotations 2D",
-					doSplit ? "detectionToAnnotationDistances(true)" : "detectionToAnnotationDistances(false)"));
+					QuPathResources.getString("Commands.distanceToAnnotations"),
+					doSplit ? "detectionToAnnotationDistances(true)" : "detectionToAnnotationDistances(false)"
+			));
 		}
 	}
 	
@@ -1475,7 +1554,7 @@ public class Commands {
 	 * @param imageData the image data to process
 	 */
 	public static void detectionCentroidDistances2D(ImageData<?> imageData) {
-		String title = "Detection centroid distances 2D";
+		String title = QuPathResources.getString("Commands.detectionCentroidDistances");
 		if (imageData == null) {
 			GuiTools.showNoImageError(title);
 			return;
@@ -1483,14 +1562,13 @@ public class Commands {
 		
 		if (imageData.getServer().nZSlices() > 1) {
 			logger.debug("Warning user that measurements will be 2D...");
-			if (!Dialogs.showConfirmDialog(title, 
-					"Detection centroid distances command works only in 2D - distances will not be calculated for objects on different z-slices or time-points")) {
+			if (!Dialogs.showConfirmDialog(title, QuPathResources.getString("Commands.detectionCentroidDistancesOnly2d"))) {
 				logger.debug("Command cancelled");
 				return;
 			}
 		}
 		
-		var result = Dialogs.showYesNoCancelDialog(title, "Split multi-part classifications?\nIf yes, each component of classifications such as \"Class1: Class2\" will be treated separately.");
+		var result = Dialogs.showYesNoCancelDialog(title, QuPathResources.getString("Commands.splitMultiPartClassifications"));
 		boolean doSplit = false;
 		if (result == ButtonType.YES)
 			doSplit = true;
@@ -1499,8 +1577,9 @@ public class Commands {
 		
 		DistanceTools.detectionCentroidDistances(imageData, doSplit);
 		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
-				"Detection centroid distances 2D",
-				doSplit ? "detectionCentroidDistances(true)" : "detectionCentroidDistances(false)"));
+				QuPathResources.getString("Commands.detectionCentroidDistances"),
+				doSplit ? "detectionCentroidDistances(true)" : "detectionCentroidDistances(false)"
+		));
 	}
 	
 	
@@ -1512,11 +1591,11 @@ public class Commands {
 		GridLines gridLines = options.getGridLines();
 		
 		ParameterList params = new ParameterList()
-				.addDoubleParameter("hSpacing", "Horizontal spacing", gridLines.getSpaceX())
-				.addDoubleParameter("vSpacing", "Vertical spacing", gridLines.getSpaceY())
-				.addBooleanParameter("useMicrons", "Use microns", gridLines.useMicrons());
+				.addDoubleParameter("hSpacing", QuPathResources.getString("Commands.horizontalSpacing"), gridLines.getSpaceX())
+				.addDoubleParameter("vSpacing", QuPathResources.getString("Commands.verticalSpacing"), gridLines.getSpaceY())
+				.addBooleanParameter("useMicrons", QuPathResources.getString("Commands.useMicrons"), gridLines.useMicrons());
 		
-		if (!GuiTools.showParameterDialog("Set grid spacing", params))
+		if (!GuiTools.showParameterDialog(QuPathResources.getString("Commands.setGridSpacing"), params))
 			return;
 		
 		gridLines = new GridLines();
@@ -1548,20 +1627,24 @@ public class Commands {
 		File dirDefault = PathPrefs.getDefaultQuPathUserDirectory().toFile();
 		String msg;
 		if (dirDefault.exists()) {
-			msg = dirDefault.getAbsolutePath() + " already exists.\n" +
-					"Do you want to use this default, or specify another directory?";
+			msg = MessageFormat.format(
+					QuPathResources.getString("Commands.alreadyExists"),
+					dirDefault.getAbsolutePath()
+			);
 		} else {
-			msg = String.format("Do you want to create a new user directory at\n %s?",
-					dirDefault.getAbsolutePath());
+			msg = MessageFormat.format(
+					QuPathResources.getString("Commands.createNewUserDirectory"),
+					dirDefault.getAbsolutePath()
+			);
 		}
 		
-		ButtonType btUseDefault = new ButtonType("Use default", ButtonData.YES);
-		ButtonType btChooseDirectory = new ButtonType("Choose directory", ButtonData.NO);
-		ButtonType btCancel = new ButtonType("Cancel", ButtonData.CANCEL_CLOSE);
+		ButtonType btUseDefault = new ButtonType(QuPathResources.getString("Commands.useDefault"), ButtonData.YES);
+		ButtonType btChooseDirectory = new ButtonType(QuPathResources.getString("Commands.chooseDirectory"), ButtonData.NO);
+		ButtonType btCancel = new ButtonType(QuPathResources.getString("Commands.cancel"), ButtonData.CANCEL_CLOSE);
 		
 		var result = Dialogs.builder()
-			.title("Choose user directory")
-			.headerText("No user directory set")
+			.title(QuPathResources.getString("Commands.chooseUserDirectory"))
+			.headerText(QuPathResources.getString("Commands.noUserDirectorySet"))
 			.contentText(msg)
 			.buttons(btUseDefault, btChooseDirectory, btCancel)
 			.showAndWait()
@@ -1573,12 +1656,18 @@ public class Commands {
 		}
 		if (result == btUseDefault) {
 			if (!dirDefault.exists() && !dirDefault.mkdirs()) {
-				Dialogs.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Commands.extensionError"),
+						MessageFormat.format(
+								QuPathResources.getString("Commands.unableToCreateDirectory"),
+								dirDefault.getAbsolutePath()
+						)
+				);
 				return null;
 			}
 			pathUser = dirDefault.toPath();
 		} else {
-			File dirUser = FileChoosers.promptForDirectory("Set user directory", dirDefault);
+			File dirUser = FileChoosers.promptForDirectory(QuPathResources.getString("Commands.setUserDirectory"), dirDefault);
 			if (dirUser == null) {
 				logger.info("No QuPath user directory set!");
 				return null;
@@ -1596,25 +1685,34 @@ public class Commands {
 	 */
 	public static void reloadImageData(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
 		if (imageData == null) {
-			GuiTools.showNoImageError("Reload data");
+			GuiTools.showNoImageError(QuPathResources.getString("Commands.reloadData"));
 			return;
 		}
 		// TODO: Support loading from a project as well
 		
 		var viewer = qupath.getAllViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);
 		if (viewer == null) {
-			Dialogs.showErrorMessage("Reload data", "Specified image data not found open in any viewer!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.reloadData"),
+					QuPathResources.getString("Commands.imageDataNotFound")
+			);
 			return;
 		}
 
 		// Check if we have a saved file
 		File savedFile = imageData.getLastSavedPath() == null ? null : new File(imageData.getLastSavedPath());
 		if (savedFile == null || !savedFile.isFile()) {
-			Dialogs.showErrorMessage("Reload", "No previously saved data found!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.reload"),
+					QuPathResources.getString("Commands.noSavedDataFound")
+			);
 			return;
 		}
 		
-		if (Dialogs.showConfirmDialog("Reload", "Reload last saved version?\nAny unsaved changes will be lost.")) {
+		if (Dialogs.showConfirmDialog(
+				QuPathResources.getString("Commands.reload"),
+				QuPathResources.getString("Commands.reloadLastSavedVersion")
+		)) {
 			try {
 				var project = qupath.getProject();
 				var entry = project == null ? null : project.getEntry(imageData);
@@ -1628,7 +1726,13 @@ public class Commands {
 				}
 				viewer.setImageData(imageDataNew);
 			} catch (Exception e) {
-				Dialogs.showErrorMessage("Reload", "Error reverting to previously saved file\n\n" + e.getLocalizedMessage());
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Commands.reload"),
+						MessageFormat.format(
+								QuPathResources.getString("Commands.errorRevertingToSavedFile"),
+								e.getLocalizedMessage()
+						)
+				);
 			}
 		}
 
@@ -1663,15 +1767,15 @@ public class Commands {
 		
 		var pane = new BorderPane(listView);
 		
-		listView.setTooltip(new Tooltip("Choose shape features"));
-		var label = new Label("Add shape features to selected objects.\nNote that not all measurements are compatible with all objects.");
+		listView.setTooltip(new Tooltip(QuPathResources.getString("Commands.chooseShapeFeatures")));
+		var label = new Label(QuPathResources.getString("Commands.addShapeFeaturesToSelectedObjects"));
 		label.setTextAlignment(TextAlignment.CENTER);
 		label.setPadding(new Insets(10));
 		pane.setTop(label);
 		
-		var btnSelectAll = new Button("Select all");
+		var btnSelectAll = new Button(QuPathResources.getString("Commands.selectAll"));
 		btnSelectAll.setOnAction(e -> listView.getCheckModel().checkAll());
-		var btnSelectNone = new Button("Select none");
+		var btnSelectNone = new Button(QuPathResources.getString("Commands.selectNone"));
 		btnSelectNone.setOnAction(e -> listView.getCheckModel().clearChecks());
 		
 		btnSelectAll.setMaxWidth(Double.MAX_VALUE);
@@ -1680,7 +1784,7 @@ public class Commands {
 		pane.setBottom(GridPaneUtils.createColumnGrid(btnSelectAll, btnSelectNone));
 		
 		var dialog = Dialogs.builder()
-				.title("Shape features")
+				.title(QuPathResources.getString("Commands.shapeFeatures"))
 				.content(pane)
 				.modality(Modality.NONE)
 				.buttons(ButtonType.APPLY, ButtonType.CANCEL)
@@ -1702,19 +1806,32 @@ public class Commands {
 			return;
 		Collection<PathObject> selected = imageData.getHierarchy().getSelectionModel().getSelectedObjects();
 		if (selected.isEmpty()) {
-			Dialogs.showWarningNotification("Shape features", "No objects selected!");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Commands.shapeFeatures"),
+					QuPathResources.getString("Commands.noObjectsSelected")
+			);
 		} else {
 			selected = new ArrayList<>(selected);			
 			String featureString = Arrays.stream(featureArray).map(f -> "\"" + f.name() + "\"").collect(Collectors.joining(", "));
 			QP.addShapeMeasurements(imageData, selected, featureArray);
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Add shape measurements",
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+					QuPathResources.getString("Commands.addShapeMeasurements"),
 					String.format("addShapeMeasurements(%s)", featureString)
-					));
+			));
 			
 			if (selected.size() == 1)
-				Dialogs.showInfoNotification("Shape features", "Shape features calculated for one object");
+				Dialogs.showInfoNotification(
+						QuPathResources.getString("Commands.shapeFeatures"),
+						QuPathResources.getString("Commands.shapeFeaturesCalculatedOneObject")
+				);
 			else
-				Dialogs.showInfoNotification("Shape features", "Shape features calculated for " + selected.size() + " objects");
+				Dialogs.showInfoNotification(
+						QuPathResources.getString("Commands.shapeFeatures"),
+						MessageFormat.format(
+								QuPathResources.getString("Commands.shapeFeaturesCalculatedNObjects"),
+								selected.size()
+						)
+				);
 		}
 	}
 	
@@ -1727,13 +1844,16 @@ public class Commands {
 	 */
 	public static void convertDetectionsToPoints(ImageData<?> imageData, boolean preferNucleus) {
 		if (imageData == null) {
-			GuiTools.showNoImageError("Convert detections to points");
+			GuiTools.showNoImageError(QuPathResources.getString("Commands.convertDetectionsToPoints"));
 			return;
 		}
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		Collection<PathObject> pathObjects = hierarchy.getDetectionObjects();
 		if (pathObjects.isEmpty()) {
-			Dialogs.showErrorMessage("Detections to points", "No detections found!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.detectionsToPoints"),
+					QuPathResources.getString("Commands.noDetectionsFound")
+			);
 			return;
 		}
 		
@@ -1750,21 +1870,24 @@ public class Commands {
 		}
 		
 		// Check if existing objects should be deleted
-		String message = pathObjects.size() == 1 ? "Delete detection after converting to a point?" :
-			String.format("Delete %d detections after converting to points?", pathObjects.size());
-		var button = Dialogs.showYesNoCancelDialog("Detections to points", message);
+		String message = pathObjects.size() == 1 ?
+				QuPathResources.getString("Commands.deleteDetectionAfterConverting") :
+				MessageFormat.format(QuPathResources.getString("Commands.deleteNDetectionAfterConverting"), pathObjects.size());
+		var button = Dialogs.showYesNoCancelDialog(QuPathResources.getString("Commands.detectionsToPoints"), message);
 		if (button == ButtonType.CANCEL)
 			return;
 		
 		boolean	deleteDetections = button == ButtonType.YES;
 		PathObjectTools.convertToPoints(hierarchy, pathObjects, preferNucleus, deleteDetections);
-		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Convert detections to points", "convertDetectionsToPoints()")
-		);
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.convertDetectionsToPoints"),
+				"convertDetectionsToPoints()"
+		));
 		if (deleteDetections) {
-			imageData.getHistoryWorkflow().addStep(
-					new DefaultScriptableWorkflowStep("Delete detections", "removeDetections()")
-			);
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+					QuPathResources.getString("Commands.deleteDetections"),
+					"removeDetections()"
+			));
 		}
 	}
 
@@ -1780,36 +1903,43 @@ public class Commands {
 				.filter(p -> p.isAnnotation() && p.hasROI() && p.isEditable() && !p.getROI().isPoint())
 				.toList();
 		if (pathObjects.isEmpty()) {
-			Dialogs.showErrorMessage("Simplify annotations", "No unlocked shape annotations selected!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.simplifyAnnotations"),
+					QuPathResources.getString("Commands.noUnlockedShapeAnnotationsSelected")
+			);
 			return;
 		}
 
-		String input = Dialogs.showInputDialog("Simplify shape", 
-				"Set altitude threshold in pixels.\nHigher values give simpler shapes.", 
-				Double.toString(altitudeThreshold));
-		if (input == null || !(input instanceof String) || ((String)input).trim().length() == 0)
+		String input = Dialogs.showInputDialog(
+				QuPathResources.getString("Commands.simplifyShape"),
+				QuPathResources.getString("Commands.setAltitudeThreshold"),
+				Double.toString(altitudeThreshold)
+		);
+		if (input == null || input.trim().isEmpty())
 			return;
 		try {
-			altitudeThreshold = Double.parseDouble(((String)input).trim());
+			altitudeThreshold = Double.parseDouble(input.trim());
 		} catch (NumberFormatException e) {
 			logger.error("Could not parse altitude threshold from {}", input);
 			return;
 		}
 		if (altitudeThreshold <= 0) {
-			Dialogs.showErrorMessage("Simplify shape", "Amplitude threshold should be greater than zero!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.simplifyShape"),
+					QuPathResources.getString("Commands.amplitudeThresholdGreaterThanZero")
+			);
 			return;
 		}
 		
 		long startTime = System.currentTimeMillis();
 		QP.simplifySpecifiedAnnotations(pathObjects, altitudeThreshold);
 		long endTime = System.currentTimeMillis();
-		logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
+        logger.debug("Shapes simplified in {} ms", endTime - startTime);
 		hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
-		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Simplify selected annotations",
-						"simplifySelectedAnnotations(" + altitudeThreshold + ")"
-						)
-				);
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.simplifySelectedAnnotations"),
+				"simplifySelectedAnnotations(" + altitudeThreshold + ")"
+		));
 	}
 	
 	/**
@@ -1826,11 +1956,10 @@ public class Commands {
 		int z = viewer.getZPosition();
 		int t = viewer.getTPosition();
 		QP.selectObjectsByPlane(z, t);
-		imageData.getHistoryWorkflow().addStep(
-				new DefaultScriptableWorkflowStep("Select objects on plane",
-						String.format("selectObjectsByPlane(%d, %d)", z, t)
-						)
-				);
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.selectObjectsOnPlane"),
+				String.format("selectObjectsByPlane(%d, %d)", z, t)
+		));
 	}
 	
 
@@ -1846,8 +1975,11 @@ public class Commands {
 		// Add this step to the history workflow
 		Map<String, String> map = new HashMap<>();
 		map.put("includeRootObject", "false");
-		WorkflowStep newStep = new DefaultScriptableWorkflowStep("Select all objects", map, "selectAllObjects(false)");
-		imageData.getHistoryWorkflow().addStep(newStep);
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.selectAllObjects"),
+				map,
+				"selectAllObjects(false)"
+		));
 	}
 
 
@@ -1879,7 +2011,11 @@ public class Commands {
 			// TODO: Get a suitable name to disguise Java classes
 			method = "selectObjectsByClass(" + cls.getName() + ");";
 		
-		WorkflowStep newStep = new DefaultScriptableWorkflowStep("Select objects by class", params, method);
+		WorkflowStep newStep = new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.selectObjectsByClass"),
+				params,
+				method
+		);
 		WorkflowStep lastStep = imageData.getHistoryWorkflow().getLastStep();
 		if (newStep.equals(lastStep))
 			imageData.getHistoryWorkflow().replaceLastStep(newStep);
@@ -1905,7 +2041,7 @@ public class Commands {
 		// Log the appropriate command
 		String method = "resetSelection()";
 		
-		WorkflowStep newStep = new DefaultScriptableWorkflowStep("Reset selection", method);
+		WorkflowStep newStep = new DefaultScriptableWorkflowStep(QuPathResources.getString("Commands.resetSelection"), method);
 		WorkflowStep lastStep = imageData.getHistoryWorkflow().getLastStep();
 		if (newStep.equals(lastStep))
 			imageData.getHistoryWorkflow().replaceLastStep(newStep);
@@ -1937,7 +2073,11 @@ public class Commands {
 		else // TODO: Get a suitable name to disguise Java classes
 			method = "resetClassifications(" + cls.getName() + ");";
 		
-		WorkflowStep newStep = new DefaultScriptableWorkflowStep("Reset classifications", params, method);
+		WorkflowStep newStep = new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.resetClassifications"),
+				params,
+				method
+		);
 		WorkflowStep lastStep = imageData.getHistoryWorkflow().getLastStep();
 		if (newStep.equals(lastStep))
 			imageData.getHistoryWorkflow().replaceLastStep(newStep);
@@ -1958,7 +2098,7 @@ public class Commands {
 		dialog.setMinHeight(200);
 		dialog.setMinWidth(200);
 		dialog.initOwner(qupath.getStage());
-		dialog.setTitle("Workflow viewer");
+		dialog.setTitle(QuPathResources.getString("Commands.workflowViewer"));
 		Pane pane = view.getPane();
 		dialog.setScene(new Scene(pane, 400, 400));
 		return dialog;
@@ -1972,7 +2112,7 @@ public class Commands {
 	 */
 	public static void showWorkflowScript(QuPathGUI qupath, ImageData<?> imageData) {
 		if (imageData == null) {
-			GuiTools.showNoImageError("Show workflow script");
+			GuiTools.showNoImageError(QuPathResources.getString("Commands.showWorkflowScript"));
 			return;
 		}
 		WorkflowCommandLogView.showScript(qupath.getScriptEditor(), imageData.getHistoryWorkflow());
@@ -1986,7 +2126,10 @@ public class Commands {
 	public static void showScriptEditor(QuPathGUI qupath) {
 		var scriptEditor = qupath.getScriptEditor();
 		if (scriptEditor == null) {
-			Dialogs.showErrorMessage("Script editor", "No script editor found!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.scriptEditor"),
+					QuPathResources.getString("Commands.noScriptEditorFound")
+			);
 			return;
 		}
 		// Show script editor with a new script
@@ -2038,12 +2181,16 @@ public class Commands {
 		 var hierarchy = imageData.getHierarchy();
 		 if (duplicatesOnly) {
 			 QP.refreshDuplicateIDs(hierarchy);
-			 imageData.getHistoryWorkflow().addStep(
-					 new DefaultScriptableWorkflowStep("Refresh duplicate IDs", "refreshDuplicateIDs()"));
+			 imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+					 QuPathResources.getString("Commands.refreshDuplicateIDs"),
+					 "refreshDuplicateIDs()"
+			 ));
 		 } else {
 			 QP.refreshIDs(hierarchy);
-			 imageData.getHistoryWorkflow().addStep(
-					 new DefaultScriptableWorkflowStep("Refresh duplicate IDs", "refreshIDs()"));			 
+			 imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+					 QuPathResources.getString("Commands.refreshDuplicateIDs"),
+					 "refreshIDs()"
+			 ));
 		 }
 	}
 	
@@ -2083,10 +2230,14 @@ public class Commands {
 		
 		int max = PathPrefs.maxObjectsToClipboardProperty().get();
 		if (max >= 0 && max < pathObjects.size()) {
-			Dialogs.showWarningNotification("Copy objects to clipboard",
-					String.format("Number of selected objects (%d) exceeds the maximum that can be copied (%d)!\n"
-							+ "Either export the objects to a GeoJSON file, or increase the maximum number of "
-							+ "clipboard objects in the preferences.", pathObjects.size(), max));
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Commands.copyObjectsToClipboard"),
+					MessageFormat.format(
+							QuPathResources.getString("Commands.numberOfSelectedObjectsExceedsMaximum"),
+							pathObjects.size(),
+							max
+					)
+			);
 			return;
 		}
 		
@@ -2152,7 +2303,7 @@ public class Commands {
 		// No objects - paste text in the script editor instead
 		var text = (String)Clipboard.getSystemClipboard().getContent(DataFormat.PLAIN_TEXT);
 		if (!addToCurrentPlane && text != null && !text.isEmpty() && qupath.getScriptEditor() != null) {
-			qupath.getScriptEditor().showScript("Clipboard text", text);
+			qupath.getScriptEditor().showScript(QuPathResources.getString("Commands.clipboardText"), text);
 		}
 	}
 
@@ -2165,7 +2316,7 @@ public class Commands {
 		try {
 			ExportObjectsCommand.runGeoJsonExport(qupath);
 		} catch (IOException e) {
-			Dialogs.showErrorNotification("Export error", e.getLocalizedMessage());
+			Dialogs.showErrorNotification(QuPathResources.getString("Commands.exportError"), e.getLocalizedMessage());
 		}
 	}
 }

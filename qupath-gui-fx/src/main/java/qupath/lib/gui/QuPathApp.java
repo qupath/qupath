@@ -55,6 +55,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -333,7 +334,13 @@ public class QuPathApp extends Application {
 			try {
 				tryToOpenImageFromPath(qupath, file.getAbsolutePath());
 			} catch (Exception e) {
-				Dialogs.showErrorMessage("Open image", "Can't open image: " + e.getLocalizedMessage());
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("QuPathApp.openImage"),
+						MessageFormat.format(
+								QuPathResources.getString("QuPathApp.cannotOpenImage"),
+								e.getLocalizedMessage()
+						)
+				);
 			}
 		}
 		

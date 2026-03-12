@@ -42,6 +42,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 
 /**
@@ -84,8 +85,8 @@ public class BrightnessContrastSliderPane extends GridPane {
 
     private void populatePane() {
         String blank = "      ";
-        Label labelMin = new Label("Channel min");
-        Tooltip tooltipMin = new Tooltip("Set minimum lookup table value - double-click the value to edit manually");
+        Label labelMin = new Label(QuPathResources.getString("Commands.BrightnessContrast.SliderPane.channelMin"));
+        Tooltip tooltipMin = new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.SliderPane.channelMinDescription"));
         Label labelMinValue = new Label(blank);
         labelMinValue.setTooltip(tooltipMin);
         labelMin.setTooltip(tooltipMin);
@@ -96,8 +97,8 @@ public class BrightnessContrastSliderPane extends GridPane {
         add(sliderMin, 1, 0);
         add(labelMinValue, 2, 0);
 
-        Label labelMax = new Label("Channel max");
-        Tooltip tooltipMax = new Tooltip("Set maximum lookup table value - double-click the value to edit manually");
+        Label labelMax = new Label(QuPathResources.getString("Commands.BrightnessContrast.SliderPane.channelMax"));
+        Tooltip tooltipMax = new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.SliderPane.channelMaxDescription"));
         labelMax.setTooltip(tooltipMax);
         Label labelMaxValue = new Label(blank);
         labelMaxValue.setTooltip(tooltipMax);
@@ -110,11 +111,9 @@ public class BrightnessContrastSliderPane extends GridPane {
         setVgap(5);
         setHgap(4);
 
-        Label labelGamma = new Label("Viewer gamma");
+        Label labelGamma = new Label(QuPathResources.getString("Commands.BrightnessContrast.SliderPane.viewerGamma"));
         Label labelGammaValue = new Label(blank);
-        Tooltip tooltipGamma = new Tooltip("Set gamma value, for all viewers & all channels.\n"
-                + "Double-click the value to edit manually, shift-click to reset to 1.\n"
-                + "It is recommended to leave this value at 1, to avoid unnecessary nonlinear contrast adjustment.");
+        Tooltip tooltipGamma = new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.SliderPane.viewerGammaDescription"));
         labelGammaValue.setTooltip(tooltipGamma);
         labelGammaValue.textProperty().bind(createGammaLabelBinding(sliderGamma.valueProperty()));
         sliderGamma.setTooltip(tooltipGamma);
@@ -283,7 +282,11 @@ public class BrightnessContrastSliderPane extends GridPane {
             // Reset gamma to 1.0
             sliderGamma.setValue(1.0);
         } else {
-            var newGamma = Dialogs.showInputDialog("Gamma", "Set gamma value", sliderGamma.getValue());
+            var newGamma = Dialogs.showInputDialog(
+                    QuPathResources.getString("Commands.BrightnessContrast.SliderPane.gamma"),
+                    QuPathResources.getString("Commands.BrightnessContrast.SliderPane.setGammaValue"),
+                    sliderGamma.getValue()
+            );
             if (newGamma != null)
                 sliderGamma.setValue(newGamma);
         }
@@ -294,7 +297,11 @@ public class BrightnessContrastSliderPane extends GridPane {
         if (infoVisible == null)
             return;
 
-        Double value = Dialogs.showInputDialog("Display range", "Set display range maximum", (double)infoVisible.getMaxDisplay());
+        Double value = Dialogs.showInputDialog(
+                QuPathResources.getString("Commands.BrightnessContrast.SliderPane.displayRange"),
+                QuPathResources.getString("Commands.BrightnessContrast.SliderPane.setDisplayRangeMaximum"),
+                (double)infoVisible.getMaxDisplay()
+        );
         if (value != null && !Double.isNaN(value)) {
             sliderMax.setValue(value);
             // Update display directly if out of slider range
@@ -357,7 +364,11 @@ public class BrightnessContrastSliderPane extends GridPane {
         if (infoVisible == null)
             return;
 
-        Double value = Dialogs.showInputDialog("Display range", "Set display range minimum", (double)infoVisible.getMinDisplay());
+        Double value = Dialogs.showInputDialog(
+                QuPathResources.getString("Commands.BrightnessContrast.SliderPane.displayRange"),
+                QuPathResources.getString("Commands.BrightnessContrast.SliderPane.setDisplayRangeMinimum"),
+                (double)infoVisible.getMinDisplay()
+        );
         if (value != null && !Double.isNaN(value)) {
             sliderMin.setValue(value);
             // Update display directly if out of slider range

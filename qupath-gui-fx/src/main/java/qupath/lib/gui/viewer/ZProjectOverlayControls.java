@@ -35,6 +35,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.TilePane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.overlays.ZProjectOverlay;
 import qupath.lib.images.servers.ZProjectedImageServer;
 
@@ -143,14 +144,14 @@ class ZProjectOverlayControls {
     }
 
     private static String getName(ZProjectedImageServer.Projection projection) {
-        return switch (projection) {
-            case MAX -> "Max";
-            case MIN -> "Min";
-            case MEAN -> "Mean";
-            case STANDARD_DEVIATION -> "Std.Dev";
-            case SUM -> "Sum";
-            case MEDIAN -> "Median";
-        };
+        return QuPathResources.getString(switch (projection) {
+            case MAX -> "Viewer.ZProjectOverlayControls.max";
+            case MIN -> "Viewer.ZProjectOverlayControls.min";
+            case MEAN -> "Viewer.ZProjectOverlayControls.mean";
+            case STANDARD_DEVIATION -> "Viewer.ZProjectOverlayControls.stdDev";
+            case SUM -> "Viewer.ZProjectOverlayControls.sum";
+            case MEDIAN -> "Viewer.ZProjectOverlayControls.median";
+        });
     }
 
 }

@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.commands.Commands;
+import qupath.lib.gui.localization.QuPathResources;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -60,7 +62,7 @@ public class FileCopier {
 	private boolean promptForUserDirectoryIfMissing = false;
 	private List<Path> paths = new ArrayList<>();
 	
-	private String title = "Copy files";
+	private String title = QuPathResources.getString("FileCopier.title");
 	
 	private Path outputPath;
 	
@@ -150,7 +152,7 @@ public class FileCopier {
 			return path;
 		} else if (outputPath != null){
 			if (!Files.exists(outputPath)) {
-				if (Dialogs.showYesNoDialog(title, "Create directory\n" + outputPath))
+				if (Dialogs.showYesNoDialog(title, MessageFormat.format(QuPathResources.getString("FileCopier.createDirectory"), outputPath)))
 					Files.createDirectories(outputPath);
 				else
 					return null;
@@ -184,7 +186,7 @@ public class FileCopier {
 				return;
 			}
 			if (!Files.isDirectory(dir)) {
-				Dialogs.showErrorMessage(title, dir + "\nis not a directory!");
+				Dialogs.showErrorMessage(title, MessageFormat.format(QuPathResources.getString("FileCopier.notADirectory"), dir));
 				return;
 			}
 		} catch (Exception e) {
@@ -205,13 +207,13 @@ public class FileCopier {
 		default:
 			long nExisting = paths.stream()
 				.map(p -> dir.resolve(p.getFileName()))
-				.filter(p -> Files.exists(p))
+				.filter(Files::exists)
 				.count();
 			if (nExisting == 0) {
 				overwriteExisting = true;
 				break;
 			} else {
-				var response = Dialogs.showYesNoCancelDialog(title, "Overwrite existing files?");
+				var response = Dialogs.showYesNoCancelDialog(title, QuPathResources.getString("FileCopier.overwriteExistingFiles"));
 				if (response == ButtonType.YES)
 					overwriteExisting = true;
 				else if (response == ButtonType.NO)
@@ -237,7 +239,13 @@ public class FileCopier {
 					Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
 					nCopied++;
 				} catch (IOException e) {
-					Dialogs.showErrorMessage("Copy error", source + "\ncould not be copied, sorry");
+					Dialogs.showErrorMessage(
+							QuPathResources.getString("FileCopier.copyError"),
+							MessageFormat.format(
+									QuPathResources.getString("FileCopier.couldNotBeCopied"),
+									source
+							)
+					);
 					logger.error("Could not copy file {}", source, e);
 					return;
 				}
@@ -246,9 +254,9 @@ public class FileCopier {
 			}
 		}
 		if (nCopied == 1)
-			Dialogs.showInfoNotification(title, "Copied 1 file");
+			Dialogs.showInfoNotification(title, QuPathResources.getString("FileCopier.copiedOneFile"));
 		else if (nCopied > 1)
-			Dialogs.showInfoNotification(title, String.format("Copied %d files", nCopied));
+			Dialogs.showInfoNotification(title, MessageFormat.format(QuPathResources.getString("FileCopier.copiedNFiles"), nCopied));
 	}
 	
 	

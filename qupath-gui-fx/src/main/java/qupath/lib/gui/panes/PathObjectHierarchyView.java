@@ -42,6 +42,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import org.controlsfx.control.BreadCrumbBar;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.gui.tools.PathObjectLabels;
@@ -136,21 +137,21 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		// Add popup to control detection display
 		ContextMenu popup = new ContextMenu();
 		ToggleGroup toggleGroup = new ToggleGroup();
-		RadioMenuItem miWithIcons = new RadioMenuItem("Show with icons");
+		RadioMenuItem miWithIcons = new RadioMenuItem(QuPathResources.getString("Panes.PathObjectHierarchy.showWithIcons"));
 		miWithIcons.setToggleGroup(toggleGroup);
 		miWithIcons.selectedProperty().addListener((v, o, n) -> {
 			if (n)
 				PathPrefs.detectionTreeDisplayModeProperty().set(DetectionTreeDisplayModes.WITH_ICONS);
 		});
 
-		RadioMenuItem miWithoutIcons = new RadioMenuItem("Show without icons");
+		RadioMenuItem miWithoutIcons = new RadioMenuItem(QuPathResources.getString("Panes.PathObjectHierarchy.showWithoutIcons"));
 		miWithoutIcons.setToggleGroup(toggleGroup);
 		miWithoutIcons.selectedProperty().addListener((v, o, n) -> {
 			if (n)
 				PathPrefs.detectionTreeDisplayModeProperty().set(DetectionTreeDisplayModes.WITHOUT_ICONS);
 		});
 
-		RadioMenuItem miHide = new RadioMenuItem("Don't show");
+		RadioMenuItem miHide = new RadioMenuItem(QuPathResources.getString("Panes.PathObjectHierarchy.doNotShow"));
 		miHide.setToggleGroup(toggleGroup);
 		miHide.selectedProperty().addListener((v, o, n) -> {
 			if (n)
@@ -163,7 +164,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		miHide.setSelected(PathPrefs.detectionTreeDisplayModeProperty().get() == DetectionTreeDisplayModes.NONE);
 
 		// Add to menu
-		Menu menuDetectionDisplay = new Menu("Detection display");
+		Menu menuDetectionDisplay = new Menu(QuPathResources.getString("Panes.PathObjectHierarchy.detectionDisplay"));
 		menuDetectionDisplay.getItems().setAll(
 			miWithIcons, miWithoutIcons, miHide
 		);

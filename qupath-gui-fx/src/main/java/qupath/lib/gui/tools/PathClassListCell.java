@@ -26,6 +26,7 @@ package qupath.lib.gui.tools;
 import javafx.scene.control.ListCell;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.objects.classes.PathClass;
 
 import java.util.Objects;
@@ -83,7 +84,7 @@ public class PathClassListCell extends ListCell<PathClass> {
      */
     public static String defaultStringFunction(PathClass pathClass) {
         if (pathClass == null || pathClass == PathClass.NULL_CLASS)
-            return "None";
+            return QuPathResources.getString("Tools.PathClassListCell.none");
         return pathClass.toString();
     }
 

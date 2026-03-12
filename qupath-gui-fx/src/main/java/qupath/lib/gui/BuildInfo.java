@@ -25,10 +25,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
+import qupath.lib.gui.localization.QuPathResources;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
@@ -63,7 +65,7 @@ public class BuildInfo {
 				if (url == null)
 					continue;
 				try (InputStream stream = url.openStream()) {
-					Manifest manifest = new Manifest(url.openStream());
+					Manifest manifest = new Manifest(stream);
 					Attributes attributes = manifest.getMainAttributes();
 					versionString = attributes.getValue("Implementation-Version");
 					String buildTime = attributes.getValue("QuPath-build-time");
@@ -72,15 +74,22 @@ public class BuildInfo {
 						latestCommitTag = latestCommit;
 					if (versionString == null || buildTime == null)
 						continue;
-					buildString = "Version: " + versionString + "\n" + "Build time: " + buildTime;
+					buildString = MessageFormat.format(
+							QuPathResources.getString("BuildInfo.versionBuildTime"),
+							versionString,
+							buildTime
+					);
 					if (latestCommitTag != null)
-						buildString += "\n" + "Latest commit tag: " + latestCommitTag;
+						buildString += MessageFormat.format(
+								QuPathResources.getString("BuildInfo.latestCommitTag"),
+								latestCommitTag
+						);
 					version = Version.parse(versionString);
 					break;
 				} catch (IOException e) {
 					logger.error("Error reading manifest", e);
 				} catch (IllegalArgumentException e) {
-					logger.error("Error determining version: " + e.getLocalizedMessage(), e);					
+                    logger.error("Error determining version: {}", e.getLocalizedMessage(), e);
 				}
 			}
 			if (versionString == null) {

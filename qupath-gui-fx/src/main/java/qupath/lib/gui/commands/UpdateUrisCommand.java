@@ -58,6 +58,7 @@ import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.io.UriResource;
 import qupath.lib.io.UriUpdater;
 import qupath.lib.io.UriUpdater.SingleUriItem;
@@ -68,6 +69,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Scanner;
@@ -160,12 +162,12 @@ public class UpdateUrisCommand<T extends UriResource> {
 		}
 
 		Dialog<ButtonType> dialog = new Dialog<>();
-		dialog.setHeaderText("Files may have been deleted or moved!\nFix broken paths here by double-clicking on red entries and/or accepting QuPath's suggestions.");
+		dialog.setHeaderText(QuPathResources.getString("Commands.UpdateUris.filesDeletedOrMoved"));
 		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
-		((Button)dialog.getDialogPane().lookupButton(ButtonType.YES)).setText("Apply changes");
-		((Button)dialog.getDialogPane().lookupButton(ButtonType.NO)).setText("Ignore");
+		((Button)dialog.getDialogPane().lookupButton(ButtonType.YES)).setText(QuPathResources.getString("Commands.UpdateUris.applyChanges"));
+		((Button)dialog.getDialogPane().lookupButton(ButtonType.NO)).setText(QuPathResources.getString("Commands.UpdateUris.ignore"));
 		dialog.getDialogPane().setContent(manager.getPane());
-		dialog.setTitle("Update URIs");
+		dialog.setTitle(QuPathResources.getString("Commands.UpdateUris.title"));
 		dialog.setResizable(true);
 		var btn = dialog.showAndWait().orElse(ButtonType.CANCEL);
 		if (btn.equals(ButtonType.CANCEL))
@@ -178,14 +180,23 @@ public class UpdateUrisCommand<T extends UriResource> {
 		try {
 			n = updater.applyReplacements();
 			if (n <= 0) {
-				Dialogs.showInfoNotification("Update URIs", "No URIs updated!");
+				Dialogs.showInfoNotification(
+						QuPathResources.getString("Commands.UpdateUris.title"),
+						QuPathResources.getString("Commands.UpdateUris.noUrisUpdated")
+				);
 			} else if (n == 1) {
-				Dialogs.showInfoNotification("Update URIs", "1 URI updated");
+				Dialogs.showInfoNotification(
+						QuPathResources.getString("Commands.UpdateUris.title"),
+						QuPathResources.getString("Commands.UpdateUris.oneUriUpdated")
+				);
 			} else {
-				Dialogs.showInfoNotification("Update URIs", n + " URIs updated");
+				Dialogs.showInfoNotification(
+						QuPathResources.getString("Commands.UpdateUris.title"),
+						MessageFormat.format(QuPathResources.getString("Commands.UpdateUris.nUrisUpdated"), n)
+				);
 			}
 		} catch (IOException e) {
-			Dialogs.showErrorMessage("Update URIs", e);
+			Dialogs.showErrorMessage(QuPathResources.getString("Commands.UpdateUris.title"), e);
 			logger.error(e.getMessage(), e);
 		}
 		return n;
@@ -198,12 +209,12 @@ public class UpdateUrisCommand<T extends UriResource> {
 	private void initialize() {
 
 		// Create a table view
-		TableColumn<SingleUriItem, SingleUriItem> colOriginal = new TableColumn<>("Original URI");
+		TableColumn<SingleUriItem, SingleUriItem> colOriginal = new TableColumn<>(QuPathResources.getString("Commands.UpdateUris.originalUri"));
 		colOriginal.setCellValueFactory(item -> Bindings.createObjectBinding(item::getValue));
 		colOriginal.setCellFactory(col -> new UriCell());
 		table.getColumns().add(colOriginal);
 
-		TableColumn<SingleUriItem, SingleUriItem> colReplacement = new TableColumn<>("Replacement URI");
+		TableColumn<SingleUriItem, SingleUriItem> colReplacement = new TableColumn<>(QuPathResources.getString("Commands.UpdateUris.replacementUri"));
 		colReplacement.setCellValueFactory(item -> {
 			return Bindings.createObjectBinding(() -> replacements.get(item.getValue()), replacements);
 		});
@@ -225,22 +236,39 @@ public class UpdateUrisCommand<T extends UriResource> {
 		long nExists = countOriginalItems(UriStatus.EXISTS);
 		long nUnknown = countOriginalItems(UriStatus.UNKNOWN);
 
-		CheckBox cbMissing = new CheckBox(String.format("Show missing (%d)", nMissing));
+		CheckBox cbMissing = new CheckBox(MessageFormat.format(
+				QuPathResources.getString("Commands.UpdateUris.showMissing"),
+				nMissing
+		));
 		cbMissing.selectedProperty().bindBidirectional(showMissing);
-		CheckBox cbValid = new CheckBox(String.format("Show valid (%d)", nExists));
+		CheckBox cbValid = new CheckBox(MessageFormat.format(
+				QuPathResources.getString("Commands.UpdateUris.showValid"),
+				nExists
+		));
 		cbValid.selectedProperty().bindBidirectional(showValid);
-		CheckBox cbUnknown = new CheckBox(String.format("Show unknown (%d)", nUnknown));
+		CheckBox cbUnknown = new CheckBox(MessageFormat.format(
+				QuPathResources.getString("Commands.UpdateUris.showUnknown"),
+				nUnknown
+		));
 		cbUnknown.selectedProperty().bindBidirectional(showUnknown);
 
 		Label labelReplacements = new Label();
-		labelReplacements.textProperty().bind(Bindings.createStringBinding(() ->
-		"Number of replacements: " + replacements.size()
-		, replacements));
+		labelReplacements.textProperty().bind(Bindings.createStringBinding(
+				() -> MessageFormat.format(
+						QuPathResources.getString("Commands.UpdateUris.numberOfReplacements"),
+						replacements.size()
+				),
+				replacements
+		));
 
-		Button btnSearch = new Button("Search...");
-		btnSearch.setTooltip(new Tooltip("Choose a directory & search recursively for images inside"));
+		Button btnSearch = new Button(QuPathResources.getString("Commands.UpdateUris.search"));
+		btnSearch.setTooltip(new Tooltip(QuPathResources.getString("Commands.UpdateUris.searchDescription")));
 		btnSearch.setOnAction(e -> {
-			var dir = FileChoosers.promptForDirectory(FXUtils.getWindow(btnSearch), "Search directory", null);
+			var dir = FileChoosers.promptForDirectory(
+					FXUtils.getWindow(btnSearch),
+					QuPathResources.getString("Commands.UpdateUris.searchDirectory"),
+					null
+			);
 			if (dir == null) {
 				logger.debug("Search for URIs cancelled!");
 				return;
@@ -401,7 +429,11 @@ public class UpdateUrisCommand<T extends UriResource> {
 				return;
 			var uriReplacement = replacements.get(uriOriginal);
 			var defaultPath = uriReplacement == null ? uriOriginal.getURI().toString() : uriReplacement.getURI().toString();
-			String path = FileChoosers.promptForFilePathOrURI(FXUtils.getWindow(this), "Change URI", defaultPath);
+			String path = FileChoosers.promptForFilePathOrURI(
+					FXUtils.getWindow(this),
+					QuPathResources.getString("Commands.UpdateUris.changeUri"),
+					defaultPath
+			);
 			if (path != null && !path.isBlank()) {
 				URI uri = null;
 				try {
@@ -410,7 +442,13 @@ public class UpdateUrisCommand<T extends UriResource> {
 					logger.error("Error parsing URI", e);
 				}
 				if (uri == null) {
-					Dialogs.showErrorMessage("Change URI", "Unable to parse URI from " + path);
+					Dialogs.showErrorMessage(
+							QuPathResources.getString("Commands.UpdateUris.changeUri"),
+							MessageFormat.format(
+									QuPathResources.getString("Commands.UpdateUris.unableToParseUri"),
+									path
+							)
+					);
 				} else
 					updater.makeReplacement(uriOriginal.getURI(), uri);
 			} else

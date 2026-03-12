@@ -37,10 +37,12 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 
+import java.text.MessageFormat;
 import java.util.Collections;
 
 /**
@@ -121,7 +123,7 @@ public class ScatterPlotDisplay {
         scatter.setMaxPoints(maxPoints.get());
 
         var popup = new ContextMenu();
-        var miCopy = new MenuItem("Copy to clipboard");
+        var miCopy = new MenuItem(QuPathResources.getString("Charts.ScatterPlotDisplay.copyToClipboard"));
         miCopy.setOnAction(e -> SnapshotTools.copyScaledSnapshotToClipboard(scatter, 4));
         popup.getItems().add(miCopy);
         scatter.setOnContextMenuRequested(e -> popup.show(
@@ -139,13 +141,13 @@ public class ScatterPlotDisplay {
         );
 
         var topPane = new GridPane();
-        var labelX = new Label("X");
-        comboNameX.setTooltip(new Tooltip("X-axis measurement"));
+        var labelX = new Label(QuPathResources.getString("Charts.ScatterPlotDisplay.x"));
+        comboNameX.setTooltip(new Tooltip(QuPathResources.getString("Charts.ScatterPlotDisplay.xDescription")));
         labelX.setLabelFor(comboNameX);
         topPane.addRow(0, labelX, comboNameX);
 
-        var labelY = new Label("Y");
-        comboNameY.setTooltip(new Tooltip("Y-axis measurement"));
+        var labelY = new Label(QuPathResources.getString("Charts.ScatterPlotDisplay.y"));
+        comboNameY.setTooltip(new Tooltip(QuPathResources.getString("Charts.ScatterPlotDisplay.yDescription")));
         labelY.setLabelFor(comboNameY);
         topPane.addRow(1, labelY, comboNameY);
         topPane.setHgap(5);
@@ -271,38 +273,48 @@ public class ScatterPlotDisplay {
         spinPointRadius.setMinWidth(80);
         FXUtils.resetSpinnerNullToPrevious(spinPointRadius);
 
-        CheckBox cbDrawGrid = new CheckBox("Show grid");
-        cbDrawGrid.setTooltip(new Tooltip("Draw a grid on the scatterplot"));
+        CheckBox cbDrawGrid = new CheckBox(QuPathResources.getString("Charts.ScatterPlotDisplay.showGrid"));
+        cbDrawGrid.setTooltip(new Tooltip(QuPathResources.getString("Charts.ScatterPlotDisplay.showGridDescription")));
         cbDrawGrid.selectedProperty().bindBidirectional(showGrid);
         cbDrawGrid.setMinWidth(CheckBox.USE_PREF_SIZE);
 
-        CheckBox cbDrawAxes = new CheckBox("Show axes");
-        cbDrawAxes.setTooltip(new Tooltip("Draw axes ticks on the scatterplot"));
+        CheckBox cbDrawAxes = new CheckBox(QuPathResources.getString("Charts.ScatterPlotDisplay.showAxes"));
+        cbDrawAxes.setTooltip(new Tooltip(QuPathResources.getString("Charts.ScatterPlotDisplay.showAxesDescription")));
         cbDrawAxes.selectedProperty().bindBidirectional(showAxes);
         cbDrawAxes.setMinWidth(CheckBox.USE_PREF_SIZE);
 
-        CheckBox cbShowLegend = new CheckBox("Show legend");
-        cbShowLegend.setTooltip(new Tooltip("Show a legend with class names"));
+        CheckBox cbShowLegend = new CheckBox(QuPathResources.getString("Charts.ScatterPlotDisplay.showLegend"));
+        cbShowLegend.setTooltip(new Tooltip(QuPathResources.getString("Charts.ScatterPlotDisplay.showLegendDescription")));
         cbShowLegend.selectedProperty().bindBidirectional(showLegend);
         cbShowLegend.setMinWidth(CheckBox.USE_PREF_SIZE);
 
-        CheckBox cbAutorange = new CheckBox("Set axes from all points");
-        cbAutorange.setTooltip(new Tooltip("Set axes ranges using full data, even with subsampling points"));
+        CheckBox cbAutorange = new CheckBox(QuPathResources.getString("Charts.ScatterPlotDisplay.setAxes"));
+        cbAutorange.setTooltip(new Tooltip(QuPathResources.getString("Charts.ScatterPlotDisplay.setAxesDescription")));
         cbAutorange.selectedProperty().bindBidirectional(autorangeFullData);
         cbAutorange.setMinWidth(CheckBox.USE_PREF_SIZE);
 
         var pane = new GridPane();
         int row = 0;
 
-        pane.addRow(row++, createLabelFor(spinPointOpacity,
-                        "Point opacity",
-                        "Opacity of points to display (between 0 and 1)"),
-                spinPointOpacity);
+        pane.addRow(
+                row++,
+                createLabelFor(
+                        spinPointOpacity,
+                        QuPathResources.getString("Charts.ScatterPlotDisplay.pointOpacity"),
+                        QuPathResources.getString("Charts.ScatterPlotDisplay.pointOpacityDescription")
+                ),
+                spinPointOpacity
+        );
 
-        pane.addRow(row++, createLabelFor(spinPointRadius,
-                        "Point radius",
-                        "Radius of points to display (in pixels)"),
-                spinPointRadius);
+        pane.addRow(
+                row++,
+                createLabelFor(
+                        spinPointRadius,
+                        QuPathResources.getString("Charts.ScatterPlotDisplay.pointRadius"),
+                        QuPathResources.getString("Charts.ScatterPlotDisplay.pointRadiusDescription")
+                ),
+                spinPointRadius
+        );
         pane.setHgap(5);
         pane.setVgap(5);
         pane.setAlignment(Pos.CENTER);
@@ -324,37 +336,45 @@ public class ScatterPlotDisplay {
         );
         hbox.setSpacing(10);
 
-        return new TitledPane("Display", hbox);
+        return new TitledPane(QuPathResources.getString("Charts.ScatterPlotDisplay.display"), hbox);
     }
 
     private TitledPane createSamplingOptionPane() {
         var pane = new GridPane();
         int row = 0;
 
-        var tfMaxPoints = createIntTextField(maxPoints, Integer.toString(maxPoints.get()), "Type an integer > 0");
+        var tfMaxPoints = createIntTextField(
+                maxPoints,
+                Integer.toString(maxPoints.get()),
+                QuPathResources.getString("Charts.ScatterPlotDisplay.typeInteger0")
+        );
 
-        var tfSeed = createIntTextField(seed, Integer.toString(seed.get()), "Type an integer");
+        var tfSeed = createIntTextField(seed, Integer.toString(seed.get()), QuPathResources.getString("Charts.ScatterPlotDisplay.typeInteger"));
 
-        pane.addRow(row++, createLabelFor(tfMaxPoints,
-                        "Max points",
-                        """
-                                Maximum number of points to display.
-                                Plotting very large numbers of points can be slow,\s
-                                so this helps improve performance."""),
-                tfMaxPoints);
+        pane.addRow(
+                row++,
+                createLabelFor(
+                        tfMaxPoints,
+                        QuPathResources.getString("Charts.ScatterPlotDisplay.maxPoints"),
+                        QuPathResources.getString("Charts.ScatterPlotDisplay.maxPointsDescription")
+                ),
+                tfMaxPoints
+        );
 
-        pane.addRow(row++, createLabelFor(tfSeed,
-                        "RNG seed",
-                        """
-                                Seed for the random number generator (RNG) to use when sampling.
-                                Changing this value will result in different points being displayed\s
-                                whenever 'Max points' is less than the total number of points."""),
-                tfSeed);
+        pane.addRow(
+                row++,
+                createLabelFor(
+                        tfSeed,
+                        QuPathResources.getString("Charts.ScatterPlotDisplay.rNGSeed"),
+                        QuPathResources.getString("Charts.ScatterPlotDisplay.rNGSeedDescription")
+                ),
+                tfSeed
+        );
 
         pane.setHgap(5);
         pane.setVgap(5);
 
-        var labelWarning = new Label("Showing lots of points can be slow!");
+        var labelWarning = new Label(QuPathResources.getString("Charts.ScatterPlotDisplay.showingLotsOfPoints"));
         labelWarning.setWrapText(true);
         labelWarning.setAlignment(Pos.CENTER);
         labelWarning.setTextAlignment(TextAlignment.CENTER);
@@ -392,7 +412,7 @@ public class ScatterPlotDisplay {
         HBox.setHgrow(labelWarning, Priority.SOMETIMES);
         HBox.setHgrow(labelPoints, Priority.SOMETIMES);
 
-        return new TitledPane("Sampling", hBox);
+        return new TitledPane(QuPathResources.getString("Charts.ScatterPlotDisplay.sampling"), hBox);
     }
 
 
@@ -438,14 +458,18 @@ public class ScatterPlotDisplay {
         int displayedPoints = GeneralTools.clipValue(maxPoints.getValue(), 0, currentPoints);
         if (displayedPoints == currentPoints) {
             if (displayedPoints == 0)
-                return "No points to show";
+                return QuPathResources.getString("Charts.ScatterPlotDisplay.noPoints");
             if (displayedPoints == 1)
-                return "Showing 1 point";
+                return QuPathResources.getString("Charts.ScatterPlotDisplay.showing1Point");
             else
-                return "Showing all points";
+                return QuPathResources.getString("Charts.ScatterPlotDisplay.showingAllPoints");
         }
-        return "Showing " + displayedPoints + "/" + currentPoints + "\n(" +
-                GeneralTools.formatNumber(displayedPoints*100.0/currentPoints, 1) + " %)";
+        return MessageFormat.format(
+                QuPathResources.getString("Charts.ScatterPlotDisplay.showingX"),
+                displayedPoints,
+                currentPoints,
+                GeneralTools.formatNumber(displayedPoints*100.0/currentPoints, 1)
+        );
     }
 
     /**

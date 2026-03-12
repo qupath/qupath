@@ -130,16 +130,16 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 
 	public static enum GridDisplaySize {
-			TINY("Tiny", 60),
-			SMALL("Small", 100),
-			MEDIUM("Medium", 200),
-			LARGE("Large", 300);
+			TINY("GridView.tiny", 60),
+			SMALL("GridView.small", 100),
+			MEDIUM("GridView.medium", 200),
+			LARGE("GridView.large", 300);
 		
 		private final String name;
 		private final int size;
 		
 		GridDisplaySize(final String name, final int size) {
-			this.name = name;
+			this.name = QuPathResources.getString(name);
 			this.size = size;
 		}
 		
@@ -262,7 +262,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		Comparator<PathObject> sorter;
 		if (measurementName.equals(QuPathResources.getString("GridView.classification"))) {
 			sorter = (po1, po2) -> {
-				Comparator<PathObject> comp = Comparator.comparing(po -> po.getPathClass() == null ? "Unclassified" : po.getPathClass().toString());
+				Comparator<PathObject> comp = Comparator.comparing(po -> po.getPathClass() == null ? PathClass.NULL_CLASS.toString() : po.getPathClass().toString());
 				return comp.compare(po1, po2);
 			};
 		} else {

@@ -31,6 +31,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.images.stores.ImageRenderer;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
@@ -348,7 +349,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 
 	@Override
 	public String getServerType() {
-		return "Rendered image server";
+		return QuPathResources.getString("Images.RenderedImageServer.type");
 	}
 
 	@Override

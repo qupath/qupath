@@ -27,6 +27,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.io.PathIO.GeoJsonExportOptions;
 import qupath.lib.objects.PathObject;
@@ -37,6 +38,7 @@ import qupath.lib.scripting.QP;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -53,10 +55,23 @@ import java.util.stream.Collectors;
  */
 // TODO make default dir the project one when choosing outFile?
 public final class ExportObjectsCommand {
-	
-	private static final String COMPRESS_NONE = "None";
-	private static final String COMPRESS_ZIP = "ZIP";
-	private static final String COMPRESS_GZIP = "gzip";
+
+	private enum Compression {
+		NONE("Commands.ExportObjects.none"),
+		ZIP("Commands.ExportObjects.zip"),
+		GZIP("Commands.ExportObjects.gzip");
+
+		private final String text;
+
+		Compression(String resource) {
+			this.text = QuPathResources.getString(resource);
+		}
+
+		@Override
+		public String toString() {
+			return text;
+		}
+	}
 	
 	// Suppress default constructor for non-instantiability
 	private ExportObjectsCommand() {
@@ -78,17 +93,42 @@ public final class ExportObjectsCommand {
 		// Get hierarchy
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		
-		String allObjects = "All objects";
-		String selectedObjects = "Selected objects";
+		String allObjects = QuPathResources.getString("Commands.ExportObjects.allObjects");
+		String selectedObjects = QuPathResources.getString("Commands.ExportObjects.selectedObjects");
 		String defaultObjects = hierarchy.getSelectionModel().noSelection() ? allObjects : selectedObjects;
 		
 		// Params
 		var parameterList = new ParameterList()
-				.addChoiceParameter("exportOptions", "Export ", defaultObjects, Arrays.asList(allObjects, selectedObjects), "Choose which objects to export - run a 'Select annotations/detections' command first if needed")
-				.addBooleanParameter("excludeMeasurements", "Exclude measurements", false, "Exclude object measurements during export - for large numbers of detections this can help reduce the file size")
-				.addBooleanParameter("doPretty", "Pretty JSON", false, "Pretty GeoJSON is more human-readable but results in larger file sizes")
-				.addBooleanParameter("doFeatureCollection", "Export as FeatureCollection", true, "Export as a 'FeatureCollection', which is a standard GeoJSON way to represent multiple objects; if not, a regular JSON object/array will be export")
-				.addChoiceParameter("compression", "Compression", COMPRESS_NONE, List.of(COMPRESS_NONE, COMPRESS_ZIP, COMPRESS_GZIP));
+				.addChoiceParameter("exportOptions",
+						QuPathResources.getString("Commands.ExportObjects.exportOptions"),
+						defaultObjects,
+						Arrays.asList(allObjects, selectedObjects),
+						QuPathResources.getString("Commands.ExportObjects.exportOptionsDescription")
+				)
+				.addBooleanParameter(
+						"excludeMeasurements",
+						QuPathResources.getString("Commands.ExportObjects.excludeMeasurements"),
+						false,
+						QuPathResources.getString("Commands.ExportObjects.excludeMeasurementsDescription")
+				)
+				.addBooleanParameter(
+						"doPretty",
+						QuPathResources.getString("Commands.ExportObjects.doPretty"),
+						false,
+						QuPathResources.getString("Commands.ExportObjects.doPrettyDescription")
+				)
+				.addBooleanParameter(
+						"doFeatureCollection",
+						QuPathResources.getString("Commands.ExportObjects.doFeatureCollection"),
+						true,
+						QuPathResources.getString("Commands.ExportObjects.doFeatureCollectionDescription")
+				)
+				.addChoiceParameter(
+						"compression",
+						QuPathResources.getString("Commands.ExportObjects.compression"),
+						Compression.NONE,
+						Arrays.stream(Compression.values()).toList()
+				);
 		
 		if (!GuiTools.showParameterDialog("Export objects", parameterList))
 			return false;
@@ -117,7 +157,6 @@ public final class ExportObjectsCommand {
 //				return false;
 //		}
 
-		File outFile;
 		// Get default name & output directory
 		var project = qupath.getProject();
 		String defaultName = imageData.getServerMetadata().getName();
@@ -132,20 +171,25 @@ public final class ExportObjectsCommand {
 			defaultDirectory = defaultDirectory.getParentFile();
 		File defaultFile = new File(defaultDirectory, defaultName);
 		
-		String comp = (String)parameterList.getChoiceParameterValue("compression");
-		switch (comp) {
-		case COMPRESS_ZIP:
-			outFile = FileChoosers.promptToSaveFile("Export to file", defaultFile,
-					FileChoosers.createExtensionFilter("ZIP archive", ".zip"));
-			break;
-		case COMPRESS_GZIP:
-			outFile = FileChoosers.promptToSaveFile("Export to file", defaultFile,
-					FileChoosers.createExtensionFilter("gzip archive", ".geojson.gz"));
-			break;
-		default:
-			outFile = FileChoosers.promptToSaveFile("Export to file", defaultFile,
-					FileChoosers.createExtensionFilter("GeoJSON", ".geojson"));
-		}
+		Compression comp = (Compression) parameterList.getChoiceParameterValue("compression");
+		File outFile = FileChoosers.promptToSaveFile(
+				QuPathResources.getString("Commands.ExportObjects.exportToFile"),
+				defaultFile,
+				switch (comp) {
+                    case NONE -> FileChoosers.createExtensionFilter(
+							QuPathResources.getString("Commands.ExportObjects.geoJson"),
+							".geojson"
+					);
+                    case ZIP -> FileChoosers.createExtensionFilter(
+							QuPathResources.getString("Commands.ExportObjects.zipArchive"),
+							".zip"
+					);
+                    case GZIP -> FileChoosers.createExtensionFilter(
+							QuPathResources.getString("Commands.ExportObjects.gzipArchive"),
+							".geojson.gz"
+					);
+                }
+		);
 			
 		// If user cancels
 		if (outFile == null)
@@ -168,9 +212,17 @@ public final class ExportObjectsCommand {
 		
 		// Notify user of success
 		int nObjects = toProcess.size();
-		String message = nObjects == 1 ? "1 object was exported to " + outFile.getAbsolutePath() : 
-			String.format("%d objects were exported to %s", nObjects, outFile.getAbsolutePath());
-		Dialogs.showInfoNotification("Succesful export", message);
+		String message = nObjects == 1 ?
+				MessageFormat.format(
+						QuPathResources.getString("Commands.ExportObjects.oneObjectExported"),
+						outFile.getAbsolutePath()
+				) :
+				MessageFormat.format(
+						QuPathResources.getString("Commands.ExportObjects.nObjectsExported"),
+						nObjects,
+						outFile.getAbsolutePath()
+				);
+		Dialogs.showInfoNotification(QuPathResources.getString("Commands.ExportObjects.successfulExport"), message);
 		
 		// Get history workflow
 		var historyWorkflow = imageData.getHistoryWorkflow();
@@ -180,7 +232,9 @@ public final class ExportObjectsCommand {
 		map.put("path", outFile.getPath());
 
 		String method = comboChoice.equals(allObjects) ? "exportAllObjectsToGeoJson" : "exportSelectedObjectsToGeoJson";
-		String methodTitle = comboChoice.equals(allObjects) ? "Export all objects" : "Export selected objects";
+		String methodTitle = comboChoice.equals(allObjects) ?
+				QuPathResources.getString("Commands.ExportObjects.exportAllObjects") :
+				QuPathResources.getString("Commands.ExportObjects.exportSelectedObjects");
 		String optionsString = options.stream().map(o -> "\"" + o.name() + "\"").collect(Collectors.joining(", "));
 		map.put("options", optionsString);
 		if (!optionsString.isEmpty())

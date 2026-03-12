@@ -40,6 +40,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.localization.QuPathResources;
 
 /**
  * Controls to navigate z slices and time points in the viewer.
@@ -55,14 +56,22 @@ class ViewerDimensionControls {
 
     private final DoubleProperty contentOpacityProperty = new SimpleDoubleProperty(1.0);
 
-    private final Spinner<Integer> spinnerZ = createSpinner(zPositionProperty, zMaxProperty, "Z-slice");
-    private final Spinner<Integer> spinnerT = createSpinner(tPositionProperty, tMaxProperty, "Time point");
+    private final Spinner<Integer> spinnerZ = createSpinner(
+            zPositionProperty,
+            zMaxProperty,
+            QuPathResources.getString("Viewer.ViewerDimensionControls.zSlice")
+    );
+    private final Spinner<Integer> spinnerT = createSpinner(
+            tPositionProperty,
+            tMaxProperty,
+            QuPathResources.getString("Viewer.ViewerDimensionControls.timePoint")
+    );
 
     private final ProgressBar progressZ = createProgressBar(zPositionProperty, zMaxProperty);
     private final ProgressBar progressT = createProgressBar(tPositionProperty, tMaxProperty);
 
-    private final Label labelZ = createLabel("Z: ", spinnerZ);
-    private final Label labelT = createLabel("Time: ", spinnerT);
+    private final Label labelZ = createLabel(QuPathResources.getString("Viewer.ViewerDimensionControls.z") + " ", spinnerZ);
+    private final Label labelT = createLabel(QuPathResources.getString("Viewer.ViewerDimensionControls.time") + " ", spinnerT);
 
     private final GridPane pane = new GridPane();
 

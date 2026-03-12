@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
@@ -42,6 +43,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -104,7 +106,10 @@ public final class InteractiveObjectImporter {
 				return promptToImportObjects(imageData.getHierarchy(), pathObjects);
 			}
 		} catch (Exception e) {
-			Dialogs.showErrorNotification("Import objects from project", e.getLocalizedMessage());
+			Dialogs.showErrorNotification(
+					QuPathResources.getString("Commands.ObjectImporter.importObjectsFromProject"),
+					e.getLocalizedMessage()
+			);
 			return false;
 		}
 	}
@@ -146,12 +151,21 @@ public final class InteractiveObjectImporter {
 		try {
 			var pathObjects = readObjectsFromClipboard(imageData);
 			if (pathObjects.isEmpty()) {
-				Dialogs.showWarningNotification("Paste objects", "No objects found on the clipboard!");
+				Dialogs.showWarningNotification(
+						QuPathResources.getString("Commands.ObjectImporter.pasteObjects"),
+						QuPathResources.getString("Commands.ObjectImporter.noObjectsFound")
+				);
 				return false;
 			}
 			return promptToImportObjects(imageData.getHierarchy(), pathObjects);
 		} catch (Exception e) {
-			Dialogs.showErrorMessage("Paste objects", "Unable to paste objects: " + e.getLocalizedMessage());
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.ObjectImporter.pasteObjects"),
+					MessageFormat.format(
+							QuPathResources.getString("Commands.ObjectImporter.unableToPasteObjects"),
+							e.getLocalizedMessage()
+					)
+			);
 			return false;
 		}
 	}
@@ -169,8 +183,13 @@ public final class InteractiveObjectImporter {
 		Objects.requireNonNull(imageData, "Can't import objects - file is null");
 
 		if (file == null)
-			file = FileChoosers.promptForFile("Choose file to import",
-					FileChoosers.createExtensionFilter("QuPath objects", PathIO.getObjectFileExtensions(true).toArray(String[]::new)));
+			file = FileChoosers.promptForFile(
+					QuPathResources.getString("Commands.ObjectImporter.chooseFileToImport"),
+					FileChoosers.createExtensionFilter(
+							QuPathResources.getString("Commands.ObjectImporter.quPathObjects"),
+							PathIO.getObjectFileExtensions(true).toArray(String[]::new)
+					)
+			);
 		
 		// User cancel
 		if (file == null)
@@ -187,12 +206,21 @@ public final class InteractiveObjectImporter {
 			}
 		} catch (IOException | IllegalArgumentException ex) {
 			logger.error("Error importing objects", ex);
-			Dialogs.showErrorNotification("Error importing objects", ex.getLocalizedMessage());
+			Dialogs.showErrorNotification(
+					QuPathResources.getString("Commands.ObjectImporter.errorImportingObjects"),
+					ex.getLocalizedMessage()
+			);
 			return false;
 		}
 		
 		if (pathObjects.isEmpty()) {
-			Dialogs.showWarningNotification("Import objects from file", "No objects found in " + file.getAbsolutePath());
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Commands.ObjectImporter.importObjectsFromFile"),
+					MessageFormat.format(
+							QuPathResources.getString("Commands.ObjectImporter.noObjectsFoundIn"),
+							file.getAbsolutePath()
+					)
+			);
 			return false;
 		}
 		
@@ -239,12 +267,16 @@ public final class InteractiveObjectImporter {
 		int nObjects = flatSet.size();
 		String objString = nObjects == 1 ? "1 object" : nObjects + " objects";
 		boolean fixDuplicates = false;
-		String message;
 		if (containsDuplicates) {
-			message = "Update IDs for the new objects?\n\n"
-					+ "This is strongly recommended to avoid multiple objects having the same ID.\n\n"
-					+ "Only skip this step if you plan to handle duplicate IDs later.";
-			var result = Dialogs.showYesNoCancelDialog("Import " + objString, message);
+			var result = Dialogs.showYesNoCancelDialog(
+					nObjects == 1 ?
+							QuPathResources.getString("Commands.ObjectImporter.importOneObject") :
+							MessageFormat.format(
+									QuPathResources.getString("Commands.ObjectImporter.importNObjects"),
+									nObjects
+							),
+					QuPathResources.getString("Commands.ObjectImporter.importObjectsDescription")
+			);
 			if (result == ButtonType.CANCEL)
 				return false;
 			fixDuplicates = result == ButtonType.YES;

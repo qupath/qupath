@@ -47,6 +47,7 @@ import javafx.scene.shape.Circle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -426,7 +427,10 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
             else
                 rgb = pathClass.getColor();
             circle.setFill(ColorToolsFX.getCachedColor(rgb));
-            var item = new Label(pathClass == null ? "Unclassified" : pathClass.toString(), circle);
+            var item = new Label(
+                    pathClass == null ? QuPathResources.getString("Charts.PathObjectScatterChart.unclassified") : pathClass.toString(),
+                    circle
+            );
             item.setAlignment(Pos.CENTER_LEFT);
             item.setContentDisplay(ContentDisplay.LEFT);
             legendList.add(item);

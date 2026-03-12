@@ -31,6 +31,9 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableNumberValue;
 import javafx.beans.value.ObservableValue;
+import qupath.lib.gui.localization.QuPathResources;
+
+import java.text.MessageFormat;
 
 /**
  * An informative message that should be shown to the user.
@@ -116,9 +119,12 @@ public class InfoMessage {
         var text = count.map(val -> {
             int value = val.intValue();
             if (value == 1)
-                return "1 message";
+                return QuPathResources.getString("InfoMessage.oneMessage");
             else
-                return value + " messages";
+                return MessageFormat.format(
+                        QuPathResources.getString("InfoMessage.xMessages"),
+                        value
+                );
         });
         return info(text, count);
     }
@@ -160,9 +166,12 @@ public class InfoMessage {
         var text = count.map(val -> {
             int value = val.intValue();
             if (value == 1)
-                return "1 warning";
+                return QuPathResources.getString("InfoMessage.oneWarning");
             else
-                return value + " warnings";
+                return MessageFormat.format(
+                        QuPathResources.getString("InfoMessage.xWarnings"),
+                        value
+                );
         });
         return new InfoMessage(MessageType.WARN, text, count);
     }
@@ -225,9 +234,12 @@ public class InfoMessage {
         var text = count.map(val -> {
             int value = val.intValue();
             if (value == 1)
-                return "1 error";
+                return QuPathResources.getString("InfoMessage.oneError");
             else
-                return value + " errors";
+                return MessageFormat.format(
+                        QuPathResources.getString("InfoMessage.xErrors"),
+                        value
+                );
         });
         return error(text, count);
     }

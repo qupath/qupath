@@ -27,6 +27,7 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -38,6 +39,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -258,7 +260,7 @@ class TMAEntries {
 			try {
 				return new Image(new File(imagePath).toURI().toURL().toString(), maxWidth, -1, true, false);
 			} catch (MalformedURLException e) {
-				logger.error("Cannot show image: " + imagePath, e);
+                logger.error("Cannot show image: {}", imagePath, e);
 			}
 			return null;
 		}
@@ -270,7 +272,7 @@ class TMAEntries {
 			try {
 				return new Image(new File(overlayPath).toURI().toURL().toString(), maxWidth, -1, true, false);
 			} catch (MalformedURLException e) {
-				logger.error("Cannot show overlay image: " + overlayPath, e);
+                logger.error("Cannot show overlay image: {}", overlayPath, e);
 			}
 			return null;
 		}
@@ -278,7 +280,7 @@ class TMAEntries {
 
 		@Override
 		public String toString() {
-			return "TMA Entry: " + getName();
+			return MessageFormat.format(QuPathResources.getString("Tma.TMAEntries.tmaEntry"), getName());
 		}
 		
 		@Override
@@ -293,42 +295,28 @@ class TMAEntries {
 	/**
 	 * Methods that may be used to combine measurements when multiple cores are available.
 	 */
-	public static enum MeasurementCombinationMethod {
+	public enum MeasurementCombinationMethod {
 		MEAN, MEDIAN, MIN, MAX, RANGE;
 	
 		public double calculate(final List<TMAEntry> entries, final String measurementName, final boolean skipMissing) {
-			switch (this) {
-			case MAX:
-				return TMASummaryEntry.getMaxMeasurement(entries, measurementName, skipMissing);
-			case MEAN:
-				return TMASummaryEntry.getMeanMeasurement(entries, measurementName, skipMissing);
-			case MEDIAN:
-				return TMASummaryEntry.getMedianMeasurement(entries, measurementName, skipMissing);
-			case MIN:
-				return TMASummaryEntry.getMinMeasurement(entries, measurementName, skipMissing);
-			case RANGE:
-				return TMASummaryEntry.getRangeMeasurement(entries, measurementName, skipMissing);
-			default:
-				return Double.NaN;
-			}
+            return switch (this) {
+                case MAX -> TMASummaryEntry.getMaxMeasurement(entries, measurementName, skipMissing);
+                case MEAN -> TMASummaryEntry.getMeanMeasurement(entries, measurementName, skipMissing);
+                case MEDIAN -> TMASummaryEntry.getMedianMeasurement(entries, measurementName, skipMissing);
+                case MIN -> TMASummaryEntry.getMinMeasurement(entries, measurementName, skipMissing);
+                case RANGE -> TMASummaryEntry.getRangeMeasurement(entries, measurementName, skipMissing);
+            };
 		}
 	
 		@Override
 		public String toString() {
-			switch (this) {
-			case MAX:
-				return "Maximum";
-			case MEAN:
-				return "Mean";
-			case MEDIAN:
-				return "Median";
-			case MIN:
-				return "Minimum";
-			case RANGE:
-				return "Range";
-			default:
-				return "Unknown";
-			}
+            return QuPathResources.getString(switch (this) {
+                case MAX -> "Tma.TMAEntries.maximum";
+                case MEAN -> "Tma.TMAEntries.mean";
+                case MEDIAN -> "Tma.TMAEntries.median";
+                case MIN -> "Tma.TMAEntries.minimum";
+                case RANGE -> "Tma.TMAEntries.range";
+            });
 		}
 	
 	}
@@ -461,7 +449,7 @@ class TMAEntries {
 						RegionRequest.createInstance(imageData.getServerPath(), downsample, roi));
 				return SwingFXUtils.toFXImage(img, null);
 			} catch (IOException e) {
-				logger.warn("Unable to return TMA core image for " + this, e);
+                logger.warn("Unable to return TMA core image for {}", this, e);
 				return null;
 			}
 		}

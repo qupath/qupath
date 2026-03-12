@@ -588,7 +588,7 @@ public class MeasurementExportCommand implements Runnable {
             logger.info("Measurements export to {} ({} seconds)", pathOut,
 					GeneralTools.formatNumber(timeMillis / 1000.0, 2));
 			
-			Dialogs.showInfoNotification(title, "Export complete!");
+			Dialogs.showInfoNotification(title, QuPathResources.getString("Measurements.Export.complete.message"));
 			return null;
 		}
 	}
@@ -621,9 +621,9 @@ public class MeasurementExportCommand implements Runnable {
 	}
 
 	private enum ExportSeparatorType {
-		TAB("Tab separated", "Tab separated", ".tsv", "\t"),
-		COMMA("Comma separated", "Comma separated", ".csv", ","),
-		SEMICOLON("Semicolon separated", "Semicolon separated", ".csv", ";");
+		TAB("Measurements.Export.SeparatorType.tab", "Measurements.Export.SeparatorType.tab", ".tsv", "\t"),
+		COMMA("Measurements.Export.SeparatorType.comma", "Measurements.Export.SeparatorType.comma", ".csv", ","),
+		SEMICOLON("Measurements.Export.SeparatorType.semicolon", "Measurements.Export.SeparatorType.semicolon", ".csv", ";");
 
 		private final String name;
 		private final String description;
@@ -631,8 +631,8 @@ public class MeasurementExportCommand implements Runnable {
 		private final String separator;
 
 		ExportSeparatorType(String name, String description, String extension, String separator) {
-			this.name = name;
-			this.description = description;
+			this.name = QuPathResources.getString(name);
+			this.description = QuPathResources.getString(description);
 			this.extension = extension;
 			this.separator = separator;
 		}

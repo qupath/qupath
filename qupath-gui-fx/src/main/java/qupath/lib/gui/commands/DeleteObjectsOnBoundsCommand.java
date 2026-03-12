@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjectFilter;
@@ -50,7 +51,7 @@ public class DeleteObjectsOnBoundsCommand {
 
     private static final Logger logger = LoggerFactory.getLogger(DeleteObjectsOnBoundsCommand.class);
 
-    private static final String title = "Remove on bounds";
+    private static final String title = QuPathResources.getString("Commands.DeleteObjectsOnBounds.removeOnBounds");
 
     private final QuPathGUI qupath;
 
@@ -61,9 +62,9 @@ public class DeleteObjectsOnBoundsCommand {
 
         public String toString() {
             return switch(this) {
-                case ANY_OBJECTS -> "Any objects";
-                case ANNOTATIONS -> "Annotations";
-                case DETECTIONS -> "Detections";
+                case ANY_OBJECTS -> QuPathResources.getString("Commands.DeleteObjectsOnBounds.anyObjects");
+                case ANNOTATIONS -> QuPathResources.getString("Commands.DeleteObjectsOnBounds.annotations");
+                case DETECTIONS -> QuPathResources.getString("Commands.DeleteObjectsOnBounds.detections");
             };
         }
     }
@@ -85,18 +86,23 @@ public class DeleteObjectsOnBoundsCommand {
             return;
         }
         if (imageData.getHierarchy().getSelectionModel().noSelection()) {
-            Dialogs.showErrorMessage(title, "No objects are selected!");
+            Dialogs.showErrorMessage(title, QuPathResources.getString("Commands.DeleteObjectsOnBounds.noObjectsSelected"));
             return;
         }
 
         var params = new ParameterList()
-                .addChoiceParameter("objectType", "Type of objects to remove",
+                .addChoiceParameter(
+                        "objectType",
+                        QuPathResources.getString("Commands.DeleteObjectsOnBounds.typeOfObjects"),
                         typeToRemove, Arrays.asList(ObjectType.values()),
-                        "Specify which type of objects to remove")
-                .addBooleanParameter("childObjectsOnly", "Child objects only", childObjectsOnly,
-                        "Only remove direct child objects of the selected objects.\n" +
-                                "This is typically used to remove objects (e.g. cells) that touch the bounds\n" +
-                                "of their parent object in which they were detected.");
+                        QuPathResources.getString("Commands.DeleteObjectsOnBounds.typeOfObjectsDescription")
+                )
+                .addBooleanParameter(
+                        "childObjectsOnly",
+                        QuPathResources.getString("Commands.DeleteObjectsOnBounds.childObjects"),
+                        childObjectsOnly,
+                        QuPathResources.getString("Commands.DeleteObjectsOnBounds.childObjectsDescription")
+                );
 
         var result = Dialogs.builder()
                 .owner(qupath.getStage())
@@ -123,20 +129,28 @@ public class DeleteObjectsOnBoundsCommand {
         if (childObjectsOnly) {
             QP.removeChildObjectsTouchingSelectedBounds(imageData.getHierarchy(), filter);
             if (filter == null) {
-                step = new DefaultScriptableWorkflowStep("Delete child objects on bounds",
-                        "removeChildObjectsTouchingSelectedBounds()");
+                step = new DefaultScriptableWorkflowStep(
+                        QuPathResources.getString("Commands.DeleteObjectsOnBounds.deleteChildObjects"),
+                        "removeChildObjectsTouchingSelectedBounds()"
+                );
             } else {
-                step = new DefaultScriptableWorkflowStep("Delete child objects on bounds",
-                        "removeChildObjectsTouchingSelectedBounds(PathObjectFilter." + filter.name() + ")");
+                step = new DefaultScriptableWorkflowStep(
+                        QuPathResources.getString("Commands.DeleteObjectsOnBounds.deleteChildObjects"),
+                        "removeChildObjectsTouchingSelectedBounds(PathObjectFilter." + filter.name() + ")"
+                );
             }
         } else {
             QP.removeObjectsTouchingSelectedBounds(imageData.getHierarchy(), filter);
             if (filter == null) {
-                step = new DefaultScriptableWorkflowStep("Delete objects on bounds",
-                        "removeObjectsTouchingSelectedBounds()");
+                step = new DefaultScriptableWorkflowStep(
+                        QuPathResources.getString("Commands.DeleteObjectsOnBounds.deleteObjects"),
+                        "removeObjectsTouchingSelectedBounds()"
+                );
             } else {
-                step = new DefaultScriptableWorkflowStep("Delete objects on bounds",
-                        "removeObjectsTouchingSelectedBounds(PathObjectFilter." + filter.name() + ")");
+                step = new DefaultScriptableWorkflowStep(
+                        QuPathResources.getString("Commands.DeleteObjectsOnBounds.deleteObjects"),
+                        "removeObjectsTouchingSelectedBounds(PathObjectFilter." + filter.name() + ")"
+                );
             }
         }
         imageData.getHistoryWorkflow().addStep(step);

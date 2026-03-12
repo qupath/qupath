@@ -45,6 +45,7 @@ import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.charts.ChartThresholdPane;
 import qupath.lib.gui.charts.HistogramChart;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 
@@ -92,7 +93,7 @@ public class BrightnessContrastHistogramPane extends BorderPane {
         labelPlaceholder.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
         labelPlaceholder.minWidthProperty().bind(chartPane.prefWidthProperty());
         labelPlaceholder.minHeightProperty().bind(chartPane.prefHeightProperty());
-        labelPlaceholder.setText("No histogram available");
+        labelPlaceholder.setText(QuPathResources.getString("Commands.BrightnessContrast.HistogramPane.noHistogramAvailable"));
         labelPlaceholder.setContentDisplay(ContentDisplay.CENTER);
         labelPlaceholder.setAlignment(Pos.CENTER);
         centerProperty().bind(Bindings.createObjectBinding(() -> {
@@ -258,16 +259,16 @@ public class BrightnessContrastHistogramPane extends BorderPane {
         pane.setVgap(2);
         int row = 0;
         if (histogram != null) {
-            pane.add(new Label("Min"), 0, row);
+            pane.add(new Label(QuPathResources.getString("Commands.BrightnessContrast.HistogramPane.min")), 0, row);
             pane.add(new Label(df.format(histogram.getMinValue())), 1, row);
             row++;
-            pane.add(new Label("Max"), 0, row);
+            pane.add(new Label(QuPathResources.getString("Commands.BrightnessContrast.HistogramPane.max")), 0, row);
             pane.add(new Label(df.format(histogram.getMaxValue())), 1, row);
             row++;
-            pane.add(new Label("Mean"), 0, row);
+            pane.add(new Label(QuPathResources.getString("Commands.BrightnessContrast.HistogramPane.mean")), 0, row);
             pane.add(new Label(df.format(histogram.getMeanValue())), 1, row);
             row++;
-            pane.add(new Label("Std.dev"), 0, row);
+            pane.add(new Label(QuPathResources.getString("Commands.BrightnessContrast.HistogramPane.stdDev")), 0, row);
             pane.add(new Label(df.format(histogram.getStdDev())), 1, row);
             row++;
         }

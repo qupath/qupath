@@ -41,6 +41,7 @@ import javafx.util.Duration;
 import qupath.fx.controls.CircularSlider;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 final class RotateImageCommand implements ChangeListener<QuPathViewer> {
@@ -62,7 +63,7 @@ final class RotateImageCommand implements ChangeListener<QuPathViewer> {
 			dialog.initOwner(qupath.getStage());
 			
 			dialog.initStyle(StageStyle.TRANSPARENT);
-			dialog.setTitle("Rotate view");
+			dialog.setTitle(QuPathResources.getString("Commands.RotateImage.rotateView"));
 			
 			StackPane pane = new StackPane();
 			pane.setPadding(new Insets(5));
@@ -87,13 +88,13 @@ final class RotateImageCommand implements ChangeListener<QuPathViewer> {
 			});
 			
 			slider.setPadding(new Insets(5, 0, 10, 0));
-			slider.setTooltip(new Tooltip("Double-click to manually set the rotation"));
+			slider.setTooltip(new Tooltip(QuPathResources.getString("Commands.RotateImage.setRotation")));
 			final DropShadow shadow = new DropShadow();
 			shadow.setColor(Color.rgb(0, 0, 0, 0.65));
 			slider.setEffect(shadow);
 			
 			final Button button = new Button("x");
-			button.setTooltip(new Tooltip("Close image rotation slider"));
+			button.setTooltip(new Tooltip(QuPathResources.getString("Commands.RotateImage.closeSlider")));
 			button.setOnMouseClicked(e -> dialog.close());
 			
 			pane.getChildren().addAll(slider, button);

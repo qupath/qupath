@@ -1,5 +1,6 @@
 package qupath.lib.gui.panes;
 
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -78,7 +79,7 @@ abstract class ProjectTreeRow {
 		private String originalString;
 
 		RootRow(Project<?> project) {
-			this.originalString = project == null ? "No project" : project.getName();
+			this.originalString = project == null ? QuPathResources.getString("Panes.ProjectTreeRow.noProject"): project.getName();
 			this.project = project;
 		}
 
