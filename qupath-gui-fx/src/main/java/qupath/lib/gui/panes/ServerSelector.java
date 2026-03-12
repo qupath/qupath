@@ -237,7 +237,6 @@ public class ServerSelector {
 		// Info table - Changes according to selected series
 		TableView<Attribute> tableInfo = new TableView<>();
 		tableInfo.setMinHeight(200);
-		tableInfo.setMinWidth(500);
 		
 		// First column (attribute names)
 		TableColumn<Attribute, String> attributeCol = new TableColumn<>("Attribute");
@@ -248,7 +247,6 @@ public class ServerSelector {
 		
 		// Second column (attribute values)
 		TableColumn<Attribute, String> valueCol = new TableColumn<>("Value");
-		valueCol.setMinWidth(242);
 		valueCol.setResizable(true);
 		valueCol.setCellValueFactory(cellData -> {
 			int ind = listSeries.getSelectionModel().getSelectedIndex();
@@ -303,9 +301,11 @@ public class ServerSelector {
 
 		BorderPane pane = new BorderPane();
 		pane.setCenter(paneSelector);
-		
-		
+
+
 		Dialog<ButtonType> dialog = new Dialog<>();
+		dialog.setResizable(true);
+
 		var qupath = QuPathGUI.getInstance();
 		
 		// Try to ensure we have a suitable owner, even if a progress dialog is visible
@@ -327,7 +327,7 @@ public class ServerSelector {
 		dialog.getDialogPane().getButtonTypes().addAll(typeImportSelected, ButtonType.CANCEL);
 
 		dialog.getDialogPane().setContent(pane);
-		
+
 		listSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectedRow, selectedRow) -> {
 		    tableInfo.refresh();
 		});
@@ -361,7 +361,7 @@ public class ServerSelector {
 		} else {
 			btnSelected.disableProperty().bind(nSelected.isNotEqualTo(1));
 		}
-		
+
 		Optional<ButtonType> result = dialog.showAndWait();
 		
 		Set<ImageServer<BufferedImage>> selectedToReturn;
