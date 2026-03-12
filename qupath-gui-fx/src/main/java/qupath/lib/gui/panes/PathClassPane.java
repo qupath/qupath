@@ -178,6 +178,9 @@ class PathClassPane {
 	private Pane createClassPane() {
 		listClasses = new ListView<>();
 
+		// To fix https://github.com/qupath/qupath/issues/2101
+		listClasses.setFixedCellSize(24.0);
+
 		var filteredList = availablePathClasses.filtered(p -> true);
 		listClasses.setItems(filteredList);
 
