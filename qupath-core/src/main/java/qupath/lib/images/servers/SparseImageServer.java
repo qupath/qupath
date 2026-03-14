@@ -245,10 +245,16 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				int xr2 = x2 - subRegion.getX();
 				int yr2 = y2 - subRegion.getY();
 				double requestDownsample = downsample;
+				int targetZ = tileRequest.getZ() + originZ;
+
+				// Force Z=0 if the underlying server is only a 2D image
+				if (serverTemp.getMetadata().getSizeZ() == 1) {
+					targetZ = 0;
+				}
 
 				RegionRequest requestTemp = RegionRequest.createInstance(
 						serverTemp.getPath(), requestDownsample,
-						xr, yr, xr2-xr, yr2-yr, tileRequest.getZ() + originZ, tileRequest.getT() + originT);
+						xr, yr, xr2-xr, yr2-yr, targetZ, tileRequest.getT() + originT);
 				
 				BufferedImage imgTemp = null;
 				synchronized (serverTemp) {
