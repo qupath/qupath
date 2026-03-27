@@ -22,7 +22,6 @@
 package qupath.lib.analysis.features;
 
 import ij.ImagePlus;
-import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
@@ -169,11 +168,26 @@ public class ObjectMeasurements {
 		}
 	}
 
-	public static final Collection<Measurements> ALL_MEASUREMENTS = Set.of(Measurements.values());
+	/**
+	 * A collection containing all the values of {@link Measurements}.
+	 */
+	public static final Collection<Measurements> ALL_MEASUREMENTS = toOrderedUnmodifiableSet(Measurements.values());
 
-	public static final Collection<Compartments> ALL_COMPARTMENTS = Set.of(Compartments.values());
-	
-	public static final Collection<ShapeFeatures> ALL_SHAPE_FEATURES = Set.of(ShapeFeatures.values());
+	/**
+	 * A collection containing all the values of {@link Compartments}.
+	 */
+	public static final Collection<Compartments> ALL_COMPARTMENTS = toOrderedUnmodifiableSet(Compartments.values());
+
+	/**
+	 * A collection containing all the values of {@link ShapeFeatures}.
+	 */
+	public static final Collection<ShapeFeatures> ALL_SHAPE_FEATURES = toOrderedUnmodifiableSet(ShapeFeatures.values());
+
+
+	private static <T> Set<T> toOrderedUnmodifiableSet(T[] elements) {
+        var set = new LinkedHashSet<T>(Arrays.asList(elements));
+		return Collections.unmodifiableSet(set);
+	}
 	
 	/**
 	 * Add shape measurements for one object. If this is a cell, measurements will be made for both the 
@@ -653,39 +667,52 @@ public class ObjectMeasurements {
 		var imp = pathImage.getImage();
 
 		Map<String, ImageProcessor> channels = createChannels(server, imp);
-		
-		ByteProcessor bpCell = null;
 
+		List<PathCellObject> cells = new ArrayList<>();
+		List<PathObject> nonCells = new ArrayList<>();
 		for (var pathObject : pathObjects) {
-			var roi = pathObject.getROI();
-			if (roi == null)
+			if (!pathObject.hasROI())
 				continue;
-
-			// Create or reset mask
-			if (bpCell == null) {
-				bpCell = new ByteProcessor(imp.getWidth(), imp.getHeight());
-				bpCell.setValue(1.0);
-			} else {
-				Arrays.fill((byte[])bpCell.getPixels(), (byte)0);
-			}
-
-			var roiIJ = IJTools.convertToIJRoi(roi, pathImage);
-			bpCell.fill(roiIJ);
-
 			if (pathObject instanceof PathCellObject cell) {
-				ByteProcessor bpNucleus = new ByteProcessor(imp.getWidth(), imp.getHeight());
-				if (cell.getNucleusROI() != null) {
-					bpNucleus.setValue(1.0);
-					var roiNucleusIJ = IJTools.convertToIJRoi(cell.getNucleusROI(), pathImage);
-					bpNucleus.fill(roiNucleusIJ);
-				}
-				measureCells(bpNucleus, bpCell, Map.of(1.0, cell), channels, compartments, measurements);
+				cells.add(cell);
 			} else {
-				var imgLabels = new PixelImageIJ(bpCell);
-				for (var entry : channels.entrySet()) {
-					var img = new PixelImageIJ(entry.getValue());
-					measureObjects(img, imgLabels, new PathObject[]{pathObject}, entry.getKey(), measurements);
+				nonCells.add(pathObject);
+			}
+		}
+
+		if (!cells.isEmpty()) {
+			FloatProcessor ipROI = new FloatProcessor(imp.getWidth(), imp.getHeight());
+			FloatProcessor ipNucleus = new FloatProcessor(imp.getWidth(), imp.getHeight());
+
+			int count = 0;
+			for (var cell : cells) {
+				count++;
+				var roi = cell.getROI();
+				ipROI.setValue(count);
+				ipNucleus.setValue(count);
+
+				var roiIJ = IJTools.convertToIJRoi(roi, pathImage);
+				ipROI.fill(roiIJ);
+				if (cell.getNucleusROI() != null) {
+					var roiNucleusIJ = IJTools.convertToIJRoi(cell.getNucleusROI(), pathImage);
+					ipNucleus.fill(roiNucleusIJ);
 				}
+			}
+			measureCells(ipNucleus, ipROI, cells.toArray(PathObject[]::new), channels, compartments, measurements);
+		}
+		if (!nonCells.isEmpty()) {
+			FloatProcessor ipROI = new FloatProcessor(imp.getWidth(), imp.getHeight());
+			int count = 0;
+			for (var pathObject : nonCells) {
+				count++;
+				var roi = pathObject.getROI();
+				ipROI.setValue(count);
+				var roiIJ = IJTools.convertToIJRoi(roi, pathImage);
+				ipROI.fill(roiIJ);
+			}
+			for (var entry : channels.entrySet()) {
+				var img = new PixelImageIJ(entry.getValue());
+				measureObjects(img, new PixelImageIJ(ipROI), nonCells.toArray(PathObject[]::new), entry.getKey(), measurements);
 			}
 		}
 	}
@@ -744,20 +771,18 @@ public class ObjectMeasurements {
 	 * 
 	 * @param ipNuclei labelled image representing nuclei
 	 * @param ipCells labelled image representing cells
-	 * @param pathObjects cell objects mapped to integer values in the labelled images
+	 * @param array cell objects in order corresponding to the label
 	 * @param channels channels to measure, mapped to the name to incorporate into the measurements for that channel
 	 * @param compartments the cell compartments to measure
 	 * @param measurements requested measurements to make
 	 */
 	private static void measureCells(
 			ImageProcessor ipNuclei, ImageProcessor ipCells,
-			Map<? extends Number, ? extends PathObject> pathObjects,
+			PathObject[] array,
 			Map<String, ImageProcessor> channels,
 			Collection<Compartments> compartments,
 			Collection<Measurements> measurements) {
 		
-		var array = mapToArray(pathObjects);
-//		PathObjectTools.constrainCellByScaledNucleus(cell, nucleusScaleFactor, keepMeasurements)
 		int width = ipNuclei.getWidth();
 		int height = ipNuclei.getHeight();
 		ImageProcessor ipMembrane = new FloatProcessor(width, height);
@@ -831,37 +856,8 @@ public class ObjectMeasurements {
 				}
 			}
 		}
-		
 	}
-	
-	
-	private static PathObject[] mapToArray(Map<? extends Number, ? extends PathObject> pathObjects) {
-		Number[] labels = new Number[pathObjects.size()];
-		int n = 0;
-		long maxLabel = 0L;
-		int invalidLabels = 0;
-		for (var label : pathObjects.keySet()) {
-			long lab = label.longValue();
-			if (lab < 0 || lab != label.doubleValue() || lab >= Integer.MAX_VALUE) {
-				invalidLabels++;
-			} else {
-				labels[n] = label;
-				maxLabel = Math.max(lab, maxLabel);
-				n++;
-			}
-		}
-		
-		if (invalidLabels > 0) {
-			logger.warn("Only {}/{} labels are integer values >= 0 and < Integer.MAX_VALUE, the rest will be discarded!",
-					n, pathObjects.size());
-		}
-		
-		PathObject[] array = new PathObject[n];
-		for (var label : labels) {
-			array[label.intValue()-1] = pathObjects.get(label);
-		}
-		return array;
-	}
+
 	
 	/**
 	 * Measure objects within the specified image, adding them to the corresponding measurement lists.
@@ -879,8 +875,10 @@ public class ObjectMeasurements {
 		// Initialize stats
 		int n = pathObjects.length;
 		DescriptiveStatistics[] allStats = new DescriptiveStatistics[n];
-		for (int i = 0; i < n; i++)
-			allStats[i] = new DescriptiveStatistics(DescriptiveStatistics.INFINITE_WINDOW);
+		for (int i = 0; i < n; i++) {
+			var stats = new DescriptiveStatistics(DescriptiveStatistics.INFINITE_WINDOW);
+			allStats[i] = stats;
+		}
 		
 		// Compute statistics
 		int width = img.getWidth();
