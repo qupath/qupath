@@ -31,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,7 +50,7 @@ import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.util.AffineTransformation;
-import org.locationtech.jts.index.quadtree.Quadtree;
+import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.imagej.tools.IJTools;
@@ -185,7 +184,7 @@ public class ObjectMeasurements {
 
 
 	private static <T> Set<T> toOrderedUnmodifiableSet(T[] elements) {
-        var set = new LinkedHashSet<T>(Arrays.asList(elements));
+        var set = new LinkedHashSet<>(Arrays.asList(elements));
 		return Collections.unmodifiableSet(set);
 	}
 	
@@ -529,7 +528,7 @@ public class ObjectMeasurements {
 																double downsample) {
 
 		// Create a set of objects that have ROIs (probably all of them, but good to be sure)
-		Set<PathObject> objectsToMeasure = pathObjects.stream().filter(PathObject::hasROI).collect(Collectors.toCollection(HashSet::new));
+		Set<PathObject> objectsToMeasure = pathObjects.stream().filter(PathObject::hasROI).collect(Collectors.toCollection(LinkedHashSet::new));
 
 		// See if a single request will do the job
 		int pad = (int)Math.ceil(downsample * 2);
@@ -546,9 +545,10 @@ public class ObjectMeasurements {
 
 		// Create a spatial cache to identify objects near one another
 		Map<RegionRequest, List<PathObject>> batches = new LinkedHashMap<>();
-		var tree = new Quadtree();
+		var tree = new STRtree();
 		for (var pathObject : objectsToMeasure) {
-			tree.insert(createEnvelope(pathObject), pathObject);
+			var envelope = createEnvelope(pathObject);
+			tree.insert(envelope, pathObject);
 		}
 
 		// Batch together nearby objects... we could try to optimize this cleverly, but it's probably not worth it
@@ -559,13 +559,21 @@ public class ObjectMeasurements {
 						server.getPath(), downsample, x, y, batchTileSize, batchTileSize, globalRequest.getImagePlane()
 				);
 				@SuppressWarnings("unchecked") // Quadtree isn't typed - but we know what we put in
-				var objects = (List<PathObject>)tree.query(GeometryTools.regionToEnvelope(tempRequest));
+				var queryEnvelope = GeometryTools.regionToEnvelope(tempRequest);
+				var objects = (List<PathObject>)tree.query(queryEnvelope);
 				// Only keep those that aren't already assigned
 				objects.retainAll(objectsToMeasure);
 				if (objects.isEmpty())
 					continue;
 				// We need to generate a new region to make sure it includes padding (and isn't bigger than necessary)
 				var batchRequest = createRequest(server, downsample, getAllROIs(objects), pad);
+
+				var tiles = server.getTileRequestManager().getTileRequests(batchRequest);
+				if (tiles.size() == 1) {
+					logger.trace("Taking single tile!");
+					batchRequest = tiles.iterator().next().getRegionRequest();
+				}
+
 				batches.put(batchRequest, List.copyOf(objects));
 				objects.forEach(objectsToMeasure::remove);
 				if (objectsToMeasure.isEmpty())
@@ -666,7 +674,7 @@ public class ObjectMeasurements {
 		var pathImage = IJTools.convertToImagePlus(server, request);
 		var imp = pathImage.getImage();
 
-		Map<String, ImageProcessor> channels = createChannels(server, imp);
+		Map<String, SimpleImage> channels = createChannels(server, imp);
 
 		List<PathCellObject> cells = new ArrayList<>();
 		List<PathObject> nonCells = new ArrayList<>();
@@ -698,7 +706,7 @@ public class ObjectMeasurements {
 					ipNucleus.fill(roiNucleusIJ);
 				}
 			}
-			measureCells(ipNucleus, ipROI, cells.toArray(PathObject[]::new), channels, compartments, measurements);
+			measureCells(ipNucleus, ipROI, cells, channels, compartments, measurements);
 		}
 		if (!nonCells.isEmpty()) {
 			FloatProcessor ipROI = new FloatProcessor(imp.getWidth(), imp.getHeight());
@@ -710,10 +718,7 @@ public class ObjectMeasurements {
 				var roiIJ = IJTools.convertToIJRoi(roi, pathImage);
 				ipROI.fill(roiIJ);
 			}
-			for (var entry : channels.entrySet()) {
-				var img = new PixelImageIJ(entry.getValue());
-				measureObjects(img, new PixelImageIJ(ipROI), nonCells.toArray(PathObject[]::new), entry.getKey(), measurements);
-			}
+			measureObjects(new PixelImageIJ(ipROI), nonCells, channels, measurements);
 		}
 	}
 
@@ -748,17 +753,21 @@ public class ObjectMeasurements {
 	}
 
 
-	private static Map<String, ImageProcessor> createChannels(ImageServer<BufferedImage> server, ImagePlus imp) {
-		Map<String, ImageProcessor> channels = new LinkedHashMap<>();
+	private static Map<String, SimpleImage> createChannels(ImageServer<BufferedImage> server, ImagePlus imp) {
+		Map<String, SimpleImage> channels = new LinkedHashMap<>();
 		var serverChannels = server.getMetadata().getChannels();
 		if (server.isRGB() && imp.getStackSize() == 1 && imp.getProcessor() instanceof ColorProcessor cp) {
 			for (int i = 0; i < serverChannels.size(); i++) {
-				channels.put(serverChannels.get(i).getName(), cp.getChannel(i+1, null));
+				channels.put(
+						serverChannels.get(i).getName(),
+						new PixelImageIJ(cp.getChannel(i+1, null)));
 			}
 		} else {
 			assert imp.getStackSize() == serverChannels.size();
 			for (int i = 0; i < imp.getStackSize(); i++) {
-				channels.put(serverChannels.get(i).getName(), imp.getStack().getProcessor(i+1));
+				channels.put(
+						serverChannels.get(i).getName(),
+						new PixelImageIJ(imp.getStack().getProcessor(i+1)));
 			}
 		}
 		return channels;
@@ -778,8 +787,8 @@ public class ObjectMeasurements {
 	 */
 	private static void measureCells(
 			ImageProcessor ipNuclei, ImageProcessor ipCells,
-			PathObject[] array,
-			Map<String, ImageProcessor> channels,
+			List<? extends PathObject> array,
+			Map<String, SimpleImage> channels,
 			Collection<Compartments> compartments,
 			Collection<Measurements> measurements) {
 		
@@ -815,97 +824,130 @@ public class ObjectMeasurements {
 
 		if (useLegacyNames) {
 			for (var entry : channels.entrySet()) {
-				var img = new PixelImageIJ(entry.getValue());
+				var img = entry.getValue();
 				if (compartments.contains(Compartments.NUCLEUS))
-					measureObjects(img, imgNuclei, array, entry.getKey().trim() + ": " + "Nucleus", measurements);
+					measureObjects(imgNuclei, array, Map.of(entry.getKey().trim() + ": " + "Nucleus", img), measurements);
 				if (compartments.contains(Compartments.CYTOPLASM))
-					measureObjects(img, imgCytoplasm, array, entry.getKey().trim() + ": " + "Cytoplasm", measurements);
+					measureObjects(imgCytoplasm, array, Map.of(entry.getKey().trim() + ": " + "Cytoplasm", img), measurements);
 				if (compartments.contains(Compartments.MEMBRANE))
-					measureObjects(img, imgMembrane, array, entry.getKey().trim() + ": " + "Membrane", measurements);
+					measureObjects(imgMembrane, array, Map.of(entry.getKey().trim() + ": " + "Membrane", img), measurements);
 				if (compartments.contains(Compartments.CELL))
-					measureObjects(img, imgCells, array, entry.getKey().trim() + ": " + "Cell", measurements);
+					measureObjects(imgCells, array, Map.of(entry.getKey().trim() + ": " + "Cell", img), measurements);
 			}
 		} else {
 			// 'New' names group measurements by compartment first, then channel
 			if (compartments.contains(Compartments.NUCLEUS)) {
-				for (var entry : channels.entrySet()) {
-					var img = new PixelImageIJ(entry.getValue());
-					String channelName = entry.getKey().trim();
-					measureObjects(img, imgNuclei, array, "Nucleus: " + channelName, measurements);
-				}
+				measureObjects(imgNuclei, array, prependCompartment(channels, "Nucleus: "), measurements);
 			}
 			if (compartments.contains(Compartments.CYTOPLASM)) {
-				for (var entry : channels.entrySet()) {
-					var img = new PixelImageIJ(entry.getValue());
-					String channelName = entry.getKey().trim();
-					measureObjects(img, imgCytoplasm, array, "Cytoplasm: " + channelName, measurements);
-				}
+				measureObjects(imgCytoplasm, array, prependCompartment(channels, "Cytoplasm: "), measurements);
 			}
 			if (compartments.contains(Compartments.MEMBRANE)) {
-				for (var entry : channels.entrySet()) {
-					var img = new PixelImageIJ(entry.getValue());
-					String channelName = entry.getKey().trim();
-					measureObjects(img, imgMembrane, array, "Membrane: " + channelName, measurements);
-				}
+				measureObjects(imgMembrane, array, prependCompartment(channels, "Membrane: "), measurements);
 			}
 			if (compartments.contains(Compartments.CELL)) {
-				for (var entry : channels.entrySet()) {
-					var img = new PixelImageIJ(entry.getValue());
-					String channelName = entry.getKey().trim();
-					measureObjects(img, imgCells, array, "Cell: " + channelName, measurements);
-				}
+				measureObjects(imgCells, array, prependCompartment(channels, "Cell: "), measurements);
 			}
 		}
+	}
+
+	private static Map<String, SimpleImage> prependCompartment(Map<String, SimpleImage> channels, String prepend) {
+		var map = new LinkedHashMap<String, SimpleImage>();
+		for (var entry : channels.entrySet()) {
+			map.put(prepend + entry.getKey().trim(), entry.getValue());
+		}
+		return map;
 	}
 
 	
 	/**
 	 * Measure objects within the specified image, adding them to the corresponding measurement lists.
-	 * @param img intensity values to measure
 	 * @param imgLabels labels corresponding to objects
-	 * @param pathObjects array of objects, where array index for an object is 1 less than the label in imgLabels
-	 * @param baseName base name to include when adding measurements (e.g. the channel name)
+	 * @param pathObjects list of objects, where array index for an object is 1 less than the label in imgLabels
+	 * @param images mapping from base measurement name (e.g. the channel name) to the image to measure
 	 * @param measurements requested measurements
 	 */
 	private static void measureObjects(
-			SimpleImage img, SimpleImage imgLabels,
-			PathObject[] pathObjects,
-			String baseName, Collection<Measurements> measurements) {
+			SimpleImage imgLabels,
+			List<? extends PathObject> pathObjects,
+			Map<String, SimpleImage> images,
+			Collection<Measurements> measurements) {
 		
 		// Initialize stats
-		int n = pathObjects.length;
+		int n = pathObjects.size();
 		DescriptiveStatistics[] allStats = new DescriptiveStatistics[n];
-		for (int i = 0; i < n; i++) {
-			var stats = new DescriptiveStatistics(DescriptiveStatistics.INFINITE_WINDOW);
-			allStats[i] = stats;
-		}
-		
+		measurements = ensureSet(measurements);
+
+		int[] nonZero = null;
+
 		// Compute statistics
-		int width = img.getWidth();
-		int height = img.getHeight();
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				int label = (int)imgLabels.getValue(x, y);
-				if (label <= 0 || label > n)
-					continue;
-				float val = img.getValue(x, y);
-				allStats[label-1].addValue(val);
-			}
-		}
-		
-		// Add measurements
-		if (!(measurements instanceof Set))
-			measurements = new LinkedHashSet<>(measurements);
-		for (int i = 0; i < n; i++) {
-			var pathObject = pathObjects[i];
-			if (pathObject == null)
-				continue;
-			var stats = allStats[i];
-			try (var ml = pathObject.getMeasurementList()) {
-				for (var m : measurements) {
-					ml.put(baseName + ": " + m.getMeasurementName(), m.getMeasurement(stats));
+		for (var entry : images.entrySet()) {
+			var baseName = entry.getKey();
+			var img = entry.getValue();
+
+			for (int i = 0; i < n; i++) {
+				if (allStats[i] == null) {
+					var stats = new DescriptiveStatistics(DescriptiveStatistics.INFINITE_WINDOW);
+					allStats[i] = stats;
+				} else {
+					allStats[i].clear();
 				}
 			}
+
+			int width = img.getWidth();
+			int height = img.getHeight();
+			if (nonZero == null) {
+				// For first image, build up an index of non-zero pixels so we can skip zeros next time
+				int count = 0;
+				if (images.size() > 1) {
+					nonZero = new int[width * height];
+				}
+				for (int y = 0; y < height; y++) {
+					for (int x = 0; x < width; x++) {
+						int label = (int) imgLabels.getValue(x, y);
+						if (label <= 0 || label > n)
+							continue;
+						float val = img.getValue(x, y);
+						allStats[label - 1].addValue(val);
+						if (nonZero != null) {
+							nonZero[count++] = y * width + x;
+						}
+					}
+				}
+				if (nonZero != null)
+					nonZero = Arrays.copyOf(nonZero, count);
+				logger.debug("{}, % pixels are non-zero", GeneralTools.formatNumber(count*100.0/ (width * height), 2));
+			} else {
+				// Iterate only through the non-zero pixels
+				for (int i : nonZero) {
+					int x = i % width;
+					int y = i / width;
+					int label = (int)imgLabels.getValue(x, y);
+					float val = img.getValue(x, y);
+					allStats[label - 1].addValue(val);
+				}
+			}
+
+			// Add measurements
+			for (int i = 0; i < n; i++) {
+				var pathObject = pathObjects.get(i);
+				if (pathObject == null)
+					continue;
+				var stats = allStats[i];
+				try (var ml = pathObject.getMeasurementList()) {
+					for (var m : measurements) {
+						ml.put(baseName + ": " + m.getMeasurementName(), m.getMeasurement(stats));
+					}
+				}
+			}
+		}
+	}
+
+	private static <T> Set<T> ensureSet(Collection<T> collection) {
+		if (collection instanceof Set<T> set) {
+			return set;
+		} else {
+			return new LinkedHashSet<>(collection);
 		}
 	}
 
