@@ -21,21 +21,38 @@
 
 package qupath.lib.analysis.features;
 
+import ij.ImagePlus;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.commons.math3.stat.descriptive.StatisticalSummary;
 import org.locationtech.jts.algorithm.Area;
 import org.locationtech.jts.algorithm.Length;
 import org.locationtech.jts.algorithm.MinimumBoundingCircle;
 import org.locationtech.jts.algorithm.MinimumDiameter;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.imagej.tools.IJTools;
@@ -47,20 +64,11 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.EllipseROI;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
-
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Experimental class to generate object measurements.
@@ -127,22 +135,15 @@ public class ObjectMeasurements {
 		VARIANCE;
 		
 		private String getMeasurementName() {
-			switch (this) {
-			case MAX:
-				return "Max";
-			case MEAN:
-				return "Mean";
-			case MEDIAN:
-				return "Median";
-			case MIN:
-				return "Min";
-			case STD_DEV:
-				return "Std.Dev.";
-			case VARIANCE:
-				return "Variance";
-			default:
-				throw new IllegalArgumentException("Unknown measurement " + this);
-			}
+            return switch (this) {
+                case MAX -> "Max";
+                case MEAN -> "Mean";
+                case MEDIAN -> "Median";
+                case MIN -> "Min";
+                case STD_DEV -> "Std.Dev.";
+                case VARIANCE -> "Variance";
+                default -> throw new IllegalArgumentException("Unknown measurement " + this);
+            };
 		}
 		
 		private double getMeasurement(StatisticalSummary stats) {
@@ -167,9 +168,12 @@ public class ObjectMeasurements {
 			}
 		}
 	}
+
+	public static final Collection<Measurements> ALL_MEASUREMENTS = Set.of(Measurements.values());
+
+	public static final Collection<Compartments> ALL_COMPARTMENTS = Set.of(Compartments.values());
 	
-	
-	private static final Collection<ShapeFeatures> ALL_SHAPE_FEATURES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(ShapeFeatures.values())));
+	public static final Collection<ShapeFeatures> ALL_SHAPE_FEATURES = Set.of(ShapeFeatures.values());
 	
 	/**
 	 * Add shape measurements for one object. If this is a cell, measurements will be made for both the 
@@ -196,7 +200,7 @@ public class ObjectMeasurements {
 		PixelCalibration calibration = cal == null || !cal.unitsMatch2D() ? PixelCalibration.getDefaultInstance() : cal;
 		Collection<ShapeFeatures> featureCollection = features.length == 0 ? ALL_SHAPE_FEATURES : Arrays.asList(features);
 		
-		pathObjects.parallelStream().filter(p -> p.hasROI()).forEach(pathObject -> {
+		pathObjects.parallelStream().filter(PathObject::hasROI).forEach(pathObject -> {
 			if (pathObject instanceof PathCellObject cell) {
 				addCellShapeMeasurements(cell, calibration, featureCollection);
 			} else {
@@ -277,24 +281,16 @@ public class ObjectMeasurements {
 		
 		@Override
 		public String toString() {
-			switch (this) {
-			case AREA:
-				return "Area";
-			case CIRCULARITY:
-				return "Circularity";
-			case LENGTH:
-				return "Length";
-			case MAX_DIAMETER:
-				return "Maximum diameter";
-			case MIN_DIAMETER:
-				return "Minimum diameter";
-			case SOLIDITY:
-				return "Solidity";
-			case NUCLEUS_CELL_RATIO:
-				return "Nucleus/Cell area ratio";
-			default:
-				throw new IllegalArgumentException("Unknown feature " + this);
-			}
+            return switch (this) {
+                case AREA -> "Area";
+                case CIRCULARITY -> "Circularity";
+                case LENGTH -> "Length";
+                case MAX_DIAMETER -> "Maximum diameter";
+                case MIN_DIAMETER -> "Minimum diameter";
+                case SOLIDITY -> "Solidity";
+                case NUCLEUS_CELL_RATIO -> "Nucleus/Cell area ratio";
+                default -> throw new IllegalArgumentException("Unknown feature " + this);
+            };
 		}
 		
 	}
@@ -362,14 +358,13 @@ public class ObjectMeasurements {
 			ml.put(baseName + "Length " + units, length);
 		
 		if (isArea && features.contains(ShapeFeatures.CIRCULARITY)) {
-			if (geom instanceof Polygon) {
-				var polygon = (Polygon)geom;
-				double ringArea, ringLength;
+			if (geom instanceof Polygon polygon) {
+                double ringArea, ringLength;
 				if (polygon.getNumInteriorRing() == 0) {
 					ringArea = area;
 					ringLength = length;
 				} else {
-					var ring = ((Polygon)geom).getExteriorRing().getCoordinateSequence();
+					var ring = polygon.getExteriorRing().getCoordinateSequence();
 					ringArea = Area.ofRing(ring);
 					ringLength = Length.ofLine(ring);
 				}
@@ -396,22 +391,242 @@ public class ObjectMeasurements {
 		}
 
 	}
-	
+
+	/**
+	 * Measure all channels of an image for multiple objects or cells.
+	 * <p>
+	 * All compartments are measured where possible (nucleus, cytoplasm, membrane and full cell).
+	 * <p>
+	 * Note: This can batch neighboring objects, so may be much faster than iteratively calling
+	 * {@link #addIntensityMeasurements(ImageServer, PathObject, double, Collection, Collection)}
+	 * for individuals objects.
+	 * However, it is important that no individual object is very large (which could result in requesting
+	 * too many pixels from the image in one go).
+	 *
+	 * @param server the server containing the pixels (and channels) to be measured
+	 * @param pathObjects the objects to measure (the {@link MeasurementList} will be updated)
+	 * @param downsample resolution at which to request pixels
+	 * @param measurements requested measurements to make
+	 * @param compartments the cell compartments to measure; ignored if the object is not a cell
+	 * @throws IOException if there is a problem reading from the image
+	 * @since v0.8.0
+	 * @see #addIntensityMeasurements(ImageServer, Collection, double, Collection, Collection, Executor)
+	 */
+	public static void addIntensityMeasurements(
+			ImageServer<BufferedImage> server,
+			Collection<? extends PathObject> pathObjects,
+			double downsample,
+			Collection<Measurements> measurements,
+			Collection<Compartments> compartments) throws IOException {
+		addIntensityMeasurements(server, pathObjects, downsample, measurements, compartments, null);
+	}
+
+	/**
+	 * Measure all channels of an image for multiple objects or cells, optionally using a specific executor.
+	 * <p>
+	 * All compartments are measured where possible (nucleus, cytoplasm, membrane and full cell).
+	 * <p>
+	 * Note: This can batch neighboring objects, so may be much faster than iteratively calling
+	 * {@link #addIntensityMeasurements(ImageServer, PathObject, double, Collection, Collection)}
+	 * for individuals objects.
+	 * However, it is important that no individual object is very large (which could result in requesting
+	 * too many pixels from the image in one go).
+	 *
+	 * @param server the server containing the pixels (and channels) to be measured
+	 * @param pathObjects the objects to measure (the {@link MeasurementList} will be updated)
+	 * @param downsample resolution at which to request pixels
+	 * @param measurements requested measurements to make
+	 * @param compartments the cell compartments to measure; ignored if the object is not a cell
+	 * @param executor if not null, the measurement tasks are submitted to the executor rather than called directly
+	 * @throws IOException if there is a problem reading from the image
+	 * @since v0.8.0
+	 * @see #addIntensityMeasurements(ImageServer, Collection, double, Collection, Collection)
+	 */
+	public static void addIntensityMeasurements(
+			ImageServer<BufferedImage> server,
+			Collection<? extends PathObject> pathObjects,
+			double downsample,
+			Collection<Measurements> measurements,
+			Collection<Compartments> compartments,
+			Executor executor) throws IOException {
+
+		if (pathObjects.isEmpty()) {
+			return;
+		}
+
+		if (measurements.isEmpty()) {
+			logger.warn("No measurements selected");
+			return;
+		}
+
+		var batches = createBatches(server, pathObjects, downsample);
+		if (batches.isEmpty()) {
+			return;
+		}
+
+		// Loop through batches
+		for (var entry : batches.entrySet()) {
+			var batchRequest = entry.getKey();
+			var batch = entry.getValue();
+			if (executor == null) {
+				addIntensityMeasurementsBatch(server, batch, batchRequest, measurements, compartments);
+			} else {
+				executor.execute(() -> {
+					try {
+						if (Thread.currentThread().isInterrupted()) {
+							logger.warn("Thread interrupted, skipping {} objects", pathObjects.size());
+							return;
+						}
+						addIntensityMeasurementsBatch(server, batch, batchRequest, measurements, compartments);
+					} catch (IOException e) {
+						throw new RuntimeException(e);
+					}
+				});
+			}
+		}
+	}
+
+	private static Map<RegionRequest, List<PathObject>> createBatches(ImageServer<BufferedImage> server,
+																	  Collection<? extends PathObject> pathObjects,
+																	  double downsample) {
+		Map<ImagePlane, List<PathObject>> objectsByPlane = pathObjects.stream()
+				.filter(PathObject::hasROI)
+				.collect(Collectors.groupingBy(p -> p.getROI().getImagePlane()));
+
+		if (objectsByPlane.isEmpty()) {
+			return Map.of();
+		} else if (objectsByPlane.size() == 1) {
+			return createBatchesSinglePlane(server, pathObjects, downsample);
+		} else {
+			Map<RegionRequest, List<PathObject>> batches = new LinkedHashMap<>();
+			for (var objectsOnPlane : objectsByPlane.values()) {
+				batches.putAll(createBatchesSinglePlane(server, objectsOnPlane, downsample));
+			}
+			return batches;
+		}
+	}
+
+	/**
+	 * Create batches for objects that have ROIs all on a single plane.
+	 * Note that it is up to the caller to verify that the input meets these criteria - this method does not check.
+	 */
+	private static Map<RegionRequest, List<PathObject>> createBatchesSinglePlane(ImageServer<BufferedImage> server,
+																Collection<? extends PathObject> pathObjects,
+																double downsample) {
+
+		// Create a set of objects that have ROIs (probably all of them, but good to be sure)
+		Set<PathObject> objectsToMeasure = pathObjects.stream().filter(PathObject::hasROI).collect(Collectors.toCollection(HashSet::new));
+
+		// See if a single request will do the job
+		int pad = (int)Math.ceil(downsample * 2);
+		var globalRequest = createRequest(server, downsample, getAllROIs(objectsToMeasure), pad);
+		if (globalRequest == null) {
+			logger.warn("Cannot create region request for {} objects - no measurements will be made", objectsToMeasure.size());
+			return Collections.emptyMap();
+		}
+
+		// Use 1 batch if we can: 1 object, or a single batch of objects on the same plane
+		if (objectsToMeasure.size() == 1 || isSingleBatch(globalRequest)) {
+			return Map.of(globalRequest, List.copyOf(objectsToMeasure));
+		}
+
+		// Create a spatial cache to identify objects near one another
+		Map<RegionRequest, List<PathObject>> batches = new LinkedHashMap<>();
+		var tree = new Quadtree();
+		for (var pathObject : objectsToMeasure) {
+			tree.insert(createEnvelope(pathObject), pathObject);
+		}
+
+		// Batch together nearby objects... we could try to optimize this cleverly, but it's probably not worth it
+		int batchTileSize = (int)Math.round(1024 * downsample);
+		for (int y = globalRequest.getMinY(); y < globalRequest.getMaxY(); y += batchTileSize) {
+			for (int x = globalRequest.getMinX(); x < globalRequest.getMaxX(); x += batchTileSize) {
+				var tempRequest = RegionRequest.createInstance(
+						server.getPath(), downsample, x, y, batchTileSize, batchTileSize, globalRequest.getImagePlane()
+				);
+				@SuppressWarnings("unchecked") // Quadtree isn't typed - but we know what we put in
+				var objects = (List<PathObject>)tree.query(GeometryTools.regionToEnvelope(tempRequest));
+				// Only keep those that aren't already assigned
+				objects.retainAll(objectsToMeasure);
+				if (objects.isEmpty())
+					continue;
+				// We need to generate a new region to make sure it includes padding (and isn't bigger than necessary)
+				var batchRequest = createRequest(server, downsample, getAllROIs(objects), pad);
+				batches.put(batchRequest, List.copyOf(objects));
+				objects.forEach(objectsToMeasure::remove);
+				if (objectsToMeasure.isEmpty())
+					break;
+			}
+		}
+
+		// Check we did everything
+		if (!objectsToMeasure.isEmpty()) {
+			logger.warn("{} object(s) remain! This may be a bug, but I will create batches for them each.", objectsToMeasure.size());
+			for (var pathObject : objectsToMeasure) {
+				var list = List.of(pathObject);
+				var batchRequest = createRequest(server, downsample, getAllROIs(list), pad);
+				batches.put(batchRequest, list);
+			}
+		}
+
+		return batches;
+	}
+
+	private static List<ROI> getAllROIs(Collection<? extends PathObject> pathObjects) {
+		List<ROI> allROIs = new ArrayList<>();
+		for (var pathObject : pathObjects) {
+			var roi = pathObject.getROI();
+			allROIs.add(roi);
+			if (pathObject instanceof PathCellObject cell) {
+				var nucleus = cell.getNucleusROI();
+				if (nucleus != null) {
+					if (!nucleus.getImagePlane().equals(roi.getImagePlane()))
+						throw new IllegalArgumentException("Nucleus ROI must be on the same plane as cell ROI!");
+					allROIs.add(nucleus);
+				}
+			}
+		}
+		return allROIs;
+	}
+
+	private static Envelope createEnvelope(PathObject pathObject) {
+		var roi = pathObject.getROI();
+		if (roi == null)
+			return null;
+		var envelope = GeometryTools.roiToEnvelope(roi);
+		if (pathObject instanceof PathCellObject cell) {
+			// The nucleus *should* be completely contained within the cell... but we are cautious here
+			var nucleus = cell.getNucleusROI();
+			if (nucleus != null) {
+				envelope.expandToInclude(GeometryTools.roiToEnvelope(nucleus));
+			}
+		}
+		return envelope;
+	}
+
+
+	private static boolean isSingleBatch(RegionRequest request) {
+		double estimatedPixels = Math.ceil(request.getWidth() / request.getDownsample()) *
+				Math.ceil(request.getHeight() / request.getDownsample());
+		return estimatedPixels <= 2048 * 2048;
+	}
 	
 	
 	/**
 	 * Measure all channels of an image for one individual object or cell.
 	 * All compartments are measured where possible (nucleus, cytoplasm, membrane and full cell).
 	 * <p>
-	 * Note: This implementation is likely to change in the future, to enable neighboring cells to be 
-	 * measured more efficiently.
+	 * Note: This since v0.8.0
+	 * {@link #addIntensityMeasurements(ImageServer, PathObject, double, Collection, Collection)}
+	 * is more efficient to add measurements to large numbers of objects at once.
 	 * 
 	 * @param server the server containing the pixels (and channels) to be measured
 	 * @param pathObject the cell to measure (the {@link MeasurementList} will be updated)
 	 * @param downsample resolution at which to request pixels
 	 * @param measurements requested measurements to make
 	 * @param compartments the cell compartments to measure; ignored if the object is not a cell
-	 * @throws IOException
+	 * @throws IOException if there is a problem reading from the image
+	 * @see #addIntensityMeasurements(ImageServer, Collection, double, Collection, Collection, Executor)
 	 */
 	public static void addIntensityMeasurements(
 			ImageServer<BufferedImage> server,
@@ -419,21 +634,97 @@ public class ObjectMeasurements {
 			double downsample,
 			Collection<Measurements> measurements,
 			Collection<Compartments> compartments) throws IOException {
-		
-		var roi = pathObject.getROI();
-		
-		int pad = (int)Math.ceil(downsample * 2);
-		var request = RegionRequest.createInstance(server.getPath(), downsample, roi)
-				.pad2D(pad, pad)
-				.intersect2D(0, 0, server.getWidth(), server.getHeight());
-		
+		addIntensityMeasurements(server, List.of(pathObject), downsample, measurements, compartments, null);
+	}
+
+
+	/**
+	 * Add intensity measurements for all cells in a batch, using a single image request.
+	 * Important! The calling code needs to ensure that the bounding box of all the object ROIs is sensible.
+	 */
+	private static void addIntensityMeasurementsBatch(
+			ImageServer<BufferedImage> server,
+			Collection<? extends PathObject> pathObjects,
+			RegionRequest request,
+			Collection<Measurements> measurements,
+			Collection<Compartments> compartments) throws IOException {
+
 		var pathImage = IJTools.convertToImagePlus(server, request);
 		var imp = pathImage.getImage();
+
+		Map<String, ImageProcessor> channels = createChannels(server, imp);
 		
+		ByteProcessor bpCell = null;
+
+		for (var pathObject : pathObjects) {
+			var roi = pathObject.getROI();
+			if (roi == null)
+				continue;
+
+			// Create or reset mask
+			if (bpCell == null) {
+				bpCell = new ByteProcessor(imp.getWidth(), imp.getHeight());
+				bpCell.setValue(1.0);
+			} else {
+				Arrays.fill((byte[])bpCell.getPixels(), (byte)0);
+			}
+
+			var roiIJ = IJTools.convertToIJRoi(roi, pathImage);
+			bpCell.fill(roiIJ);
+
+			if (pathObject instanceof PathCellObject cell) {
+				ByteProcessor bpNucleus = new ByteProcessor(imp.getWidth(), imp.getHeight());
+				if (cell.getNucleusROI() != null) {
+					bpNucleus.setValue(1.0);
+					var roiNucleusIJ = IJTools.convertToIJRoi(cell.getNucleusROI(), pathImage);
+					bpNucleus.fill(roiNucleusIJ);
+				}
+				measureCells(bpNucleus, bpCell, Map.of(1.0, cell), channels, compartments, measurements);
+			} else {
+				var imgLabels = new PixelImageIJ(bpCell);
+				for (var entry : channels.entrySet()) {
+					var img = new PixelImageIJ(entry.getValue());
+					measureObjects(img, imgLabels, new PathObject[]{pathObject}, entry.getKey(), measurements);
+				}
+			}
+		}
+	}
+
+	private static RegionRequest createRequest(ImageServer<?> server, double downsample, Collection<? extends ROI> rois, int pad) {
+		ImagePlane plane = null;
+		double minX = Double.POSITIVE_INFINITY;
+		double maxX = Double.NEGATIVE_INFINITY;
+		double minY = Double.POSITIVE_INFINITY;
+		double maxY = Double.NEGATIVE_INFINITY;
+		for (var roi : rois) {
+			if (roi == null)
+				continue;
+			if (plane == null) {
+				plane = roi.getImagePlane();
+			} else if (!plane.equals(roi.getImagePlane())) {
+				throw new IllegalArgumentException("ROIs are not on the same image plane!");
+			}
+			minX = Math.min(minX, roi.getBoundsX());
+			minY = Math.min(minY, roi.getBoundsY());
+			maxX = Math.max(maxX, roi.getBoundsX() + roi.getBoundsWidth());
+			maxY = Math.max(maxY, roi.getBoundsY() + roi.getBoundsHeight());
+		}
+		// No ROIs
+		if (plane == null) {
+			return null;
+		}
+		int x = Math.max(0, (int)Math.floor(minX) - pad);
+		int y = Math.max(0, (int)Math.floor(minY) - pad);
+		int w = (int)Math.min(Math.ceil(maxX + pad), server.getWidth()) - x;
+		int h = (int)Math.min(Math.ceil(maxY + pad), server.getHeight()) - y;
+		return RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h, plane);
+	}
+
+
+	private static Map<String, ImageProcessor> createChannels(ImageServer<BufferedImage> server, ImagePlus imp) {
 		Map<String, ImageProcessor> channels = new LinkedHashMap<>();
 		var serverChannels = server.getMetadata().getChannels();
-		if (server.isRGB() && imp.getStackSize() == 1 && imp.getProcessor() instanceof ColorProcessor) {
-			ColorProcessor cp = (ColorProcessor)imp.getProcessor();
+		if (server.isRGB() && imp.getStackSize() == 1 && imp.getProcessor() instanceof ColorProcessor cp) {
 			for (int i = 0; i < serverChannels.size(); i++) {
 				channels.put(serverChannels.get(i).getName(), cp.getChannel(i+1, null));
 			}
@@ -441,30 +732,11 @@ public class ObjectMeasurements {
 			assert imp.getStackSize() == serverChannels.size();
 			for (int i = 0; i < imp.getStackSize(); i++) {
 				channels.put(serverChannels.get(i).getName(), imp.getStack().getProcessor(i+1));
-			}			
-		}
-		
-		ByteProcessor bpCell = new ByteProcessor(imp.getWidth(), imp.getHeight());
-		bpCell.setValue(1.0);
-		var roiIJ = IJTools.convertToIJRoi(roi, pathImage);
-		bpCell.fill(roiIJ);
-			
-		if (pathObject instanceof PathCellObject cell) {
-			ByteProcessor bpNucleus = new ByteProcessor(imp.getWidth(), imp.getHeight());
-			if (cell.getNucleusROI() != null) {
-				bpNucleus.setValue(1.0);
-				var roiNucleusIJ = IJTools.convertToIJRoi(cell.getNucleusROI(), pathImage);
-				bpNucleus.fill(roiNucleusIJ);
-			}
-			measureCells(bpNucleus, bpCell, Map.of(1.0, cell), channels, compartments, measurements);
-		} else {
-			var imgLabels = new PixelImageIJ(bpCell);
-			for (var entry : channels.entrySet()) {
-				var img = new PixelImageIJ(entry.getValue());				
-				measureObjects(img, imgLabels, new PathObject[] {pathObject}, entry.getKey(), measurements);
 			}
 		}
+		return channels;
 	}
+
 	
 	/**
 	 * Make cell measurements based on labelled images.
