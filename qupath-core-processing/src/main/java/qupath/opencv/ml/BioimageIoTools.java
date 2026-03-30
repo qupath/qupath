@@ -292,11 +292,11 @@ public class BioimageIoTools {
 		if (output.getAxes()[indChannelsOut] instanceof ChannelAxis channelAxis) {
 			List<String> channelNames = channelAxis.getChannelNames();
 			for (int c = 0; c < nChannelsOut; c++) {
-				labels.put(c, PathClass.getInstance(channelNames.get(c)));
+				labels.put(c, PathClass.fromString(channelNames.get(c)));
 			}
 		} else {
 			for (int c = 0; c < nChannelsOut; c++) {
-				labels.put(c, PathClass.getInstance("Class " + c));
+				labels.put(c, PathClass.fromString("Class " + c));
 			}
 		}
 
