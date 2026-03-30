@@ -209,14 +209,14 @@ public class BioimageIoTools {
 		int indX = axesIn.indexOf("x");
 		int indY = axesIn.indexOf("y");
 
-		if (indChannelsIn == -1 || indX == 1 || indY == -1) {
-			throw new UnsupportedOperationException("Unknown input axes: " + axesIn + ". Require at least C, X and Y");
+		if (indX == 1 || indY == -1) {
+			throw new UnsupportedOperationException("Unknown input axes: " + axesIn + ". Require at least X and Y");
 		}
 		int[] shapeMin = input.getShape().getShapeMin();
 		int[] shapeStep = input.getShape().getShapeMin();
 		int width = shapeMin[indX];
 		int height = shapeMin[indY];
-		int nChannelsIn = shapeMin[indChannelsIn];
+		int nChannelsIn = indChannelsIn > 0 ? shapeMin[indChannelsIn] : 1;
 		int widthStep = shapeStep[indX];
 		int heightStep = shapeStep[indY];
 		long[] inputShape = Arrays.stream(shapeMin).mapToLong(i -> i).toArray();
