@@ -208,6 +208,10 @@ public class BioimageIoTools {
 		int indChannelsIn = axesIn.indexOf("c");
 		int indX = axesIn.indexOf("x");
 		int indY = axesIn.indexOf("y");
+
+		if (indChannelsIn == -1 || indX == 1 || indY == -1) {
+			throw new UnsupportedOperationException("Unknown input axes: " + axesIn + ". Require at least C, X and Y");
+		}
 		int[] shapeMin = input.getShape().getShapeMin();
 		int[] shapeStep = input.getShape().getShapeMin();
 		int width = shapeMin[indX];
@@ -237,7 +241,11 @@ public class BioimageIoTools {
 				outputShape[i] = (int)Math.round(inputShape[i] * outputShapeScale[i] + outputShapeOffset[i]);
 			}
 		}
-		int nChannelsOut = outputShape[axesOut.indexOf("c")];
+		int indChannelsOut = axesOut.indexOf("c");
+		if (indChannelsOut == -1) {
+			throw new UnsupportedOperationException("Unspecified channel axis in output axes: " + axesOut);
+		}
+		int nChannelsOut = outputShape[indChannelsOut];
 
 
 		// Determine padding
@@ -281,7 +289,7 @@ public class BioimageIoTools {
 		}
 
 		var labels = new LinkedHashMap<Integer, PathClass>();
-		if (output.getAxes()[axesOut.indexOf("c")] instanceof ChannelAxis channelAxis) {
+		if (output.getAxes()[indChannelsOut] instanceof ChannelAxis channelAxis) {
 			List<String> channelNames = channelAxis.getChannelNames();
 			for (int c = 0; c < nChannelsOut; c++) {
 				labels.put(c, PathClass.getInstance(channelNames.get(c)));
