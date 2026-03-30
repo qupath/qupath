@@ -254,7 +254,6 @@ public class BioimageIoTools {
 		var halo = output.getHalo();
 		if (halo != null && halo.length != 0) {
 			padding = Padding.getPadding(halo[indX], halo[indY]);
-
 		}
 
 		List<ImageOp> preprocessing = new ArrayList<>();
