@@ -62,7 +62,7 @@ public class PixelClassifiers {
 	/**
 	 * Support for serializing PixelClassifiers to JSON, via Gson.
 	 */
-	private static class PixelClassifierTypeAdapterFactory implements TypeAdapterFactory {
+	public static class PixelClassifierTypeAdapterFactory implements TypeAdapterFactory {
 
 		PixelClassifierTypeAdapterFactory() {}
 		
