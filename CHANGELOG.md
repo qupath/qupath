@@ -1,3 +1,22 @@
+## Version 0.8.0 (IN PROGRESS!)
+
+### Enhancements
+* Lots more strings externalized (https://github.com/qupath/qupath/pull/2104)
+
+### Bug fixes
+* StackOverflowError at ROITypeAdapters.writeCoordinates when exporting some geometries (https://github.com/qupath/qupath/issues/2115)
+* 'Open image' dialog cannot be resized (https://github.com/qupath/qupath/issues/2099)
+* Drawing/moving annotations can cause jiggly class list scrolling behavior (https://github.com/qupath/qupath/issues/2101)
+
+### Dependency updates
+* Bio-Formats 8.5.0
+* Commonmark 0.28.0
+* Groovy 5.0.5
+* JavaCPP 1.5.13
+* JavaFX 26
+* OpenCV 4.13.0
+
+
 ## Version 0.7.0
 
 ### Enhancements
