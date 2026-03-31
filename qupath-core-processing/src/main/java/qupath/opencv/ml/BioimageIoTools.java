@@ -29,6 +29,7 @@ import qupath.bioimageio.spec.tensor.InputTensor;
 import qupath.bioimageio.spec.tensor.OutputTensor;
 import qupath.bioimageio.spec.tensor.Processing;
 import qupath.bioimageio.spec.tensor.Shape;
+import qupath.bioimageio.spec.tensor.axes.ChannelAxis;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelType;
@@ -202,15 +203,20 @@ public class BioimageIoTools {
 		var output = outputs.getFirst();
 
 		// Get dimensions and padding
-		String axes = getAxesString(input.getAxes());
-		int indChannels = axes.indexOf("c");
-		int indX = axes.indexOf("x");
-		int indY = axes.indexOf("y");
+		String axesIn = getAxesString(input.getAxes());
+		String axesOut = getAxesString(output.getAxes());
+		int indChannelsIn = axesIn.indexOf("c");
+		int indX = axesIn.indexOf("x");
+		int indY = axesIn.indexOf("y");
+
+		if (indX == 1 || indY == -1) {
+			throw new UnsupportedOperationException("Unknown input axes: " + axesIn + ". Require at least X and Y");
+		}
 		int[] shapeMin = input.getShape().getShapeMin();
 		int[] shapeStep = input.getShape().getShapeMin();
 		int width = shapeMin[indX];
 		int height = shapeMin[indY];
-		int nChannelsIn = shapeMin[indChannels];
+		int nChannelsIn = indChannelsIn > 0 ? shapeMin[indChannelsIn] : 1;
 		int widthStep = shapeStep[indX];
 		int heightStep = shapeStep[indY];
 		long[] inputShape = Arrays.stream(shapeMin).mapToLong(i -> i).toArray();
@@ -235,7 +241,12 @@ public class BioimageIoTools {
 				outputShape[i] = (int)Math.round(inputShape[i] * outputShapeScale[i] + outputShapeOffset[i]);
 			}
 		}
-		int nChannelsOut = outputShape[indChannels];
+		int indChannelsOut = axesOut.indexOf("c");
+		if (indChannelsOut == -1) {
+			throw new UnsupportedOperationException("Unspecified channel axis in output axes: " + axesOut);
+		}
+		int nChannelsOut = outputShape[indChannelsOut];
+
 
 		// Determine padding
 		// TODO: Consider halo for input?!
@@ -243,7 +254,6 @@ public class BioimageIoTools {
 		var halo = output.getHalo();
 		if (halo != null && halo.length != 0) {
 			padding = Padding.getPadding(halo[indX], halo[indY]);
-
 		}
 
 		List<ImageOp> preprocessing = new ArrayList<>();
@@ -278,9 +288,17 @@ public class BioimageIoTools {
 		}
 
 		var labels = new LinkedHashMap<Integer, PathClass>();
-		for (int c = 0; c < nChannelsOut; c++) {
-			labels.put(c, PathClass.getInstance("Class " + c));
+		if (output.getAxes()[indChannelsOut] instanceof ChannelAxis channelAxis) {
+			List<String> channelNames = channelAxis.getChannelNames();
+			for (int c = 0; c < nChannelsOut; c++) {
+				labels.put(c, PathClass.fromString(channelNames.get(c)));
+			}
+		} else {
+			for (int c = 0; c < nChannelsOut; c++) {
+				labels.put(c, PathClass.fromString("Class " + c));
+			}
 		}
+
 
 		return PatchClassifierParams.builder()
 				.inputChannels(IntStream.range(0, nChannelsIn).toArray())
