@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020, 2022, 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2022, 2025 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -321,33 +321,33 @@ class ROITypeAdapters {
 			out.endArray();
 		} else {
 			out.name("coordinates");
-			writeCoordinates(geometry, out, nDecimals);			
+			writeCoordinates(geometry, out, nDecimals);
 		}
 	}
 
 
 	static void writeCoordinates(Geometry geometry, JsonWriter out, int nDecimals) throws IOException {
-		if (geometry instanceof Point)
-			writeCoordinates((Point)geometry, out, nDecimals);
-		else if (geometry instanceof MultiPoint)
-			writeCoordinates((MultiPoint)geometry, out, nDecimals);
-		else if (geometry instanceof LineString)
-			writeCoordinates((LineString)geometry, out, nDecimals);
-		else if (geometry instanceof MultiLineString)
-			writeCoordinates((MultiLineString)geometry, out, nDecimals);
-		else if (geometry instanceof Polygon)
-			writeCoordinates((Polygon)geometry, out, nDecimals);
-		else if (geometry instanceof MultiPolygon)
-			writeCoordinates((MultiPolygon)geometry, out, nDecimals);
+		if (geometry instanceof Point point)
+			writeCoordinatesPoint(point, out, nDecimals);
+		else if (geometry instanceof MultiPoint multiPoint)
+			writeCoordinatesMultiPoint(multiPoint, out, nDecimals);
+		else if (geometry instanceof LineString lineString)
+			writeCoordinatesLineString(lineString, out, nDecimals);
+		else if (geometry instanceof MultiLineString multiLineString)
+			writeCoordinatesMultiLineString(multiLineString, out, nDecimals);
+		else if (geometry instanceof Polygon polygon)
+			writeCoordinatesPolygon(polygon, out, nDecimals);
+		else if (geometry instanceof MultiPolygon multiPolygon)
+			writeCoordinatesMultiPolygon(multiPolygon, out, nDecimals);
 		else
 			throw new IllegalArgumentException("Unable to write coordinates for geometry type " + geometry.getGeometryType());
 	}
 
-	static void writeCoordinates(Point point, JsonWriter out, int nDecimals) throws IOException {
+	static void writeCoordinatesPoint(Point point, JsonWriter out, int nDecimals) throws IOException {
 		out.jsonValue(coordinateToString(point.getCoordinate(), nDecimals));
 	}
 
-	static void writeCoordinates(MultiPoint multiPoint, JsonWriter out, int nDecimals) throws IOException {
+	static void writeCoordinatesMultiPoint(MultiPoint multiPoint, JsonWriter out, int nDecimals) throws IOException {
 		Coordinate[] coords = multiPoint.getCoordinates();
 		out.beginArray();
 		for (Coordinate c : coords)
@@ -355,7 +355,7 @@ class ROITypeAdapters {
 		out.endArray();
 	}
 
-	static void writeCoordinates(LineString lineString, JsonWriter out, int nDecimals) throws IOException {
+	static void writeCoordinatesLineString(LineString lineString, JsonWriter out, int nDecimals) throws IOException {
 		Coordinate[] coords = lineString.getCoordinates();
 		out.beginArray();
 		for (Coordinate c : coords)
@@ -363,15 +363,27 @@ class ROITypeAdapters {
 		out.endArray();
 	}
 
-	static void writeCoordinates(Polygon polygon, JsonWriter out, int nDecimals) throws IOException {
+	static void writeCoordinatesMultiLineString(MultiLineString multiLineString, JsonWriter out, int nDecimals) throws IOException {
 		out.beginArray();
-		writeCoordinates(polygon.getExteriorRing(), out, nDecimals);
-		for (int i = 0; i < polygon.getNumInteriorRing(); i++)
-			writeCoordinates(polygon.getInteriorRingN(i), out, nDecimals);
+		for (int i = 0; i < multiLineString.getNumGeometries(); i++) {
+			if (multiLineString.getGeometryN(i) instanceof LineString lineString) {
+				writeCoordinatesLineString(lineString, out, nDecimals);
+			} else {
+				throw new IllegalArgumentException("MultiLineString contains geometry" + multiLineString.getGeometryN(i));
+			}
+		}
 		out.endArray();
 	}
 
-	static void writeCoordinates(MultiPolygon multiPolygon, JsonWriter out, int nDecimals) throws IOException {
+	static void writeCoordinatesPolygon(Polygon polygon, JsonWriter out, int nDecimals) throws IOException {
+		out.beginArray();
+		writeCoordinatesLineString(polygon.getExteriorRing(), out, nDecimals);
+		for (int i = 0; i < polygon.getNumInteriorRing(); i++)
+			writeCoordinatesLineString(polygon.getInteriorRingN(i), out, nDecimals);
+		out.endArray();
+	}
+
+	static void writeCoordinatesMultiPolygon(MultiPolygon multiPolygon, JsonWriter out, int nDecimals) throws IOException {
 		out.beginArray();
 		for (int i = 0; i < multiPolygon.getNumGeometries(); i++)
 			writeCoordinates(multiPolygon.getGeometryN(i), out, nDecimals);
