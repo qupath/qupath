@@ -28,6 +28,7 @@ import javafx.collections.ObservableList;
 import javafx.css.StyleOrigin;
 import javafx.css.StyleableObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -59,6 +60,9 @@ import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -1052,9 +1056,18 @@ public class GuiTools {
 			.buttons(ButtonType.APPLY, ButtonType.CANCEL)
 			.resizable()
 			.build();
-		
+
 //		dialog.getDialogPane().setMinSize(400, 400);
-			
+
+		var btnApply = dialog.getDialogPane().lookupButton(ButtonType.APPLY);
+		var enterPressed = new KeyCodeCombination(KeyCode.ENTER);
+		dialog.getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+			if (enterPressed.match(e)) {
+				btnApply.fireEvent(new ActionEvent());
+				e.consume();
+			}
+		});
+
 		var response = dialog.showAndWait();
 		
 		if (!Objects.equals(ButtonType.APPLY, response.orElse(ButtonType.CANCEL)))
