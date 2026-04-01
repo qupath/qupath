@@ -1061,7 +1061,7 @@ public class GuiTools {
 
 		var btnApply = dialog.getDialogPane().lookupButton(ButtonType.APPLY);
 		var enterPressed = new KeyCodeCombination(KeyCode.ENTER);
-		dialog.getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+		dialog.getDialogPane().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
 			if (enterPressed.match(e)) {
 				btnApply.fireEvent(new ActionEvent());
 				e.consume();
