@@ -187,7 +187,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	 * @return
 	 */
 	public static boolean getWandFillHoles() {
-		return wandFillHoles.get() || PathPrefs.getUserPreferences().getBoolean("wandFillHoles", false);
+		return wandFillHoles.get();
 	}
 
 	/**
