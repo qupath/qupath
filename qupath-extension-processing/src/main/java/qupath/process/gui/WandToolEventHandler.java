@@ -57,10 +57,8 @@ import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.tools.QuPathPenManager;
 import qupath.lib.gui.viewer.tools.handlers.BrushToolEventHandler;
-import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.GeometryTools;
-import qupath.lib.roi.RoiTools;
 
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -498,9 +496,8 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 		geometry = GeometryTools.roundCoordinates(geometry);
 		geometry = GeometryTools.constrainToBounds(geometry, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
 		if (getWandFillHoles() && addToShape != null && !addToShape.isEmpty()) {
-			var plane = ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition());
 			geometry = GeometryTools.union(List.of(addToShape, geometry));
-			geometry = RoiTools.fillHoles(GeometryTools.geometryToROI(geometry, plane)).getGeometry();
+			geometry = GeometryTools.fillHoles(geometry);
 		}
 		if (geometry.getArea() <= 1)
 			return null;
