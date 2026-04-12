@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -327,6 +327,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 			return currentObject;
 		
 		var viewer = getViewer();
+		double downsample = viewer.getDownsampleFactor();
 		ImagePlane plane = shapeROI == null ? ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()) : shapeROI.getImagePlane();
 		Geometry shapeNew;
 		boolean subtractMode = isSubtractMode(e);
@@ -359,15 +360,15 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 				boolean avoidOtherAnnotations = requestParentClipping(e);
 				if (subtractMode) {
 					// If subtracting... then just subtract
-					shapeNew = shapeROI.getGeometry().difference(shapeDrawn);
+					shapeNew = subtractGeometry(shapeROI.getGeometry(), shapeDrawn, downsample);
 				} else if (avoidOtherAnnotations) {
-					shapeNew = shapeCurrent.union(shapeDrawn);
+					shapeNew = addGeometry(shapeCurrent, shapeDrawn, downsample);
 					shapeNew = refineGeometryByParent(shapeNew);
 				} else {
 					// Just add, regardless of whether there are other annotations below or not
 					var temp = shapeROI.getGeometry();
 					try {
-						shapeNew = temp.union(shapeDrawn);
+						shapeNew = addGeometry(temp, shapeDrawn, downsample);
 					} catch (Exception e2) {
 						shapeNew = shapeROI.getGeometry();
 					}
@@ -413,6 +414,36 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 			logger.error("Error updating ROI", ex);
 			return currentObject;
 		}
+	}
+
+	/**
+	 * Combine two geometries in additive mode.
+	 * <p>
+	 * The default implementation simply unions the two geometries;
+	 * subclasses may do further processing (e.g., to remove holes), in which case the downsample
+	 * factor may be required to make further adjustments.
+	 *
+	 * @param originalGeometry the geometry of the original ROI
+	 * @param newGeometry the geometry that should be added (by union) with the original
+	 * @param downsample the downsample factor of the viewer as the geometry is being updated
+	 * @return the result of adding the original and new geometries.
+	 */
+	protected Geometry addGeometry(Geometry originalGeometry, Geometry newGeometry, double downsample) {
+		return originalGeometry.union(newGeometry);
+	}
+
+	/**
+	 * Combine two geometries in subtractive mode.
+	 * <p>
+	 * The default implementation simply calculations the difference.
+	 *
+	 * @param originalGeometry the geometry of the original ROI
+	 * @param newGeometry the geometry that should be subtracted from the original
+	 * @param downsample the downsample factor of the viewer as the geometry is being updated
+	 * @return the result of subtracting the new geometry from the original.
+	 */
+	protected Geometry subtractGeometry(Geometry originalGeometry, Geometry newGeometry, double downsample) {
+		return originalGeometry.difference(newGeometry);
 	}
 	
 	

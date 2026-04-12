@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -40,6 +40,9 @@ import org.bytedeco.opencv.opencv_core.Size;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryCombiner;
 import org.slf4j.Logger;
@@ -70,7 +73,9 @@ import java.awt.image.DataBufferByte;
 import java.nio.ByteBuffer;
 import java.nio.DoubleBuffer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.bytedeco.opencv.global.opencv_core.CV_32FC3;
 import static org.bytedeco.opencv.global.opencv_core.CV_8UC;
@@ -92,7 +97,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	/**
 	 * Enum reflecting different color images that may be used by the Wand tool.
 	 */
-	public static enum WandType {
+	public enum WandType {
 		/**
 		 * Grayscale image
 		 */
@@ -476,10 +481,73 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 			pLast = new Point2D.Double(x, y);
 		else
 			pLast.setLocation(x, y);
-		
+
+		// Remove single-pixel small holes and fragments
+		// See https://github.com/qupath/qupath/pull/2120
+		if (downsample <= 1) {
+			double fragmentThreshold = 1.01;
+			geometry = GeometryTools.refineAreas(geometry, fragmentThreshold, fragmentThreshold);
+		}
+
 		return geometry;
 	}
-	
+
+	@Override
+	protected Geometry addGeometry(Geometry originalGeometry, Geometry newGeometry, double downsample) {
+
+		// Add as normal, and return if no more work is needed
+		var added = super.addGeometry(originalGeometry, newGeometry, downsample).norm();
+		if (originalGeometry.equals(added) || newGeometry.equals(added) || added.isEmpty()
+		|| !isPolygonal(originalGeometry) || !isPolygonal(added))
+			return added;
+
+		// Find holes already present in the original geometry - this shouldn't be changed
+		Set<LinearRing> existingHoles = new HashSet<>();
+		for (int i = 0; i < originalGeometry.getNumGeometries(); i++) {
+			if (originalGeometry.getGeometryN(i) instanceof Polygon polygon) {
+				for (int j = 0; j < polygon.getNumInteriorRing(); j++) {
+					existingHoles.add(polygon.getInteriorRingN(j));
+				}
+			}
+		}
+
+		// Calculate a value related to the coordinate precision at the current downsample level
+		// (This calculation could probably be improved)
+		double minimumHoleThickness = Math.max(downsample, 1.0) * 2.0;
+
+		// Find any new holes that are also 'thin', based upon the downsample-based precision estimate.
+		List<Polygon> holesToFill = new ArrayList<>();
+		var factory = added.getFactory();
+		for (int i = 0; i < added.getNumGeometries(); i++) {
+			if (added.getGeometryN(i) instanceof Polygon polygon) {
+				for (int j = 0; j < polygon.getNumInteriorRing(); j++) {
+					var hole = polygon.getInteriorRingN(j);
+					if (!existingHoles.contains(hole)) {
+						var holePolygon = factory.createPolygon(hole);
+						if (holePolygon.buffer(-minimumHoleThickness).isEmpty()) {
+							holesToFill.add(factory.createPolygon(hole));
+						}
+					}
+				}
+			}
+		}
+
+		// Fill the holes, if needed
+		if (holesToFill.isEmpty())
+			return added;
+
+		// We need to fill holes cautiously, using union, in case there are somehow polygons nested within holes
+		logger.trace("Filling {} holes", holesToFill.size());
+		if (holesToFill.size() == 1)
+			return super.addGeometry(added, holesToFill.getFirst(), downsample);
+		else
+			return super.addGeometry(added, factory.buildGeometry(holesToFill), downsample);
+	}
+
+	private static boolean isPolygonal(Geometry geom) {
+		return geom instanceof Polygon || geom instanceof MultiPolygon;
+	}
+
 	
 	/**
 	 * Don't actually need the diameter for calculations here, but it's helpful for setting the cursor
