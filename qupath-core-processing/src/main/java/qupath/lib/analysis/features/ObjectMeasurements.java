@@ -558,7 +558,7 @@ public class ObjectMeasurements {
 				var tempRequest = RegionRequest.createInstance(
 						server.getPath(), downsample, x, y, batchTileSize, batchTileSize, globalRequest.getImagePlane()
 				);
-				@SuppressWarnings("unchecked") // Quadtree isn't typed - but we know what we put in
+				@SuppressWarnings("unchecked") // STRtree isn't typed, but we know what we put in
 				var queryEnvelope = GeometryTools.regionToEnvelope(tempRequest);
 				var objects = (List<PathObject>)tree.query(queryEnvelope);
 				// Only keep those that aren't already assigned
