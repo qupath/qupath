@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -29,19 +29,15 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.scene.input.MouseEvent;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
-import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
-import org.locationtech.jts.geom.util.GeometryCombiner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.prefs.annotations.BooleanPref;
@@ -49,6 +45,7 @@ import qupath.fx.prefs.annotations.DoublePref;
 import qupath.fx.prefs.annotations.Pref;
 import qupath.fx.prefs.annotations.PrefCategory;
 import qupath.fx.prefs.controlsfx.PropertySheetUtils;
+import qupath.lib.analysis.images.ContourTracing;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -69,8 +66,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.nio.ByteBuffer;
 import java.nio.DoubleBuffer;
-import java.util.ArrayList;
-import java.util.List;
+import qupath.opencv.tools.OpenCVTools;
 
 import static org.bytedeco.opencv.global.opencv_core.CV_32FC3;
 import static org.bytedeco.opencv.global.opencv_core.CV_8UC;
@@ -92,7 +88,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	/**
 	 * Enum reflecting different color images that may be used by the Wand tool.
 	 */
-	public static enum WandType {
+	public enum WandType {
 		/**
 		 * Grayscale image
 		 */
@@ -109,28 +105,27 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 		
 	private Point2D pLast = null;
 	private static int w = 149;
-	private BufferedImage imgBGR = new BufferedImage(w, w, BufferedImage.TYPE_3BYTE_BGR);
-	private BufferedImage imgGray = new BufferedImage(w, w, BufferedImage.TYPE_BYTE_GRAY);
+	private final BufferedImage imgBGR = new BufferedImage(w, w, BufferedImage.TYPE_3BYTE_BGR);
+	private final BufferedImage imgGray = new BufferedImage(w, w, BufferedImage.TYPE_BYTE_GRAY);
 	
 	private Mat mat = null; //new Mat(w, w, CV_8U);
-	private Mat matMask = new Mat(w+2, w+2, CV_8UC1);
+	private final Mat matMask = new Mat(w+2, w+2, CV_8UC1);
 	
-	private Mat matFloat = new Mat(w, w, CV_32FC3);
+	private final Mat matFloat = new Mat(w, w, CV_32FC3);
 	
-	private Scalar threshold = Scalar.all(1.0);
-	private Point seed = new Point(w/2, w/2);
+	private final Scalar threshold = Scalar.all(1.0);
+	private final Point seed = new Point(w/2, w/2);
 	private Mat strel = null;
-	private Mat contourHierarchy = null;
-	
-	private Mat mean = new Mat();
-	private Mat stddev = new Mat();
 
-	private Rectangle2D bounds = new Rectangle2D.Double();
+	private final Mat mean = new Mat();
+	private final Mat stddev = new Mat();
+
+	private final Rectangle2D bounds = new Rectangle2D.Double();
 	
-	private Size blurSize = new Size(31, 31);
+	private final Size blurSize = new Size(31, 31);
 	
 	
-	private static ObjectProperty<WandType> wandType = PathPrefs.createPersistentPreference("wandType", WandType.RGB, WandType.class);
+	private static final ObjectProperty<WandType> wandType = PathPrefs.createPersistentPreference("wandType", WandType.RGB, WandType.class);
 	
 	/**
 	 * Property specifying whether the wand tool should be influenced by pixel values painted on image overlays.
@@ -333,7 +328,6 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	    
 	    if (doSimpleSelection) {
 	    	matMask.put(Scalar.ZERO);
-//			opencv_imgproc.circle(matMask, seed, radius, Scalar.ONE);
 			opencv_imgproc.floodFill(mat, matMask, seed, Scalar.ONE, null, Scalar.ZERO, Scalar.ZERO, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
 			subtractPut(matMask, Scalar.ONE);
 	    	
@@ -415,52 +409,18 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 			opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_CLOSE, strel);
 	    }
 
-		MatVector contours = new MatVector();
-		if (contourHierarchy == null)
-			contourHierarchy = new Mat();
-		
-		
-		opencv_imgproc.findContours(matMask, contours, contourHierarchy, opencv_imgproc.RETR_EXTERNAL, opencv_imgproc.CHAIN_APPROX_SIMPLE);
+		var geometry = ContourTracing.createTracedGeometry(
+				OpenCVTools.matToSimpleImage(matMask, 0),
+				0.5,
+				255,
+				null);
 
-		List<Coordinate> coords = new ArrayList<>();
-		List<Geometry> geometries = new ArrayList<>();
-		for (Mat contour : contours.get()) {
-			
-			// Discard single pixels / lines
-			if (contour.size().height() <= 2)
-				continue;
-			
-			// Create a polygon geometry
-			try (IntIndexer idxrContours = contour.createIndexer()) {
-				for (long r = 0; r < idxrContours.size(0); r++) {
-					int px = idxrContours.get(r, 0L, 0L);
-					int py = idxrContours.get(r, 0L, 1L);
-					double xx = (px - w/2.0-1);// * downsample + x;
-					double yy = (py - w/2.0-1);// * downsample + y;
-					coords.add(new Coordinate(xx, yy));
-				}
-			}
-			if (coords.size() > 1) {
-				// Ensure closed
-				if (!coords.getLast().equals(coords.getFirst()))
-					coords.add(coords.getFirst());
-				// Exclude single pixels
-				var polygon = factory.createPolygon(coords.toArray(Coordinate[]::new));
-				if (coords.size() > 5 || polygon.getArea() > 1)
-					geometries.add(polygon);
-			}
-		}
-		contours.close();
-		
-		if (geometries.isEmpty())
+		if (geometry.isEmpty())
 			return null;
-		
-		// Handle the fact that OpenCV contours are defined using the 'pixel center' by dilating the boundary
-		var geometry = geometries.size() == 1 ? geometries.getFirst() : GeometryCombiner.combine(geometries);
-		geometry = geometry.buffer(0.5);
 		
 		// Transform to map to integer pixel locations in the full-resolution image
 		var transform = new AffineTransformation()
+				.translate(-w/2.0-1, -w/2.0-1)
 				.scale(downsample, downsample)
 				.translate(x, y);
 		geometry = transform.transform(geometry);
