@@ -105,14 +105,14 @@ dependencyResolutionManagement {
         }
 
         create("sciJava") {
-            from("org.scijava:pom-scijava:43.0.0")
+            from("org.scijava:pom-scijava:44.0.0")
         }
 
     }
 
     repositories {
-        maven("https://maven.scijava.org/content/groups/public/")
         mavenCentral()
+        maven("https://maven.scijava.org/content/groups/public/")
     }
 
 }
