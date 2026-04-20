@@ -23,8 +23,16 @@
 
 package qupath.lib.gui.viewer.tools.handlers;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import javafx.scene.Cursor;
+import javafx.scene.ImageCursor;
+import javafx.scene.SnapshotParameters;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Ellipse;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -34,6 +42,7 @@ import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.viewer.tools.QuPathPenManager;
 import qupath.lib.gui.viewer.tools.QuPathPenManager.PenInputManager;
 import qupath.lib.objects.PathAnnotationObject;
@@ -70,10 +79,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 	static Set<PathClass> reservedPathClasses = Collections.singleton(
 			PathClass.StandardPathClasses.REGION
 			);
-	
-	double lastRequestedCursorDiameter = Double.NaN;
-	Cursor requestedCursor;
-	
+
 	/**
 	 * The object currently being edited by the Brush.
 	 * This is set when the mouse is pressed, to avoid relying on QuPathViewer.getSelectedObject() 
@@ -82,17 +88,57 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 	private PathObject currentObject;
 	
 	Point2D lastPoint;
-	
-//	/**
-//	 * Cache the last 50 cursors we saw
-//	 */
-//	private static Map<String, Cursor> cursorCache = new LinkedHashMap<String, Cursor>() {
-//		private static final long serialVersionUID = 1L;
-//		@Override
-//		protected boolean removeEldestEntry(Map.Entry<String, Cursor> eldest) {
-//	        return size() > 50;
-//	    }
-//	};
+
+	private final CursorCache cursorCache = new CursorCache();
+
+	private static class CursorCache {
+
+		double lastRequestedCursorDiameter = Double.NaN;
+		Cursor requestedCursor;
+
+		private final Ellipse ellipse = new Ellipse();
+		private final SnapshotParameters snapshotParameters = new SnapshotParameters();
+
+		/**
+		 * Cache the last 50 cursors we saw
+		 */
+		private static final Map<Double, Cursor> cache = new LinkedHashMap<>() {
+			private static final long serialVersionUID = 1L;
+			@Override
+			protected boolean removeEldestEntry(Map.Entry<Double, Cursor> eldest) {
+				return size() > 50;
+			}
+		};
+
+		private CursorCache() {
+			this.ellipse.setFill(null);
+			this.snapshotParameters.setFill(Color.TRANSPARENT);
+		}
+
+		Cursor getCursor(double diameter) {
+			double res = 0.05;
+			if (requestedCursor != null && Math.abs(diameter - lastRequestedCursorDiameter) < res) {
+				// This looks unnecessary, but without it cursors can become mangled (at least on macOS)
+				// See https://github.com/qupath/qupath/issues/194
+				if (requestedCursor instanceof ImageCursor imgCursor)
+					return new ImageCursor(imgCursor.getImage(), imgCursor.getHotspotX(), imgCursor.getHotspotY());
+			}
+			requestedCursor = cache.computeIfAbsent(diameter, this::createCursor);
+			lastRequestedCursorDiameter = diameter;
+			return requestedCursor;
+		}
+
+		private Cursor createCursor(Double diameter) {
+			Color color = ColorToolsFX.TRANSLUCENT_BLACK_FX;//viewer.getSuggestedOverlayColorFX();
+			ellipse.setRadiusX(diameter/2.0);
+			ellipse.setRadiusY(diameter/2.0);
+			ellipse.setStroke(color);
+			ellipse.setEffect(new DropShadow());
+			Image image = ellipse.snapshot(snapshotParameters, null);
+			return new ImageCursor(image, image.getWidth()/2, image.getHeight()/2);
+		}
+
+	}
 	
 	/**
 	 * Returns false.
@@ -101,37 +147,11 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 	protected boolean preferReturnToMove() {
 		return false;
 	}
-	
+
 	protected Cursor getRequestedCursor() {
-		// Display of image cursors seems buggy, at least on macOS?
-		// TODO: Check if image cursors are buggy on all platforms or may be reinstated
-		return Cursor.CROSSHAIR;
-//		if (PathPrefs.getUseTileBrush())
-//			return Cursor.CROSSHAIR;
-//		
-//		double res = 0.05;
-//		
-//		double diameter = getBrushDiameter() / viewer.getDownsampleFactor();
-//		if (requestedCursor != null && Math.abs(diameter - lastRequestedCursorDiameter) < res)
-//			return requestedCursor;
-//		
-//		Color color = viewer.getSuggestedOverlayColorFX();
-//		String key = color.toString() + (int)Math.round(diameter * (1.0/res));
-//		requestedCursor = cursorCache.get(key);
-//		if (requestedCursor != null)
-//			return requestedCursor;
-//		
-//		Ellipse e = new Ellipse(diameter/2, diameter/2);
-//		e.setFill(null);
-//		e.setStroke(color);
-//		Image image = e.snapshot(snapshotParameters, null);
-//		requestedCursor = new ImageCursor(image, image.getWidth()/2, image.getHeight()/2);
-//		
-//		this.registerTool(viewer);
-//
-//		cursorCache.put(key, requestedCursor);
-//
-//		return requestedCursor;
+		var viewer = getViewer();
+		double diameter = getBrushDiameter() / viewer.getDownsampleFactor();
+		return cursorCache.getCursor(diameter);
 	}
 	
 	
