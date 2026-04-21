@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -37,6 +37,7 @@ import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.tools.handlers.NotifiableEventHandler;
 import qupath.lib.gui.viewer.tools.handlers.PathToolEventHandlers;
 
 import java.util.Arrays;
@@ -199,10 +200,10 @@ public class PathTools {
 		private static final Logger logger = LoggerFactory.getLogger(DefaultPathTool.class);
 		
 		private QuPathViewer viewer;
-		private StringProperty name;
-		private ObjectProperty<Node> icon;
-		private EventType<T> type;
-		private EventHandler<T> handler;
+		private final StringProperty name;
+		private final ObjectProperty<Node> icon;
+		private final EventType<T> type;
+		private final EventHandler<T> handler;
 		
 		DefaultPathTool(EventType<T> type, EventHandler<T> handler, String name, Node icon) {
 			this.name = new SimpleStringProperty(name);
@@ -223,6 +224,9 @@ public class PathTools {
 				logger.trace("Registering {} to viewer {}", getName(), viewer);
 				Node canvas = viewer.getView();
 				canvas.addEventHandler(type, handler);
+				if (handler instanceof NotifiableEventHandler notifiable) {
+					notifiable.handlerAdded(viewer);
+				}
 			}
 		}
 
@@ -233,6 +237,9 @@ public class PathTools {
 				this.viewer = null;
 				Node canvas = viewer.getView();
 				canvas.removeEventHandler(type, handler);
+				if (handler instanceof NotifiableEventHandler notifiable) {
+					notifiable.handlerRemoved(viewer);
+				}
 			}
 		}
 

@@ -448,9 +448,9 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	protected double getBrushDiameter() {
 		QuPathViewer viewer = getViewer();
 		if (viewer == null)
-			return w / 2.0;
+			return w;
 		else
-			return w * getViewer().getDownsampleFactor() / 2.0;
+			return w * getViewer().getDownsampleFactor();
 	}
 
 }
