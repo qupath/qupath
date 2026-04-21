@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,16 +23,8 @@
 
 package qupath.lib.gui.viewer.tools.handlers;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 import javafx.scene.Cursor;
-import javafx.scene.ImageCursor;
-import javafx.scene.SnapshotParameters;
-import javafx.scene.effect.DropShadow;
-import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Ellipse;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -42,7 +34,6 @@ import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.viewer.tools.QuPathPenManager;
 import qupath.lib.gui.viewer.tools.QuPathPenManager.PenInputManager;
 import qupath.lib.objects.PathAnnotationObject;
@@ -87,59 +78,10 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 	 */
 	private PathObject currentObject;
 	
-	Point2D lastPoint;
+	private Point2D lastPoint;
 
-	private final CursorCache cursorCache = new CursorCache();
+	private final CursorCache<Double> cursorCache = new CircleCursorCache();
 
-	private static class CursorCache {
-
-		double lastRequestedCursorDiameter = Double.NaN;
-		Cursor requestedCursor;
-
-		private final Ellipse ellipse = new Ellipse();
-		private final SnapshotParameters snapshotParameters = new SnapshotParameters();
-
-		/**
-		 * Cache the last 50 cursors we saw
-		 */
-		private static final Map<Double, Cursor> cache = new LinkedHashMap<>() {
-			private static final long serialVersionUID = 1L;
-			@Override
-			protected boolean removeEldestEntry(Map.Entry<Double, Cursor> eldest) {
-				return size() > 50;
-			}
-		};
-
-		private CursorCache() {
-			this.ellipse.setFill(null);
-			this.snapshotParameters.setFill(Color.TRANSPARENT);
-		}
-
-		Cursor getCursor(double diameter) {
-			double res = 0.05;
-			if (requestedCursor != null && Math.abs(diameter - lastRequestedCursorDiameter) < res) {
-				// This looks unnecessary, but without it cursors can become mangled (at least on macOS)
-				// See https://github.com/qupath/qupath/issues/194
-				if (requestedCursor instanceof ImageCursor imgCursor)
-					return new ImageCursor(imgCursor.getImage(), imgCursor.getHotspotX(), imgCursor.getHotspotY());
-			}
-			requestedCursor = cache.computeIfAbsent(diameter, this::createCursor);
-			lastRequestedCursorDiameter = diameter;
-			return requestedCursor;
-		}
-
-		private Cursor createCursor(Double diameter) {
-			Color color = ColorToolsFX.TRANSLUCENT_BLACK_FX;//viewer.getSuggestedOverlayColorFX();
-			ellipse.setRadiusX(diameter/2.0);
-			ellipse.setRadiusY(diameter/2.0);
-			ellipse.setStroke(color);
-			ellipse.setEffect(new DropShadow());
-			Image image = ellipse.snapshot(snapshotParameters, null);
-			return new ImageCursor(image, image.getWidth()/2, image.getHeight()/2);
-		}
-
-	}
-	
 	/**
 	 * Returns false.
 	 */
