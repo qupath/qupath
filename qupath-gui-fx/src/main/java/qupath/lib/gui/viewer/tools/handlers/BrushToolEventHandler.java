@@ -84,6 +84,8 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler imple
 
 	private final BrushLimits brushLimits = new BrushLimits();
 
+	private final ViewerListener listener = new ViewerListener();
+
 	/**
 	 * Returns false.
 	 */
@@ -522,9 +524,11 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler imple
 			var view = viewer.getView();
 			if (!view.getChildren().contains(brushLimits)) {
 				view.getChildren().add(brushLimits);
+				viewer.addViewerListener(listener);
+
 				// Make invisible before further mouse events, because the coordinates are unknown
 				brushLimits.setVisible(false);
-				ensureCursorType(getRequestedCursor());
+				updateLimitsAndCursor();
 			}
 		}
 	}
@@ -534,6 +538,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler imple
 		if (viewer != null) {
 			var view = viewer.getView();
 			view.getChildren().remove(brushLimits);
+			viewer.removeViewerListener(listener);
 			brushLimits.setVisible(false);
 		}
 	}
