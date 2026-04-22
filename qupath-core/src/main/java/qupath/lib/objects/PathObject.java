@@ -23,6 +23,7 @@
 
 package qupath.lib.objects;
 
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ColorTools;
@@ -383,7 +384,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	 * @param list
 	 * @param toRemove
 	 */
-	private static <T> void removeAllQuickly(Collection<T> list, Collection<T> toRemove) {
+	private static <T> void removeAllQuickly(Collection<T> list, Collection<? extends T> toRemove) {
 		int size = 10;
 		if (!(toRemove instanceof Set)  && toRemove.size() > size) {
 			toRemove = new HashSet<>(toRemove);
@@ -403,10 +404,12 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 
 	/**
 	 * Remove a single object from the child list of this object.
-	 * @param pathObject
+	 * @param pathObject the object to remove
 	 * @since v0.4.0
+	 * @throws NullPointerException if the object to remove is null
 	 */
-	public void removeChildObject(PathObject pathObject) {
+	public void removeChildObject(PathObject pathObject) throws NullPointerException {
+		Objects.requireNonNull(pathObject, "PathObject passed to removeChildObject(PathObject) must not be null!");
 		if (!hasChildObjects())
 			return;
 		if (pathObject.parent == this)
@@ -417,10 +420,12 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	
 	/**
 	 * Remove multiple objects from the child list of this object.
-	 * @param pathObjects
+	 * @param pathObjects the objects to remove
 	 * @since v0.4.0
+	 * @throws NullPointerException if the collection passed as a parameter is null
 	 */
-	public synchronized void removeChildObjects(Collection<PathObject> pathObjects) {
+	public synchronized void removeChildObjects(Collection<? extends PathObject> pathObjects) throws NullPointerException {
+		Objects.requireNonNull(pathObjects, "Collection passed to removeChildObjects(Collection) must not be null! Maybe you want to call removeAllChildObjects() instead?");
 		if (!hasChildObjects())
 			return;
 		for (PathObject pathObject : pathObjects) {
@@ -432,12 +437,11 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 		}
 	}
 
-	
 	/**
 	 * Remove all child objects.
-	 * @since v0.4.0
+	 * @since v0.8.0
 	 */
-	public void clearChildObjects() {
+	public void removeAllChildObjects() {
 		if (!hasChildObjects())
 			return;
 		synchronized (childList) {
@@ -447,6 +451,17 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 			}
 			childList.clear();
 		}
+	}
+
+
+	/**
+	 * Remove all child objects.
+	 * @since v0.4.0
+	 * @deprecated use instead {@link #removeAllChildObjects()}
+	 */
+	@Deprecated(since="0.8.0")
+	public void clearChildObjects() {
+		removeAllChildObjects();
 	}
 
 	
@@ -989,8 +1004,6 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 				cachedUnmodifiableChildren = Collections.unmodifiableCollection(childList);
 			}
 		}
-//			childList = new TreeSet<PathObject>(DefaultPathObjectComparator.getInstance());
-//			childList = new ArrayList<PathObject>();
 	}
 	
 	/**
