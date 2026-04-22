@@ -1,6 +1,11 @@
 ## Version 0.8.0 (IN PROGRESS!)
 
 ### Enhancements
+* Improved brush and wand tools (https://github.com/qupath/qupath/pull/2125 https://github.com/qupath/qupath/pull/2126)
+  * View the size of the brush, and adjust it by scrolling with `Alt` key pressed
+  * Press `F` while drawing with the brush or wand to fill holes
+  * Avoid diagonal lines when using the wand, to make clearer when a pixel is 'inside' or 'outside'
+* Much faster `ObjectMeasurements`, especially for images with many channels (https://github.com/qupath/qupath/pull/2113)
 * Lots more strings externalized (https://github.com/qupath/qupath/pull/2104)
 
 ### Bug fixes
@@ -15,6 +20,7 @@
 * JavaCPP 1.5.13
 * JavaFX 26
 * OpenCV 4.13.0
+* SciJava POM 44.0.0
 
 
 ## Version 0.7.0
