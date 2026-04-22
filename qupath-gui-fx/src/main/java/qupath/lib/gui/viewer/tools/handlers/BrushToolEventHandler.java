@@ -543,6 +543,15 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler imple
 		}
 	}
 
+	/**
+	 * Get the node used to display the brush limits in the viewer.
+	 * This is typically to enable styling to be adjusted using CSS.
+	 * @return the brush limits
+	 */
+	protected BrushLimits getBrushLimits() {
+		return brushLimits;
+	}
+
 	private class ViewerListener implements QuPathViewerListener {
 
 		@Override

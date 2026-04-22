@@ -70,7 +70,6 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.nio.ByteBuffer;
 import java.nio.DoubleBuffer;
-import qupath.opencv.tools.OpenCVTools;
 
 import static org.bytedeco.opencv.global.opencv_core.CV_32FC3;
 import static org.bytedeco.opencv.global.opencv_core.CV_8UC;
@@ -108,7 +107,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	};
 		
 	private Point2D pLast = null;
-	private static int w = 149;
+	private static final int w = 149;
 	private final BufferedImage imgBGR = new BufferedImage(w, w, BufferedImage.TYPE_3BYTE_BGR);
 	private final BufferedImage imgGray = new BufferedImage(w, w, BufferedImage.TYPE_BYTE_GRAY);
 	
@@ -172,7 +171,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 		
 		
 	
-	private static DoubleProperty wandSigmaPixels = PathPrefs.createPersistentPreference("wandSigmaPixels", 4.0);
+	private static final DoubleProperty wandSigmaPixels = PathPrefs.createPersistentPreference("wandSigmaPixels", 4.0);
 
 	/**
 	 * Property representing the Gaussian sigma value used to smooth the image when applying the wand.
@@ -202,7 +201,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	/**
 	 * Sensitivity value associated with the wand tool
 	 */
-	private static DoubleProperty wandSensitivityProperty = PathPrefs.createPersistentPreference("wandSensitivityPixels", 2.0);
+	private static final DoubleProperty wandSensitivityProperty = PathPrefs.createPersistentPreference("wandSensitivityPixels", 2.0);
 
 	
 	/**
@@ -235,6 +234,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	 */
 	public WandToolEventHandler(QuPathGUI qupath) {
 		installPreferences(qupath);
+		getBrushLimits().getStyleClass().add("wand");
 	}
 	
 	

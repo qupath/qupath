@@ -24,86 +24,74 @@ package qupath.lib.gui.viewer.tools.handlers;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.Group;
-import javafx.scene.effect.DropShadow;
-import javafx.scene.effect.Effect;
-import javafx.scene.paint.Color;
-import javafx.scene.paint.Paint;
 import javafx.scene.shape.Ellipse;
 
 /**
  * Helper class to track a cursor within a parent node and draw circle around it.
+ * @since v0.8.0
  */
-class BrushLimits extends Group {
+public class BrushLimits extends Group {
 
     /**
      * Radius of the brush limits.
      */
     private final DoubleProperty radius = new SimpleDoubleProperty(-1);
 
-    /**
-     * X-coordinate of the cursor location.
-     */
-    private final DoubleProperty x = new SimpleDoubleProperty();
-
-    /**
-     * Y-coordinate of the cursor location.
-     */
-    private final DoubleProperty y = new SimpleDoubleProperty();
-
-    BrushLimits() {
+    public BrushLimits() {
         super();
         init();
         setMouseTransparent(true);
+        getStyleClass().add("brush-limits");
     }
 
-    double getRadius() {
+    public double getRadius() {
         return radiusProperty().get();
     }
 
-    void setRadius(double radius) {
+    public void setRadius(double radius) {
         radiusProperty().set(radius);
     }
 
-    DoubleProperty radiusProperty() {
+    public DoubleProperty radiusProperty() {
         return radius;
     }
 
-    void setCenter(double x, double y) {
-        this.x.set(x);
-        this.y.set(y);
+    /**
+     * Set the center location, defined in terms of the parent
+     * coordinate system.
+     * Typically, these are coordinates obtained from a {@link javafx.scene.input.MouseEvent}.
+     * @param x the x-coordinate of the center
+     * @param y the y-coordinate of the center
+     */
+    public void setCenter(double x, double y) {
         var bounds = getParent().getBoundsInLocal();
         if (bounds == null) {
             setVisible(false);
+            setTranslateX(0);
+            setTranslateY(0);
         } else {
             setVisible(true);
+            setOpacity(0.6);
             setTranslateX(x - bounds.getCenterX());
             setTranslateY(y - bounds.getCenterY());
         }
     }
 
     private void init() {
-        double dash = 1.5;
-        double strokeWidth = 1;
-        Ellipse ellipseInner = createEllipse(Color.BLACK, strokeWidth);
-        ellipseInner.getStrokeDashArray().addAll(dash, dash*3);
+        Ellipse ellipseInner = createEllipse();
+        ellipseInner.getStyleClass().add("dark");
 
-        Ellipse ellipseOuter = createEllipse(Color.WHITE, strokeWidth);
-        ellipseOuter.getStrokeDashArray().addAll(dash, dash*3);
-        ellipseOuter.setStrokeDashOffset(dash*2);
+        Ellipse ellipseOuter = createEllipse();
+        ellipseOuter.getStyleClass().add("light");
 
-        Effect effect = new DropShadow(3.0, 1, 1, Color.BLACK);
-        ellipseOuter.setEffect(effect);
-        ellipseInner.setEffect(effect);
         getChildren().setAll(ellipseOuter, ellipseInner);
     }
 
-    private Ellipse createEllipse(Paint stroke, double strokeWidth) {
+    private Ellipse createEllipse() {
         Ellipse ellipse = new Ellipse();
-        ellipse.setFill(null);
-        ellipse.setStroke(stroke);
+        ellipse.getStyleClass().add("ellipse");
         ellipse.radiusXProperty().bind(radius);
         ellipse.radiusYProperty().bind(radius);
-        ellipse.setStrokeWidth(strokeWidth);
         return ellipse;
     }
 
