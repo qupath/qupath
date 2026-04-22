@@ -238,7 +238,7 @@ public interface OutputHandler<S, T, U> {
                 // If using a proxy object, we want to add the objects to the proxy rather than the parent
                 var parentOrProxy = params.getParentOrProxy();
                 if (clearPreviousObjects)
-                    parentOrProxy.clearChildObjects();
+                    parentOrProxy.removeAllChildObjects();
                 if (!newObjects.isEmpty()) {
                     // If we need to clip, then use the intersection of the 'real' parent and proxy
                     var parent = params.getParent();

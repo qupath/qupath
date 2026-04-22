@@ -191,7 +191,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		double estimatedSpots;
 
 		// We assume that after this processing, any previous sub-cellular objects should be removed
-		pathObject.clearChildObjects();
+		pathObject.removeAllChildObjects();
 
 		// Ensure we have no existing subcellular detection measurements - if we do, remove them
 		String[] existingMeasurements = pathObject.getMeasurementList().getNames().stream().filter(n -> n.startsWith("Subcellular:")).toArray(n -> new String[n]);

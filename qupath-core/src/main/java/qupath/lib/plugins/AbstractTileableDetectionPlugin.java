@@ -191,7 +191,7 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 		public void setTiles(Collection<ParallelTileObject> tiles) {
 			this.tiles = new ArrayList<>(tiles);
 			countdown = new AtomicInteger(tiles.size());
-			this.parent.clearChildObjects();
+			this.parent.removeAllChildObjects();
 			this.parent.addChildObjects(tiles);
 		}
 		
@@ -204,7 +204,7 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 		}
 		
 		private void postprocess() {
-			parent.clearChildObjects();
+			parent.removeAllChildObjects();
 			if (wasCancelled) {
 				// If anything was cancelled, then replace the original objects
 				parent.addChildObjects(originalChildObjects);

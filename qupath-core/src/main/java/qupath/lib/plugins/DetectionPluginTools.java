@@ -147,12 +147,12 @@ public class DetectionPluginTools {
 			try {
 //				// Tile objects handle their own completion
 				if (parentObject instanceof ParallelTileObject) {
-					parentObject.clearChildObjects();
+					parentObject.removeAllChildObjects();
 					parentObject.addChildObjects(pathObjectsDetected);
 					((ParallelTileObject)parentObject).setComplete(wasCancelled);
 				} else {
 					if (!wasCancelled) {
-						parentObject.clearChildObjects();
+						parentObject.removeAllChildObjects();
 						if (pathObjectsDetected != null) {
 							parentObject.addChildObjects(pathObjectsDetected);
 							tryToSetObjectLock(parentObject, !pathObjectsDetected.isEmpty());

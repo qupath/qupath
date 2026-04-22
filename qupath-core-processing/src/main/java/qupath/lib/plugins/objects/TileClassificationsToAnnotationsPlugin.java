@@ -235,7 +235,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 		public void taskComplete(boolean wasCancelled) {
 			if (!wasCancelled && !Thread.currentThread().isInterrupted()) {
 				if (params.getBooleanParameterValue("deleteTiles"))
-					parentObject.clearChildObjects();
+					parentObject.removeAllChildObjects();
 				if (pathAnnotations != null && !pathAnnotations.isEmpty())
 					parentObject.addChildObjects(pathAnnotations);
 				imageData.getHierarchy().fireHierarchyChangedEvent(parentObject);

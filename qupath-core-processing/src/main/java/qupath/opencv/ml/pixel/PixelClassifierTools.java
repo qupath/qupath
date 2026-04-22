@@ -244,7 +244,7 @@ public class PixelClassifierTools {
 			var parent = entry.getKey();
 			var children = entry.getValue();
 			if (clearExisting && parent.hasChildObjects())
-				parent.clearChildObjects();
+				parent.removeAllChildObjects();
 			parent.addChildObjects(children);
 			if (!parent.isRootObject())
 				parent.setLocked(true);

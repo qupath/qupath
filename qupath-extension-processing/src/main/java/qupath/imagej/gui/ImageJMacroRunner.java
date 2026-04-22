@@ -292,7 +292,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 
 			boolean changes = false;
 			if (params.getBooleanParameterValue("clearObjects") && pathObject.hasChildObjects()) {
-				pathObject.clearChildObjects();
+				pathObject.removeAllChildObjects();
 				changes = true;
 			}
 			if (params.getBooleanParameterValue("getROI") && impResult.getRoi() != null) {

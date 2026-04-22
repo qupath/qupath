@@ -175,7 +175,7 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 			if (wasCancelled)
 				return;
 			
-			parentObject.clearChildObjects();
+			parentObject.removeAllChildObjects();
 			parentObject.addChildObjects(tiles);
 			if (parentObject.isAnnotation())
 				((PathAnnotationObject)parentObject).setLocked(true);
