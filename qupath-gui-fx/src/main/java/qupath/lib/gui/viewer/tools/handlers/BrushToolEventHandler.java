@@ -268,7 +268,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler imple
 		brushLimits.setVisible(true);
 		brushLimits.setCenter(xView, yView);
 		double radius = getBrushDiameter() / 2.0 / viewer.getDownsampleFactor();
-		brushLimits.radiusProperty().set(radius);
+		brushLimits.setRadius(radius);
 	}
 	
 	
