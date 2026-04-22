@@ -38,8 +38,6 @@ import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.MultiPolygon;
-import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,7 +117,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	
 	private final Scalar threshold = Scalar.all(1.0);
 	private final Point seed = new Point(w/2, w/2);
-	private Mat strel = null;
+	private final Mat strel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, new Size(5, 5));;
 
 	private final Mat mean = new Mat();
 	private final Mat stddev = new Mat();
@@ -272,8 +270,6 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	@Override
 	protected Geometry createShape(MouseEvent e, double x, double y, boolean useTiles, Geometry addToShape) {
 		
-		GeometryFactory factory = getGeometryFactory();
-		
 		if (addToShape != null && pLast != null && pLast.distanceSq(x, y) < 2)
 			return null;
 		
@@ -303,6 +299,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-xStart, -yStart);
 		regionStore.paintRegion(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), downsample, null, null, viewer.getImageDisplay());
+
 		// Optionally include the overlay information when using the wand
 		float opacity = viewer.getOverlayOptions().getOpacity();
 		if (opacity > 0 && getWandUseOverlays()) {
@@ -346,7 +343,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 			// Smooth a little
 			opencv_imgproc.GaussianBlur(mat, mat, blurSize, blurSigma);
 			
-			// Choose mat to threshold (may be adjusted)
+			// Choose mat to threshold (can be adjusted)
 			Mat matThreshold = mat;
 			
 			// Apply color transform if required
@@ -375,8 +372,6 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 						}				
 					}
 				}
-				if (matThreshold == null)
-					matThreshold = new Mat();
 				opencv_core.extractChannel(matFloat, matThreshold, 0);
 				
 				// There are various ways we might choose a threshold now...
@@ -384,8 +379,6 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 				// they are all >= 0
 				matThreshold.convertTo(matThreshold, opencv_core.CV_8U, 255.0/max, 0);
 				threshold.put(mean * getWandSensitivity());
-				
-				nChannels = 1;
 			} else {
 				// Base threshold on local standard deviation
 				meanStdDev(matThreshold, mean, stddev);
@@ -409,8 +402,6 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 			opencv_imgproc.floodFill(matThreshold, matMask, seed, Scalar.ONE, null, threshold, threshold, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
 			subtractPut(matMask, Scalar.ONE);
 			
-			if (strel == null)
-				strel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, new Size(5, 5));
 			opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_CLOSE, strel);
 	    }
 

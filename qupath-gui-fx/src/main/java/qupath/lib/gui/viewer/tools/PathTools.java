@@ -29,6 +29,7 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.scene.Node;
+import javafx.scene.input.InputEvent;
 import javafx.scene.input.MouseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -127,7 +128,7 @@ public class PathTools {
 	/**
 	 * Brush drawing tool
 	 */
-	public static final PathTool BRUSH = createTool(
+	public static final PathTool BRUSH = createInputEventTool(
 			PathToolEventHandlers.createBrushEventHandler(),
 			QuPathResources.getString("Tools.brush"),
 			createIcon(PathIcons.BRUSH_TOOL));
@@ -158,6 +159,18 @@ public class PathTools {
 	 */
 	public static PathTool createTool(EventHandler<MouseEvent> handler, String name, Node icon) {
 		return createTool(MouseEvent.ANY, handler, name, icon);
+	}
+
+	/**
+	 * Create a tool from the specified {@link InputEvent} handler.
+	 * When the tool is registered, the handler will be called for any mouse event.
+	 * @param handler the mouse event handler
+	 * @param name the name of the tool
+	 * @param icon the (toolbar) icon of the tool
+	 * @return a new {@link PathTool}
+	 */
+	public static PathTool createInputEventTool(EventHandler<InputEvent> handler, String name, Node icon) {
+		return createTool(InputEvent.ANY, handler, name, icon);
 	}
 	
 	
