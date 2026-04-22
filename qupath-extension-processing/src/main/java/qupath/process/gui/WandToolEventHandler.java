@@ -29,6 +29,7 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.scene.input.MouseEvent;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -37,6 +38,8 @@ import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +49,7 @@ import qupath.fx.prefs.annotations.Pref;
 import qupath.fx.prefs.annotations.PrefCategory;
 import qupath.fx.prefs.controlsfx.PropertySheetUtils;
 import qupath.lib.analysis.images.ContourTracing;
+import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -110,6 +114,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	
 	private Mat mat = null; //new Mat(w, w, CV_8U);
 	private final Mat matMask = new Mat(w+2, w+2, CV_8UC1);
+	private final TraceableMask mask = new TraceableMask(matMask);
 	
 	private final Mat matFloat = new Mat(w, w, CV_32FC3);
 	
@@ -410,14 +415,18 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	    }
 
 		var geometry = ContourTracing.createTracedGeometry(
-				OpenCVTools.matToSimpleImage(matMask, 0),
+				mask,
 				0.5,
 				255,
 				null);
 
 		if (geometry.isEmpty())
 			return null;
-		
+
+		// Fill holes - helps improve performance/reduce lag,
+		// and may also help with https://github.com/qupath/qupath/pull/2122
+		geometry = GeometryTools.fillHoles(geometry);
+
 		// Transform to map to integer pixel locations in the full-resolution image
 		var transform = new AffineTransformation()
 				.translate(-w/2.0-1, -w/2.0-1)
@@ -428,7 +437,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 		geometry = GeometryTools.constrainToBounds(geometry, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
 		if (geometry.getArea() <= 1)
 			return null;
-		
+
 		long endTime = System.currentTimeMillis();
         logger.trace("{} time: {}", getClass().getSimpleName(), endTime - startTime);
 		
@@ -452,5 +461,36 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 		else
 			return w * getViewer().getDownsampleFactor();
 	}
+
+	/**
+	 * Wrap a mask so it can be reused as a SimpleImage for contour tracing.
+	 */
+	private static class TraceableMask implements SimpleImage {
+
+		private final int width, height;
+		private final UByteIndexer indexer;
+
+		private TraceableMask(Mat mat) {
+			width = mat.cols();
+			height = mat.rows();
+			indexer = mat.createIndexer();
+		}
+
+		@Override
+		public float getValue(int x, int y) {
+			return indexer.get(y, x);
+		}
+
+		@Override
+		public int getWidth() {
+			return width;
+		}
+
+		@Override
+		public int getHeight() {
+			return height;
+		}
+	}
+
 
 }
