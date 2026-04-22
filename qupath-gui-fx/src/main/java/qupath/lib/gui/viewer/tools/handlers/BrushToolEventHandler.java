@@ -26,6 +26,11 @@ package qupath.lib.gui.viewer.tools.handlers;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import javafx.scene.Cursor;
+import javafx.scene.input.InputEvent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.robot.Robot;
 import org.locationtech.jts.geom.Coordinate;
@@ -44,6 +49,7 @@ import qupath.lib.gui.viewer.tools.QuPathPenManager.PenInputManager;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -64,7 +70,7 @@ import java.util.List;
  * @author Pete Bankhead
  *
  */
-public class BrushToolEventHandler extends AbstractPathROIToolEventHandler implements NotifiableEventHandler {
+public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<InputEvent> implements NotifiableEventHandler {
 	
 	private static final Logger logger = LoggerFactory.getLogger(BrushToolEventHandler.class);
 
@@ -202,24 +208,9 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler imple
 		// Can only modify annotations
 		if (!createNew && !(currentObject != null && currentObject.isAnnotation() && currentObject.isEditable() && RoiTools.isShapeROI(currentObject.getROI())))
 			return;
-						
-		// Get the parent, in case we need to constrain the shape
-//		PathObject parent = null;
-//		if (currentObject != null) {
-//			parent = currentObject.getParent();
-//		}
-//		var currentObject2 = currentObject;
-//		if (parent == null || parent.isDetection()) {
-//			parent = getSelectableObjectList(p.getX(), p.getY())
-//					.stream()
-//					.filter(o -> !o.isDetection() && o != currentObject2)
-//					.findFirst()
-//					.orElseGet(() -> null);
-//		}
-//		setConstrainedAreaParent(hierarchy, parent, currentObject);
+
 		updatingConstrainingObjects(viewer, xx, yy, Collections.singleton(currentObject));
 
-		
 		// Need to remove the object from the hierarchy while editing it
 		if (!createNew && currentObject != null) {
 			hierarchy.removeObjectWithoutUpdate(currentObject, true);
@@ -231,7 +222,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler imple
 			this.currentObject = createNewAnnotation(e, p.getX(), p.getY());
 			viewer.getROIEditor().setROI(null);
 		} else {
-			this.currentObject = getUpdatedObject(e, shapeROI, currentObject, -1);
+			this.currentObject = getUpdatedObject(e, shapeROI, currentObject);
 			viewer.setSelectedObject(this.currentObject);
 			viewer.getROIEditor().setROI(null); // Avoids handles appearing?
 		}		
@@ -296,7 +287,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler imple
 		if (currentROI == null)
 			return;
 
-        PathObject pathObjectUpdated = getUpdatedObject(e, currentROI, pathObject, -1);
+        PathObject pathObjectUpdated = getUpdatedObject(e, currentROI, pathObject);
 
 		if (pathObject != pathObjectUpdated) {
 			viewer.setSelectedObject(pathObjectUpdated, PathPrefs.selectionModeStatus().get());
@@ -314,7 +305,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler imple
 	}
 	
 	
-	private PathObject getUpdatedObject(MouseEvent e, ROI shapeROI, PathObject currentObject, double flatness) {
+	private PathObject getUpdatedObject(MouseEvent e, ROI shapeROI, PathObject currentObject) {
 		boolean pixelSnapping = requestPixelSnapping();
 		Point2D p = mouseLocationToImage(e, false, pixelSnapping);
 
@@ -550,6 +541,29 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler imple
 	 */
 	protected BrushLimits getBrushLimits() {
 		return brushLimits;
+	}
+
+	private static final KeyCombination comboFill = new KeyCodeCombination(KeyCode.F);
+
+	@Override
+	protected void handleKeyEvent(KeyEvent e) {
+		super.handleKeyEvent(e);
+		if (currentObject == null) {
+			// Don't consume events if we aren't drawing
+			return;
+		}
+		if (e.getEventType() == KeyEvent.KEY_RELEASED && comboFill.match(e)) {
+			// Fill the existing object
+			var roi = currentObject.getROI();
+			var roiFilled = RoiTools.fillHoles(roi);
+			if (!roi.equals(roiFilled)) {
+				currentObject = PathObjectTools.createLike(currentObject, roiFilled);
+				var viewer = getViewer();
+				viewer.setSelectedObject(this.currentObject);
+				viewer.getROIEditor().setROI(null);
+			}
+		}
+		e.consume();
 	}
 
 	private class ViewerListener implements QuPathViewerListener {

@@ -273,7 +273,7 @@ public class ProcessingExtension implements QuPathExtension {
 	    	loadCoreClasses();
 	    	
 			// Install the Wand tool
-			var wandTool = PathTools.createTool(new WandToolEventHandler(qupath), "Wand",
+			var wandTool = PathTools.createInputEventTool(new WandToolEventHandler(qupath), "Wand",
 					IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
 			logger.debug("Installing wand tool");
 			Platform.runLater(() -> {
