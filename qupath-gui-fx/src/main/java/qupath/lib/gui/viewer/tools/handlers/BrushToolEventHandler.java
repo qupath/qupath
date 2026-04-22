@@ -32,6 +32,7 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.robot.Robot;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -41,6 +42,7 @@ import org.locationtech.jts.simplify.VWSimplifier;
 import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
@@ -91,6 +93,11 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 	private final BrushLimits brushLimits = new BrushLimits();
 
 	private final ViewerListener listener = new ViewerListener();
+
+	public BrushToolEventHandler() {
+		super();
+		PathPrefs.brushDiameterProperty().subscribe(() -> updateLimitsAndCursor());
+	}
 
 	/**
 	 * Returns false.
@@ -230,9 +237,9 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 	}
 
 	private void updateLimitsAndCursor() {
-		ensureCursorType(Cursor.CROSSHAIR);
 		var viewer = getViewer();
 		if (viewer != null) {
+			ensureCursorType(Cursor.CROSSHAIR);
 			double screenX = robot.getMouseX();
 			double screenY = robot.getMouseY();
 			var p = viewer.getView().screenToLocal(screenX, screenY);
@@ -392,7 +399,6 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 				return currentObject;
 			}
 			
-//			shapeNew = new PathAreaROI(new Area(shapeNew.getShape()));
 			PathObject pathObjectNew = PathObjects.createAnnotationObject(roiNew, PathPrefs.autoSetAnnotationClassProperty().get());
 			if (currentObject != null) {
 				pathObjectNew.setName(currentObject.getName());
@@ -425,6 +431,19 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 		this.currentObject = null;
 
 		resetConstrainingObjects();
+	}
+
+
+	@Override
+	protected void handleScrollEvent(ScrollEvent event) {
+		if (!event.isConsumed() && event.isAltDown()) {
+			PathPrefs.brushDiameterProperty().set(
+					GeneralTools.clipValue(
+							(int)Math.round(PathPrefs.brushDiameterProperty().get() + event.getDeltaY()), 10, 500
+					)
+			);
+			event.consume();
+		}
 	}
 
 	
@@ -553,18 +572,24 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 			return;
 		}
 		if (e.getEventType() == KeyEvent.KEY_RELEASED && comboFill.match(e)) {
-			// Fill the existing object
-			var roi = currentObject.getROI();
-			var roiFilled = RoiTools.fillHoles(roi);
-			if (!roi.equals(roiFilled)) {
-				currentObject = PathObjectTools.createLike(currentObject, roiFilled);
-				var viewer = getViewer();
-				viewer.setSelectedObject(this.currentObject);
-				viewer.getROIEditor().setROI(null);
-			}
+			fillHolesInCurrentObject();
 		}
 		e.consume();
 	}
+
+	private void fillHolesInCurrentObject() {
+		if (currentObject == null)
+			return;
+		var roi = currentObject.getROI();
+		var roiFilled = RoiTools.fillHoles(roi);
+		if (!roi.equals(roiFilled)) {
+			currentObject = PathObjectTools.createLike(currentObject, roiFilled);
+			var viewer = getViewer();
+			viewer.setSelectedObject(this.currentObject);
+			viewer.getROIEditor().setROI(null);
+		}
+	}
+
 
 	private class ViewerListener implements QuPathViewerListener {
 

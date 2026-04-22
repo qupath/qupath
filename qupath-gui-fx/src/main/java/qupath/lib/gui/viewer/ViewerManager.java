@@ -35,6 +35,8 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -795,9 +797,8 @@ public class ViewerManager implements QuPathViewerListener {
 
 
 		PathObject annotation = PathObjects.createAnnotationObject(roi, lastAnnotation.getPathClass());
-		//			hierarchy.addPathObject(annotation, false);
 
-		//			// Make sure any core parent is set
+		// Make sure any core parent is set
 		hierarchy.addObjectBelowParent(coreNewParent, annotation, true);
 
 		activeViewer.setSelectedObject(annotation);
@@ -835,68 +836,55 @@ public class ViewerManager implements QuPathViewerListener {
 				setActiveViewer(viewer);
 			}
 		});
-		
-		viewer.getView().addEventFilter(MouseEvent.MOUSE_PRESSED, e -> viewer.getView().requestFocus());
 
 		// Create popup menu
 		setViewerPopupMenu(viewer);
 		
-		
 		// Enable drag and drop
 		qupath.getDefaultDragDropListener().setupTarget(viewer.getView());
-		
-		
-		// Listen to the scroll wheel
-		viewer.getView().setOnScroll(e -> {
-			if (viewer == getActiveViewer() || !getSynchronizeViewers()) {
-				if (!viewer.hasServer())
-					return;
-				double scrollUnits = e.getDeltaY() * PathPrefs.getScaledScrollSpeed();
-				
-				// Use shift down to adjust opacity
-				if (e.isShortcutDown()) {
-					OverlayOptions options = viewer.getOverlayOptions();
-					options.setOpacity((float)(options.getOpacity() + scrollUnits * 0.001));
-					return;
-				}
-				
-				// Avoid zooming at the end of a gesture when using touchscreens
-				if (e.isInertia())
-					return;
-				
-				if (PathPrefs.invertScrollingProperty().get())
-					scrollUnits = -scrollUnits;
-				double newDownsampleFactor = viewer.getDownsampleFactor() * Math.pow(viewer.getDefaultZoomFactor(), scrollUnits);
-				newDownsampleFactor = Math.min(viewer.getMaxDownsample(), Math.max(newDownsampleFactor, viewer.getMinDownsample()));
-				viewer.setDownsampleFactor(newDownsampleFactor, e.getX(), e.getY());
-			}
-		});
-		
-		
-		viewer.getView().addEventFilter(RotateEvent.ANY, e -> {
-			if (!PathPrefs.useRotateGesturesProperty().get())
-				return;
-//			logger.debug("Rotating: " + e.getAngle());
-			viewer.setRotation(viewer.getRotation() + Math.toRadians(e.getAngle()));
-			e.consume();
-		});
 
-		viewer.getView().addEventFilter(ZoomEvent.ANY, e -> {
-			if (!PathPrefs.useZoomGesturesProperty().get())
-				return;
-			double zoomFactor = e.getZoomFactor();
-			if (Double.isNaN(zoomFactor))
-				return;
+		// Add a general event handler, rather than specific handlers for different event types.
+		// This is so that other (more specific) handlers have priority, and this becomes the fallback option.
+		viewer.getView().addEventHandler(Event.ANY, new ViewerEventHandler(viewer));
 
-            logger.debug("Zooming: {} ({})", e.getZoomFactor(), e.getTotalZoomFactor());
-			viewer.setDownsampleFactor(viewer.getDownsampleFactor() / zoomFactor, e.getX(), e.getY());
-			e.consume();
-		});
-		
+		// Grab focus when we can
+		viewer.getView().addEventFilter(MouseEvent.MOUSE_PRESSED, e -> viewer.getView().requestFocus());
+
+		// Handle special case of when scrolling should be used for panning
 		viewer.getView().addEventFilter(ScrollEvent.ANY, new ScrollEventPanningFilter(viewer));
-		
-		
-		viewer.getView().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+	}
+
+
+	private class ViewerEventHandler implements EventHandler<Event> {
+
+		private final QuPathViewer viewer;
+
+		private ViewerEventHandler(QuPathViewer viewer) {
+			this.viewer = viewer;
+		}
+
+		@Override
+		public void handle(Event event) {
+			if (event instanceof KeyEvent keyEvent) {
+				handleKeyEvent(keyEvent);
+			} else if (event instanceof ScrollEvent scrollEvent) {
+				handleScrollEvent(scrollEvent);
+			} else if (event instanceof RotateEvent rotateEvent) {
+				handleRotateEvent(rotateEvent);
+			} else if (event instanceof ZoomEvent zoomEvent) {
+				handleZoomEvent(zoomEvent);
+			}
+		}
+
+		private void handleKeyEvent(KeyEvent e) {
+			if (e.getEventType() == KeyEvent.KEY_PRESSED) {
+				handleKeyPressed(e);
+			} else if (e.getEventType() == KeyEvent.KEY_RELEASED) {
+				handleKeyReleased(e);
+			}
+		}
+
+		private void handleKeyPressed(KeyEvent e) {
 			if (e.isConsumed())
 				return;
 			PathObject pathObject = viewer.getSelectedObject();
@@ -919,18 +907,69 @@ public class ViewerManager implements QuPathViewerListener {
 				}
 			}
 			// For temporarily setting selection mode, we want to grab any S key presses eagerly
-			if (e.getCode() == KeyCode.S && e.getEventType() == KeyEvent.KEY_PRESSED) {
+			if (e.getCode() == KeyCode.S) {
 				PathPrefs.tempSelectionModeProperty().set(true);
-				// Don't consume the event! Doing so can break the 'Save' accelerators
+				// Don't consume the event! Doing so could break the 'Save' accelerators
 			}
-		});
-		viewer.getView().addEventHandler(KeyEvent.KEY_RELEASED, e -> {
+		}
+
+		private void handleKeyReleased(KeyEvent e) {
 			// For temporarily setting selection mode, we want to switch off the mode quickly for any key release events -
 			// to reduce the risk of accidentally leaving selection mode 'stuck' on if the S key release is missed
 			PathPrefs.tempSelectionModeProperty().set(false);
-		});
+		}
+
+		private void handleRotateEvent(RotateEvent e) {
+			if (!PathPrefs.useRotateGesturesProperty().get())
+				return;
+			viewer.setRotation(viewer.getRotation() + Math.toRadians(e.getAngle()));
+			e.consume();
+		}
+
+		private void handleZoomEvent(ZoomEvent e) {
+			if (!PathPrefs.useZoomGesturesProperty().get())
+				return;
+			double zoomFactor = e.getZoomFactor();
+			if (Double.isNaN(zoomFactor))
+				return;
+
+			logger.debug("Zooming: {} ({})", e.getZoomFactor(), e.getTotalZoomFactor());
+			viewer.setDownsampleFactor(viewer.getDownsampleFactor() / zoomFactor, e.getX(), e.getY());
+			e.consume();
+		}
+
+		private void handleScrollEvent(ScrollEvent e) {
+			// Listen to the scroll wheel
+			if (e.getEventType() != ScrollEvent.SCROLL
+					|| e.isConsumed()
+					|| !viewer.hasServer()
+					|| (viewer != getActiveViewer() && getSynchronizeViewers()))
+				return;
+
+			double scrollUnits = e.getDeltaY() * PathPrefs.getScaledScrollSpeed();
+
+			// Use shift down to adjust opacity
+			if (e.isShortcutDown()) {
+				OverlayOptions options = viewer.getOverlayOptions();
+				options.setOpacity((float)(options.getOpacity() + scrollUnits * 0.001));
+				return;
+			}
+
+			// Avoid zooming at the end of a gesture when using touchscreens
+			if (e.isInertia())
+				return;
+
+			if (PathPrefs.invertScrollingProperty().get())
+				scrollUnits = -scrollUnits;
+			double newDownsampleFactor = viewer.getDownsampleFactor() * Math.pow(viewer.getDefaultZoomFactor(), scrollUnits);
+			newDownsampleFactor = Math.min(viewer.getMaxDownsample(), Math.max(newDownsampleFactor, viewer.getMinDownsample()));
+			viewer.setDownsampleFactor(newDownsampleFactor, e.getX(), e.getY());
+			e.consume();
+		}
 
 	}
+
+
 
 	/**
 	 * Detach the currently active viewer from the viewer grid, if possible.
@@ -1251,7 +1290,7 @@ public class ViewerManager implements QuPathViewerListener {
 				});
 				stage.show();
 				refreshViewerList();
-				splitPaneRows.get(0).setDividerPositions(positions);
+				splitPaneRows.getFirst().setDividerPositions(positions);
 				return true;
 			} else {
 				logger.warn("Viewer is already detached!");

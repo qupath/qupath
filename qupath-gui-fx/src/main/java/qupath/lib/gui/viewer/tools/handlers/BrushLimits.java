@@ -64,7 +64,8 @@ public class BrushLimits extends Group {
      * @param y the y-coordinate of the center
      */
     public void setCenter(double x, double y) {
-        var bounds = getParent().getBoundsInLocal();
+        var parent = getParent();
+        var bounds = parent == null ? null : getParent().getBoundsInLocal();
         if (bounds == null) {
             setVisible(false);
             setTranslateX(0);
