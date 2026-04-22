@@ -27,6 +27,7 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.LogTools;
 import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.io.PathIO;
 import qupath.lib.measurements.MeasurementList;
@@ -461,6 +462,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	 */
 	@Deprecated(since="0.8.0")
 	public void clearChildObjects() {
+		LogTools.warnOnce(logger, "clearChildObjects() has been replaced by removeAllChildObjects()");
 		removeAllChildObjects();
 	}
 
