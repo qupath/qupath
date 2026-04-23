@@ -529,7 +529,7 @@ public class ImageJScriptRunner {
                 impResult = imp;
 
             if (params.doRemoveChildObjects()) {
-                pathObject.clearChildObjects();
+                pathObject.removeAllChildObjects();
             }
             var activeRoiToObject = params.getActiveRoiToObjectFunction();
             // If we set the ROI in ImageJ, use it to mask what we get back

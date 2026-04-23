@@ -47,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -361,8 +362,61 @@ public class TestPathObject {
 		assertTrue(pathObject.getClassifications().isEmpty());
 	}
 	
-	
-	
-	
+
+	@Test
+	void test_removeChildObject() {
+		var pathObject = PathObjects.createAnnotationObject(ROIs.createEmptyROI());
+		assertTrue(pathObject.getChildObjects().isEmpty());
+		var child = PathObjects.createDetectionObject(ROIs.createEmptyROI());
+		pathObject.addChildObject(child);
+		assertFalse(pathObject.getChildObjects().isEmpty());
+		pathObject.removeChildObject(child);
+		assertTrue(pathObject.getChildObjects().isEmpty());
+	}
+
+	@Test
+	void test_removeChildObjects() {
+		var pathObject = PathObjects.createAnnotationObject(ROIs.createEmptyROI());
+		assertTrue(pathObject.getChildObjects().isEmpty());
+		var children = List.of(
+				PathObjects.createDetectionObject(ROIs.createEmptyROI()),
+				PathObjects.createDetectionObject(ROIs.createEmptyROI()),
+				PathObjects.createDetectionObject(ROIs.createEmptyROI())
+		);
+		pathObject.addChildObjects(children);
+		assertEquals(3, pathObject.getChildObjects().size());
+		pathObject.removeChildObjects(List.of(children.getLast()));
+		assertEquals(2, pathObject.getChildObjects().size());
+		pathObject.removeChildObjects(children);
+		assertTrue(pathObject.getChildObjects().isEmpty());
+	}
+
+	@Test
+	void test_removeAllChildObjects() {
+		var pathObject = PathObjects.createAnnotationObject(ROIs.createEmptyROI());
+		assertTrue(pathObject.getChildObjects().isEmpty());
+		var children = List.of(
+				PathObjects.createDetectionObject(ROIs.createEmptyROI()),
+				PathObjects.createDetectionObject(ROIs.createEmptyROI()),
+				PathObjects.createDetectionObject(ROIs.createEmptyROI())
+		);
+		pathObject.addChildObjects(children);
+		assertEquals(3, pathObject.getChildObjects().size());
+		pathObject.removeAllChildObjects();
+		assertTrue(pathObject.getChildObjects().isEmpty());
+	}
+
+	@Test
+	void test_removeChildObjectNull() {
+		var pathObject = PathObjects.createAnnotationObject(ROIs.createEmptyROI());
+		assertThrows(NullPointerException.class, () -> pathObject.removeChildObject(null));
+	}
+
+	@Test
+	void test_removeChildObjectsNull() {
+		var pathObject = PathObjects.createAnnotationObject(ROIs.createEmptyROI());
+		assertThrows(NullPointerException.class, () -> pathObject.removeChildObjects(null));
+	}
+
 
 }

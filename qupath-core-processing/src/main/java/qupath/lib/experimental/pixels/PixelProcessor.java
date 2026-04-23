@@ -207,7 +207,7 @@ public class PixelProcessor<S, T, U> {
                 mergeTasks.add(() -> postprocessObjects(objectProcessor, pathObject, proxyList));
             } else {
                 // Just add the new objects if we have no merger
-                pathObject.clearChildObjects();
+                pathObject.removeAllChildObjects();
                 pathObject.addChildObjects(proxyList);
                 pathObject.setLocked(true);
             }
@@ -224,7 +224,7 @@ public class PixelProcessor<S, T, U> {
      */
     private static void postprocessObjects(ObjectProcessor objectProcessor, PathObject parent, List<PathObject> childObjects) {
         var toAdd = objectProcessor.process(childObjects);
-        parent.clearChildObjects();
+        parent.removeAllChildObjects();
         parent.addChildObjects(toAdd);
         parent.setLocked(true);
     }

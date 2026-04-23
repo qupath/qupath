@@ -560,7 +560,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Remove all objects from the hierarchy.
 	 */
 	public synchronized void clearAll() {
-		getRootObject().clearChildObjects();
+		getRootObject().removeAllChildObjects();
 		tmaGrid = null;
 		fireHierarchyChangedEvent(getRootObject());
 	}

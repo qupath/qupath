@@ -110,7 +110,7 @@ class TestPathObjectMethods {
 	}
 	//@Test
 	public void test_clearPathObjects(PathObject myPO, Integer nchildren) {
-		myPO.clearChildObjects();
+		myPO.removeAllChildObjects();
 		assertEquals((Integer)myPO.nChildObjects(), nchildren);
 	}
 	//@Test

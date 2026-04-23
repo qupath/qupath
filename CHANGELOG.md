@@ -13,6 +13,7 @@
 * StackOverflowError at ROITypeAdapters.writeCoordinates when exporting some geometries (https://github.com/qupath/qupath/issues/2115)
 * 'Open image' dialog cannot be resized (https://github.com/qupath/qupath/issues/2099)
 * Drawing/moving annotations can cause jiggly class list scrolling behavior (https://github.com/qupath/qupath/issues/2101)
+* Removing child objects can give an unexpected exception in scripts (https://github.com/qupath/qupath/issues/2111)
 
 ### Dependency updates
 * Bio-Formats 8.5.0
