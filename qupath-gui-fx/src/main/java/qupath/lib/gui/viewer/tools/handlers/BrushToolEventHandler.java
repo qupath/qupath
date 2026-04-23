@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,8 +23,17 @@
 
 package qupath.lib.gui.viewer.tools.handlers;
 
+import java.awt.Shape;
+import java.awt.image.BufferedImage;
 import javafx.scene.Cursor;
+import javafx.scene.input.InputEvent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
+import javafx.scene.robot.Robot;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -33,14 +42,18 @@ import org.locationtech.jts.simplify.VWSimplifier;
 import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.tools.QuPathPenManager;
 import qupath.lib.gui.viewer.tools.QuPathPenManager.PenInputManager;
+import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
-import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.GeometryTools;
@@ -52,7 +65,6 @@ import qupath.lib.roi.interfaces.ROI;
 import java.awt.geom.Point2D;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Tool for drawing (and subtract from) freehand regions, optionally adapting brush size to magnification.
@@ -60,40 +72,33 @@ import java.util.Set;
  * @author Pete Bankhead
  *
  */
-public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
+public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<InputEvent> implements NotifiableEventHandler {
 	
 	private static final Logger logger = LoggerFactory.getLogger(BrushToolEventHandler.class);
-	
+
 	/**
-	 * A collection of classes that should be ignored when
+	 * Robot, used to get mouse coordinates whenever a mouse event is not available
 	 */
-	static Set<PathClass> reservedPathClasses = Collections.singleton(
-			PathClass.StandardPathClasses.REGION
-			);
-	
-	double lastRequestedCursorDiameter = Double.NaN;
-	Cursor requestedCursor;
-	
+	private static final Robot robot = new Robot();
+
 	/**
 	 * The object currently being edited by the Brush.
 	 * This is set when the mouse is pressed, to avoid relying on QuPathViewer.getSelectedObject() 
 	 * (in case something has sneakily changed this).
 	 */
 	private PathObject currentObject;
-	
-	Point2D lastPoint;
-	
-//	/**
-//	 * Cache the last 50 cursors we saw
-//	 */
-//	private static Map<String, Cursor> cursorCache = new LinkedHashMap<String, Cursor>() {
-//		private static final long serialVersionUID = 1L;
-//		@Override
-//		protected boolean removeEldestEntry(Map.Entry<String, Cursor> eldest) {
-//	        return size() > 50;
-//	    }
-//	};
-	
+
+	private Point2D lastPoint;
+
+	private final BrushLimits brushLimits = new BrushLimits();
+
+	private final ViewerListener listener = new ViewerListener();
+
+	public BrushToolEventHandler() {
+		super();
+		PathPrefs.brushDiameterProperty().subscribe(() -> updateLimitsAndCursor());
+	}
+
 	/**
 	 * Returns false.
 	 */
@@ -101,54 +106,26 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 	protected boolean preferReturnToMove() {
 		return false;
 	}
-	
+
 	protected Cursor getRequestedCursor() {
-		// Display of image cursors seems buggy, at least on macOS?
-		// TODO: Check if image cursors are buggy on all platforms or may be reinstated
 		return Cursor.CROSSHAIR;
-//		if (PathPrefs.getUseTileBrush())
-//			return Cursor.CROSSHAIR;
-//		
-//		double res = 0.05;
-//		
-//		double diameter = getBrushDiameter() / viewer.getDownsampleFactor();
-//		if (requestedCursor != null && Math.abs(diameter - lastRequestedCursorDiameter) < res)
-//			return requestedCursor;
-//		
-//		Color color = viewer.getSuggestedOverlayColorFX();
-//		String key = color.toString() + (int)Math.round(diameter * (1.0/res));
-//		requestedCursor = cursorCache.get(key);
-//		if (requestedCursor != null)
-//			return requestedCursor;
-//		
-//		Ellipse e = new Ellipse(diameter/2, diameter/2);
-//		e.setFill(null);
-//		e.setStroke(color);
-//		Image image = e.snapshot(snapshotParameters, null);
-//		requestedCursor = new ImageCursor(image, image.getWidth()/2, image.getHeight()/2);
-//		
-//		this.registerTool(viewer);
-//
-//		cursorCache.put(key, requestedCursor);
-//
-//		return requestedCursor;
 	}
 	
 	
 	@Override
 	public void mouseExited(MouseEvent e) {
-//		ensureCursorType(Cursor.DEFAULT);
+		brushLimits.setVisible(false);
 	}
 	
 	@Override
 	public void mouseEntered(MouseEvent e) {
-//		ensureCursorType(getRequestedCursor());
+		updateLimitsAndCursor(e);
 	}
 	
 	
 	@Override
 	public void mouseMoved(MouseEvent e) {
-		ensureCursorType(getRequestedCursor());
+		updateLimitsAndCursor(e);
 	}
 	
 	
@@ -157,9 +134,9 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		if (!e.isPrimaryButtonDown() || e.isConsumed()) {
             return;
         }
-		
-		ensureCursorType(getRequestedCursor());
-		
+
+		updateLimitsAndCursor(e);
+
 		var viewer = getViewer();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null)
@@ -238,24 +215,9 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		// Can only modify annotations
 		if (!createNew && !(currentObject != null && currentObject.isAnnotation() && currentObject.isEditable() && RoiTools.isShapeROI(currentObject.getROI())))
 			return;
-						
-		// Get the parent, in case we need to constrain the shape
-//		PathObject parent = null;
-//		if (currentObject != null) {
-//			parent = currentObject.getParent();
-//		}
-//		var currentObject2 = currentObject;
-//		if (parent == null || parent.isDetection()) {
-//			parent = getSelectableObjectList(p.getX(), p.getY())
-//					.stream()
-//					.filter(o -> !o.isDetection() && o != currentObject2)
-//					.findFirst()
-//					.orElseGet(() -> null);
-//		}
-//		setConstrainedAreaParent(hierarchy, parent, currentObject);
+
 		updatingConstrainingObjects(viewer, xx, yy, Collections.singleton(currentObject));
 
-		
 		// Need to remove the object from the hierarchy while editing it
 		if (!createNew && currentObject != null) {
 			hierarchy.removeObjectWithoutUpdate(currentObject, true);
@@ -267,22 +229,53 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 			this.currentObject = createNewAnnotation(e, p.getX(), p.getY());
 			viewer.getROIEditor().setROI(null);
 		} else {
-			this.currentObject = getUpdatedObject(e, shapeROI, currentObject, -1);
+			this.currentObject = getUpdatedObject(e, shapeROI, currentObject);
 			viewer.setSelectedObject(this.currentObject);
 			viewer.getROIEditor().setROI(null); // Avoids handles appearing?
 		}		
 		lastPoint = p;
 	}
-	
 
+	private void updateLimitsAndCursor() {
+		var viewer = getViewer();
+		if (viewer != null) {
+			ensureCursorType(Cursor.CROSSHAIR);
+			double screenX = robot.getMouseX();
+			double screenY = robot.getMouseY();
+			var p = viewer.getView().screenToLocal(screenX, screenY);
+			updateLimits(p.getX(), p.getY());
+		}
+	}
+
+	private void updateLimitsAndCursor(MouseEvent e) {
+		// Workaround for bug (at least on macOS) where cursor doesn't update properly when
+		// mouse enters from outside the app
+		if (e.getEventType() == MouseEvent.MOUSE_ENTERED) {
+			ensureCursorType(Cursor.DEFAULT);
+		}
+		ensureCursorType(Cursor.CROSSHAIR);
+		updateLimits(e.getX(), e.getY());
+	}
+
+	private void updateLimits(double xView, double yView) {
+		var viewer = getViewer();
+		if (viewer == null || viewer.getImageData() == null) {
+			brushLimits.setVisible(false);
+			return;
+		}
+		brushLimits.setVisible(true);
+		brushLimits.setCenter(xView, yView);
+		double radius = getBrushDiameter() / 2.0 / viewer.getDownsampleFactor();
+		brushLimits.setRadius(radius);
+	}
 	
 	
 	@Override
 	public void mouseDragged(MouseEvent e) {
 		// Note: if the 'freehand' part of the polygon creation isn't desired, just comment out this whole method
 		super.mouseDragged(e);
-		
-		ensureCursorType(getRequestedCursor());
+
+		updateLimitsAndCursor(e);
 		if (!e.isPrimaryButtonDown()) {
             return;
         }
@@ -301,7 +294,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		if (currentROI == null)
 			return;
 
-        PathObject pathObjectUpdated = getUpdatedObject(e, currentROI, pathObject, -1);
+        PathObject pathObjectUpdated = getUpdatedObject(e, currentROI, pathObject);
 
 		if (pathObject != pathObjectUpdated) {
 			viewer.setSelectedObject(pathObjectUpdated, PathPrefs.selectionModeStatus().get());
@@ -319,13 +312,19 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 	}
 	
 	
-	private PathObject getUpdatedObject(MouseEvent e, ROI shapeROI, PathObject currentObject, double flatness) {
-		Point2D p = mouseLocationToImage(e, false, requestPixelSnapping());
-		
+	private PathObject getUpdatedObject(MouseEvent e, ROI shapeROI, PathObject currentObject) {
+		boolean pixelSnapping = requestPixelSnapping();
+		Point2D p = mouseLocationToImage(e, false, pixelSnapping);
+
 		// Don't do anything if outside the image bounds
 		if (p.getX() < 0 || p.getY() < 0 || p.getX() >= getViewer().getServerWidth() || p.getY() >= getViewer().getServerHeight())
 			return currentObject;
-		
+
+		// If we use pixel snapping, we get integer coordinates -
+		// we actually want the *center*, so need to offset by 0.5
+		if (pixelSnapping)
+			p.setLocation(p.getX() + 0.5, p.getY() + 0.5);
+
 		var viewer = getViewer();
 		ImagePlane plane = shapeROI == null ? ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()) : shapeROI.getImagePlane();
 		Geometry shapeNew;
@@ -400,7 +399,6 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 				return currentObject;
 			}
 			
-//			shapeNew = new PathAreaROI(new Area(shapeNew.getShape()));
 			PathObject pathObjectNew = PathObjects.createAnnotationObject(roiNew, PathPrefs.autoSetAnnotationClassProperty().get());
 			if (currentObject != null) {
 				pathObjectNew.setName(currentObject.getName());
@@ -419,9 +417,9 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 	@Override
 	public void mouseReleased(MouseEvent e) {
 		super.mouseReleased(e);
-		
-		ensureCursorType(Cursor.DEFAULT);
-		
+
+		updateLimitsAndCursor(e);
+
 		if (e.isConsumed())
 			return;
 
@@ -434,7 +432,20 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 
 		resetConstrainingObjects();
 	}
-	
+
+
+	@Override
+	protected void handleScrollEvent(ScrollEvent event) {
+		if (!event.isConsumed() && event.isAltDown()) {
+			PathPrefs.brushDiameterProperty().set(
+					GeneralTools.clipValue(
+							(int)Math.round(PathPrefs.brushDiameterProperty().get() + event.getDeltaY()), 10, 500
+					)
+			);
+			event.consume();
+		}
+	}
+
 	
 	protected double getBrushDiameter() {
 		PenInputManager manager = QuPathPenManager.getPenManager();
@@ -450,15 +461,14 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 	
 	/**
 	 * Create a new Geometry using the specified tool, assuming a user click/drag at the provided x &amp; y coordinates.
-	 * @param e 
-	 * 
-	 * @param x
-	 * @param y
+	 * @param e mouse event, used to query modifiers
+	 * @param x x-coordinate of the center of the new shape, in the image space
+	 * @param y y-coordinate of the center of the new shape, in the image space
 	 * @param useTiles If true, request generating a shape from existing tile objects.
 	 * @param addToShape If provided, it can be assumed that any new shape ought to be added to this one.
 	 *                   The purpose is that this method may (optionally) use the shape to refine the one it will generate, 
 	 *                   e.g. to avoid having isolated or jagged boundaries.
-	 * @return
+	 * @return a new geometry corresponding to the shape that should be added to the ROI
 	 */
 	protected Geometry createShape(MouseEvent e, double x, double y, boolean useTiles, Geometry addToShape) {
 		
@@ -517,5 +527,89 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler {
 		geom = GeometryTools.constrainToBounds(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
 		return GeometryTools.geometryToROI(geom, plane);
 	}
-	
+
+	@Override
+	public void handlerAdded(QuPathViewer viewer) {
+		if (viewer != null) {
+			var view = viewer.getView();
+			if (!view.getChildren().contains(brushLimits)) {
+				view.getChildren().add(brushLimits);
+				viewer.addViewerListener(listener);
+
+				// Make invisible before further mouse events, because the coordinates are unknown
+				brushLimits.setVisible(false);
+				updateLimitsAndCursor();
+			}
+		}
+	}
+
+	@Override
+	public void handlerRemoved(QuPathViewer viewer) {
+		if (viewer != null) {
+			var view = viewer.getView();
+			view.getChildren().remove(brushLimits);
+			viewer.removeViewerListener(listener);
+			brushLimits.setVisible(false);
+		}
+	}
+
+	/**
+	 * Get the node used to display the brush limits in the viewer.
+	 * This is typically to enable styling to be adjusted using CSS.
+	 * @return the brush limits
+	 */
+	protected BrushLimits getBrushLimits() {
+		return brushLimits;
+	}
+
+	private static final KeyCombination comboFill = new KeyCodeCombination(KeyCode.F);
+
+	@Override
+	protected void handleKeyEvent(KeyEvent e) {
+		super.handleKeyEvent(e);
+		if (currentObject == null) {
+			// Don't consume events if we aren't drawing
+			return;
+		}
+		if (e.getEventType() == KeyEvent.KEY_RELEASED && comboFill.match(e)) {
+			fillHolesInCurrentObject();
+		}
+		e.consume();
+	}
+
+	private void fillHolesInCurrentObject() {
+		if (currentObject == null)
+			return;
+		var roi = currentObject.getROI();
+		var roiFilled = RoiTools.fillHoles(roi);
+		if (!roi.equals(roiFilled)) {
+			currentObject = PathObjectTools.createLike(currentObject, roiFilled);
+			var viewer = getViewer();
+			viewer.setSelectedObject(this.currentObject);
+			viewer.getROIEditor().setROI(null);
+		}
+	}
+
+
+	private class ViewerListener implements QuPathViewerListener {
+
+		@Override
+		public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+			updateLimitsAndCursor();
+		}
+
+		@Override
+		public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {
+			updateLimitsAndCursor();
+		}
+
+		@Override
+		public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}
+
+		@Override
+		public void viewerClosed(QuPathViewer viewer) {
+			updateLimitsAndCursor();
+		}
+	}
+
 }

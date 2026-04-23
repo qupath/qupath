@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -29,6 +29,7 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.scene.Node;
+import javafx.scene.input.InputEvent;
 import javafx.scene.input.MouseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.tools.handlers.NotifiableEventHandler;
 import qupath.lib.gui.viewer.tools.handlers.PathToolEventHandlers;
 
 import java.util.Arrays;
@@ -126,7 +128,7 @@ public class PathTools {
 	/**
 	 * Brush drawing tool
 	 */
-	public static final PathTool BRUSH = createTool(
+	public static final PathTool BRUSH = createInputEventTool(
 			PathToolEventHandlers.createBrushEventHandler(),
 			QuPathResources.getString("Tools.brush"),
 			createIcon(PathIcons.BRUSH_TOOL));
@@ -157,6 +159,18 @@ public class PathTools {
 	 */
 	public static PathTool createTool(EventHandler<MouseEvent> handler, String name, Node icon) {
 		return createTool(MouseEvent.ANY, handler, name, icon);
+	}
+
+	/**
+	 * Create a tool from the specified {@link InputEvent} handler.
+	 * When the tool is registered, the handler will be called for any mouse event.
+	 * @param handler the mouse event handler
+	 * @param name the name of the tool
+	 * @param icon the (toolbar) icon of the tool
+	 * @return a new {@link PathTool}
+	 */
+	public static PathTool createInputEventTool(EventHandler<InputEvent> handler, String name, Node icon) {
+		return createTool(InputEvent.ANY, handler, name, icon);
 	}
 	
 	
@@ -199,10 +213,10 @@ public class PathTools {
 		private static final Logger logger = LoggerFactory.getLogger(DefaultPathTool.class);
 		
 		private QuPathViewer viewer;
-		private StringProperty name;
-		private ObjectProperty<Node> icon;
-		private EventType<T> type;
-		private EventHandler<T> handler;
+		private final StringProperty name;
+		private final ObjectProperty<Node> icon;
+		private final EventType<T> type;
+		private final EventHandler<T> handler;
 		
 		DefaultPathTool(EventType<T> type, EventHandler<T> handler, String name, Node icon) {
 			this.name = new SimpleStringProperty(name);
@@ -223,6 +237,9 @@ public class PathTools {
 				logger.trace("Registering {} to viewer {}", getName(), viewer);
 				Node canvas = viewer.getView();
 				canvas.addEventHandler(type, handler);
+				if (handler instanceof NotifiableEventHandler notifiable) {
+					notifiable.handlerAdded(viewer);
+				}
 			}
 		}
 
@@ -233,6 +250,9 @@ public class PathTools {
 				this.viewer = null;
 				Node canvas = viewer.getView();
 				canvas.removeEventHandler(type, handler);
+				if (handler instanceof NotifiableEventHandler notifiable) {
+					notifiable.handlerRemoved(viewer);
+				}
 			}
 		}
 

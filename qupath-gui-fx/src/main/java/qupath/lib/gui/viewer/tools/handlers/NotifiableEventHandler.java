@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2023-2026 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,23 +21,23 @@
 
 package qupath.lib.gui.viewer.tools.handlers;
 
-import javafx.scene.input.MouseEvent;
-import qupath.lib.objects.PathObject;
+import qupath.lib.gui.viewer.QuPathViewer;
 
-class ArrowToolEventHandler extends LineToolEventHandler {
-	
-	private String arrowhead = null;
-	
-	ArrowToolEventHandler(String arrowhead) {
-		this.arrowhead = arrowhead;
-	}
+/**
+ * Interface for a viewer event handler that should be notified when it is added or removed.
+ */
+public interface NotifiableEventHandler {
 
-	@Override
-	protected PathObject createNewAnnotation(MouseEvent e, double x, double y) {
-		var annotation = super.createNewAnnotation(e, x, y);
-		annotation.getMetadata().put("arrowhead", arrowhead);
-		return annotation;
-	}
+    /**
+     * Method called after the event handler has been added to a viewer.
+     * @param viewer the viewer to which the event handler was added
+     */
+    void handlerAdded(QuPathViewer viewer);
 
-	
+    /**
+     * Method called after the event handler has been removed from a viewer.
+     * @param viewer the viewer from which the event handler was removed
+     */
+    void handlerRemoved(QuPathViewer viewer);
+
 }

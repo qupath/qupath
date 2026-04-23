@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -51,7 +51,7 @@ import java.util.List;
  * @author Pete Bankhead
  *
  */
-class PointsToolEventHandler extends AbstractPathToolEventHandler {
+class PointsToolEventHandler extends AbstractPathToolEventHandler<MouseEvent> {
 
 	private PointsROI getCurrentPoints() {
 		var viewer = getViewer();
@@ -112,7 +112,6 @@ class PointsToolEventHandler extends AbstractPathToolEventHandler {
 		
 		// Find out the coordinates in the image domain & update the adjustment
 		Point2D pAdjusting = mouseLocationToImage(e, true, requestPixelSnapping());
-//		double radius = PointsROI.defaultPointRadiusProperty().get();
 		PointsROI points2 = (PointsROI)editor.setActiveHandlePosition(pAdjusting.getX(), pAdjusting.getY(), 0.25, e.isShiftDown());
 		if (points2 == points)
 			return;
@@ -120,18 +119,6 @@ class PointsToolEventHandler extends AbstractPathToolEventHandler {
 		PathROIObject currentObject = (PathROIObject)viewer.getSelectedObject();
 		currentObject.setROI(points2);
 		viewer.repaint();
-		
-//		viewer.getHierarchy().fireHierarchyChangedEvent(this, currentObject);
-
-//		//		points.updateAdjustment(pAdjusting.getX(), pAdjusting.getY(), e.isShiftDown());
-//		
-////		Point2 p = points.getNearest(pAdjusting.getX(), pAdjusting.getY(), radius);
-//		if (p == null) {
-//		} else {
-//			p.setLocation(pAdjusting.getX(), pAdjusting.getY());
-////			points.resetMeasurements();
-//			viewer.repaint();
-//		}
 	}
 	
 	
@@ -271,7 +258,6 @@ class PointsToolEventHandler extends AbstractPathToolEventHandler {
 			if (points2 != points) {
 				currentObject.setROI(points2);
 				viewer.getHierarchy().updateObject(currentObject, true);
-//				viewer.getHierarchy().fireHierarchyChangedEvent(this, currentObject);
 			}
 		}
 		viewer.repaint();
