@@ -91,7 +91,7 @@ public class WelcomeStage {
 		var stage = new Stage();
 		if (qupath != null)
 			stage.initOwner(qupath.getStage());
-		
+
 		var btnCode = createGlyphButton(
 				"Welcome.develop", 
 				Glyph.CODE,
@@ -262,19 +262,14 @@ public class WelcomeStage {
 		stage.setScene(new Scene(pane));
 		stage.titleProperty().bind(TITLE);
 		FXUtils.makeDraggableStage(stage);
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.getScene().setOnMouseClicked(e -> {
 			if (e.getClickCount() == 2) {
 				logger.info("Startup stage closed by double-click"); 
 				stage.close();
 			}
 		});
-		stage.getScene().setOnKeyPressed(e -> {
-			if (!e.isConsumed() && e.getCode() == KeyCode.ESCAPE) {
-				logger.info("Startup stage closed by pressing escape"); 
-				stage.close();				
-			}
-		});
-		
+
 		btnStarted.requestFocus();
 		stage.setMinWidth(450);
 		stage.setMinHeight(600);

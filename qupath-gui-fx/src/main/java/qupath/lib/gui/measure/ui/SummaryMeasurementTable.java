@@ -61,6 +61,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Window;
+import javafx.stage.WindowEvent;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
@@ -491,6 +492,7 @@ public class SummaryMeasurementTable {
     private Action actionShowPlots;
     private Action actionCopy;
     private Action actionSave;
+    private Action actionCloseWindow;
     private Action actionThumbnails;
     private Action actionId;
     private Action actionShowToolbar;
@@ -528,6 +530,20 @@ public class SummaryMeasurementTable {
         action.setLongText(QuPathResources.getString("Measure.MeasurementTable.saveDescription"));
         action.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
         action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.SAVE));
+        return action;
+    }
+
+    private Action createCloseWindowAction() {
+        var action = new Action(QuPathResources.getString("Measure.MeasurementTable.closeWindow"), e -> {
+            var window = table == null ? null : FXUtils.getWindow(table);
+            if (window != null)
+                window.fireEvent(new WindowEvent(window, WindowEvent.WINDOW_CLOSE_REQUEST));
+            else
+                logger.warn("Can't find window to close");
+        });
+        action.setLongText(QuPathResources.getString("Measure.MeasurementTable.closeWindowDescription"));
+        action.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
+        action.setGraphic(IconFactory.createNode(FontAwesome.Glyph.CLOSE));
         return action;
     }
 
@@ -589,6 +605,7 @@ public class SummaryMeasurementTable {
         actionShowPlots = createShowPlotsAction();
         actionCopy = createCopyAction();
         actionSave = createSaveAction();
+        actionCloseWindow = createCloseWindowAction();
         actionShowToolbar = createToolbarShowAction();
         actionToolbarText = createToolbarTextAction();
 
@@ -962,7 +979,8 @@ public class SummaryMeasurementTable {
     private MenuBar createMenuBar() {
         var menuFile = MenuTools.createMenu(
                 QuPathResources.getString("Measure.MeasurementTable.file"),
-                actionSave
+                actionSave,
+                actionCloseWindow
         );
 
         var menuEdit = MenuTools.createMenu(
