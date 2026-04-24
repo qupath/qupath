@@ -270,8 +270,20 @@ public class PathObjectPainter {
 			colorStroke = ColorToolsAwt.darkenColor(color);
 		Stroke stroke = colorStroke == null ? null : calculateStroke(pathObject, downsample, isSelected);
 
-		if (colorFill != null && pathObject.hasChildObjects())
-			colorFill = ColorToolsAwt.getColorWithOpacity(colorFill, 0.1);
+		// If the opacity isn't specified in the metadata, increase it if we have child objects so they are more visible
+		if (colorFill != null && pathObject.hasChildObjects() && getFillOpacityFromMetadataOrNull(pathObject) == null) {
+			// Decrease the opacity if the object only has direct children
+			double opacity = colorFill.getAlpha() / 255.0;
+			opacity *= 0.75;
+			// Decrease the opacity again if there are grandchildren
+			for (var child : pathObject.getChildObjects()) {
+				if (child.hasChildObjects()) {
+					opacity *= 0.75;
+					break;
+				}
+			}
+			colorFill = ColorToolsAwt.getColorWithOpacity(colorFill, opacity);
+		}
 
 		if (stroke != null)
 			g.setStroke(stroke);
@@ -406,10 +418,10 @@ public class PathObjectPainter {
 
 	private static Double tryToParseDouble(Object obj) {
 		try {
-			if (obj instanceof String) {
-				return Double.parseDouble((String)obj);
-			} else if (obj instanceof Number) {
-				return ((Number)obj).doubleValue();
+			if (obj instanceof String s) {
+				return Double.parseDouble(s);
+			} else if (obj instanceof Number n) {
+				return n.doubleValue();
 			}
 		} catch (Exception e) {
 			logger.warn("Unable to parse double from {}", obj);
