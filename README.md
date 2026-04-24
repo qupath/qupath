@@ -36,13 +36,13 @@ To **build QuPath from source** see [here](https://qupath.readthedocs.io/en/stab
 QuPath is being actively developed at the University of Edinburgh by:
 
 * [Pete Bankhead](https://github.com/petebankhead) (creator)
-* [Fiona Inglis](https://github.com/finglis)
 * [Alan O'Callaghan](https://github.com/alanocallaghan)
-* [Léo Leplat](https://github.com/Rylern)
 * [Laura Nicolás-Sáenz](https://github.com/lauranicolass)
 
-Past QuPath dev team members:
+with thanks to past QuPath dev team members:
 
+* [Léo Leplat](https://github.com/Rylern)
+* [Fiona Inglis](https://github.com/finglis)
 * Melvin Gelbard
 * Mahdi Lamb
 
