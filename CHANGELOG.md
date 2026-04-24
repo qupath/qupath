@@ -14,6 +14,7 @@
 * 'Open image' dialog cannot be resized (https://github.com/qupath/qupath/issues/2099)
 * Drawing/moving annotations can cause jiggly class list scrolling behavior (https://github.com/qupath/qupath/issues/2101)
 * Removing child objects can give an unexpected exception in scripts (https://github.com/qupath/qupath/issues/2111)
+* Nested detections render poorly when filled (https://github.com/qupath/qupath/issues/2112)
 
 ### Dependency updates
 * Bio-Formats 8.5.0
