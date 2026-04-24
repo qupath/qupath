@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -1402,7 +1402,8 @@ public class PixelClassifierPane {
 			var server = overlay.getPixelClassificationServer(viewer.getImageData());
 			String results = null;
 			if (server != null)
-				results = PixelClassificationOverlay.getDefaultLocationString(server, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());
+				results = PixelClassificationOverlay.getDefaultLocationString(server,
+						null, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());
 			if (results == null)
 				cursorLocation.set("");
 			else

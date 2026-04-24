@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -735,13 +735,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 
 
-	/**
-	 * Get a string representation of a transformed pixel value, using the currently-selected channels.
-	 * @param img image providing the value
-	 * @param x x-coordinate of the pixel
-	 * @param y y-coordinate of the pixels
-	 * @return a String representation of the pixel's transformed value
-	 */
+	@Override
 	public String getTransformedValueAsString(BufferedImage img, int x, int y) {
 		if (selectedChannels.isEmpty() || selectedChannels.getFirst() == null)
 			return "";
