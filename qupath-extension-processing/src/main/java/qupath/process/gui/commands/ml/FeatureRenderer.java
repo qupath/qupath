@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -38,86 +38,97 @@ import java.util.concurrent.atomic.AtomicLong;
 
 class FeatureRenderer extends AbstractImageRenderer {
 		
-		private final DefaultImageRegionStore store;
-		private DirectServerChannelInfo selectedChannel = null;
-		private WeakReference<ImageData<BufferedImage>> currentData;
+	private final DefaultImageRegionStore store;
+	private DirectServerChannelInfo selectedChannel = null;
+	private WeakReference<ImageData<BufferedImage>> currentData;
 
-		private final AtomicLong eventCount = new AtomicLong();
-		
-		FeatureRenderer(DefaultImageRegionStore store) {
-			this.store = store;
+	private final AtomicLong eventCount = new AtomicLong();
+
+	FeatureRenderer(DefaultImageRegionStore store) {
+		this.store = store;
+	}
+
+	public void setChannel(ImageServer<BufferedImage> server, int channel, double min, double max) {
+		var temp = currentData == null ? null : currentData.get();
+		if (temp == null || temp.getServer() != server) {
+			temp = new ImageData<>(server);
+			currentData = new WeakReference<>(temp);
 		}
-				
-		public void setChannel(ImageServer<BufferedImage> server, int channel, double min, double max) {
-			var temp = currentData == null ? null : currentData.get();
-			if (temp == null || temp.getServer() != server) {
-				temp = new ImageData<>(server);
-				currentData = new WeakReference<>(temp);
-			}
-			selectedChannel = new DirectServerChannelInfo(temp, channel);
-			selectedChannel.setLUTColor(255, 255, 255);
+		selectedChannel = new DirectServerChannelInfo(temp, channel);
+		selectedChannel.setLUTColor(255, 255, 255);
 //			autoSetDisplayRange();
-			setRange(min, max);
-			eventCount.incrementAndGet();
-		}
-		
-		public void setRange(double min, double max) {
-			if (selectedChannel != null) {
-				selectedChannel.setMinDisplay((float)min);
-				selectedChannel.setMaxDisplay((float)max);
-				eventCount.incrementAndGet();
-			}
-		}
-		
-		public DirectServerChannelInfo getSelectedChannel() {
-			return selectedChannel;
-		}
-		
-		void autoSetDisplayRange() {
-			if (selectedChannel == null)
-				return;
-			var imageData = currentData.get();
-			Map<RegionRequest, BufferedImage> tiles = store == null || imageData == null ? Collections.emptyMap() : store.getCachedTilesForServer(imageData.getServer());
-			
-			float maxVal = Float.NEGATIVE_INFINITY;
-			float minVal = Float.POSITIVE_INFINITY;
-			float[] pixels = null;
-			for (var tile : tiles.values()) {
-				int n = tile.getWidth() * tile.getHeight();
-				if (pixels != null && pixels.length < n)
-					pixels = null;
-				pixels = tile.getRaster().getSamples(0, 0, tile.getWidth(), tile.getHeight(), selectedChannel.getChannel(), pixels);
-				for (float v : pixels) {
-					if (!Float.isFinite(v))
-						continue;
-					if (v > maxVal)
-						maxVal = v;
-					if (v < minVal)
-						minVal = v;
-				}
-			}
-			if (Float.isFinite(maxVal))
-				selectedChannel.setMaxDisplay(maxVal);
-			else
-				selectedChannel.setMaxDisplay(1.0f);
-			
-			if (Float.isFinite(minVal))
-				selectedChannel.setMinDisplay(minVal);
-			else
-				selectedChannel.setMinDisplay(0.0f);
-			eventCount.incrementAndGet();
-		}
+		setRange(min, max);
+		eventCount.incrementAndGet();
+	}
 
-		@Override
-		public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
-			return ImageDisplay.applyTransforms(imgInput, imgOutput,
-					Collections.singletonList(selectedChannel),
-					ChannelDisplayMode.GRAYSCALE);
+	public void setRange(double min, double max) {
+		if (selectedChannel != null) {
+			selectedChannel.setMinDisplay((float)min);
+			selectedChannel.setMaxDisplay((float)max);
+			eventCount.incrementAndGet();
 		}
+	}
+
+	public DirectServerChannelInfo getSelectedChannel() {
+		return selectedChannel;
+	}
+
+	void autoSetDisplayRange() {
+		if (selectedChannel == null)
+			return;
+		var imageData = currentData.get();
+		Map<RegionRequest, BufferedImage> tiles = store == null || imageData == null ? Collections.emptyMap() : store.getCachedTilesForServer(imageData.getServer());
+
+		float maxVal = Float.NEGATIVE_INFINITY;
+		float minVal = Float.POSITIVE_INFINITY;
+		float[] pixels = null;
+		for (var tile : tiles.values()) {
+			int n = tile.getWidth() * tile.getHeight();
+			if (pixels != null && pixels.length < n)
+				pixels = null;
+			pixels = tile.getRaster().getSamples(0, 0, tile.getWidth(), tile.getHeight(), selectedChannel.getChannel(), pixels);
+			for (float v : pixels) {
+				if (!Float.isFinite(v))
+					continue;
+				if (v > maxVal)
+					maxVal = v;
+				if (v < minVal)
+					minVal = v;
+			}
+		}
+		if (Float.isFinite(maxVal))
+			selectedChannel.setMaxDisplay(maxVal);
+		else
+			selectedChannel.setMaxDisplay(1.0f);
+
+		if (Float.isFinite(minVal))
+			selectedChannel.setMinDisplay(minVal);
+		else
+			selectedChannel.setMinDisplay(0.0f);
+		eventCount.incrementAndGet();
+	}
+
+	@Override
+	public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
+		return ImageDisplay.applyTransforms(imgInput, imgOutput,
+				Collections.singletonList(selectedChannel),
+				ChannelDisplayMode.GRAYSCALE);
+	}
 
 	@Override
 	public long getLastChangeTimestamp() {
 		return eventCount.get();
+	}
+
+	@Override
+	public String getTransformedValueAsString(BufferedImage img, int x, int y) {
+		if (selectedChannel == null)
+			return "";
+		String name = selectedChannel.getOriginalChannelName();
+		if (name != null && !name.isBlank())
+			return name + "\n" + selectedChannel.getValueAsString(img, x, y);
+		else
+			return selectedChannel.getValueAsString(img, x, y);
 	}
 
 }

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,7 @@ package qupath.lib.gui.images.stores;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.util.stream.Collectors;
 
 /**
  * Interface for objects capable of converting a {@link BufferedImage} for rendering using {@link Graphics2D}.
@@ -69,5 +70,19 @@ public interface ImageRenderer {
 	 * @return
 	 */
 	String getUniqueID();
+
+	/**
+	 * Get a string representation of a transformed pixel value, using the currently-selected channels.
+	 * <p>
+	 * Note that this method is optional; the default implementation returns null.
+	 *
+	 * @param img image providing the value
+	 * @param x x-coordinate of the pixel
+	 * @param y y-coordinate of the pixel
+	 * @return a String representation of the pixel's transformed value, or null if no string representation is available
+	 */
+	default String getTransformedValueAsString(BufferedImage img, int x, int y) {
+		return null;
+	}
 	
 }

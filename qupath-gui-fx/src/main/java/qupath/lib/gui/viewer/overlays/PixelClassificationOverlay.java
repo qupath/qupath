@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -33,6 +33,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRenderer;
@@ -618,26 +619,46 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 	    	var classifierServer = imageData == null ? null : getPixelClassificationServer(imageData);
 	    	if (classifierServer == null)
 	    		return null;
-	    	return getDefaultLocationString(classifierServer, x, y, z, t);
+	    	return getDefaultLocationString(classifierServer, getRenderer(), x, y, z, t);
     	} else
     		return super.getLocationString(imageData, x, y, z, t);
     }
-    	
-    
-    /**
-     * Default method for getting a location string from an {@link ImageServer} using cached tiles.
-     * If tiles are not cached, no string is returned.
-     * <p>
-     * May be used by classes implementing {@link PathOverlay#getLocationString(ImageData, double, double, int, int)}
-     * 
-     * @param server
-     * @param x
-     * @param y
-     * @param z
-     * @param t
-     * @return location String based upon pixel values and cached tiles, or null if no String is available
-     */
-    public static String getDefaultLocationString(ImageServer<BufferedImage> server, double x, double y, int z, int t) {
+
+	/**
+	 * Default method for getting a location string from an {@link ImageServer} using cached tiles.
+	 * If tiles are not cached, no string is returned.
+	 * <p>
+	 * May be used by classes implementing {@link PathOverlay#getLocationString(ImageData, double, double, int, int)}
+	 *
+	 * @param server the server (usually a pixel classifier server)
+	 * @param x x-coordinate in the full image space
+	 * @param y y-coordinate in the full image space
+	 * @param z z-slice index
+	 * @param t time-point index
+	 * @return location String based upon pixel values and cached tiles, or null if no String is available
+	 * @see #getDefaultLocationString(ImageServer, ImageRenderer, double, double, int, int)
+	 */
+	public static String getDefaultLocationString(ImageServer<BufferedImage> server, double x, double y, int z, int t) {
+		return getDefaultLocationString(server, null, x, y, z, t);
+	}
+
+	/**
+	 * Default method for getting a location string from an {@link ImageServer} using cached tiles.
+	 * If tiles are not cached, no string is returned.
+	 * <p>
+	 * May be used by classes implementing {@link PathOverlay#getLocationString(ImageData, double, double, int, int)}
+	 *
+	 * @param server the server (usually a pixel classifier server)
+	 * @param renderer optional renderer; if not null, {@link ImageRenderer#getTransformedValueAsString(BufferedImage, int, int)}
+	 *                 will be queried first to get the string.
+ 	 * @param x x-coordinate in the full image space
+	 * @param y y-coordinate in the full image space
+	 * @param z z-slice index
+	 * @param t time-point index
+	 * @return location String based upon pixel values and cached tiles, or null if no String is available
+	 * @since v0.8.0
+	 */
+    public static String getDefaultLocationString(ImageServer<BufferedImage> server, ImageRenderer renderer, double x, double y, int z, int t) {
     	
     	int level = 0;
     	var tile = server.getTileRequestManager().getTileRequest(level, (int)Math.round(x), (int)Math.round(y), z, t);
@@ -651,6 +672,14 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
     	int yy = (int)Math.floor((y - tile.getImageY()) / tile.getDownsample());
     	if (xx < 0 || yy < 0 || xx >= img.getWidth() || yy >= img.getHeight())
     		return null;
+
+		// Try to get it from the image renderer
+		// Introduced to fix https://github.com/qupath/qupath/issues/2123
+		if (renderer != null) {
+			String fromRenderer = renderer.getTransformedValueAsString(img, xx, yy);
+			if (fromRenderer != null)
+				return fromRenderer;
+		}
     	
 //    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
     	var channelType = server.getMetadata().getChannelType();
