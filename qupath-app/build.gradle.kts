@@ -28,7 +28,7 @@ dependencies {
 
     // Bundled extensions
     implementation(libs.qupath.training)
-//    implementation(libs.qupath.djl)
+    implementation(libs.qupath.djl)
 
     // For imglib2 support (optional - included here since no other dependency needs it)
     implementation(libs.qupath.imglib2)
