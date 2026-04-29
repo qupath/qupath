@@ -209,7 +209,7 @@ public class BioimageIoTools {
 		int indX = axesIn.indexOf("x");
 		int indY = axesIn.indexOf("y");
 
-		if (indX == 1 || indY == -1) {
+		if (indX == -1 || indY == -1) {
 			throw new UnsupportedOperationException("Unknown input axes: " + axesIn + ". Require at least X and Y");
 		}
 		int[] shapeMin = input.getShape().getShapeMin();
