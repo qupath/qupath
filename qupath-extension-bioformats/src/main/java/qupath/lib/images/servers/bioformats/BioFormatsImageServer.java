@@ -23,6 +23,7 @@
 
 package qupath.lib.images.servers.bioformats;
 
+import java.util.OptionalDouble;
 import loci.common.services.DependencyException;
 import loci.common.services.ServiceException;
 import loci.formats.FormatException;
@@ -32,6 +33,7 @@ import loci.formats.ome.OMEPyramidStore;
 import loci.formats.ome.OMEXMLMetadata;
 import ome.units.UNITS;
 import ome.units.quantity.Length;
+import ome.xml.meta.MetadataRetrieve;
 import ome.xml.meta.OMEXMLMetadataRoot;
 import ome.xml.model.Shape;
 import org.slf4j.Logger;
@@ -101,17 +103,17 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	private static final int DEFAULT_TILE_SIZE = 512;
 
 	/**
-	 * The original URI requested for this server.
-	 */
-	private final URI uri;
-
-	/**
 	 * Image names (in lower case) normally associated with 'extra' images, but probably not representing the main image in the file.
 	 */
 	private static final Collection<String> extraImageNames = Set.of(
 			"overview", "label", "thumbnail", "macro", "macro image", "macro mask image", "label image", "overview image", "thumbnail image"
 	);
-	
+
+	/**
+	 * The original URI requested for this server.
+	 */
+	private final URI uri;
+
 	/**
 	 * Original metadata, populated when reading the file.
 	 */
@@ -125,7 +127,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	/**
 	 * File path if possible, or a URI otherwise.
 	 */
-	private String filePathOrUrl;
+	private final String filePathOrUrl;
 	
 	/**
 	 * A map linking an identifier (image name) to series number for 'full' images.
@@ -140,7 +142,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	/**
 	 * Numeric identifier for the image (there might be more than one in the file)
 	 */
-	private int series = 0;
+	private final int series;
 	
 	/**
 	 * Format for the current reader.
@@ -156,16 +158,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	 * Pool of readers for use with this server.
 	 */
 	private final ReaderPool readerPool;
-	
-	/**
-	 * Cached path
-	 */
-	private final String path;
-	
-	/**
-	 * Wrapper to the args passed to the reader, after parsing.
-	 */
-	private final BioFormatsArgs bfArgs;
 
 	
 	/**
@@ -213,10 +205,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 
 		long startTime = System.currentTimeMillis();
 
-		// Create variables for metadata
-		int width = 0, height = 0, nChannels = 1, nZSlices = 1, nTimepoints = 1, tileWidth = 0, tileHeight = 0;
-		double pixelWidth = Double.NaN, pixelHeight = Double.NaN, zSpacing = Double.NaN, magnification = Double.NaN;
-
 		// Zarr images can be opened by selecting the .zattrs or .zgroup file
 		// In that case, the parent directory contains the whole image
 		if (uri.toString().endsWith(".zattrs") || uri.toString().endsWith(".zgroup")) {
@@ -244,8 +232,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		this.uri = uri;
 		
 		// Parse the arguments
-		bfArgs = BioFormatsArgs.parse(args);
-		
+		this.args = args;
+		var bfArgs = BioFormatsArgs.parse(args);
+
 		// Try to parse args, extracting the series if present
 		int seriesIndex = bfArgs.series;
 		String requestedSeriesName = bfArgs.seriesName;
@@ -253,20 +242,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			requestedSeriesName = null;
 		
 		// Try to get a local file path, but accept something else (since Bio-Formats handles other URIs)
-		try {
-			var path = GeneralTools.toPath(uri);
-			if (path != null) {
-				// Use toRealPath to resolve any symbolic links
-				filePathOrUrl = path.toRealPath().toString();
-			}
-		} catch (Exception e) {
-			logger.error(e.getLocalizedMessage(), e);
-		} finally {
-			if (filePathOrUrl == null) {
-				logger.debug("Using URI as file path: {}", uri);
-				filePathOrUrl = uri.toString();
-			}
-		}
+		filePathOrUrl = convertToFilePathOrUrl(uri);
 
 		List<ImageChannel> channels = new ArrayList<>();
 
@@ -388,38 +364,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			logger.debug("Reading format: {}", format);
 
 			// Try getting the magnification
-			try {
-				String objectiveID = meta.getObjectiveSettingsID(series);
-				int objectiveIndex = -1;
-				int instrumentIndex = -1;
-				int nInstruments = meta.getInstrumentCount();
-				for (int i = 0; i < nInstruments; i++) {
-					int nObjectives = meta.getObjectiveCount(i);
-					for (int o = 0; 0 < nObjectives; o++) {
-						if (objectiveID.equals(meta.getObjectiveID(i, o))) {
-							instrumentIndex = i;
-							objectiveIndex = o;
-							break;
-						}
-					}	    		
-				}
-				if (instrumentIndex < 0) {
-					logger.warn("Cannot find objective for ref {}", objectiveID);
-				} else {
-					Double magnificationObject = meta.getObjectiveNominalMagnification(instrumentIndex, objectiveIndex);
-					if (magnificationObject == null) {
-						logger.warn("Nominal objective magnification missing for {}:{}", instrumentIndex, objectiveIndex);
-					} else
-						magnification = magnificationObject;		    		
-				}
-			} catch (Exception e) {
-				logger.debug("Unable to parse magnification: {}", e.getLocalizedMessage());
-			}
+			double magnification = tryToGetMagnification(meta, seriesIndex).orElse(Double.NaN);
 
 			// Get the dimensions for the requested series
 			// The first resolution is the highest, i.e. the largest image
-			width = reader.getSizeX();
-			height = reader.getSizeY();
+			int width = reader.getSizeX();
+			int height = reader.getSizeY();
 
 			// When opening Zarr images, reader.getOptimalTileWidth/Height() returns by default
 			// the chunk width/height of the lowest resolution image. See
@@ -429,10 +379,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			if (reader instanceof ZarrReader zarrReader) {
 				zarrReader.setResolution(0, true);
 			}
-			tileWidth = reader.getOptimalTileWidth();
-			tileHeight = reader.getOptimalTileHeight();
+			int tileWidth = reader.getOptimalTileWidth();
+			int tileHeight = reader.getOptimalTileHeight();
 
-			nChannels = reader.getSizeC();
+			int nChannels = reader.getSizeC();
 
 			// Make sure tile sizes are within range
 			if (tileWidth != width)
@@ -440,8 +390,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			if (tileHeight != height)
 				tileHeight = getDefaultTileLength(tileHeight, height);
 
-			nZSlices = reader.getSizeZ();
-			nTimepoints = reader.getSizeT();
+			int nZSlices = reader.getSizeZ();
+			int nTimepoints = reader.getSizeT();
 
 			PixelType pixelType = ReaderUtils.formatToPixelType(reader.getPixelType());
 			if (Set.of(PixelType.INT8, PixelType.UINT32).contains(pixelType)) {
@@ -472,8 +422,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			// Try to read the default display colors for each channel from the file
 			if (isRGB) {
 				channels.addAll(ImageChannel.getDefaultRGBChannels());
-			}
-			else {
+			} else {
 				// Get channel colors and names
 				var tempColors = new ArrayList<ome.xml.model.primitives.Color>(nChannels);
 				var tempNames = new ArrayList<String>(nChannels);
@@ -569,6 +518,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			// Try parsing pixel sizes in micrometers
 			double[] timepoints = null;
 			TimeUnit timeUnit = null;
+			double pixelWidth, pixelHeight, zSpacing = Double.NaN;
 			try {
 				Length xSize = meta.getPixelsPhysicalSizeX(series);
 				Length ySize = meta.getPixelsPhysicalSizeY(series);
@@ -609,58 +559,15 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 				timeUnit = null;
 			}
 
-			// Loop through the series & determine downsamples
-			int nResolutions = reader.getResolutionCount();
-			var resolutionBuilder = new ImageResolutionLevel.Builder(width, height)
-					.addFullResolutionLevel();
-
-			// I have seen czi files where the resolutions are not read correctly & this results in an IndexOutOfBoundsException
-			for (int i = 1; i < nResolutions; i++) {
-				reader.setResolution(i);
-				try {
-					int w = reader.getSizeX();
-					int h = reader.getSizeY();
-					if (w <= 0 || h <= 0) {
-						logger.warn("Invalid resolution size {} x {}! Will skip this level, but something seems wrong...", w, h);
-						continue;
-					}
-					// In some VSI images, the calculated downsamples for width & height can be wildly discordant, 
-					// and we are better off using defaults
-					if ("CellSens VSI".equals(format)) {
-						double downsampleX = (double)width / w;
-						double downsampleY = (double)height / h;
-						double downsample = Math.pow(2, i);
-						if (!GeneralTools.almostTheSame(downsampleX, downsampleY, 0.01)) {
-							logger.warn("Non-matching downsamples calculated for level {} ({} and {}); will use {} instead", i, downsampleX, downsampleY, downsample);
-							resolutionBuilder.addLevel(downsample, w, h);
-							continue;
-						}
-					}
-					resolutionBuilder.addLevel(w, h);
-				} catch (Exception e) {
-                    logger.warn("Error attempting to extract resolution {} for {}", i, ReaderUtils.getImageName(meta, series), e);
-					break;
-				}
-			}
-			
 			// Generate a suitable name for this image
-			String imageName = getFile().getName();
-			String shortName = ReaderUtils.getImageName(meta, seriesIndex);
-			if (shortName == null || shortName.isBlank()) {
-				if (imageMap.size() > 1)
-					imageName = imageName + " - Series " + seriesIndex;
-			} else if (!imageName.equals(shortName))
-				imageName = imageName + " - " + shortName;
+			String imageName = getImageName(meta, getFile().getName(), seriesIndex, imageMap.size() > 1);
 
-			this.args = args;
-			
 			// Build resolutions
-			var resolutions = resolutionBuilder.build();
+			var resolutions = buildResolutions(reader, width, height);
 			
 			// Set metadata
-			path = createID();
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
-					getClass(), path, width, height).
+					getClass(), getPath(), width, height).
 					minValue(minValue).
 					maxValue(maxValue).
 					name(imageName).
@@ -699,7 +606,89 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		long endTime = System.currentTimeMillis();
 		logger.debug("Initialization time: {} ms", endTime - startTime);
 	}
-	
+
+
+	private static OptionalDouble tryToGetMagnification(MetadataRetrieve meta, int series) {
+		try {
+			String objectiveID = meta.getObjectiveSettingsID(series);
+			int objectiveIndex = -1;
+			int instrumentIndex = -1;
+			int nInstruments = meta.getInstrumentCount();
+			for (int i = 0; i < nInstruments; i++) {
+				for (int o = 0; 0 < meta.getObjectiveCount(i); o++) {
+					if (objectiveID.equals(meta.getObjectiveID(i, o))) {
+						instrumentIndex = i;
+						objectiveIndex = o;
+						break;
+					}
+				}
+			}
+			if (instrumentIndex < 0) {
+				logger.warn("Cannot find objective for ref {}", objectiveID);
+			} else {
+				Double magnificationObject = meta.getObjectiveNominalMagnification(instrumentIndex, objectiveIndex);
+				if (magnificationObject == null) {
+					logger.warn("Nominal objective magnification missing for {}:{}", instrumentIndex, objectiveIndex);
+				} else
+					return OptionalDouble.of(magnificationObject);
+			}
+		} catch (Exception e) {
+			logger.debug("Unable to parse magnification: {}", e.getLocalizedMessage());
+		}
+		return OptionalDouble.empty();
+	}
+
+
+	private static String getImageName(MetadataRetrieve meta, String baseName, int seriesIndex, boolean multiImage) {
+		String shortName = ReaderUtils.getImageName(meta, seriesIndex);
+		if (shortName == null || shortName.isBlank()) {
+			if (multiImage) {
+				return baseName + " - Series " + seriesIndex;
+			}
+		} else if (!baseName.equals(shortName)) {
+			return baseName + " - " + shortName;
+		}
+		return baseName;
+	}
+
+
+	private static List<ImageResolutionLevel> buildResolutions(IFormatReader reader, int width, int height) {
+		// Loop through the series & determine downsamples
+		int nResolutions = reader.getResolutionCount();
+		var resolutionBuilder = new ImageResolutionLevel.Builder(width, height)
+				.addFullResolutionLevel();
+
+		// I have seen czi files where the resolutions are not read correctly & this results in an IndexOutOfBoundsException
+		for (int i = 1; i < nResolutions; i++) {
+			reader.setResolution(i);
+			try {
+				int w = reader.getSizeX();
+				int h = reader.getSizeY();
+				if (w <= 0 || h <= 0) {
+					logger.warn("Invalid resolution size {} x {}! Will skip this level, but something seems wrong...", w, h);
+					continue;
+				}
+				// In some VSI images, the calculated downsamples for width & height can be wildly discordant,
+				// and we are better off using defaults
+				if ("CellSens VSI".equals(reader.getFormat())) {
+					double downsampleX = (double)width / w;
+					double downsampleY = (double)height / h;
+					double downsample = Math.pow(2, i);
+					if (!GeneralTools.almostTheSame(downsampleX, downsampleY, 0.01)) {
+						logger.warn("Non-matching downsamples calculated for level {} ({} and {}); will use {} instead", i, downsampleX, downsampleY, downsample);
+						resolutionBuilder.addLevel(downsample, w, h);
+						continue;
+					}
+				}
+				resolutionBuilder.addLevel(w, h);
+			} catch (Exception e) {
+				logger.warn("Error attempting to extract resolution {}", i, e);
+				break;
+			}
+		}
+		return resolutionBuilder.build();
+	}
+
 	
 	/**
 	 * Get a sensible default tile size for a specified dimension.
@@ -716,6 +705,24 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		return Math.min(tileLength, imageLength);
 	}
 
+	/**
+	 * Prefer a file path where possible, but Bio-Formats can support some URLs as a Location.
+	 * @param uri the uri of the image to open
+	 * @return a string representing the file path (if available), or URI otherwise
+	 */
+	private static String convertToFilePathOrUrl(URI uri) {
+		try {
+			var path = GeneralTools.toPath(uri);
+			if (path != null) {
+				// Use toRealPath to resolve any symbolic links
+				return path.toRealPath().toString();
+			}
+		} catch (Exception e) {
+			logger.error(e.getLocalizedMessage(), e);
+		}
+		logger.debug("Using URI as file path: {}", uri);
+		return uri.toString();
+	}
 
 	/**
 	 * Get the format String, as returned by Bio-Formats {@code IFormatReader.getFormat()}.
