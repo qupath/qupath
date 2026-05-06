@@ -152,7 +152,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	/**
 	 * ColorModel to use with all BufferedImage requests.
 	 */
-	private ColorModel colorModel;
+	private final ColorModel colorModel;
 	
 	/**
 	 * Pool of readers for use with this server.
@@ -243,8 +243,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		
 		// Try to get a local file path, but accept something else (since Bio-Formats handles other URIs)
 		filePathOrUrl = convertToFilePathOrUrl(uri);
-
-		List<ImageChannel> channels = new ArrayList<>();
 
 		// Create a reader & extract the metadata
 		readerPool = new ReaderPool(options, filePathOrUrl, bfArgs);
@@ -420,100 +418,18 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 				isRGB = false;
 
 			// Try to read the default display colors for each channel from the file
+			List<ImageChannel> channels;
 			if (isRGB) {
-				channels.addAll(ImageChannel.getDefaultRGBChannels());
+				channels = List.copyOf(ImageChannel.getDefaultRGBChannels());
 			} else {
-				// Get channel colors and names
-				var tempColors = new ArrayList<ome.xml.model.primitives.Color>(nChannels);
-				var tempNames = new ArrayList<String>(nChannels);
-				// Be prepared to use default channels if something goes wrong
-				try {
-					int metaChannelCount = meta.getChannelCount(series);
-					// Handle the easy case where the number of channels matches our expectations
-					if (metaChannelCount == nChannels) {
-						for (int c = 0; c < nChannels; c++) {
-							try {
-								// try/catch from old code, before we explicitly checked channel count
-								// No exception should occur now
-								var channelName = meta.getChannelName(series, c);
-								var color = meta.getChannelColor(series, c);
-								tempNames.add(channelName);
-								tempColors.add(color);
-							} catch (Exception e) {
-								logger.warn("Unable to parse name or color for channel {}", c);
-								logger.debug("Unable to parse color", e);
-							}
-						}
-					} else {
-						// Handle the harder case, where we have a different number of channels
-						// I've seen this with a polarized light CZI image, with a channel count of 2 
-						// but in which each of these had 3 samples (resulting in a total of 6 channels)
-						logger.debug("Attempting to parse {} channels with metadata channel count {}", nChannels, metaChannelCount);
-						int ind = 0;
-						for (int cInd = 0; cInd < metaChannelCount; cInd++) {
-							int nSamples = meta.getChannelSamplesPerPixel(series, cInd).getValue();
-							var baseChannelName = meta.getChannelName(series, cInd);
-							if (baseChannelName != null && baseChannelName.isBlank())
-								baseChannelName = null;
-							// I *expect* this to be null for interleaved channels, in which case it will be filled in later
-							var color = meta.getChannelColor(series, cInd);
-							for (int sampleInd = 0; sampleInd < nSamples; sampleInd++) {
-								String channelName;
-								if (baseChannelName == null)
-									channelName = "Channel " + (ind + 1);
-								else
-									channelName = baseChannelName.strip() + " " + (sampleInd + 1);
-								
-								tempNames.add(channelName);
-								tempColors.add(color);
-								
-								ind++;
-							}
-						}
-					}
-				} catch (Exception e) {
-					logger.warn("Exception parsing channels {}", e.getMessage(), e);
-				}
-				if (nChannels != tempNames.size() || tempNames.size() != tempColors.size()) {
-					logger.warn("The channel names and colors read from the metadata don't match the expected number of channels!");
-					logger.warn("Be very cautious working with channels, since the names and colors may be misaligned, incorrect or default values.");
-					long nNames = tempNames.stream().filter(n -> n != null && !n.isBlank()).count();
-					long nColors = tempColors.stream().filter(Objects::nonNull).count();
-					logger.warn("(I expected {} channels, but found {} names and {} colors)", nChannels, nNames, nColors);
-				}
-				
-					
-				// Now loop through whatever we could parse and add QuPath ImageChannel objects
-				for (int c = 0; c < nChannels; c++) {
-					String channelName = c < tempNames.size() ? tempNames.get(c) : null;
-					var color = c < tempColors.size() ? tempColors.get(c) : null; 
-					Integer channelColor = null;
-					if (color != null)
-						channelColor = ColorTools.packARGB(color.getAlpha(), color.getRed(), color.getGreen(), color.getBlue());
-					else {
-						// Select next available default color, or white (for grayscale) if only one channel
-						if (nChannels == 1)
-							channelColor = ColorTools.packRGB(255, 255, 255);
-						else
-							channelColor = ImageChannel.getDefaultChannelColor(c);
-					}
-					if (channelName == null || channelName.isBlank())
-						channelName = "Channel " + (c + 1);
-					channels.add(ImageChannel.getInstance(channelName, channelColor));
-				}
-				assert nChannels == channels.size();
-				// Update RGB status if needed - sometimes we might really have an RGB image, but the Bio-Formats flag doesn't show this - 
-				// and we want to take advantage of the optimizations where we can
-				if (nChannels == 3 && 
+				channels = parseChannels(meta, series, nChannels);
+				// Update RGB status if needed - sometimes we might really have an RGB image, but the Bio-Formats flag
+				// doesn't show this - and we want to take advantage of the packed int optimizations where we can
+				isRGB = nChannels == 3 &&
 						pixelType == PixelType.UINT8 &&
-						channels.equals(ImageChannel.getDefaultRGBChannels())
-						) {
-					isRGB = true;
-					colorModel = ColorModel.getRGBdefault();
-				} else {
-					colorModel = ColorModelFactory.createColorModel(pixelType, channels);
-				}
+						channels.equals(ImageChannel.getDefaultRGBChannels());
 			}
+			colorModel = isRGB ? ColorModel.getRGBdefault() : ColorModelFactory.createColorModel(pixelType, channels);
 
 			// Try parsing pixel sizes in micrometers
 			double[] timepoints = null;
@@ -605,6 +521,90 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 
 		long endTime = System.currentTimeMillis();
 		logger.debug("Initialization time: {} ms", endTime - startTime);
+	}
+
+
+	private static List<ImageChannel> parseChannels(final MetadataRetrieve meta, final int series, final int nChannels) {
+		// Get channel colors and names
+		var tempColors = new ArrayList<ome.xml.model.primitives.Color>(nChannels);
+		var tempNames = new ArrayList<String>(nChannels);
+		// Be prepared to use default channels if something goes wrong
+		try {
+			int metaChannelCount = meta.getChannelCount(series);
+			// Handle the easy case where the number of channels matches our expectations
+			if (metaChannelCount == nChannels) {
+				for (int c = 0; c < nChannels; c++) {
+					try {
+						// try/catch from old code, before we explicitly checked channel count
+						// No exception should occur now
+						var channelName = meta.getChannelName(series, c);
+						var color = meta.getChannelColor(series, c);
+						tempNames.add(channelName);
+						tempColors.add(color);
+					} catch (Exception e) {
+						logger.warn("Unable to parse name or color for channel {}", c);
+						logger.debug("Unable to parse color", e);
+					}
+				}
+			} else {
+				// Handle the harder case, where we have a different number of channels
+				// I've seen this with a polarized light CZI image, with a channel count of 2
+				// but in which each of these had 3 samples (resulting in a total of 6 channels)
+				logger.debug("Attempting to parse {} channels with metadata channel count {}", nChannels, metaChannelCount);
+				int ind = 0;
+				for (int cInd = 0; cInd < metaChannelCount; cInd++) {
+					int nSamples = meta.getChannelSamplesPerPixel(series, cInd).getValue();
+					var baseChannelName = meta.getChannelName(series, cInd);
+					if (baseChannelName != null && baseChannelName.isBlank())
+						baseChannelName = null;
+					// I *expect* this to be null for interleaved channels, in which case it will be filled in later
+					var color = meta.getChannelColor(series, cInd);
+					for (int sampleInd = 0; sampleInd < nSamples; sampleInd++) {
+						String channelName;
+						if (baseChannelName == null)
+							channelName = "Channel " + (ind + 1);
+						else
+							channelName = baseChannelName.strip() + " " + (sampleInd + 1);
+
+						tempNames.add(channelName);
+						tempColors.add(color);
+
+						ind++;
+					}
+				}
+			}
+		} catch (Exception e) {
+			logger.warn("Exception parsing channels {}", e.getMessage(), e);
+		}
+		if (nChannels != tempNames.size() || tempNames.size() != tempColors.size()) {
+			logger.warn("The channel names and colors read from the metadata don't match the expected number of channels!");
+			logger.warn("Be very cautious working with channels, since the names and colors may be misaligned, incorrect or default values.");
+			long nNames = tempNames.stream().filter(n -> n != null && !n.isBlank()).count();
+			long nColors = tempColors.stream().filter(Objects::nonNull).count();
+			logger.warn("(I expected {} channels, but found {} names and {} colors)", nChannels, nNames, nColors);
+		}
+
+		// Now loop through whatever we could parse and add QuPath ImageChannel objects
+		List<ImageChannel> channels = new ArrayList<>();
+		for (int c = 0; c < nChannels; c++) {
+			String channelName = c < tempNames.size() ? tempNames.get(c) : null;
+			var color = c < tempColors.size() ? tempColors.get(c) : null;
+			Integer channelColor;
+			if (color != null)
+				channelColor = ColorTools.packARGB(color.getAlpha(), color.getRed(), color.getGreen(), color.getBlue());
+			else {
+				// Select next available default color, or white (for grayscale) if only one channel
+				if (nChannels == 1)
+					channelColor = ColorTools.packRGB(255, 255, 255);
+				else
+					channelColor = ImageChannel.getDefaultChannelColor(c);
+			}
+			if (channelName == null || channelName.isBlank())
+				channelName = "Channel " + (c + 1);
+			channels.add(ImageChannel.getInstance(channelName, channelColor));
+		}
+		assert nChannels == channels.size();
+		return channels;
 	}
 
 
