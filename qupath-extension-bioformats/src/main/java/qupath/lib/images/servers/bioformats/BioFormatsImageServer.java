@@ -47,6 +47,7 @@ import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
@@ -361,32 +362,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			format = reader.getFormat();
 			logger.debug("Reading format: {}", format);
 
-			// Try getting the magnification
-			double magnification = tryToGetMagnification(meta, seriesIndex).orElse(Double.NaN);
-
 			// Get the dimensions for the requested series
 			// The first resolution is the highest, i.e. the largest image
 			int width = reader.getSizeX();
 			int height = reader.getSizeY();
 
-			// When opening Zarr images, reader.getOptimalTileWidth/Height() returns by default
-			// the chunk width/height of the lowest resolution image. See
-			// https://github.com/qupath/qupath/pull/1645#issue-2533834067 for why it may be a problem.
-			// A workaround to get the chunk size of the full resolution image is to set the resolution
-			// to 0 with the Zarr reader
-			if (reader instanceof ZarrReader zarrReader) {
-				zarrReader.setResolution(0, true);
-			}
-			int tileWidth = reader.getOptimalTileWidth();
-			int tileHeight = reader.getOptimalTileHeight();
-
 			int nChannels = reader.getSizeC();
-
-			// Make sure tile sizes are within range
-			if (tileWidth != width)
-				tileWidth = getDefaultTileLength(tileWidth, width);
-			if (tileHeight != height)
-				tileHeight = getDefaultTileLength(tileHeight, height);
 
 			int nZSlices = reader.getSizeZ();
 			int nTimepoints = reader.getSizeT();
@@ -394,19 +375,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			PixelType pixelType = ReaderUtils.formatToPixelType(reader.getPixelType());
 			if (Set.of(PixelType.INT8, PixelType.UINT32).contains(pixelType)) {
 				logger.warn("Pixel type {} is not currently supported", pixelType);
-			}
-			
-			// Determine min/max values if we can
-			int bpp = reader.getBitsPerPixel();
-			Number minValue = null;
-			Number maxValue = null;
-			if (bpp < pixelType.getBitsPerPixel()) {
-				if (pixelType.isSignedInteger()) {
-					minValue = -(int)Math.pow(2, bpp-1);
-					maxValue = (int)(Math.pow(2, bpp-1) - 1);
-				} else if (pixelType.isUnsignedInteger()) {
-					maxValue = (int)(Math.pow(2, bpp) - 1);
-				}
 			}
 			
 			boolean isRGB = reader.isRGB() && pixelType == PixelType.UINT8;
@@ -431,86 +399,43 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			}
 			colorModel = isRGB ? ColorModel.getRGBdefault() : ColorModelFactory.createColorModel(pixelType, channels);
 
-			// Try parsing pixel sizes in micrometers
-			double[] timepoints = null;
-			TimeUnit timeUnit = null;
-			double pixelWidth, pixelHeight, zSpacing = Double.NaN;
-			try {
-				Length xSize = meta.getPixelsPhysicalSizeX(series);
-				Length ySize = meta.getPixelsPhysicalSizeY(series);
-				if (xSize != null && ySize != null) {
-					pixelWidth = xSize.value(UNITS.MICROMETER).doubleValue();
-					pixelHeight = ySize.value(UNITS.MICROMETER).doubleValue();
-				} else {
-					pixelWidth = Double.NaN;
-					pixelHeight = Double.NaN;			    		
-				}
-				// If we have multiple z-slices, parse the spacing
-				if (nZSlices > 1) {
-					Length zSize = meta.getPixelsPhysicalSizeZ(series);
-					if (zSize != null)
-						zSpacing = zSize.value(UNITS.MICROMETER).doubleValue();
-					else
-						zSpacing = Double.NaN;
-				}
-				// TODO: Check the Bioformats TimeStamps
-				if (nTimepoints > 1) {
-					logger.warn("Time stamps read from Bioformats have not been fully verified & should not be relied upon (values updated in v0.6.0)");
-					var timeIncrement = meta.getPixelsTimeIncrement(series);
-					if (timeIncrement != null) {
-						timepoints = new double[nTimepoints];
-						double timeIncrementSeconds = timeIncrement.value(UNITS.SECOND).doubleValue();
-						for (int t = 0; t < nTimepoints; t++) {
-							timepoints[t] = t * timeIncrementSeconds;
-						}
-						timeUnit = TimeUnit.SECONDS;
-					}
-				}
-			} catch (Exception e) {
-				logger.error("Error parsing metadata", e);
-				pixelWidth = Double.NaN;
-				pixelHeight = Double.NaN;
-				zSpacing = Double.NaN;
-				timepoints = null;
-				timeUnit = null;
-			}
-
-			// Generate a suitable name for this image
 			String imageName = getImageName(meta, getFile().getName(), seriesIndex, imageMap.size() > 1);
-
-			// Build resolutions
 			var resolutions = buildResolutions(reader, width, height);
-			
+			int[] tileSizes = getTileWidthAndHeight(reader);
+
 			// Set metadata
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
 					getClass(), getPath(), width, height).
-					minValue(minValue).
-					maxValue(maxValue).
 					name(imageName).
 					channels(channels).
 					sizeZ(nZSlices).
 					sizeT(nTimepoints).
 					levels(resolutions).
 					pixelType(pixelType).
-					rgb(isRGB);
+					rgb(isRGB).
+					preferredTileSize(tileSizes[0], tileSizes[1]);
 
+			// Determine min/max values if we can
+			int bpp = reader.getBitsPerPixel();
+			if (bpp < pixelType.getBitsPerPixel()) {
+				if (pixelType.isSignedInteger()) {
+					builder.minValue(Math.pow(2, bpp-1));
+					builder.maxValue(Math.pow(2, bpp-1) - 1);
+				} else if (pixelType.isUnsignedInteger()) {
+					builder.minValue(0);
+					builder.maxValue(Math.pow(2, bpp) - 1);
+				}
+			}
+
+			try {
+				builder.pixelCalibration(parsePixelCalibration(meta, series, nZSlices, nTimepoints));
+			} catch (Exception e) {
+				logger.error("Error parsing pixel calibration", e);
+			}
+
+			double magnification = tryToGetMagnification(meta, seriesIndex).orElse(Double.NaN);
 			if (Double.isFinite(magnification))
 				builder = builder.magnification(magnification);
-
-			if (timeUnit != null && timepoints != null)
-				builder = builder.timepoints(timeUnit, timepoints);
-
-			if (Double.isFinite(pixelWidth + pixelHeight))
-				builder = builder.pixelSizeMicrons(pixelWidth, pixelHeight);
-
-			if (Double.isFinite(zSpacing))
-				builder = builder.zSpacingMicrons(zSpacing);
-
-			// Check the tile size if it is reasonable
-			if ((long)tileWidth * (long)tileHeight * (long)nChannels * (bpp/8) >= Integer.MAX_VALUE) {
-				builder.preferredTileSize(Math.min(DEFAULT_TILE_SIZE, width), Math.min(DEFAULT_TILE_SIZE, height));
-			} else
-				builder.preferredTileSize(tileWidth, tileHeight);
 
 			originalMetadata = builder.build();
 		}
@@ -523,6 +448,79 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		logger.debug("Initialization time: {} ms", endTime - startTime);
 	}
 
+
+	private static int[] getTileWidthAndHeight(IFormatReader reader) {
+		// When opening Zarr images, reader.getOptimalTileWidth/Height() returns by default
+		// the chunk width/height of the lowest resolution image. See
+		// https://github.com/qupath/qupath/pull/1645#issue-2533834067 for why it may be a problem.
+		// A workaround to get the chunk size of the full resolution image is to set the resolution
+		// to 0 with the Zarr reader
+		if (reader instanceof ZarrReader zarrReader) {
+			zarrReader.setResolution(0, true);
+		} else {
+			reader.setResolution(0);
+		}
+
+		// Dimensions
+		int width = reader.getSizeX();
+		int height = reader.getSizeY();
+		int nChannels = reader.getSizeC();
+		int bpp = reader.getBitsPerPixel() / 8;
+
+		// Make sure tile sizes are within range
+		int tileWidth = reader.getOptimalTileWidth();
+		int tileHeight = reader.getOptimalTileHeight();
+		if (tileWidth != width)
+			tileWidth = getDefaultTileLength(tileWidth, width);
+		if (tileHeight != height)
+			tileHeight = getDefaultTileLength(tileHeight, height);
+
+		// Ensure the tile sizes aren't too large
+		if ((long)tileWidth * (long)tileHeight * (long)nChannels * bpp >= Integer.MAX_VALUE) {
+			return new int[] {Math.min(DEFAULT_TILE_SIZE, width), Math.min(DEFAULT_TILE_SIZE, height)};
+		} else {
+			return new int[] {tileWidth, tileHeight};
+		}
+	}
+
+
+	private static PixelCalibration parsePixelCalibration(MetadataRetrieve meta, int series, int nZSlices, int nTimepoints) {
+
+		var builder = new PixelCalibration.Builder();
+
+		Length xSize = meta.getPixelsPhysicalSizeX(series);
+		Length ySize = meta.getPixelsPhysicalSizeY(series);
+		if (xSize != null && ySize != null) {
+			builder.pixelSizeMicrons(
+					xSize.value(UNITS.MICROMETER),
+					ySize.value(UNITS.MICROMETER)
+			);
+		}
+		// If we have multiple z-slices, parse the spacing
+		if (nZSlices > 1) {
+			Length zSize = meta.getPixelsPhysicalSizeZ(series);
+			if (zSize != null) {
+				builder.zSpacingMicrons(
+						zSize.value(UNITS.MICROMETER)
+				);
+			}
+		}
+		// TODO: Check the Bioformats TimeStamps
+		if (nTimepoints > 1) {
+			logger.warn("Time stamps read from Bio-Formats have not been fully verified & should not be relied upon (values updated in v0.6.0)");
+			var timeIncrement = meta.getPixelsTimeIncrement(series);
+			if (timeIncrement != null) {
+				double[] timepoints = new double[nTimepoints];
+				double timeIncrementSeconds = timeIncrement.value(UNITS.SECOND).doubleValue();
+				for (int t = 0; t < nTimepoints; t++) {
+					timepoints[t] = t * timeIncrementSeconds;
+				}
+				builder.timepoints(TimeUnit.SECONDS, timepoints);
+			}
+		}
+
+		return builder.build();
+	}
 
 	private static List<ImageChannel> parseChannels(final MetadataRetrieve meta, final int series, final int nChannels) {
 		// Get channel colors and names
