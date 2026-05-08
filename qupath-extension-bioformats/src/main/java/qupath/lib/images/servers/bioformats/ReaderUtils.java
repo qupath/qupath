@@ -1,6 +1,7 @@
 package qupath.lib.images.servers.bioformats;
 
 import java.io.IOException;
+import java.util.Optional;
 import loci.formats.FormatTools;
 import ome.xml.meta.MetadataRetrieve;
 import qupath.lib.common.GeneralTools;
@@ -57,12 +58,12 @@ class ReaderUtils {
      * <p>
      * See https://github.com/qupath/qupath/issues/573
      * @param series the series (image) whose name should be requested
-     * @return the name, or null if no name is found
+     * @return an optional containing the name, if available
      */
-    static String getImageName(MetadataRetrieve meta, int series) {
+    static Optional<String> getImageName(MetadataRetrieve meta, int series) {
          String name = meta.getImageName(series);
          while (name != null && name.endsWith("\0"))
              name = name.substring(0, name.length()-1);
-         return name;
+         return Optional.ofNullable(name);
     }
 }

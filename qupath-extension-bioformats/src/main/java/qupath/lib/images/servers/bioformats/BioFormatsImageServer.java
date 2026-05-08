@@ -24,6 +24,7 @@
 package qupath.lib.images.servers.bioformats;
 
 import java.util.OptionalDouble;
+import java.util.function.Predicate;
 import loci.common.services.DependencyException;
 import loci.common.services.ServiceException;
 import loci.formats.FormatException;
@@ -116,15 +117,15 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	private final URI uri;
 
 	/**
-	 * Original metadata, populated when reading the file.
-	 */
-	private final ImageServerMetadata originalMetadata;
-	
-	/**
 	 * Arguments passed to constructor.
 	 */
 	private final String[] args;
-	
+
+	/**
+	 * Original metadata, populated when reading the file.
+	 */
+	private final ImageServerMetadata originalMetadata;
+
 	/**
 	 * File path if possible, or a URI otherwise.
 	 */
@@ -144,12 +145,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	 * Numeric identifier for the image (there might be more than one in the file)
 	 */
 	private final int series;
-	
-	/**
-	 * Format for the current reader.
-	 */
-	private final String format;
-	
+
 	/**
 	 * ColorModel to use with all BufferedImage requests.
 	 */
@@ -159,32 +155,15 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	 * Pool of readers for use with this server.
 	 */
 	private final ReaderPool readerPool;
-
 	
 	/**
-	 * Create an ImageServer using the Bio-Formats library.
-	 * <p>
-	 * This requires an <i>absolute</i> URI, where an integer fragment can be used to define the series number.
-	 * 
-	 * @param uri for the image that should be opened; this might include a sub-image as a query or fragment.
+	 * Create a minimal BioFormatsImageServer that can be used to query server builders.
+	 * This is checked to ensure it can return at least one pixel, to avoid returning a server that will fail later.
+	 * @param uri the URI of the image to open
+	 * @param options standard Bio-Formats options
 	 * @param args optional arguments
-	 * @throws FormatException
-	 * @throws IOException
-	 * @throws DependencyException
-	 * @throws ServiceException
-	 * @throws URISyntaxException 
-	 */
-	public BioFormatsImageServer(final URI uri, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
-		this(uri, BioFormatsServerOptions.getInstance(), args);
-	}
-	
-	/**
-	 * Create a minimal BioFormatsImageServer without additional readers, which can be used to query server builders.
-	 * @param uri
-	 * @param options
-	 * @param args
-	 * @return
-	 * @throws IOException
+	 * @return a server containing an image that can return pixels
+	 * @throws IOException if the image cannot be read
 	 */
 	static BioFormatsImageServer checkSupport(URI uri, final BioFormatsServerOptions options, String...args) throws IOException {
 		try {
@@ -200,48 +179,138 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			throw ReaderUtils.convertToIOException(t);
 		}
 	}
-	
+
+	/**
+	 * Create an ImageServer using the Bio-Formats library.
+	 * <p>
+	 * This requires an <i>absolute</i> URI, where an integer fragment can be used to define the series number.
+	 *
+	 * @param uri for the image that should be opened; this might include a sub-image as a query or fragment.
+	 * @param args optional arguments
+	 * @throws FormatException
+	 * @throws IOException
+	 * @throws DependencyException
+	 * @throws ServiceException
+	 * @throws URISyntaxException
+	 */
+	public BioFormatsImageServer(final URI uri, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
+		this(uri, BioFormatsServerOptions.getInstance(), args);
+	}
+
+	record SeriesDimensions(
+			long sizeX, long sizeY, long sizeC, long sizeZ, long sizeT
+	) {
+
+		long totalPixelsXY() {
+			return sizeX * sizeY;
+		}
+
+		long totalPixelsXYZT() {
+			return totalPixelsXY() * sizeZ * sizeT;
+		}
+
+		long totalPixelsIncludingChannels() {
+			return totalPixelsXYZT() * sizeC;
+		}
+
+	}
+
+	static class Series {
+
+		private final int seriesNumber;
+		private final String originalSeriesName;
+		private final String cleanSeriesName;
+		private final String uniqueName;
+		private final List<SeriesDimensions> resolutions;
+
+		private Series(int seriesNumber, String originalSeriesName, List<SeriesDimensions> resolutions) {
+			this.seriesNumber = seriesNumber;
+			this.originalSeriesName = originalSeriesName == null ? "" : originalSeriesName;
+			this.cleanSeriesName = cleanName(this.originalSeriesName);
+			this.uniqueName = this.cleanSeriesName.isEmpty() ?
+					String.format("Series %d", this.seriesNumber):
+					String.format("Series %d (%s)", this.seriesNumber, this.cleanSeriesName);
+			Objects.requireNonNull(resolutions, "Resolutions must not be null!");
+			this.resolutions = List.copyOf(resolutions);
+		}
+
+		private static String cleanName(final String name) {
+			String cleanName = name;
+			while (cleanName != null && cleanName.endsWith("\0"))
+				cleanName = cleanName.substring(0, cleanName.length()-1);
+			return cleanName;
+		}
+
+		/**
+		 * Get the integer series number, compatible with {@link IFormatReader#setSeries(int)}.
+		 * @return
+		 */
+		public int getSeries() {
+			return seriesNumber;
+		}
+
+		/**
+		 * Get the original series name as stored in the metadata,
+		 * or an empty string if no name is stored.
+		 * @return
+		 */
+		public String getOriginalSeriesName() {
+			return originalSeriesName;
+		}
+
+		/**
+		 * Get a name for display. This includes the series number, so is unique.
+		 * @return
+		 */
+		public String getUniqueSeriesName() {
+			return uniqueName;
+		}
+
+		/**
+		 * Get a cleaned version of the original series name, removing any trailing null terminators.
+		 * <p>
+		 * See https://github.com/qupath/qupath/issues/573
+		 * @return
+		 */
+		public String getCleanSeriesName() {
+			return cleanSeriesName;
+		}
+
+		public long totalPixelsXYZT() {
+			if (resolutions.isEmpty())
+				return 0;
+			else
+				return resolutions.getFirst().totalPixelsXYZT();
+		}
+
+		public int nResolutions() {
+			return resolutions.size();
+		}
+
+		public List<SeriesDimensions> getResolutions() {
+			return resolutions;
+		}
+
+		boolean isAssociatedImage() {
+			return nResolutions() == 1 &&
+					(extraImageNames.contains(originalSeriesName.toLowerCase()) ||
+					extraImageNames.contains(cleanSeriesName.toLowerCase()));
+		}
+
+	}
+
+
 	private BioFormatsImageServer(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
 		super();
 
 		long startTime = System.currentTimeMillis();
 
-		// Zarr images can be opened by selecting the .zattrs or .zgroup file
-		// In that case, the parent directory contains the whole image
-		if (uri.toString().endsWith(".zattrs") || uri.toString().endsWith(".zgroup")) {
-			uri = new File(uri).getParentFile().toURI();
-		}
-		
-		// See if there is a series name embedded in the path (temporarily the way things were done in v0.2.0-m1 and v0.2.0-m2)
-		// Add it to the args if so
-		if (args.length == 0) {
-			if (uri.getFragment() != null) {
-				args = new String[] {"--series", uri.getFragment()};
-			} else if (uri.getQuery() != null) {
-				// Queries supported name=image-name or series=series-number... only one or the other!
-				String query = uri.getQuery();
-				String seriesQuery = "series=";
-				String nameQuery = "name=";
-				if (query.startsWith(seriesQuery)) {
-					args = new String[] {"--series", query.substring(seriesQuery.length())};
-				} else if (query.startsWith(nameQuery)) {
-					args = new String[] {"--name", query.substring(nameQuery.length())};
-				}
-			}
-			uri = new URI(uri.getScheme(), uri.getHost(), uri.getPath(), null);
-		}
-		this.uri = uri;
+		this.uri = cleanUri(uri);
 		
 		// Parse the arguments
-		this.args = args;
+		this.args = args.clone();
 		var bfArgs = BioFormatsArgs.parse(args);
 
-		// Try to parse args, extracting the series if present
-		int seriesIndex = bfArgs.series;
-		String requestedSeriesName = bfArgs.seriesName;
-		if (requestedSeriesName.isBlank())
-			requestedSeriesName = null;
-		
 		// Try to get a local file path, but accept something else (since Bio-Formats handles other URIs)
 		filePathOrUrl = convertToFilePathOrUrl(uri);
 
@@ -250,202 +319,281 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		IFormatReader reader = readerPool.getMainReader();
 		var meta = (OMEPyramidStore)reader.getMetadataStore();
 
-		// Populate the image server list if we have more than one image
-		int largestSeries = -1;
-		int firstSeries = -1;
-		long mostPixels = -1L;
-		long firstPixels = -1L;
-
 		// If we have more than one series, we need to construct maps of 'analyzable' & associated images
 		synchronized (reader) {
 			int nImages = meta.getImageCount();
 			imageMap = new LinkedHashMap<>(nImages);
 			associatedImageMap = new LinkedHashMap<>(nImages);
 
-			// Loop through series to find out whether we have multiresolution images, or associated images (e.g. thumbnails)
-			for (int s = 0; s < nImages; s++) {
-				String name = "Series " + s;
-				String originalImageName = ReaderUtils.getImageName(meta, s);
-				if (originalImageName == null)
-					originalImageName = "";
-				
-				String imageName = originalImageName;
-				try {
-					if (!imageName.isEmpty())
-						name += " (" + imageName + ")";
-					
-					// Set this to be the series, if necessary
-					long sizeX = meta.getPixelsSizeX(s).getNumberValue().longValue();
-					long sizeY = meta.getPixelsSizeY(s).getNumberValue().longValue();
-					long sizeC = meta.getPixelsSizeC(s).getNumberValue().longValue();
-					long sizeZ = meta.getPixelsSizeZ(s).getNumberValue().longValue();
-					long sizeT = meta.getPixelsSizeT(s).getNumberValue().longValue();
-					
-					// It seems we can't get the resolutions from the metadata object... instead we need to set the series of the reader
-					reader.setSeries(s);
-					assert reader.getSizeX() == sizeX;
-					assert reader.getSizeY() == sizeY;
-					int nResolutions = reader.getResolutionCount();
-					for (int r = 1; r < nResolutions; r++) {
-						reader.setResolution(r);
-						int sizeXR = reader.getSizeX();
-						int sizeYR = reader.getSizeY();
-						if (sizeXR <= 0 || sizeYR <= 0 || sizeXR > sizeX || sizeYR > sizeY)
-							throw new IllegalArgumentException("Resolution " + r + " size " + sizeXR + " x " + sizeYR + " invalid!");
-					}
+			List<Series> allSeries = parseAllSeries(reader);
+			// TODO: Consider making below method static.
+			//       Could use Map<String, Series>, but delayed creation of ServerBuilder
+			//       may fail if the URI is no longer 'clean', i.e., not encoding the series
+			populateImageMaps(allSeries, bfArgs, uri);
 
-					// If we got this far, we have an image we can add
-					if (reader.getResolutionCount() == 1 && (
-							extraImageNames.contains(originalImageName.toLowerCase()) || extraImageNames.contains(name.toLowerCase().trim()))) {
-						logger.debug("Adding associated image {} (thumbnail={})", name, reader.isThumbnailSeries());
-						associatedImageMap.put(name, s);
-					} else {
-						if (imageMap.containsKey(name))
-							logger.warn("Duplicate image called {} - only the first will be used", name);
-						else {
-							if (firstSeries < 0) {
-								firstSeries = s;
-								firstPixels = sizeX * sizeY * sizeZ * sizeT;
-							}
-							imageMap.put(name, DefaultImageServerBuilder.createInstance(
-									BioFormatsServerBuilder.class, null, uri,
-									bfArgs.backToArgs(s)
-									));
-						}
-					}
-
-					if (seriesIndex < 0) {
-						if (requestedSeriesName == null) {
-							long nPixels = sizeX * sizeY * sizeZ * sizeT;
-							if (nPixels > mostPixels) {
-								largestSeries = s;
-								mostPixels = nPixels;
-							}
-						} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(ReaderUtils.getImageName(meta, s)) || requestedSeriesName.contentEquals(meta.getImageName(s))) {
-							seriesIndex = s;
-						}
-					}
-					logger.debug("Found image '{}', size: {} x {} x {} x {} x {} (xyczt)", imageName, sizeX, sizeY, sizeC, sizeZ, sizeT);
-				} catch (Exception e) {
-					// We don't want to log this prominently if we're requesting a different series anyway
-					if ((seriesIndex < 0 || seriesIndex == s) && (requestedSeriesName == null || requestedSeriesName.equals(imageName)))
-                        logger.warn("Error attempting to read series {} ({}) - will be skipped", s, imageName, e);
-					else
-                        logger.trace("Error attempting to read series {} ({}) - will be skipped", s, imageName, e);
-				}
-			}
-
-			// If we have just one image in the image list, then reset to none - we can't switch
-			if (imageMap.size() == 1 && seriesIndex < 0) {
-				seriesIndex = firstSeries;
-			} else if (imageMap.size() > 1) {
-				// Set default series index, if we need to
-				if (seriesIndex < 0) {
-					// Choose the first series unless it is substantially smaller than the largest series (e.g. it's a label or macro image)
-					if (mostPixels > firstPixels * 4L)
-						seriesIndex = largestSeries; // imageMap.values().iterator().next();
-					else
-						seriesIndex = firstSeries;
-				}
-				// If we have more than one image, ensure that we have the image name correctly encoded in the path
-				uri = new URI(uri.getScheme(), uri.getHost(), uri.getPath(), Integer.toString(seriesIndex));
-			}
-
-			if (seriesIndex < 0)
-				throw new IOException("Unable to find any valid images within " + uri);
-
-			// Store the series we are actually using
-			this.series = seriesIndex;
-			reader.setSeries(series);
-
-			// Get the format in case we need it
-			format = reader.getFormat();
-			logger.debug("Reading format: {}", format);
-
-			// Get the dimensions for the requested series
-			// The first resolution is the highest, i.e. the largest image
-			int width = reader.getSizeX();
-			int height = reader.getSizeY();
-
-			int nChannels = reader.getSizeC();
-
-			int nZSlices = reader.getSizeZ();
-			int nTimepoints = reader.getSizeT();
-
-			PixelType pixelType = ReaderUtils.formatToPixelType(reader.getPixelType());
-			if (Set.of(PixelType.INT8, PixelType.UINT32).contains(pixelType)) {
-				logger.warn("Pixel type {} is not currently supported", pixelType);
-			}
-			
-			boolean isRGB = reader.isRGB() && pixelType == PixelType.UINT8;
-			// Remove alpha channel
-			if (isRGB && nChannels == 4) {
-				logger.warn("Removing alpha channel");
-				nChannels = 3;
-			} else if (nChannels != 3)
-				isRGB = false;
-
-			// Try to read the default display colors for each channel from the file
-			List<ImageChannel> channels;
-			if (isRGB) {
-				channels = List.copyOf(ImageChannel.getDefaultRGBChannels());
-			} else {
-				channels = parseChannels(meta, series, nChannels);
-				// Update RGB status if needed - sometimes we might really have an RGB image, but the Bio-Formats flag
-				// doesn't show this - and we want to take advantage of the packed int optimizations where we can
-				isRGB = nChannels == 3 &&
-						pixelType == PixelType.UINT8 &&
-						channels.equals(ImageChannel.getDefaultRGBChannels());
-			}
-			colorModel = isRGB ? ColorModel.getRGBdefault() : ColorModelFactory.createColorModel(pixelType, channels);
-
-			String imageName = getImageName(meta, getFile().getName(), seriesIndex, imageMap.size() > 1);
-			var resolutions = buildResolutions(reader, width, height);
-			int[] tileSizes = getTileWidthAndHeight(reader);
-
-			// Set metadata
-			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
-					getClass(), getPath(), width, height).
-					name(imageName).
-					channels(channels).
-					sizeZ(nZSlices).
-					sizeT(nTimepoints).
-					levels(resolutions).
-					pixelType(pixelType).
-					rgb(isRGB).
-					preferredTileSize(tileSizes[0], tileSizes[1]);
-
-			// Determine min/max values if we can
-			int bpp = reader.getBitsPerPixel();
-			if (bpp < pixelType.getBitsPerPixel()) {
-				if (pixelType.isSignedInteger()) {
-					builder.minValue(Math.pow(2, bpp-1));
-					builder.maxValue(Math.pow(2, bpp-1) - 1);
-				} else if (pixelType.isUnsignedInteger()) {
-					builder.minValue(0);
-					builder.maxValue(Math.pow(2, bpp) - 1);
-				}
-			}
-
-			try {
-				builder.pixelCalibration(parsePixelCalibration(meta, series, nZSlices, nTimepoints));
-			} catch (Exception e) {
-				logger.error("Error parsing pixel calibration", e);
-			}
-
-			double magnification = tryToGetMagnification(meta, seriesIndex).orElse(Double.NaN);
-			if (Double.isFinite(magnification))
-				builder = builder.magnification(magnification);
-
-			originalMetadata = builder.build();
+			this.series = findSeriesToOpen(allSeries, bfArgs);
+			this.originalMetadata = buildOriginalMetadata(
+					reader,
+					series,
+					getImageName(meta, getFile().getName(), series, imageMap.size() > 1),
+					getPath());
 		}
 
-		// Bioformats can use ImageIO for JPEG decoding, and permitting the disk-based cache can slow it down... so here we turn it off
-		// TODO: Document - or improve - the setting of ImageIO disk cache
-		ImageIO.setUseCache(false);
-
+		colorModel = createColorModel(originalMetadata);
+		ensureImageIoCacheOff();
 		long endTime = System.currentTimeMillis();
 		logger.debug("Initialization time: {} ms", endTime - startTime);
+	}
+
+
+	private static int findSeriesToOpen(final List<Series> allSeries, final BioFormatsArgs bfArgs) throws IOException {
+		// Use the series index from the args whenever possible
+		int seriesIndex = bfArgs.series;
+		if (seriesIndex >= 0 && allSeries.stream().anyMatch(s -> seriesIndex == s.getSeries())) {
+			return seriesIndex;
+		}
+
+		// Use the series name from the args, if present
+		String requestedSeriesName = bfArgs.seriesName.isBlank() ? null : bfArgs.seriesName;
+		if (requestedSeriesName != null) {
+			var matchingSeries = findMatchingSeries(requestedSeriesName, allSeries);
+			if (matchingSeries.isPresent()) {
+				return matchingSeries.get().getSeries();
+			} else {
+				logger.warn("No series found with name {}", requestedSeriesName);
+			}
+		}
+
+		// Get the non-associated images
+		var imageSeries = allSeries.stream().filter(Predicate.not(Series::isAssociatedImage)).toList();
+		if (!imageSeries.isEmpty()) {
+			var firstSeries = imageSeries.getFirst();
+			if (imageSeries.size() == 1)
+				return firstSeries.getSeries();
+			// Take the first series unless it's substantially smaller than the others.
+			// If it's a lot smaller, it's probably a thumbnail.
+			// But if it's a *bit* smaller, we might simply have images of different sizes -
+			// and the user will most likely expect we pick the first image than one somewhere else in the list.
+			var maxPixels = imageSeries.stream().mapToLong(Series::totalPixelsXYZT).max().orElse(0L);
+			if (firstSeries.totalPixelsXYZT() * 4 > maxPixels)
+				return firstSeries.getSeries();
+			else
+				return findLargestSeries(imageSeries).map(Series::getSeries).orElseThrow(IOException::new);
+		}
+		throw new IOException("No suitable series found");
+	}
+
+
+	private void populateImageMaps(List<Series> allSeries,
+										  BioFormatsArgs bfArgs,
+										  URI uri) {
+		for (var series : allSeries) {
+			if (series.isAssociatedImage()) {
+				associatedImageMap.put(series.getUniqueSeriesName(), series.getSeries());
+			} else {
+				imageMap.put(series.getUniqueSeriesName(),
+						DefaultImageServerBuilder.createInstance(
+								BioFormatsServerBuilder.class, null, uri,
+								bfArgs.backToArgs(series.getSeries())
+						));
+			}
+		}
+	}
+
+	private static List<Series> parseAllSeries(IFormatReader reader) throws IOException {
+		var meta = (OMEPyramidStore)reader.getMetadataStore();
+		List<Series> allSeries = new ArrayList<>();
+		for (int s = 0; s < meta.getImageCount(); s++) {
+			reader.setSeries(s);
+
+			List<SeriesDimensions> resolutions = new ArrayList<>();
+			for (int r = 0; r < reader.getResolutionCount(); r++) {
+				var dims = new SeriesDimensions(
+						reader.getSizeX(),
+						reader.getSizeY(),
+						reader.getSizeC(),
+						reader.getSizeZ(),
+						reader.getSizeT()
+				);
+				resolutions.add(dims);
+			}
+			if (resolutions.isEmpty()) {
+				throw new IOException("No resolutions found for series " + s);
+			}
+			var series = new Series(s, meta.getImageName(s), resolutions);
+			allSeries.add(series);
+		}
+		return allSeries;
+	}
+
+
+	private static Optional<Series> findLargestSeries(Collection<Series> allSeries) {
+		long nPixels = -1;
+		Series maxSeries = null;
+		for (var series : allSeries) {
+			long n = series.getResolutions().getFirst().totalPixelsXYZT();
+			if (n > nPixels) {
+				maxSeries = series;
+				nPixels = n;
+			}
+		}
+		return Optional.ofNullable(maxSeries);
+	}
+
+	private static Optional<Series> findMatchingSeries(String requestedSeriesName, Collection<Series> allSeries) {
+		return allSeries.stream()
+				.filter(series -> isRequestedSeries(requestedSeriesName, series))
+				.findFirst();
+	}
+
+	private static boolean isRequestedSeries(String requestedSeriesName, Series series) {
+		return requestedSeriesName.equals(series.getUniqueSeriesName()) ||
+				requestedSeriesName.equals(series.getCleanSeriesName()) ||
+				requestedSeriesName.contentEquals(series.getOriginalSeriesName());
+	}
+
+
+	private static boolean isExtraImageName(String name) {
+		var lower = name.toLowerCase();
+		return extraImageNames.contains(lower) || extraImageNames.contains(lower.trim());
+	}
+
+
+	/**
+	 * Ensure the URI is valid for use with Bio-Formats, or throw an exception if invalid elements
+	 * (e.g., query, fragment) are found.
+	 * @param uri the input URI
+	 * @return the clean URI, or original URI if no cleaning is required
+	 * @throws IOException
+	 * @throws URISyntaxException
+	 */
+	private static URI cleanUri(URI uri) throws IOException, URISyntaxException {
+		// Zarr images can be opened by selecting the .zattrs or .zgroup file
+		// In that case, the parent directory contains the whole image
+		if (uri.toString().endsWith(".zattrs") || uri.toString().endsWith(".zgroup")) {
+			return new File(uri).getParentFile().toURI();
+		}
+
+		// See if there is a series name embedded in the path (temporarily the way things were done in v0.2.0-m1 and v0.2.0-m2)
+		// Add it to the args if so
+		if (uri.getFragment() != null) {
+			throw new IOException("Series as fragment no longer supported");
+		} else if (uri.getQuery() != null) {
+			// Queries supported name=image-name or series=series-number... only one or the other!
+			String query = uri.getQuery();
+			String seriesQuery = "series=";
+			String nameQuery = "name=";
+			if (query.startsWith(seriesQuery)) {
+				throw new IOException("Series as query no longer supported");
+			} else if (query.startsWith(nameQuery)) {
+				throw new IOException("Series name as query no longer supported");
+			}
+		}
+		return new URI(uri.getScheme(), uri.getHost(), uri.getPath(), null);
+	}
+
+
+	private static ImageServerMetadata buildOriginalMetadata(IFormatReader reader, int series, String imageName, String path) {
+		reader.setSeries(series);
+		MetadataRetrieve meta = (MetadataRetrieve)reader.getMetadataStore();
+
+		// Get the format in case we need it
+		logger.debug("Reading format: {}", reader.getFormat());
+
+		// Get the dimensions for the requested series
+		// The first resolution is the highest, i.e. the largest image
+		int width = reader.getSizeX();
+		int height = reader.getSizeY();
+
+		int nChannels = reader.getSizeC();
+
+		int nZSlices = reader.getSizeZ();
+		int nTimepoints = reader.getSizeT();
+
+		PixelType pixelType = ReaderUtils.formatToPixelType(reader.getPixelType());
+		if (Set.of(PixelType.INT8, PixelType.UINT32).contains(pixelType)) {
+			logger.warn("Pixel type {} is not currently supported", pixelType);
+		}
+
+		boolean isRGB = reader.isRGB() && pixelType == PixelType.UINT8;
+		// Remove alpha channel
+		if (isRGB && nChannels == 4) {
+			logger.warn("Removing alpha channel");
+			nChannels = 3;
+		} else if (nChannels != 3)
+			isRGB = false;
+
+		// Try to read the default display colors for each channel from the file
+		List<ImageChannel> channels;
+		if (isRGB) {
+			channels = List.copyOf(ImageChannel.getDefaultRGBChannels());
+		} else {
+			channels = parseChannels(meta, series, nChannels);
+			// Update RGB status if needed - sometimes we might really have an RGB image, but the Bio-Formats flag
+			// doesn't show this - and we want to take advantage of the packed int optimizations where we can
+			isRGB = nChannels == 3 &&
+					pixelType == PixelType.UINT8 &&
+					channels.equals(ImageChannel.getDefaultRGBChannels());
+		}
+
+		var resolutions = buildResolutions(reader, width, height);
+		int[] tileSizes = getTileWidthAndHeight(reader);
+
+		// Set metadata
+		ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
+				BioFormatsImageServer.class, path, width, height).
+				name(imageName).
+				channels(channels).
+				sizeZ(nZSlices).
+				sizeT(nTimepoints).
+				levels(resolutions).
+				pixelType(pixelType).
+				rgb(isRGB).
+				preferredTileSize(tileSizes[0], tileSizes[1]);
+
+		// Determine min/max values if we can
+		int bpp = reader.getBitsPerPixel();
+		if (bpp < pixelType.getBitsPerPixel()) {
+			if (pixelType.isSignedInteger()) {
+				builder.minValue(Math.pow(2, bpp-1));
+				builder.maxValue(Math.pow(2, bpp-1) - 1);
+			} else if (pixelType.isUnsignedInteger()) {
+				builder.minValue(0);
+				builder.maxValue(Math.pow(2, bpp) - 1);
+			}
+		}
+
+		try {
+			builder.pixelCalibration(parsePixelCalibration(meta, series, nZSlices, nTimepoints));
+		} catch (Exception e) {
+			logger.error("Error parsing pixel calibration", e);
+		}
+
+		double magnification = tryToGetMagnification(meta, series).orElse(Double.NaN);
+		if (Double.isFinite(magnification))
+			builder = builder.magnification(magnification);
+
+		return builder.build();
+	}
+
+
+	/**
+	 * Bio-Formats can use ImageIO for JPEG decoding, and permitting the disk-based cache can slow it down (a lot).
+	 * Here we turn it off; unfortunately, it can only be done globally.
+	 */
+	private static void ensureImageIoCacheOff() {
+		if (ImageIO.getUseCache()) {
+			logger.debug("Setting ImageIO.setUseCache(false)");
+			ImageIO.setUseCache(false);
+		}
+	}
+
+
+	private static ColorModel createColorModel(final ImageServerMetadata metadata) {
+		if (metadata.isRGB())
+			return ColorModel.getRGBdefault();
+		else
+			return ColorModelFactory.createColorModel(metadata.getPixelType(), metadata.getChannels());
 	}
 
 
@@ -638,8 +786,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 
 
 	private static String getImageName(MetadataRetrieve meta, String baseName, int seriesIndex, boolean multiImage) {
-		String shortName = ReaderUtils.getImageName(meta, seriesIndex);
-		if (shortName == null || shortName.isBlank()) {
+		String shortName = ReaderUtils.getImageName(meta, seriesIndex).orElse("");
+		if (shortName.isBlank()) {
 			if (multiImage) {
 				return baseName + " - Series " + seriesIndex;
 			}
@@ -727,7 +875,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	 * @return
 	 */
 	public String getFormat() {
-		return format;
+		return readerPool.getFormat();
 	}
 	
 	@Override

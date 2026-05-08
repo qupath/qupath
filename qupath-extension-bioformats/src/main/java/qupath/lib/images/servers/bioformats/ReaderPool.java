@@ -61,6 +61,7 @@ class ReaderPool implements AutoCloseable {
     private final BioFormatsServerOptions options;
     private final BioFormatsArgs args;
     private final ClassList<IFormatReader> classList;
+    private final String format;
 
     private volatile boolean isClosed = false;
 
@@ -89,6 +90,7 @@ class ReaderPool implements AutoCloseable {
         // Create the main reader
         long startTime = System.currentTimeMillis();
         mainReader = createReader(options, null, id, metadata, args);
+        this.format = mainReader.getFormat();
 
         long endTime = System.currentTimeMillis();
         logger.debug("Reader {} created in {} ms", mainReader, endTime - startTime);
@@ -98,6 +100,10 @@ class ReaderPool implements AutoCloseable {
 
         // Store the class so we don't need to go hunting later
         classList = unwrapBaseClassList(mainReader);
+    }
+
+    String getFormat() {
+        return format;
     }
 
     boolean checkCanRead() throws IOException, FormatException {
