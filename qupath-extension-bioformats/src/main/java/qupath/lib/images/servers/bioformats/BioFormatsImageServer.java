@@ -31,7 +31,6 @@ import loci.formats.FormatException;
 import loci.formats.IFormatReader;
 import loci.formats.in.ZarrReader;
 import loci.formats.ome.OMEPyramidStore;
-import loci.formats.ome.OMEXMLMetadata;
 import ome.units.UNITS;
 import ome.units.quantity.Length;
 import ome.xml.meta.MetadataRetrieve;
@@ -105,13 +104,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	private static final int DEFAULT_TILE_SIZE = 512;
 
 	/**
-	 * Image names (in lower case) normally associated with 'extra' images, but probably not representing the main image in the file.
-	 */
-	private static final Collection<String> extraImageNames = Set.of(
-			"overview", "label", "thumbnail", "macro", "macro image", "macro mask image", "label image", "overview image", "thumbnail image"
-	);
-
-	/**
 	 * The original URI requested for this server.
 	 */
 	private final URI uri;
@@ -134,12 +126,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	/**
 	 * A map linking an identifier (image name) to series number for 'full' images.
 	 */
-	private final Map<String, ServerBuilder<BufferedImage>> imageMap;
+	private final Map<String, ServerBuilder<BufferedImage>> imageMap = new LinkedHashMap<>();
 	
 	/**
-	 * A map linking an identifier (image name) to series number for additional images, e.g. thumbnails or macro images.
+	 * A map linking an identifier (image name) to series for additional images, e.g. thumbnails or macro images.
 	 */
-	private final Map<String, Integer> associatedImageMap;
+	private final Map<String, Series> associatedImageMap = new LinkedHashMap<>();
 	
 	/**
 	 * Numeric identifier for the image (there might be more than one in the file)
@@ -197,110 +189,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		this(uri, BioFormatsServerOptions.getInstance(), args);
 	}
 
-	record SeriesDimensions(
-			long sizeX, long sizeY, long sizeC, long sizeZ, long sizeT
-	) {
 
-		long totalPixelsXY() {
-			return sizeX * sizeY;
-		}
-
-		long totalPixelsXYZT() {
-			return totalPixelsXY() * sizeZ * sizeT;
-		}
-
-		long totalPixelsIncludingChannels() {
-			return totalPixelsXYZT() * sizeC;
-		}
-
-	}
-
-	static class Series {
-
-		private final int seriesNumber;
-		private final String originalSeriesName;
-		private final String cleanSeriesName;
-		private final String uniqueName;
-		private final List<SeriesDimensions> resolutions;
-
-		private Series(int seriesNumber, String originalSeriesName, List<SeriesDimensions> resolutions) {
-			this.seriesNumber = seriesNumber;
-			this.originalSeriesName = originalSeriesName == null ? "" : originalSeriesName;
-			this.cleanSeriesName = cleanName(this.originalSeriesName);
-			this.uniqueName = this.cleanSeriesName.isEmpty() ?
-					String.format("Series %d", this.seriesNumber):
-					String.format("Series %d (%s)", this.seriesNumber, this.cleanSeriesName);
-			Objects.requireNonNull(resolutions, "Resolutions must not be null!");
-			this.resolutions = List.copyOf(resolutions);
-		}
-
-		private static String cleanName(final String name) {
-			String cleanName = name;
-			while (cleanName != null && cleanName.endsWith("\0"))
-				cleanName = cleanName.substring(0, cleanName.length()-1);
-			return cleanName;
-		}
-
-		/**
-		 * Get the integer series number, compatible with {@link IFormatReader#setSeries(int)}.
-		 * @return
-		 */
-		public int getSeries() {
-			return seriesNumber;
-		}
-
-		/**
-		 * Get the original series name as stored in the metadata,
-		 * or an empty string if no name is stored.
-		 * @return
-		 */
-		public String getOriginalSeriesName() {
-			return originalSeriesName;
-		}
-
-		/**
-		 * Get a name for display. This includes the series number, so is unique.
-		 * @return
-		 */
-		public String getUniqueSeriesName() {
-			return uniqueName;
-		}
-
-		/**
-		 * Get a cleaned version of the original series name, removing any trailing null terminators.
-		 * <p>
-		 * See https://github.com/qupath/qupath/issues/573
-		 * @return
-		 */
-		public String getCleanSeriesName() {
-			return cleanSeriesName;
-		}
-
-		public long totalPixelsXYZT() {
-			if (resolutions.isEmpty())
-				return 0;
-			else
-				return resolutions.getFirst().totalPixelsXYZT();
-		}
-
-		public int nResolutions() {
-			return resolutions.size();
-		}
-
-		public List<SeriesDimensions> getResolutions() {
-			return resolutions;
-		}
-
-		boolean isAssociatedImage() {
-			return nResolutions() == 1 &&
-					(extraImageNames.contains(originalSeriesName.toLowerCase()) ||
-					extraImageNames.contains(cleanSeriesName.toLowerCase()));
-		}
-
-	}
-
-
-	private BioFormatsImageServer(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
+    private BioFormatsImageServer(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
 		super();
 
 		long startTime = System.currentTimeMillis();
@@ -312,20 +202,19 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		var bfArgs = BioFormatsArgs.parse(args);
 
 		// Try to get a local file path, but accept something else (since Bio-Formats handles other URIs)
-		filePathOrUrl = convertToFilePathOrUrl(uri);
+		this.filePathOrUrl = convertToFilePathOrUrl(uri);
 
 		// Create a reader & extract the metadata
-		readerPool = new ReaderPool(options, filePathOrUrl, bfArgs);
+		this.readerPool = new ReaderPool(options, filePathOrUrl, bfArgs);
 		IFormatReader reader = readerPool.getMainReader();
 		var meta = (OMEPyramidStore)reader.getMetadataStore();
 
 		// If we have more than one series, we need to construct maps of 'analyzable' & associated images
 		synchronized (reader) {
-			int nImages = meta.getImageCount();
-			imageMap = new LinkedHashMap<>(nImages);
-			associatedImageMap = new LinkedHashMap<>(nImages);
+			List<Series> allSeries = Series.parseFromReader(reader);
+			if (allSeries.isEmpty())
+				throw new IOException("No series found for " + filePathOrUrl);
 
-			List<Series> allSeries = parseAllSeries(reader);
 			// TODO: Consider making below method static.
 			//       Could use Map<String, Series>, but delayed creation of ServerBuilder
 			//       may fail if the URI is no longer 'clean', i.e., not encoding the series
@@ -389,7 +278,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 										  URI uri) {
 		for (var series : allSeries) {
 			if (series.isAssociatedImage()) {
-				associatedImageMap.put(series.getUniqueSeriesName(), series.getSeries());
+				associatedImageMap.put(series.getUniqueSeriesName(), series);
 			} else {
 				imageMap.put(series.getUniqueSeriesName(),
 						DefaultImageServerBuilder.createInstance(
@@ -398,32 +287,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 						));
 			}
 		}
-	}
-
-	private static List<Series> parseAllSeries(IFormatReader reader) throws IOException {
-		var meta = (OMEPyramidStore)reader.getMetadataStore();
-		List<Series> allSeries = new ArrayList<>();
-		for (int s = 0; s < meta.getImageCount(); s++) {
-			reader.setSeries(s);
-
-			List<SeriesDimensions> resolutions = new ArrayList<>();
-			for (int r = 0; r < reader.getResolutionCount(); r++) {
-				var dims = new SeriesDimensions(
-						reader.getSizeX(),
-						reader.getSizeY(),
-						reader.getSizeC(),
-						reader.getSizeZ(),
-						reader.getSizeT()
-				);
-				resolutions.add(dims);
-			}
-			if (resolutions.isEmpty()) {
-				throw new IOException("No resolutions found for series " + s);
-			}
-			var series = new Series(s, meta.getImageName(s), resolutions);
-			allSeries.add(series);
-		}
-		return allSeries;
 	}
 
 
@@ -450,12 +313,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		return requestedSeriesName.equals(series.getUniqueSeriesName()) ||
 				requestedSeriesName.equals(series.getCleanSeriesName()) ||
 				requestedSeriesName.contentEquals(series.getOriginalSeriesName());
-	}
-
-
-	private static boolean isExtraImageName(String name) {
-		var lower = name.toLowerCase();
-		return extraImageNames.contains(lower) || extraImageNames.contains(lower.trim());
 	}
 
 
@@ -941,7 +798,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	}
 
 	boolean containsSubImages() {
-		return imageMap != null && !imageMap.isEmpty();
+		return !imageMap.isEmpty();
 	}
 
 	/**
@@ -958,8 +815,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	 */
 	public String dumpMetadata() {
 		try {
-			OMEXMLMetadata metadata = getMetadataStore();
-			return metadata.dumpXML();
+			return getMetadataStore().dumpXML();
 		} catch (Exception e) {
 			logger.error("Unable to dump metadata", e);
 		}
@@ -969,21 +825,21 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	
 	@Override
 	public List<String> getAssociatedImageList() {
-		if (associatedImageMap == null || associatedImageMap.isEmpty())
+		if (associatedImageMap.isEmpty())
 			return Collections.emptyList();
-		return new ArrayList<>(associatedImageMap.keySet());
+		return List.copyOf(associatedImageMap.keySet());
 	}
 
 	@Override
 	public BufferedImage getAssociatedImage(String name) {
-		if (associatedImageMap == null || !associatedImageMap.containsKey(name))
+		var series = associatedImageMap.getOrDefault(name, null);
+		if (series == null)
 			throw new IllegalArgumentException("No associated image with name '" + name + "' for " + getPath());
 		
-		int series = associatedImageMap.get(name);
 		try {
-			return readerPool.openSeries(series);
+			return readerPool.openSeries(series.getSeries());
 		} catch (Exception e) {
-            logger.error("Error reading associated image {}: {}", name, e.getLocalizedMessage(), e);
+            logger.error("Error reading associated image {}: {}", name, e.getMessage(), e);
 			return null;
 		}
 	}
@@ -991,7 +847,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	
 	/**
 	 * Get the underlying file.
-	 * 
 	 * @return
 	 */
 	public File getFile() {
