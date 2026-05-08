@@ -104,6 +104,16 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	private static final int DEFAULT_TILE_SIZE = 512;
 
 	/**
+	 * A map linking an identifier (image name) to series number for 'full' images.
+	 */
+	private final Map<String, Series> imageMap = new LinkedHashMap<>();
+
+	/**
+	 * A map linking an identifier (image name) to series for additional images, e.g. thumbnails or macro images.
+	 */
+	private final Map<String, Series> associatedImageMap = new LinkedHashMap<>();
+
+	/**
 	 * The original URI requested for this server.
 	 */
 	private final URI uri;
@@ -112,6 +122,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	 * Arguments passed to constructor.
 	 */
 	private final String[] args;
+
+	/**
+	 * Parsed arguments.
+	 */
+	private final BioFormatsArgs bfArgs;
 
 	/**
 	 * Original metadata, populated when reading the file.
@@ -124,19 +139,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	private final String filePathOrUrl;
 	
 	/**
-	 * A map linking an identifier (image name) to series number for 'full' images.
+	 * The series (image) that this server opens (there can be multiple series in a file).
 	 */
-	private final Map<String, ServerBuilder<BufferedImage>> imageMap = new LinkedHashMap<>();
-	
-	/**
-	 * A map linking an identifier (image name) to series for additional images, e.g. thumbnails or macro images.
-	 */
-	private final Map<String, Series> associatedImageMap = new LinkedHashMap<>();
-	
-	/**
-	 * Numeric identifier for the image (there might be more than one in the file)
-	 */
-	private final int series;
+	private final Series series;
 
 	/**
 	 * ColorModel to use with all BufferedImage requests.
@@ -199,7 +204,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		
 		// Parse the arguments
 		this.args = args.clone();
-		var bfArgs = BioFormatsArgs.parse(args);
+		this.bfArgs = BioFormatsArgs.parse(args);
 
 		// Try to get a local file path, but accept something else (since Bio-Formats handles other URIs)
 		this.filePathOrUrl = convertToFilePathOrUrl(uri);
@@ -220,11 +225,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			//       may fail if the URI is no longer 'clean', i.e., not encoding the series
 			populateImageMaps(allSeries, bfArgs, uri);
 
-			this.series = findSeriesToOpen(allSeries, bfArgs);
+			this.series = findSeriesToOpen(allSeries, bfArgs).orElseThrow(() -> new IOException("No series found"));
 			this.originalMetadata = buildOriginalMetadata(
 					reader,
 					series,
-					getImageName(meta, getFile().getName(), series, imageMap.size() > 1),
+					getImageName(series, getFile().getName(), imageMap.size() > 1),
 					getPath());
 		}
 
@@ -235,11 +240,13 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	}
 
 
-	private static int findSeriesToOpen(final List<Series> allSeries, final BioFormatsArgs bfArgs) throws IOException {
+	private static Optional<Series> findSeriesToOpen(final List<Series> allSeries, final BioFormatsArgs bfArgs) throws IOException {
 		// Use the series index from the args whenever possible
 		int seriesIndex = bfArgs.series;
-		if (seriesIndex >= 0 && allSeries.stream().anyMatch(s -> seriesIndex == s.getSeries())) {
-			return seriesIndex;
+		if (seriesIndex >= 0) {
+			var matched = allSeries.stream().filter(s -> seriesIndex == s.getSeries()).findFirst();
+			if (matched.isPresent())
+				return matched;
 		}
 
 		// Use the series name from the args, if present
@@ -247,7 +254,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		if (requestedSeriesName != null) {
 			var matchingSeries = findMatchingSeries(requestedSeriesName, allSeries);
 			if (matchingSeries.isPresent()) {
-				return matchingSeries.get().getSeries();
+				return matchingSeries;
 			} else {
 				logger.warn("No series found with name {}", requestedSeriesName);
 			}
@@ -255,21 +262,21 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 
 		// Get the non-associated images
 		var imageSeries = allSeries.stream().filter(Predicate.not(Series::isAssociatedImage)).toList();
-		if (!imageSeries.isEmpty()) {
-			var firstSeries = imageSeries.getFirst();
-			if (imageSeries.size() == 1)
-				return firstSeries.getSeries();
-			// Take the first series unless it's substantially smaller than the others.
-			// If it's a lot smaller, it's probably a thumbnail.
-			// But if it's a *bit* smaller, we might simply have images of different sizes -
-			// and the user will most likely expect we pick the first image than one somewhere else in the list.
-			var maxPixels = imageSeries.stream().mapToLong(Series::totalPixelsXYZT).max().orElse(0L);
-			if (firstSeries.totalPixelsXYZT() * 4 > maxPixels)
-				return firstSeries.getSeries();
-			else
-				return findLargestSeries(imageSeries).map(Series::getSeries).orElseThrow(IOException::new);
-		}
-		throw new IOException("No suitable series found");
+		if (imageSeries.isEmpty())
+			return Optional.empty();
+
+		var firstSeries = imageSeries.getFirst();
+		if (imageSeries.size() == 1)
+			return Optional.of(firstSeries);
+		// Take the first series unless it's substantially smaller than the others.
+		// If it's a lot smaller, it's probably a thumbnail.
+		// But if it's a *bit* smaller, we might simply have images of different sizes -
+		// and the user will most likely expect we pick the first image than one somewhere else in the list.
+		var maxPixels = imageSeries.stream().mapToLong(Series::totalPixelsXYZT).max().orElse(0L);
+		if (firstSeries.totalPixelsXYZT() * 4 > maxPixels)
+			return Optional.of(firstSeries);
+		else
+			return findLargestSeries(imageSeries);
 	}
 
 
@@ -280,11 +287,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			if (series.isAssociatedImage()) {
 				associatedImageMap.put(series.getUniqueSeriesName(), series);
 			} else {
-				imageMap.put(series.getUniqueSeriesName(),
-						DefaultImageServerBuilder.createInstance(
-								BioFormatsServerBuilder.class, null, uri,
-								bfArgs.backToArgs(series.getSeries())
-						));
+				imageMap.put(series.getUniqueSeriesName(), series);
 			}
 		}
 	}
@@ -334,7 +337,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		// See if there is a series name embedded in the path (temporarily the way things were done in v0.2.0-m1 and v0.2.0-m2)
 		// Add it to the args if so
 		if (uri.getFragment() != null) {
-			throw new IOException("Series as fragment no longer supported");
+			logger.warn("Series as fragment is no longer supported (value={})", uri.getFragment());
 		} else if (uri.getQuery() != null) {
 			// Queries supported name=image-name or series=series-number... only one or the other!
 			String query = uri.getQuery();
@@ -350,8 +353,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	}
 
 
-	private static ImageServerMetadata buildOriginalMetadata(IFormatReader reader, int series, String imageName, String path) {
-		reader.setSeries(series);
+	private static ImageServerMetadata buildOriginalMetadata(IFormatReader reader, Series series, String imageName, String path) {
+		reader.setSeries(series.getSeries());
 		MetadataRetrieve meta = (MetadataRetrieve)reader.getMetadataStore();
 
 		// Get the format in case we need it
@@ -385,7 +388,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		if (isRGB) {
 			channels = List.copyOf(ImageChannel.getDefaultRGBChannels());
 		} else {
-			channels = parseChannels(meta, series, nChannels);
+			channels = parseChannels(meta, series.getSeries(), nChannels);
 			// Update RGB status if needed - sometimes we might really have an RGB image, but the Bio-Formats flag
 			// doesn't show this - and we want to take advantage of the packed int optimizations where we can
 			isRGB = nChannels == 3 &&
@@ -421,12 +424,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		}
 
 		try {
-			builder.pixelCalibration(parsePixelCalibration(meta, series, nZSlices, nTimepoints));
+			builder.pixelCalibration(parsePixelCalibration(meta, series.getSeries(), nZSlices, nTimepoints));
 		} catch (Exception e) {
 			logger.error("Error parsing pixel calibration", e);
 		}
 
-		double magnification = tryToGetMagnification(meta, series).orElse(Double.NaN);
+		double magnification = tryToGetMagnification(meta, series.getSeries()).orElse(Double.NaN);
 		if (Double.isFinite(magnification))
 			builder = builder.magnification(magnification);
 
@@ -642,11 +645,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	}
 
 
-	private static String getImageName(MetadataRetrieve meta, String baseName, int seriesIndex, boolean multiImage) {
-		String shortName = ReaderUtils.getImageName(meta, seriesIndex).orElse("");
+	private static String getImageName(Series series, String baseName, boolean multiImage) {
+		String shortName = series.getCleanSeriesName();
 		if (shortName.isBlank()) {
 			if (multiImage) {
-				return baseName + " - Series " + seriesIndex;
+				return baseName + " - Series " + series.getSeries();
 			}
 		} else if (!baseName.equals(shortName)) {
 			return baseName + " - " + shortName;
@@ -772,14 +775,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	 * @return
 	 */
 	public int getSeries() {
-		return series;
+		return series.getSeries();
 	}
 	
 	
 	@Override
 	public BufferedImage readTile(TileRequest tileRequest) throws IOException {
 		try {
-			return readerPool.openImage(tileRequest, series, nChannels(), isRGB(), colorModel);
+			return readerPool.openImage(tileRequest, series.getSeries(), nChannels(), isRGB(), colorModel);
 		} catch (InterruptedException e) {
 			throw new IOException(e);
 		}
@@ -855,7 +858,18 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 
 
 	Map<String, ServerBuilder<BufferedImage>> getImageBuilders() {
-		return Collections.unmodifiableMap(imageMap);
+		Map<String, ServerBuilder<BufferedImage>> builders = new LinkedHashMap<>();
+		for (var entry : imageMap.entrySet()) {
+			builders.put(entry.getKey(), createServerBuilder(entry.getValue()));
+		}
+		return Collections.unmodifiableMap(builders);
+	}
+
+	private ServerBuilder<BufferedImage> createServerBuilder(Series series) {
+		return DefaultImageServerBuilder.createInstance(
+				BioFormatsServerBuilder.class, null, uri,
+				bfArgs.backToArgs(series.getSeries())
+		);
 	}
 
 
@@ -872,7 +886,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			logger.debug("Cannot get reader. Returning no path objects");
 			return List.of();
 		}
-		reader.setSeries(series);
+		reader.setSeries(series.getSeries());
 
 		if (!(reader.getMetadataStore().getRoot() instanceof OMEXMLMetadataRoot metadata)) {
 			logger.debug("Metadata store of reader {} not instance of OMEXMLMetadataRoot. Returning no path objects", reader.getMetadataStore());
