@@ -217,7 +217,7 @@ class ReaderPool implements AutoCloseable {
             // Using new ImageReader() on a directory won't work
             imageReader = new ZarrReader();
             if (id.startsWith("https")) {
-                setReaderMetadataOptions(imageReader, Map.of("omezarr.alt_store", id));
+                setReaderMetadataOptions(imageReader, Map.of(ZarrReader.ALT_STORE_KEY, id));
             }
         } else {
             if (classList != null) {
@@ -275,11 +275,12 @@ class ReaderPool implements AutoCloseable {
             var memoizer = new Memoizer(reader, memoizationTimeMillis, dir);
             // The call to .toPath() should throw an InvalidPathException if there are illegal characters
             // If so, we want to know that now before committing to the memoizer
-            var fileMemo = memoizer.getMemoFile();
+            var fileMemo = memoizer.getMemoFile(id);
             if (fileMemo != null && fileMemo.toPath() != null) {
                 MemoUtils.registerTempFileForDeletion(fileMemo);
                 return memoizer;
             }
+            return memoizer;
         } catch (Exception e) {
             logger.warn("Unable to use memoization: {}", e.getMessage());
             logger.debug(e.getMessage(), e);

@@ -113,6 +113,7 @@ class Series {
             reader.setSeries(s);
             List<SeriesDimensions> resolutions = new ArrayList<>();
             for (int r = 0; r < reader.getResolutionCount(); r++) {
+                reader.setResolution(r);
                 var dims = new SeriesDimensions(
                         reader.getSizeX(),
                         reader.getSizeY(),
