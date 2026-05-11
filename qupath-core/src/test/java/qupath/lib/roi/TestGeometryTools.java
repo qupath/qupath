@@ -35,6 +35,7 @@ import org.locationtech.jts.operation.valid.IsValidOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.geom.Point2;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
@@ -104,7 +105,7 @@ public class TestGeometryTools {
 		File fileHierarchy = new File("src/test/resources/data/test-objects.hierarchy");
 		try (InputStream stream = Files.newInputStream(fileHierarchy.toPath())) {
 			var hierarchy = (PathObjectHierarchy)new ObjectInputStream(stream).readObject();
-			var geometries = hierarchy.getFlattenedObjectList(null).stream().filter(p -> p.hasROI()).map(p -> p.getROI().getGeometry()).collect(Collectors.toCollection(ArrayList::new));
+			var geometries = hierarchy.getFlattenedObjectList(null).stream().filter(PathObject::hasROI).map(p -> p.getROI().getGeometry()).collect(Collectors.toCollection(ArrayList::new));
 			
 			// Include some extra geometries that we know can be troublesome
 			var rectangle = GeometryTools.createRectangle(0, 0, 100, 100);
@@ -128,8 +129,8 @@ public class TestGeometryTools {
 			assertEquals(filledNested2.getArea(), GeometryTools.externalRingArea(filledNested2));
 
 			for (var geom : geometries) {
-				
-				assertTrue(geom.isValid());
+
+				assertTrue(geom.isValid(), () -> "Invalid geometry: " + geom);
 				
 				var geom2 = GeometryTools.fillHoles(geom);
 				assertTrue(geom2.isValid());

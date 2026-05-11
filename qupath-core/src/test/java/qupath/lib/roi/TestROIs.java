@@ -107,7 +107,7 @@ public class TestROIs {
 			for (ROI roi : rois) {
 				Geometry geom = roi.getGeometry();
 				assertEquals(roi.isEmpty(), geom.isEmpty());
-				assertTrue(geom.isValid());
+				assertTrue(geom.isValid(), () -> "Invalid geometry " + geom);
 				if (roi.isArea()) {
 					assertEquals(roi.isEmpty(), geom.isEmpty());
 					if (roi instanceof EllipseROI) {
