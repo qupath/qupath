@@ -218,7 +218,7 @@ class ReaderUtils {
      * @param imageLength corresponding image width or height
      * @return a sensible tile length, bounded by the image width or height
      */
-    private static int getDefaultTileLength(int tileLength, int imageLength) {
+    static int getDefaultTileLength(int tileLength, int imageLength) {
         if (tileLength <= 0) {
             tileLength = DEFAULT_TILE_SIZE;
         } else if (tileLength < MIN_TILE_SIZE) {

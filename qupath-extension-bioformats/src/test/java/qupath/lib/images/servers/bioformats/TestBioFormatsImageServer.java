@@ -238,11 +238,11 @@ public class TestBioFormatsImageServer {
 	 */
 	@Test
 	public void test_BioFormatsDefaultTile() {
-		assertEquals(256, BioFormatsImageServer.getDefaultTileLength(256, 512));
-		assertEquals(32, BioFormatsImageServer.getDefaultTileLength(4, 512));
-		assertEquals(36, BioFormatsImageServer.getDefaultTileLength(12, 512));
-		assertEquals(500, BioFormatsImageServer.getDefaultTileLength(700, 500));
-		assertEquals(512, BioFormatsImageServer.getDefaultTileLength(-1, 100_000));
+		assertEquals(256, ReaderUtils.getDefaultTileLength(256, 512));
+		assertEquals(32, ReaderUtils.getDefaultTileLength(4, 512));
+		assertEquals(36, ReaderUtils.getDefaultTileLength(12, 512));
+		assertEquals(500, ReaderUtils.getDefaultTileLength(700, 500));
+		assertEquals(512, ReaderUtils.getDefaultTileLength(-1, 100_000));
 	}
 
 	
