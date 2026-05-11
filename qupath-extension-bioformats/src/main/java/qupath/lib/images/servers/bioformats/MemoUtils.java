@@ -37,8 +37,8 @@ class MemoUtils {
         return getTempMemoDir(true);
     }
 
-    private static File getTempMemoDir(boolean create) throws IOException {
-        if (create && dirMemoTemp == null) {
+    private static File getTempMemoDir(boolean createIfNeeded) throws IOException {
+        if (createIfNeeded && dirMemoTemp == null) {
             synchronized (ReaderPool.class) {
                 if (dirMemoTemp == null) {
                     Path path = Files.createTempDirectory("qupath-memo-");

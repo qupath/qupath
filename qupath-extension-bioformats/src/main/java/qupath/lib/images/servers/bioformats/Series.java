@@ -1,6 +1,5 @@
 package qupath.lib.images.servers.bioformats;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -11,6 +10,13 @@ import loci.formats.ome.OMEPyramidStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Representation of a single series (image) readable by Bio-Formats.
+ * <p>
+ * This connects the integer series identifier with the size of each resolution and 'cleaned' versions of
+ * the series name in a lightweight way that does not require storing a reference to any reader or
+ * metadata object.
+ */
 class Series {
 
     private static final Logger logger = LoggerFactory.getLogger(Series.class);

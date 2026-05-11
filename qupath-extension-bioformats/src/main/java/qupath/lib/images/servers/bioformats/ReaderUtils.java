@@ -61,9 +61,8 @@ class ReaderUtils {
     /**
      * Ensure a throwable is an IOException.
      * This gives the opportunity to include more human-readable messages for common errors.
-     *
-     * @param throwable
-     * @return
+     * @param throwable any throwable
+     * @return an IOException, which may be the same as the input or may wrap the input
      */
     static IOException convertToIOException(Throwable throwable) {
         if (GeneralTools.isMac()) {

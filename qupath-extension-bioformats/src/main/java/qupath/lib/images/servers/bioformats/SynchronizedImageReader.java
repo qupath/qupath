@@ -31,7 +31,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 
 /**
- * Wrapper for an {@link IFormatReader}
+ * Wrapper for an {@link IFormatReader} that simplifies pixel requests, while ensuring synchronization.
  */
 class SynchronizedImageReader implements Closeable {
 
@@ -45,7 +45,7 @@ class SynchronizedImageReader implements Closeable {
     private final BioFormatsArgs args;
     private final BioFormatsServerOptions options;
 
-    SynchronizedImageReader(IFormatReader reader, String id, BioFormatsArgs args, BioFormatsServerOptions options) {
+    private SynchronizedImageReader(IFormatReader reader, String id, BioFormatsArgs args, BioFormatsServerOptions options) {
         Objects.requireNonNull(reader, "Reader must not be null");
         this.reader = reader;
         this.id = id;
@@ -57,19 +57,6 @@ class SynchronizedImageReader implements Closeable {
         return id;
     }
 
-    /**
-     * Create a new {@code IFormatReader}, with memoization if necessary.
-     *
-     * @param options   options used to control the reader generation
-     * @param classList optionally specify a list of potential reader classes, if known (to avoid a more lengthy search)
-     * @param id        file path for the image.
-     * @param store     optional MetadataStore; this will be set in the reader if needed. If it is unspecified, a dummy store will be created a minimal metadata requested.
-     * @param args      optional args to customize reading
-     * @return the {@code IFormatReader}
-     * @throws FormatException
-     * @throws IOException
-     */
-    @SuppressWarnings("resource")
     private static SynchronizedImageReader create(final BioFormatsServerOptions options,
                                                  final ClassList<IFormatReader> classList,
                                                  final String id,
@@ -85,6 +72,16 @@ class SynchronizedImageReader implements Closeable {
         return new SynchronizedImageReader(imageReader, id, args, options);
     }
 
+    /**
+     * Create a synchronized reader to wrap an {@link IFormatReader} that stores its metadata in the
+     * given metadata object.
+     * @param options options to determine whether memoization is used
+     * @param id the ID (location, file path) for the reader
+     * @param metadata the metadata object; typically {@link loci.formats.ome.OMEPyramidStore} is expected,
+     *                 but it is possible to pass {@code null} if the metadata does not need to be accessed later.
+     * @param args more optional arguments to customize how the reader is created
+     * @return a new synchronized reader
+     */
     public static SynchronizedImageReader createMainReader(final BioFormatsServerOptions options,
                                                  final String id,
                                                  final OMEXMLMetadata metadata,
@@ -92,6 +89,11 @@ class SynchronizedImageReader implements Closeable {
         return create(options, null, id, metadata, args);
     }
 
+    /**
+     * Create a reader for the same image, which may be used in other threads.
+     * This does not provide access to full OME metadata, which may enable it to be initialized more quickly.
+     * @return a new synchronized reader
+     */
     public SynchronizedImageReader createSubReader() throws IOException, FormatException {
         return createReader(null);
     }
@@ -322,6 +324,13 @@ class SynchronizedImageReader implements Closeable {
         }
     }
 
+    /**
+     * Open a single series as an image.
+     * This is expected to be used for 'associated' images (e.g., bar codes, thumbnails) and may not be
+     * able to return images with an arbitrary size or type.
+     * @param series the number of the series
+     * @return a buffered image representing the entire series, if possible
+     */
     public BufferedImage openSeries(int series) throws FormatException, IOException {
         synchronized (reader) {
             ensureOpen();
@@ -341,7 +350,15 @@ class SynchronizedImageReader implements Closeable {
         }
     }
 
-    ImageServerMetadata parseMetadata(Series series, String imageName, String serverPath) throws IOException, FormatException {
+    /**
+     * Create an {@link ImageServerMetadata} object for the specified series.
+     * @param series the series
+     * @param imageName the image name that should be set in the metadata object; this may be different from
+     *                  the name stored in the OME metadata.
+     * @param serverPath the server 'path' (unique ID) used for tile caching.
+     * @return a new image server metadata object
+     */
+    public ImageServerMetadata parseMetadata(Series series, String imageName, String serverPath) throws IOException, FormatException {
         synchronized (reader) {
             ensureOpen();
             return ReaderUtils.buildOriginalMetadata(
@@ -353,7 +370,11 @@ class SynchronizedImageReader implements Closeable {
         }
     }
 
-    boolean checkCanRead() throws IOException, FormatException {
+    /**
+     * Attempt to read a pixel from the image.
+     * @return true if the read succeeded. If it fails, returns false or throws an exception.
+     */
+    public boolean checkCanRead() throws IOException, FormatException {
         synchronized (reader) {
             ensureOpen();
             return reader.getSizeX() > 0
@@ -367,7 +388,11 @@ class SynchronizedImageReader implements Closeable {
         this.reader.close();
     }
 
-    List<Series> getAllSeries() throws IOException, FormatException {
+    /**
+     * Get all the series found within the image file.
+     * @return a list of series
+     */
+    public List<Series> getAllSeries() throws IOException, FormatException {
         synchronized (reader) {
             ensureOpen();
             return Series.parseFromReader(reader);
