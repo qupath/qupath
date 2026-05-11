@@ -5,10 +5,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,11 +18,6 @@ class MemoUtils {
     private static final Logger logger = LoggerFactory.getLogger(MemoUtils.class);
 
     /**
-     * Map of memoization file sizes.
-     */
-    private static final Map<String, Long> memoizationSizeMap = new ConcurrentHashMap<>();
-
-    /**
      * Temporary directory for storing memoization files
      */
     private static File dirMemoTemp = null;
@@ -34,16 +27,6 @@ class MemoUtils {
      */
     private static final Set<File> tempMemoFiles = new HashSet<>();
 
-
-    /**
-     * Request the file size of any known memoization file for a specific ID.
-     *
-     * @param id
-     * @return
-     */
-    public long getMemoizationFileSize(String id) {
-        return memoizationSizeMap.getOrDefault(id, 0L);
-    }
 
     /**
      * Get a temporary directory to use for memoization, creating it if it does not already exist.

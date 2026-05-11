@@ -8,7 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Helper class to check if a Bio-Formats reader is available for a specified path.
+ * Helper class to check if a Bio-Formats reader is available for a specified path,
+ * or if the path relates to a file format that is unsupported.
  */
 class ReaderChecker {
 

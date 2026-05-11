@@ -62,7 +62,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.IntStream;
 
 /**
  * QuPath ImageServer that uses the Bio-Formats library to read image data.
@@ -159,11 +158,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	 *
 	 * @param uri for the image that should be opened; this might include a sub-image as a query or fragment.
 	 * @param args optional arguments
-	 * @throws FormatException
-	 * @throws IOException
-	 * @throws DependencyException
-	 * @throws ServiceException
-	 * @throws URISyntaxException
 	 */
 	public BioFormatsImageServer(final URI uri, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
 		this(uri, BioFormatsServerOptions.getInstance(), args);
@@ -236,10 +230,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		var firstSeries = imageSeries.getFirst();
 		if (imageSeries.size() == 1)
 			return Optional.of(firstSeries);
+
 		// Take the first series unless it's substantially smaller than the others.
 		// If it's a lot smaller, it's probably a thumbnail.
-		// But if it's a *bit* smaller, we might simply have images of different sizes -
-		// and the user will most likely expect we pick the first image than one somewhere else in the list.
+		// But if it's only a *little* smaller, we might simply have images of different sizes -
+		// and the user will most likely expect we pick the first image and not some other that's far down the list.
 		var maxPixels = imageSeries.stream().mapToLong(Series::totalPixelsXYZT).max().orElse(0L);
 		if (firstSeries.totalPixelsXYZT() * 4 > maxPixels)
 			return Optional.of(firstSeries);
@@ -257,7 +252,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			}
 		}
 	}
-
 
 	private static Optional<Series> findLargestSeries(Collection<Series> allSeries) {
 		long nPixels = -1;
@@ -290,9 +284,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	 * (e.g., query, fragment) are found.
 	 * @param uri the input URI
 	 * @return the clean URI, or original URI if no cleaning is required
-	 * @throws IOException
-	 * @throws URISyntaxException
-	 */
+     */
 	private static URI cleanUri(URI uri) throws IOException, URISyntaxException {
 		// Zarr images can be opened by selecting the .zattrs or .zgroup file
 		// In that case, the parent directory contains the whole image
@@ -317,7 +309,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		}
 		return new URI(uri.getScheme(), uri.getHost(), uri.getPath(), null);
 	}
-
 
 
 
@@ -449,7 +440,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	}
 
 	/**
-	 * Get the MetadataStore, as used by Bio-Formats. This can be used to query metadata values not otherwise accessible.
+	 * Get the MetadataStore, as used by Bio-Formats.
+	 * This can be used to query metadata values not otherwise accessible.
+	 * <p>
+	 * <b>Warning!</b> Because the returned object is used internally,
+	 * it should not be modified by any external code.
 	 * @return
 	 */
 	public OMEPyramidStore getMetadataStore() {
@@ -524,7 +519,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 
 	@Override
 	public Collection<PathObject> readPathObjects() {
-		return readerPool.getROIs().stream()
+		return readerPool.getROIs(series.getSeries()).stream()
 				.map(BioFormatsImageServer::roiToObject)
 				.toList();
 	}
@@ -532,8 +527,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	private static PathObject roiToObject(ome.xml.model.ROI bioFormatsRoi) {
 		logger.debug("Converting {} to QuPath path object", bioFormatsRoi);
 
-		List<Shape> shapes = IntStream.range(0, bioFormatsRoi.getUnion().sizeOfShapeList())
-				.mapToObj(i -> bioFormatsRoi.getUnion().getShape(i))
+		List<Shape> shapes = bioFormatsRoi.getUnion().copyShapeList().stream()
 				.filter(Objects::nonNull)
 				.toList();
 
@@ -584,6 +578,5 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 
 		return pathObject;
 	}
-
 
 }

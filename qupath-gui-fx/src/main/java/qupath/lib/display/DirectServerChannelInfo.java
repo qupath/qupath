@@ -45,7 +45,7 @@ import java.awt.image.IndexColorModel;
  */
 public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 
-	private int channel;
+	private final int channel;
 
 	private transient ColorModel cm;
 	private transient ColorModel cmInverted;
@@ -171,8 +171,7 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 	public float[] getValues(BufferedImage img, int x, int y, int w, int h, float[] array) {
 		if (array == null || array.length < w * h)
 			array = new float[w * h];
-		float[] samples = img.getRaster().getSamples(x, y, w, h, channel, array);
-		return samples;
+		return img.getRaster().getSamples(x, y, w, h, channel, array);
 	}
 
 	@Override

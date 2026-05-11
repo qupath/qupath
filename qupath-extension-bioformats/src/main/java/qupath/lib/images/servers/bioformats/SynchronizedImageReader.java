@@ -3,38 +3,213 @@ package qupath.lib.images.servers.bioformats;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import loci.formats.ClassList;
+import loci.formats.DimensionSwapper;
 import loci.formats.FormatException;
 import loci.formats.IFormatReader;
 import loci.formats.ImageReader;
+import loci.formats.Memoizer;
 import loci.formats.ReaderWrapper;
 import loci.formats.gui.AWTImageTools;
+import loci.formats.in.DynamicMetadataOptions;
+import loci.formats.in.ZarrReader;
+import loci.formats.meta.DummyMetadata;
+import loci.formats.meta.MetadataStore;
+import loci.formats.ome.OMEXMLMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 
 /**
- * Because an {@link IFormatReader} is not thread-safe, this wraps around a reader
+ * Wrapper for an {@link IFormatReader}
  */
 class SynchronizedImageReader implements Closeable {
 
     private static final Logger logger = LoggerFactory.getLogger(SynchronizedImageReader.class);
 
+    private static final Pattern ZARR_FILE_PATTERN = Pattern.compile("\\.zarr/?(\\d+/?)?$");
+
     private final IFormatReader reader;
     private final String id;
 
-    SynchronizedImageReader(IFormatReader reader, String id) {
+    private final BioFormatsArgs args;
+    private final BioFormatsServerOptions options;
+
+    SynchronizedImageReader(IFormatReader reader, String id, BioFormatsArgs args, BioFormatsServerOptions options) {
         Objects.requireNonNull(reader, "Reader must not be null");
         this.reader = reader;
         this.id = id;
+        this.args = args;
+        this.options = options;
     }
-    
+
+    String getID() {
+        return id;
+    }
+
+    /**
+     * Create a new {@code IFormatReader}, with memoization if necessary.
+     *
+     * @param options   options used to control the reader generation
+     * @param classList optionally specify a list of potential reader classes, if known (to avoid a more lengthy search)
+     * @param id        file path for the image.
+     * @param store     optional MetadataStore; this will be set in the reader if needed. If it is unspecified, a dummy store will be created a minimal metadata requested.
+     * @param args      optional args to customize reading
+     * @return the {@code IFormatReader}
+     * @throws FormatException
+     * @throws IOException
+     */
+    @SuppressWarnings("resource")
+    private static SynchronizedImageReader create(final BioFormatsServerOptions options,
+                                                 final ClassList<IFormatReader> classList,
+                                                 final String id,
+                                                 final MetadataStore store,
+                                                 final BioFormatsArgs args) throws FormatException, IOException {
+
+        IFormatReader imageReader = createBaseReader(id, classList, args.readerOptions);
+        // TODO: Warning! Memoization might not play nicely with options (it might require QuPath to be restarted)
+        imageReader = maybeMemoize(imageReader, id, options);
+        initializeMetadata(imageReader, store);
+        imageReader = setImageAndDimensions(imageReader, id, args.series, args.swapDimensions);
+
+        return new SynchronizedImageReader(imageReader, id, args, options);
+    }
+
+    public static SynchronizedImageReader createMainReader(final BioFormatsServerOptions options,
+                                                 final String id,
+                                                 final OMEXMLMetadata metadata,
+                                                 final BioFormatsArgs args) throws IOException, FormatException {
+        return create(options, null, id, metadata, args);
+    }
+
+    public SynchronizedImageReader createSubReader() throws IOException, FormatException {
+        return createReader(null);
+    }
+
+    private SynchronizedImageReader createReader(OMEXMLMetadata metadata) throws IOException, FormatException {
+        ClassList<IFormatReader> classList = null;
+        try {
+            classList = getBaseClassList();
+        } catch (Exception e) {
+            logger.warn("Exception getting class list: {}", e.getMessage(), e);
+        }
+        return create(options, classList, id, metadata, args);
+    }
+
+    private static IFormatReader createBaseReader(String id, ClassList<IFormatReader> classList, Map<String, String> readerMetadataOptions) {
+        IFormatReader imageReader;
+        Matcher zarrMatcher = ZARR_FILE_PATTERN.matcher(id.toLowerCase());
+        if (new File(id).isDirectory() || zarrMatcher.find()) {
+            // Using new ImageReader() on a directory won't work
+            imageReader = new ZarrReader();
+            if (id.startsWith("https")) {
+                setReaderMetadataOptions(imageReader, Map.of(ZarrReader.ALT_STORE_KEY, id));
+            }
+        } else {
+            if (classList != null) {
+                imageReader = new ImageReader(classList);
+            } else {
+                imageReader = new ImageReader();
+            }
+        }
+        setReaderMetadataOptions(imageReader, readerMetadataOptions);
+        imageReader.setFlattenedResolutions(false);
+        return imageReader;
+    }
+
+
+    private static void initializeMetadata(IFormatReader reader, MetadataStore store) {
+        if (store == null) {
+            reader.setMetadataStore(new DummyMetadata());
+            reader.setOriginalMetadataPopulated(false);
+        } else {
+            reader.setMetadataStore(store);
+        }
+    }
+
+
+    private static void setReaderMetadataOptions(IFormatReader reader, Map<String, String> options) {
+        if (reader.getMetadataOptions() instanceof DynamicMetadataOptions dynamicOptions) {
+            for (var entry : options.entrySet()) {
+                dynamicOptions.set(entry.getKey(), entry.getValue());
+            }
+        } else if (!options.isEmpty()) {
+            logger.warn("Unable to set reader metadata options: {}", options);
+        }
+    }
+
+
+    private static IFormatReader maybeMemoize(final IFormatReader reader, String id, final BioFormatsServerOptions options) {
+        int memoizationTimeMillis = options.getMemoizationTimeMillis();
+        // Check if we want to (and can) use memoization
+        if (!BioFormatsServerOptions.allowMemoization() || memoizationTimeMillis < 0) {
+            return reader;
+        }
+        // Try to use a specified directory
+        File dir = getSpecifiedMemoizationDirectory(options);
+        boolean useTempDirectory = dir == null;
+        // Use a temp directory if none specified
+        if (useTempDirectory) {
+            try {
+                dir = MemoUtils.createTempMemoDir();
+            } catch (IOException e) {
+                logger.debug("Unable to create memoization directory: {}", e.getMessage(), e);
+                return reader;
+            }
+        }
+        try {
+            var memoizer = new Memoizer(reader, memoizationTimeMillis, dir);
+            // The call to .toPath() should throw an InvalidPathException if there are illegal characters
+            // If so, we want to know that now before committing to the memoizer
+            var fileMemo = memoizer.getMemoFile(id);
+            if (fileMemo != null && fileMemo.toPath() != null) {
+                MemoUtils.registerTempFileForDeletion(fileMemo);
+                return memoizer;
+            }
+            return memoizer;
+        } catch (Exception e) {
+            logger.warn("Unable to use memoization: {}", e.getMessage());
+            logger.debug(e.getMessage(), e);
+        }
+        return reader;
+    }
+
+    private static File getSpecifiedMemoizationDirectory(final BioFormatsServerOptions options) {
+        String pathMemoization = options.getPathMemoization();
+        if (pathMemoization != null && !pathMemoization.trim().isEmpty()) {
+            var dir = new File(pathMemoization);
+            if (dir.isDirectory())
+                return dir;
+            logger.warn("Memoization path does not refer to a valid directory, will be ignored: {}", dir.getAbsolutePath());
+        }
+        return null;
+    }
+
+    /**
+     * Update the reader's ID, series and dimensions.
+     * These are grouped together because we need to do them in a valid order.
+     */
+    private static IFormatReader setImageAndDimensions(IFormatReader reader, String id, int series, String swapDimensions) throws IOException, FormatException {
+        if (swapDimensions != null && !swapDimensions.isBlank())
+            reader = DimensionSwapper.makeDimensionSwapper(reader);
+        reader.setId(id);
+        if (series >= 0)
+            reader.setSeries(series);
+        if (reader instanceof DimensionSwapper swapper && swapDimensions != null)
+            swapper.swapDimensions(swapDimensions);
+        return reader;
+    }
+
 
 
     BufferedImage openImage(TileRequest tileRequest, int series, int nChannels, int[] samplesPerPixel, boolean isRGB, ColorModel colorModel) throws IOException {
@@ -107,7 +282,8 @@ class SynchronizedImageReader implements Closeable {
                     }
                 } catch (ClosedChannelException e) {
                     // This occurs when a request is interrupted
-                    logger.warn("Closed channel exception, closing reader");
+                    logger.debug("Closed channel exception, closing reader ({})", e.getMessage());
+                    logger.trace(e.getMessage(), e);
                     reader.close(false);
                     throw e;
                 } catch (Exception | UnsatisfiedLinkError e) {
@@ -198,7 +374,7 @@ class SynchronizedImageReader implements Closeable {
         }
     }
 
-    ClassList<IFormatReader> getBaseClassList() throws IOException, FormatException {
+    private ClassList<IFormatReader> getBaseClassList() throws IOException, FormatException {
         synchronized (reader) {
             ensureOpen();
             return unwrapBaseClassList(reader);
