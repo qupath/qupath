@@ -212,7 +212,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 		// Create a reader & extract the metadata
 		this.readerPool = new ReaderPool(options, filePathOrUrl, bfArgs);
 		IFormatReader reader = readerPool.getMainReader();
-		var meta = (OMEPyramidStore)reader.getMetadataStore();
 
 		// If we have more than one series, we need to construct maps of 'analyzable' & associated images
 		synchronized (reader) {
@@ -220,10 +219,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 			if (allSeries.isEmpty())
 				throw new IOException("No series found for " + filePathOrUrl);
 
-			// TODO: Consider making below method static.
-			//       Could use Map<String, Series>, but delayed creation of ServerBuilder
-			//       may fail if the URI is no longer 'clean', i.e., not encoding the series
-			populateImageMaps(allSeries, bfArgs, uri);
+			populateImageMaps(allSeries, imageMap, associatedImageMap);
 
 			this.series = findSeriesToOpen(allSeries, bfArgs).orElseThrow(() -> new IOException("No series found"));
 			this.originalMetadata = buildOriginalMetadata(
@@ -280,14 +276,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer implement
 	}
 
 
-	private void populateImageMaps(List<Series> allSeries,
-										  BioFormatsArgs bfArgs,
-										  URI uri) {
+	private static void populateImageMaps(List<Series> allSeries, Map<String, Series> mainImages, Map<String, Series> associatedImages) {
 		for (var series : allSeries) {
 			if (series.isAssociatedImage()) {
-				associatedImageMap.put(series.getUniqueSeriesName(), series);
+				associatedImages.put(series.getUniqueSeriesName(), series);
 			} else {
-				imageMap.put(series.getUniqueSeriesName(), series);
+				mainImages.put(series.getUniqueSeriesName(), series);
 			}
 		}
 	}
