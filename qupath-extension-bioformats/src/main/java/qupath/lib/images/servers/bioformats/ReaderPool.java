@@ -2,17 +2,13 @@ package qupath.lib.images.servers.bioformats;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.Cleaner;
-import java.nio.ByteOrder;
-import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
@@ -28,16 +24,17 @@ import loci.formats.IFormatReader;
 import loci.formats.ImageReader;
 import loci.formats.Memoizer;
 import loci.formats.MetadataTools;
-import loci.formats.ReaderWrapper;
-import loci.formats.gui.AWTImageTools;
 import loci.formats.in.DynamicMetadataOptions;
 import loci.formats.in.ZarrReader;
 import loci.formats.meta.DummyMetadata;
 import loci.formats.meta.MetadataRetrieve;
 import loci.formats.meta.MetadataStore;
 import loci.formats.ome.OMEPyramidStore;
+import ome.xml.meta.OMEXMLMetadataRoot;
+import ome.xml.model.ROI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 
 /**
@@ -75,6 +72,8 @@ class ReaderPool implements AutoCloseable {
     private final OMEPyramidStore metadata;
     private final SynchronizedImageReader mainReader;
 
+    private final List<Series> allSeries;
+
     private ForkJoinTask<?> task;
 
     private final int timeoutSeconds;
@@ -96,7 +95,8 @@ class ReaderPool implements AutoCloseable {
         if (mainReader == null) {
             throw new IOException("Unable to create reader for " + id);
         }
-        this.format = mainReader.reader.getFormat();
+        this.allSeries = List.copyOf(mainReader.getAllSeries());
+        this.format = mainReader.getFormat();
 
         long endTime = System.currentTimeMillis();
         logger.debug("Reader {} created in {} ms", mainReader, endTime - startTime);
@@ -105,18 +105,23 @@ class ReaderPool implements AutoCloseable {
         queue.add(mainReader);
 
         // Store the class so we don't need to go hunting later
-        classList = unwrapBaseClassList(mainReader.reader);
+        classList = mainReader.getBaseClassList();
+    }
+
+    List<Series> getAllSeries() {
+        return allSeries;
     }
 
     String getFormat() {
         return format;
     }
 
+    ImageServerMetadata parseMetadata(Series series, String imageName, String serverPath) throws IOException, FormatException {
+        return mainReader.parseMetadata(series, imageName, serverPath);
+    }
+
     boolean checkCanRead() throws IOException, FormatException {
-        var reader = getMainReader();
-        return reader.getSizeX() > 0
-                && reader.getSizeY() > 0
-                && reader.openBytes(0, 0, 0, 1, 1) != null;
+        return mainReader.checkCanRead();
     }
 
     OMEPyramidStore getMetadata() {
@@ -126,7 +131,6 @@ class ReaderPool implements AutoCloseable {
     /**
      * Make the timeout adjustable.
      * See https://github.com/qupath/qupath/issues/1265
-     *
      * @return
      */
     private int getTimeoutSeconds() {
@@ -141,10 +145,16 @@ class ReaderPool implements AutoCloseable {
         return DEFAULT_TIMEOUT_SECONDS;
     }
 
-    IFormatReader getMainReader() {
-        return mainReader.reader;
+    List<ROI> getROIs() {
+        if (metadata != null && metadata.getRoot() instanceof OMEXMLMetadataRoot root) {
+            return IntStream.range(0, root.sizeOfROIList())
+                    .mapToObj(root::getROI)
+                    .toList();
+        } else {
+            logger.debug("Unable to find instance of OMEXMLMetadataRoot. Returning no shapes");
+            return List.of();
+        }
     }
-
 
     private void createAdditionalReader(BioFormatsServerOptions options,
                                         final ClassList<IFormatReader> classList,
@@ -397,23 +407,6 @@ class ReaderPool implements AutoCloseable {
     }
 
 
-    private static ClassList<IFormatReader> unwrapBaseClassList(IFormatReader reader) {
-        while (true) {
-            IFormatReader nextReader = null;
-            if (reader instanceof ReaderWrapper wrapper)
-                nextReader = wrapper.getReader();
-            else if (reader instanceof ImageReader imageReader)
-                nextReader = imageReader.getReader();
-            if (nextReader == null)
-                break;
-            else
-                reader = nextReader;
-        }
-        var classlist = new ClassList<>(IFormatReader.class);
-        classlist.addClass(reader.getClass());
-        return classlist;
-    }
-
 
     @Override
     public void close() throws Exception {
@@ -428,147 +421,6 @@ class ReaderPool implements AutoCloseable {
                 logger.error("Exception during cleanup: {}", e.getMessage(), e);
             }
         }
-    }
-
-
-    private static class SynchronizedImageReader implements Closeable {
-
-        private final IFormatReader reader;
-        private final String id;
-
-        SynchronizedImageReader(IFormatReader reader, String id) {
-            Objects.requireNonNull(reader, "Reader must not be null");
-            this.reader = reader;
-            this.id = id;
-        }
-
-
-        BufferedImage openImage(TileRequest tileRequest, int series, int nChannels, int[] samplesPerPixel, boolean isRGB, ColorModel colorModel) throws IOException, InterruptedException {
-            int level = tileRequest.getLevel();
-            int tileX = tileRequest.getTileX();
-            int tileY = tileRequest.getTileY();
-            int tileWidth = tileRequest.getTileWidth();
-            int tileHeight = tileRequest.getTileHeight();
-            int z = tileRequest.getZ();
-            int t = tileRequest.getT();
-
-            byte[][] bytes;
-            int effectiveC;
-            ByteOrder order;
-            boolean interleaved;
-            int pixelType;
-            boolean normalizeFloats;
-
-            try {
-                // Check if this is non-zero
-                if (tileWidth <= 0 || tileHeight <= 0) {
-                    throw new IOException("Unable to request pixels for region with downsampled size " + tileWidth + " x " + tileHeight);
-                }
-
-                synchronized (reader) {
-                    ensureOpen(reader);
-                    reader.setSeries(series);
-
-                    // Some files provide z scaling (the number of z stacks decreases when the resolution becomes
-                    // lower, like the width and height), so z needs to be updated for levels > 0
-                    if (level > 0 && z > 0) {
-                        reader.setResolution(0);
-                        int zStacksFullResolution = reader.getSizeZ();
-                        reader.setResolution(level);
-                        int zStacksCurrentResolution = reader.getSizeZ();
-
-                        if (zStacksFullResolution != zStacksCurrentResolution) {
-                            z = (int) (z * zStacksCurrentResolution / (float) zStacksFullResolution);
-                        }
-
-
-                    } else {
-                        reader.setResolution(level);
-                    }
-
-                    order = reader.isLittleEndian() ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
-                    interleaved = reader.isInterleaved();
-                    pixelType = reader.getPixelType();
-                    normalizeFloats = reader.isNormalized();
-
-                    // Single-channel & RGB images are straightforward... nothing more to do
-                    if ((reader.isRGB() && isRGB) || nChannels == 1) {
-                        // Read the image - or at least the first channel
-                        int ind = reader.getIndex(z, 0, t);
-                        try {
-                            byte[] bytesSimple = reader.openBytes(ind, tileX, tileY, tileWidth, tileHeight);
-                            return AWTImageTools.openImage(bytesSimple, reader, tileWidth, tileHeight);
-                        } catch (Exception | UnsatisfiedLinkError e) {
-                            logger.warn("Unable to open image {} for {}", ind, tileRequest.getRegionRequest());
-                            throw ReaderUtils.convertToIOException(e);
-                        }
-                    }
-                    // Read bytes for all the required channels
-                    effectiveC = reader.getEffectiveSizeC();
-                    bytes = new byte[effectiveC][];
-                    try {
-                        for (int c = 0; c < effectiveC; c++) {
-                            int ind = reader.getIndex(z, c, t);
-                            bytes[c] = reader.openBytes(ind, tileX, tileY, tileWidth, tileHeight);
-                        }
-                    } catch (ClosedChannelException e) {
-                        // This occurs when a request is interrupted
-                        logger.warn("Closed channel exception, closing reader");
-                        reader.close(false);
-                        throw e;
-                    } catch (Exception | UnsatisfiedLinkError e) {
-                        throw ReaderUtils.convertToIOException(e);
-                    }
-                }
-            } catch (FormatException e) {
-                logger.debug("Unable to open reader: {}", e.getMessage(), e);
-                throw new IOException(e);
-            }
-
-            return new OMEPixelParser.Builder()
-                    .isInterleaved(interleaved)
-                    .pixelType(ReaderUtils.formatToPixelType(pixelType))
-                    .byteOrder(order)
-                    .normalizeFloats(normalizeFloats)
-                    .effectiveNChannels(effectiveC)
-                    .samplesPerPixel(samplesPerPixel)
-                    .build()
-                    .parse(bytes, tileWidth, tileHeight, nChannels, colorModel);
-        }
-
-        private void ensureOpen(IFormatReader reader) throws IOException, FormatException {
-            if (!id.equals(reader.getCurrentFile())) {
-                reader.close();
-                reader.setFlattenedResolutions(false);
-                reader.setId(id);
-            }
-        }
-
-
-        public BufferedImage openSeries(int series) throws InterruptedException, FormatException, IOException {
-            synchronized (reader) {
-                ensureOpen(reader);
-                int previousSeries = reader.getSeries();
-                try {
-                    reader.setSeries(series);
-                    int nResolutions = reader.getResolutionCount();
-                    if (nResolutions > 0) {
-                        reader.setResolution(0);
-                    }
-                    // TODO: Handle color transforms here, or in the display of labels/macro images - in case this isn't RGB
-                    byte[] bytesSimple = reader.openBytes(reader.getIndex(0, 0, 0));
-                    return AWTImageTools.openImage(bytesSimple, reader, reader.getSizeX(), reader.getSizeY());
-                } finally {
-                    reader.setSeries(previousSeries);
-                }
-            }
-        }
-
-        @Override
-        public void close() throws IOException {
-            this.reader.close();
-        }
-
     }
 
 }
