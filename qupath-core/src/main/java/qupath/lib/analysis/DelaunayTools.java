@@ -455,7 +455,11 @@ public class DelaunayTools {
 	 * @return
 	 */
 	private static Collection<Coordinate> prepareCoordinates(Collection<Coordinate> coords) {
-		return DelaunayTriangulationBuilder.unique(coords.toArray(Coordinate[]::new));
+		return coords.stream().distinct().sorted().toList();
+		// Changed in v0.8.0 because this method is no longer public in JTS
+		// It's expected that the above code should do the same, but this comment in preserved
+		// in case some unexpected case emerges
+//		return DelaunayTriangulationBuilder.unique(coords.toArray(Coordinate[]::new));
 	}
 	
 	/**
