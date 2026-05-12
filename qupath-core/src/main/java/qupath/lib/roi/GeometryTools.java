@@ -1168,7 +1168,8 @@ public class GeometryTools {
 	     * being generated within some operations as described by https://github.com/locationtech/jts/issues/434
     	 * Consequently, there may be some loss of efficiency.
     	 * <p>
-    	 * See also https://github.com/locationtech/jts/issues/408
+    	 * See also https://github.com/locationtech/jts/issues/408 and
+		 * https://github.com/qupath/qupath/pull/2135
 	     * 
 	     * @param area
 	     * @param transform
@@ -1192,10 +1193,11 @@ public class GeometryTools {
 	    		LineString lineString = factory.createLineString(array);
 	    		geometries.add(lineString);
 	    	}
+			// Note that polygonizer is non-deterministic and appears to have a bug
+			// https://github.com/locationtech/jts/issues/1063
 			var geom = factory.buildGeometry(geometries).union();
 	    	polygonizer.add(geom);
 	    	return polygonizer.getGeometry();
-
 	    }
 
 	    /**

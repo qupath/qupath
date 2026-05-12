@@ -376,11 +376,12 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 	
 	@Override
 	public Geometry getGeometry() {
+		// Previously this was synchronized, but it resulted in tests that failed (but rarely).
+		// See https://github.com/qupath/qupath/pull/2135
+		// The underlying bug may be in JTS and no reliable workaround has been found yet,
+		// but because AreaROI is a deprecated legacy class it isn't the highest priority.
 		if (geometry == null) {
-			synchronized(this) {
-				if (geometry == null)
-					geometry = super.getGeometry();
-			}
+			geometry = super.getGeometry();
 		}
 		return geometry;
 	}
