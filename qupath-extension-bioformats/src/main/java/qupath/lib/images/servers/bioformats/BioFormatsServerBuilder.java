@@ -153,13 +153,8 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
             // Check if we know the file type
             File file = type.getFile();
             path = file != null ? file.getAbsolutePath() : path;
-            String supportedReader = null;
-            try {
-                supportedReader = BioFormatsImageServer.getSupportedReaderClass(path);
-            } catch (Exception e) {
-                logger.warn("Error checking file {}", path, e);
-            }
-            if (supportedReader == null) {
+            var potentialReaderClass = ReaderChecker.getPotentialReader(path);
+            if (potentialReaderClass == null) {
                 // If we have a file, still provide support level of 1 because we might still be able to
                 // read the image with a more thorough check - but return 0 for a URL, because a thorough
                 // check might be extremely slow.
@@ -168,7 +163,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
                 logger.debug("No supported reader found for {}", path);
                 return file == null || path.endsWith(".mrxs") ? 0 : 1f;
             }
-            logger.debug("Potential Bio-Formats reader: {}", supportedReader);
+            logger.debug("Potential Bio-Formats reader: {}", potentialReaderClass);
         }
         return support;
     }
@@ -248,5 +243,6 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
         // If we get here, it could go either way... need to check support for format
         return UseBioformats.MAYBE;
     }
+
 
 }

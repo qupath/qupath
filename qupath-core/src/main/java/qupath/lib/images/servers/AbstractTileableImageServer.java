@@ -21,6 +21,7 @@
 
 package qupath.lib.images.servers;
 
+import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.awt.common.BufferedImageTools;
@@ -217,12 +218,12 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			}
 			imgCached = futureTask.get();
 		} catch (ExecutionException | InterruptedException e) {
-			if (e.getCause() instanceof IOException)
-				throw (IOException)e.getCause();
+			if (e.getCause() instanceof IOException ioException)
+				throw ioException;
 			throw new IOException(e);
 		} finally {
 			// Put the tile in the appropriate cache
-			if (myTask) {
+			if (myTask || (futureTask.state() == Future.State.FAILED || futureTask.state() == Future.State.CANCELLED)) {
 				if (imgCached != null) {
 					if (isEmptyTile(imgCached)) {
 						emptyTiles.add(tileRequest);

@@ -52,7 +52,7 @@ public class BioFormatsServerOptions {
 	 */
 	public static String ALLOW_MEMOIZATION_PROPERTY = "qupath.bioformats.allow.memoization";
 	
-	private static boolean allowMemoization = checkIfMemoizationSupported();
+	private static final boolean allowMemoization = checkIfMemoizationSupported();
 	
 	private static boolean checkIfMemoizationSupported() {
 		String prop = System.getProperty(ALLOW_MEMOIZATION_PROPERTY);
@@ -76,10 +76,10 @@ public class BioFormatsServerOptions {
 					var bfVersion = bfVersionString == null ? Version.parse("0.0.1") : Version.parse(bfVersionString);
 					boolean compatibleBioFormats = bfVersion.compareTo(Version.parse("6.12.0")) >= 0; // Currently, the latest Bio-Formats (6.10.0) is not compatible
 					if (compatibleBioFormats) {
-						logger.debug("Bio-Formats memoization is enabled (based on Java " + javaVersion + ", Bio-Formats " + bfVersion + ")");
+                        logger.debug("Bio-Formats memoization is enabled (based on Java {}, Bio-Formats {})", javaVersion, bfVersion);
 						return true;
 					} else {
-						logger.debug("Bio-Formats memoization is unavailable (based on Java " + javaVersion + ", Bio-Formats " + bfVersion + ")");
+                        logger.debug("Bio-Formats memoization is unavailable (based on Java {}, Bio-Formats {})", javaVersion, bfVersion);
 						return false;
 					}					
 				}
@@ -102,7 +102,7 @@ public class BioFormatsServerOptions {
 		MAYBE
 		}
 	
-	private static BioFormatsServerOptions instance = new BioFormatsServerOptions();
+	private static final BioFormatsServerOptions instance = new BioFormatsServerOptions();
 	
 	private boolean bioformatsEnabled = true;
 	
@@ -111,20 +111,17 @@ public class BioFormatsServerOptions {
 	 */
 	private int maxReaders = -1;
 	
-	private Set<String> skipExtensions = new TreeSet<>();
-	private Set<String> useExtensions = new TreeSet<>();
+	private final Set<String> skipExtensions = new TreeSet<>();
+	private final Set<String> useExtensions = new TreeSet<>();
 	
 	private boolean requestParallelization = true;
 	private boolean filesOnly = false;
 	private int memoizationTimeMillis = -1;
-//	private boolean requestParallelizeMultichannel = false;
 	private String pathMemoization;
 	
 	// Bio-Formats supports reader customization through key-value pairs
-	private Map<String, String> readerOptions = new LinkedHashMap<>();
-	
-//	private boolean requestChannelZCorrectionVSI = false;
-	
+	private final Map<String, String> readerOptions = new LinkedHashMap<>();
+
 	private BioFormatsServerOptions() {}
 	
 	int getMaxReaders() {
@@ -255,20 +252,6 @@ public class BioFormatsServerOptions {
 	public void setMemoizationTimeMillis(final int memoizationTimeMillis) {
 		this.memoizationTimeMillis = memoizationTimeMillis;
 	}
-	
-	/*
-	 * Some VSI images appears to be read with confusion between z-slices and channels.
-	 * This option attempted to fix these errors, but it's not clear whether it is still needed 
-	 * with the latest Bio-Formats updates - the option has been removed for now, but may be 
-	 * reinstated if required.
-	 */
-//	public boolean requestChannelZCorrectionVSI() {
-//		return requestChannelZCorrectionVSI;
-//	}
-//
-//	public void setRequestChannelZCorrectionVSI(final boolean requestChannelZCorrectionVSI) {
-//		this.requestChannelZCorrectionVSI = requestChannelZCorrectionVSI;
-//	}
 	
 	/**
 	 * Returns true if multiple readers may be created for different threads, to enable parallel image reading.

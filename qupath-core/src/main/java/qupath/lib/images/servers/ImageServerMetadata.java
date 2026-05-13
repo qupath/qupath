@@ -343,6 +343,18 @@ public class ImageServerMetadata {
 		}
 
 		/**
+		 * Set the pixel calibration to use.
+		 * Note that this will override any previous calibration that had been set on this builder.
+		 * @param cal the pixel calibration to use; if null, no changes will be made to the builder
+		 * @return
+		 */
+		public Builder pixelCalibration(final PixelCalibration cal) {
+			if (cal != null)
+				pixelCalibrationBuilder = new PixelCalibration.Builder(cal);
+			return this;
+		}
+
+		/**
 		 * Specify the pixel sizes, in microns.
 		 * @param pixelWidthMicrons
 		 * @param pixelHeightMicrons
