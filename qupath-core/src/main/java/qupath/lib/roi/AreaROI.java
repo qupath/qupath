@@ -377,9 +377,10 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 	@Override
 	public Geometry getGeometry() {
 		if (geometry == null) {
-			synchronized(this) {
-				if (geometry == null)
+			synchronized (this) {
+				if (geometry == null) {
 					geometry = super.getGeometry();
+				}
 			}
 		}
 		return geometry;

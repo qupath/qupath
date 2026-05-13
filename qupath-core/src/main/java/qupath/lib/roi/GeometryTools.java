@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,6 +21,7 @@
 
 package qupath.lib.roi;
 
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.awt.GeometryCollectionShape;
 import org.locationtech.jts.awt.PointTransformation;
@@ -36,6 +37,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -1090,32 +1092,6 @@ public class GeometryTools {
 	    			return shapeFactory.createRectangle();
 	    		}
 	    	}
-            // TODO: Test if this is as reliable
-            // Update August 2024... it is not. Tests added to TestGeometryTools show it
-            // fails faster for complex (random) polygons than the old method, which
-            // converts via a java.awt.geom.Area.
-            //
-            // Exploratory code for v0.4.0, but rejected to reduce risk.
-            // Seems marginally faster, but not by a huge amount
-//	    	if (roi instanceof PolygonROI) {
-//		    	PrecisionModel precisionModel = factory.getPrecisionModel();
-//		    	Polygonizer polygonizer = new Polygonizer(true);
-//		    	List<Coordinate> coords = new ArrayList<>();
-//				Coordinate lastCoord = null;
-//		    	for (var p : roi.getAllPoints()) {
-//		    		var c = new Coordinate(p.getX(), p.getY());
-//		    		precisionModel.makePrecise(c);
-//					if (!Objects.equals(lastCoord, c))
-//			    		coords.add(c);
-//					lastCoord = c;
-//		    	}
-//		    	// Close if needed
-//		    	if (!coords.getFirst().equals(coords.getLast()))
-//		    		coords.add(coords.getFirst().copy());
-//	    		LineString lineString = factory.createLineString(coords.toArray(Coordinate[]::new));
-//		    	polygonizer.add(lineString.union());
-//		    	return polygonizer.getGeometry();
-//	    	}
 
 			if (roi.isEmpty()) {
 				var shape = RoiTools.getShape(roi);
@@ -1168,34 +1144,77 @@ public class GeometryTools {
 	     * being generated within some operations as described by https://github.com/locationtech/jts/issues/434
     	 * Consequently, there may be some loss of efficiency.
     	 * <p>
-    	 * See also https://github.com/locationtech/jts/issues/408
+    	 * See also https://github.com/locationtech/jts/issues/408 and
+		 * https://github.com/qupath/qupath/pull/2135
 	     * 
 	     * @param area
 	     * @param transform
 	     * @param flatness
 	     * @param factory
 	     * @return a geometry corresponding to the Area object
+		 * @throws IllegalArgumentException if the winding rule is not WIND_NON_ZERO
 	     */
-	    private static Geometry convertAreaToGeometry(final Area area, final AffineTransform transform, final double flatness, final GeometryFactory factory) {
+	    private static Geometry convertAreaToGeometry(final Area area, final AffineTransform transform, final double flatness, final GeometryFactory factory) throws IllegalArgumentException {
+
+			// This code become more complex, and limited to WIND_NON_ZERO, to cope with a change in behavior for Area
+			// introduces around April 2026 (Java 25.0.3).
+			// We make the association the orientation (CW, CCW) allows us to tell if a coordinate sequence is an
+			// outer ring or a hole.
+			// See https://github.com/qupath/qupath/pull/2135
 
 	    	PathIterator iter = area.getPathIterator(transform, flatness);
+			if (iter.getWindingRule() != PathIterator.WIND_NON_ZERO) {
+				throw new IllegalArgumentException("Winding rule is " + iter.getWindingRule() + " but must be " +
+						PathIterator.WIND_NON_ZERO + " (WIND_NON_ZERO)");
+			}
 
 	    	PrecisionModel precisionModel = factory.getPrecisionModel();
-	    	Polygonizer polygonizer = new Polygonizer(true);
 
-	    	List<Coordinate[]> coords = (List<Coordinate[]>)ShapeReader.toCoordinates(iter);
-	    	List<Geometry> geometries = new ArrayList<>();
-	    	for (Coordinate[] array : coords) {
-	    		for (var c : array)
-	    			precisionModel.makePrecise(c);
+			List<Coordinate[]> coords = (List<Coordinate[]>)ShapeReader.toCoordinates(iter);
+			List<Geometry> geometries = new ArrayList<>();
+			List<Geometry> holes = new ArrayList<>();
+			CoordinateList coordList = new CoordinateList();
+			boolean allowRepeated = false;
+			for (Coordinate[] array : coords) {
+				coordList.clear();
+				for (var c : array) {
+					precisionModel.makePrecise(c);
+					coordList.add(c, allowRepeated);
+				}
 
-	    		LineString lineString = factory.createLineString(array);
-	    		geometries.add(lineString);
-	    	}
-			var geom = factory.buildGeometry(geometries).union();
-	    	polygonizer.add(geom);
-	    	return polygonizer.getGeometry();
+				Coordinate[] lineStringCoords = coordList.toCoordinateArray();
+				Geometry lineString = factory.createLineString(lineStringCoords).union();
+				Polygonizer polygonizer = new Polygonizer(true);
+				polygonizer.add(lineString);
 
+				// If we have self-intersections, we want to estimate the orientation from the line with most coordinates
+				if (lineString instanceof MultiLineString multiLineString) {
+					lineStringCoords = multiLineString.getGeometryN(0).getCoordinates();
+					for (int i = 1; i < multiLineString.getNumGeometries(); i++) {
+						var temp = multiLineString.getGeometryN(i).getCoordinates();
+						if (temp.length > lineStringCoords.length)
+							lineStringCoords = temp;
+					}
+				}
+
+				// Use the orientation - should be trustworthy (we think...) because of winding rule
+				if (Orientation.isCCW(lineStringCoords)) {
+					holes.add(polygonizer.getGeometry());
+				} else {
+					geometries.add(polygonizer.getGeometry());
+				}
+			}
+
+			var mainGeometry = union(geometries);
+			var allHoles = union(holes);
+			if (allHoles.isEmpty())
+				return mainGeometry;
+
+			// If things have worked, the main geometry will be bigger than the holes
+			if (mainGeometry.getArea() >= allHoles.getArea())
+				return mainGeometry.difference(allHoles);
+			logger.warn("Switching main geometry and holes based on area - this is unexpected and might be a bug");
+			return allHoles.difference(mainGeometry);
 	    }
 
 	    /**
