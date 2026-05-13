@@ -35,6 +35,7 @@ import org.locationtech.jts.operation.valid.IsValidOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.geom.Point2;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
@@ -104,7 +105,7 @@ public class TestGeometryTools {
 		File fileHierarchy = new File("src/test/resources/data/test-objects.hierarchy");
 		try (InputStream stream = Files.newInputStream(fileHierarchy.toPath())) {
 			var hierarchy = (PathObjectHierarchy)new ObjectInputStream(stream).readObject();
-			var geometries = hierarchy.getFlattenedObjectList(null).stream().filter(p -> p.hasROI()).map(p -> p.getROI().getGeometry()).collect(Collectors.toCollection(() -> new ArrayList<>()));
+			var geometries = hierarchy.getFlattenedObjectList(null).stream().filter(PathObject::hasROI).map(p -> p.getROI().getGeometry()).collect(Collectors.toCollection(ArrayList::new));
 			
 			// Include some extra geometries that we know can be troublesome
 			var rectangle = GeometryTools.createRectangle(0, 0, 100, 100);
@@ -117,19 +118,19 @@ public class TestGeometryTools {
 			
 			var filledNested = (Polygon)GeometryTools.fillHoles(nested);
 			assertNotEquals(nested.getArea(), filledNested.getArea());
-			assertNotEquals(nested.getNumGeometries(), 1);
-			assertEquals(filledNested.getNumInteriorRing(), 0);
+			assertNotEquals(1, nested.getNumGeometries());
+			assertEquals(0, filledNested.getNumInteriorRing());
 			assertEquals(filledNested.getArea(), GeometryTools.externalRingArea(filledNested));
 
 			var filledNested2 = (Polygon)GeometryTools.fillHoles(nested2);
 			assertNotEquals(nested2.getArea(), filledNested2.getArea());
-			assertNotEquals(nested2.getNumGeometries(), 1);
-			assertEquals(filledNested2.getNumInteriorRing(), 0);
+			assertNotEquals(1, nested2.getNumGeometries());
+			assertEquals(0, filledNested2.getNumInteriorRing());
 			assertEquals(filledNested2.getArea(), GeometryTools.externalRingArea(filledNested2));
 
 			for (var geom : geometries) {
-				
-				assertTrue(geom.isValid());
+
+				assertTrue(geom.isValid(), () -> "Invalid geometry: " + geom);
 				
 				var geom2 = GeometryTools.fillHoles(geom);
 				assertTrue(geom2.isValid());
