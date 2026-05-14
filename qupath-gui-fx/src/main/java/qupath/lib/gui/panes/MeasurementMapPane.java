@@ -24,6 +24,8 @@
 package qupath.lib.gui.panes;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -50,6 +52,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,42 +92,42 @@ import java.util.Set;
 public class MeasurementMapPane {
 	
 	private static final Logger logger = LoggerFactory.getLogger(MeasurementMapPane.class);
-	
-	private QuPathGUI qupath;
-	
-	private Map<String, MeasurementMapper> mapperMap = new HashMap<>();
 
-	private BorderPane pane = new BorderPane();
+	private static final StringProperty preferredMapperName = PathPrefs.createPersistentPreference("measurementMapperLUT", ColorMaps.getDefaultColorMap().getName());
 
-	private ObjectProperty<PathObjectFilter> selectedFilter = new SimpleObjectProperty<>(PathObjectFilter.DETECTIONS_ALL);
+	private final QuPathGUI qupath;
 	
-	private ObservableList<ColorMap> colorMaps = FXCollections.observableArrayList();
-	private ObservableValue<ColorMap> selectedColorMap;
+	private final Map<String, MeasurementMapper> mapperMap = new HashMap<>();
+
+	private final BorderPane pane = new BorderPane();
+
+	private final ObjectProperty<PathObjectFilter> selectedFilter = new SimpleObjectProperty<>(PathObjectFilter.DETECTIONS_ALL);
 	
-	private ObservableList<String> baseList = FXCollections.observableArrayList();
-	private FilteredList<String> filteredList = new FilteredList<>(baseList);
-	private ListView<String> listMeasurements = new ListView<>(filteredList);
+	private final ObservableList<ColorMap> colorMaps = FXCollections.observableArrayList();
+	private final ObservableValue<ColorMap> selectedColorMap;
 	
-	private Slider sliderMin = new Slider(0, 1, 0);
-	private Slider sliderMax = new Slider(0, 1, 1);
+	private final ObservableList<String> baseList = FXCollections.observableArrayList();
+	private final FilteredList<String> filteredList = new FilteredList<>(baseList);
+	private final ListView<String> listMeasurements = new ListView<>(filteredList);
+	
+	private final Slider sliderMin = new Slider(0, 1, 0);
+	private final Slider sliderMax = new Slider(0, 1, 1);
 	
 	// For not painting values outside the mapper range
-	private CheckBox cbExcludeOutside = new CheckBox(QuPathResources.getString("Panes.MeasurementMap.excludeOutsideRange"));
+	private final CheckBox cbExcludeOutside = new CheckBox(QuPathResources.getString("Panes.MeasurementMap.excludeOutsideRange"));
 	
-	private Canvas colorMapKey;
+	private final Canvas colorMapKey;
 	private Image colorMapKeyImage;
 	
-	private Label labelMin = new Label("");
-	private Label labelMax = new Label("");
+	private final Label labelMin = new Label("");
+	private final Label labelMax = new Label("");
 	
 	private MeasurementMapper mapper = null;
 	
-	private BooleanProperty showMap;
+	private final BooleanProperty showMap;
 	private boolean updatingSliders = false;
 	
-	
-	private static StringProperty preferredMapperName = PathPrefs.createPersistentPreference("measurementMapperLUT", ColorMaps.getDefaultColorMap().getName());
-	
+
 	/**
 	 * Constructor.
 	 * @param qupath the current QuPath instance
@@ -305,8 +308,6 @@ public class MeasurementMapPane {
 		toggleShowMap.setMaxWidth(Double.MAX_VALUE);
 		vbButtons.setFillWidth(true);
 		
-//		GridPane.setHgrow(colorMapperKey, Priority.ALWAYS);
-		
 		pane.setBottom(vbButtons);
 
 		pane.setPadding(new Insets(10, 10, 10, 10));
@@ -466,7 +467,6 @@ public class MeasurementMapPane {
 		updateMapperBrightnessContrast();
 		for (var viewer : qupath.getAllViewers())
 			viewer.forceOverlayUpdate();
-//		viewer.repaint();
 	}
 	
 	
@@ -481,8 +481,7 @@ public class MeasurementMapPane {
 				}
 			}
 		}
-		Image img = SwingFXUtils.toFXImage(imgKey, null);
-		return img;
+        return SwingFXUtils.toFXImage(imgKey, null);
 	}
 
 }
