@@ -21,10 +21,7 @@
 
 package qupath.lib.gui.tools;
 
-import java.util.function.Function;
-
-import org.kordamp.ikonli.javafx.StackedFontIcon;
-
+import javafx.beans.binding.Bindings;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -39,12 +36,17 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.TilePane;
+import org.kordamp.ikonli.javafx.StackedFontIcon;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+
+import java.util.ArrayList;
+import java.util.function.Function;
 
 /**
  * Create standardized {@link ListCell} and {@link TreeCell} instances for displaying a {@link PathObject}, 
@@ -112,7 +114,7 @@ public class PathObjectLabels {
 	
 	private static class PathObjectTreeCell extends TreeCell<PathObject> {
 		
-		private PathObjectMiniPane miniPane;
+		private final PathObjectMiniPane miniPane;
 		
 		PathObjectTreeCell(Function<PathObject, String> stringExtractor) {
 			super();
@@ -137,7 +139,7 @@ public class PathObjectLabels {
 
 	private static class PathObjectListCell extends ListCell<PathObject> {
 		
-		private PathObjectMiniPane miniPane;
+		private final PathObjectMiniPane miniPane;
 		
 		PathObjectListCell(Function<PathObject, String> stringExtractor) {
 			super();
@@ -166,21 +168,24 @@ public class PathObjectLabels {
 	 */
 	public static class PathObjectMiniPane {
 
-		private Tooltip tooltip = new Tooltip();
+		private final Tooltip tooltip = new Tooltip();
 		private Function<PathObject, String> fun;
 		
-		private int w = 16, h = 16;
+		private final int w = 16, h = 16;
 		
-		private StackedFontIcon lockIcon;
-		private StackedFontIcon descriptionIcon;
-		private Pane iconPane;
+		private final Node lockIcon;
+		private final Node unlockIcon;
+		private final Node descriptionIcon;
+		private final Pane iconPane;
 
-		private Tooltip descriptionTooltip = new Tooltip();
+		private final Tooltip descriptionTooltip = new Tooltip();
 
-		private Label label;
-		private BorderPane pane;
-		
-		
+		private final Label label;
+		private final BorderPane pane;
+
+		// TODO - Decide if unlocked icons should be shown by default
+		private static boolean showUnlocked = false;
+
 		/**
 		 * Constructor using a custom string extraction function.
 		 * @param stringExtractor function to generate a String representation of the object.
@@ -200,15 +205,10 @@ public class PathObjectLabels {
 			StackPane.setAlignment(label, Pos.CENTER_LEFT);
 			pane.setCenter(sp);
 			
-			String iconStyle = "-fx-background-color: -fx-background; -fx-icon-color: -fx-text-background-color; -fx-opacity: 0.6;";
-			
-			lockIcon = new StackedFontIcon();
-			lockIcon.setIconCodeLiterals("ion4-md-lock");
-			lockIcon.setStyle(iconStyle);
+			lockIcon = createLockIcon();
+			unlockIcon = createUnlockIcon();
+			descriptionIcon = createDescriptionIcon();
 
-			descriptionIcon = new StackedFontIcon();
-			descriptionIcon.setIconCodeLiterals("ion4-md-list");
-			descriptionIcon.setStyle(iconStyle);
 			var qupath = QuPathGUI.getInstance();
 			var actions = qupath == null ? null : qupath.getCommonActions();
 			if (actions != null) {
@@ -224,13 +224,40 @@ public class PathObjectLabels {
 			
 			iconPane = new TilePane();
 
-			var lockedTooltip = new Tooltip("ROI locked");
+			var lockedTooltip = new Tooltip(QuPathResources.getString("Tools.PathObjectLabels.roiLocked"));
 			Tooltip.install(lockIcon, lockedTooltip);
 			
 			BorderPane.setAlignment(label, Pos.CENTER_LEFT);
 			BorderPane.setAlignment(iconPane, Pos.CENTER_RIGHT);
 		}
-		
+
+		private static Node createDescriptionIcon() {
+			var descriptionIcon = new StackedFontIcon();
+			descriptionIcon.setIconCodeLiterals("ion4-md-list");
+			descriptionIcon.setStyle("-fx-background-color: -fx-background; -fx-icon-color: -fx-text-background-color;");
+			descriptionIcon.setOpacity(0.6);
+			return descriptionIcon;
+		}
+
+		private static Node createLockIcon() {
+			var lockIcon = new StackedFontIcon();
+			lockIcon.setIconCodeLiterals("ion4-md-lock");
+			lockIcon.setStyle("-fx-background-color: -fx-background; -fx-icon-color: -fx-text-background-color;");
+			lockIcon.setOpacity(0.6);
+			return lockIcon;
+		}
+
+		// We don't currently use unlocked icons to save space - but they could be added back in if needed
+		private static Node createUnlockIcon() {
+			var unlockIcon = new StackedFontIcon();
+			unlockIcon.setIconCodeLiterals("ion4-md-unlock");
+			unlockIcon.setStyle("-fx-background-color: -fx-background; -fx-icon-color: -fx-text-background-color;");
+			unlockIcon.opacityProperty().bind(
+					Bindings.createDoubleBinding(() -> unlockIcon.isHover() ? 0.4 : 0.1,
+							unlockIcon.hoverProperty()));
+			return unlockIcon;
+		}
+
 		
 		/**
 		 * Set the {@link PathObject} to display (may be null).
@@ -245,43 +272,47 @@ public class PathObjectLabels {
 			}
 
 			label.setText(fun.apply(value));
-			
-			String description = getDescription(value);			
+
+			String description = getDescription(value);
 			updateTooltips(value, description);
-			
+
 			if (showRoiIcon(value)) {
 				Node icon = IconFactory.createPathObjectIcon(value, w, h);
 				label.setGraphic(icon);
 			} else {
 				label.setGraphic(null);
 			}
-			
+
 			boolean hasDescription = description != null && !description.isBlank();
 			if (hasDescription)
 				descriptionTooltip.setText(description);
 			else
-				descriptionTooltip.setText("No description");
+				descriptionTooltip.setText(QuPathResources.getString("Tools.PathObjectLabels.noDescription"));
 			boolean isLocked = value.isLocked();
-			
-			if (hasDescription && isLocked) {
-				iconPane.getChildren().setAll(descriptionIcon, lockIcon);
-			} else if (hasDescription)
-				iconPane.getChildren().setAll(descriptionIcon);
-			else if (isLocked)
-				iconPane.getChildren().setAll(lockIcon);
-			else {
-				pane.setRight(null);
-				return;
+
+			var icons = new ArrayList<Node>();
+			if (hasDescription) {
+				icons.add(descriptionIcon);
+			} if (isLocked) {
+				icons.add(lockIcon);
+			} else if (showUnlocked) {
+				icons.add(unlockIcon);
 			}
-			pane.setRight(iconPane);
+
+			if (icons.isEmpty())
+				pane.setRight(null);
+			else {
+				iconPane.getChildren().setAll(icons);
+				pane.setRight(iconPane);
+			}
 		}
 		
 		
 		private String getDescription(PathObject pathObject) {
 			if (pathObject instanceof PathAnnotationObject)
 				return ((PathAnnotationObject)pathObject).getDescription();
-			if (pathObject instanceof TMACoreObject)
-				return ((TMACoreObject)pathObject).getMetadataString("Note"); // TODO: Improve naming of TMA note!
+			if (pathObject instanceof TMACoreObject core)
+				return core.getMetadata().getOrDefault("Note", null); // TODO: Improve naming of TMA note!
 			return null;
 		}
 		
@@ -309,7 +340,7 @@ public class PathObjectLabels {
 			tooltip.setText(label.getText());
 			label.setTooltip(tooltip);
 			if (description == null)
-				descriptionTooltip.setText("No description");
+				descriptionTooltip.setText(QuPathResources.getString("Tools.PathObjectLabels.noDescription"));
 			else
 				descriptionTooltip.setText(description);
 		}

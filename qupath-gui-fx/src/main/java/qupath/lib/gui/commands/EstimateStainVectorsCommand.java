@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,21 +23,6 @@
 
 package qupath.lib.gui.commands;
 
-import java.awt.geom.Point2D;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
-import java.util.Locale.Category;
-
-import javafx.scene.control.*;
-import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
-import org.apache.commons.math3.stat.correlation.SpearmansCorrelation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.SimpleStringProperty;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -47,19 +32,31 @@ import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TitledPane;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
+import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
+import org.apache.commons.math3.stat.correlation.SpearmansCorrelation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.analysis.algorithms.EstimateStainVectors;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
@@ -69,6 +66,17 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.geom.Point2D;
+import java.awt.image.BufferedImage;
+import java.awt.image.ImagingOpException;
+import java.io.IOException;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.Locale.Category;
 
 /**
  * Command to help set stain vectors for brightfield chromogenic stains,
@@ -83,34 +91,33 @@ class EstimateStainVectorsCommand {
 	
 	static int MAX_PIXELS = 4000*4000;
 	
-	private static final String TITLE = "Estimate stain vectors";
+	private static final String TITLE = QuPathResources.getString("Commands.EstimateStainVectors.title");
 	
 	
 	private enum AxisColor {RED, GREEN, BLUE;
 		@Override
 		public String toString() {
-			switch(this) {
-			case RED: return "Red";
-			case GREEN: return "Green";
-			case BLUE: return "Blue";
-			default: throw new IllegalArgumentException();
-			}
+            return QuPathResources.getString(switch (this) {
+                case RED -> "Commands.EstimateStainVectors.red";
+                case GREEN -> "Commands.EstimateStainVectors.green";
+                case BLUE -> "Commands.EstimateStainVectors.blue";
+            });
 		}
-	};
+	}
 
 
-	public static void promptToEstimateStainVectors(ImageData<BufferedImage> imageData) {
+    public static void promptToEstimateStainVectors(ImageData<BufferedImage> imageData) {
 		if (imageData == null) {
 			GuiTools.showNoImageError(TITLE);
 			return;
 		}
-		if (!imageData.isBrightfield() || imageData.getServer() == null || !imageData.getServer().isRGB()) {
-			Dialogs.showErrorMessage(TITLE, "No brightfield, RGB image selected!");
+		if (!imageData.isBrightfield() || imageData.getServer() == null || imageData.getServer().nChannels() != 3) {
+			Dialogs.showErrorMessage(TITLE, QuPathResources.getString("Commands.EstimateStainVectors.noBrightfield"));
 			return;
 		}
 		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 		if (stains == null || !stains.getStain(3).isResidual()) {
-			Dialogs.showErrorMessage(TITLE, "Sorry, stain editing is only possible for brightfield, RGB images with 2 stains");
+			Dialogs.showErrorMessage(TITLE, QuPathResources.getString("Commands.EstimateStainVectors.twoStains"));
 			return;
 		}
 		
@@ -126,25 +133,45 @@ class EstimateStainVectorsCommand {
 		try {
 			img = imageData.getServer().readRegion(request);
 		} catch (IOException e) {
-			Dialogs.showErrorMessage("Estimate stain vectors", e);
+			Dialogs.showErrorMessage(TITLE, e);
 			logger.error("Unable to obtain pixels for {}", request, e);
+			return;
 		}
 		
 		// Apply small amount of smoothing to reduce compression artefacts
-		img = EstimateStainVectors.smoothImage(img);
+		try {
+			img = EstimateStainVectors.smoothImage(img);
+		} catch (ImagingOpException e) {
+				logger.warn("Unable to convolve image - will attempt stain estimation without smoothing");
+				logger.debug(e.getMessage(), e);
+		}
 		
 		// Check modes for background
-		int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
-		int[] rgbMode = EstimateStainVectors.getModeRGB(rgb);
-		int rMax = rgbMode[0];
-		int gMax = rgbMode[1];
-		int bMax = rgbMode[2];
-		
+		double rMax, gMax, bMax;
+		if (BufferedImageTools.is8bitColorType(img.getType())) {
+			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+			int[] rgbMode = EstimateStainVectors.getModeRGB(rgb);
+			rMax = rgbMode[0];
+			gMax = rgbMode[1];
+			bMax = rgbMode[2];
+		} else {
+			rMax = EstimateStainVectors.getMode(ColorDeconvolutionHelper.getPixels(img.getRaster(), 0), 256);
+			gMax = EstimateStainVectors.getMode(ColorDeconvolutionHelper.getPixels(img.getRaster(), 1), 256);
+			bMax = EstimateStainVectors.getMode(ColorDeconvolutionHelper.getPixels(img.getRaster(), 2), 256);
+		}
+
 		// Check if the background values may need to be changed
 		if (rMax != stains.getMaxRed() || gMax != stains.getMaxGreen() || bMax != stains.getMaxBlue()) {
 			ButtonType response =
-					Dialogs.showYesNoCancelDialog(TITLE,
-							String.format("Modal RGB values %d, %d, %d do not match current background values - do you want to use the modal values?", rMax, gMax, bMax));
+					Dialogs.showYesNoCancelDialog(
+							TITLE,
+							MessageFormat.format(
+									QuPathResources.getString("Commands.EstimateStainVectors.rgbDoNotMatchBackgroundValues"),
+									GeneralTools.formatNumber(rMax, 2),
+									GeneralTools.formatNumber(gMax, 2),
+									GeneralTools.formatNumber(bMax, 2)
+							)
+					);
 			if (response == ButtonType.CANCEL)
 				return;
 			else if (response == ButtonType.YES) {
@@ -155,13 +182,18 @@ class EstimateStainVectorsCommand {
 		
 		
 		ColorDeconvolutionStains stainsUpdated = null;
-		logger.info("Requesting region for stain vector editing: {}", request);
+		logger.info("Requesting region for stain vector estimation: {}", request);
 		try {
 			stainsUpdated = showStainEditor(img, stains);
 		} catch (Exception e) {
-			Dialogs.showErrorMessage(TITLE, "Error with stain estimation: " + e.getLocalizedMessage());
-			logger.error("{}", e.getLocalizedMessage(), e);
-//			JOptionPane.showMessageDialog(qupath.getFrame(), "Error with stain estimation: " + e.getLocalizedMessage(), "Estimate stain vectors", JOptionPane.ERROR_MESSAGE, null);
+			Dialogs.showErrorMessage(
+					TITLE,
+					MessageFormat.format(
+							QuPathResources.getString("Commands.EstimateStainVectors.errorWithStainEstimation"),
+							e.getLocalizedMessage()
+					)
+			);
+			logger.error(e.getMessage(), e);
 			return;
 		}
 		if (!stains.equals(stainsUpdated)) {
@@ -172,7 +204,11 @@ class EstimateStainVectorsCommand {
 			else
 				suggestedName = collectiveNameBefore;
 			
-			String newName = Dialogs.showInputDialog(TITLE, "Set name for stain vectors", suggestedName);
+			String newName = Dialogs.showInputDialog(
+					TITLE,
+					QuPathResources.getString("Commands.EstimateStainVectors.setName"),
+					suggestedName
+			);
 			if (newName == null)
 				return;
 			if (!newName.isBlank())
@@ -188,16 +224,37 @@ class EstimateStainVectorsCommand {
 	
 	@SuppressWarnings("unchecked")
 	public static ColorDeconvolutionStains showStainEditor(final BufferedImage img, final ColorDeconvolutionStains stains) {
-		
-		// 
-		int[] buf = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
-//		int[] rgb = buf;
-		int[] rgb = EstimateStainVectors.subsample(buf, 10000);
-		
-		float[] red = ColorDeconvolutionHelper.getRedOpticalDensities(rgb, stains.getMaxRed(), null);
-		float[] green = ColorDeconvolutionHelper.getGreenOpticalDensities(rgb, stains.getMaxGreen(), null);
-		float[] blue = ColorDeconvolutionHelper.getBlueOpticalDensities(rgb, stains.getMaxBlue(), null);
-		
+
+		float[] red, green, blue;
+		int[] rgb;
+
+		if (BufferedImageTools.is8bitColorType(img.getType())) {
+			int[] buf = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+			rgb = EstimateStainVectors.subsample(buf, 10000);
+
+			red = ColorDeconvolutionHelper.getRedOpticalDensities(rgb, stains.getMaxRed(), null);
+			green = ColorDeconvolutionHelper.getGreenOpticalDensities(rgb, stains.getMaxGreen(), null);
+			blue = ColorDeconvolutionHelper.getBlueOpticalDensities(rgb, stains.getMaxBlue(), null);
+		} else {
+			red = ColorDeconvolutionHelper.getPixels(img.getRaster(), 0, null);
+			green = ColorDeconvolutionHelper.getPixels(img.getRaster(), 1, null);
+			blue = ColorDeconvolutionHelper.getPixels(img.getRaster(), 2, null);
+
+			// TODO: Try to generate a sensible RGB color for each pixel
+			int n = red.length;
+			rgb = new int[n];
+			for (int i = 0; i < n; i++) {
+				int r = (int)GeneralTools.clipValue(red[i]/stains.getMaxRed()*255, 0, 255);
+				int g = (int)GeneralTools.clipValue(green[i]/stains.getMaxGreen()*255, 0, 255);
+				int b = (int)GeneralTools.clipValue(blue[i]/stains.getMaxBlue()*255, 0, 255);
+				rgb[i] = ColorTools.packRGB(r, g, b);
+			}
+
+			ColorDeconvolutionHelper.convertToOpticalDensity(red, stains.getMaxRed());
+			ColorDeconvolutionHelper.convertToOpticalDensity(green, stains.getMaxGreen());
+			ColorDeconvolutionHelper.convertToOpticalDensity(blue, stains.getMaxBlue());
+		}
+
 		
 //		panelPlots.setBorder(BorderFactory.createTitledBorder(null, "Stain vector scatterplots", TitledBorder.CENTER, TitledBorder.TOP));
 		
@@ -228,15 +285,15 @@ class EstimateStainVectorsCommand {
 			}
 			
 		});
-		TableColumn<Integer, String> colName = new TableColumn<>("Name");
+		TableColumn<Integer, String> colName = new TableColumn<>(QuPathResources.getString("Commands.EstimateStainVectors.name"));
 		colName.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).getName()));
-		TableColumn<Integer, String> colOrig = new TableColumn<>("Original");
+		TableColumn<Integer, String> colOrig = new TableColumn<>(QuPathResources.getString("Commands.EstimateStainVectors.original"));
 		colOrig.setCellValueFactory(v -> new SimpleStringProperty(
 				stainArrayAsString(Locale.getDefault(Category.FORMAT), stainsWrapper.getOriginalStains().getStain(v.getValue()), " | ", 3)));
-		TableColumn<Integer, String> colCurrent = new TableColumn<>("Current");
+		TableColumn<Integer, String> colCurrent = new TableColumn<>(QuPathResources.getString("Commands.EstimateStainVectors.current"));
 		colCurrent.setCellValueFactory(v -> new SimpleStringProperty(
 				stainArrayAsString(Locale.getDefault(Category.FORMAT), stainsWrapper.getStains().getStain(v.getValue()), " | ", 3)));
-		TableColumn<Integer, String> colAngle = new TableColumn<>("Angle");
+		TableColumn<Integer, String> colAngle = new TableColumn<>(QuPathResources.getString("Commands.EstimateStainVectors.angle"));
 		colAngle.setCellValueFactory(v -> {
 			return new SimpleStringProperty(
 					GeneralTools.formatNumber(
@@ -251,14 +308,49 @@ class EstimateStainVectorsCommand {
 		table.setPrefHeight(120);
 		
 		// Create auto detection parameters
+		double defaultMinStainOD = 0.05;
+		double defaultMaxStainOD = 1;
+		double defaultIgnorePercentage = 1;
 		ParameterList params = new ParameterList()
-				.addDoubleParameter("minStainOD", "Min channel OD", 0.05, "", "Minimum staining OD - pixels with a lower OD in any channel (RGB) are ignored (default = 0.05)")
-				.addDoubleParameter("maxStainOD", "Max total OD", 1., "", "Maximum staining OD - more densely stained pixels are ignored (default = 1)")
-				.addDoubleParameter("ignorePercentage", "Ignore extrema", 1., "%", "Percentage of extreme pixels to ignore, to improve robustness in the presence of noise/other artefacts (default = 1)")
-				.addBooleanParameter("checkColors", "Exclude unrecognised colors (H&E only)", false, "Exclude unexpected colors (e.g. green) that are likely to be caused by artefacts and not true staining");
+				.addDoubleParameter(
+						"minStainOD",
+						QuPathResources.getString("Commands.EstimateStainVectors.minChannelOd"),
+						defaultMinStainOD,
+						"",
+						MessageFormat.format(
+								QuPathResources.getString("Commands.EstimateStainVectors.minChannelOdDescription"),
+								defaultMinStainOD
+						)
+				)
+				.addDoubleParameter(
+						"maxStainOD",
+						QuPathResources.getString("Commands.EstimateStainVectors.maxStainOD"),
+						defaultMaxStainOD,
+						"",
+						MessageFormat.format(
+								QuPathResources.getString("Commands.EstimateStainVectors.maxStainODDescription"),
+								defaultMaxStainOD
+						)
+				)
+				.addDoubleParameter(
+						"ignorePercentage",
+						QuPathResources.getString("Commands.EstimateStainVectors.ignorePercentage"),
+						defaultIgnorePercentage,
+						"%",
+						MessageFormat.format(
+								QuPathResources.getString("Commands.EstimateStainVectors.ignorePercentageDescription"),
+								defaultIgnorePercentage
+						)
+				)
+				.addBooleanParameter(
+						"checkColors",
+						QuPathResources.getString("Commands.EstimateStainVectors.checkColors"),
+						false,
+						QuPathResources.getString("Commands.EstimateStainVectors.checkColorsDescription")
+				);
 //				.addDoubleParameter("ignorePercentage", "Ignore extrema", 1., "%", 0, 20, "Percentage of extreme pixels to ignore, to improve robustness in the presence of noise/other artefacts");
 		
-		Button btnAuto = new Button("Auto");
+		Button btnAuto = new Button(QuPathResources.getString("Commands.EstimateStainVectors.auto"));
 		btnAuto.setOnAction(e -> {
 				double minOD = params.getDoubleParameterValue("minStainOD");
 				double maxOD = params.getDoubleParameterValue("maxStainOD");
@@ -270,7 +362,7 @@ class EstimateStainVectorsCommand {
 					ColorDeconvolutionStains stainsNew = EstimateStainVectors.estimateStains(img, stainsWrapper.getStains(), minOD, maxOD, ignore, checkColors);
 					stainsWrapper.setStains(stainsNew);
 				} catch (Exception e2) {
-					Dialogs.showErrorMessage("Estimate stain vectors", e2);
+					Dialogs.showErrorMessage(TITLE, e2);
 					logger.error(e2.getMessage(), e2);
 				}
 		});
@@ -282,11 +374,11 @@ class EstimateStainVectorsCommand {
 		panelAuto.setCenter(panelParams.getPane());
 		panelAuto.setBottom(btnAuto);
 
-		var titledStainVectors = new TitledPane("Stain vectors", table);
+		var titledStainVectors = new TitledPane(QuPathResources.getString("Commands.EstimateStainVectors.stainVectors"), table);
 		titledStainVectors.setCollapsible(false);
 		panelSouth.setCenter(titledStainVectors);
 
-		var titledAutoDetect = new TitledPane("Auto detect", panelAuto);
+		var titledAutoDetect = new TitledPane(QuPathResources.getString("Commands.EstimateStainVectors.autoDetect"), panelAuto);
 		titledAutoDetect.setCollapsible(false);
 		panelSouth.setBottom(titledAutoDetect);
 		
@@ -295,7 +387,7 @@ class EstimateStainVectorsCommand {
 		panelMain.setBottom(panelSouth);
 		
 		if (Dialogs.builder()
-				.title("Visual Stain Editor")
+				.title(QuPathResources.getString("Commands.EstimateStainVectors.visualStainEditor"))
 				.content(panelMain)
 				.buttons(ButtonType.OK, ButtonType.CANCEL)
 				.showAndWait()

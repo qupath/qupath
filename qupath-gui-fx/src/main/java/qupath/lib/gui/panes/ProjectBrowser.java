@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,84 @@
 
 package qupath.lib.gui.panes;
 
+import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Insets;
+import javafx.geometry.Side;
+import javafx.scene.Node;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
+import javafx.scene.control.TreeCell;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import org.controlsfx.control.MasterDetailPane;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.control.action.ActionUtils;
+import org.controlsfx.control.textfield.TextFields;
+import org.controlsfx.glyphfont.FontAwesome;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.controls.PredicateTextField;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.commands.ProjectCommands;
+import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.gui.panes.ProjectTreeRow.ImageRow;
+import qupath.lib.gui.panes.ProjectTreeRow.MetadataRow;
+import qupath.lib.gui.panes.ProjectTreeRow.Type;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.gui.tools.IconFactory.PathIcons;
+import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.io.UriUpdater;
+import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectImageEntry;
+
 import java.awt.Desktop;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -31,6 +109,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -43,88 +122,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.scene.Node;
-import javafx.scene.control.RadioMenuItem;
-import javafx.scene.control.ToggleGroup;
-import org.controlsfx.control.MasterDetailPane;
-import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionUtils;
-import org.controlsfx.control.textfield.TextFields;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.DoubleBinding;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.geometry.Insets;
-import javafx.geometry.Side;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SelectionMode;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
-import javafx.scene.control.TitledPane;
-import javafx.scene.control.Tooltip;
-import javafx.scene.control.TreeCell;
-import javafx.scene.control.TreeItem;
-import javafx.scene.control.TreeView;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.input.KeyCode;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
-import qupath.fx.controls.PredicateTextField;
-import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.commands.ProjectCommands;
-import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.panes.ProjectTreeRow.ImageRow;
-import qupath.lib.gui.panes.ProjectTreeRow.MetadataRow;
-import qupath.lib.gui.panes.ProjectTreeRow.Type;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.IconFactory;
-import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.lib.gui.tools.MenuTools;
-import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.io.UriUpdater;
-import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectImageEntry;
 
 /**
  * Component for previewing and selecting images within a project.
@@ -135,43 +139,49 @@ import qupath.lib.projects.ProjectImageEntry;
 public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> {
 
 	private static final Logger logger = LoggerFactory.getLogger(ProjectBrowser.class);
-
+	private static final BooleanProperty keepDescriptionPaneOpenPref = PathPrefs.createPersistentPreference(
+			"keepDescriptionOpen",
+			false
+	);
 	private Project<BufferedImage> project;
 
 	// Requested thumbnail max dimensions
 	private int thumbnailWidth = 1000;
 	private int thumbnailHeight = 600;
 
-	private QuPathGUI qupath;
-	private BorderPane panel;
+	private final QuPathGUI qupath;
+	private final BorderPane panel;
 
 	private ProjectImageTreeModel model = new ProjectImageTreeModel(null);
-	private TreeView<ProjectTreeRow> tree;
+	private final TreeView<ProjectTreeRow> tree;
+	private final PredicateTextField<String> tfFilter;
 
-	 // Keep a record of servers that failed- don't want to keep putting in thumbnails requests if the server is unavailable.
-	private Set<ProjectTreeRow> serversFailed = Collections.synchronizedSet(new HashSet<>());
-	
-	private StringProperty descriptionText = new SimpleStringProperty();
+	 // Keep a record of servers that failed - don't want to keep putting in thumbnails requests if the server is unavailable.
+	private final Set<ProjectTreeRow> serversFailed = Collections.synchronizedSet(new HashSet<>());
+
+	private final StringProperty descriptionText = new SimpleStringProperty();
 
 	// Predicate for filtering tree rows
-	private ObjectProperty<Predicate<String>> predicateProperty = new SimpleObjectProperty<>(s -> true);
+	private final ObjectProperty<Predicate<ProjectImageEntry<?>>> predicateProperty = new SimpleObjectProperty<>(s -> true);
 
-	private static ObjectProperty<ProjectThumbnailSize> thumbnailSize = PathPrefs.createPersistentPreference("projectThumbnailSize",
+	private static final ObjectProperty<ProjectThumbnailSize> thumbnailSize = PathPrefs.createPersistentPreference("projectThumbnailSize",
 			ProjectThumbnailSize.SMALL, ProjectThumbnailSize.class);
 	
 	// Record if the context menu is showing; this is to block a tooltip obscuring it
-	private BooleanProperty contextMenuShowing = new SimpleBooleanProperty();
+	private final BooleanProperty contextMenuShowing = new SimpleBooleanProperty();
 	
 	/**
 	 * Metadata keys that will always be present
 	 */
 	private enum BaseMetadataKeys {
-		IMAGE_NAME("Image name"), ENTRY_ID("Entry ID"), URI("URI");
+		IMAGE_NAME("Panes.ProjectBrowser.imageName"),
+		ENTRY_ID("Panes.ProjectBrowser.entryId"),
+		URI("Panes.ProjectBrowser.uri");
 
 		private final String displayName;
 
 		BaseMetadataKeys(String displayName) {
-			this.displayName = displayName;
+			this.displayName = QuPathResources.getString(displayName);
 		}
 
 		String getDisplayName() {
@@ -183,8 +193,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		}
 
 	}
-	private static final String UNASSIGNED_NODE = "(Unassigned)";
-	private static final String UNDEFINED_VALUE = "Undefined";
+	private static final String UNASSIGNED_NODE = QuPathResources.getString("Panes.ProjectBrowser.unassigned");
+	private static final String UNDEFINED_VALUE = QuPathResources.getString("Panes.ProjectBrowser.undefined");
 
 	/**
 	 * To load thumbnails in the background
@@ -232,13 +242,43 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				e.consume();
 			}
 		});
-		
-//		TextArea textDescription = new TextArea();
+
+		Button editDescriptionButton = new Button(
+				null,
+				IconFactory.createNode(FontAwesome.Glyph.PENCIL, 13)
+		);
+		editDescriptionButton.setTooltip(new Tooltip(QuPathResources.getString("Panes.ProjectBrowser.editDescription")));
+		editDescriptionButton.setOnAction(e -> promptToEditSelectedImageDescription());
+		editDescriptionButton.visibleProperty().bind(Bindings.createBooleanBinding(
+				() -> tree.getSelectionModel().getSelectedItem() != null && tree.getSelectionModel().getSelectedItem().getValue().getType().equals(Type.IMAGE),
+				tree.getSelectionModel().selectedItemProperty()
+		));
+		editDescriptionButton.managedProperty().bind(editDescriptionButton.visibleProperty());
+
+		ToggleButton keepDescriptionOpenButton = new ToggleButton(
+				null,
+				IconFactory.createNode(FontAwesome.Glyph.THUMB_TACK, 13)
+		);
+		keepDescriptionOpenButton.selectedProperty().set(keepDescriptionPaneOpenPref.get());
+		keepDescriptionOpenButton.selectedProperty().addListener((p, o, n) -> keepDescriptionPaneOpenPref.set(n));
+		keepDescriptionOpenButton.setTooltip(new Tooltip(QuPathResources.getString("Panes.ProjectBrowser.keepDescriptionPaneOpen")));
+		keepDescriptionOpenButton.setPadding(new Insets(1,9,1,9));
+
+		TitledPane textDescriptionContainer = GuiTools.createLeftRightTitledPane(
+				QuPathResources.getString("Panes.ProjectBrowser.description"),
+				new HBox(5, editDescriptionButton, keepDescriptionOpenButton)
+		);
 		TextArea textDescription = new TextArea();
 		textDescription.textProperty().bind(descriptionText);
 		textDescription.setWrapText(true);
-		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescription, false);
-		mdTree.showDetailNodeProperty().bind(descriptionText.isNotNull());
+		textDescription.setEditable(false);
+		textDescriptionContainer.setContent(textDescription);
+
+		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescriptionContainer, false);
+		mdTree.showDetailNodeProperty().bind(Bindings.createBooleanBinding(
+				() -> keepDescriptionOpenButton.selectedProperty().get() || descriptionText.get() != null,
+				keepDescriptionOpenButton.selectedProperty(), descriptionText
+		));
 		
 		tree.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
@@ -248,17 +288,23 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				descriptionText.set(null);
 		});
 
-		TitledPane titledTree = new TitledPane("Image list", mdTree);
+		TitledPane titledTree = new TitledPane(QuPathResources.getString("Panes.ProjectBrowser.imageList"), mdTree);
 		titledTree.setCollapsible(false);
 		titledTree.setMaxHeight(Double.MAX_VALUE);
 		
 		
-		var tfFilter = new PredicateTextField<String>();
-		tfFilter.setPromptText("Search entry in project");
+		this.tfFilter = new PredicateTextField<String>();
+		tfFilter.setPromptText(QuPathResources.getString("Panes.ProjectBrowser.searchEntry"));
 		tfFilter.setSpacing(0.0);
-		var tooltip = new Tooltip("Type some text to filter the project entries by name or type.");
+		var tooltip = new Tooltip(QuPathResources.getString("Panes.ProjectBrowser.searchEntryDescription"));
 		Tooltip.install(tfFilter, tooltip);
-		predicateProperty.bind(tfFilter.predicateProperty());
+		predicateProperty.bind(Bindings.createObjectBinding(() -> {
+			if (tfFilter.useRegexProperty().get())
+				return (ProjectImageEntry<?> e) -> e != null && tfFilter.predicateProperty().get().test(e.getImageName());
+			else {
+				return ProjectEntryPredicate.createIgnoreCase(tfFilter.getText());
+			}
+		}, tfFilter.useRegexProperty(), tfFilter.textProperty(), tfFilter.predicateProperty()));
 		predicateProperty.addListener((m, o, n) -> refreshTree(null));
 		
 		var paneUserFilter = GridPaneUtils.createRowGrid(tfFilter);
@@ -280,50 +326,83 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		qupath.getPreferencePane().getPropertySheet().getItems().add(
 				new PropertyItemBuilder<>(thumbnailSize, ProjectThumbnailSize.class)
 						.propertyType(PropertyItemBuilder.PropertyType.CHOICE)
-						.name("Project thumbnail size")
-						.category("Appearance")
+						.name(QuPathResources.getString("Panes.ProjectBrowser.projectThumbnailSize"))
+						.category(QuPathResources.getString("Panes.ProjectBrowser.appearance"))
 						.choices(Arrays.asList(ProjectThumbnailSize.values()))
-						.description("Choose thumbnail size for the project pane")
+						.description(QuPathResources.getString("Panes.ProjectBrowser.projectThumbnailSizeDescription"))
 						.build()
 		);
 	}
 
 	ContextMenu getPopup() {
 		
-		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
-		Action actionRemoveImage = new Action("Remove image(s)", e -> promptToRemoveSelectedImages());
+		Action actionOpenImage = new Action(
+				QuPathResources.getString("Panes.ProjectBrowser.openImage"),
+				e -> qupath.openImageEntry(getSelectedEntry())
+		);
+		Action actionRemoveImage = new Action(
+				QuPathResources.getString("Panes.ProjectBrowser.removeImages"),
+				e -> promptToRemoveSelectedImages()
+		);
 		
-		Action actionDuplicateImages = new Action("Duplicate image(s)", e -> promptToDuplicateSelectedImages());
+		Action actionDuplicateImages = new Action(
+				QuPathResources.getString("Panes.ProjectBrowser.duplicateOneOrMoreImages"),
+				e -> promptToDuplicateSelectedImages()
+		);
 		
-		Action actionSetImageName = new Action("Rename image", e -> promptToRenameSelectedImage());
+		Action actionSetImageName = new Action(
+				QuPathResources.getString("Panes.ProjectBrowser.renameImage"),
+				e -> promptToRenameSelectedImage()
+		);
 		// Add a metadata value
-		Action actionAddMetadataValue = new Action("Add metadata", e -> promptToAddMetadataToSelectedImages());
+		Action actionAddMetadataValue = new Action(
+				QuPathResources.getString("Panes.ProjectBrowser.addMetadata"),
+				e -> promptToAddMetadataToSelectedImages()
+		);
 		
 		// Edit the description for the image
-		Action actionEditDescription = new Action("Edit description", e -> promptToEditSelectedImageDescription());
+		Action actionEditDescription = new Action(
+				QuPathResources.getString("Panes.ProjectBrowser.editDescription"),
+				e -> promptToEditSelectedImageDescription()
+		);
 		
 		// Mask the name of the images and shuffle the entry
-		Action actionMaskImageNames = ActionTools.createSelectableAction(PathPrefs.maskImageNamesProperty(), "Mask image names");
+		Action actionMaskImageNames = ActionTools.createSelectableAction(
+				PathPrefs.maskImageNamesProperty(),
+				QuPathResources.getString("Panes.ProjectBrowser.maskImageNames")
+		);
 		
 		// Refresh thumbnail according to current display settings
-		Action actionRefreshThumbnail = new Action("Refresh thumbnail", e -> promptToRefreshSelectedThumbnails());
+		Action actionRefreshThumbnail = new Action(
+				QuPathResources.getString("Panes.ProjectBrowser.refreshThumbnail"),
+				e -> promptToRefreshSelectedThumbnails()
+		);
 				
 		// Open the project directory using Explorer/Finder etc.
-		Action actionOpenProjectDirectory = createBrowsePathAction("Project...", () -> getProjectPath());
-		Action actionOpenProjectEntryDirectory = createBrowsePathAction("Project entry...", () -> getProjectEntryPath());
-		Action actionOpenImageServerDirectory = createBrowsePathAction("Image...", () -> getImageServerPath());
+		Action actionOpenProjectDirectory = createBrowsePathAction(
+				QuPathResources.getString("Panes.ProjectBrowser.project"),
+                this::getProjectPath
+		);
+		Action actionOpenProjectEntryDirectory = createBrowsePathAction(
+				QuPathResources.getString("Panes.ProjectBrowser.projectEntry"),
+                this::getProjectEntryPath
+		);
+		Action actionOpenImageServerDirectory = createBrowsePathAction(
+				QuPathResources.getString("Panes.ProjectBrowser.image"),
+                this::getImageServerPath
+		);
 		
 
 		ContextMenu menu = new ContextMenu();
 		
 		var hasProjectBinding = qupath.projectProperty().isNotNull();
-		var menuOpenDirectories = MenuTools.createMenu("Open directory...",
+		var menuOpenDirectories = MenuTools.createMenu(QuPathResources.getString("Panes.ProjectBrowser.openDirectory"),
 				actionOpenProjectDirectory,
 				actionOpenProjectEntryDirectory,
 				actionOpenImageServerDirectory);
-//		menuOpenDirectories.visibleProperty().bind(hasProjectBinding);
 		var separatorOpenDirectories = new SeparatorMenuItem();
 		separatorOpenDirectories.visibleProperty().bind(menuOpenDirectories.visibleProperty());
+        var separatorTop = new SeparatorMenuItem();
 
 		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
 		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
@@ -335,7 +414,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		MenuItem miMaskImages = ActionUtils.createCheckMenuItem(actionMaskImageNames);
 
 		// Create menu for sorting by metadata
-		Menu menuSort = new Menu("Sort by...");
+		Menu menuSort = new Menu(QuPathResources.getString("Panes.ProjectBrowser.sortBy"));
 
 		// Set visibility as menu being displayed
 		menu.setOnShowing(e -> {
@@ -348,18 +427,24 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			
 			int nSelectedEntries = ProjectTreeRow.getEntries(entries).size();
 			if (nSelectedEntries == 1) {
-				actionDuplicateImages.setText("Duplicate image");
-				actionRemoveImage.setText("Remove image");
+				actionDuplicateImages.setText(QuPathResources.getString("Panes.ProjectBrowser.duplicateImage"));
+				actionRemoveImage.setText(QuPathResources.getString("Panes.ProjectBrowser.removeImage"));
 			} else {
-				actionDuplicateImages.setText("Duplicate " + nSelectedEntries + " images");
-				actionRemoveImage.setText("Remove " + nSelectedEntries + " images");				
+				actionDuplicateImages.setText(MessageFormat.format(
+						QuPathResources.getString("Panes.ProjectBrowser.duplicateNImages"),
+						nSelectedEntries
+				));
+				actionRemoveImage.setText(MessageFormat.format(
+						QuPathResources.getString("Panes.ProjectBrowser.removeNImages"),
+						nSelectedEntries
+				));
 			}
-			
-//			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
+
 			miOpenImage.setVisible(isImageEntry);
 			miDuplicateImage.setVisible(isImageEntry);
 			miSetImageName.setVisible(isImageEntry);
 			miAddMetadata.setVisible(!entries.isEmpty());
+            separatorTop.setVisible(isImageEntry);
 			miEditDescription.setVisible(isImageEntry);
 			miRefreshThumbnail.setVisible(isImageEntry && isCurrentImage(selectedEntry));
 			miRemoveImage.setVisible(selected != null && project != null && !project.getImageList().isEmpty());
@@ -380,11 +465,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		SeparatorMenuItem separator = new SeparatorMenuItem();
 		separator.visibleProperty().bind(menuSort.visibleProperty());
+
 		menu.getItems().addAll(
 				miOpenImage,
 				miRemoveImage,
 				miDuplicateImage,
-				new SeparatorMenuItem(),
+                separatorTop,
 				miSetImageName,
 				miAddMetadata,
 				miEditDescription,
@@ -403,7 +489,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	}
 
 	private Menu createThumbnailSizeMenu() {
-		Menu menu = new Menu("Thumbnail size");
+		Menu menu = new Menu(QuPathResources.getString("Panes.ProjectBrowser.thumbnailSize"));
 		ToggleGroup group = new ToggleGroup();
 		for (ProjectThumbnailSize size : ProjectThumbnailSize.values()) {
 			RadioMenuItem item = new RadioMenuItem(size.toString());
@@ -436,7 +522,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				syncProject(project);
 			}
 		} else {
-			Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Panes.ProjectBrowser.editImageDescription"),
+					QuPathResources.getString("Panes.ProjectBrowser.noEntrySelected")
+			);
 		}
 	}
 
@@ -453,19 +542,33 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			var imageData = viewer.getImageData();
 			var entry = imageData == null ? null : getProject().getEntry(imageData);
 			if (entry != null && entries.contains(entry)) {
-				Dialogs.showErrorMessage("Remove project entries", "Please close all images you want to remove!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Panes.ProjectBrowser.removeProjectEntries"),
+						QuPathResources.getString("Panes.ProjectBrowser.closeImages")
+				);
 				return;
 			}
 		}
 
 		if (entries.size() == 1) {
-			if (!Dialogs.showConfirmDialog("Remove project entry", "Remove " + entries.iterator().next().getImageName() + " from project?"))
+			if (!Dialogs.showConfirmDialog(
+					QuPathResources.getString("Panes.ProjectBrowser.removeProjectEntry"),
+					MessageFormat.format(
+							QuPathResources.getString("Panes.ProjectBrowser.removeFromProject"),
+							entries.iterator().next().getImageName()
+					)
+			))
 				return;
-		} else if (!Dialogs.showYesNoDialog("Remove project entries", String.format("Remove %d entries?", entries.size())))
+		} else if (!Dialogs.showYesNoDialog(
+				QuPathResources.getString("Panes.ProjectBrowser.removeProjectEntries"),
+				MessageFormat.format(QuPathResources.getString("Panes.ProjectBrowser.removeEntries"), entries.size())
+		))
 			return;
 
-		var result = Dialogs.showYesNoCancelDialog("Remove project entries",
-				"Delete all associated data?");
+		var result = Dialogs.showYesNoCancelDialog(
+				QuPathResources.getString("Panes.ProjectBrowser.removeProjectEntries"),
+				QuPathResources.getString("Panes.ProjectBrowser.deleteAssociatedData")
+		);
 		if (result == ButtonType.CANCEL)
 			return;
 
@@ -511,13 +614,13 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
 		boolean singleImage = false;
 		String name = "";
-		String title = "Duplicate images";
-		String namePrompt = "Append to image name";
-		String nameHelp = "Specify text to append to the image name to distinguish duplicated images";
+		String title = QuPathResources.getString("Panes.ProjectBrowser.duplicateImages");
+		String namePrompt = QuPathResources.getString("Panes.ProjectBrowser.appendToImageName");
+		String nameHelp = QuPathResources.getString("Panes.ProjectBrowser.textToAppendToImageName");
 		if (imageRows.size() == 1) {
-			title = "Duplicate image";
-			namePrompt = "Duplicate image name";
-			nameHelp = "Specify name for the duplicated image";
+			title = QuPathResources.getString("Panes.ProjectBrowser.duplicateImages");
+			namePrompt = QuPathResources.getString("Panes.ProjectBrowser.duplicateImageName");
+			nameHelp = QuPathResources.getString("Panes.ProjectBrowser.specifyNameForDuplicatedImage");
 			singleImage = true;
 			name = imageRows.iterator().next().getDisplayableString();
 			name = GeneralTools.generateDistinctName(
@@ -526,7 +629,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		}
 		var params = new ParameterList()
 				.addStringParameter("name", namePrompt, name, nameHelp)
-				.addBooleanParameter("copyData", "Also duplicate data files", true, "Duplicate any associated data files along with the image");
+				.addBooleanParameter(
+						"copyData",
+						QuPathResources.getString("Panes.ProjectBrowser.duplicateDataFiles"),
+						true,
+						QuPathResources.getString("Panes.ProjectBrowser.duplicateDataFilesDescription")
+				);
 
 		if (!GuiTools.showParameterDialog(title, params))
 			return;
@@ -548,14 +656,20 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						newEntry.setImageName(newEntry.getImageName() + name);
 				}
 			} catch (Exception ex) {
-				Dialogs.showErrorNotification("Duplicating image", "Error duplicating " + ProjectTreeRow.getEntry(imageRow).getImageName());
+				Dialogs.showErrorNotification(
+						QuPathResources.getString("Panes.ProjectBrowser.duplicatingImage"),
+						MessageFormat.format(
+								QuPathResources.getString("Panes.ProjectBrowser.errorDuplicating"),
+								ProjectTreeRow.getEntry(imageRow).getImageName()
+						)
+				);
 				logger.error(ex.getLocalizedMessage(), ex);
 			}
 		}
 		try {
 			project.syncChanges();
 		} catch (Exception ex) {
-			logger.error("Error synchronizing project changes: " + ex.getLocalizedMessage(), ex);
+            logger.error("Error synchronizing project changes: {}", ex.getMessage(), ex);
 		}
 		refreshProject();
 		if (imageRows.size() == 1)
@@ -582,7 +696,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		if (project != null && !imageRows.isEmpty()) {
 			TextField tfMetadataKey = new TextField();
 			var suggestions = project.getImageList().stream()
-					.map(p -> p.getMetadataKeys())
+					.map(p -> p.getMetadata().keySet())
 					.flatMap(Collection::stream)
 					.distinct()
 					.sorted()
@@ -590,15 +704,15 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			TextFields.bindAutoCompletion(tfMetadataKey, suggestions);
 
 			TextField tfMetadataValue = new TextField();
-			Label labKey = new Label("New key");
-			Label labValue = new Label("New value");
+			Label labKey = new Label(QuPathResources.getString("Panes.ProjectBrowser.newKey"));
+			Label labValue = new Label(QuPathResources.getString("Panes.ProjectBrowser.newValue"));
 			labKey.setLabelFor(tfMetadataKey);
 			labValue.setLabelFor(tfMetadataValue);
-			tfMetadataKey.setTooltip(new Tooltip("Enter the name for the metadata entry"));
-			tfMetadataValue.setTooltip(new Tooltip("Enter the value for the metadata entry"));
+			tfMetadataKey.setTooltip(new Tooltip(QuPathResources.getString("Panes.ProjectBrowser.newKeyDescription")));
+			tfMetadataValue.setTooltip(new Tooltip(QuPathResources.getString("Panes.ProjectBrowser.newValueDescription")));
 
 			ProjectImageEntry<BufferedImage> entry = imageRows.size() == 1 ? ProjectTreeRow.getEntry(imageRows.iterator().next()) : null;
-			int nMetadataValues = entry == null ? 0 : entry.getMetadataKeys().size();
+			int nMetadataValues = entry == null ? 0 : entry.getMetadata().size();
 
 			GridPane pane = new GridPane();
 			pane.setVgap(5);
@@ -607,17 +721,20 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			pane.add(tfMetadataKey, 1, 0);
 			pane.add(labValue, 0, 1);
 			pane.add(tfMetadataValue, 1, 1);
-			String name = imageRows.size() + " images";
+			String name = MessageFormat.format(
+					QuPathResources.getString("Panes.ProjectBrowser.nImages"),
+					imageRows.size()
+			);
 			if (entry != null) {
 				name = entry.getImageName();
 				if (nMetadataValues > 0) {
-					Label labelCurrent = new Label("Current metadata");
+					Label labelCurrent = new Label(QuPathResources.getString("Panes.ProjectBrowser.currentMetadata"));
 					TextArea textAreaCurrent = new TextArea();
 					textAreaCurrent.setEditable(false);
 
 					String keyString = entry.getMetadataSummaryString();
 					if (keyString.isEmpty())
-						textAreaCurrent.setText("No metadata entries yet");
+						textAreaCurrent.setText(QuPathResources.getString("Panes.ProjectBrowser.noMetadataEntries"));
 					else
 						textAreaCurrent.setText(keyString);
 					textAreaCurrent.setPrefRowCount(3);
@@ -629,9 +746,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			}
 
 			Dialog<ButtonType> dialog = new Dialog<>();
-			dialog.setTitle("Metadata");
+			dialog.setTitle(QuPathResources.getString("Panes.ProjectBrowser.metadata"));
 			dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
-			dialog.getDialogPane().setHeaderText("Set metadata for " + name);
+			dialog.getDialogPane().setHeaderText(MessageFormat.format(
+					QuPathResources.getString("Panes.ProjectBrowser.setMetadataFor"),
+					name
+			));
 			dialog.getDialogPane().setContent(pane);
 			Optional<ButtonType> result = dialog.showAndWait();
 			if (result.isPresent() && result.get() == ButtonType.OK) {
@@ -652,7 +772,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			refreshTree(selectedImageRow);
 
 		} else {
-			Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Panes.ProjectBrowser.editImageDescription"),
+					QuPathResources.getString("Panes.ProjectBrowser.noEntrySelected")
+			);
 		}
 	}
 
@@ -667,9 +790,12 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		if (project != null) {
 			for (ProjectImageEntry<?> entry : project.getImageList()) {
 				// Add all entry metadata keys
-				for (String key : entry.getMetadataKeys()) {
-					if (!newItems.containsKey(key))
-						newItems.put(key, ActionUtils.createMenuItem(createSortByKeyAction(key, key)));
+				for (String key : entry.getMetadata().keySet()) {
+					if (!newItems.containsKey(key)) {
+						var item = ActionUtils.createMenuItem(createSortByKeyAction(key, key));
+						item.setMnemonicParsing(false);
+						newItems.put(key, item);
+					}
 				}
 			}
 		}
@@ -681,7 +807,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				menuSort.getItems().add(ActionUtils.createMenuItem(createSortByKeyAction(key.getDisplayName(), key.getKey())));
 		}
 
-		menuSort.getItems().add(0, ActionUtils.createMenuItem(createSortByKeyAction("None", null)));
+		menuSort.getItems().add(
+				0,
+				ActionUtils.createMenuItem(createSortByKeyAction(QuPathResources.getString("Panes.ProjectBrowser.none"), null))
+		);
 		menuSort.getItems().add(1, new SeparatorMenuItem());
 
 		return menuSort;
@@ -743,7 +872,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			project.syncChanges();
 			return true;
 		} catch (IOException e) {
-			Dialogs.showErrorMessage("Save project", e);
+			Dialogs.showErrorMessage(QuPathResources.getString("Panes.ProjectBrowser.saveProject"), e);
 			logger.error(e.getMessage(), e);
 			return false;
 		}
@@ -752,12 +881,17 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	static boolean showDescriptionEditor(ProjectImageEntry<?> entry) {
 		TextArea editor = new TextArea();
 		editor.setWrapText(true);
+		editor.setPromptText(MessageFormat.format(
+				QuPathResources.getString("Panes.ProjectBrowser.enterDescriptionFor"),
+				entry.getImageName()
+		));
 		editor.setText(entry.getDescription());
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
-		dialog.setTitle("Image description");
+		dialog.setTitle(QuPathResources.getString("Panes.ProjectBrowser.imageDescription"));
 		dialog.getDialogPane().setHeaderText(entry.getImageName());
 		dialog.getDialogPane().setContent(editor);
+		Platform.runLater(editor::requestFocus);
 		Optional<ButtonType> result = dialog.showAndWait();
 		if (result.isPresent() && result.get() == ButtonType.OK && editor.getText() != null) {	
 			var text = editor.getText();
@@ -791,6 +925,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		
 		this.project = project;
 		ProjectTreeRowCell.resetUriStatus();
+		tfFilter.textProperty().set("");
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRoot());
 		tree.getRoot().setExpanded(true);
@@ -806,7 +941,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	 */
 	public void refreshProject() {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> refreshProject());
+			Platform.runLater(this::refreshProject);
 			return;
 		}
 		refreshTree(null);
@@ -833,7 +968,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					logger.info("Copying ImageData to {}", entry);
 					entry.saveImageData(imageData);
 				} catch (IOException e) {
-					logger.error("Unable to save ImageData: " + e.getLocalizedMessage(), e);
+                    logger.error("Unable to save ImageData: {}", e.getMessage(), e);
 				}
 			}
 			qupath.refreshProject();
@@ -891,17 +1026,6 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	private ImageData<BufferedImage> getCurrentImageData() {
 		return qupath.getViewer().getImageData();
 	}
-
-//	File getBaseDirectory() {
-//		return Projects.getBaseDirectory(project);
-//	}
-//
-//	File getProjectFile() {
-//		File dirBase = getBaseDirectory();
-//		if (dirBase == null || !dirBase.isDirectory())
-//			return null;
-//		return new File(dirBase, "project" + ProjectIO.getProjectExtension());
-//	}
 
 	private boolean isCurrentImage(final ProjectImageEntry<BufferedImage> entry) {
 		ImageData<BufferedImage> imageData = getCurrentImageData();
@@ -980,7 +1104,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						return getDefaultValue(entry, metadataKey);
 					} catch (IOException ex) {
 						// Could only happen because of call to getURIs()
-						logger.warn("Could not get the URI(s) of " + entry.getImageName(), ex.getLocalizedMessage());
+                        logger.warn("Could not get the URI(s) of {}", entry.getImageName(), ex);
 					}
 					return UNDEFINED_VALUE;
 				})
@@ -1003,23 +1127,23 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			var URIs = entry.getURIs();
 			var it = URIs.iterator();
 			
-			if (URIs.size() == 0)
+			if (URIs.isEmpty())
 				return UNDEFINED_VALUE;
 			
 			if (URIs.size() == 1) {
 				URI uri = it.next();
 				String fullURI = uri.getPath();
 				if (uri.getAuthority() != null)
-					return "[remote] " + uri.getAuthority() + fullURI;
-				return fullURI.substring(fullURI.lastIndexOf("/")+1, fullURI.length());
+					return QuPathResources.getString("Panes.ProjectBrowser.remote") + " " + uri.getAuthority() + fullURI;
+				return fullURI.substring(fullURI.lastIndexOf("/")+1);
 			}
-			return "Multiple URIs";
+			return QuPathResources.getString("Panes.ProjectBrowser.multipleUris");
 		} else if (key.equals(BaseMetadataKeys.IMAGE_NAME.getKey())) {
 			return entry.getImageName();
 		}  else if (key.equals(BaseMetadataKeys.ENTRY_ID.getKey())) {
 			return entry.getID();
 		}
-		var value = entry.getMetadataValue(key);
+		var value = entry.getMetadata().get(key);
 		return value == null ? UNASSIGNED_NODE : value;
 	}
 	
@@ -1035,26 +1159,26 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			
 			try {
 				var listOfChildren = tree.getRoot().getChildren();
-				for (int i = 0; i < listOfChildren.size(); i++) {
-					if (imageToSelect == null) {
-						if (listOfChildren.get(i).getChildren().size() > 0) {
-							listOfChildren.get(i).setExpanded(true);
-							tree.refresh();
-							break;
-						}							
-					} else {
-						for (var child: listOfChildren) {
-							if (child.getValue().getType() == Type.METADATA) {
-								for (var imageChild: child.getChildren()) {
-									if (imageChild.getValue().equals(imageToSelect)) {
-										child.setExpanded(true);
-										tree.getSelectionModel().select(imageChild);
-										break;
-									}
-								}
-							} else if (child.getValue().equals(imageToSelect))
-								tree.getSelectionModel().select(child);
+				// When filtering (imageToSelect is null), expand all matching group nodes
+				if (imageToSelect == null) {
+					for (var child : listOfChildren) {
+						if (!child.getChildren().isEmpty()) {
+							child.setExpanded(true);
 						}
+					}
+				} else {
+					// If a specific image is requested, expand only its parent group and select it
+					for (var child: listOfChildren) {
+						if (child.getValue().getType() == Type.METADATA) {
+							for (var imageChild: child.getChildren()) {
+								if (imageChild.getValue().equals(imageToSelect)) {
+									child.setExpanded(true);
+									tree.getSelectionModel().select(imageChild);
+									break;
+								}
+							}
+						} else if (child.getValue().equals(imageToSelect))
+							tree.getSelectionModel().select(child);
 					}
 				}
 			} catch (Exception ex) {
@@ -1091,7 +1215,11 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			return false;
 		}
 		
-		String name = Dialogs.showInputDialog("Set Image Name", "Enter the new image name", entry.getImageName());
+		String name = Dialogs.showInputDialog(
+				QuPathResources.getString("Panes.ProjectBrowser.setImageName"),
+				QuPathResources.getString("Panes.ProjectBrowser.enterNewImageName"),
+				entry.getImageName()
+		);
 		if (name == null)
 			return false;
 		
@@ -1129,10 +1257,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	
 	
 	/**
-	 * The the name for a specified ProjectImageEntry.
-	 * 
+	 * The name for a specified ProjectImageEntry.
 	 * This works hard to do its job... including renaming any data files accordingly.
-	 * 
 	 * @param entry
 	 * @param name
 	 * @return
@@ -1204,18 +1330,18 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
 	private class ProjectTreeRowCell extends TreeCell<ProjectTreeRow> {
 		
-		private Tooltip tooltip = new Tooltip();
+		private final Tooltip tooltip = new Tooltip();
 
 		private Node missingGraphic;
 
-		private StackPane viewPane = new StackPane();
-		private Canvas viewCanvas = new Canvas();
-		private ImageView viewTooltip = new ImageView();
+		private final StackPane viewPane = new StackPane();
+		private final Canvas viewCanvas = new Canvas();
+		private final ImageView viewTooltip = new ImageView();
 
 		private ProjectTreeRow objectCell = null;
-		private BooleanProperty showTooltip = new SimpleBooleanProperty();
+		private final BooleanProperty showTooltip = new SimpleBooleanProperty();
 
-		private BooleanProperty urisMissing = new SimpleBooleanProperty(false);
+		private final BooleanProperty urisMissing = new SimpleBooleanProperty(false);
 
 		/**
 		 * Cache whether or not URIs refer to missing files.
@@ -1224,7 +1350,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		 * This means that, if the file was deleted or moved later, the user will need to refresh the project to see
 		 * the change.
 		 */
-		private static Map<URI, UriUpdater.UriStatus> uriStatus = new ConcurrentHashMap<>();
+		private static final Map<URI, UriUpdater.UriStatus> uriStatus = new ConcurrentHashMap<>();
 
 		/**
 		 * Reset the cache of URI statuses (called when a new project is opened).
@@ -1233,11 +1359,11 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			uriStatus.clear();
 		}
 
-		private DoubleBinding viewWidth = Bindings.createDoubleBinding(
+		private final DoubleBinding viewWidth = Bindings.createDoubleBinding(
 				() -> thumbnailSize.get().getWidth(),
 				thumbnailSize);
 
-		private DoubleBinding viewHeight = Bindings.createDoubleBinding(
+		private final DoubleBinding viewHeight = Bindings.createDoubleBinding(
 				() -> thumbnailSize.get().getHeight(),
 				thumbnailSize);
 		
@@ -1257,7 +1383,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			missingGraphic = IconFactory.createNode(
 					15, 15, PathIcons.WARNING);
 			missingGraphic.getStyleClass().add("missing-uri");
-			Tooltip.install(missingGraphic, new Tooltip("File not found"));
+			Tooltip.install(missingGraphic, new Tooltip(QuPathResources.getString("Panes.ProjectBrowser.fileNotFound")));
 
 			viewPane.getChildren().add(missingGraphic);
 			missingGraphic.visibleProperty().bind(urisMissing);
@@ -1328,7 +1454,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
 				setText(entry.getImageName());
 				if (urisMissing.get())
-					tooltip.setText("Warning: At least one file is missing!\n\n" + entry.getSummary());
+					tooltip.setText(MessageFormat.format(
+							QuPathResources.getString("Panes.ProjectBrowser.atLeastOneFileMissing"),
+							entry.getSummary()
+					));
 				else
 					tooltip.setText(entry.getSummary());
 
@@ -1416,11 +1545,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
             return switch (getValue().getType()) {
                 case ROOT -> project != null && !project.getImageList().isEmpty() && project.getImageList().stream()
-                        .noneMatch(entry -> predicateProperty.get().test(entry.getImageName()));
+                        .noneMatch(entry -> predicateProperty.get().test(entry));
                 case METADATA -> false;
                 case IMAGE -> true;
-                default ->
-                        throw new IllegalArgumentException("Could not understand the type of the object: " + getValue().getType());
             };
 			
 		}
@@ -1438,7 +1565,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					
 					if (metadataKey == null) {
 						for (var row: getAllImageRows()) {
-							if (!filter.test(row.getDisplayableString()))
+							if (!filter.test(row.getEntry()))
 								continue;
 							children.add(new ProjectTreeRowItem(row));
 						}
@@ -1470,7 +1597,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 						break;
 					
 					for (var row: getAllImageRows()) {
-						if (!filter.test(row.getDisplayableString()))
+						if (!filter.test(row.getEntry()))
 							continue;
 						try {
 							var value = getDefaultValue(ProjectTreeRow.getEntry(row), metadataKey);
@@ -1495,53 +1622,37 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	enum ProjectThumbnailSize {
 		HIDDEN, SMALL, MEDIUM, LARGE;
 
-		private static int hiddenSize = 20;
+		private static final int hiddenSize = 20;
 
-		private double defaultHeight = 40;
-		private double defaultWidth = 50;
+		private final double defaultHeight = 40;
+		private final double defaultWidth = 50;
 		
 		@Override
 		public String toString() {
-			switch(this) {
-			case HIDDEN:
-				return "Hidden";
-			case LARGE:
-				return "Large";
-			case MEDIUM:
-				return "Medium";
-			case SMALL:
-				return "Small";
-			default:
-				return super.toString();
-			}
+            return switch (this) {
+                case HIDDEN -> "Hidden";
+                case LARGE -> "Large";
+                case MEDIUM -> "Medium";
+                case SMALL -> "Small";
+            };
 		}
 		
 		public double getWidth() {
-			switch(this) {
-			case LARGE:
-				return defaultWidth * 3.0;
-			case MEDIUM:
-				return defaultWidth * 2.0;
-			case HIDDEN:
-				return hiddenSize;
-			case SMALL:
-			default:
-				return defaultWidth;
-			}
+            return switch (this) {
+                case LARGE -> defaultWidth * 3.0;
+                case MEDIUM -> defaultWidth * 2.0;
+                case HIDDEN -> hiddenSize;
+                default -> defaultWidth;
+            };
 		}
 		
 		public double getHeight() {
-			switch(this) {
-			case LARGE:
-				return defaultHeight * 3.0;
-			case MEDIUM:
-				return defaultHeight * 2.0;
-			case HIDDEN:
-				return hiddenSize;
-			case SMALL:
-			default:
-				return defaultHeight;
-			}
+            return switch (this) {
+                case LARGE -> defaultHeight * 3.0;
+                case MEDIUM -> defaultHeight * 2.0;
+                case HIDDEN -> hiddenSize;
+                default -> defaultHeight;
+            };
 		}
 	}
 }

@@ -21,16 +21,6 @@
 
 package qupath.opencv.tools;
 
-import java.awt.image.BufferedImage;
-import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
-import java.nio.ShortBuffer;
-import java.util.List;
-
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Scalar;
-
 import ij.CompositeImage;
 import ij.ImagePlus;
 import ij.gui.Roi;
@@ -40,9 +30,18 @@ import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.opencv.ops.ImageOps;
+
+import java.awt.image.BufferedImage;
+import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
+import java.nio.ShortBuffer;
+import java.util.List;
 
 /**
  * Category class for enhanced Groovy scripting with OpenCV.

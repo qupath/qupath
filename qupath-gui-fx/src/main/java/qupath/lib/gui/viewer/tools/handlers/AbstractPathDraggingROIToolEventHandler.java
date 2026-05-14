@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,15 +23,16 @@
 
 package qupath.lib.gui.viewer.tools.handlers;
 
-import java.awt.geom.Point2D;
-import java.util.Collections;
-
+import javafx.scene.input.InputEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.geom.Point2D;
+import java.util.Collections;
 
 /**
  * Event handler for drawing ROIs that require clicking and dragging to create 
@@ -40,7 +41,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-abstract class AbstractPathDraggingROIToolEventHandler extends AbstractPathROIToolEventHandler {
+abstract class AbstractPathDraggingROIToolEventHandler<T extends InputEvent> extends AbstractPathROIToolEventHandler<T> {
 
 	@Override
 	public void mouseDragged(MouseEvent e) {
@@ -51,7 +52,7 @@ abstract class AbstractPathDraggingROIToolEventHandler extends AbstractPathROITo
         }
 		
 		var viewer = getViewer();
-		ROI currentROI = viewer.getCurrentROI() instanceof ROI ? (ROI)viewer.getCurrentROI() : null;
+		ROI currentROI = viewer.getCurrentROI();
 		RoiEditor editor = viewer.getROIEditor();
 		
 		if (currentROI != null && editor.getROI() == currentROI && editor.hasActiveHandle()) {

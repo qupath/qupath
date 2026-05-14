@@ -23,29 +23,8 @@
 
 package qupath.lib.gui.viewer.overlays;
 
-import java.awt.AlphaComposite;
-import java.awt.Color;
-import java.awt.Composite;
-import java.awt.Font;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.Shape;
-import java.awt.geom.Line2D;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
@@ -72,6 +51,26 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.Composite;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.Shape;
+import java.awt.geom.Line2D;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
+
 
 /**
  * An overlay capable of painting a {@link PathObjectHierarchy}, <i>except</i> for any 
@@ -96,16 +95,16 @@ public class HierarchyOverlay extends AbstractOverlay {
 	private Font font = new Font("SansSerif", Font.BOLD, 10);
 
 	// Map of points around which names should be displayed, to avoid frequent searches
-	private Map<ROI, Point2> nameConnectionPointMap = Collections.synchronizedMap(new WeakHashMap<>());
+	private final Map<ROI, Point2> nameConnectionPointMap = Collections.synchronizedMap(new WeakHashMap<>());
 
 	// Map of colors to use for displaying names, to avoid generating new color objects too often
-	private Map<Integer, Color> nameColorMap = new ConcurrentHashMap<>();
+	private final Map<Integer, Color> nameColorMap = new ConcurrentHashMap<>();
 
 	/**
 	 * Comparator to determine the order in which detections should be painted.
 	 * This should be used with caution! Check out the docs for the class for details.
 	 */
-	private transient DetectionComparator comparator = new DetectionComparator();
+	private final transient DetectionComparator comparator = new DetectionComparator();
 
 	/**
 	 * Constructor. Note that a {@link HierarchyOverlay} cannot adapt very efficient to changes in {@link ImageData}, and therefore 
@@ -216,7 +215,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 				Collections.emptyList();
 
 		// Return if nothing visible
-		if (paintableSelectedObjects.isEmpty() && paintableDetections.isEmpty() && paintableAnnotations.isEmpty())
+		if (!showDetections && paintableSelectedObjects.isEmpty() && paintableDetections.isEmpty() && paintableAnnotations.isEmpty())
 			return;
 
 		// Paint detection objects, if required
@@ -231,7 +230,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 				} catch (IllegalArgumentException e) {
 					// This can happen (rarely) in a multithreaded environment if the level of a detection changes.
 					// However, protecting against this fully by caching the level with integer boxing/unboxing would be expensive.
-					logger.debug("Exception requesting detections to paint: " + e.getLocalizedMessage(), e);
+                    logger.debug("Exception requesting detections to paint: {}", e.getLocalizedMessage(), e);
 					detectionsToPaint = paintableDetections;
 				}
 				// Paint selected objects at the end
@@ -321,24 +320,13 @@ public class HierarchyOverlay extends AbstractOverlay {
 			double requestedFontSize = overlayOptions.getFontSize();
 			if (requestedFontSize <= 0 || !Double.isFinite(requestedFontSize)) {
 				// Get it from the location font size instead
-				switch (PathPrefs.locationFontSizeProperty().get()) {
-				case HUGE:
-					requestedFontSize = 24;
-					break;
-				case LARGE:
-					requestedFontSize = 18;
-					break;
-				case SMALL:
-					requestedFontSize = 10;
-					break;
-				case TINY:
-					requestedFontSize = 8;
-					break;
-				case MEDIUM:
-				default:
-					requestedFontSize = 14;
-					break;
-				}
+                requestedFontSize = switch (PathPrefs.locationFontSizeProperty().get()) {
+                    case HUGE -> 24;
+                    case LARGE -> 18;
+                    case SMALL -> 10;
+                    case TINY -> 8;
+                    default -> 14;
+                };
 			}
 			double fontDownsample = Math.min(downsampleFactor, 16);
 			float fontSize = (float)(requestedFontSize * fontDownsample);
@@ -365,12 +353,16 @@ public class HierarchyOverlay extends AbstractOverlay {
 					}
 				}
 				
-				if (name != null && !name.isBlank() && roi != null && !overlayOptions.isPathClassHidden(namedObject.getPathClass())) {
+				if (name != null && !name.isBlank() && roi != null && !overlayOptions.isHidden(namedObject)) {
 
 					var bounds = metrics.getStringBounds(name, g2d);
 
 					// Find a point to connect to within the ROI
 					Point2 point = nameConnectionPointMap.computeIfAbsent(roi, this::findNamePointForROI);
+					if (point == null) {
+						logger.trace("No suitable point found for roi {}", roi);
+						continue;
+					}
 
 					double pad = 5.0 * fontDownsample;
 					double x = point.getX() - bounds.getWidth()/2.0;
@@ -410,11 +402,15 @@ public class HierarchyOverlay extends AbstractOverlay {
 	 * Quick test to see if an ROI's bounds intersect a specified region.
 	 * @param roi
 	 * @param region
-	 * @return true if the roi is non-null and its bounds intersect region, false otherwise
+	 * @return true if the roi is non-null and its bounds intersect the region, false otherwise
 	 */
 	private static boolean roiBoundsIntersectsRegion(ROI roi, ImageRegion region) {
 		return roi != null && roi.getZ() == region.getZ() && roi.getT() == region.getT() &&
-				region.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight());
+				region.intersects(
+						roi.getBoundsX(),
+						roi.getBoundsY(),
+						Math.max(roi.getBoundsWidth(), 1e-3), // Handle points / lines with 0 width or height
+						Math.max(roi.getBoundsHeight(), 1e-3));
 	}
 
 
@@ -435,23 +431,46 @@ public class HierarchyOverlay extends AbstractOverlay {
 
 	/**
 	 * Find a point around which to display an object's name, if required.
-	 * @param roi
-	 * @return
+	 * @param roi the ROI
+	 * @return a suitable point, or null if no point could be found
 	 */
 	private Point2 findNamePointForROI(ROI roi) {
+		double x = getTargetNamePointX(roi);
+		double y = getTargetNamePointY(roi);
+		if (Double.isNaN(x) || Double.isNaN(y) || roi.isEmpty())
+			return null;
 		if (roi instanceof RectangleROI || roi instanceof EllipseROI) {
 			// Use top centre for rectangle and ellipses
-			return new Point2(roi.getCentroidX(), roi.getBoundsY());
+			return new Point2(x, y);
 		} else if (roi instanceof LineROI) {
 			// Use centroids for lines (2 points only)
 			return new Point2(roi.getCentroidX(), roi.getCentroidY());
 		} else {
-			Point2 target = new Point2(roi.getCentroidX(), roi.getBoundsY());
+			Point2 target = new Point2(x, y);
 			return roi.getAllPoints().stream()
 					.filter(p -> Math.abs(p.getY() - target.getY()) < 1e-3)
 					.min(Comparator.comparingDouble(p -> p.distanceSq(target)))
-					.get();
+					.orElse(null);
 		}
+	}
+
+	/*
+	 * Get the x-coordinate corresponding to where we'd like the name to be displayed
+	 * (close to the ROI center).
+	 */
+	private static double getTargetNamePointX(ROI roi) {
+		double x = roi.getCentroidX();
+		if (Double.isFinite(x))
+			return x;
+		return roi.getBoundsX() + roi.getBoundsWidth() / 2.0;
+	}
+
+	/*
+	 * Get the x-coordinate corresponding to where we'd like the name to be displayed
+	 * (close to the top).
+	 */
+	private static double getTargetNamePointY(ROI roi) {
+		return roi.getBoundsY();
 	}
 	
 	/**

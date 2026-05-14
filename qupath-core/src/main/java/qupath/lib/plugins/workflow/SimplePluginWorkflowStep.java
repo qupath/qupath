@@ -23,15 +23,15 @@
 
 package qupath.lib.plugins.workflow;
 
+import qupath.lib.common.GeneralTools;
+import qupath.lib.plugins.PathPlugin;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Collections;
 import java.util.Map;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.plugins.PathPlugin;
 
 /**
  * Updated version of DefaultPluginWorkflowStep, adapted to use Externalizable and to avoid storing the plugin class as a class object 

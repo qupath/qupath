@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,23 @@
 
 package qupath.lib.objects.hierarchy;
 
+import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.index.SpatialIndex;
+import org.locationtech.jts.index.quadtree.Quadtree;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.TemporaryObject;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,46 +52,19 @@ import java.util.WeakHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
-import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
-import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.LinearRing;
-import org.locationtech.jts.geom.Location;
-import org.locationtech.jts.geom.Polygonal;
-import org.locationtech.jts.geom.prep.PreparedGeometry;
-import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
-import org.locationtech.jts.index.SpatialIndex;
-import org.locationtech.jts.index.quadtree.Quadtree;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.TemporaryObject;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.interfaces.ROI;
-
 /**
  * A tile cache that keeps a reference to a collection of PathObjects as flat lists.
  * It endeavors to keep itself synchronized with a PathObjectHierarchy,
  * responding to its change events.
  * <p>
  * In practice, the cache itself is constructed lazily whenever a request is made 
- * through getObjectsForRegion, so as to avoid rebuilding it too often when the hierarchy
+ * through getObjectsForRegion, to avoid rebuilding it too often when the hierarchy
  * is changing a lot.
  * 
  * @author Pete Bankhead
  *
  */
 class PathObjectTileCache implements PathObjectHierarchyListener {
-	
-	public static int DEFAULT_TILE_SIZE = 1024;
 	
 	private static final Logger logger = LoggerFactory.getLogger(PathObjectTileCache.class);
 	
@@ -84,28 +74,22 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	private static final Envelope MAX_ENVELOPE = new Envelope(-Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, Double.MAX_VALUE);
 	
 	/**
-	 * Keep a map of envelopes per ROI; ROIs should be immutable.
-	 */
-	private Map<ROI, Envelope> envelopeMap = new WeakHashMap<>();
-	
-	/**
-	 * Keep a map of envelopes per object, because potentially an object might have its ROI replaced behind our back...
-	 */
-	private Map<PathObject, Envelope> lastEnvelopeMap = new WeakHashMap<>();
-	
-	/**
 	 * Store a spatial index according to the class of PathObject.
 	 */
-	private Map<Class<? extends PathObject>, SpatialIndex> map = new HashMap<>();
+	private final Map<Class<? extends PathObject>, SpatialIndex> map = new HashMap<>();
 	
 	/**
 	 * Map to cache Geometries, specifically for annotations.
 	 */
 	private static final Map<ROI, Geometry> geometryMap = Collections.synchronizedMap(new WeakHashMap<>());
-	private static final Map<ROI, PointOnGeometryLocator> locatorMap = Collections.synchronizedMap(new WeakHashMap<>());
-//	private static final Map<ROI, Coordinate> centroidMap = Collections.synchronizedMap(new WeakHashMap<>());
 
-	private PathObjectHierarchy hierarchy;
+	/**
+	 * Map to cache helper classes to determine the relationship between ROIs.
+	 * This is important when relationships are expensive (e.g. for complex geometries).
+	 */
+	private static final Map<ROI, RoiRelate> relateMap = Collections.synchronizedMap(new WeakHashMap<>());
+
+	private final PathObjectHierarchy hierarchy;
 	private boolean isActive = false;
 	
 	private final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
@@ -138,7 +122,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				map.remove(limitToClass);
 			addToCache(hierarchy.getRootObject(), true, limitToClass);
 			long endTime = System.currentTimeMillis();
-			logger.debug("Cache reconstructed in " + (endTime - startTime)/1000.);
+            logger.debug("Cache reconstructed in {} ms", endTime - startTime);
 		} finally {
 			w.unlock();
 		}
@@ -161,6 +145,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	 * 
 	 * @param pathObject
 	 * @param includeChildren
+	 * @param limitToClass
 	 */
 	private void addToCache(PathObject pathObject, boolean includeChildren, Class<? extends PathObject> limitToClass) {
 		// If the cache isn't active, we can ignore this... it will be constructed when it is needed
@@ -170,12 +155,8 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		if (pathObject.hasROI()) {
 			Class<? extends PathObject> cls = pathObject.getClass();
 			if (limitToClass == null || cls == limitToClass) {
-				SpatialIndex mapObjects = map.get(cls);
-				if (mapObjects == null) {
-					mapObjects = createSpatialIndex();
-					map.put(cls, mapObjects);
-				}
-				Envelope envelope = getEnvelope(pathObject);
+                SpatialIndex mapObjects = map.computeIfAbsent(cls, k -> createSpatialIndex());
+                Envelope envelope = getEnvelope(pathObject);
 				mapObjects.insert(envelope, pathObject);
 			}
 		}
@@ -194,122 +175,57 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		else
 			return geometry;
 	}
-	
-	Geometry getGeometry(PathObject pathObject) {
-		ROI roi = pathObject.getROI();
-		Geometry geometry = geometryMap.get(roi);
-		if (geometry == null) {
-			geometry = roi.getGeometry();
-			if (pathObject.isAnnotation() || pathObject.isTMACore()) {
-				geometryMap.put(roi, geometry);
-			}
-		}
-		return geometry;
-	}
-	
-	private Coordinate getCentroidCoordinate(PathObject pathObject) {
-		ROI roi = PathObjectTools.getROI(pathObject, true);
+
+	private Coordinate getCentroidCoordinate(ROI roi) {
 		// It's faster not to rely on a synchronized map
 		return new Coordinate(roi.getCentroidX(), roi.getCentroidY());
 	}
-	
-	PointOnGeometryLocator getLocator(ROI roi, boolean addToCache) {
-		var locator = locatorMap.get(roi);
-		if (locator == null) {
-			var geometry = getGeometry(roi);
-			if (geometry instanceof Polygonal || geometry instanceof LinearRing)
-				locator = new IndexedPointInAreaLocator(geometry);
-			else
-				locator = new SimplePointInAreaLocator(geometry);
-			// Workaround for multithreading bug in JTS 1.17.0 - see https://github.com/locationtech/jts/issues/571
-			locator.locate(new Coordinate());
-			locatorMap.put(roi, locator);
-		}
-		return locator;
-	}
-	
-	private Map<Geometry, PreparedGeometry> preparedGeometryMap = new WeakHashMap<>();
-	
-	PreparedGeometry getPreparedGeometry(Geometry geometry) {
-		var prepared = preparedGeometryMap.get(geometry);
-		if (prepared != null)
-			return prepared;
-		
-		synchronized (preparedGeometryMap) {
-			prepared = preparedGeometryMap.get(geometry);
-			if (prepared != null)
-				return prepared;
-			prepared = PreparedGeometryFactory.prepare(geometry);
-			preparedGeometryMap.put(geometry, prepared);
-			return prepared;
-		}
-	}
-	
+
 	boolean covers(PathObject possibleParent, PathObject possibleChild) {
-		var child = getGeometry(possibleChild);
-		// If we have an annotation, do a quick check for a single coordinate outside
-		if (possibleParent.isAnnotation()) {
-			if (getLocator(possibleParent.getROI(), true).locate(child.getCoordinate()) == Location.EXTERIOR)
-				return false;
-		}
-		var parent = getGeometry(possibleParent);
-		return covers(parent, child);
+		var roi = possibleParent.getROI();
+		var roiChild = possibleChild.getROI();
+		if (roi == null || roi.isEmpty() || roiChild == null || roiChild.isEmpty())
+			return false;
+		return getRoiRelate(roi).coversWithTolerance(roiChild);
 	}
-	
-	boolean covers(PreparedGeometry parent, Geometry child) {
-		return parent.covers(child);
+
+	RoiRelate getRoiRelate(ROI roi) {
+		return relateMap.computeIfAbsent(roi, r -> new RoiRelate(r, getGeometry(r)));
 	}
-	
-	boolean covers(Geometry parent, Geometry child) {
-		return covers(getPreparedGeometry(parent), child);
-	}
-	
+
 	boolean containsCentroid(PathObject possibleParent, PathObject possibleChild) {
-		Coordinate centroid = getCentroidCoordinate(possibleChild);
-		if (centroid == null)
+		getRoiRelate(possibleParent.getROI());
+		return containsCentroid(possibleParent.getROI(), possibleChild.getROI());
+	}
+
+	private boolean containsCentroid(ROI roi, ROI roiChild) {
+		if (roi == null || roi.isEmpty())
 			return false;
-		if (possibleParent.isDetection())
+
+		Coordinate centroid = getCentroidCoordinate(roiChild);
+		// Use a RoiRelate if we have one, but don't create a new one if we don't
+		var relate = relateMap.getOrDefault(roi, null);
+		if (relate != null)
+			return relate.contains(centroid);
+		else
 			return SimplePointInAreaLocator.locate(
-					centroid, getGeometry(possibleParent)) != Location.EXTERIOR;
-		return getLocator(possibleParent.getROI(), true).locate(centroid) != Location.EXTERIOR;
-	}
-	
-	boolean containsCentroid(PointOnGeometryLocator locator, PathObject possibleChild) {
-		Coordinate centroid = getCentroidCoordinate(possibleChild);
-		if (centroid == null)
-			return false;
-		return locator.locate(centroid) != Location.EXTERIOR;
-	}
-	
-	boolean containsCentroid(Geometry possibleParent, PathObject possibleChild) {
-		Coordinate centroid = getCentroidCoordinate(possibleChild);
-		if (centroid == null)
-			return false;
-		return SimplePointInAreaLocator.locate(centroid, possibleParent) != Location.EXTERIOR;
+					centroid, getGeometry(roi)) != Location.EXTERIOR;
 	}
 	
 	
 	private SpatialIndex createSpatialIndex() {
 		return new Quadtree();
-//		return new STRtree();
 	}
 	
 	private Envelope getEnvelope(PathObject pathObject) {
-		var envelope = getEnvelope(pathObject.getROI());
-		lastEnvelopeMap.put(pathObject, envelope);
-		return envelope;
+		return getEnvelope(pathObject.getROI());
 	}
 	
 	private Envelope getEnvelope(ROI roi) {
-		var envelope = envelopeMap.get(roi);
-		if (envelope == null) {
-			envelope = new Envelope(roi.getBoundsX(), roi.getBoundsX() + roi.getBoundsWidth(),
-					roi.getBoundsY(), roi.getBoundsY() + roi.getBoundsHeight());
-			envelopeMap.put(roi, envelope);
-		}
-		return envelope;
+		return new Envelope(roi.getBoundsX(), roi.getBoundsX() + roi.getBoundsWidth(),
+				roi.getBoundsY(), roi.getBoundsY() + roi.getBoundsHeight());
 	}
-	
+
 	private Envelope getEnvelope(ImageRegion region) {
 		return new Envelope(region.getMinX(), region.getMaxX(),
 				region.getMinY(), region.getMaxY());
@@ -332,22 +248,16 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		
 		// We can remove objects from a Quadtree
 		if (mapObjects instanceof Quadtree) {
-			Envelope envelope = lastEnvelopeMap.get(pathObject);
-			envelope = MAX_ENVELOPE;
-			if (envelope != null) {
-				if (mapObjects.remove(envelope, pathObject)) {
-					logger.debug("Removed {} from cache", pathObject);
-				} else
-					logger.debug("Unable to remove {} from cache", pathObject);
-			} else {
-				logger.debug("No envelope found for {}", pathObject);					
-			}
+			if (mapObjects.remove(MAX_ENVELOPE, pathObject)) {
+				logger.debug("Removed {} from cache", pathObject);
+			} else
+				logger.debug("Unable to remove {} from cache", pathObject);
 			// Remove the children
 			if (removeChildren) {
 				for (PathObject child : pathObject.getChildObjectsAsArray())
 					removeFromCache(child, removeChildren);
 			}
-		} else if (mapObjects instanceof SpatialIndex && !removeChildren) {
+		} else if (mapObjects != null && !removeChildren) {
 			// We can't remove objects from a STRtree, but since we're just removing one object we can rebuild only the cache for this class
 			constructCache(pathObject.getClass());
 		} else {
@@ -388,7 +298,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 			for (Entry<Class<? extends PathObject>, SpatialIndex> entry : map.entrySet()) {
 				if (cls == null || (includeSubclasses && cls.isAssignableFrom(entry.getKey())) || Objects.equals(cls, entry.getKey())) {
 					if (entry.getValue() != null) {
-						var list = entry.getValue().query(envelope);
+						List<PathObject> list = entry.getValue().query(envelope);
 						if (list.isEmpty())
 							continue;
 						
@@ -396,7 +306,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 							pathObjects = new HashSet<>();
 						
 						// Add all objects that have a parent, i.e. might be in the hierarchy
-						for (PathObject pathObject : (List<PathObject>)list) {
+						for (PathObject pathObject : list) {
 							var roi = pathObject.getROI();
 							if (roi == null || region == null || (roi.getZ() == z && roi.getT() == t)) {
 								if (pathObject.getParent() != null || pathObject.isRootObject()) {
@@ -442,11 +352,6 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 								return true;
 							}
 						}
-//						if (list.stream().anyMatch(p -> p.hasROI() && 
-//								(region == null || (p.getROI().getZ() == z && p.getROI().getT() == t))))
-//							return true;
-//						if (entry.getValue().hasObjectsForRegion(region))
-//							return true;
 					}
 				}
 			}
@@ -462,7 +367,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		w.lock();
 		try {
 			boolean singleChange = event.getChangedObjects().size() == 1;
-			PathObject singleObject = singleChange ? event.getChangedObjects().get(0) : null;
+			PathObject singleObject = singleChange ? event.getChangedObjects().getFirst() : null;
 			if (singleChange && event.getEventType() == HierarchyEventType.ADDED) {
 				removeFromCache(singleObject, false);
 				addToCache(singleObject, false, singleObject.getClass());

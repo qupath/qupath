@@ -23,13 +23,12 @@
 
 package qupath.lib.regions;
 
-import java.util.Collection;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.LogTools;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.util.Collection;
 
 /**
  * Class for defining an image region.

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -30,7 +30,6 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.Property;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -46,23 +45,22 @@ import org.controlsfx.control.PropertySheet.Item;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
-import qupath.fx.dialogs.Dialogs;
 import qupath.fx.localization.LocaleManager;
 import qupath.fx.localization.LocaleSnapshot;
+import qupath.fx.prefs.annotations.BooleanPref;
+import qupath.fx.prefs.annotations.ColorPref;
+import qupath.fx.prefs.annotations.DirectoryPref;
+import qupath.fx.prefs.annotations.DoublePref;
 import qupath.fx.prefs.annotations.FilePref;
+import qupath.fx.prefs.annotations.IntegerPref;
+import qupath.fx.prefs.annotations.LocalePref;
+import qupath.fx.prefs.annotations.Pref;
+import qupath.fx.prefs.annotations.PrefCategory;
 import qupath.fx.prefs.controlsfx.PropertyEditorFactory;
 import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
 import qupath.fx.prefs.controlsfx.PropertyItemParser;
 import qupath.fx.prefs.controlsfx.PropertySheetBuilder;
 import qupath.fx.prefs.controlsfx.PropertySheetUtils;
-import qupath.fx.prefs.annotations.BooleanPref;
-import qupath.fx.prefs.annotations.ColorPref;
-import qupath.fx.prefs.annotations.DirectoryPref;
-import qupath.fx.prefs.annotations.DoublePref;
-import qupath.fx.prefs.annotations.IntegerPref;
-import qupath.fx.prefs.annotations.LocalePref;
-import qupath.fx.prefs.annotations.Pref;
-import qupath.fx.prefs.annotations.PrefCategory;
 import qupath.lib.common.LogTools;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.logging.LogManager;
@@ -93,12 +91,13 @@ public class PreferencePane {
 
 	private PropertySheet propSheet;
 	
-	private static LocaleManager localeManager = new LocaleManager(QuPathResources::hasDefaultBundleForLocale);
+	private static final LocaleManager localeManager = new LocaleManager(Locale.US,
+			QuPathResources::hasDefaultBundleForLocale, false);
 	
 	private BorderPane pane;
 
-	private LocaleSnapshot localeSnapshot = new LocaleSnapshot();
-	private StringProperty localeChangedText = QuPathResources.getLocalizedResourceManager().createProperty("Prefs.localeChanged");
+	private final LocaleSnapshot localeSnapshot = new LocaleSnapshot();
+	private final StringProperty localeChangedText = QuPathResources.getLocalizedResourceManager().createProperty("Prefs.localeChanged");
 	private BooleanBinding localeChanged;
 	
 	@SuppressWarnings("javadoc")
@@ -127,7 +126,7 @@ public class PreferencePane {
 				Level.class);
 		var parser = new PropertyItemParser()
 				.setResourceManager(QuPathResources.getLocalizedResourceManager())
-				.setLocaleManager(new LocaleManager(QuPathResources::hasDefaultBundleForLocale));
+				.setLocaleManager(localeManager);
 		return new PropertySheetBuilder()
 				.parser(parser)
 				.editorFactory(factory)
@@ -210,6 +209,10 @@ public class PreferencePane {
 		@BooleanPref(value = "Prefs.Appearance.badges")
 		public final BooleanProperty badges = PathPrefs.showToolBarBadgesProperty();
 
+		@Pref(value = "Prefs.Appearance.systemMenubar", type = SystemMenuBar.SystemMenuBarOption.class)
+		public final ObjectProperty<SystemMenuBar.SystemMenuBarOption> systemMenubar = SystemMenuBar.supportsSystemMenubar() ?
+				SystemMenuBar.systemMenubarProperty() : null;
+
 		public final ObservableList<StyleOption> getStyles() {
 			return QuPathStyleManager.availableStylesProperty();
 		}
@@ -223,17 +226,17 @@ public class PreferencePane {
 		@BooleanPref("Prefs.General.showStartupMessage")
 		public final BooleanProperty startupMessage = PathPrefs.showStartupMessageProperty();
 
+		@BooleanPref("Prefs.General.showLicenseMessage")
+		public final BooleanProperty licenseMessage = PathPrefs.showLicenseMessageOnStartupProperty();
+
 		@FilePref(value = "Prefs.General.startupScriptPath", extensions = "*.groovy")
 		public final StringProperty startupScriptPath = PathPrefs.startupScriptProperty();
 
 		@Pref(value = "Prefs.General.checkForUpdates", type = AutoUpdateType.class)
 		public final ObjectProperty<AutoUpdateType> autoUpdate = PathPrefs.autoUpdateCheckProperty();
 
-		@Pref(value = "Prefs.General.systemMenubar", type = SystemMenuBar.SystemMenuBarOption.class)
-		public final ObjectProperty<SystemMenuBar.SystemMenuBarOption> systemMenubar = SystemMenuBar.systemMenubarProperty();
-		
 		@DoublePref("Prefs.General.maxMemory")
-		public final DoubleProperty maxMemoryGB = PathPrefs.hasJavaPreferences() ? createMaxMemoryProperty() : null;
+		public final DoubleProperty maxMemoryPercent = PathPrefs.hasJavaPreferences() ? PathPrefs.maxMemoryPercentProperty() : null;
 
 		@DoublePref("Prefs.General.tileCache")
 		public final DoubleProperty tileCache = PathPrefs.tileCachePercentageProperty();
@@ -273,34 +276,7 @@ public class PreferencePane {
 		
 		@Pref(value = "Prefs.General.hierarchyDisplay", type = DetectionTreeDisplayModes.class)
 		public final ObjectProperty<DetectionTreeDisplayModes> hierarchyDisplayMode = PathPrefs.detectionTreeDisplayModeProperty();
-		
-		
-		private DoubleProperty createMaxMemoryProperty() {
-			long maxMemoryMB = Runtime.getRuntime().maxMemory() / 1024 / 1024;
-			DoubleProperty propMemoryGB = new SimpleDoubleProperty(maxMemoryMB / 1024.0);
-			propMemoryGB.addListener((v, o, n) -> {
-				int requestedMemoryMB = (int)Math.round(propMemoryGB.get() * 1024.0);
-				if (requestedMemoryMB > 1024) {
-					boolean success = false;
-					try {
-						PathPrefs.maxMemoryMBProperty().set(requestedMemoryMB);		
-						success = requestedMemoryMB == PathPrefs.maxMemoryMBProperty().get();
-					} catch (Exception e) {
-						logger.error(e.getLocalizedMessage(), e);
-					}
-					if (success) {
-						Dialogs.showInfoNotification(QuPathResources.getString("Prefs.General.maxMemory"),
-								QuPathResources.getString("Prefs.maxMemoryChanged")
-								);
-					} else {
-						Dialogs.showErrorMessage(QuPathResources.getString("Prefs.General.maxMemory"),
-								QuPathResources.getString("Prefs.maxMemoryFailed"));						
-					}
-				}
-			});	
-			return propMemoryGB;
-		}
-				
+
 	}	
 	
 	@PrefCategory("Prefs.Locale")
@@ -345,7 +321,10 @@ public class PreferencePane {
 	
 	@PrefCategory("Prefs.Viewer")
 	public static class ViewerPreferences {
-		
+
+		@BooleanPref("Prefs.Viewer.placeholderText")
+		public final BooleanProperty placeholderText = PathPrefs.showViewerPlaceholderTextProperty();
+
 		@ColorPref("Prefs.Viewer.backgroundColor")
 		public final IntegerProperty backgroundColor = PathPrefs.viewerBackgroundColorProperty();
 

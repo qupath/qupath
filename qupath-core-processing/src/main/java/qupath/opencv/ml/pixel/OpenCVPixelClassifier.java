@@ -21,13 +21,10 @@
 
 package qupath.opencv.ml.pixel;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.io.IOException;
-import java.net.URI;
-import java.util.Collection;
-import java.util.Map;
-
+import org.bytedeco.javacpp.PointerScope;
+import org.bytedeco.opencv.global.opencv_core;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.color.ColorModelFactory;
@@ -38,10 +35,12 @@ import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.tools.OpenCVTools;
 
-import org.bytedeco.javacpp.PointerScope;
-import org.bytedeco.opencv.global.opencv_core;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Map;
 
 class OpenCVPixelClassifier implements PixelClassifier, UriResource {
 	

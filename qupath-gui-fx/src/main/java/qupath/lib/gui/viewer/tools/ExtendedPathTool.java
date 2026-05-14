@@ -1,7 +1,5 @@
 package qupath.lib.gui.viewer.tools;
 
-import java.util.Collection;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -14,6 +12,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import qupath.lib.gui.viewer.QuPathViewer;
+
+import java.util.Collection;
 
 
 public class ExtendedPathTool implements PathTool {

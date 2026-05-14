@@ -21,14 +21,13 @@
 
 package qupath.lib.analysis.images;
 
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import qupath.lib.analysis.images.SimpleImages.FloatArraySimpleImage;
+
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.analysis.images.SimpleImages.FloatArraySimpleImage;
 
 @SuppressWarnings("javadoc")
 public class TestSimpleImages {

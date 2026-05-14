@@ -23,12 +23,6 @@
 
 package qupath.lib.plugins.objects;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -38,6 +32,13 @@ import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Plugin to create new annotations by expanding the size of existing annotations.

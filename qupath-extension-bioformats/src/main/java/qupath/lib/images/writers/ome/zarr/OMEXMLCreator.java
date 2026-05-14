@@ -14,8 +14,6 @@ import ome.xml.model.enums.DimensionOrder;
 import ome.xml.model.enums.PixelType;
 import ome.xml.model.primitives.Color;
 import ome.xml.model.primitives.PositiveInteger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import qupath.lib.common.ColorTools;
@@ -23,13 +21,16 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.ByteArrayOutputStream;
-import java.io.OutputStreamWriter;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
 
 /**
  * Create the content of an OME XML file as described by the
@@ -37,7 +38,6 @@ import java.util.Optional;
  */
 class OMEXMLCreator {
 
-    private static final Logger logger = LoggerFactory.getLogger(OMEXMLCreator.class);
     private static final String NAMESPACE_ATTRIBUTE = "xmlns";
     private static final String NAMESPACE = "http://www.openmicroscopy.org/Schemas/OME/2016-06";
     private static final String INSTRUMENT_ID = "Instrument:0";
@@ -46,7 +46,7 @@ class OMEXMLCreator {
     private static final String PIXELS_ID = "Pixels:0";
 
     private OMEXMLCreator() {
-        throw new RuntimeException("This class is not instantiable.");
+        throw new AssertionError("This class is not instantiable.");
     }
 
     /**
@@ -54,10 +54,15 @@ class OMEXMLCreator {
      * applied to the provided metadata.
      *
      * @param metadata the metadata of the image
-     * @return a text representing the provided metadata according the June 2016 Open Microscopy Environment OME Schema,
-     * or an empty optional if the creation failed
+     * @return a byte array representing a text encoded with {@link StandardCharsets#UTF_8} describing the provided metadata according the June 2016
+     * Open Microscopy Environment OME Schema
+     * @throws ParserConfigurationException if the XML document cannot be created
+     * @throws org.w3c.dom.DOMException if an error occurs while creating the XML content
+     * @throws IOException if an error occurs while converting the XML content to a byte array
+     * @throws TransformerException if an error occurs while converting the XML content to a byte array
+     * @throws IllegalArgumentException if the provided metadata contains an unexpected entry (e.g. no channels)
      */
-    public static Optional<String> create(ImageServerMetadata metadata) {
+    public static byte[] create(ImageServerMetadata metadata) throws ParserConfigurationException, IOException, TransformerException {
         OME ome = new OME();
 
         Instrument instrument = Double.isNaN(metadata.getMagnification()) ? null : createInstrument(metadata.getMagnification());
@@ -66,22 +71,21 @@ class OMEXMLCreator {
         }
         ome.addImage(createImage(metadata, instrument));
 
-        try {
-            Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
-            Element root = ome.asXMLElement(document);
-            root.setAttribute(NAMESPACE_ATTRIBUTE, NAMESPACE);
-            document.appendChild(root);
+        Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+        Element root = ome.asXMLElement(document);
+        root.setAttribute(NAMESPACE_ATTRIBUTE, NAMESPACE);
+        document.appendChild(root);
 
-            try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-                TransformerFactory.newInstance().newTransformer().transform(
-                        new DOMSource(document),
-                        new StreamResult(new OutputStreamWriter(os, StandardCharsets.UTF_8))
-                );
-                return Optional.ofNullable(os.toString(StandardCharsets.UTF_8));
-            }
-        } catch (Exception e) {
-            logger.error("Error while creating OME XML content", e);
-            return Optional.empty();
+        try (
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
+        ) {
+            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(OutputKeys.ENCODING, StandardCharsets.UTF_8.name());
+            transformer.transform(
+                    new DOMSource(document),
+                    new StreamResult(outputStream)
+            );
+            return outputStream.toByteArray();
         }
     }
 

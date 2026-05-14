@@ -23,12 +23,12 @@
 
 package qupath.lib.gui.viewer;
 
-import java.util.EventListener;
-import java.awt.Shape;
-import java.awt.image.BufferedImage;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
+
+import java.awt.Shape;
+import java.awt.image.BufferedImage;
+import java.util.EventListener;
 
 /**
  * Interface for defining a listener that needs to know whenever the data 

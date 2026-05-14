@@ -21,7 +21,10 @@
 
 package qupath.lib.objects;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.roi.ROIs;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,11 +34,8 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.roi.ROIs;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 @SuppressWarnings("javadoc")

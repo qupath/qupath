@@ -23,9 +23,9 @@
 
 package qupath.lib.roi;
 
-import java.util.List;
-
 import qupath.lib.geom.Point2;
+
+import java.util.List;
 
 /**
  * Class to help ascertain when a point falls inside a particular shape.

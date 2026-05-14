@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -29,88 +29,92 @@ import javafx.scene.input.ScrollEvent;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.tools.PathTools;
 
+/**
+ * Specific handler for scroll events that are used for panning.
+ * The default behavior is usually to zoom, so this is dependent upon the user preferences and whether a touchscreen
+ * is being used.
+ */
 class ScrollEventPanningFilter implements EventHandler<ScrollEvent> {
 		
-		private QuPathViewer viewer;
-		private boolean lastTouchEvent = false;
-		private double deltaX = 0;
-		private double deltaY = 0;
-		private long lastTimestamp = 0L;
-		
-		ScrollEventPanningFilter(final QuPathViewer viewer) {
-			this.viewer = viewer;
-		}
+	private final QuPathViewer viewer;
+	private double deltaX = 0;
+	private double deltaY = 0;
+	private long lastTimestamp = 0L;
 
-		@Override
-		public void handle(ScrollEvent e) {
-			
-			// Check if we'd rather be using scroll to do something else (e.g. zoom, adjust opacity)
-			boolean wouldRatherDoSomethingElse = e.getTouchCount() == 0 && (!PathPrefs.useScrollGesturesProperty().get() || e.isShiftDown() || e.isShortcutDown());
-			if (wouldRatherDoSomethingElse) {
-				return;
-			}
-			
-			// Don't pan with inertia events (use the 'mover' instead)
-			if (e.isInertia()) {
-				e.consume();
-				return;
-			}
-			
-			// Return if we aren't using a touchscreen, and we don't want to handle scroll gestures - 
-			// but don't consume the event so that it can be handled elsewhere
-			lastTouchEvent = e.getTouchCount() != 0;
-			if (!lastTouchEvent && !PathPrefs.useScrollGesturesProperty().get() || e.isShiftDown() || e.isShortcutDown()) {
-				return;
-			}
-			// Swallow the event if we're using a touch screen without the move tool selected - we want to draw instead
-			if (lastTouchEvent && viewer.getActiveTool() != PathTools.MOVE) {
-				e.consume();
-				return;
-			}
-			
-			// If this is a SCROLL_FINISHED event, continue moving with the last starting velocity - but ignore inertia
-			if (!lastTouchEvent && e.getEventType() == ScrollEvent.SCROLL_FINISHED) {
-				if (System.currentTimeMillis() - lastTimestamp < 100L) {
-					viewer.requestStartMoving(deltaX, deltaY);
-					viewer.requestDecelerate();					
-				}
-				deltaX = 0;
-				deltaY = 0;
-				e.consume();
-				return;
-			}
-			
-			// Use downsample since shift will be defined in full-resolution pixel coordinates
-			double dx = e.getDeltaX() * viewer.getDownsampleFactor();
-			double dy = e.getDeltaY() * viewer.getDownsampleFactor();
-			
-			// Flip scrolling direction if necessary
-			if (PathPrefs.invertScrollingProperty().get()) {
-				dx = -dx;
-				dy = -dy;
-			}
-			
-			// Handle rotation
-			if (viewer.isRotated()) {
-				double cosTheta = Math.cos(-viewer.getRotation());
-				double sinTheta = Math.sin(-viewer.getRotation());
-				double dx2 = cosTheta*dx - sinTheta*dy;
-				double dy2 = sinTheta*dx + cosTheta*dy;
-				dx = dx2;
-				dy = dy2;
-			}
-
-			// Shift the viewer
-			viewer.setCenterPixelLocation(
-					viewer.getCenterPixelX() - dx,
-					viewer.getCenterPixelY() - dy);
-			
-			// Retain deltas in case we need to decelerate later
-			deltaX = dx;
-			deltaY = dy;
-			lastTimestamp = System.currentTimeMillis();
-			
-			e.consume();
-		}
-		
+	ScrollEventPanningFilter(final QuPathViewer viewer) {
+		this.viewer = viewer;
 	}
+
+	@Override
+	public void handle(ScrollEvent e) {
+
+		// Check if we'd rather be using scroll to do something else (e.g. zoom, adjust opacity)
+		boolean wouldRatherDoSomethingElse = e.getTouchCount() == 0 && (!PathPrefs.useScrollGesturesProperty().get() || e.isShiftDown() || e.isShortcutDown());
+		if (wouldRatherDoSomethingElse) {
+			return;
+		}
+
+		// Don't pan with inertia events (use the 'mover' instead)
+		if (e.isInertia()) {
+			e.consume();
+			return;
+		}
+
+		// Return if we aren't using a touchscreen, and we don't want to handle scroll gestures -
+		// but don't consume the event so that it can be handled elsewhere
+		boolean lastTouchEvent = e.getTouchCount() != 0;
+		if (!lastTouchEvent && !PathPrefs.useScrollGesturesProperty().get() || e.isShiftDown() || e.isShortcutDown()) {
+			return;
+		}
+		// Swallow the event if we're using a touch screen without the move tool selected - we want to draw instead
+		if (lastTouchEvent && viewer.getActiveTool() != PathTools.MOVE) {
+			e.consume();
+			return;
+		}
+
+		// If this is a SCROLL_FINISHED event, continue moving with the last starting velocity - but ignore inertia
+		if (!lastTouchEvent && e.getEventType() == ScrollEvent.SCROLL_FINISHED) {
+			if (System.currentTimeMillis() - lastTimestamp < 100L) {
+				viewer.requestStartMoving(deltaX, deltaY);
+				viewer.requestDecelerate();
+			}
+			deltaX = 0;
+			deltaY = 0;
+			e.consume();
+			return;
+		}
+
+		// Use downsample since shift will be defined in full-resolution pixel coordinates
+		double dx = e.getDeltaX() * viewer.getDownsampleFactor();
+		double dy = e.getDeltaY() * viewer.getDownsampleFactor();
+
+		// Flip scrolling direction if necessary
+		if (PathPrefs.invertScrollingProperty().get()) {
+			dx = -dx;
+			dy = -dy;
+		}
+
+		// Handle rotation
+		if (viewer.isRotated()) {
+			double cosTheta = Math.cos(-viewer.getRotation());
+			double sinTheta = Math.sin(-viewer.getRotation());
+			double dx2 = cosTheta*dx - sinTheta*dy;
+			double dy2 = sinTheta*dx + cosTheta*dy;
+			dx = dx2;
+			dy = dy2;
+		}
+
+		// Shift the viewer
+		viewer.setCenterPixelLocation(
+				viewer.getCenterPixelX() - dx,
+				viewer.getCenterPixelY() - dy);
+
+		// Retain deltas in case we need to decelerate later
+		deltaX = dx;
+		deltaY = dy;
+		lastTimestamp = System.currentTimeMillis();
+
+		e.consume();
+	}
+
+}

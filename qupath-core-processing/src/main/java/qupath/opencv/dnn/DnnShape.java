@@ -22,10 +22,10 @@
 
 package qupath.opencv.dnn;
 
-import java.util.Arrays;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
 
 /**
  * Helper class to represent input and output shapes associated with {@link PredictionFunction}.

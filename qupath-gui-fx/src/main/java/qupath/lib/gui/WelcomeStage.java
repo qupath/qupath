@@ -21,11 +21,6 @@
 
 package qupath.lib.gui;
 
-import org.controlsfx.glyphfont.FontAwesome.Glyph;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.controlsfx.glyphfont.GlyphFontRegistry;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Insets;
@@ -50,13 +45,17 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
+import org.controlsfx.glyphfont.FontAwesome.Glyph;
+import org.controlsfx.glyphfont.GlyphFontRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.AutoUpdateType;
 import qupath.lib.gui.prefs.QuPathStyleManager;
-import qupath.fx.utils.GridPaneUtils;
 
 
 /**
@@ -92,7 +91,7 @@ public class WelcomeStage {
 		var stage = new Stage();
 		if (qupath != null)
 			stage.initOwner(qupath.getStage());
-		
+
 		var btnCode = createGlyphButton(
 				"Welcome.develop", 
 				Glyph.CODE,
@@ -263,19 +262,14 @@ public class WelcomeStage {
 		stage.setScene(new Scene(pane));
 		stage.titleProperty().bind(TITLE);
 		FXUtils.makeDraggableStage(stage);
+		FXUtils.addCloseWindowShortcuts(stage);
 		stage.getScene().setOnMouseClicked(e -> {
 			if (e.getClickCount() == 2) {
 				logger.info("Startup stage closed by double-click"); 
 				stage.close();
 			}
 		});
-		stage.getScene().setOnKeyPressed(e -> {
-			if (!e.isConsumed() && e.getCode() == KeyCode.ESCAPE) {
-				logger.info("Startup stage closed by pressing escape"); 
-				stage.close();				
-			}
-		});
-		
+
 		btnStarted.requestFocus();
 		stage.setMinWidth(450);
 		stage.setMinHeight(600);

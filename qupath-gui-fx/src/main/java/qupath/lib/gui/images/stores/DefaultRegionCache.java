@@ -23,13 +23,13 @@
 
 package qupath.lib.gui.images.stores;
 
+import qupath.lib.regions.RegionRequest;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Map for storing image tiles, which automatically removes tiles that have not been accessed

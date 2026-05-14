@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,14 @@
 
 package qupath.lib.common;
 
+import com.google.common.io.CharStreams;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import org.apache.commons.math3.util.Precision;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.swing.SwingUtilities;
 import java.awt.Desktop;
 import java.io.BufferedReader;
 import java.io.File;
@@ -52,6 +60,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Locale.Category;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -59,15 +68,6 @@ import java.util.Scanner;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.Locale.Category;
-
-import org.apache.commons.math3.util.Precision;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.io.CharStreams;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 /**
  * Collection of generally useful static methods.
@@ -573,7 +573,7 @@ public final class GeneralTools {
 	/**
 	 * Cache of NumberFormat objects
 	 */
-	private static Map<Locale, NumberFormat> formatters = new HashMap<>();
+	private static final Map<Locale, NumberFormat> formatters = new HashMap<>();
 	
 	/**
 	 * Format a value with a maximum number of decimal places, using the default Locale.
@@ -755,24 +755,65 @@ public final class GeneralTools {
 
 
 	/**
-	 * Delete a file, optionally requesting that it be moved to the trash rather than permanently deleted.
+	 * Delete a file or an empty directory, optionally requesting that it be moved to the trash rather than permanently deleted.
 	 * <p>
-	 * Note that the behavior of this method is system-dependent, and there is no guarantee the file will 
+	 * Note that the behavior of this method is system-dependent, and there is no guarantee the file/empty directory will
 	 * indeed be moved to the trash.
 	 * 
-	 * @param fileToDelete
-	 * @param preferTrash
-	 * @return true if the file is successfully deleted, false otherwise
+	 * @param fileToDelete the file or empty directory to delete
+	 * @param preferTrash whether an attempt should be made to move the provided file/empty directory to trash before deleting it
+	 * @return true if the provided file/empty directory is successfully deleted, false otherwise
+	 * @throws NullPointerException if the provided file/empty directory is null
+	 * @throws IllegalArgumentException if the provided file/directory doesn't exist
 	 */
 	public static boolean deleteFile(File fileToDelete, boolean preferTrash) {
-		if (preferTrash && Desktop.isDesktopSupported()) {
-			var desktop = Desktop.getDesktop();
-			if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH) && desktop.moveToTrash(fileToDelete))
-				return true;
+		if (preferTrash && moveToTrash(fileToDelete)) {
+			return true;
 		}
 		return fileToDelete.delete();
 	}
 
+	/**
+	 * Attempt to move the provided file or directory to trash. This may fail depending on the current platform.
+	 *
+	 * @param fileOrDirectory the file or directory to move to trash
+	 * @return whether the provided file/directory was moved to trash
+	 * @throws NullPointerException if the provided file/directory is null
+	 * @throws IllegalArgumentException if the provided file/directory doesn't exist
+	 */
+	public static boolean moveToTrash(File fileOrDirectory) {
+		if (Desktop.isDesktopSupported()) {
+			try {
+				var desktop = Desktop.getDesktop();
+				return desktop.isSupported(Desktop.Action.MOVE_TO_TRASH) && moveToTrash(desktop, fileOrDirectory);
+			} catch (UnsupportedOperationException e) {
+				logger.warn("Cannot move {} to trash", fileOrDirectory, e);
+				return false;
+			}
+		} else {
+			logger.warn("Desktop class not supported. Cannot move {} to trash", fileOrDirectory);
+			return false;
+		}
+	}
+
+	private static boolean moveToTrash(Desktop desktop, File fileOrDirectory) {
+		if (SwingUtilities.isEventDispatchThread() || !GeneralTools.isWindows()) {
+			// It seems safe to call move to trash from any thread on macOS and Linux
+			// We can't use the EDT on macOS because of https://bugs.openjdk.org/browse/JDK-8087465
+			return desktop.moveToTrash(fileOrDirectory);
+		} else {
+			// EXCEPTION_ACCESS_VIOLATION associated with moveToTrash reported on Windows 11.
+			// https://github.com/qupath/qupath/issues/1738
+			// Could not be replicated (but we didn't have Windows 11...); taking a guess that this might help.
+			try {
+				SwingUtilities.invokeAndWait(() -> moveToTrash(desktop, fileOrDirectory));
+			} catch (Exception e) {
+				logger.error("Exception moving file to trash: {}", e.getMessage(), e);
+				return false;
+			}
+			return !fileOrDirectory.exists();
+		}
+	}
 
 	/**
 	 * Read URL as String, with specified timeout in milliseconds.

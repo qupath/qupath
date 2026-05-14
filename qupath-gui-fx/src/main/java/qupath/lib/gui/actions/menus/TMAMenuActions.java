@@ -21,10 +21,7 @@
 
 package qupath.lib.gui.actions.menus;
 
-import java.util.List;
-
 import org.controlsfx.control.action.Action;
-
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.annotations.ActionConfig;
@@ -34,6 +31,8 @@ import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.objects.FindConvexHullDetectionsPlugin;
+
+import java.util.List;
 
 public class TMAMenuActions implements MenuActions {
 	

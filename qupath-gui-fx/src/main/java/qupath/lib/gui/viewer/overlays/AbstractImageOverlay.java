@@ -21,19 +21,18 @@
 
 package qupath.lib.gui.viewer.overlays;
 
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.viewer.ImageInterpolation;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.ImageRegion;
+
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 
 /**
  * Abstract {@link PathOverlay} with additional properties relevant when drawing {@link BufferedImage}s.
@@ -44,7 +43,7 @@ public abstract class AbstractImageOverlay extends AbstractOverlay {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractImageOverlay.class);
 	
-    private ObjectProperty<ImageInterpolation> interpolation = new SimpleObjectProperty<>(ImageInterpolation.NEAREST);
+    private final ObjectProperty<ImageInterpolation> interpolation = new SimpleObjectProperty<>(ImageInterpolation.NEAREST);
 
 	protected AbstractImageOverlay(OverlayOptions options) {
 		super(options);

@@ -21,6 +21,25 @@
 
 package qupath.process.gui.commands;
 
+import javafx.concurrent.Task;
+import org.controlsfx.dialog.ProgressDialog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.commands.ProjectCommands;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.SparseImageServer;
+import qupath.lib.images.servers.TransformedServerBuilder;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.RectangleROI;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -29,26 +48,6 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
-
-import org.controlsfx.dialog.ProgressDialog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.concurrent.Task;
-import qupath.lib.gui.commands.ProjectCommands;
-import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.images.servers.CroppedImageServer;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.SparseImageServer;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectImageEntry;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.RectangleROI;
 
 /**
  * Command to generate a {@link SparseImageServer} from multiple image regions across a project.
@@ -212,8 +211,24 @@ public class CreateTrainingImageCommand {
 							}
 						}
 					}
-					var croppedServer = new CroppedImageServer(server, region);
-					
+
+					var croppedServerBuilder = new TransformedServerBuilder(server)
+							.crop(region);
+
+					boolean cropZ = !doZ && server.nZSlices() > 1;
+					boolean cropT = !doT && server.nTimepoints() > 1;
+					if (cropZ && cropT) {
+						croppedServerBuilder.slice(region.getZ(), region.getZ()+1, region.getT(), region.getT()+1);
+					} else if (cropZ) {
+						croppedServerBuilder.slice(region.getZ(), region.getZ()+1, 0, server.nTimepoints());
+					} else if (cropT) {
+						croppedServerBuilder.slice(0, server.nZSlices(), region.getT(), region.getT()+1);
+					} else {
+						logger.warn("Crop nothing!");
+					}
+
+					var croppedServer = croppedServerBuilder.build();
+
 					int[] zArray = doZ ? IntStream.range(0, croppedServer.nZSlices()).toArray() : new int[] {0};
 					int[] tArray = doT ? IntStream.range(0, croppedServer.nTimepoints()).toArray() : new int[] {0};
 					

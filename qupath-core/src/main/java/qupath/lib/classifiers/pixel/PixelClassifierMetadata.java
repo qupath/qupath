@@ -21,14 +21,6 @@
 
 package qupath.lib.classifiers.pixel;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
@@ -36,6 +28,14 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.classes.PathClass;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Metadata to control the behavior of a pixel classifier.

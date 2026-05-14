@@ -21,19 +21,19 @@
 
 package qupath.process.gui;
 
+import javafx.application.Platform;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.openblas.global.openblas;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.global.opencv_ml;
+import org.bytedeco.opencv.opencv_core.Mat;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
@@ -239,6 +239,14 @@ public class ProcessingExtension implements QuPathExtension {
 	
     @Override
     public void installExtension(QuPathGUI qupath) {
+
+		try (var mat = new Mat()) {
+			// Able to load Mat properly, so OpenCV should work
+		} catch (LinkageError e) {
+			logger.error("Unable to load OpenCV: {}", e.getMessage());
+			logger.debug(e.getMessage(), e);
+			return;
+		}
     	
     	logger.debug("Installing extension");
     	
@@ -265,7 +273,7 @@ public class ProcessingExtension implements QuPathExtension {
 	    	loadCoreClasses();
 	    	
 			// Install the Wand tool
-			var wandTool = PathTools.createTool(new WandToolEventHandler(qupath), "Wand",
+			var wandTool = PathTools.createInputEventTool(new WandToolEventHandler(qupath), "Wand",
 					IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
 			logger.debug("Installing wand tool");
 			Platform.runLater(() -> {

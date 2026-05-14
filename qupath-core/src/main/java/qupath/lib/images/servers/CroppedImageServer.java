@@ -21,13 +21,13 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.io.GsonTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 /**
  * ImageServer that treats a particular sub-region of another ImageServer as a full image, 

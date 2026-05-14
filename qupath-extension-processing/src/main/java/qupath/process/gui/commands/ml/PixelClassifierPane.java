@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -20,31 +20,6 @@
  */
 
 package qupath.process.gui.commands.ml;
-
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.nio.IntBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.WeakHashMap;
-import java.util.stream.IntStream;
-
-import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_ml.ANN_MLP;
-import org.bytedeco.opencv.opencv_ml.KNearest;
-import org.bytedeco.opencv.opencv_ml.LogisticRegression;
-import org.bytedeco.opencv.opencv_ml.RTrees;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import ij.CompositeImage;
 import javafx.application.Platform;
@@ -88,7 +63,18 @@ import javafx.scene.layout.Region;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_ml.ANN_MLP;
+import org.bytedeco.opencv.opencv_ml.KNearest;
+import org.bytedeco.opencv.opencv_ml.LogisticRegression;
+import org.bytedeco.opencv.opencv_ml.RTrees;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.Normalization;
@@ -98,20 +84,19 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.commands.MiniViewers;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -129,6 +114,21 @@ import qupath.opencv.ops.ImageOps;
 import qupath.process.gui.commands.ml.ImageDataTransformerBuilder.DefaultFeatureCalculatorBuilder;
 import qupath.process.gui.commands.ml.PixelClassifierTraining.ClassifierTrainingData;
 
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.IntBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.WeakHashMap;
+import java.util.stream.IntStream;
+
 /**
  * Main user interface for interactively training a {@link PixelClassifier}.
  * 
@@ -142,8 +142,7 @@ public class PixelClassifierPane {
 	
 	
 	private QuPathGUI qupath;
-//	private QuPathViewer viewer;
-	
+
 	private GridPane pane;
 	
 	private ObservableList<ClassificationResolution> resolutions = FXCollections.observableArrayList();
@@ -155,8 +154,6 @@ public class PixelClassifierPane {
 	private Slider sliderFeatureOpacity = new Slider(0.0, 1.0, 1.0);
 	private Spinner<Double> spinFeatureMin = FXUtils.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.1, 1);
 	private Spinner<Double> spinFeatureMax = FXUtils.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 1, 0.1, 1);
-//	private Spinner<Double> spinFeatureMin = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 0);
-//	private Spinner<Double> spinFeatureMax = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 1.0);
 	private String DEFAULT_CLASSIFICATION_OVERLAY = "Show classification";
 
 	/**
@@ -192,23 +189,20 @@ public class PixelClassifierPane {
 	private PixelClassificationOverlay featureOverlay;
 	private FeatureRenderer featureRenderer;
 
-	private ChangeListener<ImageData<BufferedImage>> imageDataListener = new ChangeListener<>() {
+	private ChangeListener<ImageData<BufferedImage>> imageDataListener = this::handleImageDataChange;
 
-        @Override
-        public void changed(ObservableValue<? extends ImageData<BufferedImage>> observable,
-                            ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
-            if (oldValue != null)
-                oldValue.getHierarchy().removeListener(hierarchyListener);
-            if (newValue != null)
-                newValue.getHierarchy().addListener(hierarchyListener);
-            updateTitle();
-            updateAvailableResolutions(newValue);
-        }
-
-    };
-	
 	private Stage stage;
-	
+
+	private void handleImageDataChange(ObservableValue<? extends ImageData<BufferedImage>> observable,
+						ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
+		if (oldValue != null)
+			oldValue.getHierarchy().removeListener(hierarchyListener);
+		if (newValue != null)
+			newValue.getHierarchy().addListener(hierarchyListener);
+		updateTitle();
+		updateAvailableResolutions(newValue);
+	}
+
 	/**
 	 * Constructor.
 	 * @param qupath the current {@link QuPathGUI} that will be used for interactive training.
@@ -265,7 +259,6 @@ public class PixelClassifierPane {
 		labelFeatures.setLabelFor(comboFeatures);
 		selectedFeatureCalculatorBuilder = comboFeatures.getSelectionModel().selectedItemProperty();
 		
-//		var labelFeaturesSummary = new Label("No features selected");
 		var btnShowFeatures = new Button("Show");
 		btnShowFeatures.setOnAction(e -> showFeatures());
 		
@@ -284,8 +277,7 @@ public class PixelClassifierPane {
 		
 		comboFeatures.getSelectionModel().select(0);
 		comboFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateFeatureCalculator());
-//		btnCustomizeFeatures.setOnAction(e -> showFeatures());
-		
+
 		GridPaneUtils.addGridRow(pane, row++, 0,
 				"Select features for the classifier",
 				labelFeatures, comboFeatures, btnCustomizeFeatures, btnShowFeatures);
@@ -311,7 +303,6 @@ public class PixelClassifierPane {
 		// Region
 		var labelRegion = new Label("Region");
 		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
-//		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
 		GridPaneUtils.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
 				labelRegion, comboRegionFilter, comboRegionFilter, comboRegionFilter);
 
@@ -357,38 +348,19 @@ public class PixelClassifierPane {
 				
 		var panePredict = GridPaneUtils.createColumnGridControls(btnProject, btnAdvancedOptions);
 		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
-		
-//		addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
-
-//		var btnUpdate = new Button("Update classifier");
-//		btnUpdate.setMaxWidth(Double.MAX_VALUE);
-//		btnUpdate.setOnAction(e -> updateClassifier(true));
-//		btnUpdate.disableProperty().bind(qupath.imageDataProperty().isNull().or(btnLive.selectedProperty()));
 		pane.add(btnLive, 0, row++, pane.getColumnCount(), 1);
 		
 		pieChart = new PieChart();
 		pieChart.getStyleClass().add("training-chart");
 		pieChart.setAnimated(false);
 		
-//		var hierarchy = viewer.getHierarchy();
-//		Map<PathClass, List<PathObject>> map = hierarchy == null ? Collections.emptyMap() : PathClassificationLabellingHelper.getClassificationMap(hierarchy, false);
-		
 		pieChart.setLabelsVisible(false);
 		pieChart.setLegendVisible(true);
 		pieChart.setMinSize(40, 40);
 		pieChart.setPrefSize(120, 120);
-//		pieChart.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		pieChart.setLegendSide(Side.RIGHT);
-//		GridPane.setVgrow(pieChart, Priority.ALWAYS);
-//		Tooltip.install(pieChart, new Tooltip("View training classes by proportion"));
 		var paneChart = new BorderPane(pieChart);
-//		paneChart.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-		
-//		PaneTools.addGridRow(pane, row++, 0, 
-////				null,
-//				"View information about the current classifier training",
-//				paneChart, paneChart, paneChart);
-		
+
 		GridPaneUtils.setFillWidth(Boolean.TRUE, paneChart);
 		GridPaneUtils.setFillHeight(Boolean.TRUE, paneChart);
 		GridPaneUtils.setVGrowPriority(Priority.ALWAYS, paneChart);
@@ -546,7 +518,6 @@ public class PixelClassifierPane {
 		pane.setPadding(new Insets(5));
 		
 		stage = new Stage();
-		FXUtils.addCloseWindowShortcuts(stage);
 		stage.setScene(new Scene(fullPane));
 		
 		stage.setMinHeight(400);
@@ -633,7 +604,7 @@ public class PixelClassifierPane {
 						logger.debug("Will not load data for {} - will use the training annotations from the open viewer", entry);
 						var tempData = trainingMap.remove(entry);
 						if (tempData != null)
-							tempData.getServer().close();
+							tempData.close();
 					} else {
 						var tempData = trainingMap.get(entry);
 						if (tempData == null) {
@@ -688,11 +659,7 @@ public class PixelClassifierPane {
 	private void updateTitle() {
 		if (stage == null)
 			return;
-//		var imageData = viewer.getImageData();
-//		if (imageData == null)
-			stage.setTitle("Pixel classifier");
-//		else
-//			stage.setTitle("Pixel classifier (" + imageData.getServer().getDisplayedImageName() + ")");
+		stage.setTitle("Train pixel classifier");
 	}
 	
 	private MouseListener mouseListener = new MouseListener();
@@ -1188,9 +1155,9 @@ public class PixelClassifierPane {
 		// Ensure we have closed any cached images
 		for (var data : trainingMap.values()) {
 			try {
-				data.getServer().close();
+				data.close();
 			} catch (Exception e) {
-				logger.warn("Error closing server: " + e.getLocalizedMessage(), e);
+                logger.warn("Error closing server: {}", e.getMessage(), e);
 			}
 		}
 		trainingEntries.clear();
@@ -1435,7 +1402,8 @@ public class PixelClassifierPane {
 			var server = overlay.getPixelClassificationServer(viewer.getImageData());
 			String results = null;
 			if (server != null)
-				results = PixelClassificationOverlay.getDefaultLocationString(server, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());
+				results = PixelClassificationOverlay.getDefaultLocationString(server,
+						null, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());
 			if (results == null)
 				cursorLocation.set("");
 			else
@@ -1454,8 +1422,8 @@ public class PixelClassifierPane {
 		public void hierarchyChanged(PathObjectHierarchyEvent event) {
 			if (!event.isChanging() && !event.isObjectMeasurementEvent() && (event.isStructureChangeEvent() || event.isObjectClassificationEvent() || !event.getChangedObjects().isEmpty())) {
 				if (event.isObjectClassificationEvent() || event.getChangedObjects().stream().anyMatch(p -> p.getPathClass() != null)) {
-					if (event.getChangedObjects().stream().anyMatch(p -> p.isAnnotation()) && 
-							!(event.isAddedOrRemovedEvent() && event.getChangedObjects().stream().allMatch(p -> p.isLocked())))
+					if (event.getChangedObjects().stream().anyMatch(PathObject::isAnnotation) &&
+							!(event.isAddedOrRemovedEvent() && event.getChangedObjects().stream().allMatch(PathObject::isLocked)))
 						updateClassifier();
 				}
 			}

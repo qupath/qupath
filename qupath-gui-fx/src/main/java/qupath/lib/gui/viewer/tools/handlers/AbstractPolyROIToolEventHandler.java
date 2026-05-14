@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,14 +21,10 @@
 
 package qupath.lib.gui.viewer.tools.handlers;
 
-import java.awt.geom.Point2D;
-import java.util.Collections;
-import java.util.HashSet;
-
+import javafx.scene.input.InputEvent;
+import javafx.scene.input.MouseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
@@ -37,7 +33,11 @@ import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
 
-abstract class AbstractPolyROIToolEventHandler extends AbstractPathROIToolEventHandler {
+import java.awt.geom.Point2D;
+import java.util.Collections;
+import java.util.HashSet;
+
+abstract class AbstractPolyROIToolEventHandler<T extends InputEvent> extends AbstractPathROIToolEventHandler<T> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractPolyROIToolEventHandler.class);
 

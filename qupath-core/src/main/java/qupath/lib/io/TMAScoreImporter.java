@@ -23,6 +23,14 @@
 
 package qupath.lib.io;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.objects.hierarchy.TMAGrid;
+
 import java.io.File;
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -37,15 +45,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.objects.hierarchy.TMAGrid;
 
 /**
  * Helper class for importing data in connection with TMA slides.

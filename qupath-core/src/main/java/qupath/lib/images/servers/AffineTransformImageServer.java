@@ -21,15 +21,8 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.geom.AffineTransform;
-import java.awt.geom.NoninvertibleTransformException;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -37,6 +30,12 @@ import qupath.lib.images.servers.ImageServers.AffineTransformImageServerBuilder;
 import qupath.lib.io.GsonTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+
+import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 /**
  * ImageServer that dynamically applies an AffineTransform to an existing ImageServer.

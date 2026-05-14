@@ -28,7 +28,6 @@ import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
-
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RoiTools;

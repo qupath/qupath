@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2023-2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,10 +25,12 @@ import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.MenuBar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
 
 import java.util.Collections;
 import java.util.Set;
@@ -75,17 +77,25 @@ public class SystemMenuBar {
         /**
          * Don't use the system menubar for any windows.
          */
-        NEVER
+        NEVER;
+
+        public String toString() {
+            return switch (this) {
+                case ALL_WINDOWS -> "Yes";
+                case NEVER -> "No";
+            };
+        }
     }
 
-    private static BooleanProperty overrideSystemMenuBar = new SimpleBooleanProperty(false);
+    private static final BooleanProperty overrideSystemMenuBar = new SimpleBooleanProperty(false);
 
-    private static Set<MenuBar> mainMenuBars = Collections.newSetFromMap(new WeakHashMap<>());
+    private static final Set<MenuBar> mainMenuBars = Collections.newSetFromMap(new WeakHashMap<>());
 
-    private static Set<MenuBar> childMenuBars = Collections.newSetFromMap(new WeakHashMap<>());
+    private static final Set<MenuBar> childMenuBars = Collections.newSetFromMap(new WeakHashMap<>());
 
-    private static ObjectProperty<SystemMenuBarOption> systemMenuBar = PathPrefs.createPersistentPreference(
-            "systemMenubar", SystemMenuBarOption.ALL_WINDOWS, SystemMenuBarOption.class);
+    private static final ObjectProperty<SystemMenuBarOption> systemMenuBar = SystemMenuBar.supportsSystemMenubar() ?
+            PathPrefs.createPersistentPreference("systemMenubar", SystemMenuBarOption.ALL_WINDOWS, SystemMenuBarOption.class) :
+            new SimpleObjectProperty<>(SystemMenuBarOption.NEVER);
 
     static {
         systemMenuBar.addListener(SystemMenuBar::updateMenuBars);
@@ -94,6 +104,19 @@ public class SystemMenuBar {
 
     private static void updateOverrideMenubars(ObservableValue<? extends Boolean> value, Boolean old, Boolean newValue) {
         updateMenuBars(systemMenuBar, systemMenuBar.get(), systemMenuBar.get());
+    }
+
+    /**
+     * Returns true if the platform supports (or maybe supports) the system menubar.
+     * <p>
+     * This provides a way to avoid providing the option to the user if it is known to be irrelevant,
+     * although we can't query the system menubar support directly - so this is a best guess.
+     * <p>
+     * It also allows the option to be disabled by setting a system property {@code qupath.enableSystemMenuBar=false}.
+     * @return
+     */
+    public static boolean supportsSystemMenubar() {
+        return !GeneralTools.isWindows() && !"false".equalsIgnoreCase(System.getProperty("qupath.enableSystemMenuBar"));
     }
 
     private static void updateMenuBars(ObservableValue<? extends SystemMenuBarOption> value, SystemMenuBarOption old, SystemMenuBarOption newValue) {

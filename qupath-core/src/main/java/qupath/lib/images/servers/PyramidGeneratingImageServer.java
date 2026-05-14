@@ -21,17 +21,17 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.net.URI;
-import java.util.Collection;
-import java.util.Collections;
-
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectReader;
 import qupath.lib.regions.RegionRequest;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Helper class intended to make a single-resolution image act more like an image pyramid.

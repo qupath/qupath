@@ -1,0 +1,20 @@
+name: Update gradle version
+
+on:
+  workflow_dispatch:
+    inputs:
+      gradle-version:
+        description: Gradle version
+        default: latest
+        type: string
+        required: false
+
+jobs:
+  update:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: qupath/actions/.github/workflows/update-gradle.yml@main
+    name: Update gradle
+    with:
+      gradle-version: ${{ inputs.gradle-version }}

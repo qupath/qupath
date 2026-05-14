@@ -23,13 +23,13 @@
 
 package qupath.lib.plugins;
 
-import java.io.IOException;
-import java.util.Collection;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.io.IOException;
+import java.util.Collection;
 
 /**
  * Minimal interface that may be used to plugins that perform detection within a specified ROI 

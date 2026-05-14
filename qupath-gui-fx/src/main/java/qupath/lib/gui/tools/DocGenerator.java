@@ -33,6 +33,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.UUID;
+import java.util.prefs.BackingStoreException;
+import java.util.prefs.Preferences;
 
 /**
  * Command line tool to export icons and markdown documentation for QuPath commands.
@@ -70,7 +73,10 @@ public class DocGenerator implements Runnable {
         } else {
             Platform.startup(() -> {
                 doExports();
-                Platform.runLater(Platform::exit);
+                Platform.runLater(() -> {
+                    Platform.exit();
+                    System.exit(0);
+                });
             });
         }
     }
@@ -118,15 +124,28 @@ public class DocGenerator implements Runnable {
 
     private void exportMarkdown(Path outputFile) throws IOException  {
         var qupath = QuPathGUI.getInstance();
+        String customPrefNode = null;
         if (qupath == null) {
+            // We want a custom preference node so that we export as QuPath is by default
+            customPrefNode = "io.github.qupath/" + UUID.randomUUID();
+            logger.info("Creating custom pref node: {}", customPrefNode);
+            System.setProperty("qupath.prefs.name", customPrefNode);
             logger.debug("Creating new QuPath instance");
+            // Create QuPath (but don't show it)
             qupath = QuPathGUI.createHiddenInstance();
         }
         logger.info("Writing markdown to {}", outputFile);
         try (var writer = Files.newBufferedWriter(outputFile, StandardCharsets.UTF_8)) {
             CommandFinderTools.menusToMarkdown(qupath, writer);
-        } catch (IOException e) {
-            throw e;
+        }
+        if (customPrefNode != null) {
+            try {
+                // If we created a custom preference node, reset that now
+                logger.info("Resetting custom pref node: {}", customPrefNode);
+                Preferences.userRoot().node(customPrefNode).removeNode();
+            } catch (BackingStoreException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

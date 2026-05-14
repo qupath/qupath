@@ -23,17 +23,6 @@
 
 package qupath.imagej.detect.dearray;
 
-import java.awt.Polygon;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.OvalRoi;
@@ -55,6 +44,17 @@ import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import qupath.imagej.processing.RoiLabeling;
+
+import java.awt.Point;
+import java.awt.Polygon;
+import java.awt.Rectangle;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
 
 
 /**

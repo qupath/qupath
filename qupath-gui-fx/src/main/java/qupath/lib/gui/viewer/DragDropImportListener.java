@@ -23,25 +23,7 @@
 
 package qupath.lib.gui.viewer;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.util.regex.Pattern;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.stream.Collectors;
-
 import com.google.gson.JsonElement;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
@@ -51,18 +33,21 @@ import javafx.scene.control.Dialog;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
-import qupath.lib.common.GeneralTools;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.ext.extensionmanager.gui.ExtensionManager;
 import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.ExtensionControlPane;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.FileCopier;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.UserDirectoryManager;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.InteractiveObjectImporter;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.QuPathStyleManager;
+import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.images.ImageData;
@@ -73,7 +58,21 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.Projects;
-import qupath.lib.gui.scripting.DefaultScriptEditor;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 /**
@@ -292,11 +291,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     }
     
     void handleURLDrop(final QuPathViewer viewer, final String url) throws IOException, URISyntaxException, InterruptedException {
-		// if it's a GitHub URL, it's probably not an image. See if it's an extension
-		if (GITHUB_BASE_PATTERN.matcher(url).matches()) {
-			ExtensionControlPane.handleGitHubURL(url);
-			return;
-		}
     	try {
     		qupath.openImage(viewer, url, false, false);
     	} catch (IOException e) {
@@ -332,7 +326,11 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 
 		// If we only have jar files, treat them as extensions
 		if (nJars == list.size()) {
-			qupath.getExtensionManager().promptToCopyFilesToExtensionsDirectory(list);
+			ExtensionManager.promptToCopyFilesToExtensionDirectory(
+					list,
+					QuPathGUI.getExtensionCatalogManager().getExtensionsDirectory(),
+					() -> Commands.requestUserDirectory(true)
+			);
 			return;
 		}
 		
@@ -518,19 +516,18 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			return;
 		}
 
+		
+		// Check handlers
+		for (DropHandler<File> handler: dropHandlers) {
+			if (handler.handleDrop(viewer, list))
+				return;
+		}
 
 		// Open file with an extension supported by the Script Editor
 		ScriptEditor scriptEditor = qupath.getScriptEditor();
 		if (scriptEditor instanceof DefaultScriptEditor && ((DefaultScriptEditor)scriptEditor).supportsFile(file)) {
 			scriptEditor.showScript(file);
 			return;
-		}
-
-		
-		// Check handlers
-		for (DropHandler<File> handler: dropHandlers) {
-			if (handler.handleDrop(viewer, list))
-				return;
 		}
 
 		// Assume we have images
@@ -546,7 +543,12 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			return;
 		} else if (qupath.getProject() != null) {
 			// Try importing multiple images to a project
-			String[] potentialFiles = list.stream().filter(File::isFile).map(File::getAbsolutePath).toArray(String[]::new);
+			String[] potentialFiles = list.stream()
+					.filter(potentialFile -> potentialFile.isFile() ||
+							(potentialFile.isDirectory() && potentialFile.getName().toLowerCase().endsWith(".zarr"))
+					)
+					.map(File::getAbsolutePath)
+					.toArray(String[]::new);
 			if (potentialFiles.length > 0) {
 				ProjectCommands.promptToImportImages(qupath, potentialFiles);
 				return;
@@ -578,7 +580,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     		return files;
     	
     	new FileCopier()
-    			.title("Install localization properties")
+    			.title(QuPathResources.getString("DragDrop.installLocalizationProperties"))
     			.relativeToUserDirectory()
     			.outputPath(UserDirectoryManager.DIR_LOCALIZATION)
     			.inputFiles(propertyFiles)

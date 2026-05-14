@@ -23,18 +23,18 @@
 
 package qupath.lib.gui.tma;
 
-import java.io.File;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.event.EventHandler;
 import javafx.scene.Scene;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.localization.QuPathResources;
+
+import java.io.File;
+import java.util.List;
 
 
 /**
@@ -86,7 +86,9 @@ class DragDropTMADataImportListener implements EventHandler<DragEvent> {
     		return; // Shouldn't happen...
     	}
 		if (list.size() > 1) {
-			Dialogs.showErrorMessage("TMA data viewer", "Only one file or directory can be selected for import");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Tma.DragDropTMADataImportListener.tmaDataViewer"),
+					QuPathResources.getString("Tma.DragDropTMADataImportListener.onlyOneForImport"));
 			return;
 		}
 		tmaViewer.setInputFile(list.get(0));

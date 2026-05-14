@@ -21,19 +21,9 @@
 
 package qupath.lib.images.writers.ome;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.regex.Pattern;
-import java.util.stream.DoubleStream;
-
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -47,6 +37,15 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
 import qupath.lib.images.writers.ome.zarr.OMEZarrWriter;
 import qupath.lib.regions.ImageRegion;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.stream.DoubleStream;
 
 /**
  * Allows command line option to convert an input image to OME-TIFF or OME-Zarr.
@@ -266,34 +265,31 @@ public class ConvertCommand implements Runnable, Subcommand {
 					builder.build().writeSeries(outputFile.getAbsolutePath());
 				}
 				case ZARR -> {
-					OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(server, outputFile.getAbsolutePath())
-							.setTileWidth(tileWidth)
-							.setTileHeight(tileHeight)
-							.setBoundingBox(boundingBox.orElse(null))
-							.setZSlices(zSlicesRange.start(), zSlicesRange.end())
-							.setTimepoints(timepointsRange.start(), timepointsRange.end());
+					OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(server)
+							.tileSize(tileWidth, tileHeight)
+							.region(boundingBox.orElse(null))
+							.zSlices(zSlicesRange.start(), zSlicesRange.end())
+							.timePoints(timepointsRange.start(), timepointsRange.end());
 
 					if (!parallelize) {
-						builder.setNumberOfThreads(1);
+						builder.parallelize(1);
 					}
 
 					if (pyramid > 1) {
-						builder.setDownsamples(DoubleStream.iterate(
+						builder.downsamples(DoubleStream.iterate(
 								downsample,
 								d -> (int) (server.getWidth() / d) > tileWidth &&
 										(int) (server.getHeight() / d) > tileHeight,
 								d -> d * pyramid
 						).toArray());
 					} else {
-						builder.setDownsamples(DoubleStream.concat(
+						builder.downsamples(DoubleStream.concat(
 								DoubleStream.of(downsample),
 								Arrays.stream(server.getPreferredDownsamples()).filter(d -> d > downsample)
 						).toArray());
 					}
 
-					try (OMEZarrWriter writer = builder.build()) {
-						writer.writeImage();
-					}
+					builder.build(outputFile.getAbsolutePath()).writeImage();
 				}
 			}
 			long duration = System.currentTimeMillis() - startTime;

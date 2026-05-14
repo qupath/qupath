@@ -21,10 +21,11 @@
 
 package qupath.lib.classifiers.object;
 
-import java.util.Collection;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
+
+import java.util.Collection;
 
 /**
  * Abstract class to help with the creation of object classifiers.

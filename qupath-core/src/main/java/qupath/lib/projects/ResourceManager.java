@@ -21,6 +21,13 @@
 
 package qupath.lib.projects;
 
+import com.google.gson.reflect.TypeToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.io.GsonTools;
+
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -32,15 +39,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.reflect.TypeToken;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.io.GsonTools;
 
 /**
  * Manage the storage and retrieval of resources with a {@link ResourceManager}.

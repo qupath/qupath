@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -37,15 +37,16 @@ import java.util.List;
  */
 public class ViewerPlusDisplayOptions {
 	
-	private BooleanProperty showOverview = new SimpleBooleanProperty(null, "showOverview", true);
-	private BooleanProperty showLocation = new SimpleBooleanProperty(null, "showLocation", true);
-	private BooleanProperty showScalebar = new SimpleBooleanProperty(null, "showScalebar", true);
+	private final BooleanProperty showOverview = new SimpleBooleanProperty(null, "showOverview", true);
+	private final BooleanProperty showLocation = new SimpleBooleanProperty(null, "showLocation", true);
+	private final BooleanProperty showScalebar = new SimpleBooleanProperty(null, "showScalebar", true);
+	private final BooleanProperty showZProjectControls = new SimpleBooleanProperty(null, "showZProjectControls", false);
 
-	private static ViewerPlusDisplayOptions SHARED_INSTANCE = createSharedInstance();
+	private static final ViewerPlusDisplayOptions SHARED_INSTANCE = createSharedInstance();
 
 	private static ViewerPlusDisplayOptions createSharedInstance() {
 		ViewerPlusDisplayOptions options = new ViewerPlusDisplayOptions();
-		for (var prop : List.of(options.showOverview, options.showLocation, options.showScalebar)) {
+		for (var prop : List.of(options.showOverview, options.showLocation, options.showScalebar, options.showZProjectControls)) {
 			prop.bindBidirectional(PathPrefs.createPersistentPreference("viewerOptions_" + prop.getName(), prop.get()));
 		}
 		return options;
@@ -82,6 +83,14 @@ public class ViewerPlusDisplayOptions {
 	public BooleanProperty showScalebarProperty() {
 		return showScalebar;
 	}
+
+	/**
+	 * Show controls to view z-projection overlays, where available.
+	 * @return
+	 */
+	public BooleanProperty showZProjectControlsProperty() {
+		return showZProjectControls;
+	}
 	
 	/**
 	 * Get the value of {@link #showOverviewProperty()}.
@@ -108,6 +117,13 @@ public class ViewerPlusDisplayOptions {
 	}
 
 	/**
+	 * Get the value of {@link #showZProjectControlsProperty()}.
+	 */
+	public boolean getShowZProjectControls() {
+		return showZProjectControls.get();
+	}
+
+	/**
 	 * Set the value of {@link #showOverviewProperty()}.
 	 * @param show
 	 */
@@ -129,6 +145,14 @@ public class ViewerPlusDisplayOptions {
 	 */
 	public void setShowScalebar(final boolean show) {
 		showScalebar.set(show);
+	}
+
+	/**
+	 * Set the value of {@link #showZProjectControlsProperty()}.
+	 * @param show
+	 */
+	public void setShowZProjectControls(final boolean show) {
+		showZProjectControls.set(show);
 	}
 
 }

@@ -21,12 +21,12 @@
 
 package qupath.lib.gui.images.stores;
 
+import qupath.lib.images.servers.ImageServer;
+
 import java.awt.Graphics;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
-
-import qupath.lib.images.servers.ImageServer;
 
 /**
  * Interface for painting regions of an {@link ImageServer} onto a {@link Graphics} object.

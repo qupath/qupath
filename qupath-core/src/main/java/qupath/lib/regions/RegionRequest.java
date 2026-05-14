@@ -23,6 +23,11 @@
 
 package qupath.lib.regions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,12 +35,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Class for defining an image region that can also be used to request these region from an {@link ImageServer}.

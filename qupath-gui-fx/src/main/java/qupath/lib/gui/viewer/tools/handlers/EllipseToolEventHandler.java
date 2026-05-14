@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -34,7 +34,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-class EllipseToolEventHandler extends AbstractPathDraggingROIToolEventHandler {
+class EllipseToolEventHandler extends AbstractPathDraggingROIToolEventHandler<MouseEvent> {
 
 	@Override
 	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {

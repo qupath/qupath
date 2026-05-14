@@ -23,17 +23,6 @@
 
 package qupath.lib.gui.charts;
 
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.function.Function;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.geometry.Point2D;
 import javafx.scene.Group;
 import javafx.scene.Node;
@@ -53,6 +42,17 @@ import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.localization.QuPathResources;
+
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Collection of static methods to help when working with JavaFX charts, 
@@ -200,7 +200,7 @@ public class ChartTools {
 	 * @param menu
 	 */
 	public static void addChartExportMenu(final XYChart<Number, Number> chart, final ContextMenu menu) {
-		MenuItem menuItem = new MenuItem("Export chart");
+		MenuItem menuItem = new MenuItem(QuPathResources.getString("Charts.Tools.exportChart"));
 		menuItem.setOnAction(e -> ExportChartPane.showExportChartDialog(chart));
 		if (menu == null) {
 			ContextMenu menu2 = new ContextMenu();

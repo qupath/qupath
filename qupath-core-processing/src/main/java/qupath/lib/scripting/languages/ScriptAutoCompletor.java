@@ -21,8 +21,9 @@
 
 package qupath.lib.scripting.languages;
 
-import java.util.List;
 import qupath.lib.scripting.languages.AutoCompletions.Completion;
+
+import java.util.List;
 
 /**
  * Interface for classes that implement auto-completion (e.g. styling classes).

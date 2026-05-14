@@ -23,6 +23,16 @@
 
 package qupath.lib.gui.viewer.overlays;
 
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.viewer.OverlayOptions;
+import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.ImageRegion;
+
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -32,17 +42,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
-import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.regions.ImageRegion;
 
 /**
  * An overlay used to display one or more {@code BufferedImage} objects on top of a primary image shown in a viewer.

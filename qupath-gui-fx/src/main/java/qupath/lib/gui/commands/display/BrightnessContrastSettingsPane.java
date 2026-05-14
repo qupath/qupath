@@ -45,7 +45,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
 import org.controlsfx.control.SearchableComboBox;
@@ -57,10 +56,13 @@ import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.display.settings.DisplaySettingUtils;
 import qupath.lib.display.settings.ImageDisplaySettings;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.projects.ResourceManager;
 
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -93,7 +95,7 @@ public class BrightnessContrastSettingsPane extends GridPane {
         initializePane();
         tryToKeepSearchText();
         // Change on invalidation
-        lastChangeTimestamp = imageDisplayProperty.flatMap(ImageDisplay::changeTimestampProperty);
+        lastChangeTimestamp = imageDisplayProperty.flatMap(ImageDisplay::eventCountProperty);
         lastChangeTimestamp.addListener(this::timestampInvalidated);
         settingsChanged.addListener((v, o, n) -> {
             if (!n)
@@ -108,9 +110,9 @@ public class BrightnessContrastSettingsPane extends GridPane {
 
     private void initializePane() {
         setHgap(5);
-        var label = new Label("Settings");
+        var label = new Label(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.Settings"));
         label.setLabelFor(comboSettings);
-        comboSettings.setTooltip(new Tooltip("Compatible display settings saved in the project"));
+        comboSettings.setTooltip(new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.compatibleDisplaySettings")));
         comboSettings.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
             if (n != null)
                 tryToApplySettings(n);
@@ -135,12 +137,10 @@ public class BrightnessContrastSettingsPane extends GridPane {
         });
         comboSettings.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
         comboSettings.setButtonCell(new SettingListCell(settingsChanged));
-        var placeholder = new Text("No compatible settings");
-        placeholder.setStyle("-fx-fill: -fx-text-base-color;");
-        comboSettings.setPlaceholder(placeholder);
+        comboSettings.setPlaceholder(GuiTools.createPlaceholderText(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.noCompatibleSettings")));
         resourceManagerProperty.addListener((v, o, n) -> refreshResources());
-        var btnSave = new Button("Save");
-        btnSave.setTooltip(new Tooltip("Save the current display settings in the project"));
+        var btnSave = new Button(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.save"));
+        btnSave.setTooltip(new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.saveDescription")));
         btnSave.disableProperty().bind(resourceManagerProperty.isNull());
         btnSave.setOnAction(e -> promptToSaveSettings());
         int col = 0;
@@ -177,7 +177,7 @@ public class BrightnessContrastSettingsPane extends GridPane {
      * And, to make it harder, the text is reset before the 'save' action is handled.
      */
     private void tryToKeepSearchText() {
-        comboSettings.sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).addListener((v, o, n) -> {
+        comboSettings.sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).orElse(Boolean.FALSE).addListener((v, o, n) -> {
             if (n && defaultName == null)
                 handleComboShowing();
         });
@@ -218,7 +218,13 @@ public class BrightnessContrastSettingsPane extends GridPane {
                 settingsChanged.set(false);
                 comboSettings.getSelectionModel().select(settings);
             } catch (IOException e) {
-                Dialogs.showErrorMessage("Save display settings", "Can't save settings " + name);
+                Dialogs.showErrorMessage(
+                        QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.saveDisplaySettings"),
+                        MessageFormat.format(
+                                QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.cannotSaveSettings"),
+                                name
+                        )
+                );
                 logger.error("Error saving display settings", e);
             }
         }
@@ -227,21 +233,21 @@ public class BrightnessContrastSettingsPane extends GridPane {
     private String promptForName() {
         String defaultName = tryToGetDefaultName();
         var tf = new TextField(defaultName);
-        tf.setPromptText("Name of settings");
+        tf.setPromptText(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.nameOfSettings"));
         tf.setPrefColumnCount(16);
-        var labelWarning = new Label("Settings with the same name will be overwritten!");
+        var labelWarning = new Label(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.settingsOverwritten"));
         var allNames = getAllNames();
         labelWarning.visibleProperty().bind(
                 Bindings.createBooleanBinding(() -> allNames.contains(tf.getText()),
                         tf.textProperty()));
         labelWarning.getStyleClass().addAll("warn-label-text");
-        var labelPrompt = new Label("Enter a name for the display settings");
+        var labelPrompt = new Label(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.enterName"));
         var pane = new VBox();
         pane.setSpacing(5.0);
         pane.getChildren().addAll(labelPrompt, tf, labelWarning);
         Platform.runLater(tf::requestFocus);
         if (Dialogs.builder()
-                .title("Save display settings")
+                .title(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.saveDisplaySettings"))
                 .content(pane)
                 .owner(FXUtils.getWindow(this))
                 .buttons(ButtonType.OK, ButtonType.CANCEL)
@@ -301,7 +307,13 @@ public class BrightnessContrastSettingsPane extends GridPane {
             PathPrefs.viewerGammaProperty().set(settings.getGamma());
             settingsChanged.set(false);
         } catch (Exception e) {
-            Dialogs.showErrorMessage("Apply display settings", "Can't apply settings " + settings.getName());
+            Dialogs.showErrorMessage(
+                    QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.applyDisplaySettings"),
+                    MessageFormat.format(
+                            QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.cannotApplySettings"),
+                            settings.getName()
+                    )
+            );
             logger.error("Error applying display settings", e);
         }
     }
@@ -332,6 +344,10 @@ public class BrightnessContrastSettingsPane extends GridPane {
         }
 
         private void updateTextAndStyle() {
+            if (!Platform.isFxApplicationThread()) {
+                Platform.runLater(this::updateTextAndStyle);
+                return;
+            }
             var item = getItem();
             if (item == null) {
                 setText(null);

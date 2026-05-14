@@ -38,12 +38,15 @@ import qupath.lib.gui.QuPathGUI;
 public interface QuPathExtension {
 	
 	/**
-	 * Install the extension for a QuPathGUI instance.
+	 * Install the extension for a QuPathGUI instance. This function is only called if the graphical user
+	 * interface is used.
 	 * <p>
 	 * This generally involves adding new commands to appropriate menus.
 	 * <p>
 	 * Note that if an extension is only expected to be compatible with a specific QuPath version, 
 	 * this method provides an opportunity to test version compatibility before making any changes.
+	 * <p>
+	 * See {@link #installHeadless()} for installing the extension in headless mode.
 	 * 
 	 * @param qupath
 	 * @see QuPathGUI#getVersion()
@@ -51,6 +54,17 @@ public interface QuPathExtension {
 	 * @implNote When multiple extensions are present, the order in which they will be installed is undefined.
 	 */
 	public void installExtension(QuPathGUI qupath);
+
+	/**
+	 * Install the extension in headless mode. This function is only called if QuPath is run without the user
+	 * interface.
+	 * <p>
+	 * See {@link #installExtension(QuPathGUI)} for installing the extension when the graphical user interface
+	 * is used.
+	 *
+	 * @implNote When multiple extensions are present, the order in which they will be installed is undefined.
+	 */
+	default void installHeadless() {}
 	
 	/**
 	 * A readable name for the extension.

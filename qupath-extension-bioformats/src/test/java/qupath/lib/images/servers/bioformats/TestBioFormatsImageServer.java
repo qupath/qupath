@@ -24,25 +24,15 @@
 
 package qupath.lib.images.servers.bioformats;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
-
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import ij.ImagePlus;
+import java.nio.file.Path;
 import loci.common.DebugTools;
 import loci.common.Region;
 import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
@@ -52,6 +42,19 @@ import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.RegionRequest;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Test the QuPath Bio-Formats extension, by
@@ -69,7 +72,7 @@ import qupath.lib.regions.RegionRequest;
  */
 public class TestBioFormatsImageServer {
 	
-	private static Logger logger = LoggerFactory.getLogger(TestBioFormatsImageServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(TestBioFormatsImageServer.class);
 	
 	
 	/**
@@ -85,7 +88,7 @@ public class TestBioFormatsImageServer {
 		
 		var uris = Files.walk(path)
 				.filter(p -> Files.isRegularFile(p) && !Files.isDirectory(p) && !p.getFileName().startsWith("."))
-				.collect(Collectors.toMap(p -> p.getFileName().toString(), p -> p.toUri()));
+				.collect(Collectors.toMap(p -> p.getFileName().toString(), Path::toUri));
 		
 		
 		var builder = new BioFormatsServerBuilder();
@@ -116,11 +119,11 @@ public class TestBioFormatsImageServer {
 				
 				// Check pixel type
 				if (name.contains("gray16"))
-					assertEquals(server.getMetadata().getPixelType(), PixelType.UINT16);
+					assertEquals(PixelType.UINT16, server.getMetadata().getPixelType());
 				else if (name.contains("gray32"))
-					assertEquals(server.getMetadata().getPixelType(), PixelType.FLOAT32);
+					assertEquals(PixelType.FLOAT32, server.getMetadata().getPixelType());
 				else
-					assertEquals(server.getMetadata().getPixelType(), PixelType.UINT8);
+					assertEquals(PixelType.UINT8, server.getMetadata().getPixelType());
 				
 				// Check calibration
 				var cal = server.getPixelCalibration();
@@ -235,11 +238,11 @@ public class TestBioFormatsImageServer {
 	 */
 	@Test
 	public void test_BioFormatsDefaultTile() {
-		assertEquals(BioFormatsImageServer.getDefaultTileLength(256, 512), 256);
-		assertEquals(BioFormatsImageServer.getDefaultTileLength(4, 512), 32);		
-		assertEquals(BioFormatsImageServer.getDefaultTileLength(12, 512), 36);		
-		assertEquals(BioFormatsImageServer.getDefaultTileLength(700, 500), 500);
-		assertEquals(BioFormatsImageServer.getDefaultTileLength(-1, 100_000), 512);
+		assertEquals(256, ReaderUtils.getDefaultTileLength(256, 512));
+		assertEquals(32, ReaderUtils.getDefaultTileLength(4, 512));
+		assertEquals(36, ReaderUtils.getDefaultTileLength(12, 512));
+		assertEquals(500, ReaderUtils.getDefaultTileLength(700, 500));
+		assertEquals(512, ReaderUtils.getDefaultTileLength(-1, 100_000));
 	}
 
 	

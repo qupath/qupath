@@ -21,6 +21,8 @@
 
 package qupath.lib.gui.viewer;
 
+import qupath.lib.gui.localization.QuPathResources;
+
 /**
  * Supported interpolation methods when displaying images.
  * 
@@ -40,11 +42,9 @@ public enum ImageInterpolation {
 	
 	@Override
 	public String toString() {
-		if (this == NEAREST)
-			return "Nearest neighbor";
-		else if (this == BILINEAR)
-			return "Bilinear";
-		throw new IllegalArgumentException("Unknown interpolation!");
+		return QuPathResources.getString(switch (this) {
+            case NEAREST -> "Viewer.ImageInterpolation.nearestNeighbor";
+            case BILINEAR -> "Viewer.ImageInterpolation.bilinear";
+        });
 	}
-
 }

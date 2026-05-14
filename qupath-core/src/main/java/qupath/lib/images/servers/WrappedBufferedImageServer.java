@@ -23,6 +23,9 @@
 
 package qupath.lib.images.servers;
 
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
@@ -31,9 +34,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-
-import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 
 /**
  * Implementation of an {@link ImageServer} that simply wraps an existing {@link BufferedImage}.

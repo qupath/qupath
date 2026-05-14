@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,6 +22,40 @@
  */
 
 package qupath.lib.gui.viewer;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.analysis.DelaunayTools;
+import qupath.lib.awt.common.AwtTools;
+import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.common.LogTools;
+import qupath.lib.geom.Point2;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.MeasurementMapper;
+import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnectionGroup;
+import qupath.lib.objects.PathObjectConnections;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.objects.hierarchy.TMAGrid;
+import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
+import qupath.lib.plugins.ParallelTileObject;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.EllipseROI;
+import qupath.lib.roi.LineROI;
+import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.RoiEditor;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
@@ -52,42 +86,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.analysis.DelaunayTools;
-import qupath.lib.awt.common.AwtTools;
-import qupath.lib.color.ColorToolsAwt;
-import qupath.lib.common.LogTools;
-import qupath.lib.geom.Point2;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.lib.gui.tools.MeasurementMapper;
-import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathDetectionObject;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectConnectionGroup;
-import qupath.lib.objects.PathObjectConnections;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassTools;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.objects.hierarchy.TMAGrid;
-import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
-import qupath.lib.plugins.ParallelTileObject;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.EllipseROI;
-import qupath.lib.roi.LineROI;
-import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.PointsROI;
-import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.RoiEditor;
-import qupath.lib.roi.ShapeSimplifier;
-import qupath.lib.roi.interfaces.ROI;
-
 
 /**
  * Static methods to assist with painting PathObjects.
@@ -99,16 +97,16 @@ public class PathObjectPainter {
 
 	private static final Logger logger = LoggerFactory.getLogger(PathObjectPainter.class);
 
-	private static ShapeProvider shapeProvider = new ShapeProvider();
+	private static final ShapeProvider shapeProvider = new ShapeProvider();
 
-	private static Map<Object, Double> doubleCache = new HashMap<>();
+	private static final Map<Object, Double> doubleCache = new HashMap<>();
 
-	private static Map<Number, Stroke> strokeMap = new HashMap<>();
-	private static Map<Number, Stroke> dashedStrokeMap = new HashMap<>();
+	private static final Map<Number, Stroke> strokeMap = new HashMap<>();
+	private static final Map<Number, Stroke> dashedStrokeMap = new HashMap<>();
 
-	private static ThreadLocal<Path2D> localPath2D = ThreadLocal.withInitial(Path2D.Double::new);
-	private static ThreadLocal<Rectangle2D> localRect2D = ThreadLocal.withInitial(Rectangle2D.Double::new);
-	private static ThreadLocal<Ellipse2D> localEllipse2D = ThreadLocal.withInitial(Ellipse2D.Double::new);
+	private static final ThreadLocal<Path2D> localPath2D = ThreadLocal.withInitial(Path2D.Double::new);
+	private static final ThreadLocal<Rectangle2D> localRect2D = ThreadLocal.withInitial(Rectangle2D.Double::new);
+	private static final ThreadLocal<Ellipse2D> localEllipse2D = ThreadLocal.withInitial(Ellipse2D.Double::new);
 
 	private PathObjectPainter() {}
 
@@ -252,7 +250,7 @@ public class PathObjectPainter {
 
 		// Always paint selected objects, otherwise check if the object should be hidden
 		if (!isSelected) {
-			if ((overlayOptions.isPathClassHidden(pathObject.getPathClass()) && !pathObject.isTMACore())
+			if ((overlayOptions.isHidden(pathObject) && !pathObject.isTMACore())
 					|| isHiddenObjectType(pathObject, overlayOptions))
 				return false;
 		}
@@ -272,8 +270,20 @@ public class PathObjectPainter {
 			colorStroke = ColorToolsAwt.darkenColor(color);
 		Stroke stroke = colorStroke == null ? null : calculateStroke(pathObject, downsample, isSelected);
 
-		if (colorFill != null && pathObject.hasChildObjects())
-			colorFill = ColorToolsAwt.getColorWithOpacity(colorFill, 0.1);
+		// If the opacity isn't specified in the metadata, increase it if we have child objects so they are more visible
+		if (colorFill != null && pathObject.hasChildObjects() && getFillOpacityFromMetadataOrNull(pathObject) == null) {
+			// Decrease the opacity if the object only has direct children
+			double opacity = colorFill.getAlpha() / 255.0;
+			opacity *= 0.75;
+			// Decrease the opacity again if there are grandchildren
+			for (var child : pathObject.getChildObjects()) {
+				if (child.hasChildObjects()) {
+					opacity *= 0.75;
+					break;
+				}
+			}
+			colorFill = ColorToolsAwt.getColorWithOpacity(colorFill, opacity);
+		}
 
 		if (stroke != null)
 			g.setStroke(stroke);
@@ -408,10 +418,10 @@ public class PathObjectPainter {
 
 	private static Double tryToParseDouble(Object obj) {
 		try {
-			if (obj instanceof String) {
-				return Double.parseDouble((String)obj);
-			} else if (obj instanceof Number) {
-				return ((Number)obj).doubleValue();
+			if (obj instanceof String s) {
+				return Double.parseDouble(s);
+			} else if (obj instanceof Number n) {
+				return n.doubleValue();
 			}
 		} catch (Exception e) {
 			logger.warn("Unable to parse double from {}", obj);
@@ -692,49 +702,13 @@ public class PathObjectPainter {
 
 		static final int MIN_SIMPLIFY_VERTICES = 250;
 
-		private RectanglePool rectanglePool = new RectanglePool();
-		private EllipsePool ellipsePool = new EllipsePool();
-		private LinePool linePool = new LinePool();
-
-		// TODO: Consider if it makes sense to map to PathHierarchyImageServer preferred downsamples
-		// (Only if shape simplification is often used for detection objects)
-		private Map<ROI, Shape> map50 = Collections.synchronizedMap(new WeakHashMap<>());
-		private Map<ROI, Shape> map20 = Collections.synchronizedMap(new WeakHashMap<>());
-		private Map<ROI, Shape> map10 = Collections.synchronizedMap(new WeakHashMap<>());
-		private Map<ROI, Shape> map = Collections.synchronizedMap(new WeakHashMap<>());
+		private final RectanglePool rectanglePool = new RectanglePool();
+		private final EllipsePool ellipsePool = new EllipsePool();
+		private final LinePool linePool = new LinePool();
 
 		// Note: this relies upon the fact that the ROI is immutable shapes are cached
-		private Map<Area, GriddedArea> areaMap = Collections.synchronizedMap(new WeakHashMap<>());
+		private final Map<Area, GriddedArea> areaMap = Collections.synchronizedMap(new WeakHashMap<>());
 
-		private Map<ROI, Shape> getMap(final ROI shape, final double downsample) {
-			// If we don't have many vertices, just return the main map - no need to simplify
-			int nVertices = shape.getNumPoints();
-			if (nVertices < MIN_SIMPLIFY_VERTICES || !shape.isArea())
-				return map;
-
-			if (downsample > 50)
-				return map50;
-			if (downsample > 20)
-				return map20;
-			if (downsample > 10)
-				return map10;
-			return map;
-		}
-
-		private static Shape simplifyByDownsample(final Shape shape, final double downsample) {
-			try {
-				if (downsample > 50)
-					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50);
-				if (downsample > 20)
-					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20);
-				if (downsample > 10)
-					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10);
-			} catch (Exception e) {
-				logger.warn("Unable to simplify path: {}", e.getLocalizedMessage());
-				logger.debug("", e);
-			}
-			return shape;
-		}
 
 		public Shape getShape(final ROI roi, final double downsample, final Rectangle clip) {
 			var shape = getShape(roi, downsample);
@@ -760,33 +734,16 @@ public class PathObjectPainter {
 				return ellipse;
 			}
 
-			if (roi instanceof LineROI) {
+			if (roi instanceof LineROI l) {
 				Line2D line = linePool.getShape();
-				LineROI l = (LineROI)roi;
-				line.setLine(l.getX1(), l.getY1(), l.getX2(), l.getY2());
+                line.setLine(l.getX1(), l.getY1(), l.getX2(), l.getY2());
 				return line;
 			}
 
-			Map<ROI, Shape> map = getMap(roi, downsample);
-			Shape shape = map.get(roi);
-			if (shape == null) {
-				shape = RoiTools.getShape(roi);
-				// Downsample if we have to
-				if (map != this.map) {
-					// JTS methods are much slower
-					//					var simplifier = new DouglasPeuckerSimplifier(roi.getGeometry());
-					//					var simplifier = new VWSimplifier(roi.getGeometry());
-					//					simplifier.setDistanceTolerance(downsample);
-					//					simplifier.setEnsureValid(false);
-					//					shape = GeometryTools.geometryToShape(simplifier.getResultGeometry());
-					shape = simplifyByDownsample(shape, downsample);
-				}
-				map.put(roi, shape);
-			}
-			return shape;
+			return DownsampledShapeCache.getShapeForDownsample(roi, downsample);
 		}
 
-	}
+    }
 
 	/**
 	 * Helper class for working with <i>very</i> complex Areas (e.g. over 10_000 path segments).
@@ -922,25 +879,25 @@ public class PathObjectPainter {
 		RectangularShape ellipse;
 
 		//		double radius = pathPointsROI == null ? PointsROI.defaultPointRadiusProperty().get() : pathPointsROI.getPointRadius();
-		// Ensure that points are drawn with at least a radius of one, after any transforms have been applied
+		// Ensure that points are drawn with at least a radius of 1, after any transforms have been applied
 		double scale = Math.max(1, downsample);
-		radius = (Math.max(1 / scale, radius));
+		double radius2 = (Math.max(1.0 / scale, radius));
 
 		// Get clip bounds
 		Rectangle2D bounds = g2d.getClipBounds();
 		if (bounds != null) {
-			bounds.setRect(bounds.getX()-radius, bounds.getY()-radius, bounds.getWidth()+radius*2, bounds.getHeight()+radius*2);
+			bounds.setRect(bounds.getX()-radius2, bounds.getY()-radius2, bounds.getWidth()+radius2*2, bounds.getHeight()+radius2*2);
 		}
 		// Don't fill if we have a small radius, and use a rectangle instead of an ellipse (as this repaints much faster)
 		Graphics2D g = g2d;
-		if (radius / downsample < 0.5) {
+		if (radius2 / downsample < 0.5) {
 			if (colorStroke == null)
 				colorStroke = colorFill;
 			colorFill = null;
 			ellipse = new Rectangle2D.Double();
 			// Use opacity to avoid obscuring points completely
 			int rule = AlphaComposite.SRC_OVER;
-			float alpha = (float)(radius / downsample);
+			float alpha = (float)(radius2 / downsample);
 			var composite = g.getComposite();
 			if (composite instanceof AlphaComposite) {
 				var temp = (AlphaComposite)composite;
@@ -960,7 +917,7 @@ public class PathObjectPainter {
 		for (Point2 p : pathPoints.getAllPoints()) {
 			if (bounds != null && !bounds.contains(p.getX(), p.getY()))
 				continue;
-			ellipse.setFrame(p.getX()-radius, p.getY()-radius, radius*2, radius*2);
+			ellipse.setFrame(p.getX()-radius2, p.getY()-radius2, radius2*2, radius2*2);
 			if (colorFill != null) {
 				g.setColor(colorFill);
 				g.fill(ellipse);

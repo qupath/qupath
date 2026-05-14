@@ -21,15 +21,6 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -39,11 +30,21 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.io.GsonTools;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Color transforms that may be used to extract single-channel images from BufferedImages.
@@ -623,13 +624,17 @@ public class ColorTransforms {
 
 		@Override
 		public float[] extractChannel(ImageServer<BufferedImage> server, BufferedImage img, float[] pixels) {
-			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
-			return ColorTransformer.getTransformedPixels(rgb, method, pixels, stains);
+			if (BufferedImageTools.is8bitColorType(img.getType())) {
+				int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+				return ColorTransformer.getTransformedPixels(rgb, method, pixels, stains);
+			} else {
+				return ColorDeconvolutionHelper.colorDeconvolve(img, stains, stainNumber-1, null);
+			}
 		}
 
 		@Override
 		public boolean supportsImage(ImageServer<BufferedImage> server) {
-			return server.isRGB() && server.getPixelType() == PixelType.UINT8;
+			return server.nChannels() == 3;
 		}
 
 		@Override

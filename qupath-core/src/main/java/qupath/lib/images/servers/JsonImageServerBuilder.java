@@ -21,6 +21,12 @@
 
 package qupath.lib.images.servers;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.io.GsonTools;
+
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -30,13 +36,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.io.GsonTools;
 
 /**
  * ImageServerBuilder that constructs an ImageServer from a JSON representation.

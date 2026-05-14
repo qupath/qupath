@@ -24,6 +24,17 @@
 
 package qupath.lib.gui.tma;
 
+import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.scene.image.Image;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.tma.TMAEntries.TMAEntry;
+import qupath.lib.objects.TMACoreObject;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,18 +43,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.beans.value.ObservableBooleanValue;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
-import javafx.scene.image.Image;
-import qupath.lib.gui.tma.TMAEntries.TMAEntry;
-import qupath.lib.objects.TMACoreObject;
 
 
 /**

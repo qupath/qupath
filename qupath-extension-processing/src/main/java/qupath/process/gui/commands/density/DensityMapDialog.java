@@ -21,6 +21,67 @@
 
 package qupath.process.gui.commands.density;
 
+import com.google.gson.Gson;
+import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectExpression;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener.Change;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.scene.Scene;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
+import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.analysis.heatmaps.ColorModels;
+import qupath.lib.analysis.heatmaps.ColorModels.ColorModelBuilder;
+import qupath.lib.analysis.heatmaps.DensityMaps;
+import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
+import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapType;
+import qupath.lib.color.ColorMaps;
+import qupath.lib.color.ColorMaps.ColorMap;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.images.stores.ColorModelRenderer;
+import qupath.lib.gui.images.stores.ImageRenderer;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.viewer.ImageInterpolation;
+import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.QuPathViewerListener;
+import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectFilter;
+import qupath.lib.objects.PathObjectPredicates;
+import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.process.gui.commands.density.DensityMapUI.DensityMapObjects;
+import qupath.process.gui.commands.density.DensityMapUI.MinMax;
+
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -36,68 +97,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.Gson;
-
-import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.ObjectExpression;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.collections.ListChangeListener.Change;
-import javafx.geometry.Insets;
-import javafx.scene.Scene;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
-import javafx.scene.control.Spinner;
-import javafx.scene.control.TextField;
-import javafx.scene.control.TitledPane;
-import javafx.scene.control.ToggleButton;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Pane;
-import javafx.stage.Stage;
-import qupath.fx.utils.FXUtils;
-import qupath.lib.analysis.heatmaps.ColorModels;
-import qupath.lib.analysis.heatmaps.DensityMaps;
-import qupath.lib.analysis.heatmaps.ColorModels.ColorModelBuilder;
-import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
-import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapType;
-import qupath.lib.color.ColorMaps;
-import qupath.lib.color.ColorMaps.ColorMap;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.images.stores.ColorModelRenderer;
-import qupath.lib.gui.images.stores.ImageRenderer;
-import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.viewer.ImageInterpolation;
-import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.QuPathViewerListener;
-import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.io.GsonTools;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectPredicates;
-import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.process.gui.commands.density.DensityMapUI.DensityMapObjects;
-import qupath.process.gui.commands.density.DensityMapUI.MinMax;
 
 /**
  * Dialog for interactively generating a custom density map.
@@ -235,15 +234,21 @@ public class DensityMapDialog {
 		comboObjectType.getSelectionModel().select(DensityMapObjects.DETECTIONS);
 		params.allObjectTypes.bind(comboObjectType.getSelectionModel().selectedItemProperty());
 
-		ComboBox<PathClass> comboAllObjects = new ComboBox<>(createObservablePathClassList(DensityMapUI.ANY_CLASS));
-		comboAllObjects.setButtonCell(FXUtils.createCustomListCell(p -> classificationText(p)));
-		comboAllObjects.setCellFactory(c -> FXUtils.createCustomListCell(p -> classificationText(p)));
+		ComboBox<PathClass> comboAllObjects = new ComboBox<>(
+				createObservablePathClassList(
+					DensityMapUI.ANY_CLASS_OR_NONE, DensityMapUI.ANY_SPECIFIED_CLASS
+				));
+		comboAllObjects.setButtonCell(FXUtils.createCustomListCell(this::classificationText));
+		comboAllObjects.setCellFactory(c -> FXUtils.createCustomListCell(this::classificationText));
 		params.allObjectClass.bind(comboAllObjects.getSelectionModel().selectedItemProperty());
 		comboAllObjects.getSelectionModel().selectFirst();
 		
-		ComboBox<PathClass> comboPrimary = new ComboBox<>(createObservablePathClassList(DensityMapUI.ANY_CLASS, DensityMapUI.ANY_POSITIVE_CLASS));
-		comboPrimary.setButtonCell(FXUtils.createCustomListCell(p -> classificationText(p)));
-		comboPrimary.setCellFactory(c -> FXUtils.createCustomListCell(p -> classificationText(p)));
+		ComboBox<PathClass> comboPrimary = new ComboBox<>(
+				createObservablePathClassList(
+						DensityMapUI.ANY_CLASS_OR_NONE, DensityMapUI.ANY_POSITIVE_CLASS
+				));
+		comboPrimary.setButtonCell(FXUtils.createCustomListCell(this::classificationText));
+		comboPrimary.setCellFactory(c -> FXUtils.createCustomListCell(this::classificationText));
 		params.densityObjectClass.bind(comboPrimary.getSelectionModel().selectedItemProperty());
 		comboPrimary.getSelectionModel().selectFirst();
 		
@@ -471,8 +476,10 @@ public class DensityMapDialog {
 	private String classificationText(PathClass pathClass) {
 		if (pathClass == null)
 			pathClass = PathClass.NULL_CLASS;
-		if (pathClass == DensityMapUI.ANY_CLASS)
-			return "Any";
+		if (pathClass == DensityMapUI.ANY_CLASS_OR_NONE)
+			return "Any or none";
+		if (pathClass == DensityMapUI.ANY_SPECIFIED_CLASS)
+			return "Any class (exclude unclassified)";
 		if (pathClass == DensityMapUI.ANY_POSITIVE_CLASS)
 			return "Positive (inc. 1+, 2+, 3+)";
 		return pathClass.toString();
@@ -664,8 +671,8 @@ public class DensityMapDialog {
 		private static final Logger logger = LoggerFactory.getLogger(ObservableDensityMapBuilder.class);
 
 		private ObjectProperty<DensityMapObjects> allObjectTypes = new SimpleObjectProperty<>(DensityMapObjects.DETECTIONS);
-		private ObjectProperty<PathClass> allObjectClass = new SimpleObjectProperty<>(DensityMapUI.ANY_CLASS);
-		private ObjectProperty<PathClass> densityObjectClass = new SimpleObjectProperty<>(DensityMapUI.ANY_CLASS);
+		private ObjectProperty<PathClass> allObjectClass = new SimpleObjectProperty<>(DensityMapUI.ANY_CLASS_OR_NONE);
+		private ObjectProperty<PathClass> densityObjectClass = new SimpleObjectProperty<>(DensityMapUI.ANY_CLASS_OR_NONE);
 		private ObjectProperty<DensityMapType> densityType = new SimpleObjectProperty<>(DensityMapType.SUM);
 
 		private DoubleProperty radius = new SimpleDoubleProperty(10.0);
@@ -718,10 +725,12 @@ public class DensityMapDialog {
 		}
 
 		private PathObjectPredicate updatePredicate(PathObjectPredicate predicate, PathClass pathClass) {
-			if (pathClass == DensityMapUI.ANY_CLASS)
+			if (pathClass == DensityMapUI.ANY_CLASS_OR_NONE)
 				return predicate;
 			PathObjectPredicate pathClassPredicate;
-			if (pathClass == DensityMapUI.ANY_POSITIVE_CLASS)
+			if (pathClass == DensityMapUI.ANY_SPECIFIED_CLASS)
+				pathClassPredicate = PathObjectPredicates.filter(PathObjectFilter.CLASSIFIED);
+			else if (pathClass == DensityMapUI.ANY_POSITIVE_CLASS)
 				pathClassPredicate = PathObjectPredicates.positiveClassification(true);
 			else if (pathClass == null || pathClass.getName() == null)
 				pathClassPredicate = PathObjectPredicates.exactClassification((PathClass)null);
@@ -749,20 +758,20 @@ public class DensityMapDialog {
 
 			// Sometimes the density class is null - in which case we can't build
 			if (densityClass == null) {
-				densityClass = DensityMapUI.ANY_CLASS;
+				densityClass = DensityMapUI.ANY_CLASS_OR_NONE;
 			}
 			
 			// If the density class is 'anything' & we're looking at object percentages
 			// match the density class it to the main class, 
 			// since basically that's what the filter will end up accepting
-			if (densityClass == DensityMapUI.ANY_CLASS && primaryClass != null)
+			if (densityClass == DensityMapUI.ANY_CLASS_OR_NONE && primaryClass != null)
 				densityClass = primaryClass;
 
 			PathObjectPredicate densityObjectsFilter = updatePredicate(null, densityClass);
 			
 			// There is an awkward corner case where both classes are 'Any' and the density type is %
 			// For this, we need to make sure we still retain a count channel
-			boolean bothAnyObject = isPercent && densityClass == DensityMapUI.ANY_CLASS && primaryClass == DensityMapUI.ANY_CLASS;
+			boolean bothAnyObject = isPercent && densityClass == DensityMapUI.ANY_CLASS_OR_NONE && primaryClass == DensityMapUI.ANY_CLASS_OR_NONE;
 			if (densityObjectsFilter == null && bothAnyObject)
 				densityObjectsFilter = allObjectsFilter;
 
@@ -782,7 +791,7 @@ public class DensityMapDialog {
 				String primaryClassName = primaryClass == null ? PathClass.NULL_CLASS.toString()
 						                                       : primaryClass.toString();
 				
-				if (primaryClass == DensityMapUI.ANY_CLASS)
+				if (primaryClass == DensityMapUI.ANY_CLASS_OR_NONE || primaryClass == DensityMapUI.ANY_SPECIFIED_CLASS)
 					filterName = densityClassName;
 				else if (!isPercent && densityClass == primaryClass)
 					filterName = densityClassName;

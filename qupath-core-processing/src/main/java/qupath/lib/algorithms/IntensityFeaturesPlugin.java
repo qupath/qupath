@@ -23,29 +23,15 @@
 
 package qupath.lib.algorithms;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.io.IOException;
-import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.algorithms.IntensityFeaturesPlugin.BasicFeatureComputer.Feature;
 import qupath.lib.analysis.features.CoocurranceMatrices;
 import qupath.lib.analysis.features.HaralickFeatureComputer;
 import qupath.lib.analysis.features.HaralickFeatures;
+import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.analysis.images.SimpleModifiableImage;
-import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.analysis.stats.StatisticsHelper;
 import qupath.lib.awt.common.BufferedImageTools;
@@ -69,6 +55,19 @@ import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.io.IOException;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Plugin for calculating intensity-based features, including Haralick textures, within or around detections or tiles.

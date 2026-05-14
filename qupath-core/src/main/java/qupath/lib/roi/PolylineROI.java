@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,16 +24,18 @@
 
 package qupath.lib.roi;
 
+import qupath.lib.common.GeneralTools;
+import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.Shape;
 import java.awt.geom.Path2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.List;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.geom.Point2;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.ROI;
+import java.util.Objects;
 
 /**
  * ROI representing an arbitrary open polyline.
@@ -52,8 +54,11 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 	private Vertices vertices;
 	
 	private transient PolylineStats stats;
-	
-	PolylineROI(List<Point2> points, ImagePlane plane) {
+
+	// Hash code may be expensive to calculate
+	private transient int hashCode;
+
+	PolylineROI(List<? extends Point2> points, ImagePlane plane) {
 		super(plane);
 		float[] x = new float[points.size()];
 		float[] y = new float[points.size()];
@@ -174,7 +179,7 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 		private double length = 0;
 		
 		PolylineStats(final Vertices vertices, final double pixelWidth, final double pixelHeight) {
-			if (vertices.size() == 0) {
+			if (vertices.isEmpty()) {
 				return;
 			}
 			this.length = 0;
@@ -251,10 +256,14 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 	public RoiType getRoiType() {
 		return RoiType.LINE;
 	}
-	
-	
+
 	@Override
 	public Shape getShape() {
+		return new Path2D.Float(getShapeInternal());
+	}
+
+	@Override
+	public Shape createShape() {
 		Path2D path = new Path2D.Float();
 		Vertices vertices = getVertices();
 		for (int i = 0; i <  vertices.size(); i++) {
@@ -277,8 +286,31 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 	public boolean contains(double x, double y) {
 		return false;
 	}
-	
-	
+
+	@Override
+	public boolean intersects(double x, double y, double width, double height) {
+		if (!intersectsBounds(x, y, width, height))
+			return false;
+		return getShapeInternal().intersects(x, y, width, height);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+		PolylineROI that = (PolylineROI) o;
+		return getImagePlane().equals(that.getImagePlane()) &&
+				vertices.size() == that.vertices.size() &&
+				Objects.equals(vertices.getPoints(), that.vertices.getPoints());
+	}
+
+	@Override
+	public int hashCode() {
+		if (hashCode == 0) {
+			hashCode = Objects.hash(getImagePlane(), vertices);
+		}
+		return hashCode;
+	}
+
 	private Object writeReplace() {
 		return new SerializationProxy(this);
 	}

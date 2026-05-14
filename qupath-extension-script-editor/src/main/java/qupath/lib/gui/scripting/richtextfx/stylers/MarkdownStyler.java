@@ -21,13 +21,6 @@
 
 package qupath.lib.gui.scripting.richtextfx.stylers;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.Set;
-
 import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.BlockQuote;
 import org.commonmark.node.BulletList;
@@ -53,8 +46,14 @@ import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.LogTools;
+
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.Set;
 
 /**
  * Styling to apply to a {@link CodeArea}, based on Markdown syntax.

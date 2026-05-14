@@ -21,20 +21,10 @@
 
 package qupath.opencv.ml.pixel;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.IndexColorModel;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Map;
-
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
-
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.color.ColorModelFactory;
@@ -52,6 +42,15 @@ import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
 
+import java.awt.image.BufferedImage;
+import java.awt.image.IndexColorModel;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Map;
+
 /**
  * Static methods and classes for working with pixel classifiers.
  * 
@@ -63,7 +62,7 @@ public class PixelClassifiers {
 	/**
 	 * Support for serializing PixelClassifiers to JSON, via Gson.
 	 */
-	private static class PixelClassifierTypeAdapterFactory implements TypeAdapterFactory {
+	public static class PixelClassifierTypeAdapterFactory implements TypeAdapterFactory {
 
 		PixelClassifierTypeAdapterFactory() {}
 		

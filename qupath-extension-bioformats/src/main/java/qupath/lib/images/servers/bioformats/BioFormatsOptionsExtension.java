@@ -23,35 +23,34 @@
 
 package qupath.lib.images.servers.bioformats;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.StringTokenizer;
-
-import org.controlsfx.control.action.Action;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
+import org.controlsfx.control.action.Action;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.prefs.annotations.BooleanPref;
+import qupath.fx.prefs.annotations.DirectoryPref;
+import qupath.fx.prefs.annotations.IntegerPref;
+import qupath.fx.prefs.annotations.PrefCategory;
+import qupath.fx.prefs.annotations.StringPref;
 import qupath.fx.prefs.controlsfx.PropertySheetUtils;
 import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionMenu;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.localization.QuPathResources;
-import qupath.fx.prefs.annotations.StringPref;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.fx.prefs.annotations.BooleanPref;
-import qupath.fx.prefs.annotations.DirectoryPref;
-import qupath.fx.prefs.annotations.IntegerPref;
-import qupath.fx.prefs.annotations.PrefCategory;
 import qupath.lib.images.writers.ome.OMEPyramidWriterCommand;
 import qupath.lib.images.writers.ome.zarr.OMEZarrWriterCommand;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.StringTokenizer;
 
 /**
  * A QuPath extension that adds options relating to the BioFormatsImageServer to the main QuPath preference pane.

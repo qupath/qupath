@@ -68,6 +68,8 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PathObjectImageViewers;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -86,7 +88,6 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.WeakHashMap;
-import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -129,16 +130,16 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 
 	public static enum GridDisplaySize {
-			TINY("Tiny", 60),
-			SMALL("Small", 100),
-			MEDIUM("Medium", 200),
-			LARGE("Large", 300);
+			TINY("GridView.tiny", 60),
+			SMALL("GridView.small", 100),
+			MEDIUM("GridView.medium", 200),
+			LARGE("GridView.large", 300);
 		
 		private final String name;
 		private final int size;
 		
 		GridDisplaySize(final String name, final int size) {
-			this.name = name;
+			this.name = QuPathResources.getString(name);
 			this.size = size;
 		}
 		
@@ -261,7 +262,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		Comparator<PathObject> sorter;
 		if (measurementName.equals(QuPathResources.getString("GridView.classification"))) {
 			sorter = (po1, po2) -> {
-				Comparator<PathObject> comp = Comparator.comparing(po -> po.getPathClass() == null ? "Unclassified" : po.getPathClass().toString());
+				Comparator<PathObject> comp = Comparator.comparing(po -> po.getPathClass() == null ? PathClass.NULL_CLASS.toString() : po.getPathClass().toString());
 				return comp.compare(po1, po2);
 			};
 		} else {
@@ -454,10 +455,14 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	}
 
 	private void updateClasses(CheckComboBox<PathClass> classComboBox) {
+        if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> updateClasses(classComboBox));
+			return;
+        }
 		// if a new class is added to the hierarchy, then update the list but leave the set of checked classes unchanged
 		var previouslyChecked = new ArrayList<>(classComboBox.getCheckModel().getCheckedItems());
-		List<PathClass> representedClasses = qupath.getImageData().getHierarchy().getFlattenedObjectList(null).stream()
-				.filter(p -> !p.isRootObject())
+		List<PathClass> representedClasses = qupath.getImageData().getHierarchy().getAllObjects(false)
+                .stream()
 				.map(PathObject::getPathClass)
 				.filter(p -> p != null && p != PathClass.NULL_CLASS)
 				.distinct()
@@ -546,9 +551,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 
 
 	private static Text createPlaceholderText(String text) {
-		var textNode = new Text(text);
-		textNode.setStyle("-fx-fill: -fx-text-base-color;");
-		return textNode;
+		return GuiTools.createPlaceholderText(text);
 	}
 	
 	class QuPathGridView extends StackPane {
@@ -587,20 +590,31 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		}
 
 		private Label getLabel(PathObject pathObject) {
-			var painter = PathObjectImageManagers.createImageViewPainter(
-					qupath.getViewer(), imageDataProperty.get().getServer(), true,
-					ForkJoinPool.commonPool());
+			var painter = PathObjectImageViewers.createImageViewer(
+					qupath.getViewer(), imageDataProperty.get().getServer(), true);
 
 			var imageView = painter.getNode();
+            // Unpleasant! But because the painter is a local variable, we need some way to maintain a strong
+            // reference so that the listeners it adds aren't garbage collected too soon.
+            // See https://github.com/qupath/qupath/issues/1953
+            imageView.setUserData(painter);
+
 			imageView.fitWidthProperty().bind(imageSize);
 			imageView.fitHeightProperty().bind(imageSize);
 
-			painter.setPathObject(pathObject);
+			painter.setItem(pathObject);
 
 			var out = new Label("", imageView);
 			StackPane.setAlignment(out, Pos.TOP_LEFT);
 
-			Tooltip.install(out, new Tooltip(pathObject.getName()));
+			// Names for TMA cores aren't expected to change, and are useful to display.
+			// (Names for annotations might be important, but also might change more often)
+			if (pathObject.isTMACore()) {
+				String name = pathObject.getName();
+				if (name != null && !name.isEmpty()) {
+					Tooltip.install(out, new Tooltip(name));
+				}
+			}
 			out.setOnMouseClicked(e -> {
 				var imageData = imageDataProperty.get();
 				if (imageData != null) {

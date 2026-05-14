@@ -21,10 +21,7 @@
 
 package qupath.lib.gui.actions.menus;
 
-import java.util.List;
-
 import org.controlsfx.control.action.Action;
-
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.CommonActions;
@@ -34,6 +31,8 @@ import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.MeasurementExportCommand;
 import qupath.lib.gui.localization.QuPathResources;
+
+import java.util.List;
 
 public class MeasureMenuActions implements MenuActions {
 	
@@ -71,10 +70,10 @@ public class MeasureMenuActions implements MenuActions {
 		public final Action MANAGER = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementManager(qupath, imageData));
 		
 		public final Action SEP_1 = ActionTools.createSeparator();
-		
-		public final Action TMA = commonActions.MEASURE_TMA;
+
 		public final Action ANNOTATIONS = commonActions.MEASURE_ANNOTATIONS;
 		public final Action DETECTIONS = commonActions.MEASURE_DETECTIONS;
+        public final Action TMA = commonActions.MEASURE_TMA;
 		
 		@ActionMenu("Menu.Measure.GridViews")
 		public final Action GRID_ANNOTATIONS = commonActions.MEASURE_GRID_ANNOTATIONS;

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,58 @@
 
 package qupath.lib.gui.panes;
 
+import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableColumn.CellDataFeatures;
+import javafx.scene.control.TableRow;
+import javafx.scene.control.TableView;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.shape.Rectangle;
+import org.controlsfx.glyphfont.FontAwesome;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.controls.PredicateTextField;
+import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
+
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
@@ -30,34 +82,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SelectionMode;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
-import javafx.scene.control.TableColumn.CellDataFeatures;
-import javafx.scene.control.TableRow;
-import javafx.util.Callback;
-import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
 
 /**
  * Component to show measurements for a currently-selected object.
@@ -70,21 +94,37 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	private static final Logger logger = LoggerFactory.getLogger(SelectedMeasurementTableView.class);
 	
-	private static int nDecimalPlaces = 4;
-	
+	private static int nDecimalPlaces = -4;
+
 	/**
 	 * Retain reference to prevent garbage collection.
 	 */
 	@SuppressWarnings("unused")
 	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
 	private ImageData<?> imageData;
-	
+
+	private BorderPane pane;
 	private TableView<String> tableMeasurements;
 	
-	private ObservableMeasurementTableData tableModel = new ObservableMeasurementTableData();
+	private final ObservableMeasurementTableData tableModel = new ObservableMeasurementTableData();
 	
 	private boolean delayedUpdate = false;
-	
+
+	private PredicateTextField<String> filter;
+
+	/**
+	 * Property to indicate whether the table is currently visible.
+	 * If it isn't, it doesn't need to be updated.
+	 */
+	private final BooleanProperty isShowing = new SimpleBooleanProperty(false);
+
+	private final ObservableList<String> allKeys = FXCollections.observableArrayList();
+	private final FilteredList<String> filteredKeys = new FilteredList<>(allKeys);
+
+	private final BooleanProperty useRegex = new SimpleBooleanProperty(false);
+	private final BooleanProperty ignoreCase = new SimpleBooleanProperty(true);
+	private final StringProperty filterText = new SimpleStringProperty("");
+
 	/**
 	 * Constructor.
 	 * @param imageDataProperty the {@link ImageData} associated with this table
@@ -93,59 +133,92 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		this.imageDataProperty = imageDataProperty;
 		imageDataProperty.addListener(this);
 	}
-	
-	
-	@SuppressWarnings("unchecked")
-	private TableView<String> createMeasurementTable() {
-		TableView<String> tableMeasurements = new TableView<>();
-		tableMeasurements.getItems().setAll(tableModel.getAllNames());
-		
-		TableColumn<String, String> col1 = new TableColumn<>("Key");
-		col1.setCellValueFactory(new Callback<>() {
-            @Override
-            public ObservableValue<String> call(CellDataFeatures<String, String> p) {
-                return new SimpleStringProperty(p.getValue());
-            }
-        });
-		TableColumn<String, String> col2 = new TableColumn<>("Value");
-		col2.setCellValueFactory(new Callback<>() {
-            @Override
-            public ObservableValue<String> call(CellDataFeatures<String, String> p) {
-                return new SimpleStringProperty(getSelectedObjectMeasurementValue(p.getValue()));
-            }
-        });
-		tableMeasurements.getColumns().addAll(col1, col2);
-		tableMeasurements.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-		tableMeasurements.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		tableMeasurements.setRowFactory(e -> {
-		    final TableRow<String> row = new TableRow<>();
-		    final ContextMenu menu = new ContextMenu();
-		    final MenuItem copyItem = new MenuItem("Copy");
-		    menu.getItems().add(copyItem);
-		    copyItem.setOnAction(ev -> copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems()));
-		    
-		    // Only display context menu for non-empty rows
-		    row.contextMenuProperty().bind(
-		    	Bindings.when(row.emptyProperty())
-		    	.then((ContextMenu) null)
-		    	.otherwise(menu)
-		    );
-		    
-		    return row;
-		});
-		tableMeasurements.setOnKeyPressed(e -> {
-	        if (new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN).match(e))
-	        	copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems());
-	        e.consume();
-	    });
-		
+
+
+	private void ensureInitialized() {
+		if (pane != null)
+			return;
+		tableMeasurements = createMeasurementTable();
+
+		filter = createFilter();
+		filteredKeys.predicateProperty().bind(filter.predicateProperty());
+
+		pane = new BorderPane();
+		pane.setCenter(tableMeasurements);
+		pane.setBottom(filter);
+
 		// Ensure we are up-to-date if visibility status changes
-		tableMeasurements.visibleProperty().addListener((v, o, n) -> {
+		isShowing.bind(tableMeasurements.visibleProperty().and(pane.visibleProperty()));
+		isShowing.addListener((v, o, n) -> {
 			if (n && delayedUpdate)
 				updateTableModel();
 		});
+	}
+
+	private ObservableValue<String> tableKeyColumnValueFactory(CellDataFeatures<String, String> p) {
+		return new SimpleStringProperty(p.getValue());
+	}
+
+	private ObservableValue<String> tableValueColumnValueFactory(CellDataFeatures<String, String> p) {
+		return new SimpleStringProperty(getSelectedObjectMeasurementValue(p.getValue()));
+	}
+
+
+	@SuppressWarnings("unchecked")
+	private TableView<String> createMeasurementTable() {
+		TableView<String> tableMeasurements = new TableView<>();
+
+		tableMeasurements.setPlaceholder(GuiTools.createPlaceholderText(QuPathResources.getString("Panes.SelectedMeasurement.noImageOrObjectSelected")));
+		allKeys.setAll(tableModel.getAllNames());
+		tableMeasurements.setItems(filteredKeys);
+
+		TableColumn<String, String> col1 = new TableColumn<>(QuPathResources.getString("Panes.SelectedMeasurement.key"));
+		col1.setCellValueFactory(this::tableKeyColumnValueFactory);
+		TableColumn<String, String> col2 = new TableColumn<>(QuPathResources.getString("Panes.SelectedMeasurement.value"));
+		col2.setCellValueFactory(this::tableValueColumnValueFactory);
+		col2.setCellFactory(c -> new ValueTableCell());
+
+		tableMeasurements.getColumns().addAll(col1, col2);
+		tableMeasurements.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+		tableMeasurements.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		tableMeasurements.setRowFactory(this::createTableRow);
+		tableMeasurements.setOnKeyPressed(this::handleTableKeyPress);
 
 		return tableMeasurements;
+	}
+
+	private void handleTableKeyPress(KeyEvent e) {
+		if (new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN).match(e))
+			copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems());
+		e.consume();
+	}
+
+	private TableRow<String> createTableRow(TableView<String> table) {
+		final TableRow<String> row = new TableRow<>();
+		final ContextMenu menu = new ContextMenu();
+		final MenuItem copyItem = new MenuItem(QuPathResources.getString("Panes.SelectedMeasurement.copy"));
+		menu.getItems().add(copyItem);
+		copyItem.setOnAction(ev -> copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems()));
+
+		// Only display context menu for non-empty rows
+		row.contextMenuProperty().bind(
+				Bindings.when(row.emptyProperty())
+						.then((ContextMenu) null)
+						.otherwise(menu)
+		);
+
+		var tooltip = new Tooltip();
+		row.itemProperty().addListener((v, o, n) -> {
+			String helpText = n == null ? null : tableModel.getHelpText(n);
+			if (helpText == null || helpText.isBlank())
+				row.setTooltip(null);
+			else {
+				tooltip.setText(helpText);
+				row.setTooltip(tooltip);
+			}
+		});
+
+		return row;
 	}
 	
 	private void copyMeasurementsToClipboard(List<String> selectedMeasurements) {
@@ -181,38 +254,78 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 			return null;
 		return tableModel.getStringValue(selected, name, nDecimalPlaces);
 	}
-	
+
+	private PredicateTextField<String> createFilter() {
+		var filter = new PredicateTextField<String>();
+		filter.useRegexProperty().bindBidirectional(useRegex);
+		filter.textProperty().bindBidirectional(filterText);
+		filter.ignoreCaseProperty().bindBidirectional(ignoreCase);
+		filter.promptTextProperty().bind(
+				Bindings.createStringBinding(() -> {
+					if (useRegex.get())
+						return QuPathResources.getString("Panes.SelectedMeasurement.filterByRegularExpression");
+					else
+						return QuPathResources.getString("Panes.SelectedMeasurement.filterByKey");
+				}, useRegex)
+		);
+		var tooltip = new Tooltip(QuPathResources.getString("Panes.SelectedMeasurement.findMeasurementsByKey"));
+		Tooltip.install(filter, tooltip);
+		return filter;
+	}
+
 	/**
 	 * Get the {@link TableView}.
+	 * Generally, it is better to use {@link #getPane()} instead, to get the component that should be added
+	 * to the scene graph.
 	 * @return
 	 */
 	public TableView<String> getTable() {
-		if (tableMeasurements == null)
-			tableMeasurements = createMeasurementTable();
+		ensureInitialized();
 		return tableMeasurements;
 	}
-	
+
+	/**
+	 * Get the {@link javafx.scene.layout.Pane} containing the table and a filter field.
+	 * Introduced in v0.6.0 instead of {@link #getTable()} to allow for more flexible layout, and incorporate
+	 * a filter field.
+	 * @return
+	 * @since v0.6.0
+	 */
+	public Pane getPane() {
+		ensureInitialized();
+		return pane;
+	}
+
+	/**
+	 * Get the predict text field that is used to filter measurements.
+	 * @return
+	 */
+	public PredicateTextField<String> getPredicateTextField() {
+		return filter;
+	}
+
+
 	private void updateTableModel() {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> updateTableModel());
+			Platform.runLater(this::updateTableModel);
 			return;
 		}
 		
-		if (!tableMeasurements.isVisible()) {
+		if (!isShowing.get()) {
 			
 			logger.debug("Measurement table update skipped (not visible)");
 			
 			tableModel.setImageData(null, Collections.emptyList());
 
 			// Don't want to do expensive calculations for a table that isn't visible
-			tableMeasurements.getItems().clear();
+			allKeys.clear();
 			delayedUpdate = true; 
 		} else {
 			
 			logger.debug("Measurement table update requested");
 			
 			tableModel.setImageData(this.imageData, getSelectedObjectList());
-			tableMeasurements.getItems().setAll(tableModel.getAllNames());
+			allKeys.setAll(tableModel.getAllNames());
 			
 			tableMeasurements.refresh();
 			delayedUpdate = false;
@@ -256,5 +369,106 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	public void propertyChange(PropertyChangeEvent evt) {
 		updateTableModel();
 	}
-	
+
+
+	private class ValueTableCell extends TableCell<String, String> {
+
+		private final Label label = new Label();
+		private final HBox pane = new HBox(label);
+
+		private final static int ICON_SIZE = 12;
+		private final Node measurementListIcon = createMeasurementListIcon(ICON_SIZE);
+		private final Node metadataIcon = createMetadataIcon(ICON_SIZE);
+		private final Node objectIdIcon = createObjectIdIcon(ICON_SIZE);
+		private final Rectangle classIcon = new Rectangle(ICON_SIZE-2, ICON_SIZE-2);
+
+		private ValueTableCell() {
+			setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+			pane.setAlignment(Pos.CENTER);
+			HBox.setHgrow(label, Priority.ALWAYS);
+			label.setMaxWidth(Double.MAX_VALUE);
+		}
+
+		@Override
+		public void updateItem(String item, boolean empty) {
+			super.updateItem(item, empty);
+			if (item == null || empty) {
+				setText(null);
+				setGraphic(null);
+				return;
+			}
+			var measurement = getTableRow().getItem();
+			Node icon = null;
+			setGraphic(pane);
+			label.setText(item);
+			if ("Classification".equals(measurement)) {
+				if (!item.isBlank()) {
+					var color = ColorToolsFX.getPathClassColor(PathClass.fromString(item));
+					classIcon.setFill(color);
+					icon = classIcon;
+				}
+			} else if ("Object ID".equals(measurement)) {
+				icon = objectIdIcon;
+			} else if ("Object type".equals(measurement)) {
+				icon = createObjectTypeIcon(item, ICON_SIZE);
+			} else if (tableModel.isNumericMeasurement(measurement)) {
+				var selected = getSelectedObject();
+				if (selected != null && selected.getMeasurementList().containsKey(measurement)) {
+					icon = measurementListIcon;
+				}
+			} else {
+				var selected = getSelectedObject();
+				if (selected != null && selected.getMetadata().containsKey(measurement)) {
+					icon = metadataIcon;
+				}
+			}
+
+			if (icon == null) {
+				pane.getChildren().setAll(label);
+			} else {
+				pane.getChildren().setAll(label, ensureMinWidth(icon));
+			}
+		}
+
+	}
+
+	private static Node ensureMinWidth(Node node) {
+		if (node instanceof Region region) {
+			region.setMinWidth(Region.USE_PREF_SIZE);
+			return region;
+		} else {
+			return ensureMinWidth(new BorderPane(node));
+		}
+	}
+
+	private static Node createObjectIdIcon(int size) {
+		var icon = IconFactory.createFontAwesome('\uf2c2', size);
+		icon.setOpacity(0.4);
+		return icon;
+	}
+
+	private static Node createObjectTypeIcon(String name, int size) {
+		return switch (name.toLowerCase()) {
+			case "annotation" -> IconFactory.createNode(size, size, IconFactory.PathIcons.ANNOTATIONS);
+			case "tma core" -> IconFactory.createNode(size, size, IconFactory.PathIcons.TMA_GRID);
+			case "detection", "cell", "tile" -> IconFactory.createNode(size, size, IconFactory.PathIcons.DETECTIONS);
+			default -> null;
+		};
+	}
+
+	private static Node createMeasurementListIcon(int size) {
+		var icon = IconFactory.createNode(FontAwesome.Glyph.LIST_OL, size);
+		icon.setOpacity(0.4);
+		Tooltip.install(icon, new Tooltip(QuPathResources.getString("Panes.SelectedMeasurement.valueStoredInObjectMeasurement")));
+		return icon;
+	}
+
+	private static Node createMetadataIcon(int size) {
+		var icon = IconFactory.createNode(FontAwesome.Glyph.LIST_UL, size);
+		icon.setOpacity(0.4);
+		Tooltip.install(icon, new Tooltip(QuPathResources.getString("Panes.SelectedMeasurement.valueStoredInObjectMetadata")));
+		return icon;
+	}
+
+
 }

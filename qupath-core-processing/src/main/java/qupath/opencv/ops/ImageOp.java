@@ -21,19 +21,18 @@
 
 package qupath.opencv.ops;
 
+import org.bytedeco.opencv.opencv_core.Mat;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.io.UriResource;
+import qupath.lib.regions.Padding;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
-import org.bytedeco.opencv.opencv_core.Mat;
-
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.io.UriResource;
-import qupath.lib.regions.Padding;
 
 /**
  * An operation that may be applied to a {@link Mat}.

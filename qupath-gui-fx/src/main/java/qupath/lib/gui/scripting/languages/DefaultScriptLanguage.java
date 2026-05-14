@@ -23,35 +23,12 @@
 
 package qupath.lib.gui.scripting.languages;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.Writer;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.ConcurrentModificationException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import javax.script.Compilable;
-import javax.script.CompiledScript;
-import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineFactory;
-import javax.script.ScriptException;
-import javax.script.SimpleScriptContext;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-
-import qupath.imagej.tools.IJTools;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.completors.DefaultAutoCompletor;
 import qupath.lib.gui.scripting.completors.GroovyAutoCompletor;
@@ -67,6 +44,26 @@ import qupath.lib.scripting.ScriptParameters;
 import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptAutoCompletor;
 import qupath.lib.scripting.languages.ScriptLanguage;
+
+import javax.script.Compilable;
+import javax.script.CompiledScript;
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineFactory;
+import javax.script.ScriptException;
+import javax.script.SimpleScriptContext;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.Writer;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.ConcurrentModificationException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Default implementation for a {@link ScriptLanguage}, based on a {@link ScriptEngine}.
@@ -131,11 +128,11 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 		String name = languageName.toLowerCase();
 		
 		if ("groovy".equals(name))
-			return new GroovyAutoCompletor(true);
+			return new GroovyAutoCompletor();
 		else if ("java".equals(name))
-			return new DefaultAutoCompletor(true);
-		else if (Set.of("python", "cpython", "python py4j", "jython").contains(name))
-			return new PythonAutoCompletor(true);
+			return new DefaultAutoCompletor();
+		else if (Set.of("python", "cpython", "python py4j", "jython", "graalpy").contains(name))
+			return new PythonAutoCompletor();
 		
 		return null;
 	}
@@ -314,7 +311,7 @@ public class DefaultScriptLanguage extends ScriptLanguage implements ExecutableL
 //				updatedException.setStackTrace(cause.getStackTrace());
 				throw updatedException;
 			} catch (IOException | RuntimeException e2) {
-				logger.debug("Error fixing script exception: " + e2.getLocalizedMessage(), e2);
+                logger.debug("Error fixing script exception: {}", e2.getLocalizedMessage(), e2);
 				throw e;
 			}
 		} finally {

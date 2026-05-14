@@ -23,13 +23,12 @@
 
 package qupath.lib.roi;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.geom.Point2;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Helper method for calculating the convex hull from a list of points.
@@ -43,23 +42,21 @@ public class ConvexHull {
 
 	
 	/**
-	 * TODO: Consider a more efficient convex hull calculation.
-	 * 
 	 * For implementation details, see
 	 * <ul>
 	 * 	<li>http://en.wikipedia.org/wiki/Gift_wrapping_algorithm</li>
 	 * 	<li>http://en.wikipedia.org/wiki/Graham_scan</li>
 	 * </ul>
 	 * 
-	 * @param points 
-	 * @return
+	 * @param points a list of points from which a convex hull should be determined
+	 * @return a new list containing only points on the convex hull of the original points
 	 */
 	public static List<Point2> getConvexHull(List<Point2> points) {
 		if (points == null || points.isEmpty())
 			return null;
 		
 		// Find the left-most point
-		Point2 pointOnHull = points.get(0);
+		Point2 pointOnHull = points.getFirst();
 		for (Point2 p : points) {
 			if (p.getX() < pointOnHull.getX())
 				pointOnHull = p;
@@ -69,7 +66,7 @@ public class ConvexHull {
 		while (true) {
 //			logger.info("Adding: " + pointOnHull);
 			hull.add(pointOnHull);
-			Point2 endPoint = points.get(0);
+			Point2 endPoint = points.getFirst();
 			double dx = endPoint.getX() - pointOnHull.getX();
 			double dy = endPoint.getY() - pointOnHull.getY();
 			for (Point2 s : points) {
@@ -82,12 +79,10 @@ public class ConvexHull {
 				}
 			}
 			pointOnHull = endPoint;
-			if (endPoint.equals(hull.get(0))) {
+			if (endPoint.equals(hull.getFirst())) {
 				logger.trace("Original points: {}, Convex hull points: {}", points.size(), hull.size());
 				return hull;
 			}
-//			if (endPoint == hull.get(0) || endPoint.distanceSq(hull.get(0)) < 0.00000001)
-//				return hull;
 		}
 	}
 	

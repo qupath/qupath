@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,24 +23,21 @@
 
 package qupath.imagej.images.servers;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.net.URI;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import ij.IJ;
 import ij.io.Opener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.FileFormatInfo;
+import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Builder for ImageServers that use ImageJ to read images.
@@ -96,11 +93,10 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 			return 0;
 		else {
 			// We can't use ImageJ to read ROIs, tables, etc.
+            // We also can't use it to read .mrxs files, although they can masquerade as jpegs
 			String format = Opener.getFileFormat(path.toAbsolutePath().toString());
-			var unsupportedFormats = IntStream.of(
-					Opener.UNKNOWN, Opener.JAVA_OR_TEXT, Opener.ROI, Opener.TABLE, Opener.TEXT
-			).mapToObj(i -> Opener.types[i]).collect(Collectors.toSet());
-			if (unsupportedFormats.contains(format))
+			if (UNSUPPORTED_FORMATS.contains(format) ||
+                    ("jpg".equals(format) && path.toString().toLowerCase().endsWith(".mrxs")))
 				return 0f;
 			else
 				return 1f;

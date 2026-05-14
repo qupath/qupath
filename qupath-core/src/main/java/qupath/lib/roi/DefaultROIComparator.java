@@ -23,9 +23,9 @@
 
 package qupath.lib.roi;
 
-import java.util.Comparator;
-
 import qupath.lib.roi.interfaces.ROI;
+
+import java.util.Comparator;
 
 /**
  * Default comparator to enable ROIs to be sorted in a more predictable manner.

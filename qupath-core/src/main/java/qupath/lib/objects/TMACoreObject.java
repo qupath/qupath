@@ -23,16 +23,15 @@
 
 package qupath.lib.objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.LogTools;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.LogTools;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A special PathObject used exclusively to represent TMA cores.

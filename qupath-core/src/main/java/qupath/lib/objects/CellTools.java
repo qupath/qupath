@@ -21,13 +21,6 @@
 
 package qupath.lib.objects;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import org.locationtech.jts.algorithm.Centroid;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -39,10 +32,17 @@ import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.simplify.VWSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Helper class for working with {@linkplain PathObject PathObjects} that represent cells.
@@ -211,7 +211,7 @@ public class CellTools {
 	private static List<PathObject> detectionsToCellsSubtree(STRtree tree, List<?> list, Map<PathObject, Geometry> cellBoundaryMap, Map<PathObject, Envelope> envelopes) {
 		if (list.isEmpty())
 			return Collections.emptyList();
-		var first = list.get(0);
+		var first = list.getFirst();
 		
 		boolean doParallel = true;
 
@@ -265,15 +265,17 @@ public class CellTools {
 			try {
 				var geomCell = face;
 				try {
-					geomCell = face.intersection(bounds);
+					// Important to use this order - the bounds should use the right precision model,
+					// but the face might not (because the subdivision can use a FLOATING rather than FIXED model)
+					geomCell = bounds.intersection(face);
 					geomCell = GeometryTools.ensurePolygonal(geomCell);
 					geomCell = VWSimplifier.simplify(geomCell, 1.0);
 				} catch (Exception e) {
 					if (face.getArea() > bounds.getArea()) {
 						geomCell = bounds;
-						logger.warn("Error computing intersection between cell boundary and Voronoi face - will use bounds result: " + e.getLocalizedMessage(), e);
+                        logger.warn("Error computing intersection between cell boundary and Voronoi face - will use bounds result: {}", e.getMessage(), e);
 					} else {
-						logger.warn("Error computing intersection between cell boundary and Voronoi face - will use Voronoi result: " + e.getLocalizedMessage(), e);
+                        logger.warn("Error computing intersection between cell boundary and Voronoi face - will use Voronoi result: {}", e.getMessage(), e);
 					}
 				}
 				var roiNucleus = PathObjectTools.getROI(detection, true);
@@ -292,7 +294,12 @@ public class CellTools {
 					}
 					roiCell = GeometryTools.geometryToROI(geomCell, roiNucleus.getImagePlane());
 				}
-				cells.add(PathObjects.createCellObject(roiCell, roiNucleus, detection.getPathClass(), detection.getMeasurementList()));
+				var cell = PathObjects.createCellObject(roiCell, roiNucleus, detection.getPathClass(), detection.getMeasurementList());
+				cell.setName(detection.getName());
+				if (detection.getColor() != null) {
+					cell.setColor(detection.getColor());
+				}
+				cells.add(cell);
 			} catch (Exception ex) {
 				logger.warn("Exception creating cell for {} - will skip", PathObjectTools.getROI(detection, true));
 			}

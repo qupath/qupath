@@ -23,26 +23,14 @@
 
 package qupath.lib.gui.tma;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.images.servers.RenderedImageServer;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
@@ -61,6 +49,18 @@ import qupath.lib.plugins.AbstractPlugin;
 import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
 
 /**
  * Static methods for exporting TMA data, optionally with small images.
@@ -106,8 +106,8 @@ public class TMADataIO {
 		String coreExt = imageData.getServer().isRGB() ? ".jpg" : ".tif";
 		if (file == null) {
 			file = FileChoosers.promptToSaveFile(
-					"Save TMA data", new File(ServerTools.getDisplayableImageName(server)),
-					FileChoosers.createExtensionFilter("TMA data", "*.qptma"));
+					QuPathResources.getString("Tma.TMADataIO.saveTmaData"), new File(ServerTools.getDisplayableImageName(server)),
+					FileChoosers.createExtensionFilter(QuPathResources.getString("Tma.TMADataIO.tmaData"), "*.qptma"));
 			if (file == null)
 				return;
 		} else if (file.isDirectory() || (!file.exists() && file.getAbsolutePath().endsWith(File.pathSeparator))) {
@@ -150,7 +150,7 @@ public class TMADataIO {
 			}
 			writer.close();
 		} catch (Exception e) {
-			logger.error("Error writing TMA data: " + e.getLocalizedMessage(), e);
+            logger.error("Error writing TMA data: {}", e.getLocalizedMessage(), e);
 			return;
 		}
 
@@ -158,7 +158,7 @@ public class TMADataIO {
 		// Save the summary results
 		ObservableMeasurementTableData tableData = new ObservableMeasurementTableData();
 		tableData.setImageData(imageData, tmaGrid.getTMACoreList());
-		SummaryMeasurementTableCommand.saveTableModel(tableData, new File(dirData, "TMA results - " + ServerTools.getDisplayableImageName(server) + ".txt"), Collections.emptyList());
+		SummaryMeasurementTable.saveTableModel(tableData, new File(dirData, "TMA results - " + ServerTools.getDisplayableImageName(server) + ".txt"), Collections.emptyList());
 
 		boolean outputCoreImages = Double.isNaN(downsampleFactor) || downsampleFactor > 0;
 		if (outputCoreImages) {
@@ -187,7 +187,7 @@ public class TMADataIO {
 				ImageWriterTools.writeImageRegion(renderedServer, request, fileTMAMap.getAbsolutePath());
 //				ImageWriters.writeImageRegionWithOverlay(imageData.getServer(), Collections.singletonList(new TMAGridOverlay(overlayOptions, imageData)), request, fileTMAMap.getAbsolutePath());
 			} catch (IOException e) {
-				logger.warn("Unable to write image overview: " + e.getLocalizedMessage(), e);
+                logger.warn("Unable to write image overview: {}", e.getLocalizedMessage(), e);
 			}
 
 			final double downsample = Double.isNaN(downsampleFactor) ? (server.getPixelCalibration().hasPixelSizeMicrons() ? ServerTools.getDownsampleFactor(server, preferredExportPixelSizeMicrons) : 1) : downsampleFactor;
@@ -205,7 +205,7 @@ public class TMADataIO {
 				try {
 					qupath.runPlugin(plugin, null, false);
 				} catch (Exception e) {
-					logger.error("Error writing TMA data: " + e.getLocalizedMessage(), e);
+                    logger.error("Error writing TMA data: {}", e.getLocalizedMessage(), e);
 				}
 //				new Thread(() -> qupath.runPlugin(plugin, null, false)).start();
 //				runner = new PluginRunnerFX(QuPathGUI.getInstance());				
@@ -316,12 +316,12 @@ public class TMADataIO {
 		
 		@Override
 		public String getName() {
-			return "Export TMA cores";
+			return QuPathResources.getString("Tma.TMADataIO.exportTmaCores");
 		}
 
 		@Override
 		public String getDescription() {
-			return "Export TMA cores & thumbnail images";
+			return QuPathResources.getString("Tma.TMADataIO.exportTmaCoresDescription");
 		}
 
 		@Override
@@ -356,7 +356,7 @@ public class TMADataIO {
 						ImageWriterTools.writeImageRegion(renderedServer, request, fileOutput.getAbsolutePath());
 //						ImageWriters.writeImageRegionWithOverlay(img, imageData, options, request, fileOutput.getAbsolutePath());						
 					} catch (IOException e) {
-						logger.error("Unable to write " + request, e);
+                        logger.error("Unable to write {}", request, e);
 					}
 					
 					// The following code writes a PNG with transparency for the overlay, rather than a marked-up version of the original

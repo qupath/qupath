@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,27 +23,18 @@
 
 package qupath.lib.gui.panes;
 
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
@@ -51,6 +42,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -58,20 +50,39 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import org.controlsfx.glyphfont.FontAwesome;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.controls.PredicateTextField;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PathObjectLabels;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
+import qupath.lib.regions.ImagePlane;
+
+import java.awt.image.BufferedImage;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 
 /**
@@ -86,19 +97,21 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 
 	private static final Logger logger = LoggerFactory.getLogger(AnnotationPane.class);
 
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 	
 	// Need to preserve this to guard against garbage collection
 	@SuppressWarnings("unused")
-	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
+	private final ObservableValue<ImageData<BufferedImage>> imageDataProperty;
+
+	// For convenience - store current image & hierarchy
 	private ImageData<BufferedImage> imageData;
-	
-	private BooleanProperty disableUpdates = new SimpleBooleanProperty(false);
-	
 	private PathObjectHierarchy hierarchy;
-	private BooleanProperty hasImageData = new SimpleBooleanProperty(false);
+
+	private final BooleanProperty disableUpdates = new SimpleBooleanProperty(false);
 	
-	private BorderPane pane = new BorderPane();
+	private final BooleanProperty hasImageData = new SimpleBooleanProperty(false);
+	
+	private final BorderPane pane = new BorderPane();
 
 	/*
 	 * Request that we only synchronize to the primary selection; otherwise synchronizing to 
@@ -106,13 +119,19 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 	 */
 	private static boolean synchronizePrimarySelectionOnly = true;
 	
-	private PathClassPane pathClassPane;
-	
+	private final PathClassPane pathClassPane;
+
+	private final PredicateTextField<PathObject> filter = new PredicateTextField<>(PathObject::getDisplayedName);
+	private final ObservableList<PathObject> allAnnotations = FXCollections.observableArrayList();
+	private final FilteredList<PathObject> filteredAnnotations = new FilteredList<>(allAnnotations);
+
+	private final ContextMenu menuAnnotations = new ContextMenu();
+
 	/*
 	 * List displaying annotations in the current hierarchy
 	 */
-	private ListView<PathObject> listAnnotations;
-		
+	private final ListView<PathObject> listAnnotations = new ListView<>(filteredAnnotations);
+
 	/*
 	 * Selection being changed by outside forces, i.e. don't fire an event
 	 */
@@ -141,8 +160,11 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		
 		pathClassPane = new PathClassPane(qupath);
 		setImageData(imageDataProperty.getValue());
-		
-		Pane paneAnnotations = createAnnotationsPane();
+
+		initializeFilter();
+		initializeAnnotationList();
+		GuiTools.populateAnnotationsMenu(qupath, menuAnnotations);
+		var paneAnnotations = createAnnotationTitledPane();
 		
 		SplitPane paneColumns = new SplitPane(
 				paneAnnotations,
@@ -169,9 +191,14 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		hierarchyChanged(PathObjectHierarchyEvent.createStructureChangeEvent(this, hierarchy, hierarchy.getRootObject()));
 		selectedPathObjectChanged(hierarchy.getSelectionModel().getSelectedObject(), null, hierarchy.getSelectionModel().getSelectedObjects());
 	}
-	
-	private Pane createAnnotationsPane() {
-		listAnnotations = new ListView<>();
+
+	private void initializeFilter() {
+		filter.setPromptText(QuPathResources.getString("Panes.Annotation.filterAnnotations"));
+		filter.setIgnoreCase(true);
+		filteredAnnotations.predicateProperty().bind(filter.predicateProperty());
+	}
+
+	private void initializeAnnotationList() {
 		hierarchyChanged(null); // Force update
 
 		listAnnotations.setCellFactory(v -> PathObjectLabels.createListCell());
@@ -190,24 +217,25 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 				qupath.getViewer().centerROI(pathObject.getROI());
 			}
 		});
-		
-		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> listAnnotations.refresh());
 
-		ContextMenu menuAnnotations = GuiTools.populateAnnotationsMenu(qupath, new ContextMenu());
+		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> listAnnotations.refresh());
 		listAnnotations.setContextMenu(menuAnnotations);
+	}
+
+	private TitledPane createAnnotationTitledPane() {
 
 		// Add the main annotation list
 		BorderPane panelObjects = new BorderPane();
 		panelObjects.setCenter(listAnnotations);
 
 		// Add buttons
-		Button btnSelectAll = new Button("Select all");
+		Button btnSelectAll = new Button(QuPathResources.getString("Panes.Annotation.selectAll"));
 		btnSelectAll.setOnAction(e -> listAnnotations.getSelectionModel().selectAll());
-		btnSelectAll.setTooltip(new Tooltip("Select all annotations"));
+		btnSelectAll.setTooltip(new Tooltip(QuPathResources.getString("Panes.Annotation.selectAllDescription")));
 
-		Button btnDelete = new Button("Delete");
+		Button btnDelete = new Button(QuPathResources.getString("Panes.Annotation.delete"));
 		btnDelete.setOnAction(e -> GuiTools.promptToClearAllSelectedObjects(imageData));
-		btnDelete.setTooltip(new Tooltip("Delete all selected objects"));
+		btnDelete.setTooltip(new Tooltip(QuPathResources.getString("Panes.Annotation.deleteDescription")));
 
 		// Create a button to show context menu (makes it more obvious to the user that it exists)
 		Button btnMore = GuiTools.createMoreButton(menuAnnotations, Side.RIGHT);
@@ -236,8 +264,50 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 			}
 		});
 
-		panelObjects.setBottom(panelButtons);
-		return panelObjects;
+		panelObjects.setBottom(new VBox(filter, panelButtons));
+
+		var btnProperties = new Button(null, IconFactory.createNode(FontAwesome.Glyph.PENCIL, 12));
+		btnProperties.setTooltip(new Tooltip(QuPathResources.getString("Panes.Annotation.setAnnotationProperties")));
+		btnProperties.disableProperty().bind(Bindings.isEmpty(listAnnotations.getSelectionModel().getSelectedItems()));
+		btnProperties.setOnAction(e -> {
+			var hierarchy = qupath.getViewer().getHierarchy();
+			if (hierarchy != null) {
+				// TODO: We lose the selection here...
+				GuiTools.promptToSetActiveAnnotationProperties(hierarchy);
+				// Try to recover the selection
+				var model = hierarchy.getSelectionModel();
+				selectedPathObjectChanged(
+						model.getSelectedObject(), model.getSelectedObject(), model.getSelectedObjects());
+			}
+		});
+
+		
+		var titled = GuiTools.createLeftRightTitledPane(QuPathResources.getString("Panes.Annotation.annotationList"), btnProperties);
+		titled.textProperty().bind(Bindings.createStringBinding(() -> {
+			int nAll = allAnnotations.size();
+			int nFiltered = filteredAnnotations.size();
+			if (nAll == 0)
+				return QuPathResources.getString("Panes.Annotation.annotationList");
+			else if (nAll == nFiltered)
+				return MessageFormat.format(
+						QuPathResources.getString("Panes.Annotation.annotationListX"),
+						nAll
+				);
+			else
+				return MessageFormat.format(
+						QuPathResources.getString("Panes.Annotation.annotationListXY"),
+						nFiltered,
+						nAll
+				);
+		}, allAnnotations, filteredAnnotations));
+		// TODO: Consider additional buttons (e.g. to delete)
+
+		titled.setContent(panelObjects);
+		panelObjects.setPadding(Insets.EMPTY);
+		titled.setCollapsible(false);
+		titled.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+		return titled;
 	}
 	
 	
@@ -281,10 +351,10 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
 			hierarchy.addListener(this);
 			PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
-			listAnnotations.getItems().setAll(hierarchy.getAnnotationObjects());
+			allAnnotations.setAll(hierarchy.getAnnotationObjects());
 			hierarchy.getSelectionModel().setSelectedObject(selected);
 		} else {
-			listAnnotations.getItems().clear();
+			allAnnotations.clear();
 			hierarchy = null;
 		}
 		hasImageData.set(this.imageData != null);
@@ -400,21 +470,33 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		}
 		
 		if (hierarchy == null) {
-			listAnnotations.getItems().clear();
+			allAnnotations.clear();
 			return;
 		}
 		
 		if (disableUpdates.get())
 			return;
 
-		// Create a sorted list of annotations
-		List<PathObject> newList = new ArrayList<>(hierarchy.getObjects(new HashSet<>(), PathAnnotationObject.class));
-		Collections.sort(newList, annotationListComparator);
-				
 		pathClassPane.getListView().refresh();
+
+		// Create a sorted list of annotations
+		// (Could use a treeset to sort as we insert, but doesn't seem to be faster)
+		var annotationSet = hierarchy.getObjects(new HashSet<>(), PathAnnotationObject.class);
+		// This code tries to stop early if the hierarchy is changed, to avoid sluggishness when dragging an annotation
+		// in an image with very large numbers of annotations
+		if (event.isChanging() &&
+				annotationSet.size() == listAnnotations.getItems().size() &&
+				annotationSet.containsAll(listAnnotations.getItems())) {
+			return;
+		}
+		// If we're done changing, make sure we have sorted the annotations - this operation can be expensive
+		// if we have a very large number of annotations
+		List<PathObject> newList = new ArrayList<>(annotationSet);
+		newList.sort(annotationListComparator);
+
 		// If the lists are the same, we just need to refresh the appearance (because e.g. classifications or measurements now differ)
 		// For some reason, 'equals' alone wasn't behaving nicely (perhaps due to ordering?)... so try a more manual test instead
-		if (newList.equals(listAnnotations.getItems())) {
+		if (newList.equals(allAnnotations)) {
 			// Don't refresh unless there is good reason to believe the list should appear different now
 			// This was introduced due to flickering as annotations were dragged
 			// TODO: Reconsider when annotation list is refreshed
@@ -427,19 +509,36 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 //		listAnnotations.getSelectionModel().clearSelection(); // Clearing the selection would cause annotations to disappear when interactively training a classifier!
 		boolean lastChanging = suppressSelectionChanges;
 		suppressSelectionChanges = true;
-		listAnnotations.getItems().setAll(newList);
+		allAnnotations.setAll(newList);
 		suppressSelectionChanges = lastChanging;
 	}
-	
-	
+
 	static Comparator<PathObject> annotationListComparator = Comparator.nullsFirst(Comparator
-				.comparingInt((PathObject p) -> p.hasROI() ? p.getROI().getT() : -1)
-				.thenComparingInt(p -> p.hasROI() ? p.getROI().getZ() : -1)
-				.thenComparing(p -> p.toString())
-				.thenComparingDouble(p -> p.hasROI() ? p.getROI().getBoundsY(): -1)
-				.thenComparingDouble(p -> p.hasROI() ? p.getROI().getBoundsX(): -1)
-				.thenComparing(p -> p.getID().toString())
+				.comparing(AnnotationPane::getImagePlane)
+				.thenComparing(AnnotationPane::getClassificationString) // Since v0.6.0 - previously 'toString()' but this was slow!
+				.thenComparingDouble(AnnotationPane::getBoundsY)
+				.thenComparingDouble(AnnotationPane::getBoundsX)
+				.thenComparing(PathObject::getID)
 				);
-	
-	
+
+	private static double getBoundsX(PathObject pathObject) {
+		var roi = pathObject == null ? null : pathObject.getROI();
+		return roi == null ? -1 : roi.getBoundsX();
+	}
+
+	private static double getBoundsY(PathObject pathObject) {
+		var roi = pathObject == null ? null : pathObject.getROI();
+		return roi == null ? -1 : roi.getBoundsY();
+	}
+
+	private static ImagePlane getImagePlane(PathObject pathObject) {
+		var roi = pathObject == null ? null : pathObject.getROI();
+		return roi == null ? ImagePlane.getDefaultPlane() : roi.getImagePlane();
+	}
+
+	private static String getClassificationString(PathObject pathObject) {
+		var c = pathObject == null ? null : pathObject.getClassification();
+		return c == null ? "" : c;
+	}
+
 }

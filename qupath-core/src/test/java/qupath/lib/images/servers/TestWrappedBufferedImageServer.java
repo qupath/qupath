@@ -21,15 +21,14 @@
 
 package qupath.lib.images.servers;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import qupath.lib.regions.RegionRequest;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.regions.RegionRequest;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 @SuppressWarnings("javadoc")
 public class TestWrappedBufferedImageServer {

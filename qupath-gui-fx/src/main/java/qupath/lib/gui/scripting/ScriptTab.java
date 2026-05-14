@@ -23,24 +23,25 @@
 
 package qupath.lib.gui.scripting;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.Set;
-
-import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.control.action.ActionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
 import qupath.lib.scripting.languages.ScriptLanguage;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.text.MessageFormat;
+import java.util.Set;
 
 /**
  * Class representing a script tab (e.g. on the right side of the script editor).
@@ -83,10 +84,15 @@ public class ScriptTab {
 		this.console = console;
 		initialize();
 		this.language = language;
-		if (script != null)
+		if (script != null) {
 			editor.setText(script);
+			editor.positionCaret(0);
+		}
 		untitledCounter++;
-		name = "Untitled " + untitledCounter;
+		name = MessageFormat.format(
+				QuPathResources.getString("Scripting.ScriptTab.untitled"),
+				untitledCounter
+		);
 	}
 	
 	ScriptTab(final ScriptEditorControl<? extends Region> editor, final ScriptEditorControl<? extends Region> console, final File file) throws IOException {
@@ -136,9 +142,15 @@ public class ScriptTab {
 		var popup = console.getContextMenu();
 		if (popup == null) {
 			popup = new ContextMenu();
-			popup.getItems().add(ActionUtils.createMenuItem(new Action("Copy", e -> console.copy())));
+			popup.getItems().add(ActionUtils.createMenuItem(new Action(
+					QuPathResources.getString("Scripting.ScriptTab.copy"),
+					e -> console.copy()
+			)));
 		}
-		popup.getItems().add(ActionUtils.createMenuItem(new Action("Clear console", e -> console.setText(""))));
+		popup.getItems().add(ActionUtils.createMenuItem(new Action(
+				QuPathResources.getString("Scripting.ScriptTab.clearConsole"),
+				e -> console.setText("")
+		)));
 		popup.getStyleClass().setAll("context-menu");		
 		console.setContextMenu(popup);
 //		console.setPopup(popup);
@@ -151,7 +163,7 @@ public class ScriptTab {
 	}
 	
 	boolean hasScript() {
-		return editor.getText().length() > 0;
+		return !editor.getText().isEmpty();
 	}
 
 	ScriptEditorControl<? extends Region> getConsoleControl() {
@@ -218,6 +230,7 @@ public class ScriptTab {
 	
 	void setLanguage(final ScriptLanguage language) {
 		this.language = language;
+		this.editor.setLanguage(language);
 	}
 	
 	Set<String> getRequestedExtensions() {

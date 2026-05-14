@@ -21,12 +21,12 @@
 
 package qupath.lib.display;
 
-import java.awt.image.BufferedImage;
-
 import qupath.lib.common.ColorTools;
 import qupath.lib.display.ChannelDisplayInfo.ModifiableChannelDisplayInfo;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+
+import java.awt.image.BufferedImage;
 
 abstract class AbstractChannelInfo implements ModifiableChannelDisplayInfo {
 

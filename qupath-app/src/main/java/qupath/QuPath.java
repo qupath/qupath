@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,21 +23,8 @@
 
 package qupath;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.ServiceLoader;
-import javax.script.ScriptException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import picocli.AutoComplete.GenerateCompletion;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -49,8 +36,9 @@ import picocli.CommandLine.ParseResult;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.BuildInfo;
-import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathApp;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.extensions.Subcommand;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
@@ -66,10 +54,24 @@ import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.scripting.QP;
 import qupath.lib.scripting.ScriptParameters;
 import qupath.lib.scripting.languages.ExecutableLanguage;
 import qupath.lib.scripting.languages.ScriptLanguage;
+
+import javax.script.ScriptException;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.ServiceLoader;
 
 /**
  * Main QuPath launcher.
@@ -80,13 +82,17 @@ import qupath.lib.scripting.languages.ScriptLanguage;
 @Command(name = "QuPath", subcommands = {HelpCommand.class, ScriptCommand.class, GenerateCompletion.class},
 	footer = {"",
 			"Copyright(c) The Queen's University Belfast (2014-2016)",
-			"Copyright(c) QuPath developers (2017-2024)",
-			"Copyright(c) The University of Edinburgh (2018-2024)"
+			"Copyright(c) QuPath developers (2017-2025)",
+			"Copyright(c) The University of Edinburgh (2018-2025)"
 			}, mixinStandardHelpOptions = true, versionProvider = QuPath.VersionProvider.class)
 public class QuPath {
 	
 	private static final Logger logger = LoggerFactory.getLogger(QuPath.class);
-	
+
+	static {
+		initializeSciJava();
+	}
+
 	@Parameters(arity = "0..1", description = {"Path to image or project to open"}, hidden = true)
 	private String path;
 
@@ -139,7 +145,7 @@ public class QuPath {
 		try {
 			pr = cmd.parseArgs(args);
 		} catch (Exception e) {
-			logger.error("An error has occurred, please type -h to display help message.\n" + e.getLocalizedMessage());
+            logger.error("An error has occurred, please type -h to display help message.\n{}", e.getLocalizedMessage());
 			return;
 		}
 
@@ -189,13 +195,13 @@ public class QuPath {
 			if (qupath.quiet)
 				CLIArgs.add("--quiet=true");
 		
-			if (qupath.project != null && !qupath.project.equals("") && qupath.project.endsWith(ProjectIO.getProjectExtension()))
+			if (qupath.project != null && !qupath.project.isEmpty() && qupath.project.endsWith(ProjectIO.getProjectExtension()))
 				CLIArgs.add("--project=" + getEncodedPath(qupath.project));
 		
-			if (qupath.image != null && !qupath.image.equals(""))
+			if (qupath.image != null && !qupath.image.isEmpty())
 				CLIArgs.add("--image=" + getEncodedPath(qupath.image));
 			
-			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(new String[CLIArgs.size()]));
+			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(String[]::new));
 			
 		} else {
 			// Parse and execute subcommand with args
@@ -204,10 +210,23 @@ public class QuPath {
 				logger.warn("Calling System.exit with exit code {}", exitCode);
 			System.exit(exitCode);
 		}
-	
-		return;
 	}
-	
+
+	/**
+	 * Create SciJava context if available - this is needed if running with Fiji.
+	 * See https://forum.image.sc/t/embedding-fiji-inside-qupath/105065/18
+	 */
+	private static void initializeSciJava() {
+		try {
+			var cls = Class.forName("org.scijava.Context");
+			cls.getDeclaredConstructor().newInstance();
+			logger.info("SciJava context initialized!");
+		} catch (ClassNotFoundException e) {
+			logger.debug("SciJava Context not found");
+		} catch (Exception e) {
+			logger.warn("Exception trying to create SciJava Context: {}", e.getMessage(), e);
+		}
+	}
 	
 	private static void initializeProperties() {
 		initializeDJL();
@@ -220,8 +239,8 @@ public class QuPath {
 	private static void initializeDJL() {
 		// Set offline mode - used to prevent DJL downloading anything
 		// except when explicitly requested
-		if (System.getProperty("offline", null) == null)
-			System.setProperty("offline", "true");
+		if (System.getProperty("ai.djl.offline", null) == null)
+			System.setProperty("ai.djl.offline", "true");
 	}
 	
 	/**
@@ -230,11 +249,8 @@ public class QuPath {
 	 * Use -Djts.overlay=old to turn off this behavior.
 	 */
 	private static void initializeJTS() {
-		var prop = System.getProperty("jts.overlay");
-		if (prop == null) {
-			logger.debug("Setting -Djts.overlay=ng");
-			System.setProperty("jts.overlay", "ng");
-		}
+		// Ensure class is loaded, to ensure OverlayNG and RelateNG properties checked
+		GeometryTools.getDefaultFactory();
 	}
 	
 	
@@ -343,17 +359,19 @@ class ScriptCommand implements Runnable {
 			
 			// Ensure we have a tile cache set
 			createTileCache();
-			
-			// Set classloader to include any available extensions
-			var extensionClassLoader = ExtensionClassLoader.getInstance();
-			extensionClassLoader.refresh();
+
+			// Load image server builders from extensions and install extensions in headless mode
+			ClassLoader extensionClassLoader = QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader();
+
 			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
 			Thread.currentThread().setContextClassLoader(extensionClassLoader);
+
+			for (QuPathExtension extension : ServiceLoader.load(QuPathExtension.class, extensionClassLoader)) {
+				extension.installHeadless();
+			}
 			
 			// Unfortunately necessary to force initialization (including GsonTools registration of some classes)
 			QP.getCoreClasses();
-			
-			ImageData<BufferedImage> imageData;
 			
 			if (projectPath != null && !projectPath.equals("")) {
 				
@@ -370,8 +388,7 @@ class ScriptCommand implements Runnable {
 				for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
 					var entry = imageList.get(batchIndex);
 					logger.info("Running script for {} ({}/{})", entry.getImageName(), batchIndex, batchSize);
-					imageData = entry.readImageData();
-					try {
+					try (var imageData = entry.readImageData()) {
 						Object result = runBatchScript(project, imageData, batchIndex, batchSize, save);
 						if (result != null)
 							logger.info("Script result: {}", result);
@@ -383,15 +400,16 @@ class ScriptCommand implements Runnable {
 						// Otherwise, try to recover and continue processing images
 						if (imagePath != null && imagePath.equals(entry.getImageName()))
 							throw new RuntimeException(e);
-					} finally {
-						imageData.getServer().close();						
 					}
+				}
+				if (save) {
+					project.syncChanges();
 				}
 			} else if (imagePath != null && !imagePath.equals("")) {
 				String path = QuPath.getEncodedPath(imagePath);
 				URI uri = GeneralTools.toURI(path);
 				ImageServer<BufferedImage> server = ImageServers.buildServer(uri, parseArgs(serverArgs));
-				imageData = new ImageData<>(server);
+				var imageData = new ImageData<>(server);
 				Object result = runSingleScript(null, imageData);
 				if (result != null)
 					logger.info("Script result: {}", result);
@@ -401,8 +419,7 @@ class ScriptCommand implements Runnable {
 				if (result != null)
 					logger.info("Script result: {}", result);
 			}
-			
-		} catch (Exception e) {
+        } catch (Exception e) {
 			logger.error(e.getLocalizedMessage(), e);
 			throw new RuntimeException(e);
 		}

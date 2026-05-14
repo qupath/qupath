@@ -23,9 +23,9 @@
 
 package qupath.lib.gui.scripting.syntax;
 
-import java.util.Set;
-
 import qupath.lib.gui.scripting.EditableText;
+
+import java.util.Set;
 
 /**
  * Class to take care of the Groovy syntax formatting.
@@ -87,7 +87,7 @@ class GroovySyntax extends GeneralCodeSyntax {
 		String subString = text.substring(startRowPos, caretPos);
 		String trimmedSubString = subString.trim();
 		int indentation = subString.length() - subString.stripLeading().length();
-		int ind = trimmedSubString.length() == 0 ? subString.length() : subString.indexOf(trimmedSubString);
+		int ind = trimmedSubString.isEmpty() ? subString.length() : subString.indexOf(trimmedSubString);
 		int finalPos = caretPos;
 		String insertText = System.lineSeparator();
 

@@ -24,13 +24,13 @@
 
 package qupath.lib.gui.tma;
 
+import javafx.scene.image.Image;
+import qupath.lib.gui.tma.TMAEntries.TMAEntry;
+
 import java.lang.ref.SoftReference;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
-import javafx.scene.image.Image;
-import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 
 /**
  * Image cache for storing images related to TMAEntries.

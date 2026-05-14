@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -27,19 +27,9 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public abstract class AbstractImageRenderer implements ImageRenderer {
 	
-	private static AtomicLong NEXT_COUNT = new AtomicLong();
+	private static final AtomicLong NEXT_COUNT = new AtomicLong();
 	
-	private long id = NEXT_COUNT.incrementAndGet();
-	
-	/**
-	 * Timestamp variable; this should be updated by implementing classes.
-	 */
-	protected long timestamp = System.currentTimeMillis();
-	
-	@Override
-	public long getLastChangeTimestamp() {
-		return timestamp;
-	}
+	private final long id = NEXT_COUNT.incrementAndGet();
 
 	@Override
 	public String getUniqueID() {

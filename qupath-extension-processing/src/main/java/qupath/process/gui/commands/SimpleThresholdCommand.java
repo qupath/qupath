@@ -21,15 +21,6 @@
 
 package qupath.process.gui.commands;
 
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -47,10 +38,10 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
@@ -65,6 +56,15 @@ import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.process.gui.commands.ml.ClassificationResolution;
 import qupath.process.gui.commands.ml.PixelClassifierUI;
+
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Apply simple thresholding to an image via the pixel classification framework to support 
@@ -232,7 +232,7 @@ public class SimpleThresholdCommand implements Runnable {
 		labelSigma.textProperty().bind(
 				Bindings.createStringBinding(() -> sigma.get() == null ? "" : GeneralTools.formatNumber(sigma.get(), 2), sigma)
 				);
-		labelSigma.setMinWidth(25); // Thanks to Melvin, to stop it jumping around
+		labelSigma.setMinWidth(50); // Thanks to Melvin, to stop it jumping around
 		FXUtils.restrictTextFieldInputToNumber(sigmaSpinner.getEditor(), true);
 		FXUtils.resetSpinnerNullToPrevious(sigmaSpinner);
 		GridPaneUtils.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
@@ -240,6 +240,7 @@ public class SimpleThresholdCommand implements Runnable {
 		label = new Label("Threshold");
 		label.setLabelFor(spinner);
 		Label labelThreshold = new Label();
+		labelThreshold.setMinWidth(50); // to stop it jumping around
 		labelThreshold.textProperty().bind(
 				Bindings.createStringBinding(() -> threshold.get() == null ? "" : GeneralTools.formatNumber(threshold.get(), 2), threshold)
 				);
@@ -335,6 +336,7 @@ public class SimpleThresholdCommand implements Runnable {
 		stage.show();
 
 		stage.setMinHeight(320);
+		stage.setMinWidth(320);
 		stage.sizeToScene();
 		stage.setResizable(true);
 		
@@ -407,7 +409,8 @@ public class SimpleThresholdCommand implements Runnable {
 		var newTransforms = new ArrayList<>(getAvailableTransforms(imageData));
 		if (!newTransforms.equals(transforms.getItems()))
 			transforms.getItems().setAll(newTransforms);
-		if (transforms.getSelectionModel().getSelectedItem() == null)
+		if (transforms.getSelectionModel().getSelectedItem() == null ||
+                !transforms.getItems().contains(transforms.getSelectionModel().getSelectedItem()))
 			transforms.getSelectionModel().selectFirst();
 		
 	}

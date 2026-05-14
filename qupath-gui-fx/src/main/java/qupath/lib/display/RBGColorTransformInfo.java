@@ -21,13 +21,13 @@
 
 package qupath.lib.display;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.IndexColorModel;
-
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
+
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.IndexColorModel;
 
 class RBGColorTransformInfo extends AbstractSingleChannelInfo {
 

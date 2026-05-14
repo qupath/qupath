@@ -21,19 +21,6 @@
 
 package qupath.opencv.dnn;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.function.IntFunction;
-import java.util.stream.Collectors;
-
 import org.bytedeco.javacpp.FloatPointer;
 import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.javacpp.PointerScope;
@@ -57,7 +44,6 @@ import org.bytedeco.opencv.opencv_dnn.Net;
 import org.bytedeco.opencv.opencv_dnn.SegmentationModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.LogTools;
 import qupath.lib.geom.Point2;
@@ -70,6 +56,19 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.tools.OpenCVTools;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.function.IntFunction;
+import java.util.stream.Collectors;
 
 /**
  * Tools for working with OpenCV's DNN module.

@@ -22,12 +22,19 @@
 package qupath.lib.objects.hierarchy;
 
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.operation.buffer.BufferParameters;
+import org.locationtech.jts.util.GeometricShapeFactory;
+import org.opentest4j.AssertionFailedError;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.util.Collection;
@@ -279,4 +286,372 @@ public class TestPathObjectHierarchy {
         assertTrue(hierarchy.getCellSubdivision(plane).isEmpty());
     }
 
+    @Test
+    void Check_Resolve_Hierarchy_Of_Touching_Rectangles() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject leftRectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 100, 100));
+        PathObject rightRectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(100, 0, 100, 100));
+        hierarchy.addObjects(List.of(leftRectangle, rightRectangle));
+        List<PathObject> expectedRootChildren = List.of(leftRectangle, rightRectangle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle_With_Top_Touching() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject expectedParent = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        PathObject expectedChild = PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 0, 180, 50));
+        hierarchy.addObjects(List.of(expectedParent, expectedChild));
+        List<PathObject> expectedRootChildren = List.of(expectedParent);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle_With_Bottom_Touching() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject expectedParent = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        PathObject expectedChild = PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 50, 180, 50));
+        hierarchy.addObjects(List.of(expectedParent, expectedChild));
+        List<PathObject> expectedRootChildren = List.of(expectedParent);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle_With_Left_Touching() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject expectedParent = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        PathObject expectedChild = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 25, 100, 50));
+        hierarchy.addObjects(List.of(expectedParent, expectedChild));
+        List<PathObject> expectedRootChildren = List.of(expectedParent);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle_With_Right_Touching() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject expectedParent = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        PathObject expectedChild = PathObjects.createAnnotationObject(ROIs.createRectangleROI(100, 25, 100, 50));
+        hierarchy.addObjects(List.of(expectedParent, expectedChild));
+        List<PathObject> expectedRootChildren = List.of(expectedParent);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject expectedParent = PathObjects.createAnnotationObject(RoiTools.buffer(
+                ROIs.createRectangleROI(0, 0, 200, 100),
+                50
+        ));
+        PathObject expectedChild = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        hierarchy.addObjects(List.of(expectedParent, expectedChild));
+        List<PathObject> expectedRootChildren = List.of(expectedParent);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_With_Hole_Within_Another_Rectangle() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject expectedParent = PathObjects.createAnnotationObject(RoiTools.buffer(
+                ROIs.createRectangleROI(0, 0, 200, 100),
+                50
+        ));
+        PathObject expectedChild = PathObjects.createAnnotationObject(RoiTools.subtract(
+                RoiTools.buffer(ROIs.createRectangleROI(0, 0, 200, 100), 50),
+                ROIs.createRectangleROI(0, 0, 200, 100)
+        ));
+        hierarchy.addObjects(List.of(expectedParent, expectedChild));
+        List<PathObject> expectedRootChildren = List.of(expectedParent);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle_With_Hole_Smaller_Than_Rectangle() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject biggerRectangle = PathObjects.createAnnotationObject(RoiTools.subtract(
+                RoiTools.buffer(ROIs.createRectangleROI(0, 0, 200, 100), 50),
+                ROIs.createRectangleROI(0, 0, 200, 100)
+        ));
+        PathObject smallerRectangle = PathObjects.createAnnotationObject(RoiTools.buffer(
+                ROIs.createRectangleROI(0, 0, 200, 100),
+                5
+        ));
+        hierarchy.addObjects(List.of(biggerRectangle, smallerRectangle));
+        List<PathObject> expectedRootChildren = List.of(biggerRectangle, smallerRectangle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle_With_Hole_Bigger_Than_Rectangle() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject biggerRectangle = PathObjects.createAnnotationObject(RoiTools.subtract(
+                RoiTools.buffer(ROIs.createRectangleROI(0, 0, 200, 100), 50),
+                ROIs.createRectangleROI(0, 0, 200, 100)
+        ));
+        PathObject smallerRectangle = PathObjects.createAnnotationObject(RoiTools.buffer(
+                ROIs.createRectangleROI(0, 0, 200, 100),
+                -5
+        ));
+        hierarchy.addObjects(List.of(biggerRectangle, smallerRectangle));
+        List<PathObject> expectedRootChildren = List.of(biggerRectangle, smallerRectangle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle_Shifted_By_One_Pixel() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        double shift = 1;
+        PathObject biggerRectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        PathObject smallerRectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(100 + shift, 0, 100, 100));
+        hierarchy.addObjects(List.of(biggerRectangle, smallerRectangle));
+        List<PathObject> expectedRootChildren = List.of(biggerRectangle, smallerRectangle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle_Shifted_By_Less_Than_Precision() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        double shift = 0.5 / GeometryTools.getDefaultFactory().getPrecisionModel().getScale();
+        PathObject biggerRectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        PathObject smallerRectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(100 + shift, 0, 100, 100));
+        hierarchy.addObjects(List.of(biggerRectangle, smallerRectangle));
+        List<PathObject> expectedRootChildren = List.of(biggerRectangle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle_Shifted_By_Precision() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        double shift = 1.0 / GeometryTools.getDefaultFactory().getPrecisionModel().getScale();
+        PathObject biggerRectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        PathObject smallerRectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(100 + shift, 0, 100, 100));
+        hierarchy.addObjects(List.of(biggerRectangle, smallerRectangle));
+        List<PathObject> expectedRootChildren = List.of(biggerRectangle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle_Shifted_By_More_Than_Precision() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        double shift = 1.5 / GeometryTools.getDefaultFactory().getPrecisionModel().getScale();
+        PathObject biggerRectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        PathObject smallerRectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(100 + shift, 0, 100, 100));
+        hierarchy.addObjects(List.of(biggerRectangle, smallerRectangle));
+        List<PathObject> expectedRootChildren = List.of(biggerRectangle, smallerRectangle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Rectangle_Within_Another_Rectangle_With_Line_Sticking_Out() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject biggerRectangle = PathObjects.createAnnotationObject(RoiTools.subtract(
+                ROIs.createRectangleROI(0, 0, 200, 100),
+                ROIs.createRectangleROI(10, 0, 180, 40)
+        ));
+        PathObject smallerRectangle = PathObjects.createAnnotationObject(GeometryTools.geometryToROI(
+                ROIs.createRectangleROI(50, 40, 100, 40).getGeometry()
+                        .union(ROIs.createLineROI(100, 20, 100, 80).getGeometry().buffer(0.01))
+        ));
+        hierarchy.addObjects(List.of(biggerRectangle, smallerRectangle));
+        List<PathObject> expectedRootChildren = List.of(biggerRectangle, smallerRectangle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Line_Within_Rectangle() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject rectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        PathObject line = PathObjects.createAnnotationObject(ROIs.createLineROI(50, 50, 150, 50));
+        hierarchy.addObjects(List.of(rectangle, line));
+        List<PathObject> expectedRootChildren = List.of(rectangle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Boundary_Line_Of_Rectangle() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject rectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        PathObject boundaryLine = PathObjects.createAnnotationObject(GeometryTools.geometryToROI(
+                ((Polygon) ROIs.createRectangleROI(0, 0, 200, 100).getGeometry()).getExteriorRing()
+        ));
+        hierarchy.addObjects(List.of(rectangle, boundaryLine));
+        List<PathObject> expectedRootChildren = List.of(rectangle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Polyline_Within_Rectangle() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject rectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 200, 100));
+        PathObject polyline = PathObjects.createAnnotationObject(GeometryTools.geometryToROI(
+                ((Polygon) ROIs.createRectangleROI(10, 10, 180, 80).getGeometry()).getExteriorRing()
+        ));
+        hierarchy.addObjects(List.of(rectangle, polyline));
+        List<PathObject> expectedRootChildren = List.of(rectangle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Polyline_Extending_Outside_C_Shaped_Rectangle() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject rectangle = PathObjects.createAnnotationObject(RoiTools.subtract(
+                ROIs.createRectangleROI(0, 0, 200, 100),
+                ROIs.createRectangleROI(50, 25, 200, 50)
+        ));
+        PathObject polyline = PathObjects.createAnnotationObject(GeometryTools.geometryToROI(
+                ((Polygon) ROIs.createRectangleROI(10, 10, 180, 80).getGeometry()).getExteriorRing()
+        ));
+        hierarchy.addObjects(List.of(rectangle, polyline));
+        List<PathObject> expectedRootChildren = List.of(rectangle, polyline);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Ring_Extending_Outside_C_Shaped_Rectangle() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        PathObject rectangle = PathObjects.createAnnotationObject(RoiTools.subtract(
+                ROIs.createRectangleROI(0, 0, 200, 100),
+                ROIs.createRectangleROI(50, 25, 200, 50)
+        ));
+        PathObject ring = PathObjects.createAnnotationObject(GeometryTools.geometryToROI(
+                ((Polygon) ROIs.createRectangleROI(10, 10, 180, 80).getGeometry()).getExteriorRing()
+                        .buffer(2, 0, BufferParameters.CAP_SQUARE)
+        ));
+        hierarchy.addObjects(List.of(rectangle, ring));
+        List<PathObject> expectedRootChildren = List.of(rectangle, ring);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Touching_Circles() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        // We get more problems with non-integer dimensions
+        PathObject leftCircle = PathObjects.createAnnotationObject(createEllipsePolygon(0, 0, 100.5, 100.5));
+        PathObject rightCircle = PathObjects.createAnnotationObject(createEllipsePolygon(100.5, 0, 100.5, 100.5));
+        hierarchy.addObjects(List.of(leftCircle, rightCircle));
+        List<PathObject> expectedRootChildren = List.of(leftCircle, rightCircle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Intersecting_Circles_With_Big_Shift() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        // We get more problems with non-integer dimensions
+        double shift = 100;
+        PathObject biggerCircle = PathObjects.createAnnotationObject(createEllipsePolygon(0, 0, 200.5, 100.5));
+        PathObject smallerCircle = PathObjects.createAnnotationObject(RoiTools.intersection(
+                createEllipsePolygon(0, 0, 200.5, 100.5),
+                createEllipsePolygon(200.5 - shift, 0, 200.5, 100.5)
+        ));
+        hierarchy.addObjects(List.of(biggerCircle, smallerCircle));
+        List<PathObject> expectedRootChildren = List.of(biggerCircle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    @Test
+    void Check_Resolve_Hierarchy_Of_Intersecting_Circles_With_Small_Shift() {
+        PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+        // We get more problems with non-integer dimensions
+        double shift = 0.001;
+        PathObject biggerCircle = PathObjects.createAnnotationObject(createEllipsePolygon(0, 0, 200.5, 100.5));
+        PathObject smallerCircle = PathObjects.createAnnotationObject(RoiTools.intersection(
+                createEllipsePolygon(0, 0, 200.5, 100.5),
+                createEllipsePolygon(200.5 - shift, 0, 200.5, 100.5)
+        ));
+        hierarchy.addObjects(List.of(biggerCircle, smallerCircle));
+        List<PathObject> expectedRootChildren = List.of(biggerCircle);
+
+        hierarchy.resolveHierarchy();
+
+        assertCollectionsEqualsWithoutOrder(expectedRootChildren, hierarchy.getRootObject().getChildObjects());
+    }
+
+    private static <T> void assertCollectionsEqualsWithoutOrder(Collection<? extends T> expectedCollection, Collection<? extends T> actualCollection) {
+        if (expectedCollection.size() != actualCollection.size()) {
+            throw new AssertionFailedError(String.format(
+                    "Expected collection size: %d but was: %d",
+                    expectedCollection.size(),
+                    actualCollection.size())
+            );
+        }
+
+        if (!expectedCollection.containsAll(actualCollection) || !actualCollection.containsAll(expectedCollection)) {
+            throw new AssertionFailedError(String.format(
+                    "Expected collection: %s but was: %s",
+                    expectedCollection,
+                    actualCollection
+            ));
+        }
+    }
+
+    private static ROI createEllipsePolygon(double x, double y, double width, double height) {
+        // used rather than EllipseROI to control the number of points used to represent the ellipse
+        var shapeFactory = new GeometricShapeFactory(GeometryTools.getDefaultFactory());
+        shapeFactory.setEnvelope(new Envelope(x, x+width, y, y+height));
+        shapeFactory.setNumPoints(1000);
+        return GeometryTools.geometryToROI(shapeFactory.createEllipse());
+    }
 }

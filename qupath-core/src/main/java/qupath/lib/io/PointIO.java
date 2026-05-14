@@ -23,6 +23,18 @@
 
 package qupath.lib.io;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.geom.Point2;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -45,19 +57,6 @@ import java.util.Scanner;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.geom.Point2;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.PointsROI;
-import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Helper class for reading/writing point objects in terms of their x,y coordinates.

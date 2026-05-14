@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,26 +23,8 @@
 
 package qupath.lib.objects.hierarchy;
 
-import java.io.Serial;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.common.LogTools;
 import qupath.lib.objects.DefaultPathObjectComparator;
@@ -55,12 +37,29 @@ import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * A basic hierarchy in which to store PathObjects.
@@ -75,7 +74,6 @@ import qupath.lib.roi.interfaces.ROI;
  * ensure that you have a properly-constructed hierarchy with the same data within it.
  * 
  * @author Pete Bankhead
- *
  */
 public final class PathObjectHierarchy implements Serializable {
 
@@ -95,6 +93,8 @@ public final class PathObjectHierarchy implements Serializable {
 
 	// A map to store subdivisions, useful for finding neighbors
 	private transient SubdivisionManager subdivisionManager = new SubdivisionManager();
+
+	private transient AtomicLong eventCount = new AtomicLong();
 
 	/**
 	 * Default constructor, creates an empty hierarchy.
@@ -560,7 +560,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Remove all objects from the hierarchy.
 	 */
 	public synchronized void clearAll() {
-		getRootObject().clearChildObjects();
+		getRootObject().removeAllChildObjects();
 		tmaGrid = null;
 		fireHierarchyChangedEvent(getRootObject());
 	}
@@ -849,19 +849,18 @@ public final class PathObjectHierarchy implements Serializable {
 		if (pathObjects.isEmpty() || !roi.isArea() || roi.isEmpty())
 			return Collections.emptyList();
 		
-		var locator = tileCache.getLocator(roi, false);
-		var preparedGeometry = tileCache.getPreparedGeometry(tileCache.getGeometry(roi));
 		// Note: JTS 1.17.0 does not support parallel requests, see https://github.com/locationtech/jts/issues/571
 		// A change in getLocator() overcomes this - but watch out for future problems
+		var relate = tileCache.getRoiRelate(roi);
 		return pathObjects.parallelStream().filter(child -> {
 			// Test plane first
 			if (!sameZT(roi, child.getROI()))
 				return false;
-			
+
 			if (child.isDetection())
-				return tileCache.containsCentroid(locator, child);
+				return relate.containsCentroid(child.getROI());
 			else {
-				return tileCache.covers(preparedGeometry, tileCache.getGeometry(child));
+				return relate.coversWithTolerance(child.getROI());
 			}
 		}).collect(Collectors.toCollection(ArrayList::new));
 	}
@@ -1127,6 +1126,7 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	synchronized void fireEvent(PathObjectHierarchyEvent event) {
 		synchronized(listeners) {
+			eventCount.incrementAndGet();
 			if (!event.isChanging()) {
 				if (event.isStructureChangeEvent()) {
 					var changed = event.getChangedObjects();
@@ -1141,8 +1141,31 @@ public final class PathObjectHierarchy implements Serializable {
 				}
 			}
 
-			for (PathObjectHierarchyListener listener : listeners)
+			for (PathObjectHierarchyListener listener : listeners) {
 				listener.hierarchyChanged(event);
+			}
+		}
+	}
+
+	/**
+	 * Get the number of events that were fired.
+	 * <p>
+	 * Important notes:
+	 * <ul>
+	 *     <li>This is a transient property (not stored in the data file)</li>
+	 *    <li>The value is incremented <i>before</i>> listeners have been notified (so that a listener may query it)</li>
+	 * </ul>
+	 * The purpose of this method is to support lazy evaluation within functions that depend upon the hierarchy,
+	 * but where adding and removing a listener would require too much overhead.
+	 * Use of the event count makes it possible to cache the result of expensive computations, and return the cached
+	 * values for as long as the count is unchanged.
+	 *
+	 * @return a timestamp
+	 * @since v0.6.0
+	 */
+	public long getEventCount() {
+		synchronized (listeners) {
+			return eventCount.get();
 		}
 	}
 

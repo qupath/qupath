@@ -25,12 +25,6 @@
 
 package qupath.lib.gui;
 
-import java.util.Collection;
-import java.util.function.Predicate;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -41,8 +35,14 @@ import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MenuTools;
+
+import java.util.Collection;
+import java.util.function.Predicate;
 
 /**
  * Class to handle setting the visibility of menu items based upon a predicate.
@@ -258,12 +258,23 @@ class MenuItemVisibilityManager {
 			return true;
 		text = text.trim();
 		String lowerText = text.toLowerCase();
-		if (!showExperimentalOptions.get() && (lowerText.equals("experimental") || lowerText.endsWith("experimental)")))
+		if (!showExperimentalOptions.get() && (
+				lowerText.equals(QuPathResources.getString("MenuItemVisibilityManager.experimental")) ||
+				lowerText.endsWith(QuPathResources.getString("MenuItemVisibilityManager.experimental") + ")")
+		))
 			return false;
-		if (!showTMAOptions.get() && (text.equals("TMA") || text.endsWith("TMA)"))) // TMA should always be capitalized (to avoid false matches)
+		if (!showTMAOptions.get() && (
+				text.equals(QuPathResources.getString("MenuItemVisibilityManager.tma")) ||
+				text.endsWith(QuPathResources.getString("MenuItemVisibilityManager.tma") + ")")
+		)) // TMA should always be capitalized (to avoid false matches)
 			return false;
-		if (!showLegacyOptions.get() && (lowerText.equals("deprecated") || lowerText.endsWith("deprecated") || lowerText.equals("legacy") || lowerText.endsWith("legacy)")))
-			return false;
+		if (!showLegacyOptions.get() && (
+				lowerText.endsWith(QuPathResources.getString("MenuItemVisibilityManager.deprecated")) ||
+				lowerText.equals(QuPathResources.getString("MenuItemVisibilityManager.legacy")) ||
+				lowerText.endsWith(QuPathResources.getString("MenuItemVisibilityManager.legacy") + ")")
+		)) {
+            return false;
+        }
 		return true;
 	}
 	

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021, 2024 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -20,6 +20,14 @@
  */
 
 package qupath.lib.images.servers;
+
+import java.util.concurrent.Future;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.regions.RegionRequest;
 
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -39,14 +47,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.regions.RegionRequest;
-
 /**
  * Abstract {@link ImageServer} for BufferedImages that internally breaks up requests into constituent tiles.
  * <p>
@@ -62,14 +62,14 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	private static final Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
 	
 	private ColorModel colorModel;
-	private Map<String, BufferedImage> emptyTileMap = new HashMap<>();
+	private final Map<String, BufferedImage> emptyTileMap = new HashMap<>();
 	
-	private transient Set<TileRequest> emptyTiles = new HashSet<>();
+	private final transient Set<TileRequest> emptyTiles = new HashSet<>();
 	
-	private static final Long ZERO = Long.valueOf(0L);
+	private static final Long ZERO = 0L;
 	
 	// Maintain a record of tiles that could not be cached, so we warn for each only once
-	private transient Set<RegionRequest> failedCacheTiles = new HashSet<>();
+	private final transient Set<RegionRequest> failedCacheTiles = new HashSet<>();
 		
 	protected AbstractTileableImageServer() {
 		super(BufferedImage.class);
@@ -77,9 +77,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	protected BufferedImage getEmptyTile(int width, int height) throws IOException {
 		return getEmptyTile(width, height, true);
-//		return getEmptyTile(width, height,
-//				width == getMetadata().getPreferredTileWidth() &&
-//				height == getMetadata().getPreferredTileHeight());
 	}
 	
 	/**
@@ -164,7 +161,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	/**
 	 * Map of tiles currently being requested, so avoid duplicate requests (wait instead for the first request to return).
 	 */
-	private Map<TileRequest, TileTask> pendingTiles = new ConcurrentHashMap<>();
+	private final Map<TileRequest, TileTask> pendingTiles = new ConcurrentHashMap<>();
 	
 	/**
 	 * Count of how many duplicate requests are received for a pending tile.
@@ -209,7 +206,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		}
 		logger.trace("Reading tile: {}", request);
 		
-		BufferedImage imgCached;
+		BufferedImage imgCached = null;
 		var futureTask = pendingTiles.computeIfAbsent(tileRequest, t -> new TileTask(Thread.currentThread(), () -> readTile(t)));
 		var myTask = futureTask.thread == Thread.currentThread();
 		try {
@@ -221,26 +218,24 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			}
 			imgCached = futureTask.get();
 		} catch (ExecutionException | InterruptedException e) {
-			if (e.getCause() instanceof IOException)
-				throw (IOException)e.getCause();
+			if (e.getCause() instanceof IOException ioException)
+				throw ioException;
 			throw new IOException(e);
-		}
-		
-//		var imgCached = readTile(tileRequest);
-		
-		// Put the tile in the appropriate cache
-		if (myTask) {
-			if (imgCached != null) {
-				if (isEmptyTile(imgCached)) {
-					emptyTiles.add(tileRequest);
-				} else if (cache != null) {
-					cache.put(request, imgCached);
-					// Check if we were able to cache the tile; sometimes we can't if it is too big
-					if (!cache.containsKey(request) && failedCacheTiles.add(request))
-						logger.warn("Unable to add {} to cache.\nYou might need to give QuPath more memory, or to increase the 'Percentage memory for tile caching' preference.", request);
+		} finally {
+			// Put the tile in the appropriate cache
+			if (myTask || (futureTask.state() == Future.State.FAILED || futureTask.state() == Future.State.CANCELLED)) {
+				if (imgCached != null) {
+					if (isEmptyTile(imgCached)) {
+						emptyTiles.add(tileRequest);
+					} else if (cache != null) {
+						cache.put(request, imgCached);
+						// Check if we were able to cache the tile; sometimes we can't if it is too big
+						if (!cache.containsKey(request) && failedCacheTiles.add(request))
+							logger.warn("Unable to add {} to cache.\nYou might need to give QuPath more memory, or to increase the 'Percentage memory for tile caching' preference.", request);
+					}
 				}
+				pendingTiles.remove(tileRequest);
 			}
-			pendingTiles.remove(tileRequest);
 		}
 		
 		return imgCached;
@@ -267,10 +262,13 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		// Check if we already have a tile for precisely this occasion - with the right server path
 		// Make a defensive copy, since the cache is critical
 		var cache = getCache();
-		BufferedImage img = request.getPath().equals(getPath()) && cache != null ? cache.get(request) : null;
-		if (img != null)
-			return BufferedImageTools.duplicate(img);
-		
+		var currentPath = request.getPath();
+		if (request.getPath().equals(currentPath) && cache != null) {
+			BufferedImage img = cache.getOrDefault(request, null);
+			if (img != null)
+				return BufferedImageTools.duplicate(img);
+		}
+
 		// Figure out which tiles we need
 		Collection<TileRequest> tiles = getTileRequestManager().getTileRequests(request);
 		
@@ -381,7 +379,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 
 			// If we have an empty region, try to use an empty tile
 			if (isEmptyRegion) {
-				return getEmptyTile(request.getWidth(), request.getHeight());
+				return getEmptyTile(width, height);
 			}
 
 			if (raster == null)
@@ -417,7 +415,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			imgResult = resizeIfNeeded(imgResult, width, height);
 
 			long endTime = System.currentTimeMillis();
-			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
+            logger.trace("Requested {} tiles in {} ms (non-RGB)", tiles.size(), endTime - startTime);
 			return imgResult;
 		}
 	}
@@ -481,11 +479,19 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				int width2 = (int)Math.max(1, Math.round((maxX - request.getMinX()) / request.getDownsample() - 1e-9));
 				int height2 = (int)Math.max(1, Math.round((maxY - request.getMinY()) / request.getDownsample() - 1e-9));
 				// Be cautious with size adjustments - only permit changing by one pixel
-				if (expectedWidth == width2+1 || expectedHeight == height2+1) {
-					logger.trace("RGB image size updated from {}x{} to {}x{} to avoid border problems",
-							expectedWidth, expectedHeight, width2, height2);
-					imgWidth = width2;
-					imgHeight = height2;
+				int adjustedWidth = expectedWidth;
+				int adjustedHeight = expectedHeight;
+				if (expectedWidth == width2+1) {
+					adjustedWidth = width2;
+				}
+				if (expectedHeight == height2+1) {
+					adjustedHeight = height2;
+				}
+				if (expectedWidth != adjustedWidth || expectedHeight != adjustedHeight) {
+					logger.debug("RGB image size updated from {}x{} to {}x{} to avoid border problems",
+							expectedWidth, expectedHeight, adjustedWidth, adjustedHeight);
+					imgWidth = adjustedWidth;
+					imgHeight = adjustedHeight;
 				}
 			}
 		}

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,15 +24,18 @@
 package qupath.imagej.gui;
 
 import ij.gui.Roi;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.imagej.tools.IJProperties;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
+
+import java.util.List;
 
 /**
  * Import ROIs from ImageJ, saved in .roi or .zip format.
@@ -89,17 +92,18 @@ class ImportRoisCommand implements Runnable {
 			return;
 		}
 		
-		// TODO: Consider adding options for the import, if needed
-		double downsample = 1.0;
-		double xOrigin = 0.0;
-		double yOrigin = 0.0;
-		var pathObjects = rois.stream().map(r -> IJTools.convertToAnnotation(r, xOrigin, yOrigin, downsample, null)).toList();
+		var pathObjects = rois.stream().map(ImportRoisCommand::createObject).toList();
 
 		var hierarchy = imageData.getHierarchy();
 		hierarchy.addObjects(pathObjects);
 		hierarchy.getSelectionModel().selectObjects(pathObjects);
 		
 	}
+
+    private static PathObject createObject(Roi roi) {
+        return IJTools.convertToPathObject(roi, 1.0, 0, 0,
+                IJProperties.getObjectCreator(roi).orElse(PathObjects::createAnnotationObject), null);
+    }
 	
 	
 }

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2022, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,14 +23,14 @@
 
 package qupath.lib.roi;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.geom.Point2;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.geom.Point2;
+import java.util.Objects;
 
 /**
  * Simple class to store x,y coordinates as floating point arrays.
@@ -45,7 +45,7 @@ import qupath.lib.geom.Point2;
  */
 class DefaultVertices implements Vertices {
 	
-	static Logger logger = LoggerFactory.getLogger(DefaultVertices.class);
+	private static final Logger logger = LoggerFactory.getLogger(DefaultVertices.class);
 	
 	static int DEFAULT_CAPACITY = 16;
 	
@@ -181,7 +181,7 @@ class DefaultVertices implements Vertices {
 	 */
 	@Override
 	public List<Point2> getPoints() {
-		List<Point2> points = new ArrayList<>();
+		List<Point2> points = new ArrayList<>(size);
 		for (int i = 0; i < size; i++)
 			points.add(new Point2(x[i], y[i]));
 		return points;
@@ -233,7 +233,19 @@ class DefaultVertices implements Vertices {
 		return v;
 	}
 
-//	@Override
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+		DefaultVertices that = (DefaultVertices) o;
+		return size == that.size && Objects.deepEquals(x, that.x) && Objects.deepEquals(y, that.y);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(size, Arrays.hashCode(x), Arrays.hashCode(y));
+	}
+
+	//	@Override
 //	public VerticesIterator getIterator() {
 //		return new DefaultVerticesIterator(this);
 //	}

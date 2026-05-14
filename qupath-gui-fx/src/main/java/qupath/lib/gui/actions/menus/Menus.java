@@ -21,13 +21,13 @@
 
 package qupath.lib.gui.actions.menus;
 
+import org.controlsfx.control.action.Action;
+import qupath.lib.gui.QuPathGUI;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import org.controlsfx.control.action.Action;
-
-import qupath.lib.gui.QuPathGUI;
 
 /**
  * Generate actions for installation in QuPath's main menubar.
@@ -53,6 +53,7 @@ public class Menus {
 				new TMAMenuActions(qupath),
 				new ClassifyMenuActions(qupath),
 				new ExtensionsMenuActions(qupath),
+				new WindowMenuActions(qupath),
 				new HelpMenuActions(qupath)
 		)) {
 			actions.addAll(builder.getActions());

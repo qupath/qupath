@@ -23,6 +23,20 @@
 
 package qupath.opencv.features;
 
+import org.bytedeco.opencv.opencv_core.Point2f;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_imgproc.Subdiv2D;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.analysis.stats.RunningStatistics;
+import qupath.lib.measurements.MeasurementList;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnectionGroup;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,20 +50,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import org.bytedeco.opencv.opencv_core.Point2f;
-import org.bytedeco.opencv.opencv_core.Rect;
-import org.bytedeco.opencv.opencv_imgproc.Subdiv2D;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.analysis.stats.RunningStatistics;
-import qupath.lib.measurements.MeasurementList;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectConnectionGroup;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.roi.interfaces.ROI;
 
 
 /**

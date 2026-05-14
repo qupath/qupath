@@ -23,21 +23,6 @@
 
 package qupath.lib.gui.commands;
 
-import java.awt.Dimension;
-import java.awt.Toolkit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -57,10 +42,13 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
-import qupath.fx.utils.FXUtils;
-import qupath.lib.gui.QuPathGUI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
@@ -74,6 +62,19 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.scripting.QP;
+
+import java.awt.Dimension;
+import java.awt.Toolkit;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 
 /**
@@ -106,19 +107,22 @@ class MeasurementManager {
 	 */
 	public static void showDetectionMeasurementManager(QuPathGUI qupath, ImageData<?> imageData) {
 		if (imageData == null) {
-			GuiTools.showNoImageError("Measurement Manager");
+			GuiTools.showNoImageError(QuPathResources.getString("Commands.MeasurementManager.title"));
 			return;
 		}
 		
 		var manager = new MeasurementManager(imageData);
 		if (!manager.hasMeasurements()) {
-			Dialogs.showErrorMessage("Measurement Manager", "No measurements found!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.MeasurementManager.title"),
+					QuPathResources.getString("Commands.MeasurementManager.noMeasurementsFound")
+			);
 			return;
 		}
 		
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		Dialogs.builder()
-				.title("Measurement Manager")
+				.title(QuPathResources.getString("Commands.MeasurementManager.title"))
 				.content(manager.getPane())
 				.buttons(ButtonType.CLOSE)
 				.width(Math.min(600, screenSize.getWidth()/2))
@@ -170,8 +174,8 @@ class MeasurementManager {
 		comboBox.getSelectionModel().selectFirst();
 		comboBox.setMaxWidth(Double.MAX_VALUE);
 		BorderPane paneTop = new BorderPane(comboBox);
-		Tooltip.install(paneTop, new Tooltip("Select an object type to view all associated measurements"));
-		Label label = new Label("Object type: ");
+		Tooltip.install(paneTop, new Tooltip(QuPathResources.getString("Commands.MeasurementManager.selectAnObjectType")));
+		Label label = new Label(QuPathResources.getString("Commands.MeasurementManager.objectType"));
 		label.setMaxHeight(Double.MAX_VALUE);
 		paneTop.setLeft(label);
 		
@@ -182,26 +186,27 @@ class MeasurementManager {
 		listView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		updateCurrentList();
 
-		TitledPane titledMeasurements = new TitledPane("Measurements", listView);
-		titledMeasurements.textProperty().bind(Bindings.createStringBinding(() -> {
-			return "Measurements (" + measurementList.size() + ")";
-		}, measurementList));
+		TitledPane titledMeasurements = new TitledPane(QuPathResources.getString("Commands.MeasurementManager.measurements"), listView);
+		titledMeasurements.textProperty().bind(Bindings.createStringBinding(() -> MessageFormat.format(
+                QuPathResources.getString("Commands.MeasurementManager.measurementsN"),
+                measurementList.size()
+        ), measurementList));
 		titledMeasurements.setCollapsible(false);
 		titledMeasurements.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		
 		TextField tfFilter = new TextField();
-		tfFilter.setPromptText("Filter measurements");
-		tfFilter.setTooltip(new Tooltip("Enter text to filter measurements"));
+		tfFilter.setPromptText(QuPathResources.getString("Commands.MeasurementManager.filterMeasurements"));
+		tfFilter.setTooltip(new Tooltip(QuPathResources.getString("Commands.MeasurementManager.enterTextToFilter")));
 		tfFilter.setMaxHeight(Double.MAX_VALUE);
 		tfFilter.textProperty().bindBidirectional(filterText);
 
 		BorderPane paneMeasurements = new BorderPane(titledMeasurements);
-		Button btnRemove = new Button("Delete selected");
+		Button btnRemove = new Button(QuPathResources.getString("Commands.MeasurementManager.deleteSelected"));
 		btnRemove.setMaxWidth(Double.MAX_VALUE);
 		btnRemove.setOnAction(e -> promptToRemoveMeasurements());
 		btnRemove.disableProperty().bind(listView.getSelectionModel().selectedItemProperty().isNull());
 		
-		Button btnRemoveAll = new Button("Delete all");
+		Button btnRemoveAll = new Button(QuPathResources.getString("Commands.MeasurementManager.deleteAll"));
 		btnRemoveAll.setMaxWidth(Double.MAX_VALUE);
 		btnRemoveAll.setOnAction(e -> promptToRemoveAllMeasurements());
 		btnRemoveAll.disableProperty().bind(Bindings.isEmpty(listView.getItems()));
@@ -252,11 +257,25 @@ class MeasurementManager {
 		var selectedClass = comboBox.getSelectionModel().getSelectedItem();
 		var selectedItems = new ArrayList<>(measurementList);
 		if (selectedClass == null || selectedItems.isEmpty()) {
-			Dialogs.showErrorMessage("Remove measurements", "No measurements selected!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.MeasurementManager.removeMeasurements"),
+					QuPathResources.getString("Commands.MeasurementManager.noMeasurementsSelected")
+			);
 			return false;
 		}
-		String number = selectedItems.size() == 1 ? String.format("'%s'", selectedItems.iterator().next()) : selectedItems.size() + " measurements";
-		if (!Dialogs.showConfirmDialog("Remove measurements", "Are you sure you want to permanently remove " + number + "?"))
+		String number = selectedItems.size() == 1 ?
+				String.format("'%s'", selectedItems.getFirst()) :
+				MessageFormat.format(
+						QuPathResources.getString("Commands.MeasurementManager.nMeasurements"),
+						selectedItems.size()
+				);
+		if (!Dialogs.showConfirmDialog(
+				QuPathResources.getString("Commands.MeasurementManager.removeMeasurements"),
+				MessageFormat.format(
+						QuPathResources.getString("Commands.MeasurementManager.removeMeasurementsConfirmation"),
+						number
+				)
+		))
 			return false;
 		
 		logger.info("Removing all measurements for {}", PathObjectTools.getSuitableName(selectedClass, true));
@@ -264,27 +283,30 @@ class MeasurementManager {
 		String script;
 		var hierarchy = imageData.getHierarchy();
 		if (cls == PathAnnotationObject.class) {
-			script = "clearAnnotationMeasurements()";
-			QP.clearAnnotationMeasurements(hierarchy);
+			script = "removeAnnotationMeasurements()";
+			QP.removeAnnotationMeasurements(hierarchy);
 		} else if (cls == PathCellObject.class) {
-			script = "clearCellMeasurements()";
-			QP.clearCellMeasurements(hierarchy);
+			script = "removeCellMeasurements()";
+			QP.removeCellMeasurements(hierarchy);
 		} else if (cls == PathTileObject.class) {
-			script = "clearTileMeasurements()";
-			QP.clearTileMeasurements(hierarchy);
+			script = "removeTileMeasurements()";
+			QP.removeTileMeasurements(hierarchy);
 		} else if (cls == PathRootObject.class) {
-			script = "clearRootMeasurements()";
-			QP.clearRootMeasurements(hierarchy);
+			script = "removeRootMeasurements()";
+			QP.removeRootMeasurements(hierarchy);
 		} else if (cls == TMACoreObject.class) {
-			script = "clearTMACoreMeasurements()";
-			QP.clearTMACoreMeasurements(hierarchy);
+			script = "removeTMACoreMeasurements()";
+			QP.removeTMACoreMeasurements(hierarchy);
 		} else {
-			script = "clearMeasurements(" + cls.getName() + ")";
-			QP.clearMeasurements(hierarchy, cls);
+			script = "removeMeasurements(" + cls.getName() + ")";
+			QP.removeMeasurements(hierarchy, cls);
 		}
 	
 		// Keep for scripting
-		WorkflowStep step = new DefaultScriptableWorkflowStep("Clear all measurements", script);
+		WorkflowStep step = new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.MeasurementManager.deleteAllMeasurements"),
+				script
+		);
 		imageData.getHistoryWorkflow().addStep(step);
 
 		// Update
@@ -298,11 +320,25 @@ class MeasurementManager {
 	private boolean promptToRemoveMeasurements() {
 		var selectedItems = new ArrayList<>(listView.getSelectionModel().getSelectedItems());
 		if (selectedItems.isEmpty()) {
-			Dialogs.showErrorMessage("Remove measurements", "No measurements selected!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Commands.MeasurementManager.removeMeasurements"),
+					QuPathResources.getString("Commands.MeasurementManager.noMeasurementsSelected")
+			);
 			return false;
 		}
-		String number = selectedItems.size() == 1 ? String.format("'%s'", selectedItems.iterator().next()) : selectedItems.size() + " measurements";
-		if (!Dialogs.showConfirmDialog("Remove measurements", "Are you sure you want to permanently remove " + number + "?"))
+		String number = selectedItems.size() == 1 ?
+				String.format("'%s'", selectedItems.getFirst()) :
+				MessageFormat.format(
+						QuPathResources.getString("Commands.MeasurementManager.nMeasurements"),
+						selectedItems.size()
+				);
+		if (!Dialogs.showConfirmDialog(
+				QuPathResources.getString("Commands.MeasurementManager.removeMeasurements"),
+				MessageFormat.format(
+						QuPathResources.getString("Commands.MeasurementManager.removeMeasurementsConfirmation"),
+						number
+				)
+		))
 			return false;
 		
 		String removeString = selectedItems.stream().map(m -> "\"" + m + "\"").collect(Collectors.joining(", "));
@@ -317,9 +353,10 @@ class MeasurementManager {
 		}
 
 		// Keep for scripting
-		WorkflowStep step = new DefaultScriptableWorkflowStep("Remove measurements",
-				String.format("removeMeasurements(%s, %s);", cls.getName(), removeString)
-				);
+		WorkflowStep step = new DefaultScriptableWorkflowStep(
+				QuPathResources.getString("Commands.MeasurementManager.removeMeasurements"),
+				String.format("removeMeasurements(%s, %s)", cls.getName(), removeString)
+		);
 		imageData.getHistoryWorkflow().addStep(step);
 
 		// Update

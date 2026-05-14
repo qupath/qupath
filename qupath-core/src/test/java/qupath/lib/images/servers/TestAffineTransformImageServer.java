@@ -21,19 +21,20 @@
 
 package qupath.lib.images.servers;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.awt.geom.AffineTransform;
-import java.util.Arrays;
-
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
+
+import java.awt.geom.AffineTransform;
+import java.util.Arrays;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("javadoc")
 public class TestAffineTransformImageServer {

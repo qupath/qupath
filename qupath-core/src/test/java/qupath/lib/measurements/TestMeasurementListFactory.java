@@ -21,7 +21,8 @@
 
 package qupath.lib.measurements;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import qupath.lib.measurements.MeasurementList.MeasurementListType;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,9 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.measurements.MeasurementList.MeasurementListType;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("javadoc")
 public class TestMeasurementListFactory {

@@ -21,6 +21,22 @@
 
 package qupath.lib.classifiers.pixel;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.io.GsonTools;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
@@ -31,23 +47,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.AbstractTileableImageServer;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.TileRequest;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.io.GsonTools;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * ImageServer that delivers pixels derived from applying a PixelClassifier to another ImageServer.
@@ -230,9 +229,10 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated.
 			// However, because a serialized classifier might be many MB in size (resulting in performance issues with RegionRequest), 
 			// we truncate astronomical ones and add a UUID for uniqueness.
-			String json = GsonTools.getInstance().toJson(classifier);
+			String json = GsonTools.getInstance().toJson(classifier).intern();
 			String suffix;
-			if (json.length() < 1000)
+			int len = json.length();
+			if (len < 1_000_000)
 				suffix = json;
 			else {
 				suffix = idCache.computeIfAbsent(json, j -> json.substring(0, 1000) + "... (" + UUID.randomUUID() + ")");
@@ -240,7 +240,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			return getClass().getName() + ": " + server.getPath() + "::" + suffix;
 		} catch (Exception e) {
 			logger.debug("Unable to serialize pixel classifier to JSON: {}", e.getLocalizedMessage());
-			return getClass().getName() + ": " + server.getPath() + "::" + UUID.randomUUID().toString();
+			return getClass().getName() + ": " + server.getPath() + "::" + UUID.randomUUID();
 		}
 	}
 	

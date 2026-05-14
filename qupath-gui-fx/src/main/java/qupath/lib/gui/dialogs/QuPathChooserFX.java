@@ -23,18 +23,6 @@
 
 package qupath.lib.gui.dialogs;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -47,10 +35,22 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
+import javafx.stage.Window;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.common.GeneralTools;
-import javafx.stage.Window;
+import qupath.lib.gui.localization.QuPathResources;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Implementation of {@link QuPathChooser} using JavaFX.
@@ -67,7 +67,7 @@ class QuPathChooserFX implements QuPathChooser {
 	private FileChooser fileChooser = new FileChooser();
 	private DirectoryChooser directoryChooser = new DirectoryChooser();
 	
-	private ExtensionFilter allFiles = new ExtensionFilter("All Files", "*.*");
+	private ExtensionFilter allFiles = new ExtensionFilter(QuPathResources.getString("Dialogs.QuPathChooser.allFiles"), "*.*");
 	
 	private File lastDir;
 	
@@ -142,7 +142,7 @@ class QuPathChooserFX implements QuPathChooser {
 		if (title != null)
 			fileChooser.setTitle(title);
 		else
-			fileChooser.setTitle("Choose file");
+			fileChooser.setTitle(QuPathResources.getString("Dialogs.QuPathChooser.chooseFile"));
 		if (filterDescription != null && exts != null && exts.length > 0) {
 			ExtensionFilter filter = getExtensionFilter(filterDescription, exts);
 			fileChooser.getExtensionFilters().setAll(filter, allFiles);
@@ -208,7 +208,7 @@ class QuPathChooserFX implements QuPathChooser {
 		if (title != null)
 			fileChooser.setTitle(title);
 		else
-			fileChooser.setTitle("Choose file");
+			fileChooser.setTitle(QuPathResources.getString("Dialogs.QuPathChooser.chooseFile"));
 		if (filterDescription != null && exts != null && exts.length > 0) {
 			ExtensionFilter filter = getExtensionFilter(filterDescription, exts);
 			fileChooser.getExtensionFilters().setAll(filter, allFiles);
@@ -253,7 +253,7 @@ class QuPathChooserFX implements QuPathChooser {
 		if (title != null)
 			fileChooser.setTitle(title);
 		else
-			fileChooser.setTitle("Save");
+			fileChooser.setTitle(QuPathResources.getString("Dialogs.QuPathChooser.save"));
 		
 		// Extract file extension from default name, if possible.
 		// We want to use this 'provided extension' if it's valid, i.e. it's found within the list of extensions.
@@ -356,11 +356,11 @@ class QuPathChooserFX implements QuPathChooser {
 		// Create dialog
         GridPane pane = new GridPane();
         
-        Label label = new Label("Enter URL");
+        Label label = new Label(QuPathResources.getString("Dialogs.QuPathChooser.enterUrl"));
         TextField tf = new TextField();
         tf.setPrefWidth(400);
         
-        Button button = new Button("Choose file");
+        Button button = new Button(QuPathResources.getString("Dialogs.QuPathChooser.chooseFile"));
         button.setOnAction(new EventHandler<ActionEvent>() {
             @Override public void handle(ActionEvent e) {
             	// Prefer to use this window as the parent
@@ -372,7 +372,7 @@ class QuPathChooserFX implements QuPathChooser {
         });
         
 //        label.setPadding(new Insets(0, 0, 5, 0));
-        GridPaneUtils.addGridRow(pane, 0, 0, "Input URL or choose file", label, tf, button);
+        GridPaneUtils.addGridRow(pane, 0, 0, QuPathResources.getString("Dialogs.QuPathChooser.inputUrl"), label, tf, button);
         pane.setHgap(5);
 //        pane.setTop(label);
 //        pane.setCenter(tf);
@@ -385,9 +385,9 @@ class QuPathChooserFX implements QuPathChooser {
 		else
 			tf.setText(defaultPath);
 		
-		Alert alert = new Alert(Alert.AlertType.NONE, "Enter image path (file or URL)", ButtonType.OK, ButtonType.CANCEL);
+		Alert alert = new Alert(Alert.AlertType.NONE, QuPathResources.getString("Dialogs.QuPathChooser.enterImagePath"), ButtonType.OK, ButtonType.CANCEL);
 		if (title == null)
-			alert.setTitle("Enter file path or URL");
+			alert.setTitle(QuPathResources.getString("Dialogs.QuPathChooser.enterFilePath"));
 		else
 			alert.setTitle(title);
 //	    alert.initModality(Modality.APPLICATION_MODAL);

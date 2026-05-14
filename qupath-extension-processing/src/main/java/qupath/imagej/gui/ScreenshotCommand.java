@@ -28,17 +28,15 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.macro.Interpreter;
 import ij.measure.Calibration;
-
-import java.awt.image.BufferedImage;
-
-import javax.swing.SwingUtilities;
-
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
+
+import javax.swing.SwingUtilities;
+import java.awt.image.BufferedImage;
 
 /**
  * Create a snapshot of the QuPath viewer, and send the image directly to ImageJ.

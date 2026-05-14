@@ -1,21 +1,134 @@
-## Version 0.6.0-SNAPSHOT
+## Version 0.8.0 (IN PROGRESS!)
 
-This is a *work in progress* for the next major release.
+### Enhancements
+* Improved brush and wand tools (https://github.com/qupath/qupath/pull/2125 https://github.com/qupath/qupath/pull/2126)
+  * View the size of the brush, and adjust it by scrolling with `Alt` key pressed
+  * Press `F` while drawing with the brush or wand to fill holes
+  * Avoid diagonal lines when using the wand, to make clearer when a pixel is 'inside' or 'outside'
+* Much faster `ObjectMeasurements`, especially for images with many channels (https://github.com/qupath/qupath/pull/2113)
+* Show values for only the current visible feature when viewing features through the pixel classifier dialog (https://github.com/qupath/qupath/issues/2123)
+* Support to close more windows with Ctrl/Cmd+W (https://github.com/qupath/qupath/issues/2107)
+* Lots more strings externalized (https://github.com/qupath/qupath/pull/2104)
 
-Some things may be added, some things may be removed, and some things may look different before the final release.
+### Bug fixes
+* StackOverflowError at ROITypeAdapters.writeCoordinates when exporting some geometries (https://github.com/qupath/qupath/issues/2115)
+* 'Open image' dialog cannot be resized (https://github.com/qupath/qupath/issues/2099)
+* Drawing/moving annotations can cause jiggly class list scrolling behavior (https://github.com/qupath/qupath/issues/2101)
+* Removing child objects can give an unexpected exception in scripts (https://github.com/qupath/qupath/issues/2111)
+* Nested detections render poorly when filled (https://github.com/qupath/qupath/issues/2112)
 
-*QuPath v0.6.0 requires Java 21 or later*
+### Dependency updates
+* Bio-Formats 8.5.0
+* Commonmark 0.28.0
+* Groovy 5.0.5
+* Guava 33.6.0
+* JavaCPP 1.5.13
+* JavaFX 26.0.1
+* Logback 1.5.32
+* OpenCV 4.13.0
+* SciJava POM 44.0.0
+
+
+## Version 0.7.0
+
+### Enhancements
+* Optionally use ICC profiles with OpenSlide images (https://github.com/qupath/qupath/pull/2045)
+* Add [ImgLib2](https://imagej.net/libs/imglib2/) and[ImgLib2 algorithm](https://imagej.net/libs/imglib2/) as dependencies (https://github.com/qupath/qupath/pull/2019)
+* Update to Deep Java Library 0.36.0 (supports PyTorch 2.7.1) (https://github.com/qupath/qupath/pull/2059)
+* Sync mini/channel viewers with a main viewer in multiple ways (https://github.com/qupath/qupath/pull/1970)
+  * Sync to the cursor, sync to the selected object or sync to the viewer center
+* Improve toggling between point and multipoint tools (https://github.com/qupath/qupath/pull/1972)
+* Support importing multiple OME-Zarr images at a time (https://github.com/qupath/qupath/pull/1989)
+* The maximum memory preference now uses a percentage, not a number of GB (https://github.com/qupath/qupath/pull/1996)
+* Cell detection is stricter about valid inputs to reduce risk of unexpected behavior (https://github.com/qupath/qupath/pull/2026)
+* Improved 'Input display' behavior to make shortcut keys visible for longer (https://github.com/qupath/qupath/pull/2033)
+* Reduced default navigation speed so that arrow keys are more useful in the viewer (https://github.com/qupath/qupath/pull/2038)
+* Improved project entry filtering (https://github.com/qupath/qupath/pull/2071)
+* Add 'flip' option when importing images to a project (https://github.com/qupath/qupath/pull/2075)
+* Improve project measurement table export in multiple ways:
+  * Avoid memory errors when exporting large tables (https://github.com/qupath/qupath/pull/2069)
+  * Simplify code and externalize strings (https://github.com/qupath/qupath/pull/2085)
+  * Support persistent preferences, better escaping and gzipped output (https://github.com/qupath/qupath/pull/2087)
+
+### Bug fixes
+* Resetting preferences on Windows set max memory to 512 MB (https://github.com/qupath/qupath/issues/1946)
+* Channel viewer does not split channels in RGB fluorescence image by default (https://github.com/qupath/qupath/issues/1948)
+* Ensure toolbar button heights are standardized (https://github.com/qupath/qupath/pull/1950)
+* Avoid empty tooltips in grid view (https://github.com/qupath/qupath/pull/1952)
+* Grid view images can become 'locked' to a color transform (https://github.com/qupath/qupath/issues/1953)
+* Using the lowest resolution image for brightness/contrast settings can be problematic (https://github.com/qupath/qupath/issues/1958)
+* Don't open servers to immediately close them (https://github.com/qupath/qupath/pull/1959)
+* Confusing error with 'Transform annotations' when there is no main selection (https://github.com/qupath/qupath/issues/1963)
+* `TransformedServerBuilder.subtractOffset()` can thrown an `IllegalArgumentException` when being serialized (https://github.com/qupath/qupath/issues/1976)
+* "Split annotations by lines" with line thickness 0 px doesn’t work with multiple lines (https://github.com/qupath/qupath/issues/1978)
+* Fix GeometryTools.union for non-polygonal geometry (https://github.com/qupath/qupath/pull/1980)
+* Incorrect error message when merging projects (https://github.com/qupath/qupath/issues/1990)
+* ImageJ Roi names are ignored during import (https://github.com/qupath/qupath/issues/2005)
+* Tile caching based on image path isn't enough whenever files change on disk (https://github.com/qupath/qupath/issues/2012)
+* ZProjectedImageServer fails with out-of-memory error for large, non-RGB images (https://github.com/qupath/qupath/issues/2021)
+* Multiview behavior can be annoying for TMAs (https://github.com/qupath/qupath/issues/2078)
+* 'Simplify shape' converts a polyline to a (closed) polygon (https://github.com/qupath/qupath/issues/2053)
+
+### Dependency updates
+* Bio-Formats 8.4.0
+* Caffeine 3.2.3
+* CommonMark 0.27.1
+* Commons Text 1.14.0
+* Deep Java Library 0.36.0
+* Groovy 5.0.4
+* Gson 2.13.2
+* Guava 33.5.0-jre
+* Ikonli 12.4.0
+* ImageJ 1.54p
+* JavaCPP 1.5.12
+* JavaFX 25.0.2
+* Logback 1.5.23
+* OpenJDK 25
+* OpenCV 4.11.0
+* QuPath FXtras 0.3.0
+* RichTextFX 0.11.7
+* SciJava POM 43.0.0 (for Fiji builds)
+
+### Housekeeping
+
+* Remove the v0.1.3 branch from the main qupath repo: https://github.com/qupath/qupath/pull/275 [7a15188eebff9f82435c51d730e3a23568fee642](https://github.com/qupath/qupath/commit/7a15188eebff9f82435c51d730e3a23568fee642)
+
+## Version 0.6.0
 
 ### Major features
 * Support for InstanSeg segmentation (https://github.com/instanseg/instanseg)
 * Read and write OME-Zarr images (https://github.com/qupath/qupath/pull/1474)
   * Use `convert-ome` to write OME-Zarr from a command line
   * Use *File → Export images... → OME-Zarr* to export images from the user interface
+* Add, remove & upgrade extensions easily with *Extensions → Manage extensions* (https://github.com/qupath/qupath/pull/1716)
+  * See also https://github.com/qupath/extension-manager
+* _Much_ improved performance when creating & viewing very complex annotations (https://github.com/qupath/qupath/pull/1777)
+* More control over showing/hiding objects by classification (https://github.com/qupath/qupath/pull/1752)
+* New ImageJ script runner (https://github.com/qupath/qupath/pull/1682)
+* Improved measurements - with tooltips & scatterplots (https://github.com/qupath/qupath/pull/1747, https://github.com/qupath/qupath/pull/1544, https://github.com/qupath/qupath/pull/1768)
+  * Also new icons to help distinguish different measurements (https://github.com/qupath/qupath/pull/1791)
+* Optionally build QuPath *and* Fiji together (https://github.com/qupath/qupath/pull/1728)
+* Support for z-projection overlays (https://github.com/qupath/qupath/pull/1810)
+  * Also new controls to navigate z-slices / time points (https://github.com/qupath/qupath/pull/1802)
+* Add tolerance when resolving object hierarchy (https://github.com/qupath/qupath/pull/1824)
+
 
 ### Enhancements
-(These are not yet ordered by interestingness)
+(Not necessarily ordered by interestingness)
 
+* Support system light/dark color themes
+* Updated toolbar so key buttons appear on smaller displays
+* Menu items use ellipsis to indicate more input will be needed
+  * This follows a standard UX convention we didn't know about...
+* 'Update detection line thickness with zoom' preference (https://github.com/qupath/qupath/pull/1623)
+  * New preference that changes how detections are displayed at high magnifications (to avoid thick lines obscuring the image)
+* Commands to remove objects touching the bounds of the image or other objects (https://github.com/qupath/qupath/pull/1821)
+  * _Objects → Delete... → Delete objects on image bounds_
+  * _Objects → Delete... → Delete objects touching selected ROI bounds..._
+* Window menu to help find lost windows (https://github.com/qupath/qupath/pull/1790)
 * Improved display of annotation names (https://github.com/qupath/qupath/pull/1532)
+* Better performance for large pixel classifiers (https://github.com/qupath/qupath/pull/1782)
+* Faster, simpler measurement exporter - set decimal places in scripts (https://github.com/qupath/qupath/pull/1784)
 * Support log10 counts with histograms (no longer use natural log) (https://github.com/qupath/qupath/pull/1540)
   * Log counts also now available in measurement tables
 * Prompt to save modified scripts when closing QuPath (https://github.com/qupath/qupath/pull/1524)
@@ -47,12 +160,27 @@ Some things may be added, some things may be removed, and some things may look d
 * Better support for symbolic links (https://github.com/qupath/qupath/issues/1586)
 * Bio-Formats preference to open remote images is now turned on by default (https://github.com/qupath/qupath/pull/1653)
   * This is needed to open remote ome.zarr images - but can be turned off in the preferences if necessary
+* Self-contained projects that contain all images inside the project directory no longer prompt the user to update URIs if moved (https://github.com/qupath/qupath/pull/1668)
+* Channel names can now be set for all fluorescence images, even if they are RGB (https://github.com/qupath/qupath/pull/1659)
+  * Note that channel colors still only be set for non-RGB images
+* Improved ImageJ integration (https://github.com/qupath/qupath/pull/1676 https://github.com/qupath/qupath/pull/1677)
+  * Includes new preference to make ImageJ window 'always on top'
+* 'Selection mode' now supports 'deselecting' objects by pressing the 'Alt' key (https://github.com/qupath/qupath/issues/1704)
+* More 'filter boxes' in the user interface to find things in long lists or tables (https://github.com/qupath/qupath/pull/1742)
+* Color deconvolution support for non-8-bit images (https://github.com/qupath/qupath/pull/1807)
+* Optionally use viewer gamma when exporting rendered images (https://github.com/qupath/qupath/pull/1849)
+* Save project from command line when `-s` parameter set (https://github.com/qupath/qupath/pull/1859)
+* Add possibility to set codec options in OMEPyramidWriter (https://github.com/qupath/qupath/pull/1857)
+* Add dock button to keep project description pane open (https://github.com/qupath/qupath/pull/1856)
+* Add support for OME XML shapes (https://github.com/qupath/qupath/pull/1848)
+* Combine viewer-related toolbar buttons under one menu button (https://github.com/qupath/qupath/pull/1841)
+* Add placeholder text to empty viewers (https://github.com/qupath/qupath/pull/1888)
+  * This can be turned of with a preference (https://github.com/qupath/qupath/pull/1908)
+
 
 ### Experimental features
 These features are included for testing and feedback.
 They may change or be removed in future versions.
-* 'Dynamic detection line thickness (experimental)' preference (https://github.com/qupath/qupath/pull/1623)
-  * Experimental preference to adjust how detections are displayed when zoomed in
 * New toolbar button to show/hide 'neighbors' in the viewer (https://github.com/qupath/qupath/pull/1597)
   * Note that the *Delaunay cluster features 2D* command is now deprecated - see https://github.com/qupath/qupath/issues/1590 for details
     * If you use this command, the calculated connections are displayed instead of the default neighbor connections for compatibility.
@@ -73,6 +201,16 @@ They may change or be removed in future versions.
 * Spacebar can be locked in an 'on' position within viewers (https://github.com/qupath/qupath/issues/1610)
 * Timepoint data is rarely available (or correct) (https://github.com/qupath/qupath/issues/1628)
 * Some commands cannot be run from 'Command List' (https://github.com/qupath/qupath/issues/1647)
+* ROIs with small pieces could look very 'pointy' when viewed at low resolution (https://github.com/qupath/qupath/pull/1681)
+* Create training image does not work properly for z-stacks / time series (https://github.com/qupath/qupath/issues/1701)
+* Channel colors are not stored properly when using saved display settings (https://github.com/qupath/qupath/issues/1726)
+* 'Split annotations by lines' does not work for z-stacks or time-series if line thickness > 0 (https://github.com/qupath/qupath/issues/1729)
+* QuPath ignores OpenSlide when opening some images from the command line outside a project (but they work properly in the UI) (https://github.com/qupath/qupath/issues/1758)
+* Exporting specific channels with OMEPyramidWriter includes wrong channel names (https://github.com/qupath/qupath/issues/1754)
+* Screenshots created in QuPath can also include the screenshot menu (https://github.com/qupath/qupath/issues/1854)
+* Setting color deconvolution stains from a workflow script lost some precision (https://github.com/qupath/qupath/pull/1887)
+* Point annotations can sometimes move unexpectedly all together (https://github.com/qupath/qupath/issues/1872)
+* TileExporter with ImageJ TIFF can lose pixel size and channel color information (https://github.com/qupath/qupath/issues/1516)
 
 ### API changes
 * New `Map<String, String> getMetadata()` method added to `PathObject`, `Project` and `ProjectImageEntry` (https://github.com/qupath/qupath/pull/1587)
@@ -94,24 +232,39 @@ They may change or be removed in future versions.
   * *This will affect the use of the QuPath StarDist extension*
 * `ImageServer.finalize()` is no longer overridden to call `close()` in case the caller forgets
   * `finalize()` is deprecated for removal; any class that relied on this should consider using `Cleaner`
+* Remove `BioImageioSpec` from `QP.getCoreClasses()`
+* `ImageData.setImageType(type)` now throws an exception if the type is incompatible (https://github.com/qupath/qupath/issues/1762)
+
+
+### Build changes
+* Use Kotlin instead of Groovy for QuPath's build scripts (https://github.com/qupath/qupath/pull/1696)
+  * Also refactor and simplify the build scripts
+  * Extension writers can use either Groovy or Kotlin - but may need to make some changes to their build scripts
 
 ### Dependency updates
-* Bio-Formats 7.3.1
-* Commonmark 0.23.0
-* DeepJavaLibrary 0.30.0
-* Groovy 4.0.22
-* Gson 2.11.0
-* Guava 33.3.1-jre
-* JavaFX 23
+* Bio-Formats 8.2.0
+* Commonmark 0.24.0
+* ControlsFX 11.2.2
+* DeepJavaLibrary 0.33.0
+* Groovy 4.0.26
+* Gson 2.13.1
+* Guava 33.4.8-jre
+* ImageJ 1.54k
+* JavaCPP 1.5.11
+* JavaFX 23.0.2
 * Java Topology Suite 1.20.0
 * JFreeSVG 5.0.6
-* JNA 5.14.0
+* JNA 5.16.0
 * JUnit 5.11.0
 * Logback 1.5.8
-* Picocli 4.7.6
-* OpenCV 4.9.0
+* Picocli 4.7.7
+* qupath-bioimageio-spec 0.2.0
+* qupath-fxtras 0.2.0
+* qupath-javadoc-viewer 0.1.2
+* OMEZarrReader 0.6.0
+* OpenCV 4.10.0
 * OpenJDK 21
-* RichTextFX 0.11.3
+* RichTextFX 0.11.5
 * slf4j 2.0.16
 * snakeyaml 2.3
 
@@ -132,6 +285,7 @@ This is a *minor release* that aims to be fully compatible with v0.5.0, while fi
 * Exception when opening script if the last directory isn't available (https://github.com/qupath/qupath/issues/1441)
 * 'Show grayscale' sometimes show an extra channel when multiple viewers are used (https://github.com/qupath/qupath/issues/1468)
 * Displaying large numbers of thumbnails in a project is too slow (https://github.com/qupath/qupath/issues/1446)
+* Mini viewer isn't updated if the aspect ratio of its parent viewer is "portrait" rather than "landscape (https://github.com/qupath/qupath/issues/1697)
 
 ### Enhancement
 * Add keyboard shortcuts to tooltips (https://github.com/qupath/qupath/issues/1450)
@@ -531,6 +685,7 @@ Here's an abridged version of the main changes, grouped by category.
   * Making measurements is *much* faster in some circumstances (https://github.com/qupath/qupath/pull/1076)
   * It's possible to restrict live prediction more closely to annotated regions ((https://github.com/qupath/qupath/pull/1076))
   * Warn if trying to train a pixel classifier with too many features (https://github.com/qupath/qupath/issues/947)
+  * Improve the layout of the buttons at the bottom of the pixel classifier pane (https://github.com/qupath/qupath/pull/1823)
 * New 'Analyze > Spatial analysis > Signed distance to annotations 2D' command (https://github.com/qupath/qupath/issues/1032)
 * New 'Objects > Lock... >' commands
   * Enables annotations & TMA cores to be locked, so they cannot accidentally be moved or edited (deletion is still possible)

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,24 +21,31 @@
 
 package qupath.lib.gui.viewer.overlays;
 
+import javafx.application.Platform;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableBooleanValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
+import qupath.lib.gui.viewer.RegionFilter;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -60,19 +67,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Function;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableBooleanValue;
 
 /**
  * {@link PathOverlay} that gives the results of pixel classification.
@@ -82,26 +82,29 @@ import javafx.beans.value.ObservableBooleanValue;
  */
 public class PixelClassificationOverlay extends AbstractImageOverlay  {
 	
-	private static Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);
+	private static final Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);
 
-    private ObjectProperty<ImageRenderer> renderer = new SimpleObjectProperty<>();
+    private final ObjectProperty<ImageRenderer> renderer = new SimpleObjectProperty<>();
     private long rendererLastTimestamp = 0L;
 
-    private Map<RegionRequest, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
-    private Set<TileRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
-    private Set<TileRequest> currentRequests = Collections.synchronizedSet(new HashSet<>());
-    
+    private final Map<BufferedImage, BufferedImage> cacheRGB = Collections.synchronizedMap(new WeakHashMap<>());
+    private final Set<TileRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
+    private final Set<TileRequest> currentRequests = Collections.synchronizedSet(new HashSet<>());
+
     private int maxThreads = ThreadTools.getParallelism();
-    private ThreadPoolExecutor pool;
+    private final ThreadPoolExecutor pool;
     
-    private Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun;
+    private final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun;
     
     private boolean livePrediction = false;
     
     private Map<ImageData<BufferedImage>, ImageServer<BufferedImage>> cachedServers = new WeakHashMap<>();
     
-    private ObservableBooleanValue showOverlay;
+    private final ObservableBooleanValue showOverlay;
 
+	private RegionFilter lastRegionFilter;
+	private final Map<RegionRequest, Boolean> acceptedTiles = new HashMap<>();
+	private long lastHierarchyEventCount = -1L;
     
     private PixelClassificationOverlay(final OverlayOptions options, final int nThreads, final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun) {
         super(options);
@@ -351,8 +354,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
      */
     public ImageServer<BufferedImage> getPixelClassificationServer(ImageData<BufferedImage> imageData) {
     	// TODO: Support not caching servers (e.g. if the caching is performed externally) - probably by accepting a map in a create method (so the map becomes the cache)
-//    	return imageData == null ? null : createPixelClassificationServer(imageData);
-    	return imageData == null ? null : cachedServers.computeIfAbsent(imageData, data -> createPixelClassificationServer(data));
+    	return imageData == null ? null : cachedServers.computeIfAbsent(imageData, this::createPixelClassificationServer);
     }
     
     @Override
@@ -385,9 +387,11 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 
         // If we have a filter, we might not need to do anything
     	var filter = getOverlayOptions().getPixelClassificationRegionFilter();
-    	// Avoid this check; it causes confusion when zoomed in
-//    	if (!filter.test(imageData, fullRequest))
-//    		return;
+		if (!Objects.equals(filter, lastRegionFilter)) {
+			resetAcceptedTiles();
+			lastRegionFilter = filter;
+		}
+
         
     	var renderer = this.renderer.get();
         if (renderer != null && rendererLastTimestamp != renderer.getLastChangeTimestamp()) {
@@ -440,8 +444,21 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         	
         	var request = tile.getRegionRequest();
         	
-        	if (filter != null && !filter.test(imageData, request))
-        		continue;
+        	if (filter != null) {
+				// For very complex geometries, computing intersections can be very expensive -
+				// so this allows us to reduce those calculations slightly
+				if (lastHierarchyEventCount != imageData.getHierarchy().getEventCount()) {
+					// Technically we might have the same event count but a different image...
+					// however we still shouldn't find tiles in the cache wrongly, because the TileRequest
+					// won't correspond (based on the server having a unique path)
+					resetAcceptedTiles();
+					lastHierarchyEventCount = imageData.getHierarchy().getEventCount();
+				}
+				// Apply the test
+				if (!acceptedTiles.computeIfAbsent(request, r -> filter.test(imageData, r))) {
+					continue;
+				}
+			}
         	
         	// Try to get an RGB image, supplying a server that can be queried for a corresponding non-RGB cached tile if needed
             BufferedImage imgRGB = getCachedTileRGB(tile, server);
@@ -462,6 +479,11 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         }
         gCopy.dispose();
     }
+
+	private void resetAcceptedTiles() {
+		acceptedTiles.clear();
+		lastHierarchyEventCount = -1;
+	}
     
     /**
      * Get a cached RGB image if we have one.  If we don't, optionally supply a server that may be 
@@ -472,34 +494,40 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
      * @return
      */
      BufferedImage getCachedTileRGB(TileRequest request, ImageServer<BufferedImage> server) {
-    	var imgRGB = cacheRGB.get(request.getRegionRequest());
-    	if (imgRGB != null || server == null)
-    		return imgRGB;
-        // If we have a tile that isn't RGB, then create the RGB version we need
+		 if (server == null)
+			 return null;
+		 // We no longer store the RGB tile cache independently of the cache used for predictions
+		 // This is because it is confusing when the overlay shows that pixels are classified,
+		 // but live measurements are not made (because the actual prediction tiles are no longer in the cache)
     	var img = server.getCachedTile(request);
-    	var renderer = this.renderer.get();
         if (img != null) {
             if (img.getType() == BufferedImage.TYPE_INT_ARGB ||
             		img.getType() == BufferedImage.TYPE_INT_RGB ||
             		img.getType() == BufferedImage.TYPE_BYTE_INDEXED ||
             		img.getType() == BufferedImage.TYPE_BYTE_GRAY) {
-                imgRGB = img;
-            } else if (renderer == null) {
-                imgRGB = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
-                Graphics2D g = imgRGB.createGraphics();
-                g.drawImage(img, 0, 0, null);
-                g.dispose();
+				// Return tile if it is already renderable
+                return img;
             } else {
-            	try {
-            		imgRGB = renderer.applyTransforms(img, null);
-            	} catch (Exception e) {
-            		logger.error("Exception rendering image", e);
-            	}
-            }
-            cacheRGB.put(request.getRegionRequest(), imgRGB);
-        }
-        return imgRGB;
+				// If we have a tile that isn't RGB, then create the RGB version we need
+				return cacheRGB.computeIfAbsent(img, this::convertToRGB);
+			}
+        } else {
+			return null;
+		}
     }
+
+	private BufferedImage convertToRGB(BufferedImage img) {
+		 var renderer = this.renderer.get();
+		 if (renderer == null) {
+			 var imgRGB = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
+			 Graphics2D g = imgRGB.createGraphics();
+			 g.drawImage(img, 0, 0, null);
+			 g.dispose();
+			 return imgRGB;
+		 } else {
+			 return renderer.applyTransforms(img, null);
+		 }
+	}
     
      
      /**
@@ -555,7 +583,13 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 		                }
                     }
                 } catch (Exception e) {
-                   logger.error("Error requesting tile classification", e);
+					if (pool.isShutdown())
+						logger.debug("Pool shutdown - error requesting tile classification: {}", tile, e);
+					else
+						logger.error("Error requesting tile classification: level={}, x={}, y={}, w={}, h={}, z={}, t={}",
+								tile.getLevel(),
+								tile.getTileX(), tile.getTileX(), tile.getTileWidth(), tile.getTileHeight(),
+								tile.getZ(), tile.getT(), e);
                 } finally {
                     currentRequests.remove(tile);
                     pendingRequests.remove(tile);
@@ -585,26 +619,46 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 	    	var classifierServer = imageData == null ? null : getPixelClassificationServer(imageData);
 	    	if (classifierServer == null)
 	    		return null;
-	    	return getDefaultLocationString(classifierServer, x, y, z, t);
+	    	return getDefaultLocationString(classifierServer, getRenderer(), x, y, z, t);
     	} else
     		return super.getLocationString(imageData, x, y, z, t);
     }
-    	
-    
-    /**
-     * Default method for getting a location string from an {@link ImageServer} using cached tiles.
-     * If tiles are not cached, no string is returned.
-     * <p>
-     * May be used by classes implementing {@link PathOverlay#getLocationString(ImageData, double, double, int, int)}
-     * 
-     * @param server
-     * @param x
-     * @param y
-     * @param z
-     * @param t
-     * @return location String based upon pixel values and cached tiles, or null if no String is available
-     */
-    public static String getDefaultLocationString(ImageServer<BufferedImage> server, double x, double y, int z, int t) {
+
+	/**
+	 * Default method for getting a location string from an {@link ImageServer} using cached tiles.
+	 * If tiles are not cached, no string is returned.
+	 * <p>
+	 * May be used by classes implementing {@link PathOverlay#getLocationString(ImageData, double, double, int, int)}
+	 *
+	 * @param server the server (usually a pixel classifier server)
+	 * @param x x-coordinate in the full image space
+	 * @param y y-coordinate in the full image space
+	 * @param z z-slice index
+	 * @param t time-point index
+	 * @return location String based upon pixel values and cached tiles, or null if no String is available
+	 * @see #getDefaultLocationString(ImageServer, ImageRenderer, double, double, int, int)
+	 */
+	public static String getDefaultLocationString(ImageServer<BufferedImage> server, double x, double y, int z, int t) {
+		return getDefaultLocationString(server, null, x, y, z, t);
+	}
+
+	/**
+	 * Default method for getting a location string from an {@link ImageServer} using cached tiles.
+	 * If tiles are not cached, no string is returned.
+	 * <p>
+	 * May be used by classes implementing {@link PathOverlay#getLocationString(ImageData, double, double, int, int)}
+	 *
+	 * @param server the server (usually a pixel classifier server)
+	 * @param renderer optional renderer; if not null, {@link ImageRenderer#getTransformedValueAsString(BufferedImage, int, int)}
+	 *                 will be queried first to get the string.
+ 	 * @param x x-coordinate in the full image space
+	 * @param y y-coordinate in the full image space
+	 * @param z z-slice index
+	 * @param t time-point index
+	 * @return location String based upon pixel values and cached tiles, or null if no String is available
+	 * @since v0.8.0
+	 */
+    public static String getDefaultLocationString(ImageServer<BufferedImage> server, ImageRenderer renderer, double x, double y, int z, int t) {
     	
     	int level = 0;
     	var tile = server.getTileRequestManager().getTileRequest(level, (int)Math.round(x), (int)Math.round(y), z, t);
@@ -618,6 +672,14 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
     	int yy = (int)Math.floor((y - tile.getImageY()) / tile.getDownsample());
     	if (xx < 0 || yy < 0 || xx >= img.getWidth() || yy >= img.getHeight())
     		return null;
+
+		// Try to get it from the image renderer
+		// Introduced to fix https://github.com/qupath/qupath/issues/2123
+		if (renderer != null) {
+			String fromRenderer = renderer.getTransformedValueAsString(img, xx, yy);
+			if (fromRenderer != null)
+				return fromRenderer;
+		}
     	
 //    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
     	var channelType = server.getMetadata().getChannelType();

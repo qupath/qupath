@@ -21,17 +21,6 @@
 
 package qupath.lib.gui.images.servers;
 
-import java.awt.AlphaComposite;
-import java.awt.Color;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
@@ -42,6 +31,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.images.stores.ImageRenderer;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
@@ -54,6 +44,18 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.awt.image.LookupOp;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * An ImageServer that can display a rendered image, with optional overlays.
@@ -69,10 +71,18 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	private final Color backgroundColor;
 	private final ImageServerMetadata metadata;
 	private final boolean dedicatedStore;
+	private final LookupOp gammaOp;
 	
-	private RenderedImageServer(DefaultImageRegionStore store, ImageData<BufferedImage> imageData,
-								List<? extends PathOverlay> overlayLayers, ImageRenderer renderer,
-								double[] downsamples, Color backgroundColor, double overlayOpacity) {
+	private RenderedImageServer(
+			DefaultImageRegionStore store,
+			ImageData<BufferedImage> imageData,
+			List<? extends PathOverlay> overlayLayers,
+			ImageRenderer renderer,
+			double[] downsamples,
+			Color backgroundColor,
+			double overlayOpacity,
+			LookupOp gammaOp
+	) {
 		super();
 
 		if (store == null) {
@@ -88,6 +98,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		this.renderer = renderer;
 		this.imageData = imageData;
 		this.backgroundColor = backgroundColor;
+		this.gammaOp = gammaOp;
 		var builder = new ImageServerMetadata.Builder(imageData.getServerMetadata())
 				.rgb(true)
 				.channels(ImageChannel.getDefaultRGBChannels())
@@ -148,6 +159,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		private double overlayOpacity = 1.0;
 		private Color backgroundColor;
 		private double[] downsamples;
+		private LookupOp gammaOp = null;
 		
 		/**
 		 * Create a rendered image server build using viewer defaults.
@@ -159,6 +171,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			this.overlayLayers.addAll(viewer.getOverlayLayers());
 			this.renderer = viewer.getImageDisplay();
 			this.overlayOpacity = viewer.getOverlayOptions().getOpacity();
+			this.gammaOp = viewer.getGammaOp();
 		}
 
 		/**
@@ -284,7 +297,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			var store = getStore();
 			var renderer = getRenderer();
 			return new RenderedImageServer(
-					store, imageData, overlayLayers, renderer, downsamples, backgroundColor, overlayOpacity
+					store, imageData, overlayLayers, renderer, downsamples, backgroundColor, overlayOpacity, gammaOp
 			);
 		}
 
@@ -336,7 +349,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 
 	@Override
 	public String getServerType() {
-		return "Rendered image server";
+		return QuPathResources.getString("Images.RenderedImageServer.type");
 	}
 
 	@Override
@@ -366,6 +379,10 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 				tileRequest.getZ(), tileRequest.getT(),
 				downsample, null, renderer,
 				Integer.MAX_VALUE);
+
+		if (gammaOp != null) {
+			gammaOp.filter(img.getRaster(), img.getRaster());
+		}
 
 		// Handle opacity - see https://github.com/qupath/qupath/issues/1292
 		if (overlayOpacity > 0) {

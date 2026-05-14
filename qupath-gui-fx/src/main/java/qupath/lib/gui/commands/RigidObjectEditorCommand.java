@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,28 +23,6 @@
 
 package qupath.lib.gui.commands;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.Shape;
-import java.awt.Stroke;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.Line2D;
-import java.awt.geom.Point2D;
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
-
-import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.util.AffineTransformation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
@@ -52,9 +30,16 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.util.AffineTransformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.QuPathGUI;
-import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathObjectPainter;
@@ -75,6 +60,22 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QP;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.Shape;
+import java.awt.Stroke;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.Line2D;
+import java.awt.geom.Point2D;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
+
 /**
  * Action enabling a selected annotation object to be modified interactively by a rigid transformation,
  * i.e. through rotation and translation.
@@ -86,7 +87,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 
 	private static final Logger logger = LoggerFactory.getLogger(RigidObjectEditorCommand.class);
 	
-	private static final String TITLE = "Transform annotations";
+	private static final String TITLE = QuPathResources.getString("Commands.RigidObjectEditor.title");
 	
 	private QuPathGUI qupath;
 	
@@ -134,17 +135,34 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
 		List<PathObject> allSelected = hierarchy.getSelectionModel().getSelectedObjects()
 				.stream()
-				.filter(p -> p.isAnnotation())
+				.filter(PathObject::isAnnotation)
 				.collect(Collectors.toCollection(ArrayList::new));
+
+		// It's possible we have multiple selected objects, but no main selection.
+		// If this happens, choose the largest annotation.
+		// See https://github.com/qupath/qupath/issues/1963
+		if (pathObject == null && !allSelected.isEmpty()) {
+			pathObject = allSelected.stream()
+					.filter(p -> p.hasROI() && !p.getROI().isEmpty())
+					.max(
+							Comparator.comparingDouble((PathObject p) -> p.getROI().getArea())
+									.thenComparing(p -> p.getROI().getLength())
+									.thenComparing(p -> p.getROI().getNumPoints())
+					)
+					.orElse(null);
+			if (pathObject != null) {
+				logger.warn("No primary annotation selected to transform - I will use the largest");
+			}
+		}
 		
 		if (pathObject == null || !pathObject.isAnnotation()) {
-			Dialogs.showErrorNotification(TITLE, "Please select an annotation!");
+			Dialogs.showErrorNotification(TITLE, QuPathResources.getString("Commands.RigidObjectEditor.selectAnnotation"));
 			return;
 		}
-		if (pathObject.isLocked() || allSelected.stream().anyMatch(p -> p.isLocked())) {
+		if (pathObject.isLocked() || allSelected.stream().anyMatch(PathObject::isLocked)) {
 			var response = Dialogs.builder()
 				.title(TITLE)
-				.contentText("Selection includes at least one locked annotation - do you want to transform them anyway?")
+				.contentText(QuPathResources.getString("Commands.RigidObjectEditor.lockedAnnotation"))
 				.buttons(ButtonType.YES, ButtonType.NO)
 				.showAndWait()
 				.orElse(ButtonType.NO);
@@ -155,7 +173,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		// Shouldn't happen... but conceivably could if we permit TMA cores to be the main selection
 		// In any case, best sort it out sooner rather than later
 		if (!allSelected.contains(pathObject)) {
-			allSelected.add(0, pathObject);
+			allSelected.addFirst(pathObject);
 		}
 		
 		ImageRegion bounds = viewer.getServerBounds();
@@ -222,14 +240,17 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		var hierarchy = viewer.getHierarchy();
 		
 		ButtonType option = ButtonType.CANCEL;
-		var btSelected = originalObjectROIs.size() == 1 ? new ButtonType("Selected object") : new ButtonType("Selected objects");
-		var btAll = new ButtonType("All objects");
+		var btSelected = new ButtonType(QuPathResources.getString(originalObjectROIs.size() == 1 ?
+				"Commands.RigidObjectEditor.selectedObject" :
+				"Commands.RigidObjectEditor.selectedObjects"
+		));
+		var btAll = new ButtonType(QuPathResources.getString("Commands.RigidObjectEditor.allObjects"));
 
 		if (!ignoreChanges && !transform.isIdentity()) {
 					
 			option = Dialogs.builder()
 					.title(TITLE)
-					.contentText("Confirm object changes?")
+					.contentText(QuPathResources.getString("Commands.RigidObjectEditor.confirmObjectChanges"))
 					.buttons(btSelected, btAll, ButtonType.CANCEL)
 					.showAndWait()
 					.orElse(ButtonType.CANCEL);
@@ -280,9 +301,10 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 				String scriptString = String.format(
 						"transformSelectedObjects(AffineTransforms.fromRows(%f, %f, %f, %f, %f, %f))",
 						values[0], values[1], values[2], values[3], values[4], values[5]);
-				imageData.getHistoryWorkflow().addStep(
-						new DefaultScriptableWorkflowStep("Transform selected objects", scriptString)
-						);
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+						QuPathResources.getString("Commands.RigidObjectEditor.transformSelectedObjects"),
+						scriptString
+				));
 			}
 		}
 	}

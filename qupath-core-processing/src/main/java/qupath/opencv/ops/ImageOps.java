@@ -21,25 +21,6 @@
 
 package qupath.opencv.ops;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
 import org.apache.commons.math3.util.FastMath;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
@@ -54,7 +35,6 @@ import org.bytedeco.opencv.opencv_core.Size;
 import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -80,6 +60,25 @@ import qupath.opencv.tools.LocalNormalization;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleResultsBuilder;
 import qupath.opencv.tools.OpenCVTools;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Create and use {@link ImageOp} and {@link ImageDataOp} objects.
@@ -611,6 +610,20 @@ public class ImageOps {
 		public static ImageOp localNormalization(double sigmaMean, double sigmaVariance) {
 			return new LocalNormalizationOp(sigmaMean, sigmaVariance);
 		}
+
+		/**
+		 * Apply local 2D normalization using local min and max values, optionally smoothing with a Gaussian filter
+		 * to reduce sharp edges.
+		 * <p>
+		 * This method is applied per-channel.
+		 *
+		 * @param radius radius for the local min and max filters
+		 * @param sigma sigma for Gaussian filter to smooth the min and max filtered images
+		 * @return
+		 */
+		public static ImageOp localNormalizationMinMax(int radius, double sigma) {
+			return new LocalMinMaxNormalizationOp(radius, sigma);
+		}
 		
 		
 		/**
@@ -755,6 +768,80 @@ public class ImageOps {
 				return inputType == PixelType.FLOAT64 ? inputType : PixelType.FLOAT32;
 			}
 			
+		}
+
+		/**
+		 * Normalize by rescaling channels based on a Gaussian-weighted estimate of local mean and standard deviation.
+		 */
+		@OpType("local-min-max")
+		static class LocalMinMaxNormalizationOp extends PaddedOp {
+
+			private int radius;
+			private double sigmaSmooth;
+
+			LocalMinMaxNormalizationOp(int radius, double sigmaSmooth) {
+				if (radius < 1)
+					throw new IllegalArgumentException("Radius must be greater than 0");
+				this.radius = radius;
+				this.sigmaSmooth = Math.max(0, sigmaSmooth);
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return getDefaultGaussianPadding(sigmaSmooth, sigmaSmooth).add(Padding.symmetric((int)Math.ceil(radius)));
+			}
+
+			@Override
+			protected List<Mat> transformPadded(Mat input) {
+				int depth = input.depth();
+				if (depth != opencv_core.CV_64F && depth != opencv_core.CV_32F) {
+					input.convertTo(input, opencv_core.CV_32F);
+				}
+				var channels = OpenCVTools.splitChannels(input);
+				var size = new Size(radius*2+1, radius*2+1);
+				var strel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, size);
+				var tempMin = new Mat();
+				var tempMax = new Mat();
+				Size sizeGaussian = null;
+				if (sigmaSmooth > 0) {
+					int s = (int)Math.ceil(sigmaSmooth * 4) * 2 + 1;
+					sizeGaussian = new Size(s, s);
+				}
+				for (var m : channels) {
+					// Get local min
+					opencv_imgproc.erode(m, tempMin, strel);
+					if (sigmaSmooth > 0)
+						opencv_imgproc.GaussianBlur(tempMin, tempMin, sizeGaussian, sigmaSmooth);
+
+					// Get local max
+					opencv_imgproc.dilate(m, tempMax, strel);
+					if (sigmaSmooth > 0)
+						opencv_imgproc.GaussianBlur(tempMax, tempMax, sizeGaussian, sigmaSmooth);
+
+					// Subtract min
+					opencv_core.subtract(m, tempMin, m);
+
+					// Divide by max-min (with tolerance to avoid division by zero)
+					opencv_core.subtract(tempMax, tempMin, tempMax);
+					m.put(opencv_core.divide(m, opencv_core.max(tempMax, 1e-6)));
+				}
+				tempMin.close();
+				tempMax.close();
+				strel.close();
+				if (sizeGaussian != null)
+					sizeGaussian.close();
+
+				OpenCVTools.mergeChannels(channels, input);
+
+				input.convertTo(input, depth);
+				return Collections.singletonList(input);
+			}
+
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return inputType == PixelType.FLOAT64 ? inputType : PixelType.FLOAT32;
+			}
+
 		}
 		
 		/**
@@ -1127,7 +1214,7 @@ public class ImageOps {
 					return Collections.singletonList(input);
 				var padding = getPadding();
 				var size = new Size(padding.getX1()*2+1, padding.getY1()*2+1);
-				OpenCVTools.applyToChannels(input, mat -> opencv_imgproc.GaussianBlur(mat, mat, size, sigmaX, sigmaY, opencv_core.BORDER_REFLECT));
+				OpenCVTools.applyToChannels(input, mat -> opencv_imgproc.GaussianBlur(mat, mat, size, sigmaX, sigmaY, opencv_core.ALGO_HINT_ACCURATE, opencv_core.BORDER_REFLECT));
 				return Collections.singletonList(input);
 			}
 

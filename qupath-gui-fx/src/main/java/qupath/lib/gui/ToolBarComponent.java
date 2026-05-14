@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,32 +21,25 @@
 
 package qupath.lib.gui;
 
-import java.awt.Shape;
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
-
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
-import org.controlsfx.control.decoration.Decorator;
-import org.controlsfx.control.decoration.GraphicDecoration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
+import javafx.geometry.HPos;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import javafx.geometry.VPos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBase;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Control;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
@@ -58,12 +51,19 @@ import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.text.TextAlignment;
+import javafx.stage.Window;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.control.decoration.Decorator;
+import org.controlsfx.control.decoration.GraphicDecoration;
+import org.controlsfx.glyphfont.FontAwesome;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.AutomateActions;
 import qupath.lib.gui.actions.CommonActions;
 import qupath.lib.gui.actions.OverlayActions;
 import qupath.lib.gui.actions.ViewerActions;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
@@ -75,6 +75,13 @@ import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 
+import java.awt.Shape;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+
 class ToolBarComponent {
 
 	private static final Logger logger = LoggerFactory.getLogger(ToolBarComponent.class);
@@ -82,17 +89,17 @@ class ToolBarComponent {
 	/**
 	 * The toolbar consists of distinct sections
 	 */
-	private ObservableList<PathTool> availableTools;
-	private Map<PathTool, Node> toolMap = new WeakHashMap<>();
+	private final ObservableList<PathTool> availableTools;
+	private final Map<PathTool, Node> toolMap = new WeakHashMap<>();
 
-	private ToolManager toolManager;
+	private final ToolManager toolManager;
 	
-	private int toolIdx;
+	private final int toolIdx;
 	
 	@SuppressWarnings("unused")
-	private ObservableValue<? extends QuPathViewer> viewerProperty; // Keep to prevent garbage collection
+	private final ObservableValue<? extends QuPathViewer> viewerProperty; // Keep to prevent garbage collection
 
-	private ToolBar toolbar = new ToolBar();
+	private final ToolBar toolbar = new ToolBar();
 
 	ToolBarComponent(ToolManager toolManager,
 					 ViewerActions viewerManagerActions,
@@ -113,71 +120,135 @@ class ToolBarComponent {
 
 		// Show analysis panel
 		List<Node> nodes = new ArrayList<>();
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(commonActions.SHOW_ANALYSIS_PANE));
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createToggleButton(commonActions.SHOW_ANALYSIS_PANE));
+		nodes.add(createSeparator());
 
 		// Record index where tools start
 		toolIdx = nodes.size();
 
 		addToolButtons(nodes, availableTools);
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(toolManager.getSelectionModeAction()));			
+		nodes.add(createToggleButton(toolManager.getSelectionModeAction()));
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
-		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.BRIGHTNESS_CONTRAST));
+		nodes.add(createButton(commonActions.BRIGHTNESS_CONTRAST));
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
 		nodes.add(magLabel);
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.ZOOM_TO_FIT));
+		nodes.add(createButton(viewerManagerActions.ZOOM_TO_FIT));
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_ANNOTATIONS));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.FILL_ANNOTATIONS));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_NAMES));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_TMA_GRID));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_DETECTIONS));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.FILL_DETECTIONS));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_CONNECTIONS));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_PIXEL_CLASSIFICATION));
+		nodes.add(createToggleButton(overlayActions.SHOW_ANNOTATIONS));
+		nodes.add(createToggleButton(overlayActions.FILL_ANNOTATIONS));
+		nodes.add(createToggleButton(overlayActions.SHOW_NAMES));
+		nodes.add(createToggleButton(overlayActions.SHOW_TMA_GRID));
+		nodes.add(createToggleButton(overlayActions.SHOW_DETECTIONS));
+		nodes.add(createToggleButton(overlayActions.FILL_DETECTIONS));
+		// TODO: Consider removing 'Show connections' button until it becomes more useful
+		nodes.add(createToggleButton(overlayActions.SHOW_CONNECTIONS));
+		nodes.add(createToggleButton(overlayActions.SHOW_PIXEL_CLASSIFICATION));
 
 		final Slider sliderOpacity = new Slider(0, 1, 1);
+		sliderOpacity.setId("opacitySlider");
 		var overlayOptions = overlayActions.getOverlayOptions();
 		sliderOpacity.valueProperty().bindBidirectional(overlayOptions.opacityProperty());
 		sliderOpacity.setTooltip(new Tooltip(getDescription("overlayOpacity")));
 		nodes.add(sliderOpacity);
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
 		var btnMeasure = new MenuButton();
+		btnMeasure.setId("measurementTablesMenuButton");
 		btnMeasure.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
 		btnMeasure.setTooltip(new Tooltip(getDescription("showMeasurementsTable")));
 		btnMeasure.getItems().addAll(
-				ActionTools.createMenuItem(commonActions.MEASURE_TMA),
 				ActionTools.createMenuItem(commonActions.MEASURE_ANNOTATIONS),
-				ActionTools.createMenuItem(commonActions.MEASURE_DETECTIONS)
+				ActionTools.createMenuItem(commonActions.MEASURE_DETECTIONS),
+				ActionTools.createMenuItem(commonActions.MEASURE_TMA)
 				);
 		nodes.add(btnMeasure);
 
-		nodes.add(ActionTools.createButtonWithGraphicOnly(automateActions.SCRIPT_EDITOR));
+		nodes.add(createButton(automateActions.SCRIPT_EDITOR));
 
-		nodes.add(new Separator(Orientation.VERTICAL));
+		nodes.add(createSeparator());
 
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_OVERVIEW));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_LOCATION));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(viewerManagerActions.SHOW_SCALEBAR));
-		nodes.add(ActionTools.createToggleButtonWithGraphicOnly(overlayActions.SHOW_GRID));
+		var btnOverlay = new MenuButton();
+		btnOverlay.setId("viewerMenuButton");
+		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.DESKTOP));
+//		btnOverlay.setGraphic(IconFactory.createNode(FontAwesome.Glyph.TH_LARGE, QuPathGUI.TOOLBAR_ICON_SIZE));
+//		btnOverlay.setGraphic(IconFactory.createFontAwesome('\uf26c', QuPathGUI.TOOLBAR_ICON_SIZE));
+		btnOverlay.setTooltip(new Tooltip(getDescription("viewerMenu")));
 
-		nodes.add(new Separator(Orientation.VERTICAL));
-		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.PREFERENCES));
-		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.SHOW_LOG));
-		nodes.add(ActionTools.createButtonWithGraphicOnly(commonActions.HELP_VIEWER));
+		btnOverlay.getItems().addAll(
+				ActionTools.createMenuItem(viewerManagerActions.SHOW_OVERVIEW),
+				ActionTools.createMenuItem(viewerManagerActions.SHOW_LOCATION),
+				ActionTools.createMenuItem(viewerManagerActions.SHOW_SCALEBAR),
+				ActionTools.createMenuItem(viewerManagerActions.SHOW_Z_PROJECT),
+				new SeparatorMenuItem(),
+				ActionTools.createMenuItem(overlayActions.SHOW_GRID),
+				ActionTools.createMenuItem(overlayActions.GRID_SPACING),
+				new SeparatorMenuItem(),
+				ActionTools.createMenuItem(commonActions.INPUT_DISPLAY)
+		);
+		nodes.add(btnOverlay);
+
+		nodes.add(createSeparator());
+		nodes.add(createButton(commonActions.HELP_VIEWER));
+		nodes.add(createButton(commonActions.SHOW_LOG));
+		nodes.add(createButton(commonActions.PREFERENCES));
 
 		toolbar.getItems().setAll(nodes);
+		toolbar.getItems().addListener(this::handleItemsChanged);
+		// Ensure that buttons are sized whenever the toolbar is shown
+		toolbar.sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).addListener((v, o, n) -> {
+			if (Boolean.TRUE.equals(n))
+				standardizeButtonHeight();
+		});
+	}
+
+	private void handleItemsChanged(Change<? extends Node> change) {
+		standardizeButtonHeight();
+	}
+
+	private void standardizeButtonHeight() {
+		var buttons = toolbar.getItems().stream()
+				.filter(p -> p instanceof ButtonBase)
+				.map(ButtonBase.class::cast)
+				.toList();
+		if (buttons.isEmpty())
+			return;
+		double maxPrefHeight = buttons.stream().mapToDouble(ButtonBase::getHeight).max().orElse(Control.USE_COMPUTED_SIZE);
+		buttons.forEach(b -> b.setPrefHeight(maxPrefHeight));
+	}
+
+	private static Separator createSeparator() {
+		var separator = new Separator(Orientation.VERTICAL);
+		separator.setHalignment(HPos.CENTER);
+		separator.setValignment(VPos.CENTER);
+		return separator;
+	}
+
+	private Button createButton(Action action) {
+		Button button;
+		if (action.getGraphic() == null)
+			button = ActionTools.createButton(action);
+		else
+			button = ActionTools.createButtonWithGraphicOnly(action);
+		return button;
+	}
+
+	private ToggleButton createToggleButton(Action action) {
+		ToggleButton button;
+		if (action.getGraphic() == null)
+			button = ActionTools.createToggleButton(action);
+		else
+			button = ActionTools.createToggleButtonWithGraphicOnly(action);
+		return button;
 	}
 	
 	
@@ -224,11 +295,8 @@ class ToolBarComponent {
 			var action = toolManager.getToolAction(tool);
 			var btnTool = toolMap.get(tool);
 			if (btnTool == null) {
-				if (action.getGraphic() == null)
-					btnTool = ActionTools.createToggleButton(action);
-				else
-					btnTool = ActionTools.createToggleButtonWithGraphicOnly(action);
-				var toggleButton = (ToggleButton)btnTool;
+				var toggleButton = createToggleButton(action);
+				btnTool = toggleButton;
 				toggleButton.setToggleGroup(group);
 				if (tool instanceof ExtendedPathTool extendedTool) {
 					var popup = createContextMenu(extendedTool, toggleButton);
@@ -310,9 +378,9 @@ class ToolBarComponent {
 		
 		private QuPathViewer viewer;
 		
-		private static String defaultText = "1x";
+		private final static String defaultText = "1x";
 		
-		private Tooltip tooltipMag = new Tooltip(getDescription("magnification"));
+		private final Tooltip tooltipMag = new Tooltip(getDescription("magnification"));
 		
 		private ViewerMagnificationLabel() {
 			setTooltip(tooltipMag);
@@ -340,7 +408,7 @@ class ToolBarComponent {
 		
 		private void updateMagnificationString() {
 			if (!Platform.isFxApplicationThread()) {
-				Platform.runLater(() -> updateMagnificationString());
+				Platform.runLater(this::updateMagnificationString);
 				return;
 			}
 			if (viewer == null || viewer.getImageData() == null) {
@@ -357,13 +425,15 @@ class ToolBarComponent {
 			if (tooltipMag == null || viewer == null)
 				return;
 			var imageData = viewer.getImageData();
-			var mag = imageData == null ? null : imageData.getServerMetadata().getMagnification();
 			if (imageData == null)
 				tooltipMag.setText(getName("magnification"));
-			else if (mag != null && !Double.isNaN(mag))
-				tooltipMag.setText(getDescription("magnification"));
-			else
-				tooltipMag.setText(getDescription("magnificationScale"));
+			else {
+				var mag = imageData.getServerMetadata().getMagnification();
+				if (!Double.isNaN(mag))
+					tooltipMag.setText(getDescription("magnification"));
+				else
+					tooltipMag.setText(getDescription("magnificationScale"));
+			}
 		}
 
 		
@@ -378,7 +448,7 @@ class ToolBarComponent {
 				if (value == null)
 					return;
 				if (Double.isFinite(value) && value > 0)
-					viewer.setMagnification(value.doubleValue());
+					viewer.setMagnification(value);
 				else
 					Dialogs.showErrorMessage(getName("setMagnification"), String.format(getMessage("invalidMagnification"), value));
 			} else {
@@ -387,7 +457,7 @@ class ToolBarComponent {
 				if (value == null)
 					return;
 				if (Double.isFinite(value) && value > 0)
-					viewer.setDownsampleFactor(value.doubleValue());
+					viewer.setDownsampleFactor(value);
 				else
 					Dialogs.showErrorMessage(getName("setDownsample"), String.format(getMessage("invalidDownsample"), value));
 			}
@@ -414,7 +484,5 @@ class ToolBarComponent {
 		}
 		
 	}
-
-
 
 }

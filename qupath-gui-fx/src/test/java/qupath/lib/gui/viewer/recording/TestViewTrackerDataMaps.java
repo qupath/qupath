@@ -1,15 +1,14 @@
 package qupath.lib.gui.viewer.recording;
 
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import qupath.lib.color.ColorMaps;
+import qupath.lib.color.ColorMaps.ColorMap;
+
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.image.DataBufferDouble;
 import java.util.function.BiFunction;
-
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.color.ColorMaps;
-import qupath.lib.color.ColorMaps.ColorMap;
 
 // TODO: Check magnification
 @SuppressWarnings("javadoc")

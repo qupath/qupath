@@ -21,16 +21,11 @@
 
 package qupath.lib.gui.actions.menus;
 
-import static qupath.lib.gui.actions.ActionTools.createAction;
-
-import java.util.List;
-
-import org.controlsfx.control.action.Action;
-
 import javafx.scene.input.KeyCharacterCombination;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import org.controlsfx.control.action.Action;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.CommonActions;
@@ -46,6 +41,10 @@ import qupath.lib.gui.panes.SlideLabelView;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
+
+import java.util.List;
+
+import static qupath.lib.gui.actions.ActionTools.createAction;
 
 public class ViewMenuActions implements MenuActions {
 	
@@ -84,10 +83,12 @@ public class ViewMenuActions implements MenuActions {
 		
 		@ActionConfig("Action.View.commandList")
 		@ActionAccelerator("shortcut+l")
+		@ActionIcon(PathIcons.COMMAND_LIST)
 		public final Action COMMAND_LIST = Commands.createSingleStageAction(() -> CommandFinderTools.createCommandFinderDialog(qupath));
 
 		@ActionConfig("Action.View.recentCommands")
 		@ActionAccelerator("shortcut+p")
+		@ActionIcon(PathIcons.RECENT_COMMANDS)
 		public final Action RECENT_COMMAND_LIST = Commands.createSingleStageAction(() -> CommandFinderTools.createRecentCommandsDialog(qupath));
 
 		public final Action SEP_0 = ActionTools.createSeparator();
@@ -134,6 +135,7 @@ public class ViewMenuActions implements MenuActions {
 		public final Action SHOW_OVERVIEW = viewerActions.SHOW_OVERVIEW;
 		public final Action SHOW_LOCATION = viewerActions.SHOW_LOCATION;
 		public final Action SHOW_SCALEBAR = viewerActions.SHOW_SCALEBAR;
+		public final Action SHOW_Z_PROJECT = viewerActions.SHOW_Z_PROJECT;
 		public final Action SHOW_GRID = overlayActions.SHOW_GRID;
 		public final Action GRID_SPACING = overlayActions.GRID_SPACING;
 		
@@ -148,10 +150,11 @@ public class ViewMenuActions implements MenuActions {
 		public final Action SEP_7 = ActionTools.createSeparator();
 		
 		@ActionConfig("Action.View.inputDisplay")
-		public final Action INPUT_DISPLAY = ActionTools.createSelectableCommandAction(qupath.showInputDisplayProperty());
+		@ActionIcon(PathIcons.KEYBOARD)
+		public final Action INPUT_DISPLAY = commonActions.INPUT_DISPLAY;
 
 		@ActionConfig("Action.View.memoryMonitor")
-		public final Action MEMORY_MONITORY = Commands.createSingleStageAction(() -> Commands.createMemoryMonitorDialog(qupath));
+		public final Action MEMORY_MONITOR = commonActions.MEMORY_MONITOR;
 		
 		public final Action SHOW_LOG = commonActions.SHOW_LOG;
 		

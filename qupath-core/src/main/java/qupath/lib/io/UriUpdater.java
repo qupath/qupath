@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2021, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -20,6 +20,11 @@
  */
 
 package qupath.lib.io;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.projects.Project;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,12 +44,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.projects.Project;
 
 /**
  * Helper class for updating URIs, for example whenever files have moved or projects have been transferred between computers.
@@ -244,7 +243,7 @@ public class UriUpdater<T extends UriResource> {
 	}
 
 	/**
-	 * Identify replacements for missing URIs by relativizing URI.
+	 * Identify replacements for missing URIs by relativizing the URI.
 	 * This is generally used to make corrections whenever a project has been moved.
 	 * 
 	 * @param uriOriginal the previous path (usually for the project)
@@ -316,7 +315,9 @@ public class UriUpdater<T extends UriResource> {
 	 */
 	public Map<URI, URI> getReplacements() {
 		return Collections.unmodifiableMap(
-				replacements.entrySet().stream().filter(s -> s.getValue() != null).collect(Collectors.toMap(s -> s.getKey().getURI(), s -> s.getValue().getURI()))
+				replacements.entrySet().stream()
+						.filter(s -> s.getValue() != null)
+						.collect(Collectors.toMap(s -> s.getKey().getURI(), s -> s.getValue().getURI()))
 				);
 	}
 	
@@ -385,10 +386,10 @@ public class UriUpdater<T extends UriResource> {
 	private static int updateReplacementsRelative(Collection<SingleUriItem> items, Path pathPrevious, Path pathBase, Map<SingleUriItem, SingleUriItem> replacements) {
 
 		// We care about the directory rather than the actual file
-		if (pathBase != null && !Files.isDirectory(pathBase)) {
+		if (pathBase != null && Files.exists(pathBase) && !Files.isDirectory(pathBase)) {
 			pathBase = pathBase.getParent();
 		}
-		if (pathPrevious != null && !Files.isDirectory(pathPrevious)) {
+		if (pathPrevious != null && Files.exists(pathPrevious) && !Files.isDirectory(pathPrevious)) {
 			pathPrevious = pathPrevious.getParent();
 		}
 		boolean tryRelative = pathBase != null && pathPrevious != null && !pathBase.equals(pathPrevious);
@@ -451,8 +452,15 @@ public class UriUpdater<T extends UriResource> {
 
 	private static int searchDirectoriesRecursive(File dir, Collection<SingleUriItem> allItems, int maxDepth, Map<SingleUriItem, SingleUriItem> replacements) {
 		// Get a map of filenames and URIs for easier search
-		Map<String, List<SingleUriItem>> missing = allItems.stream().filter(p -> p.getStatus() == UriStatus.MISSING && p.getPath() != null && replacements.getOrDefault(p, null) == null)
-				.collect(Collectors.groupingBy(p -> p.getPath().getFileName().toString()));
+		Map<String, List<SingleUriItem>> missing = allItems.stream()
+				.filter(p -> p.getStatus() == UriStatus.MISSING &&
+						(p.getPath() != null || p.getURI().getPath() != null) &&
+						replacements.getOrDefault(p, null) == null
+				)
+				.collect(Collectors.groupingBy(p -> {
+					Path path = p.getPath() == null ? Paths.get(p.getURI().getPath()) : p.getPath();
+					return path.getFileName().toString();
+				}));
 
 		int sizeBefore = replacements.size();
 		searchDirectoriesRecursive(dir, missing, maxDepth, replacements);
@@ -533,9 +541,9 @@ public class UriUpdater<T extends UriResource> {
 		 * @return
 		 */
 		public UriStatus getStatus() {
-			if (path == null)
+			if (path == null && !"file".equals(uri.getScheme()))
 				return UriStatus.UNKNOWN;
-			if (Files.exists(path))
+			if (path != null && Files.exists(path))
 				return UriStatus.EXISTS;
 			return UriStatus.MISSING;
 		}

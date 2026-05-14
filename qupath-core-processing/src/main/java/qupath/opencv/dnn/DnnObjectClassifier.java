@@ -21,6 +21,20 @@
 
 package qupath.opencv.dnn;
 
+import com.google.common.collect.Lists;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.classifiers.object.AbstractObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifier;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.io.UriResource;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectFilter;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.classes.PathClass;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
@@ -33,22 +47,6 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.function.IntFunction;
-
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
-
-import qupath.lib.classifiers.object.AbstractObjectClassifier;
-import qupath.lib.classifiers.object.ObjectClassifier;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.io.UriResource;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectFilter;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.classes.PathClass;
 
 
 /**

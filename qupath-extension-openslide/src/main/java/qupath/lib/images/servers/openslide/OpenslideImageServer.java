@@ -23,6 +23,22 @@
 
 package qupath.lib.images.servers.openslide;
 
+import com.google.gson.GsonBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.openslide.jna.OpenSlide;
+import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
+
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -37,23 +53,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.GsonBuilder;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.servers.AbstractTileableImageServer;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.TileRequest;
-import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.images.servers.openslide.jna.OpenSlide;
-import qupath.lib.images.servers.openslide.jna.OpenSlideLoader;
 
 /**
  * ImageServer implementation using OpenSlide.
@@ -89,9 +88,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	private final OpenSlideState state;
 	private final Cleaner.Cleanable cleanable;
 
-	private static boolean useBoundingBoxes = true;
-
-	private ImageServerMetadata originalMetadata;
+	private final ImageServerMetadata originalMetadata;
 
 	private List<String> associatedImageList = null;
 
@@ -100,9 +97,9 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	private int boundsX, boundsY, boundsWidth, boundsHeight;
 	
-	private URI uri;
-	private String[] args;
-	
+	private final URI uri;
+	private final String[] args;
+
 	
 	private static double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
 		// Try to read a tile size
@@ -155,13 +152,10 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		int height = (int)osr.getLevel0Height();
 
 		Map<String, String> properties = osr.getProperties();
-		
-		boolean applyBounds = useBoundingBoxes;
-		for (String arg : args) {
-			if ("--no-crop".equals(arg))
-				applyBounds = false;
-		}
-		
+
+        // Crop to the bounds (if available) unless clearly told otherwise
+		boolean applyBounds = Arrays.stream(args).noneMatch(OpenslideServerBuilder.ARG_NO_CROP::equals);
+
 		// Read bounds
 		boolean isCropped = false;
 		if (applyBounds && properties.keySet().containsAll(
@@ -205,7 +199,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 		
 		// Loop through the series again & determine downsamples - assume the image is not cropped for now
-		int levelCount = (int)osr.getLevelCount();
+		int levelCount = osr.getLevelCount();
 		var resolutionBuilder = new ImageResolutionLevel.Builder(width, height);
 		for (int i = 0; i < levelCount; i++) {
 			// When requesting downsamples from OpenSlide, these seem to be averaged from the width & height ratios:
@@ -281,10 +275,14 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	public Collection<URI> getURIs() {
 		return Collections.singletonList(uri);
 	}
+
+    URI getURI() {
+        return uri;
+    }
 	
 	@Override
 	protected String createID() {
-		return getClass().getName() + ": " + uri.toString();
+		return ServerTools.createDefaultID(getClass(), uri, args);
 	}
 	
 	@Override
@@ -335,6 +333,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 		g2d.drawImage(img, 0, 0, tileWidth, tileHeight, null);
 		g2d.dispose();
+
 		return img2;
 	}
 
@@ -355,7 +354,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		try {
 			return osr.getAssociatedImage(name);
 		} catch (Exception e) {
-			logger.error("Error requesting associated image " + name, e);
+            logger.error("Error requesting associated image {}", name, e);
 		}
 		throw new IllegalArgumentException("Unable to find sub-image with the name " + name);
 	}
@@ -364,5 +363,17 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
+
+    byte[] getIccProfileBytes() {
+        return osr.getICCProfileBytes();
+    }
+
+    /**
+     * Get the optional arguments used to construct this server.
+     * @return an unmodifiable list of string arguments, or an empty list if no arguments are used
+     */
+    public List<String> getArgs() {
+        return args == null ? List.of() : List.of(args);
+    }
 
 }

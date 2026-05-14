@@ -21,13 +21,13 @@
 
 package qupath.lib.classifiers.object;
 
-import java.util.Collection;
-import java.util.Map;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.Project;
+
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * Interface defining object classifiers, which assign {@linkplain PathClass PathClasses} to {@linkplain PathObject PathObjects}.

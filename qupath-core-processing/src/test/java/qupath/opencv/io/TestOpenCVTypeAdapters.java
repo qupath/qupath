@@ -21,22 +21,24 @@
 
 package qupath.opencv.io;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.util.Arrays;
-
+import com.google.gson.GsonBuilder;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.bytedeco.opencv.opencv_core.SparseMat;
+import org.bytedeco.opencv.opencv_core.TermCriteria;
 import org.bytedeco.opencv.opencv_ml.EM;
 import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.junit.jupiter.api.Test;
-import org.bytedeco.opencv.opencv_core.TermCriteria;
 
-import com.google.gson.GsonBuilder;
+import java.util.Arrays;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 @SuppressWarnings("javadoc")

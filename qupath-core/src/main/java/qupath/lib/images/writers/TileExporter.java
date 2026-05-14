@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -20,6 +20,25 @@
  */
 
 package qupath.lib.images.writers;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.LabeledImageServer;
+import qupath.lib.images.servers.TransformedServerBuilder;
+import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.regions.Padding;
+import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.RoiTools;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.IndexColorModel;
@@ -41,26 +60,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.LabeledImageServer;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.servers.TransformedServerBuilder;
-import qupath.lib.io.GsonTools;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.regions.Padding;
-import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.RoiTools;
 
 /**
  * Helper class for exporting image tiles, typically for further analysis elsewhere or for training up an AI algorithm.
@@ -781,16 +780,24 @@ public class TileExporter  {
 				}
 				
 				if (ensureSize) {
-					// Updated for v0.3.0 to ensure the image size is correct
-					// TODO: This has disadvantages, in that it loses channel names & region info
-					// (e.g. if saving as an ImageJ TIFF)
-					var img = readFixedSizeRegion(server, request, tileWidth, tileHeight);
-					ImageWriterTools.writeImage(img, path);
+					// Try reading the image; if it's already the right size, we can export as 'normal'
+					var img = server.readRegion(request.intersect2D(0, 0, server.getWidth(), server.getHeight()));
+					if (img.getWidth() == tileWidth && img.getHeight() == tileHeight) {
+						ImageWriterTools.writeImageRegion(server, request, path);
+					} else {
+						// Make sure we have the right image size.
+						// We don't want to do this unnecessarily, because it can lose channel names & region info
+						// for some file formats (e.g. saving as an ImageJ TIFF)
+						// TODO: Try to minimize information loss when fixing the image size (if this occurs)
+						logger.warn("Adjusting tile to {}x{} pixels for {}", tileWidth, tileHeight, request);
+						img = readFixedSizeRegion(server, request, tileWidth, tileHeight);
+						ImageWriterTools.writeImage(img, path);
+					}
 				} else {
 					ImageWriterTools.writeImageRegion(server, request, path);
 				}
 			} catch (Exception e) {
-				logger.error("Error writing tile: " + e.getLocalizedMessage(), e);
+                logger.error("Error writing tile: {}", e.getMessage(), e);
 			}
 		}
 

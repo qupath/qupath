@@ -21,14 +21,6 @@
 
 package qupath.lib.analysis;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.stream.Collectors;
-
 import org.locationtech.jts.algorithm.distance.DistanceToPoint;
 import org.locationtech.jts.algorithm.distance.PointPairDistance;
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
@@ -49,13 +41,20 @@ import org.locationtech.jts.index.strtree.ItemDistance;
 import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.roi.GeometryTools;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * Static methods for calculating distances between objects.

@@ -24,7 +24,6 @@ package qupath.opencv.ml.pixel;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.analysis.images.ContourTracing;
 import qupath.lib.analysis.images.ContourTracing.ChannelThreshold;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
@@ -38,8 +37,8 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
@@ -245,7 +244,7 @@ public class PixelClassifierTools {
 			var parent = entry.getKey();
 			var children = entry.getValue();
 			if (clearExisting && parent.hasChildObjects())
-				parent.clearChildObjects();
+				parent.removeAllChildObjects();
 			parent.addChildObjects(children);
 			if (!parent.isRootObject())
 				parent.setLocked(true);
@@ -364,7 +363,7 @@ public class PixelClassifierTools {
 		if (labels == null)
 			labels = parseClassificationLabels(server.getMetadata().getClassificationLabels(), false);
 		
-		if (labels == null || labels.isEmpty())
+		if (labels.isEmpty())
 			throw new IllegalArgumentException("Cannot create objects for server - no classification labels are available!");
 		
 		ChannelThreshold[] thresholds;
@@ -390,9 +389,9 @@ public class PixelClassifierTools {
 			default:
 				probabilityThreshold = 0.5;
 			}
-			thresholds = labels.entrySet().stream().map(e -> ChannelThreshold.createAbove(e.getKey(), probabilityThreshold)).toArray(ChannelThreshold[]::new);
+			thresholds = labels.keySet().stream().map(pathClass -> ChannelThreshold.createAbove(pathClass, probabilityThreshold)).toArray(ChannelThreshold[]::new);
 		} else
-			thresholds = labels.entrySet().stream().map(e -> ChannelThreshold.create(e.getKey())).toArray(ChannelThreshold[]::new);
+			thresholds = labels.keySet().stream().map(ChannelThreshold::create).toArray(ChannelThreshold[]::new);
 			
 
 		if (roi != null && !roi.isArea()) {

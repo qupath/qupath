@@ -21,10 +21,10 @@
 
 package qupath.lib.gui.logging;
 
-import java.io.File;
-
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+
+import java.io.File;
 
 /**
  * Manage logging levels.

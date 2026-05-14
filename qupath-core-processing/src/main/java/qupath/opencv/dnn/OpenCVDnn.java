@@ -21,6 +21,29 @@
 
 package qupath.opencv.dnn;
 
+import org.bytedeco.javacpp.PointerScope;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_dnn;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
+import org.bytedeco.opencv.opencv_core.StringVector;
+import org.bytedeco.opencv.opencv_dnn.ClassificationModel;
+import org.bytedeco.opencv.opencv_dnn.DetectionModel;
+import org.bytedeco.opencv.opencv_dnn.KeypointsModel;
+import org.bytedeco.opencv.opencv_dnn.Model;
+import org.bytedeco.opencv.opencv_dnn.Net;
+import org.bytedeco.opencv.opencv_dnn.SegmentationModel;
+import org.bytedeco.opencv.opencv_dnn.TextDetectionModel_DB;
+import org.bytedeco.opencv.opencv_dnn.TextDetectionModel_EAST;
+import org.bytedeco.opencv.opencv_dnn.TextRecognitionModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.io.UriResource;
+import qupath.opencv.ops.ImageOp;
+import qupath.opencv.ops.ImageOps;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -34,30 +57,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
-import org.bytedeco.javacpp.PointerScope;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
-import org.bytedeco.opencv.opencv_core.Scalar;
-import org.bytedeco.opencv.opencv_core.Size;
-import org.bytedeco.opencv.opencv_core.StringVector;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_dnn;
-import org.bytedeco.opencv.opencv_dnn.ClassificationModel;
-import org.bytedeco.opencv.opencv_dnn.DetectionModel;
-import org.bytedeco.opencv.opencv_dnn.KeypointsModel;
-import org.bytedeco.opencv.opencv_dnn.Model;
-import org.bytedeco.opencv.opencv_dnn.Net;
-import org.bytedeco.opencv.opencv_dnn.SegmentationModel;
-import org.bytedeco.opencv.opencv_dnn.TextDetectionModel_DB;
-import org.bytedeco.opencv.opencv_dnn.TextDetectionModel_EAST;
-import org.bytedeco.opencv.opencv_dnn.TextRecognitionModel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.io.UriResource;
-import qupath.opencv.ops.ImageOp;
-import qupath.opencv.ops.ImageOps;
 
 /**
  * Wrapper for an OpenCV Net, including essential metadata about how it should be used.

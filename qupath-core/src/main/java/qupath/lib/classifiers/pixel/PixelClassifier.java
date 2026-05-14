@@ -21,12 +21,12 @@
 
 package qupath.lib.classifiers.pixel;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.RegionRequest;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 /**
  * Interface defining a pixel classifier.

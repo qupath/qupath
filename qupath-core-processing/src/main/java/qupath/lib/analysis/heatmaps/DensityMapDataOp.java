@@ -21,6 +21,26 @@
 
 package qupath.lib.analysis.heatmaps;
 
+import org.bytedeco.javacpp.indexer.DoubleIndexer;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapType;
+import qupath.lib.geom.Point2;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.regions.Padding;
+import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ops.ImageDataOp;
+import qupath.opencv.ops.ImageOp;
+import qupath.opencv.ops.ImageOps;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
@@ -33,27 +53,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.IntStream;
-
-import org.bytedeco.javacpp.indexer.DoubleIndexer;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Scalar;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapType;
-import qupath.lib.geom.Point2;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.regions.Padding;
-import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.ops.ImageDataOp;
-import qupath.opencv.ops.ImageOp;
-import qupath.opencv.ops.ImageOps;
 
 /**
  * An {@link ImageDataOp} that generates pixels from the objects present in the {@link ImageData}.

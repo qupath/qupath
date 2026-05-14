@@ -23,18 +23,18 @@
 
 package qupath.lib.color;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.Locale;
 import java.util.Locale.Category;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
+import java.util.Objects;
 
 /**
  * Representation of a color deconvolution stain vector, defined in terms of RGB optical densities.
@@ -245,6 +245,24 @@ public class StainVector implements Externalizable {
 	@Override
 	public String toString() {
 		return name + ": " + arrayAsString(Locale.getDefault(Category.FORMAT));
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+
+		StainVector that = (StainVector) o;
+		return r == that.r && g == that.g && b == that.b && isResidual == that.isResidual && Objects.equals(name, that.name);
+	}
+
+	@Override
+	public int hashCode() {
+		int result = Double.hashCode(r);
+		result = 31 * result + Double.hashCode(g);
+		result = 31 * result + Double.hashCode(b);
+		result = 31 * result + Objects.hashCode(name);
+		result = 31 * result + Boolean.hashCode(isResidual);
+		return result;
 	}
 
 //	private static StainVector parseStainVector(String s) {

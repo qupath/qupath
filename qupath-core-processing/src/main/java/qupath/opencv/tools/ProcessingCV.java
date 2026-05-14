@@ -23,16 +23,15 @@
 
 package qupath.opencv.tools;
 
-import static org.bytedeco.opencv.global.opencv_core.CV_32F;
-
-import java.nio.FloatBuffer;
-
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
-
 import qupath.lib.analysis.algorithms.MorphologicalReconstruction;
 import qupath.lib.analysis.algorithms.Watershed;
 import qupath.lib.analysis.images.SimpleModifiableImage;
+
+import java.nio.FloatBuffer;
+
+import static org.bytedeco.opencv.global.opencv_core.CV_32F;
 
 /**
  * Static methods to enable existing code for watershed transforms and morphological reconstruction

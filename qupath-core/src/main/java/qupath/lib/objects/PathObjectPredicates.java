@@ -21,14 +21,14 @@
 
 package qupath.lib.objects;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.function.Predicate;
-
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.function.Predicate;
 
 
 /**
@@ -38,7 +38,7 @@ import qupath.lib.objects.classes.PathClassTools;
  */
 public class PathObjectPredicates {
 	
-	private static SubTypeAdapterFactory<PathObjectPredicate> typeAdapterFactory = 
+	private static final SubTypeAdapterFactory<PathObjectPredicate> typeAdapterFactory =
 			GsonTools.createSubTypeAdapterFactory(PathObjectPredicate.class, "predicate_type")
 			.registerSubtype(PathObjectClassPredicate.class, "classified")
 			.registerSubtype(PathObjectClassNamePredicate.class, "classified-name")
@@ -57,7 +57,7 @@ public class PathObjectPredicates {
 	/**
 	 * A JSON-serializable {@link Predicate} for use with {@link PathObject}s.
 	 */
-	public static interface PathObjectPredicate extends Predicate<PathObject> {
+	public interface PathObjectPredicate extends Predicate<PathObject> {
 		
 		/**
 		 * Combine with another {@link PathObjectPredicate} through AND.
@@ -72,7 +72,7 @@ public class PathObjectPredicates {
 		 * @param p
 		 * @return
 		 */
-		public PathObjectPredicate and(PathObjectPredicate p);
+		PathObjectPredicate and(PathObjectPredicate p);
 		
 		/**
 		 * Combine with another {@link PathObjectPredicate} through OR.
@@ -87,10 +87,10 @@ public class PathObjectPredicates {
 		 * @param p
 		 * @return
 		 */
-		public PathObjectPredicate or(PathObjectPredicate p);
+		PathObjectPredicate or(PathObjectPredicate p);
 		
 		@Override
-		public default PathObjectPredicate negate() {
+		default PathObjectPredicate negate() {
 			return new PathObjectNegatePredicate(this);
 		}
 		

@@ -21,12 +21,12 @@
 
 package qupath.lib.common;
 
+import org.slf4j.Logger;
+import org.slf4j.event.Level;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
-import org.slf4j.Logger;
-import org.slf4j.event.Level;
 
 /**
  * Helper class for logging.

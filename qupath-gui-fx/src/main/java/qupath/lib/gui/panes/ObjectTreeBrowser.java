@@ -23,6 +23,19 @@
 
 package qupath.lib.gui.panes;
 
+import com.google.gson.JsonElement;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.collections.ObservableList;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeTableColumn;
+import javafx.scene.control.TreeTableView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.io.GsonTools;
+
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -32,20 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.JsonElement;
-
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.collections.ObservableList;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.TreeItem;
-import javafx.scene.control.TreeTableColumn;
-import javafx.scene.control.TreeTableView;
-import qupath.lib.io.GsonTools;
 
 
 
@@ -83,7 +82,7 @@ public class ObjectTreeBrowser {
 //			}
 //		});
 		
-		TreeTableColumn<T, String> colValue = new TreeTableColumn<>("Value");
+		TreeTableColumn<T, String> colValue = new TreeTableColumn<>(QuPathResources.getString("Panes.ObjectTreeBrowser.value"));
 		colValue.setCellValueFactory(c -> {
 			if (c.getValue() instanceof ObjectTreeItem)
 				return new ReadOnlyObjectWrapper<>(String.valueOf(((ObjectTreeItem<?>)c.getValue()).getValue()));
@@ -108,7 +107,7 @@ public class ObjectTreeBrowser {
 		
 		// Enable manual refreshing
 		ContextMenu menu = new ContextMenu();
-		MenuItem miRefresh = new MenuItem("Refresh");
+		MenuItem miRefresh = new MenuItem(QuPathResources.getString("Panes.ObjectTreeBrowser.refresh"));
 		miRefresh.setOnAction(e -> {
 			for (int i = 0; i < treeTable.getExpandedItemCount(); i++) {
 				TreeItem<T> item = treeTable.getTreeItem(i);

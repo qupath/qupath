@@ -21,16 +21,6 @@
 
 package qupath.imagej.images.writers;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.zip.ZipInputStream;
-
-import org.junit.jupiter.api.Test;
-
 import ij.IJ;
 import ij.ImagePlus;
 import ij.io.FileInfo;
@@ -38,6 +28,15 @@ import ij.io.FileOpener;
 import ij.io.TiffDecoder;
 import ij.plugin.ImageCalculator;
 import ij.process.StackStatistics;
+import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.zip.ZipInputStream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings("javadoc")
 public class TestImageWriterIJ {

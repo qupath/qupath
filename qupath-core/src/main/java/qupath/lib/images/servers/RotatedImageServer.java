@@ -23,12 +23,12 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServers.RotatedImageServerBuilder;
 import qupath.lib.regions.RegionRequest;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 /**
  * ImageServer that wraps another ImageServer, but intercepts region requests to 

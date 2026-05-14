@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,527 +23,637 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-import org.controlsfx.control.CheckComboBox;
-import org.controlsfx.control.ListSelectionView;
-import org.controlsfx.dialog.ProgressDialog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.io.Files;
-
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Control;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
-import javafx.scene.control.ButtonBar.ButtonData;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
-import qupath.fx.utils.FXUtils;
-import qupath.fx.dialogs.FileChoosers;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.QuPathGUI;
+import javafx.scene.layout.Priority;
+import org.controlsfx.control.CheckComboBox;
+import org.controlsfx.dialog.ProgressDialog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.ProjectDialogs;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MeasurementExporter;
-import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 
 /**
- * Dialog box to export measurements
- * 
- * @author Melvin Gelbard
- *
+ * Dialog box to export measurements for a project.
  */
-
 public class MeasurementExportCommand implements Runnable {
-	
-	private QuPathGUI qupath;
+
 	private static final Logger logger = LoggerFactory.getLogger(MeasurementExportCommand.class);
-	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
-	
+
+	private static final String title = getResourceString("Measurements.Export.title");
+
+	private final QuPathGUI qupath;
+
 	private Dialog<ButtonType> dialog = null;
-	private Project<BufferedImage> project;
-	private ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView;
-	private List<ProjectImageEntry<BufferedImage>> previousImages = new ArrayList<>();
-	private String defSep = PathPrefs.tableDelimiterProperty().get();
-	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("columnName-loader", true));
-	private Class<? extends PathObject> type = PathRootObject.class;
-	
-	// GUI
-	private TextField outputText = new TextField();
-	private ComboBox<String> pathObjectCombo;
-	private ComboBox<String> separatorCombo;
-	private CheckComboBox<String> includeCombo;
-	
-	private ButtonType btnExport = new ButtonType("Export", ButtonData.OK_DONE);
-	
+
+	private final ObjectProperty<Project<BufferedImage>> projectProperty = new SimpleObjectProperty<>();
+	private final ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
+
+	private final ObservableList<ProjectImageEntry<BufferedImage>> availableImages = FXCollections.observableArrayList();
+	private final ObservableList<ProjectImageEntry<BufferedImage>> selectedImages = FXCollections.observableArrayList();
+
+	private final BooleanBinding noImagesSelected = Bindings.isEmpty(selectedImages);
+
+	private final ObjectProperty<ExportObjectType> objectTypeProperty = PathPrefs.createPersistentPreference("project.export.objectType", ExportObjectType.ROOT, ExportObjectType.class);
+	private final ObjectProperty<ExportSeparatorType> separatorTypeProperty = PathPrefs.createPersistentPreference("project.export.separator", ExportSeparatorType.TAB, ExportSeparatorType.class);
+	private final StringProperty outputPathProperty = new SimpleStringProperty("");
+	private final ObservableList<String> columnsToInclude = FXCollections.observableArrayList();
+
+	private final BooleanProperty includeProjectMetadata = PathPrefs.createPersistentPreference("project.export.projectMetadata", false);
+
+	private static final ButtonType buttonTypeExport = new ButtonType(
+			getResourceString("Measurements.Export.button.export"), ButtonData.OK_DONE);
+
+	/**
+	 * Total number of grid pane columns, used to determine column spans.
+	 */
+	private static final int MAX_GRID_PANE_COLUMNS = 4;
+
 	/**
 	 * Creates a simple GUI for MeasurementExporter.
-	 * @param qupath
+	 * @param qupath the main QuPath instance
 	 */
 	public MeasurementExportCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
+		this.projectProperty.bind(qupath.projectProperty());
+		this.projectProperty.addListener(this::handleProjectChange);
 	}
 
 	@Override
 	public void run() {
-		createAndShowDialog();
-	}
-	
-	private void createAndShowDialog() {
-		project = qupath.getProject();
+		var project = projectProperty.get();
 		if (project == null) {
-			GuiTools.showNoProjectError("Export measurements");
+			availableImages.clear();
+			GuiTools.showNoProjectError(title);
 			return;
 		}
-		
-		BorderPane mainPane = new BorderPane();
-		
-		BorderPane imageEntryPane = new BorderPane();
-		GridPane optionPane = new GridPane();
-		optionPane.setHgap(5.0);
-		optionPane.setVgap(5.0);
-		
-		
-		// TOP PANE (SELECT PROJECT ENTRY FOR EXPORT)
-		project = qupath.getProject();
-		pathObjectCombo = new ComboBox<>();
-		separatorCombo = new ComboBox<>();
-		includeCombo = new CheckComboBox<>();
-		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
-		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), previousImages, sameImageWarning);
-		
+		if (dialog == null) {
+			createDialog();
+		}
+		availableImages.setAll(project.getImageList());
+		showDialog();
+	}
 
-		// BOTTOM PANE (OPTIONS)
-		int row = 0;
-		Label pathOutputLabel = new Label("Output file");
-		var btnChooseFile = new Button("Choose");
-		btnChooseFile.setOnAction(e -> {
-			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
-			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
-			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = FileChoosers.promptToSaveFile("Output file",
-					new File(Projects.getBaseDirectory(project), "measurements" + ext),
-					FileChoosers.createExtensionFilter(extDesc, ext));
-			if (pathOut != null) {
-				if (pathOut.isDirectory())
-					pathOut = new File(pathOut.getAbsolutePath() + File.separator + "measurements" + ext);
-				outputText.setText(pathOut.getAbsolutePath());
-			}
-		});
-		
-		pathOutputLabel.setLabelFor(outputText);
-		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose output file", pathOutputLabel, outputText, outputText, btnChooseFile, btnChooseFile);
-		outputText.setMaxWidth(Double.MAX_VALUE);
-		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
-		
+	private static String getResourceString(String key) {
+		return QuPathResources.getString(key);
+	}
 
-		Label pathObjectLabel = new Label("Export type");
-		pathObjectLabel.setLabelFor(pathObjectCombo);
-		pathObjectCombo.getItems().setAll("Image", "Annotations", "Detections", "Cells", "TMA cores");
-		pathObjectCombo.getSelectionModel().selectFirst();
-		pathObjectCombo.valueProperty().addListener((v, o, n) -> {
-			if (n != null)
-				setType(n);
-		});
-	
-		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose the export type", pathObjectLabel, pathObjectCombo, pathObjectCombo, pathObjectCombo, pathObjectCombo);
+	private void createDialog() {
+		// Set up grid pane
+		GridPane pane = new GridPane();
+		pane.setHgap(5.0);
+		pane.setVgap(5.0);
 
-		Label separatorLabel = new Label("Separator");
-		separatorLabel.setLabelFor(separatorCombo);
-		separatorCombo.getItems().setAll("Tab (.tsv)", "Comma (.csv)", "Semicolon (.csv)");
-		separatorCombo.getSelectionModel().selectFirst();
-		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose a value separator", separatorLabel, separatorCombo, separatorCombo, separatorCombo, separatorCombo);
-		
-		
-		Label includeLabel = new Label("Columns to include (Optional)");
-		includeLabel.setLabelFor(includeCombo);
-		FXUtils.installSelectAllOrNoneMenu(includeCombo);
-		
-		Button btnPopulateColumns = new Button("Populate\t");
-		ProgressIndicator progressIndicator = new ProgressIndicator();
-		progressIndicator.setPrefSize(20, 20);
-		progressIndicator.setMinSize(20, 20);
-		progressIndicator.setOpacity(0);
-		Button btnResetColumns = new Button("Reset");
-		GridPaneUtils.addGridRow(optionPane, row++, 0, "Choose the specific column(s) to include (default: all)", includeLabel, includeCombo, btnPopulateColumns, progressIndicator, btnResetColumns);
-		btnPopulateColumns.setOnAction(e -> {
-			includeCombo.setDisable(true);
-			Set<String> allColumnsForCombo = Collections.synchronizedSet(new LinkedHashSet<>());
-			setType(pathObjectCombo.getSelectionModel().getSelectedItem());
-			for (int i = 0; i < listSelectionView.getTargetItems().size(); i++) {
-				ProjectImageEntry<BufferedImage> entry = listSelectionView.getTargetItems().get(i);
-				int updatedEntries = i;
-				executor.submit(() -> {
-					try {
-						progressIndicator.setOpacity(100);
-						ImageData<?> imageData = entry.readImageData();
-						ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-						model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
-						allColumnsForCombo.addAll(model.getAllNames());
-						imageData.getServer().close();
+		// Add main content
+		addImageSelectionLists(pane);
+		addOutputFileChoice(pane);
+		addSeparatorChoice(pane);
+		addExportObjectTypeChoice(pane);
+		addPopulateColumns(pane);
+		addProjectMetadataRow(pane);
 
-						if (updatedEntries == listSelectionView.getTargetItems().size() - 1) {
-							Platform.runLater(() -> {
-								allColumnsForCombo.removeIf(n -> n == null);
-								includeCombo.getItems().setAll(allColumnsForCombo);
-								includeCombo.getCheckModel().clearChecks();
-								includeCombo.setDisable(false);
-							});
-							progressIndicator.setOpacity(0);
-						}
-					} catch (Exception ex) {
-						logger.warn("Error loading columns for entry " + entry.getImageName() + ": " + ex.getLocalizedMessage());
-					}
-				});
-			}
-			btnResetColumns.fire();
-		});
-		
-		btnPopulateColumns.disableProperty().addListener((v, o, n) -> {
-			if (n != null && n == true)
-				includeCombo.setDisable(true);
-		});
-		
-		var targetItemBinding = Bindings.size(listSelectionView.getTargetItems()).isEqualTo(0);
-		btnPopulateColumns.disableProperty().bind(targetItemBinding);
-		btnResetColumns.disableProperty().bind(targetItemBinding);
-		btnResetColumns.setOnAction(e -> includeCombo.getCheckModel().clearChecks()); 
-		
-		
-		// Add listener to separatorCombo
-		separatorCombo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			if (outputText == null || n == null)
-				return;
-			String currentOut = outputText.getText();
-			if (n.equals("Tab (.tsv)") && currentOut.endsWith(".csv"))
-				outputText.setText(currentOut.replace(".csv", ".tsv"));
-			else if ((n.equals("Comma (.csv)") || n.equals("Semicolon (.csv)")) && currentOut.endsWith(".tsv"))
-				outputText.setText(currentOut.replace(".tsv", ".csv"));
-		});
-
-		FXUtils.getContentsOfType(optionPane, Label.class, false).forEach(e -> e.setMinWidth(160));
-		GridPaneUtils.setToExpandGridPaneWidth(outputText, pathObjectCombo, separatorCombo, includeCombo);
-		btnPopulateColumns.setMinWidth(100);
-		btnResetColumns.setMinWidth(75);
-		
 		dialog = Dialogs.builder()
-				.title("Export measurements")
+				.title(title)
 				.resizable()
-				.buttons(btnExport, ButtonType.CANCEL)
-				.content(mainPane)
+				.buttons(buttonTypeExport, ButtonType.CANCEL)
+				.content(pane)
+				.prefHeight(400)
+				.prefWidth(600)
 				.build();
-		
-		dialog.getDialogPane().setPrefSize(600, 400);
-		imageEntryPane.setCenter(listSelectionView);
-		
-		// Set the disabledProperty according to (1) targetItems.size() > 0 and (2) outputText.isEmpty()
-		var emptyOutputTextBinding = outputText.textProperty().isEqualTo("");
-		dialog.getDialogPane().lookupButton(btnExport).disableProperty().bind(Bindings.or(emptyOutputTextBinding, targetItemBinding));
-		
-		mainPane.setCenter(imageEntryPane);
-		mainPane.setBottom(optionPane);
-		
+
+		// Disable the export button if there is no output path or no images selected
+		dialog.getDialogPane().lookupButton(buttonTypeExport).disableProperty().bind(outputPathProperty.isEmpty().or(noImagesSelected));
+	}
+
+	private void addImageSelectionLists(GridPane pane) {
+		String sameImageWarning = getResourceString("Measurements.Export.sameImageWarning");
+		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, availableImages, new ArrayList<>(), sameImageWarning);
+		pane.add(listSelectionView, 0, pane.getRowCount(), GridPane.REMAINING, 1);
+
+		GridPaneUtils.setToExpandGridPaneHeight(listSelectionView);
+		GridPaneUtils.setToExpandGridPaneWidth(listSelectionView);
+
+		availableImages.addListener((ListChangeListener.Change<? extends ProjectImageEntry<BufferedImage>> c) -> {
+			handleAvailableImageChange(
+					c.getList(),
+					listSelectionView.getSourceItems(),
+					listSelectionView.getTargetItems());
+		});
+
+		Bindings.bindContent(selectedImages, listSelectionView.getTargetItems());
+	}
+
+	private void handleProjectChange(ObservableValue<? extends Project<BufferedImage>> observable,
+											Project<BufferedImage> oldProject, Project<BufferedImage> newProject) {
+		// Don't retain reference to images from a previous project
+		availableImages.clear();
+		// If our current output path is relative to the base directory of the old project,
+		// reset the output path - we don't want to be defaulting to export within the old project
+		var currentOutputPath = outputPathProperty.getValueSafe();
+		var currentProjectPath = oldProject == null ? null : Projects.getBaseDirectory(oldProject);
+		if (currentOutputPath.isEmpty() || currentProjectPath == null)
+			return;
+		if (currentOutputPath.startsWith(currentProjectPath.toString()))
+			outputPathProperty.set("");
+	}
+
+	/**
+	 * Handle the available image list changing (which usually means a project has changed).
+	 */
+	private static void handleAvailableImageChange(
+											ObservableList<? extends ProjectImageEntry<BufferedImage>> availableImages,
+											ObservableList<ProjectImageEntry<BufferedImage>> sourceImages,
+											ObservableList<ProjectImageEntry<BufferedImage>> targetImages) {
+		if (availableImages.isEmpty()) {
+			sourceImages.clear();
+			targetImages.clear();
+		} else {
+			// Remove images from existing target list if they are no longer in the project
+			var newImageSet = new LinkedHashSet<>(availableImages);
+			targetImages.removeIf(i -> !newImageSet.contains(i));
+
+			// Match the source list to include all current non-target images
+			targetImages.forEach(newImageSet::remove);
+			sourceImages.setAll(newImageSet);
+		}
+	}
+
+	private void addOutputFileChoice(GridPane pane) {
+		var btnChooseFile = new Button(getResourceString("Measurements.Export.chooseFile.button"));
+		btnChooseFile.setOnAction(this::handleChooseFileButtonClick);
+
+		var tooltipRow = new Tooltip(getResourceString("Measurements.Export.chooseFile.tooltip"));
+		var tooltipPath = new Tooltip();
+		tooltipPath.textProperty().bind(outputPathProperty);
+
+		var tfOutputPath = new TextField();
+		tfOutputPath.textProperty().bindBidirectional(outputPathProperty);
+		tfOutputPath.tooltipProperty().bind(
+				Bindings.when(outputPathProperty.isEmpty())
+						.then(tooltipRow)
+						.otherwise(tooltipPath));
+
+		tfOutputPath.setMaxWidth(Double.MAX_VALUE);
+		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
+
+		addGridPaneRow(pane,
+				tooltipRow,
+				getResourceString("Measurements.Export.chooseFile.label"),
+				tfOutputPath,
+				btnChooseFile);
+	}
+
+	private void handleChooseFileButtonClick(ActionEvent e) {
+		var separator = separatorTypeProperty.get();
+		File pathOut = promptToChooseOutputFile(getDefaultOutputFile(), separator);
+		if (pathOut != null) {
+			outputPathProperty.set(pathOut.getAbsolutePath());
+		}
+	}
+
+	private void addExportObjectTypeChoice(GridPane pane) {
+		var comboObjectType = new ComboBox<ExportObjectType>();
+		comboObjectType.getItems().setAll(ExportObjectType.values());
+		comboObjectType.getSelectionModel().select(objectTypeProperty.get());
+		comboObjectType.valueProperty().addListener((v, o, n) -> {
+			if (n != null)
+				this.objectTypeProperty.set(n);
+		});
+
+		addGridPaneRow(pane,
+				new Tooltip(getResourceString("Measurements.Export.objectType.tooltip")),
+				getResourceString("Measurements.Export.objectType.label"),
+				comboObjectType);
+	}
+
+	private void addSeparatorChoice(GridPane pane) {
+		var comboSeparator = new ComboBox<ExportSeparatorType>();
+		comboSeparator.getItems().setAll(ExportSeparatorType.values());
+		comboSeparator.getSelectionModel().selectFirst();
+
+		separatorTypeProperty.bind(comboSeparator.getSelectionModel().selectedItemProperty());
+
+		// Update non-empty filename when separator changes
+		separatorTypeProperty.subscribe(n -> {
+			if (n != null || !outputPathProperty.getValueSafe().isEmpty()) {
+				outputPathProperty.set(fixFileExtension(outputPathProperty.get(), n));
+			}
+		});
+
+		addGridPaneRow(pane,
+				new Tooltip(getResourceString("Measurements.Export.separator.tooltip")),
+				getResourceString("Measurements.Export.separator.label"),
+				comboSeparator);
+	}
+
+
+	private void addPopulateColumns(GridPane pane) {
+		var comboColumnsToInclude = new CheckComboBox<String>();
+		comboColumnsToInclude.setShowCheckedCount(true);
+		comboColumnsToInclude.titleProperty().bind(
+				Bindings.createStringBinding(() -> columnsToInclude.isEmpty() ?
+						getResourceString("Measurements.Export.columns.allColumns") : null, columnsToInclude));
+		comboColumnsToInclude.setShowCheckedCount(false);
+		FXUtils.installSelectAllOrNoneMenu(comboColumnsToInclude);
+
+		Button btnPopulateColumns = new Button(getResourceString("Measurements.Export.columns.button.populate"));
+		ProgressBar progressIndicator = new ProgressBar();
+		progressIndicator.setPrefHeight(10);
+		progressIndicator.setMinHeight(10);
+		progressIndicator.setMaxWidth(Double.MAX_VALUE);
+		progressIndicator.setProgress(1.0);
+
+		var populatingColumns = progressIndicator.progressProperty().lessThan(1.0);
+
+		progressIndicator.opacityProperty().bind(
+				Bindings.when(populatingColumns)
+						.then(1.0)
+						.otherwise(0.0));
+
+		Button btnResetColumns = new Button(getResourceString("Measurements.Export.columns.button.reset"));
+		btnPopulateColumns.setOnAction(_ -> {
+			populateColumns(comboColumnsToInclude, List.copyOf(selectedImages), progressIndicator);
+		});
+
+		btnPopulateColumns.disableProperty().bind(populatingColumns.or(noImagesSelected));
+		comboColumnsToInclude.disableProperty().bind(populatingColumns.or(Bindings.isEmpty(comboColumnsToInclude.getItems())));
+		btnResetColumns.disableProperty().bind(btnPopulateColumns.disableProperty());
+		btnResetColumns.setOnAction(_ -> comboColumnsToInclude.getCheckModel().clearChecks());
+
+		btnPopulateColumns.setMinWidth(75);
+		btnResetColumns.setMinWidth(75);
+
+		pane.add(progressIndicator, 1, pane.getRowCount());
+
+		addGridPaneRow(pane,
+				new Tooltip(getResourceString("Measurements.Export.columns.tooltip")),
+				getResourceString("Measurements.Export.columns.label"),
+				comboColumnsToInclude,
+				btnPopulateColumns,
+				btnResetColumns);
+
+		Bindings.bindContent(columnsToInclude, comboColumnsToInclude.getCheckModel().getCheckedItems());
+	}
+
+	private void addProjectMetadataRow(GridPane pane) {
+		var cbProject = new CheckBox();
+		cbProject.selectedProperty().bindBidirectional(includeProjectMetadata);
+		addGridPaneRow(pane,
+				new Tooltip(getResourceString("Measurements.Export.projectMetadata.tooltip")),
+				getResourceString("Measurements.Export.projectMetadata.label"),
+				cbProject);
+	}
+
+
+	/**
+	 * Add a new row to a grid pane with a label, main control (which fills the width) and optional extra controls (e.g., buttons).
+	 * @param pane the grid pane
+	 * @param tooltip optional tooltip; this will be installed in all controls that do not have their own tooltip
+	 * @param labelText text to include on the label for the row
+	 * @param rowFillControl the main control, position directly beside the label
+	 * @param extraControls optional array of additional controls, position after the main control
+	 */
+	private static void addGridPaneRow(GridPane pane, Tooltip tooltip, String labelText, Control rowFillControl, Control... extraControls) {
+		Label label = new Label(labelText);
+		label.setMinWidth(Label.USE_PREF_SIZE);
+		label.setLabelFor(rowFillControl);
+		installTooltipIfNeeded(tooltip, label);
+
+		rowFillControl.setMaxWidth(Double.MAX_VALUE);
+		GridPane.setFillWidth(rowFillControl, Boolean.TRUE);
+		GridPane.setHgrow(rowFillControl, Priority.ALWAYS);
+		installTooltipIfNeeded(tooltip, rowFillControl);
+
+		int row = pane.getRowCount();
+		pane.add(label, 0, row);
+		if (extraControls.length == 0) {
+			pane.add(rowFillControl, 1, row, GridPane.REMAINING, 1);
+		} else if (extraControls.length + 2 > MAX_GRID_PANE_COLUMNS) {
+			// Find out we've made a mistake at compile time
+			throw new IllegalArgumentException("Attempting to add more than " + MAX_GRID_PANE_COLUMNS + "columns to grid pane!");
+		} else {
+			int mainColSpan = MAX_GRID_PANE_COLUMNS - extraControls.length - 1;
+			pane.add(rowFillControl, 1, row, mainColSpan, 1);
+			for (int i = 0; i < extraControls.length; i++) {
+				var control = extraControls[i];
+				installTooltipIfNeeded(tooltip, control);
+				pane.add(control, 1 + mainColSpan + i, row);
+			}
+		}
+	}
+
+	private static void installTooltipIfNeeded(Tooltip tooltip, Control control) {
+		if (tooltip != null && control.getTooltip() == null && !control.tooltipProperty().isBound()) {
+			control.setTooltip(tooltip);
+		}
+	}
+
+
+	private void showDialog() {
 		Optional<ButtonType> result = dialog.showAndWait();
-		
-		if (!result.isPresent() || result.get() != btnExport || result.get() == ButtonType.CANCEL)
+		if (result.isEmpty() || result.get() != buttonTypeExport || result.get() == ButtonType.CANCEL)
 			return;
 
-		String curExt = Files.getFileExtension(outputText.getText());
-		if (curExt.equals("") || (!curExt.equals("csv") && !curExt.equals("tsv"))) {
-			curExt = curExt.length() > 1 ? "." + curExt : curExt;
-			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
-			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
-			outputText.setText(outputText.getText().substring(0, outputText.getText().length() - curExt.length()) + ext);
+		if (selectedImages.isEmpty()) {
+			logger.debug("No images selected for export!");
+			return;
 		}
-		
-		if (new File(outputText.getText()).getParent() == null) {
-			String ext = Files.getFileExtension(outputText.getText()).equals("tsv") ? ".tsv": ".csv";
-			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = FileChoosers.promptToSaveFile("Output file",
-					new File(Projects.getBaseDirectory(project), outputText.getText()),
-					FileChoosers.createExtensionFilter(extDesc, ext));
-			if (pathOut == null)
-				return;
-			else
-				outputText.setText(pathOut.getAbsolutePath());
-		}
-				
-		var checkedItems = includeCombo.getCheckModel().getCheckedItems();
-		String[] include = checkedItems.stream().toList().toArray(new String[checkedItems.size()]);
-		String separator = defSep;
 
-		switch (separatorCombo.getSelectionModel().getSelectedItem()) {
-		case "Tab (.tsv)":
-			separator = "\t";
-			break;
-		case "Comma (.csv)":
-			separator = ",";
-			break;
-		case "Semicolon (.csv)":
-			separator = ";";
-			break;
-		};
-		
-		MeasurementExporter exporter;
-		exporter = new MeasurementExporter()
-			.imageList(listSelectionView.getTargetItems())
-			.separator(separator)
-			.includeOnlyColumns(include)
-			.exportType(type);
-		
-		ExportTask worker = new ExportTask(exporter, outputText.getText());
-		
+		outputPathProperty.set(fixFileExtension(outputPathProperty.get(), separatorTypeProperty.get()));
+
+		File fileOutput = new File(outputPathProperty.get());
+		if (fileOutput.getParent() == null || !fileOutput.getParentFile().isDirectory()) {
+			fileOutput = promptToChooseOutputFile(getDefaultOutputFile(), separatorTypeProperty.get());
+		}
+		if (fileOutput == null)
+			return;
+
+		String separatorString = separatorTypeProperty.get() == null ?
+				PathPrefs.tableDelimiterProperty().get() :
+				separatorTypeProperty.get().getSeparator();
+
+		MeasurementExporter exporter = new MeasurementExporter()
+				.imageList(selectedImages)
+				.separator(separatorString)
+				.includeOnlyColumns(columnsToInclude.toArray(String[]::new))
+				.includeProjectMetadata(includeProjectMetadata.get())
+				.exportType(objectTypeProperty.get().getObjectType());
+
+		doExportWithProgressDialog(exporter, fileOutput.getAbsolutePath());
+	}
+
+	private File getDefaultOutputFile() {
+		var pathOutput = outputPathProperty.getValueSafe();
+		var project = projectProperty.get();
+		if (isValidOutputFilePath(pathOutput))
+			return new File(pathOutput);
+		else if (project != null) {
+			var separator = separatorTypeProperty.get();
+			return new File(Projects.getBaseDirectory(project), "measurements" + separator.getExtension());
+		} else {
+			return null;
+		}
+	}
+
+	private static boolean isValidOutputFilePath(String path) {
+		if (path == null || path.isEmpty())
+			return false;
+		var file = new File(path);
+        return file.getParentFile() != null && file.getParentFile().isDirectory();
+    }
+
+	private static File promptToChooseOutputFile(File initialFile, ExportSeparatorType separator) {
+		var ext = separator.getExtension();
+		File pathOut = FileChoosers.promptToSaveFile(getResourceString("Measurements.Export.save.title"),
+				initialFile,
+				FileChoosers.createExtensionFilter(separator.getDescription(), ext),
+				FileChoosers.createExtensionFilter("GZipped " + separator.getDescription(), ext + ".gz"));
+		if (pathOut != null && pathOut.isDirectory()) {
+			pathOut = new File(pathOut.getAbsolutePath(), "measurements" + ext);
+		}
+		return pathOut;
+	}
+
+	/**
+	 * Update a file extension whenever the separator type may have changed, keeping the rest of the path the same.
+	 * This should properly handle .gz being included as an additional extension.
+	 */
+	private static String fixFileExtension(String path, ExportSeparatorType separatorType) {
+		if (path == null || path.isEmpty())
+			return "";
+		if (separatorType == null)
+			return path;
+		var ext = separatorType.getExtension();
+		var pathLower = path.toLowerCase();
+		if (pathLower.endsWith(ext)) {
+			return path;
+		} else if (pathLower.endsWith(".gz")) {
+			return fixFileExtension(path.substring(0, path.length()-3), separatorType) + ".gz";
+		} else {
+			return GeneralTools.stripExtension(path) + ext;
+		}
+	}
+
+
+	private void doExportWithProgressDialog(MeasurementExporter exporter, String outputPath) {
+		var worker = new MeasurementExportTask(exporter, outputPath);
+		var progress = createProgressDialog(worker);
+		runningTask.set(qupath.getThreadPoolManager().getSingleThreadExecutor(this).submit(worker));
+		progress.show();
+	}
+
+	private ProgressDialog createProgressDialog(Task<?> worker) {
 		ProgressDialog progress = new ProgressDialog(worker);
 		progress.setWidth(600);
 		progress.initOwner(qupath.getStage());
-		progress.setTitle("Export measurements...");
-		progress.getDialogPane().setHeaderText("Export measurements");
+		progress.setTitle(title);
+		progress.getDialogPane().setHeaderText(getResourceString("Measurements.Export.progress.header"));
 		progress.getDialogPane().setGraphic(null);
 		progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 		progress.getDialogPane().lookupButton(ButtonType.CANCEL).addEventFilter(ActionEvent.ACTION, e -> {
-			if (Dialogs.showYesNoDialog("Cancel export", "Are you sure you want to stop the export after the current image?")) {
-				worker.quietCancel();
-				progress.setHeaderText("Cancelling...");
-//							worker.cancel(false);
+			if (Dialogs.showYesNoDialog(getResourceString("Measurements.Export.progress.cancel.title"),
+					getResourceString("Measurements.Export.progress.cancel.text"))) {
+				worker.cancel(true);
+				progress.setHeaderText(getResourceString("Measurements.Export.progress.cancel.header"));
 				progress.getDialogPane().lookupButton(ButtonType.CANCEL).setDisable(true);
 			}
 			e.consume();
 		});
-		
-		// Create & run task
-		runningTask.set(qupath.getThreadPoolManager().getSingleThreadExecutor(this).submit(worker));
-		progress.show();
+		return progress;
 	}
-	
-	private void setType(String typeString){
-		if (typeString != null) {
-			switch (typeString) {
-			case "Image":
-				type = PathRootObject.class;
-				break;
-			case "Annotations":
-				type = PathAnnotationObject.class;
-				break;
-			case "Detections":
-				type = PathDetectionObject.class;
-				break;
-			case "Cells":
-				type = PathCellObject.class;
-				break;
-			case "TMA cores":
-				type = TMACoreObject.class;
-				break;
-			};
-		}
+
+
+	private void populateColumns(CheckComboBox<String> comboColumnsToInclude, List<ProjectImageEntry<BufferedImage>> imageList, ProgressIndicator progressIndicator) {
+		Set<String> allColumnsForCombo = Collections.synchronizedSet(new LinkedHashSet<>());
+		progressIndicator.setProgress(0);
+		CompletableFuture.runAsync(() -> {
+				int n = imageList.size();
+				int counter = 0;
+				for (var entry : imageList) {
+					try (var imageData = entry.readImageData()) {
+						double progress = (double)counter / n;
+						Platform.runLater(() -> progressIndicator.setProgress(progress));
+						counter++;
+						ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+						model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null,
+								objectTypeProperty.get().getObjectType()));
+						allColumnsForCombo.addAll(model.getAllNames());
+					} catch (Exception ex) {
+						logger.warn("Error loading columns for entry {}: {}", entry.getImageName(), ex.getMessage());
+						logger.debug("{}", ex.getMessage(), ex);
+					}
+				}
+			}).thenRunAsync(() -> {
+				allColumnsForCombo.removeIf(Objects::isNull);
+				comboColumnsToInclude.getItems().setAll(allColumnsForCombo);
+				comboColumnsToInclude.getCheckModel().clearChecks();
+				progressIndicator.setProgress(1);
+		}, Platform::runLater);
+		// Reset the checks
+		comboColumnsToInclude.getCheckModel().clearChecks();
 	}
 	
 
-	class ExportTask extends Task<Void> {
+	private static class MeasurementExportTask extends Task<Void> {
 		
-		private boolean quietCancel = false;
-		private String pathOut;
-		private List<ProjectImageEntry<BufferedImage>> imageList;
-		private List<String> excludeColumns;
-		private List<String> includeOnlyColumns;
-		private String separator;
+		private final String pathOut;
+		private final MeasurementExporter exporter;
 		
-		// Default: Exporting image
-		private Class<? extends PathObject> type = PathAnnotationObject.class;
-		
-		
-		public ExportTask(MeasurementExporter exporter, String pathOut) {
+		MeasurementExportTask(MeasurementExporter exporter, String pathOut) {
 			this.pathOut = pathOut;
-			this.imageList = exporter.getImageList();
-			this.excludeColumns = exporter.getExcludeColumns();
-			this.includeOnlyColumns = exporter.getIncludeColumns();
-			if (exporter.getSeparator().isEmpty())
-				this.separator = defSep;
-			else
-				this.separator = exporter.getSeparator();
-			this.type = exporter.getType();
-		}
-		
-		public void quietCancel() {
-			this.quietCancel = true;
+			this.exporter = exporter;
 		}
 
-		public boolean isQuietlyCancelled() {
-			return quietCancel;
-		}
-		
 
 		@Override
 		protected Void call() {
 			long startTime = System.currentTimeMillis();
-	
-			Map<ProjectImageEntry<?>, String[]> imageCols = new HashMap<>();
-			Map<ProjectImageEntry<?>, Integer> nImageEntries = new HashMap<>();
-			List<String> allColumns = new ArrayList<>();
-			Multimap<String, String> valueMap = LinkedListMultimap.create();
-			File file = new File(pathOut);
-			String pattern = "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
-			
-			int counter = 0;
-			
-			for (ProjectImageEntry<?> entry: imageList) {
-				if (isQuietlyCancelled() || isCancelled()) {
-					logger.warn("Export cancelled");
-					return null;
-				}
-				
-				updateProgress(counter, imageList.size()*2);
-				counter++;
-				updateMessage("Calculating measurements for " + entry.getImageName() + " (" + counter + "/" + imageList.size()*2 + ")");
-				
-				try {
-					ImageData<?> imageData = entry.readImageData();
-					ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-					model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
-					List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, separator, excludeColumns);
-					
-					// Get header
-					String[] header;
-					String headerString = data.get(0);
-					if (headerString.chars().filter(e -> e == '"').count() > 1)
-						header = headerString.split(separator.equals("\t") ? "\\" + separator : separator + pattern , -1);
-					else
-						header = headerString.split(separator);
-					
-					imageCols.put(entry, header);
-					nImageEntries.put(entry, data.size()-1);
-					
-					for (String col: header) {
-						if (!allColumns.contains(col)  && !excludeColumns.contains(col))
-							allColumns.add(col);
-					}
-					
-					// To keep the same column order, just delete non-relevant columns
-					if (!includeOnlyColumns.isEmpty())
-						allColumns.removeIf(n -> !includeOnlyColumns.contains(n));
-					
-					for (int i = 1; i < data.size(); i++) {
-						String[] row;
-						String rowString = data.get(i);
-						
-						// Check if some values in the row are escaped
-						if (rowString.chars().filter(e -> e == '"').count() > 1)
-							row = rowString.split(separator.equals("\t") ? "\\" + separator : separator + pattern , -1);
-						else
-							row = rowString.split(separator);
-						
-						// Put value in map
-						for (int elem = 0; elem < row.length; elem++) {
-							if (allColumns.contains(header[elem]))
-								valueMap.put(header[elem], row[elem]);
-						}
-					}
-				} catch (Exception e) {
-					logger.error(e.getLocalizedMessage(), e);
-				}
-			}
-	
-			try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))){
-				writer.println(String.join(separator, allColumns));
-	
-				Iterator[] its = new Iterator[allColumns.size()];
-				for (int col = 0; col < allColumns.size(); col++) {
-					its[col] = valueMap.get(allColumns.get(col)).iterator();
-				}
-				
-				int counter2 = 0;
-				for (ProjectImageEntry<?> entry: imageList) {
-					if (isQuietlyCancelled() || isCancelled()) {
-						logger.warn("Export cancelled with " + (imageList.size() - counter2) + " image(s) remaining");
-						return null;
-					}
-					
-					counter++;
-					updateProgress(counter, imageList.size()*2);
-					updateMessage("Exporting measurements of " + entry.getImageName() + " (" + counter + "/" + imageList.size()*2 + ")");
-					
-					for (int nObject = 0; nObject < nImageEntries.get(entry); nObject++) {
-						for (int nCol = 0; nCol < allColumns.size(); nCol++) {
-							if (Arrays.stream(imageCols.get(entry)).anyMatch(allColumns.get(nCol)::equals)) {
-								String val = (String)its[nCol].next();
-									
-								// NaN values -> blank
-								if (val.equals("NaN"))
-									val = "";
-								writer.print(val);
-							}
-							if (nCol < allColumns.size()-1)
-								writer.print(separator);
-						}
-						writer.println();
-					}
-					counter2++;
-				}
-			} catch (FileNotFoundException e) {
-				Dialogs.showMessageDialog("Export Failed", "Could not create output file. Export failed!");
+
+			try {
+				exporter.progressMonitor((message, p) -> {
+					updateMessage(message);
+					updateProgress(p, 1.0);
+				}).exportMeasurements(new File(pathOut));
+			} catch (IOException e) {
+				logger.error("Export failed", e);
+				Dialogs.showErrorMessage(
+						getResourceString("Measurements.Export.failed.title"), e);
 				return null;
-				
-			} catch (Exception e) {
-				logger.error(e.getLocalizedMessage(), e);
+			} catch (InterruptedException e) {
+				Dialogs.showWarningNotification(
+						getResourceString("Measurements.Export.interrupted.title"),
+						getResourceString("Measurements.Export.interrupted.text"));
+				logger.warn(e.getMessage(), e);
+				return null;
 			}
 			
 			long endTime = System.currentTimeMillis();
 			
 			long timeMillis = endTime - startTime;
-			String time = null;
-			if (timeMillis > 1000*60)
-				time = String.format("Total processing time: %.2f minutes", timeMillis/(1000.0 * 60.0));
-			else if (timeMillis > 1000)
-				time = String.format("Total processing time: %.2f seconds", timeMillis/(1000.0));
-			else
-				time = String.format("Total processing time: %d milliseconds", timeMillis);
-			logger.info("Processed {} images", imageList.size());
-			logger.info(time);
-			logger.info("Measurements exported to " + outputText.getText());
+            logger.info("Measurements export to {} ({} seconds)", pathOut,
+					GeneralTools.formatNumber(timeMillis / 1000.0, 2));
 			
-			Dialogs.showMessageDialog("Export completed", "Successful export!");
+			Dialogs.showInfoNotification(title, QuPathResources.getString("Measurements.Export.complete.message"));
 			return null;
 		}
 	}
+
+	private enum ExportObjectType {
+		ROOT(PathRootObject.class, getResourceString("Measurements.Export.type.image")),
+		ANNOTATIONS(PathAnnotationObject.class, getResourceString("General.objects.annotations")),
+		DETECTIONS(PathDetectionObject.class, getResourceString("General.objects.detections")),
+		CELLS(PathCellObject.class, getResourceString("General.objects.cells")),
+		TILES(PathTileObject.class, getResourceString("General.objects.tiles")),
+		TMA_CORES(TMACoreObject.class, getResourceString("General.objects.tmaCores"));
+
+		private final Class<? extends PathObject> type;
+		private final String str;
+
+		ExportObjectType(Class<? extends PathObject> type, String str) {
+			this.type = type;
+			this.str = str;
+		}
+
+		public Class<? extends PathObject> getObjectType() {
+			return type;
+		}
+
+		@Override
+		public String toString() {
+			return this.str;
+		}
+
+	}
+
+	private enum ExportSeparatorType {
+		TAB("Measurements.Export.SeparatorType.tab", "Measurements.Export.SeparatorType.tab", ".tsv", "\t"),
+		COMMA("Measurements.Export.SeparatorType.comma", "Measurements.Export.SeparatorType.comma", ".csv", ","),
+		SEMICOLON("Measurements.Export.SeparatorType.semicolon", "Measurements.Export.SeparatorType.semicolon", ".csv", ";");
+
+		private final String name;
+		private final String description;
+		private final String extension;
+		private final String separator;
+
+		ExportSeparatorType(String name, String description, String extension, String separator) {
+			this.name = QuPathResources.getString(name);
+			this.description = QuPathResources.getString(description);
+			this.extension = extension;
+			this.separator = separator;
+		}
+
+		public String getDescription() {
+			return description;
+		}
+
+		public String getSeparator() {
+			return separator;
+		}
+
+		public String getExtension() {
+			return extension;
+		}
+
+		@Override
+		public String toString() {
+			return name + " (" + extension + ")";
+		}
+
+	}
+
 }

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,16 +21,16 @@
 
 package qupath.opencv.ops;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.List;
 import org.bytedeco.opencv.opencv_core.Mat;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.io.UriResource;
 import qupath.lib.regions.RegionRequest;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.List;
 
 /**
  * Request pixels from an image, potentially applying further transforms.
@@ -86,6 +86,6 @@ public interface ImageDataOp extends UriResource {
 	 * @param inputType the pixel type of the input image
 	 * @return the output pixel type
 	 */
-	public PixelType getOutputType(PixelType inputType);
+	PixelType getOutputType(PixelType inputType);
 	
 }

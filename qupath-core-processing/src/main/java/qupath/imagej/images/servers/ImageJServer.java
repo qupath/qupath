@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,6 +22,39 @@
  */
 
 package qupath.imagej.images.servers;
+
+import ij.CompositeImage;
+import ij.IJ;
+import ij.ImagePlus;
+import ij.ImageStack;
+import ij.gui.Roi;
+import ij.io.Opener;
+import ij.measure.Calibration;
+import ij.plugin.Duplicator;
+import ij.plugin.ImageInfo;
+import ij.process.ByteProcessor;
+import ij.process.ColorProcessor;
+import ij.process.FloatProcessor;
+import ij.process.ImageProcessor;
+import ij.process.LUT;
+import ij.process.ShortProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.imagej.tools.IJProperties;
+import qupath.imagej.tools.IJTools;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
+import qupath.lib.objects.PathObjects;
 
 import java.awt.Rectangle;
 import java.awt.image.BandedSampleModel;
@@ -43,45 +76,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import ij.CompositeImage;
-import ij.IJ;
-import ij.ImagePlus;
-import ij.ImageStack;
-import ij.gui.Roi;
-import ij.io.Opener;
-import ij.measure.Calibration;
-import ij.plugin.Duplicator;
-import ij.plugin.ImageInfo;
-import ij.process.ByteProcessor;
-import ij.process.ColorProcessor;
-import ij.process.FloatProcessor;
-import ij.process.ImageProcessor;
-import ij.process.LUT;
-import ij.process.ShortProcessor;
-import qupath.imagej.tools.IJTools;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.servers.AbstractImageServer;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectReader;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.regions.RegionRequest;
-
 /**
  * ImageServer that uses ImageJ's image-reading capabilities.
  * 
  * @author Pete Bankhead
  *
  */
-public class ImageJServer extends AbstractImageServer<BufferedImage> implements PathObjectReader {
+public class ImageJServer extends AbstractTileableImageServer implements PathObjectReader {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ImageJServer.class);
 	
@@ -101,7 +102,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 	 * @throws IOException
 	 */
 	public ImageJServer(final URI uri, final String...args) throws IOException {
-		super(BufferedImage.class);
+		super();
 		this.uri = uri;
 		var filePath = GeneralTools.toPath(uri);
 		var file = filePath != null ? filePath.toFile() : null;
@@ -116,7 +117,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 			long maxFileLength = Math.max(1024*1024*10, maxMemory / 8);
 			if (fileLength > maxFileLength) {
 				var info = Opener.getTiffFileInfo(path);
-				if (info != null && info.length > 1) {
+				if (info != null && (info.length > 1 || (info.length == 1 && info[0].nImages > 1))) {
 					logger.debug("Opening {} as virtual stack", uri);
 					imp = IJ.openVirtual(path);
 				}
@@ -309,22 +310,23 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 			return Collections.emptyList();
 		var list = new ArrayList<PathObject>();
 		if (roi != null) {
-			list.add(roiToAnnotation(roi));
+			list.add(roiToPathObject(roi));
 		}
 		if (overlay != null) {
 			for (var r : overlay.toArray())
-				list.add(roiToAnnotation(r));
+				list.add(roiToPathObject(r));
 		}
 		return list;
 	}
 	
-	private PathObject roiToAnnotation(Roi roiIJ) {
+	private PathObject roiToPathObject(Roi roiIJ) {
 		// Note that because we are reading from the ImagePlus directly, we have to avoid using any calibration information
 		var roi = IJTools.convertToROI(roiIJ, 0, 0, 1, IJTools.getImagePlane(roiIJ, imp));
-		var annotation = PathObjects.createAnnotationObject(roi);
-		annotation.setLocked(true);
-		IJTools.calibrateObject(annotation, roiIJ);
-		return annotation;
+		// Create an annotation, unless another object type is specified in the properties
+        var pathObject = IJProperties.getObjectCreator(roiIJ).orElse(PathObjects::createAnnotationObject).apply(roi);
+        pathObject.setLocked(true);
+		IJTools.calibrateObject(pathObject, roiIJ);
+		return pathObject;
 	}
 	
 	
@@ -347,12 +349,13 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 
 	@Override
 	protected String createID() {
-		return getClass().getName() + ": " + uri.toString();
+		return ServerTools.createDefaultID(getClass(), uri, args);
 	}
 	
 	@Override
-	public BufferedImage readRegion(RegionRequest request) {
-		
+	public BufferedImage readTile(TileRequest tile) {
+
+		var request = tile.getRegionRequest();
 		int z = request.getZ()+1;
 		int t = request.getT()+1;
 		int nChannels = nChannels();
@@ -453,7 +456,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 	 * @param colorModel
 	 * @return
 	 */
-	public static BufferedImage convertToBufferedImage(ImagePlus imp2, int z, int t, ColorModel colorModel) {
+	private static BufferedImage convertToBufferedImage(ImagePlus imp2, int z, int t, ColorModel colorModel) {
 		// Extract processor
 		int nChannels = imp2.getNChannels();
 		int ind = imp2.getStackIndex(1, z, t);
@@ -464,59 +467,55 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 		int h = ip.getHeight();
 		if (ip instanceof ColorProcessor) {
 			img = ip.getBufferedImage();
-//		} else if (nChannels == 1 && !(ip instanceof FloatProcessor)) {
-//			// Take the easy way out for 8 and 16-bit images
-//			if (ip instanceof ByteProcessor)
-//				img = ip.getBufferedImage();
-//			else if (ip instanceof ShortProcessor)
-//				img = ((ShortProcessor)ip).get16BitBufferedImage();
 		} else {
 			// Try to create a suitable BufferedImage for whatever else we may need
 			SampleModel model;
 			if (colorModel == null) {
 				if (ip instanceof ByteProcessor)
 					colorModel = ColorModelFactory.createColorModel(PixelType.UINT8, ImageChannel.getDefaultChannelList(nChannels));
-//					colorModel = ColorModelFactory.getDummyColorModel(8);
 				else if (ip instanceof ShortProcessor)
 					colorModel = ColorModelFactory.createColorModel(PixelType.UINT16, ImageChannel.getDefaultChannelList(nChannels));
-//					colorModel = ColorModelFactory.getDummyColorModel(16);
 				else
 					colorModel = ColorModelFactory.createColorModel(PixelType.FLOAT32, ImageChannel.getDefaultChannelList(nChannels));
-//					colorModel = ColorModelFactory.getDummyColorModel(32);
 			}
 
-			if (ip instanceof ByteProcessor) {
-				model = new BandedSampleModel(DataBuffer.TYPE_BYTE, w, h, nChannels);
-				byte[][] bytes = new byte[nChannels][w*h];
-				for (int i = 0; i < nChannels; i++) {
-					int sliceInd = imp2.getStackIndex(i+1, z, t);
-					bytes[i] = ((byte[])imp2.getStack().getPixels(sliceInd)).clone();
-				}
-				DataBufferByte buffer = new DataBufferByte(bytes, w*h);
-				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
-			} else if (ip instanceof ShortProcessor) {
-				model = new BandedSampleModel(DataBuffer.TYPE_USHORT, w, h, nChannels);
-				short[][] bytes = new short[nChannels][w*h];
-				for (int i = 0; i < nChannels; i++) {
-					int sliceInd = imp2.getStackIndex(i+1, z, t);
-					bytes[i] = ((short[])imp2.getStack().getPixels(sliceInd)).clone();
-				}
-				DataBufferUShort buffer = new DataBufferUShort(bytes, w*h);
-				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
-			} else if (ip instanceof FloatProcessor){
-				model = new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, nChannels);
-				float[][] bytes = new float[nChannels][w*h];
-				for (int i = 0; i < nChannels; i++) {
-					int sliceInd = imp2.getStackIndex(i+1, z, t);
-					bytes[i] = ((float[])imp2.getStack().getPixels(sliceInd)).clone();
-				}
-				DataBufferFloat buffer = new DataBufferFloat(bytes, w*h);
-				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
-			}
-			logger.error("Sorry, currently only RGB & single-channel images supported with ImageJ");
-			return null;
+            switch (ip) {
+                case ByteProcessor byteProcessor -> {
+                    model = new BandedSampleModel(DataBuffer.TYPE_BYTE, w, h, nChannels);
+                    byte[][] bytes = new byte[nChannels][w * h];
+                    for (int i = 0; i < nChannels; i++) {
+                        int sliceInd = imp2.getStackIndex(i + 1, z, t);
+                        bytes[i] = ((byte[]) imp2.getStack().getPixels(sliceInd)).clone();
+                    }
+                    DataBufferByte buffer = new DataBufferByte(bytes, w * h);
+                    return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
+                }
+                case ShortProcessor shortProcessor -> {
+                    model = new BandedSampleModel(DataBuffer.TYPE_USHORT, w, h, nChannels);
+                    short[][] bytes = new short[nChannels][w * h];
+                    for (int i = 0; i < nChannels; i++) {
+                        int sliceInd = imp2.getStackIndex(i + 1, z, t);
+                        bytes[i] = ((short[]) imp2.getStack().getPixels(sliceInd)).clone();
+                    }
+                    DataBufferUShort buffer = new DataBufferUShort(bytes, w * h);
+                    return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
+                }
+                case FloatProcessor floatProcessor -> {
+                    model = new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, nChannels);
+                    float[][] bytes = new float[nChannels][w * h];
+                    for (int i = 0; i < nChannels; i++) {
+                        int sliceInd = imp2.getStackIndex(i + 1, z, t);
+                        bytes[i] = ((float[]) imp2.getStack().getPixels(sliceInd)).clone();
+                    }
+                    DataBufferFloat buffer = new DataBufferFloat(bytes, w * h);
+                    return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
+                }
+                default -> {
+					logger.error("Sorry, currently only RGB & single-channel images supported with ImageJ");
+					return null;
+                }
+            }
 		}
-		//				if (request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())
 		return img;
 	}
 	

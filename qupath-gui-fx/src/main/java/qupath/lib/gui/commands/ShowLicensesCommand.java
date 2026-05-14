@@ -23,18 +23,12 @@
 
 package qupath.lib.gui.commands;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Comparator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
@@ -46,11 +40,22 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.Urls;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Paths;
+import java.text.MessageFormat;
+import java.util.Arrays;
+import java.util.Comparator;
 
 /**
  * Command to show license info for QuPath and any third-party dependencies.
@@ -75,8 +80,11 @@ class ShowLicensesCommand {
 			String licenseText = GeneralTools.readInputStreamAsString(ShowLicensesCommand.class.getResourceAsStream("/license/QuPathLicenseDescription.txt"));
 			sbQuPath.append(licenseText);
 		} catch (Exception e) {
-			sbQuPath.append("Error reading license information!\n\n");
-			sbQuPath.append("For the most up-to-date QuPath license information, see " + Urls.getGitHubRepoUrl());
+			sbQuPath.append(QuPathResources.getString("Commands.ShowLicenses.errorReadingLicense")).append("\n\n");
+			sbQuPath.append(MessageFormat.format(
+					QuPathResources.getString("Commands.ShowLicenses.seeForUpToDate"),
+					Urls.getGitHubRepoUrl()
+			));
 			logger.error("Cannot read license information", e);
 		}
 
@@ -110,28 +118,45 @@ class ShowLicensesCommand {
 		// Add extra tabs
 		if (fileLicenses == null) {
 			// Indicate no third-party info found - probably running from an IDE...?
-			tabPane.getTabs().add(new Tab("Third party", new TextArea("No license information could be found for third party dependencies.")));
+			tabPane.getTabs().add(new Tab(
+					QuPathResources.getString("Commands.ShowLicenses.thirdParty"),
+					new TextArea(QuPathResources.getString("Commands.ShowLicenses.noLicenseFound"))
+			));
 		} else {
 			// Include a QuPath license more prominently as its own tab, if possible
 			File filePrimaryLicense = new File(new File(fileLicenses.getParentFile(), "QuPath"), "LICENSE.txt");
 			if (filePrimaryLicense.isFile()) {
 				try {
-					tabPane.getTabs().add(new Tab("License", new TextArea(GeneralTools.readFileAsString(filePrimaryLicense.getAbsolutePath()))));									
+					tabPane.getTabs().add(new Tab(
+							QuPathResources.getString("Commands.ShowLicenses.license"),
+							new TextArea(GeneralTools.readFileAsString(filePrimaryLicense.getAbsolutePath()))
+					));
 				} catch (Exception e) {
 					logger.error("Could not show QuPath's primary license file");
 				}
 			}
 			// Create a third-party licenses tab
-			tabPane.getTabs().add(new Tab("Third party", createLicenseTreePane(fileLicenses.getParentFile())));
+			tabPane.getTabs().add(new Tab(
+					QuPathResources.getString("Commands.ShowLicenses.thirdParty"),
+					createLicenseTreePane(fileLicenses.getParentFile())
+			));
 		}
+
+		var pane = new BorderPane(tabPane);
+		var labelUse = new Label(QuPathResources.getString("Startup.use"));
+		labelUse.setAlignment(Pos.CENTER);
+		labelUse.setMaxWidth(Double.MAX_VALUE);
+		labelUse.setPadding(new Insets(5));
+		labelUse.setStyle("-fx-font-weight: bold;");
+		pane.setBottom(labelUse);
 		
 		// Create and show dialog
 		Stage dialog = new Stage();
 		FXUtils.addCloseWindowShortcuts(dialog);
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle("Licenses");
-		dialog.setScene(new Scene(tabPane));
+		dialog.setTitle(QuPathResources.getString("Commands.ShowLicenses.licenses"));
+		dialog.setScene(new Scene(pane));
 		return dialog;
 	}
 
@@ -171,7 +196,7 @@ class ShowLicensesCommand {
 		
 		tree.setCellFactory(n -> new FileTreeCell());
 		
-		Button btnThirdParty = new Button("Open licenses directory");
+		Button btnThirdParty = new Button(QuPathResources.getString("Commands.ShowLicenses.openLicensesDirectory"));
 		File dirLicenses = dirBase;
 		btnThirdParty.setOnAction(e -> {
 			GuiTools.openFile(dirLicenses);
@@ -202,7 +227,7 @@ class ShowLicensesCommand {
             } else {
             	String name = item.getName();
             	if ("THIRD-PARTY.txt".equals(name))
-            		name = "Summary";
+            		name = QuPathResources.getString("Commands.ShowLicenses.summary");
                 setText(name);
                 setGraphic(null);
             }
@@ -276,7 +301,10 @@ class ShowLicensesCommand {
 					try {
 						contents = GeneralTools.readFileAsString(getValue().getAbsolutePath());
 					} catch (IOException e) {
-						contents = "Unable to read from " + getValue();
+						contents = MessageFormat.format(
+								QuPathResources.getString("Commands.ShowLicenses.unableToRead"),
+								getValue()
+						);
 					}
 				}
 			}

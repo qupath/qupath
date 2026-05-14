@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2024-2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,6 +25,8 @@ import qupath.lib.common.GeneralTools;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
+import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Normalizes the pixel values of a BufferedImage by subtracting and offset and multiplying by a scale factor.
@@ -41,14 +43,16 @@ public class SubtractOffsetAndScaleNormalizer implements BufferedImageNormalizer
 
     private final double[] offsets;
     private final double[] scales;
-    private final double minClip;
-    private final double maxClip;
+    private final Double minClip;
+    private final Double maxClip;
 
     private SubtractOffsetAndScaleNormalizer(double[] offsets, double[] scales, double minClip, double maxClip) {
         this.scales = scales == null ? null : scales.clone();
         this.offsets = offsets == null ? null : offsets.clone();
-        this.minClip = minClip;
-        this.maxClip = maxClip;
+        // Store only finite values.
+        // This is necessary because infinity and NaN are not valid JSON
+        this.minClip = Double.isFinite(minClip) ? minClip : null;
+        this.maxClip = Double.isFinite(maxClip) ? maxClip : null;
     }
 
     /**
@@ -110,18 +114,23 @@ public class SubtractOffsetAndScaleNormalizer implements BufferedImageNormalizer
         int w = img.getWidth();
         int h = img.getHeight();
         double[] pixels = null;
+        // Get clipping values
+
         // Clip to the range of the output data type
         var outputRaster = output.getRaster();
         double minClip = getMinClip(outputRaster.getDataBuffer().getDataType());
         double maxClip = getMaxClip(outputRaster.getDataBuffer().getDataType());
         boolean doRounding = isIntegerType(outputRaster.getDataBuffer().getDataType());
+        boolean doClipping = minClip > Double.NEGATIVE_INFINITY || maxClip < Double.POSITIVE_INFINITY;
         for (int b = 0; b < raster.getNumBands(); b++) {
             pixels = raster.getSamples(0, 0, w, h, b, pixels);
             double offset = offsetForChannel(b);
             double scale = scaleForChannel(b);
-            if (offset != 0 || scale != 1) {
+            if (offset != 0 || scale != 1 || doClipping || (doRounding && !isIntegerType(raster.getDataBuffer().getDataType()))) {
                 for (int i = 0; i < pixels.length; i++) {
-                    double val = GeneralTools.clipValue((pixels[i] - offset) * scale, minClip, maxClip);
+                    double val = (pixels[i] - offset) * scale;
+                    if (doClipping)
+                        val = GeneralTools.clipValue(val, minClip, maxClip);
                     if (doRounding)
                         val = Math.round(val);
                     pixels[i] = val;
@@ -145,32 +154,24 @@ public class SubtractOffsetAndScaleNormalizer implements BufferedImageNormalizer
     }
 
     double getMinClip(int dataType) {
-        switch (dataType) {
-            case DataBuffer.TYPE_BYTE:
-            case DataBuffer.TYPE_USHORT:
-                return Math.max(0, minClip);
-            case DataBuffer.TYPE_INT:
-                return Math.max(Integer.MIN_VALUE, minClip);
-            case DataBuffer.TYPE_SHORT:
-                return Math.max(Short.MIN_VALUE, minClip);
-            default:
-                return minClip;
-        }
+        var minClip = this.minClip == null ? Double.NEGATIVE_INFINITY : this.minClip;
+        return switch (dataType) {
+            case DataBuffer.TYPE_BYTE, DataBuffer.TYPE_USHORT -> Math.max(0, minClip);
+            case DataBuffer.TYPE_INT -> Math.max(Integer.MIN_VALUE, minClip);
+            case DataBuffer.TYPE_SHORT -> Math.max(Short.MIN_VALUE, minClip);
+            default -> minClip;
+        };
     }
 
     double getMaxClip(int dataType) {
-        switch (dataType) {
-            case DataBuffer.TYPE_BYTE:
-                return Math.min(255, maxClip);
-            case DataBuffer.TYPE_USHORT:
-                return Math.min(65535, maxClip);
-            case DataBuffer.TYPE_INT:
-                return Math.min(Integer.MAX_VALUE, maxClip);
-            case DataBuffer.TYPE_SHORT:
-                return Math.min(Short.MAX_VALUE, maxClip);
-            default:
-                return maxClip;
-        }
+        var maxClip = this.maxClip == null ? Double.POSITIVE_INFINITY : this.maxClip;
+        return switch (dataType) {
+            case DataBuffer.TYPE_BYTE -> Math.min(255, maxClip);
+            case DataBuffer.TYPE_USHORT -> Math.min(65535, maxClip);
+            case DataBuffer.TYPE_INT -> Math.min(Integer.MAX_VALUE, maxClip);
+            case DataBuffer.TYPE_SHORT -> Math.min(Short.MAX_VALUE, maxClip);
+            default -> maxClip;
+        };
     }
 
     private double scaleForChannel(int channel) {
@@ -195,4 +196,17 @@ public class SubtractOffsetAndScaleNormalizer implements BufferedImageNormalizer
             throw new IllegalArgumentException("Channel index out of bounds: " + channel);
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass())
+            return false;
+        SubtractOffsetAndScaleNormalizer that = (SubtractOffsetAndScaleNormalizer) o;
+        return Objects.deepEquals(offsets, that.offsets) && Objects.deepEquals(scales, that.scales) &&
+                Objects.equals(minClip, that.minClip) && Objects.equals(maxClip, that.maxClip);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(Arrays.hashCode(offsets), Arrays.hashCode(scales), minClip, maxClip);
+    }
 }

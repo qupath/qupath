@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,24 +23,27 @@
 
 package qupath.lib.images.servers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.regions.Padding;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassTools;
-import qupath.lib.regions.Padding;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Static methods helpful when dealing with ImageServers.
@@ -49,6 +52,8 @@ import qupath.lib.regions.RegionRequest;
  *
  */
 public class ServerTools {
+
+    private static final Logger logger = LoggerFactory.getLogger(ServerTools.class);
 
 	/**
 	 * Get the default shortened server name given the server's path.
@@ -319,6 +324,65 @@ public class ServerTools {
 		}
 		return channels;
 	}
-	
+
+    /**
+     * Attempt to update a server ID to make it unique for a specific image.
+     * Currently, this appends the last modified time if the URI corresponds to a local file,
+     * otherwise it does nothing.
+     * <p>
+     * The purpose is to handle cases where a file may change where QuPath is running,
+     * and if the ID is based only on the file path then the changes may not be visible due
+     * to tile caching.
+     * <p>
+     * See <a href="https://github.com/qupath/qupath/issues/2012">https://github.com/qupath/qupath/issues/2012</a>
+     * @param id the current ID
+     * @param uri the URI
+     * @return an updated ID, or the original ID without changes if a useful update could not be determined
+     */
+    private static String updateIdForFile(String id, URI uri) {
+        if (uri == null)
+            return id;
+        var path = GeneralTools.toPath(uri);
+        if (path != null && Files.exists(path)) {
+            try {
+                id = id + ":" + Files.getLastModifiedTime(path).toMillis();
+            } catch (IOException e) {
+                logger.error("Error requesting last modified time: {}", e.getMessage(), e);
+            }
+        }
+        return id;
+    }
+
+    /**
+     * Create a default ID based on the class that implements an {@link ImageServer}, the URI used for that server,
+     * and any optional string arguments.
+     * <p>
+     * This can be returned by {@link ImageServer#getPath()} - but the value may be expensive to compute, and so
+     * this method should not be called too often (e.g. for every single tile request).
+     * <p>
+     * Note also that the format of the ID can change across versions.
+     * Specifically, it can encode additional information (e.g. the last modified time of a file) in an effort to
+     * ensure that the ID is unique for a given URI <i>and</i> the contents of the image found at that URI
+     * (where possible).
+     * <p>
+     * See <a href="https://github.com/qupath/qupath/issues/2012">https://github.com/qupath/qupath/issues/2012</a>
+     *
+     * @param serverClass the class implementing {@link ImageServer}
+     * @param uri the URI for the image
+     * @param args optional arguments
+     * @return an ID that can be used
+     * @since v0.7.0
+     */
+    public static String createDefaultID(Class<?> serverClass, URI uri, String... args) {
+        String id = serverClass == null ? "" : serverClass.getSimpleName() + ": ";
+        if (uri != null) {
+            id += uri;
+        }
+        if (args.length > 0 && args[0] != null) {
+            id += "[" + String.join(", ", args) + "]";
+        }
+        return updateIdForFile(id, uri);
+    }
+
 
 }

@@ -23,22 +23,9 @@
 
 package qupath.lib.plugins;
 
-import java.awt.geom.Rectangle2D;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.ColorTools;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathObject;
@@ -51,6 +38,18 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin.ParallelDetectionTileManager;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A temporary object, used during parallel processing to represent a tile currently being used for object

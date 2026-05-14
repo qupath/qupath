@@ -23,13 +23,6 @@
 
 package qupath.lib.gui.panes;
 
-import java.awt.image.BufferedImage;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import javafx.scene.control.*;
-import org.controlsfx.control.BreadCrumbBar;
-
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -37,9 +30,19 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MultipleSelectionModel;
+import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
+import org.controlsfx.control.BreadCrumbBar;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.DetectionTreeDisplayModes;
 import qupath.lib.gui.tools.PathObjectLabels;
@@ -53,6 +56,16 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
+
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 
 /**
@@ -124,34 +137,34 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		// Add popup to control detection display
 		ContextMenu popup = new ContextMenu();
 		ToggleGroup toggleGroup = new ToggleGroup();
-		RadioMenuItem miWithIcons = new RadioMenuItem("With icons");
+		RadioMenuItem miWithIcons = new RadioMenuItem(QuPathResources.getString("Panes.PathObjectHierarchy.showWithIcons"));
 		miWithIcons.setToggleGroup(toggleGroup);
 		miWithIcons.selectedProperty().addListener((v, o, n) -> {
 			if (n)
 				PathPrefs.detectionTreeDisplayModeProperty().set(DetectionTreeDisplayModes.WITH_ICONS);
 		});
 
-
-		RadioMenuItem miWithoutIcons = new RadioMenuItem("Without icons");
+		RadioMenuItem miWithoutIcons = new RadioMenuItem(QuPathResources.getString("Panes.PathObjectHierarchy.showWithoutIcons"));
 		miWithoutIcons.setToggleGroup(toggleGroup);
 		miWithoutIcons.selectedProperty().addListener((v, o, n) -> {
 			if (n)
 				PathPrefs.detectionTreeDisplayModeProperty().set(DetectionTreeDisplayModes.WITHOUT_ICONS);
 		});
 
-		RadioMenuItem miHide = new RadioMenuItem("Hide detections");
+		RadioMenuItem miHide = new RadioMenuItem(QuPathResources.getString("Panes.PathObjectHierarchy.doNotShow"));
 		miHide.setToggleGroup(toggleGroup);
 		miHide.selectedProperty().addListener((v, o, n) -> {
 			if (n)
 				PathPrefs.detectionTreeDisplayModeProperty().set(DetectionTreeDisplayModes.NONE);
 		});
+
 		// Ensure we have the right toggle selected
 		miWithIcons.setSelected(PathPrefs.detectionTreeDisplayModeProperty().get() == DetectionTreeDisplayModes.WITH_ICONS);
 		miWithoutIcons.setSelected(PathPrefs.detectionTreeDisplayModeProperty().get() == DetectionTreeDisplayModes.WITHOUT_ICONS);
 		miHide.setSelected(PathPrefs.detectionTreeDisplayModeProperty().get() == DetectionTreeDisplayModes.NONE);
 
 		// Add to menu
-		Menu menuDetectionDisplay = new Menu("Detection display");
+		Menu menuDetectionDisplay = new Menu(QuPathResources.getString("Panes.PathObjectHierarchy.detectionDisplay"));
 		menuDetectionDisplay.getItems().setAll(
 			miWithIcons, miWithoutIcons, miHide
 		);

@@ -24,13 +24,13 @@
 
 package qupath.lib.gui;
 
-import java.lang.Thread.UncaughtExceptionHandler;
-import java.util.Objects;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.localization.QuPathResources;
+
+import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.Objects;
 
 class QuPathUncaughtExceptionHandler implements UncaughtExceptionHandler {
 	
@@ -68,14 +68,15 @@ class QuPathUncaughtExceptionHandler implements UncaughtExceptionHandler {
 
 			if (e instanceof OutOfMemoryError) {
 				// Try to reclaim any memory we can
-				qupath.getImageRegionStore().clearCache(true, true);
-				Dialogs.showErrorNotification("Out of memory error",
-						"Out of memory! You may need to decrease the 'Number of parallel threads' in the preferences, "
-						+ "then restart QuPath.");
+				qupath.getImageRegionStore().clearCache(true);
+				Dialogs.showErrorNotification(
+						QuPathResources.getString("QuPathUncaughtExceptionHandler.outOfMemory"),
+						QuPathResources.getString("QuPathUncaughtExceptionHandler.outOfMemoryDescription")
+				);
 				logger.error(e.getMessage(), e);
 			} else {
 				var commonActions = qupath.getCommonActions();
-				Dialogs.showErrorNotification("QuPath exception", e);
+				Dialogs.showErrorNotification(QuPathResources.getString("QuPathUncaughtExceptionHandler.quPathException"), e);
 				logger.error(e.getMessage(), e);
 				if (commonActions.SHOW_LOG != null)
 					commonActions.SHOW_LOG.handle(null);

@@ -21,14 +21,6 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.geom.AffineTransform;
-import java.awt.geom.NoninvertibleTransformException;
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
@@ -36,6 +28,14 @@ import qupath.lib.images.servers.transforms.BufferedImageNormalizer;
 import qupath.lib.images.servers.transforms.ColorDeconvolutionNormalizer;
 import qupath.lib.images.servers.transforms.SubtractOffsetAndScaleNormalizer;
 import qupath.lib.regions.ImageRegion;
+
+import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Helper class for creating an {@link ImageServer} that applies one or more transforms to another (wrapped) {@link ImageServer}.
@@ -78,9 +78,210 @@ public class TransformedServerBuilder {
 	 * @throws IllegalArgumentException when a start index is greater than its corresponding end index
 	 */
 	public TransformedServerBuilder slice(int zStart, int zEnd, int tStart, int tEnd) {
-		server = new SlicedImageServer(server, zStart, zEnd, tStart, tEnd);
+		return slice(zStart, zEnd, 1, tStart, tEnd, 1);
+	}
+
+	/**
+	 * Slice a specific region along the z or the t axis with a step.
+	 *
+	 * @param zStart the inclusive 0-based index of the first slice to consider
+	 * @param zEnd the exclusive 0-based index of the last slide to consider
+	 * @param zStep a step to indicate which slides to consider
+	 * @param tStart the inclusive 0-based index of the first timepoint to consider
+	 * @param tEnd the exclusive 0-based index of the last timepoint to consider
+	 * @param tStep a step to indicate which timepoints to consider
+	 * @return this builder
+	 * @throws IllegalArgumentException when a start index is greater than its corresponding end index,
+	 * or when a step is less than or equal to 0
+	 */
+	public TransformedServerBuilder slice(int zStart, int zEnd, int zStep, int tStart, int tEnd, int tStep) {
+		server = new SlicedImageServer(server, zStart, zEnd, zStep, tStart, tEnd, tStep);
 		return this;
 	}
+
+	/**
+	 * Apply a mean Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMean() {
+		return zProject(ZProjectedImageServer.Projection.MEAN);
+	}
+
+	/**
+	 * Apply a minimum Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMin() {
+		return zProject(ZProjectedImageServer.Projection.MIN);
+	}
+
+	/**
+	 * Apply a maximum Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMax() {
+		return zProject(ZProjectedImageServer.Projection.MAX);
+	}
+
+	/**
+	 * Apply a sum Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectSum() {
+		return zProject(ZProjectedImageServer.Projection.SUM);
+	}
+
+	/**
+	 * Apply a standard deviation Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectStandardDeviation() {
+		return zProject(ZProjectedImageServer.Projection.STANDARD_DEVIATION);
+	}
+
+	/**
+	 * Apply a median Z-projection to the image.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProjectMedian() {
+		return zProject(ZProjectedImageServer.Projection.MEDIAN);
+	}
+
+	/**
+	 * Apply a Z-projection.
+	 * The projection will be calculated from all z-slices, and the resulting image will have a single z-slice.
+	 *
+	 * @param projection a type of projection to convert the multiple z-stacks into one
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProject(ZProjectedImageServer.Projection projection) {
+		server = new ZProjectedImageServer(server, projection, -1);
+		return this;
+	}
+
+	/**
+	 * Apply a Z-projection, either from all slices or using a running projection from adjacent slices.
+	 * <p>
+	 * If {@code offset} is {@link ZProjectedImageServer#NO_RUNNING_OFFSET}, this is equivalent to
+	 * {@link #zProject(ZProjectedImageServer.Projection)} and the resulting image will have a single z-slice.
+	 * <p>
+	 * Otherwise, if {@code offset} is greater than 0, the resulting image will have the same number of z-slices
+	 * as the input, where each slice is a projection using up to {@code offset} slices both above and below
+	 * the current slice.
+	 * This means that offset x 2 + 1 slices will be used for each projection, except at the edges where fewer slices
+	 * will be used.
+	 *
+	 * @param projection a type of projection to convert the multiple z-stacks into one
+	 * @param offset the number of slices to use for the running projection (ignored for non-running projections).
+	 * @return this builder
+	 */
+	public TransformedServerBuilder zProject(ZProjectedImageServer.Projection projection, int offset) {
+		server = new ZProjectedImageServer(server, projection, offset);
+		return this;
+	}
+
+	/**
+	 * Apply a running maximum Z-projection to the image.
+	 *
+	 * @param offset the number of slices to use for the running projection, or
+	 *               {@link ZProjectedImageServer#NO_RUNNING_OFFSET} to create a single projection from all slices.
+	 * @return this builder
+	 * @see #zProject(ZProjectedImageServer.Projection, int)
+	 */
+	public TransformedServerBuilder zProjectMax(int offset) {
+		return zProject(ZProjectedImageServer.Projection.MAX, offset);
+	}
+
+	/**
+	 * Apply a running minimum Z-projection to the image.
+	 *
+	 * @param offset the number of slices to use for the running projection, or
+	 *               {@link ZProjectedImageServer#NO_RUNNING_OFFSET} to create a single projection from all slices.
+	 * @return this builder
+	 * @see #zProject(ZProjectedImageServer.Projection, int)
+	 */
+	public TransformedServerBuilder zProjectMin(int offset) {
+		return zProject(ZProjectedImageServer.Projection.MIN, offset);
+	}
+
+	/**
+	 * Apply a running mean Z-projection to the image.
+	 *
+	 * @param offset the number of slices to use for the running projection, or
+	 *               {@link ZProjectedImageServer#NO_RUNNING_OFFSET} to create a single projection from all slices.
+	 * @return this builder
+	 * @see #zProject(ZProjectedImageServer.Projection, int)
+	 */
+	public TransformedServerBuilder zProjectMean(int offset) {
+		return zProject(ZProjectedImageServer.Projection.MEAN, offset);
+	}
+
+	/**
+	 * Apply a running median Z-projection to the image.
+	 *
+	 * @param offset the number of slices to use for the running projection, or
+	 *               {@link ZProjectedImageServer#NO_RUNNING_OFFSET} to create a single projection from all slices.
+	 * @return this builder
+	 * @see #zProject(ZProjectedImageServer.Projection, int)
+	 */
+	public TransformedServerBuilder zProjectMedian(int offset) {
+		return zProject(ZProjectedImageServer.Projection.MEDIAN, offset);
+	}
+
+	/**
+	 * Apply a running standard deviation Z-projection to the image.
+	 *
+	 * @param offset the number of slices to use for the running projection, or
+	 *               {@link ZProjectedImageServer#NO_RUNNING_OFFSET} to create a single projection from all slices.
+	 * @return this builder
+	 * @see #zProject(ZProjectedImageServer.Projection, int)
+	 */
+	public TransformedServerBuilder zProjectStandardDeviation(int offset) {
+		return zProject(ZProjectedImageServer.Projection.STANDARD_DEVIATION, offset);
+	}
+  
+  /**
+	 * Concatenate a list of additional servers along the 'z' dimension (iteration order is used).
+	 *
+	 * @param servers the servers to concatenate
+	 * @return this builder
+	 * @throws IllegalArgumentException if the provided images are not similar (see
+	 * {@link ZConcatenatedImageServer#ZConcatenatedImageServer(List, Number)}), or if one of them have more than one z-stack
+	 */
+	public TransformedServerBuilder concatToZStack(List<ImageServer<BufferedImage>> servers) {
+		return concatToZStack(servers, null);
+	}
+
+	/**
+	 * Concatenate a list of additional servers along the 'z' dimension (iteration order is used).
+	 *
+	 * @param servers the servers to concatenate
+	 * @param zSpacingMicrons the spacing in microns there should be between the combined images. Can be null to use the default value
+	 * @return this builder
+	 * @throws IllegalArgumentException if the provided images are not similar (see
+	 * {@link ZConcatenatedImageServer#ZConcatenatedImageServer(List, Number)}), or if one of them have more than one z-stack
+	 */
+	public TransformedServerBuilder concatToZStack(List<ImageServer<BufferedImage>> servers, Number zSpacingMicrons) {
+		List<ImageServer<BufferedImage>> allServers = new ArrayList<>(servers);
+		if (!allServers.contains(server)) {
+			allServers.addFirst(server);
+		}
+
+		server = new ZConcatenatedImageServer(allServers, zSpacingMicrons);
+		return this;
+  }
 	
 	/**
 	 * Apply an {@link AffineTransform} to the server. 
@@ -130,6 +331,17 @@ public class TransformedServerBuilder {
 	 */
 	public TransformedServerBuilder rotate(Rotation rotation) {
 		server = new RotatedImageServer(server, rotation);
+		return this;
+	}
+
+	/**
+	 * Flip the image.
+	 *
+	 * @param flip the type of flip to apply
+	 * @return this image
+	 */
+	public TransformedServerBuilder flip(FlippedImageServer.Flip flip) {
+		server = new FlippedImageServer(server, flip);
 		return this;
 	}
 	
@@ -282,7 +494,7 @@ public class TransformedServerBuilder {
 	 * Normalize the image using the provided normalizer.
 	 * @param normalizer
 	 * @return
-	 * @ImplNote To use this method to create an image that can be added to a project, the normalizers must be JSON-serializable
+	 * @implNote To use this method to create an image that can be added to a project, the normalizers must be JSON-serializable
 	 *           and registered under {@link ImageServers#getNormalizerFactory()}.
 	 * @since v0.6.0
 	 */

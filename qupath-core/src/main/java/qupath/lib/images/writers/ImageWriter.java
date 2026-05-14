@@ -23,12 +23,12 @@
 
 package qupath.lib.images.writers;
 
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.RegionRequest;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
-
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Interface for defining class that can write images.

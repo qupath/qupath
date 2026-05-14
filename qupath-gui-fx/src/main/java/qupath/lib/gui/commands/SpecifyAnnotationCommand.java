@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2023, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,8 +23,6 @@
 
 package qupath.lib.gui.commands;
 
-import java.text.NumberFormat;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.collections.FXCollections;
@@ -34,26 +32,27 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.shape.Rectangle;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.common.GeneralTools;
 import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PathClassListCell;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.text.MessageFormat;
+import java.text.NumberFormat;
 
 /**
  * Command to create a new rectangular/ellipse annotation object by 
@@ -111,17 +110,13 @@ class SpecifyAnnotationCommand {
 	}
 
 
-	private static enum ROI_TYPE { RECTANGLE, ELLIPSE; 
+	private enum ROI_TYPE { RECTANGLE, ELLIPSE;
 		@Override
 		public String toString() {
-			switch(this) {
-			case ELLIPSE:
-				return "Ellipse";
-			case RECTANGLE:
-				return "Rectangle";
-			default:
-				return "Unknown";
-			}
+            return QuPathResources.getString(switch (this) {
+                case ELLIPSE -> "Commands.SpecifyAnnotation.ellipse";
+                case RECTANGLE -> "Commands.SpecifyAnnotation.rectangle";
+            });
 		}
 	}
 
@@ -131,11 +126,14 @@ class SpecifyAnnotationCommand {
 		int row = 0;
 
 
-		var cbMicrons = new CheckBox("Use " + GeneralTools.micrometerSymbol());
+		var cbMicrons = new CheckBox(MessageFormat.format(
+				QuPathResources.getString("Commands.SpecifyAnnotation.use"),
+				GeneralTools.micrometerSymbol()
+		));
 		var units = Bindings.createStringBinding(() -> {
 			if (cbMicrons.isSelected())
 				return GeneralTools.micrometerSymbol();
-			return "px";
+			return QuPathResources.getString("Commands.SpecifyAnnotation.px");
 		}, cbMicrons.selectedProperty());
 
 
@@ -148,8 +146,8 @@ class SpecifyAnnotationCommand {
 
 		GridPaneUtils.addGridRow(
 				pane, row++, 0,
-				"Type of ROI to create",
-				createLabelFor(comboType, "Type"),
+				QuPathResources.getString("Commands.SpecifyAnnotation.typeDescription"),
+				createLabelFor(comboType, QuPathResources.getString("Commands.SpecifyAnnotation.type")),
 				comboType, comboType);
 
 		var comboClassification = new ComboBox<>(
@@ -157,14 +155,14 @@ class SpecifyAnnotationCommand {
 				);
 		comboClassification.setMaxWidth(Double.MAX_VALUE);
 		comboClassification.setCellFactory(o -> {
-			return new ClassificationCell();
+			return new PathClassListCell();
 		});
 		//			comboClassification.cell;
 
 		GridPaneUtils.addGridRow(
 				pane, row++, 0,
-				"Classification for the annotation (may be empty if annotation should be unclassified)",
-				createLabelFor(comboClassification, "Classification"),
+				QuPathResources.getString("Commands.SpecifyAnnotation.classificationDescription"),
+				createLabelFor(comboClassification, QuPathResources.getString("Commands.SpecifyAnnotation.classification")),
 				comboClassification, comboClassification);
 
 
@@ -180,29 +178,29 @@ class SpecifyAnnotationCommand {
 
 		GridPaneUtils.addGridRow(
 				pane, row++, 0,
-				"X-coordinate of top left of annotation bounding box (if missing or < 0, annotation will be centered in current viewer)",
-				createLabelFor(tfX, "X origin"),
+				QuPathResources.getString("Commands.SpecifyAnnotation.xOriginDescription"),
+				createLabelFor(tfX, QuPathResources.getString("Commands.SpecifyAnnotation.xOrigin")),
 				tfX,
 				createBoundLabel(units));
 
 		GridPaneUtils.addGridRow(
 				pane, row++, 0,
-				"Y-coordinate of top left of annotation bounding box (if missing or < 0, annotation will be centered in current viewer)",
-				createLabelFor(tfY, "Y origin"),
+				QuPathResources.getString("Commands.SpecifyAnnotation.yOriginDescription"),
+				createLabelFor(tfY, QuPathResources.getString("Commands.SpecifyAnnotation.yOrigin")),
 				tfY,
 				createBoundLabel(units));
 
 		GridPaneUtils.addGridRow(
 				pane, row++, 0,
-				"Width of annotation bounding box (must be > 0)",
-				createLabelFor(tfWidth, "Width"),
+				QuPathResources.getString("Commands.SpecifyAnnotation.widthDescription"),
+				createLabelFor(tfWidth, QuPathResources.getString("Commands.SpecifyAnnotation.width")),
 				tfWidth,
 				createBoundLabel(units));
 
 		GridPaneUtils.addGridRow(
 				pane, row++, 0,
-				"Height of annotation bounding box (must be > 0)",
-				createLabelFor(tfHeight, "Height"),
+				QuPathResources.getString("Commands.SpecifyAnnotation.heightDescription"),
+				createLabelFor(tfHeight, QuPathResources.getString("Commands.SpecifyAnnotation.height")),
 				tfHeight,
 				createBoundLabel(units));
 
@@ -210,31 +208,34 @@ class SpecifyAnnotationCommand {
 		cbMicrons.setMaxWidth(Double.MAX_VALUE);
 		GridPaneUtils.addGridRow(
 				pane, row++, 0,
-				"Specify coordinates in " + GeneralTools.micrometerSymbol() + " - pixel calibration information must be available",
+				MessageFormat.format(
+						QuPathResources.getString("Commands.SpecifyAnnotation.specifyCoordinates"),
+						GeneralTools.micrometerSymbol()
+				),
 				cbMicrons, cbMicrons, cbMicrons);
 
-		var cbLock = new CheckBox("Set locked");
+		var cbLock = new CheckBox(QuPathResources.getString("Commands.SpecifyAnnotation.setLocked"));
 		cbLock.setMaxWidth(Double.MAX_VALUE);
 		GridPaneUtils.addGridRow(
 				pane, row++, 0,
-				"Set annotation as locked, so that it can't be immediately edited",
+				QuPathResources.getString("Commands.SpecifyAnnotation.setLockedDescription"),
 				cbLock, cbLock, cbLock);
 
 		var tfName = new TextField("");
 		GridPaneUtils.addGridRow(
 				pane, row++, 0,
-				"Name of annotation (can be empty)",
-				createLabelFor(tfName, "Name"),
+				QuPathResources.getString("Commands.SpecifyAnnotation.nameDescription"),
+				createLabelFor(tfName, QuPathResources.getString("Commands.SpecifyAnnotation.name")),
 				tfName,
 				tfName);
 
 
-		var btnAdd = new Button("Add annotation");
+		var btnAdd = new Button(QuPathResources.getString("Commands.SpecifyAnnotation.addAnnotation"));
 		btnAdd.setOnAction(e -> {
 			var viewer = qupath.getViewer();
 			var imageData = viewer == null ? null : viewer.getImageData();
 			if (imageData == null) {
-				GuiTools.showNoImageError("Create annotation");
+				GuiTools.showNoImageError(QuPathResources.getString("Commands.SpecifyAnnotation.createAnnotation"));
 				return;
 			}
 			var server = imageData.getServer();
@@ -245,7 +246,10 @@ class SpecifyAnnotationCommand {
 			PixelCalibration cal = server.getPixelCalibration();
 			if (cbMicrons.isSelected()) {
 				if (!cal.hasPixelSizeMicrons()) {
-					Dialogs.showErrorMessage("Create annotation", "No pixel size information available! Try again using pixel units.");		
+					Dialogs.showErrorMessage(
+							QuPathResources.getString("Commands.SpecifyAnnotation.createAnnotation"),
+							QuPathResources.getString("Commands.SpecifyAnnotation.noPixelSizeAvailable")
+					);
 					return;
 				}
 				xScale = 1.0/cal.getPixelWidthMicrons();
@@ -258,7 +262,10 @@ class SpecifyAnnotationCommand {
 			var height = tryToParse(tfHeight.getText());
 
 			if (width == null || width.doubleValue() <= 0 || height == null || height.doubleValue() <= 0) {
-				Dialogs.showErrorMessage("Create annotation", "Width and height must be specified, and > 0!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Commands.SpecifyAnnotation.createAnnotation"),
+						QuPathResources.getString("Commands.SpecifyAnnotation.widthAndHeightMustBeSpecified")
+				);
 				return;
 			}
 
@@ -280,7 +287,10 @@ class SpecifyAnnotationCommand {
 				y = yOrig.doubleValue() * yScale;
 
 			if (x + w > server.getWidth() || y + h > server.getHeight()) {
-				Dialogs.showErrorMessage("Create annotation", "Specified annotation is too large for the image bounds!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Commands.SpecifyAnnotation.createAnnotation"),
+						QuPathResources.getString("Commands.SpecifyAnnotation.specifiedAnnotationTooLarge")
+				);
 				return;
 			}
 
@@ -295,7 +305,10 @@ class SpecifyAnnotationCommand {
 				roi = ROIs.createRectangleROI(x, y, w, h, ImagePlane.getPlane(z, t));
 				break;
 			default:
-				Dialogs.showErrorMessage("Create annotation", "No ROI type selected!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Commands.SpecifyAnnotation.createAnnotation"),
+						QuPathResources.getString("Commands.SpecifyAnnotation.noRoiTypeSelected")
+				);
 				return;
 			}
 
@@ -317,7 +330,7 @@ class SpecifyAnnotationCommand {
 		});
 
 		btnAdd.setMaxWidth(Double.MAX_VALUE);
-		GridPaneUtils.addGridRow(pane, row++, 0, "Create annotation with specified options & add to object hierarchy",
+		GridPaneUtils.addGridRow(pane, row++, 0, QuPathResources.getString("Commands.SpecifyAnnotation.createAnnotationWithSpecifiedOptions"),
 				btnAdd, btnAdd, btnAdd
 				);
 
@@ -350,26 +363,5 @@ class SpecifyAnnotationCommand {
 		return pane;
 	}
 
-
-
-	class ClassificationCell extends ListCell<PathClass> {
-
-		@Override
-		protected void updateItem(PathClass value, boolean empty) {
-			super.updateItem(value, empty);
-			int size = 10;
-			if (value == null || empty) {
-				setText(null);
-				setGraphic(null);
-			} else if (value.getName() == null) {
-				setText("None");
-				setGraphic(new Rectangle(size, size, ColorToolsFX.getCachedColor(0, 0, 0, 0)));
-			} else {
-				setText(value.getName());
-				setGraphic(new Rectangle(size, size, ColorToolsFX.getPathClassColor(value)));
-			}
-		}
-
-	}
 
 }

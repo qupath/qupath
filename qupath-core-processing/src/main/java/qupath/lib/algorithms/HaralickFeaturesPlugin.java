@@ -23,18 +23,8 @@
 
 package qupath.lib.algorithms;
 
-import java.awt.Color;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.analysis.features.HaralickFeatureComputer;
 import qupath.lib.analysis.features.HaralickFeatures;
 import qupath.lib.analysis.images.SimpleImage;
@@ -60,6 +50,15 @@ import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Plugin for calculating Haralick texture features, within or around detections or tiles.

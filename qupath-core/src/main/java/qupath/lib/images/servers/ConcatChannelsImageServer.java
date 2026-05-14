@@ -21,6 +21,11 @@
 
 package qupath.lib.images.servers;
 
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServers.ConcatChannelsImageServerBuilder;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
@@ -30,10 +35,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.images.servers.ImageServers.ConcatChannelsImageServerBuilder;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Concatenate ImageServers along the channel dimension.

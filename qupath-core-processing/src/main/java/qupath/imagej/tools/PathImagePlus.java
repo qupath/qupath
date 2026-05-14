@@ -23,11 +23,10 @@
 
 package qupath.imagej.tools;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import ij.ImagePlus;
 import ij.measure.Calibration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.PixelCalibration;

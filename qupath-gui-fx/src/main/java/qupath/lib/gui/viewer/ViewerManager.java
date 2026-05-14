@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,33 +24,8 @@
 
 package qupath.lib.gui.viewer;
 
-import java.awt.Shape;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Area;
-import java.awt.image.BufferedImage;
-import java.lang.ref.Reference;
-import java.lang.ref.SoftReference;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
-import java.util.stream.Collectors;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
-import javafx.scene.Scene;
-import javafx.scene.layout.BorderPane;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
-import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -60,8 +35,11 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
@@ -77,12 +55,20 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.RotateEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.input.ZoomEvent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.control.action.ActionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -90,7 +76,6 @@ import qupath.lib.gui.ToolManager;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.TMACommands;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -108,6 +93,23 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
+import java.awt.Shape;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
+import java.awt.image.BufferedImage;
+import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.stream.Collectors;
+
 /**
  * Class to manage multiple {@link QuPathViewer} instances in a UI region.
  * 
@@ -118,22 +120,22 @@ public class ViewerManager implements QuPathViewerListener {
 
 	private static final Logger logger = LoggerFactory.getLogger(ViewerManager.class);
 
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 
 	/**
 	 * The current ImageData in the current QuPathViewer
 	 */
-	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+	private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 	
-	private ObservableList<QuPathViewer> viewers = FXCollections.observableArrayList();
-	private ObservableList<QuPathViewer> viewersUnmodifiable = FXCollections.unmodifiableObservableList(viewers);
+	private final ObservableList<QuPathViewer> viewers = FXCollections.observableArrayList();
+	private final ObservableList<QuPathViewer> viewersUnmodifiable = FXCollections.unmodifiableObservableList(viewers);
 	
-	private SimpleObjectProperty<QuPathViewer> activeViewerProperty = new SimpleObjectProperty<>();
+	private final SimpleObjectProperty<QuPathViewer> activeViewerProperty = new SimpleObjectProperty<>();
 
 	private SplitPaneGrid splitPaneGrid;
 
-	private ViewerPlusDisplayOptions viewerDisplayOptions = ViewerPlusDisplayOptions.getSharedInstance();
-	private OverlayOptions overlayOptions = OverlayOptions.getSharedInstance();
+	private final ViewerPlusDisplayOptions viewerDisplayOptions = ViewerPlusDisplayOptions.getSharedInstance();
+	private final OverlayOptions overlayOptions = OverlayOptions.getSharedInstance();
 	
 	/**
 	 * Since v0.5.0, this uses a Reference so that we can potentially allow garbage collection is memory is scare
@@ -141,14 +143,14 @@ public class ViewerManager implements QuPathViewerListener {
 	 */
 	private Reference<PathObject> lastAnnotationObject = null;
 
-	private final Color colorBorder = Color.rgb(180, 0, 0, 0.5);
+	private final Color colorBorder = Color.rgb(180, 0, 0, 0.8);
 
-	private BooleanProperty synchronizeViewers = PathPrefs.createPersistentPreference("synchronizeViewers", false);
+	private final BooleanProperty synchronizeViewers = PathPrefs.createPersistentPreference("synchronizeViewers", false);
 
-	private Map<QuPathViewer, ViewerPosition> lastViewerPosition = new WeakHashMap<>();
+	private final Map<QuPathViewer, ViewerPosition> lastViewerPosition = new WeakHashMap<>();
 
 	// Hacky solution to needing a mechanism to refresh the titles of detached viewers
-	private BooleanProperty refreshTitleProperty = new SimpleBooleanProperty();
+	private final BooleanProperty refreshTitleProperty = new SimpleBooleanProperty();
 
 	private ViewerManager(final QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -214,6 +216,14 @@ public class ViewerManager implements QuPathViewerListener {
 		return viewerDisplayOptions.showScalebarProperty();
 	}
 
+	/**
+	 * Show z-projection overlay options, where relevant
+	 * @return
+	 */
+	public BooleanProperty showZProjectControlsProperty() {
+		return viewerDisplayOptions.showZProjectControlsProperty();
+	}
+
 
 	/**
 	 * Match the display resolutions (downsamples) of all viewers to match the current viewer.
@@ -265,7 +275,8 @@ public class ViewerManager implements QuPathViewerListener {
 		getLastViewerPosition(viewer).reset();
 
 		if (viewer != null) {
-			viewer.setBorderColor(colorBorder);
+			if (viewers.size() > 1)
+				viewer.setBorderColor(colorBorder);
 			if (viewer.getServer() != null) {
 				getLastViewerPosition(viewer).update(viewer);
 				if (spaceDown)
@@ -388,17 +399,26 @@ public class ViewerManager implements QuPathViewerListener {
 		int row = splitPaneGrid.getRow(viewer);
 		if (row < 0) {
 			// Shouldn't occur...
-			Dialogs.showErrorMessage("Multiview", "Cannot find " + viewer + " in the grid!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Viewer.ViewerManager.multiview"),
+					MessageFormat.format(QuPathResources.getString("Viewer.ViewerManager.cannotFind"), viewer)
+			);
 			return false;
 		}
 		if (splitPaneGrid.nRows() == 1) {
-			Dialogs.showWarningNotification("Close row", "The last row can't be removed!");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Viewer.ViewerManager.closeRow"),
+					QuPathResources.getString("Viewer.ViewerManager.lastRowCannotBeRemoved")
+			);
 			return false;
 		}
 
 		int nOpen = splitPaneGrid.countOpenViewersForRow(row);
 		if (nOpen > 0) {
-			Dialogs.showWarningNotification("Close row", "Please close all open viewers in the selected row, then try again");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Viewer.ViewerManager.closeRow"),
+					QuPathResources.getString("Viewer.ViewerManager.closeViewersInRow")
+			);
 			return false;
 		}
 		splitPaneGrid.removeRow(row);
@@ -433,18 +453,27 @@ public class ViewerManager implements QuPathViewerListener {
 		int col = splitPaneGrid.getColumn(viewer.getView());
 		if (col < 0) {
 			// Shouldn't occur...
-			Dialogs.showErrorMessage("Multiview error", "Cannot find " + viewer + " in the grid!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Viewer.ViewerManager.multiviewError"),
+					MessageFormat.format(QuPathResources.getString("Viewer.ViewerManager.cannotFind"), viewer)
+			);
 			return false;
 		}
 
 		if (splitPaneGrid.nCols() == 1) {
-			Dialogs.showWarningNotification("Close column", "The last columns can't be removed!");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Viewer.ViewerManager.closeColumn"),
+					"The last columns can't be removed!"
+			);
 			return false;
 		}
 
 		int nOpen = splitPaneGrid.countOpenViewersForColumn(col);
 		if (nOpen > 0) {
-			Dialogs.showWarningNotification("Close column", "Please close all open viewers in selected column, then try again");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Viewer.ViewerManager.closeColumn"),
+					QuPathResources.getString("Viewer.ViewerManager.closeViewersInColumn")
+			);
 			//				DisplayHelpers.showErrorMessage("Close column error", "Please close all open viewers in column " + col + ", then try again");
 			return false;
 		}
@@ -464,7 +493,10 @@ public class ViewerManager implements QuPathViewerListener {
 	 */
 	public boolean setGridSize(int nRows, int nCols) {
 		if (nRows < 1 || nCols < 1) {
-			Dialogs.showErrorMessage("Multiview grid", "There must be at least one viewer in the grid!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Viewer.ViewerManager.multiviewGrid"),
+					QuPathResources.getString("Viewer.ViewerManager.atLeastOneViewerInGrid")
+			);
 			return false;
 		}
 		// Easiest case - no resizing to do
@@ -478,7 +510,10 @@ public class ViewerManager implements QuPathViewerListener {
 		var openViewers = getAllViewers().stream().filter(
 				v -> !splitPaneGrid.isDetached(v) && v.hasServer()).toList();
 		if (openViewers.size() > nRows * nCols) {
-			Dialogs.showWarningNotification("Multiview grid", "There are too many viewers open! Please close some, then set the grid size.");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Viewer.ViewerManager.multiviewGrid"),
+					QuPathResources.getString("Viewer.ViewerManager.tooManyViewersOpen")
+			);
 			return false;
 		}
 		// Adding is easy too
@@ -677,7 +712,7 @@ public class ViewerManager implements QuPathViewerListener {
 		}
 
 		// Don't handle unselected viewers
-		if (viewer != getActiveViewer()) {
+		if (viewer != getActiveViewer() || !synchronizeViewers.get()) {
 			return;
 		}
 
@@ -688,8 +723,7 @@ public class ViewerManager implements QuPathViewerListener {
 		// Thwart the upcoming region shift
 		getLastViewerPosition(getActiveViewer()).reset();
 
-		//			aligningCores = true;
-		String coreName = ((TMACoreObject)pathObjectSelected).getName();
+		String coreName = pathObjectSelected.getName();
 		for (QuPathViewer v : viewers) {
 			if (v == viewer)
 				continue;
@@ -752,7 +786,7 @@ public class ViewerManager implements QuPathViewerListener {
 					if (rotation != 0) {
 						AffineTransform transform = new AffineTransform();
 						transform.rotate(-rotation, coreNewParent.getROI().getCentroidX(), coreNewParent.getROI().getCentroidY());
-						logger.info("ROTATING: " + transform);
+                        logger.info("ROTATING: {}", transform);
 						Area area = RoiTools.getArea(roi);
 						area.transform(transform);
 						roi = RoiTools.getShapeROI(area, roi.getImagePlane());
@@ -763,9 +797,8 @@ public class ViewerManager implements QuPathViewerListener {
 
 
 		PathObject annotation = PathObjects.createAnnotationObject(roi, lastAnnotation.getPathClass());
-		//			hierarchy.addPathObject(annotation, false);
 
-		//			// Make sure any core parent is set
+		// Make sure any core parent is set
 		hierarchy.addObjectBelowParent(coreNewParent, annotation, true);
 
 		activeViewer.setSelectedObject(annotation);
@@ -780,75 +813,78 @@ public class ViewerManager implements QuPathViewerListener {
 	private void setupViewer(final QuPathViewerPlus viewer) {
 		
 		viewer.getView().setFocusTraversable(true);
-		
+
+		// Create placeholder text for when no image is showing
+		var placeholder = Bindings.createStringBinding(() -> {
+			if (!PathPrefs.showViewerPlaceholderTextProperty().get() ||
+					viewer != activeViewerProperty().get() ||
+					viewer.getImageData() != null) {
+				return null;
+			}
+			if (qupath.getProject() == null) {
+				return QuPathResources.getString("Viewer.ViewerManager.dragAndDropWithoutProject");
+			} else {
+				return QuPathResources.getString("Viewer.ViewerManager.dragAndDropWithProject");
+			}
+		}, viewer.imageDataProperty(), qupath.projectProperty(), activeViewerProperty(), PathPrefs.showViewerPlaceholderTextProperty());
+		viewer.placeholderTextProperty().bind(placeholder);
+
+
 		// Update active viewer as required
 		viewer.getView().focusedProperty().addListener((e, f, nowFocussed) -> {
 			if (nowFocussed) {
 				setActiveViewer(viewer);
 			}
 		});
-		
-		viewer.getView().addEventFilter(MouseEvent.MOUSE_PRESSED, e -> viewer.getView().requestFocus());
 
 		// Create popup menu
 		setViewerPopupMenu(viewer);
 		
-		
 		// Enable drag and drop
 		qupath.getDefaultDragDropListener().setupTarget(viewer.getView());
-		
-		
-		// Listen to the scroll wheel
-		viewer.getView().setOnScroll(e -> {
-			if (viewer == getActiveViewer() || !getSynchronizeViewers()) {
-				if (!viewer.hasServer())
-					return;
-				double scrollUnits = e.getDeltaY() * PathPrefs.getScaledScrollSpeed();
-				
-				// Use shift down to adjust opacity
-				if (e.isShortcutDown()) {
-					OverlayOptions options = viewer.getOverlayOptions();
-					options.setOpacity((float)(options.getOpacity() + scrollUnits * 0.001));
-					return;
-				}
-				
-				// Avoid zooming at the end of a gesture when using touchscreens
-				if (e.isInertia())
-					return;
-				
-				if (PathPrefs.invertScrollingProperty().get())
-					scrollUnits = -scrollUnits;
-				double newDownsampleFactor = viewer.getDownsampleFactor() * Math.pow(viewer.getDefaultZoomFactor(), scrollUnits);
-				newDownsampleFactor = Math.min(viewer.getMaxDownsample(), Math.max(newDownsampleFactor, viewer.getMinDownsample()));
-				viewer.setDownsampleFactor(newDownsampleFactor, e.getX(), e.getY());
-			}
-		});
-		
-		
-		viewer.getView().addEventFilter(RotateEvent.ANY, e -> {
-			if (!PathPrefs.useRotateGesturesProperty().get())
-				return;
-//			logger.debug("Rotating: " + e.getAngle());
-			viewer.setRotation(viewer.getRotation() + Math.toRadians(e.getAngle()));
-			e.consume();
-		});
 
-		viewer.getView().addEventFilter(ZoomEvent.ANY, e -> {
-			if (!PathPrefs.useZoomGesturesProperty().get())
-				return;
-			double zoomFactor = e.getZoomFactor();
-			if (Double.isNaN(zoomFactor))
-				return;
-			
-			logger.debug("Zooming: " + e.getZoomFactor() + " (" + e.getTotalZoomFactor() + ")");
-			viewer.setDownsampleFactor(viewer.getDownsampleFactor() / zoomFactor, e.getX(), e.getY());
-			e.consume();
-		});
-		
+		// Add a general event handler, rather than specific handlers for different event types.
+		// This is so that other (more specific) handlers have priority, and this becomes the fallback option.
+		viewer.getView().addEventHandler(Event.ANY, new ViewerEventHandler(viewer));
+
+		// Grab focus when we can
+		viewer.getView().addEventFilter(MouseEvent.MOUSE_PRESSED, e -> viewer.getView().requestFocus());
+
+		// Handle special case of when scrolling should be used for panning
 		viewer.getView().addEventFilter(ScrollEvent.ANY, new ScrollEventPanningFilter(viewer));
-		
-		
-		viewer.getView().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+	}
+
+
+	private class ViewerEventHandler implements EventHandler<Event> {
+
+		private final QuPathViewer viewer;
+
+		private ViewerEventHandler(QuPathViewer viewer) {
+			this.viewer = viewer;
+		}
+
+		@Override
+		public void handle(Event event) {
+			if (event instanceof KeyEvent keyEvent) {
+				handleKeyEvent(keyEvent);
+			} else if (event instanceof ScrollEvent scrollEvent) {
+				handleScrollEvent(scrollEvent);
+			} else if (event instanceof RotateEvent rotateEvent) {
+				handleRotateEvent(rotateEvent);
+			} else if (event instanceof ZoomEvent zoomEvent) {
+				handleZoomEvent(zoomEvent);
+			}
+		}
+
+		private void handleKeyEvent(KeyEvent e) {
+			if (e.getEventType() == KeyEvent.KEY_PRESSED) {
+				handleKeyPressed(e);
+			} else if (e.getEventType() == KeyEvent.KEY_RELEASED) {
+				handleKeyReleased(e);
+			}
+		}
+
+		private void handleKeyPressed(KeyEvent e) {
 			if (e.isConsumed())
 				return;
 			PathObject pathObject = viewer.getSelectedObject();
@@ -871,18 +907,69 @@ public class ViewerManager implements QuPathViewerListener {
 				}
 			}
 			// For temporarily setting selection mode, we want to grab any S key presses eagerly
-			if (e.getCode() == KeyCode.S && e.getEventType() == KeyEvent.KEY_PRESSED) {
+			if (e.getCode() == KeyCode.S) {
 				PathPrefs.tempSelectionModeProperty().set(true);
-				e.consume();
+				// Don't consume the event! Doing so could break the 'Save' accelerators
 			}
-		});
-		viewer.getView().addEventHandler(KeyEvent.KEY_RELEASED, e -> {
+		}
+
+		private void handleKeyReleased(KeyEvent e) {
 			// For temporarily setting selection mode, we want to switch off the mode quickly for any key release events -
 			// to reduce the risk of accidentally leaving selection mode 'stuck' on if the S key release is missed
 			PathPrefs.tempSelectionModeProperty().set(false);
-		});
+		}
+
+		private void handleRotateEvent(RotateEvent e) {
+			if (!PathPrefs.useRotateGesturesProperty().get())
+				return;
+			viewer.setRotation(viewer.getRotation() + Math.toRadians(e.getAngle()));
+			e.consume();
+		}
+
+		private void handleZoomEvent(ZoomEvent e) {
+			if (!PathPrefs.useZoomGesturesProperty().get())
+				return;
+			double zoomFactor = e.getZoomFactor();
+			if (Double.isNaN(zoomFactor))
+				return;
+
+			logger.debug("Zooming: {} ({})", e.getZoomFactor(), e.getTotalZoomFactor());
+			viewer.setDownsampleFactor(viewer.getDownsampleFactor() / zoomFactor, e.getX(), e.getY());
+			e.consume();
+		}
+
+		private void handleScrollEvent(ScrollEvent e) {
+			// Listen to the scroll wheel
+			if (e.getEventType() != ScrollEvent.SCROLL
+					|| e.isConsumed()
+					|| !viewer.hasServer()
+					|| (viewer != getActiveViewer() && getSynchronizeViewers()))
+				return;
+
+			double scrollUnits = e.getDeltaY() * PathPrefs.getScaledScrollSpeed();
+
+			// Use shift down to adjust opacity
+			if (e.isShortcutDown()) {
+				OverlayOptions options = viewer.getOverlayOptions();
+				options.setOpacity((float)(options.getOpacity() + scrollUnits * 0.001));
+				return;
+			}
+
+			// Avoid zooming at the end of a gesture when using touchscreens
+			if (e.isInertia())
+				return;
+
+			if (PathPrefs.invertScrollingProperty().get())
+				scrollUnits = -scrollUnits;
+			double newDownsampleFactor = viewer.getDownsampleFactor() * Math.pow(viewer.getDefaultZoomFactor(), scrollUnits);
+			newDownsampleFactor = Math.min(viewer.getMaxDownsample(), Math.max(newDownsampleFactor, viewer.getMinDownsample()));
+			viewer.setDownsampleFactor(newDownsampleFactor, e.getX(), e.getY());
+			e.consume();
+		}
 
 	}
+
+
 
 	/**
 	 * Detach the currently active viewer from the viewer grid, if possible.
@@ -908,9 +995,15 @@ public class ViewerManager implements QuPathViewerListener {
 	 */
 	public void detachViewerFromGrid(QuPathViewer viewer) {
 		if (viewer == null)
-			Dialogs.showWarningNotification("Attach viewer", "Viewer is null - cannot detach from the viewer grid");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Viewer.ViewerManager.attachViewer"),
+					QuPathResources.getString("Viewer.ViewerManager.nullViewerCannotDetach")
+			);
 		else if (splitPaneGrid.isDetached(viewer))
-			Dialogs.showWarningNotification("Attach viewer", "Viewer is already detached from the viewer grid");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Viewer.ViewerManager.attachViewer"),
+					QuPathResources.getString("Viewer.ViewerManager.viewerAlreadyDetached")
+			);
 		else
 			splitPaneGrid.detachViewer(viewer);
 	}
@@ -923,11 +1016,17 @@ public class ViewerManager implements QuPathViewerListener {
 	 */
 	public void attachViewerToGrid(QuPathViewer viewer) {
 		if (viewer == null)
-			Dialogs.showWarningNotification("Attach viewer", "Viewer is null - cannot attach to the viewer grid");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Viewer.ViewerManager.attachViewer"),
+					QuPathResources.getString("Viewer.ViewerManager.nullViewerCannotAttach")
+			);
 		else if (splitPaneGrid.isDetached(viewer))
 			splitPaneGrid.attachViewer(viewer);
 		else
-			Dialogs.showWarningNotification("Attach viewer", "Viewer can't be added to the viewer grid");
+			Dialogs.showWarningNotification(
+					QuPathResources.getString("Viewer.ViewerManager.attachViewer"),
+					QuPathResources.getString("Viewer.ViewerManager.viewerCannotBeAdded")
+			);
 	}
 
 
@@ -1121,8 +1220,10 @@ public class ViewerManager implements QuPathViewerListener {
 					.findFirst()
 					.orElse(null);
 			if (closedViewer == null) {
-				Dialogs.showErrorMessage("Attach viewer", "Cannot attach viewer - " +
-						"please close an existing viewer in the grid first");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Viewer.ViewerManager.attachViewer"),
+						QuPathResources.getString("Viewer.ViewerManager.closeExistingViewer")
+				);
 				return false;
 			}
 			double[] positions = splitPaneRows.get(0).getDividerPositions();
@@ -1189,7 +1290,7 @@ public class ViewerManager implements QuPathViewerListener {
 				});
 				stage.show();
 				refreshViewerList();
-				splitPaneRows.get(0).setDividerPositions(positions);
+				splitPaneRows.getFirst().setDividerPositions(positions);
 				return true;
 			} else {
 				logger.warn("Viewer is already detached!");
@@ -1287,7 +1388,7 @@ public class ViewerManager implements QuPathViewerListener {
 				);
 		
 		Menu menuView = MenuTools.createMenu(
-				"Display",
+				"Menu.View.Display",
 				ActionTools.createCheckMenuItem(commonActions.SHOW_ANALYSIS_PANE, null),
 				commonActions.BRIGHTNESS_CONTRAST,
 				null,
@@ -1300,13 +1401,13 @@ public class ViewerManager implements QuPathViewerListener {
 		
 		// Hack to update the tools when we show this for the first time
 		// This should catch tools added via extensions (even if it doesn't respond to tool list being changed later)
-		Menu menuTools = MenuTools.createMenu("Set tool");
+		Menu menuTools = MenuTools.createMenu(QuPathResources.getString("Menu.Tools.setTool"));
 
 		
 		// Handle awkward 'TMA core missing' option
-		CheckMenuItem miTMAValid = new CheckMenuItem("Set core valid");
+		CheckMenuItem miTMAValid = new CheckMenuItem(QuPathResources.getString("Viewer.ViewerManager.setCoreValid"));
 		miTMAValid.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), false));
-		CheckMenuItem miTMAMissing = new CheckMenuItem("Set core missing");
+		CheckMenuItem miTMAMissing = new CheckMenuItem(QuPathResources.getString("Viewer.ViewerManager.setCoreMissing"));
 		miTMAMissing.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), true));
 		
 		Menu menuTMA = MenuTools.createMenu(
@@ -1318,21 +1419,21 @@ public class ViewerManager implements QuPathViewerListener {
 				null,
 				MenuTools.createMenu(
 						"General.add",
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddRowBeforeSelected(imageData), "Add TMA row before"),
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddRowAfterSelected(imageData), "Add TMA row after"),
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddColumnBeforeSelected(imageData), "Add TMA column before"),
-					qupath.createImageDataAction(imageData -> TMACommands.promptToAddColumnAfterSelected(imageData), "Add TMA column after")
-					),
+						qupath.createImageDataAction(TMACommands::promptToAddRowBeforeSelected, QuPathResources.getString("Menu.TMA.addRowBefore")),
+						qupath.createImageDataAction(TMACommands::promptToAddRowAfterSelected, QuPathResources.getString("Menu.TMA.addRowAfter")),
+						qupath.createImageDataAction(TMACommands::promptToAddColumnBeforeSelected, QuPathResources.getString("Menu.TMA.addColumnBefore")),
+						qupath.createImageDataAction(TMACommands::promptToAddColumnAfterSelected, QuPathResources.getString("Menu.TMA.addColumnAfter"))
+				),
 				MenuTools.createMenu(
 						"General.remove",
-						qupath.createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridRow(imageData), "Remove TMA row"),
-						qupath.createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridColumn(imageData), "column")
-					)
-				);
+						qupath.createImageDataAction(TMACommands::promptToDeleteTMAGridRow, QuPathResources.getString("Menu.TMA.removeRow")),
+						qupath.createImageDataAction(TMACommands::promptToDeleteTMAGridColumn, QuPathResources.getString("Menu.TMA.removeColumn"))
+				)
+		);
 		
 		
 		// Create an empty placeholder menu
-		Menu menuSetClass = MenuTools.createMenu("Set classification");
+		Menu menuSetClass = MenuTools.createMenu(QuPathResources.getString("Viewer.ViewerManager.setClassification"));
 		
 		var overlayActions = qupath.getOverlayActions();
 		Menu menuCells = MenuTools.createMenu(
@@ -1345,8 +1446,8 @@ public class ViewerManager implements QuPathViewerListener {
 
 		
 		
-		MenuItem miClearSelectedObjects = new MenuItem(QuPathResources.getString("General.deleteObjects"));
-		miClearSelectedObjects.setOnAction(e -> {
+		MenuItem miRemoveSelectedObjects = new MenuItem(QuPathResources.getString("General.deleteObjects"));
+		miRemoveSelectedObjects.setOnAction(e -> {
 			PathObjectHierarchy hierarchy = viewer.getHierarchy();
 			if (hierarchy == null)
 				return;
@@ -1383,14 +1484,14 @@ public class ViewerManager implements QuPathViewerListener {
 			
 			// Add clear objects option if we have more than one non-TMA object
 			if (imageData == null || imageData.getHierarchy().getSelectionModel().noSelection() || imageData.getHierarchy().getSelectionModel().getSelectedObject() instanceof TMACoreObject)
-				miClearSelectedObjects.setVisible(false);
+				miRemoveSelectedObjects.setVisible(false);
 			else {
 				if (imageData.getHierarchy().getSelectionModel().singleSelection()) {
-					miClearSelectedObjects.setText(QuPathResources.getString("General.deleteObject"));
-					miClearSelectedObjects.setVisible(true);
+					miRemoveSelectedObjects.setText(QuPathResources.getString("General.deleteObject"));
+					miRemoveSelectedObjects.setVisible(true);
 				} else {
-					miClearSelectedObjects.setText(QuPathResources.getString("General.deleteObjects"));
-					miClearSelectedObjects.setVisible(true);					
+					miRemoveSelectedObjects.setText(QuPathResources.getString("General.deleteObjects"));
+					miRemoveSelectedObjects.setVisible(true);
 				}
 			}
 			
@@ -1420,7 +1521,7 @@ public class ViewerManager implements QuPathViewerListener {
 		});
 
 		popup.getItems().addAll(
-				miClearSelectedObjects,
+				miRemoveSelectedObjects,
 				menuTMA,
 				menuSetClass,
 				menuAnnotations,
@@ -1540,7 +1641,7 @@ public class ViewerManager implements QuPathViewerListener {
 		RadioMenuItem selected = null;
 		for (PathClass pathClass : availablePathClasses) {
 			PathClass pathClassToSet = pathClass.getName() == null ? null : pathClass;
-			String name = pathClass.getName() == null ? "None" : pathClass.toString();
+			String name = pathClass.getName() == null ? QuPathResources.getString("Viewer.ViewerManager.none") : pathClass.toString();
 			Action actionSetClass = new Action(name, e -> {
 				List<PathObject> changed = new ArrayList<>();
 				for (PathObject pathObject : viewer.getAllSelectedObjects()) {
@@ -1555,7 +1656,7 @@ public class ViewerManager implements QuPathViewerListener {
 			Node shape;
 			if (useFancyIcons) {
 				Ellipse r = new Ellipse(iconSize/2.0, iconSize/2.0, iconSize, iconSize);
-				if ("None".equals(name)) {
+				if (QuPathResources.getString("Viewer.ViewerManager.none").equals(name)) {
 					r.setFill(Color.rgb(255, 255, 255, 0.75));
 					
 				}
@@ -1567,7 +1668,10 @@ public class ViewerManager implements QuPathViewerListener {
 				shape = r;
 			} else {
 				Rectangle r = new Rectangle(0, 0, 8, 8);
-				r.setFill("None".equals(name) ? Color.TRANSPARENT : ColorToolsFX.getCachedColor(pathClass.getColor()));
+				r.setFill(QuPathResources.getString("Viewer.ViewerManager.none").equals(name) ?
+						Color.TRANSPARENT :
+						ColorToolsFX.getCachedColor(pathClass.getColor())
+				);
 				shape = r;
 			}
 //			actionSetClass.setGraphic(r);

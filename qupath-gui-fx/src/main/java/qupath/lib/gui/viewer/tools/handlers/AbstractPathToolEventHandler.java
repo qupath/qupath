@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,32 +23,35 @@
 
 package qupath.lib.gui.viewer.tools.handlers;
 
-import java.awt.geom.Point2D;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-
-import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.Geometry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.input.GestureEvent;
+import javafx.scene.input.InputEvent;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
+import javafx.scene.input.TouchEvent;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.geom.Point2D;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 
 /**
  * Abstract implementation of a PathTool.
@@ -56,11 +59,11 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> {
+abstract class AbstractPathToolEventHandler<T extends InputEvent> implements EventHandler<T>, NotifiableEventHandler {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractPathToolEventHandler.class);
 
-	private ConstrainingObjects constrainingObjects = new ConstrainingObjects();
+	private final ConstrainingObjects constrainingObjects = new ConstrainingObjects();
 
 	/**
 	 * Ensure that the specified cursor is set in the current viewer.
@@ -224,23 +227,41 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 	}
 
 	@Override
-	public void handle(MouseEvent event) {
-		var type = event.getEventType();
-		if (type == MouseEvent.DRAG_DETECTED || type == MouseEvent.MOUSE_DRAGGED)
-			mouseDragged(event);
-		else if (type == MouseEvent.MOUSE_CLICKED)
-			mouseClicked(event);
-		else if (type == MouseEvent.MOUSE_MOVED)
-			mouseMoved(event);
-		else if (type == MouseEvent.MOUSE_PRESSED)
-			mousePressed(event);
-		else if (type == MouseEvent.MOUSE_RELEASED)
-			mouseReleased(event);
-		else if (type == MouseEvent.MOUSE_ENTERED)
-			mouseEntered(event);
-		else if (type == MouseEvent.MOUSE_EXITED)
-			mouseExited(event);
+	public void handle(T e) {
+		var type = e.getEventType();
+		if (e instanceof MouseEvent event) {
+			if (type == MouseEvent.DRAG_DETECTED || type == MouseEvent.MOUSE_DRAGGED)
+				mouseDragged(event);
+			else if (type == MouseEvent.MOUSE_CLICKED)
+				mouseClicked(event);
+			else if (type == MouseEvent.MOUSE_MOVED)
+				mouseMoved(event);
+			else if (type == MouseEvent.MOUSE_PRESSED)
+				mousePressed(event);
+			else if (type == MouseEvent.MOUSE_RELEASED)
+				mouseReleased(event);
+			else if (type == MouseEvent.MOUSE_ENTERED)
+				mouseEntered(event);
+			else if (type == MouseEvent.MOUSE_EXITED)
+				mouseExited(event);
+		} else if (e instanceof KeyEvent event) {
+			handleKeyEvent(event);
+		} else if (e instanceof ScrollEvent event) {
+			handleScrollEvent(event);
+		} if (e instanceof GestureEvent event) {
+			handleGestureEvent(event);
+		} else if (e instanceof TouchEvent event) {
+			handleTouchEvent(event);
+		}
 	}
+
+	protected void handleKeyEvent(KeyEvent e) {}
+
+	protected void handleScrollEvent(ScrollEvent e) {}
+
+	protected void handleGestureEvent(GestureEvent e) {}
+
+	protected void handleTouchEvent(TouchEvent e) {}
 
 
 	private static class ConstrainingObjects {
@@ -373,5 +394,10 @@ abstract class AbstractPathToolEventHandler implements EventHandler<MouseEvent> 
 
 	}
 
+	// Default, do-nothing implementation
+	public void handlerAdded(QuPathViewer viewer) {}
+
+	// Default, do-nothing implementation
+	public void handlerRemoved(QuPathViewer viewer) {}
 	
 }

@@ -21,7 +21,16 @@
 
 package qupath.lib.roi;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Geometry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.geom.Point2;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.RoiTools.CombineOp;
+import qupath.lib.roi.interfaces.ROI;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,16 +41,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.util.List;
-import org.junit.jupiter.api.Test;
-import org.locationtech.jts.geom.Geometry;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import qupath.lib.geom.Point2;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.RoiTools.CombineOp;
-import qupath.lib.roi.interfaces.ROI;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Test ROI behavior.
@@ -66,7 +70,7 @@ public class TestROIs {
 		
 		ROI rectangle = ROIs.createRectangleROI(0, 0, 1000, 1000, ImagePlane.getDefaultPlane());
 		double targetAreaRectangle = 1000.0 * 1000.0;
-		assertEquals(rectangle.getArea(), targetAreaRectangle, delta);
+		assertEquals(targetAreaRectangle, rectangle.getArea(), delta);
 		checkROIMeasurements(rectangle, 1, 1, delta);
 		checkROIMeasurements(rectangle, pixelWidth, pixelHeight, delta);
 		assertTrue(rectangle.getGeometry().isValid());
@@ -98,12 +102,12 @@ public class TestROIs {
 		File fileHierarchy = new File("src/test/resources/data/test-objects.hierarchy");
 		try (InputStream stream = Files.newInputStream(fileHierarchy.toPath())) {
 			PathObjectHierarchy hierarchy = (PathObjectHierarchy)new ObjectInputStream(stream).readObject();
-			List<ROI> rois = hierarchy.getFlattenedObjectList(null).stream().filter(p -> p.hasROI()).map(p -> p.getROI()).toList();
+			List<ROI> rois = hierarchy.getFlattenedObjectList(null).stream().filter(PathObject::hasROI).map(PathObject::getROI).toList();
 			assertNotEquals(0L, rois.size());
 			for (ROI roi : rois) {
 				Geometry geom = roi.getGeometry();
 				assertEquals(roi.isEmpty(), geom.isEmpty());
-				assertTrue(geom.isValid());
+				assertTrue(geom.isValid(), () -> "Invalid geometry " + geom);
 				if (roi.isArea()) {
 					assertEquals(roi.isEmpty(), geom.isEmpty());
 					if (roi instanceof EllipseROI) {

@@ -23,47 +23,6 @@
 
 package qupath.lib.gui.viewer;
 
-import java.awt.AlphaComposite;
-import java.awt.Color;
-import java.awt.Composite;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.Rectangle;
-import java.awt.RenderingHints;
-import java.awt.Shape;
-import java.awt.Stroke;
-import java.awt.color.ColorSpace;
-import java.awt.color.ICC_Profile;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.NoninvertibleTransformException;
-import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorConvertOp;
-import java.awt.image.LookupOp;
-import java.awt.image.ByteLookupTable;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.metadata.IIOMetadata;
-import javax.imageio.stream.ImageInputStream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
@@ -81,6 +40,8 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -89,9 +50,12 @@ import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
@@ -100,6 +64,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
@@ -112,6 +78,7 @@ import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.images.stores.TileListener;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -134,6 +101,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -145,6 +113,44 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
+
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.metadata.IIOMetadata;
+import javax.imageio.stream.ImageInputStream;
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.Composite;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.Shape;
+import java.awt.Stroke;
+import java.awt.color.ColorSpace;
+import java.awt.color.ICC_Profile;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.awt.image.ByteLookupTable;
+import java.awt.image.ColorConvertOp;
+import java.awt.image.LookupOp;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.nio.file.Paths;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 
 /**
@@ -160,9 +166,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private static final double MIN_ROTATION = 0;
 	private static final double MAX_ROTATION = 360 * Math.PI / 180;
 
-	private List<QuPathViewerListener> listeners = new ArrayList<>();
+	private final List<QuPathViewerListener> listeners = new ArrayList<>();
 
-	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+	private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 
 	private DefaultImageRegionStore regionStore;
 
@@ -179,15 +185,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //	private PixelLayerOverlay pixelLayerOverlay = null;
 	// A custom pixel overlay to use instead of the default
 	private PathOverlay customPixelLayerOverlay = null;
+
+	// Text to show when no image is open
+	private final StringProperty placeholderText = new SimpleStringProperty();
 	
 	// Overlay layers that can be edited
-	private ObservableList<PathOverlay> customOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
+	private final ObservableList<PathOverlay> customOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
 	
 	// Core overlay layers - these are always retained, and painted on top of any custom layers
-	private ObservableList<PathOverlay> coreOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
+	private final ObservableList<PathOverlay> coreOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
 	
 	// List that concatenates the custom & core overlay layers in painting order
-	private ObservableList<PathOverlay> allOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
+	private final ObservableList<PathOverlay> allOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
 
 	// Current we have two images - one transformed & one not - because the untransformed
 	// image is needed to determine pixel values as the mouse moves over the image
@@ -265,7 +274,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private BufferedImage imgCache;
 	private WritableImage imgCacheFX;
 	
-	private double borderLineWidth = 5;
+	private double borderLineWidth = 6;
 	private javafx.scene.paint.Color borderColor;
 	
 	/**
@@ -322,7 +331,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		pane.getChildren().add(canvas);
 		canvas.widthProperty().bind(pane.widthProperty());
 		canvas.heightProperty().bind(pane.heightProperty());
-		
+
+		pane.setAlignment(Pos.CENTER);
+		var placeholder = createPlaceholder();
+		pane.getChildren().add(placeholder);
+
 		// Resize to anything
 		pane.setMinWidth(1);
 		pane.setMinHeight(1);
@@ -341,7 +354,37 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		pane.addEventHandler(KeyEvent.ANY, new KeyEventHandler());
 
 	}
-	
+
+
+	/**
+	 * String property to hold text that should be displayed whenever no image is open in the viewer.
+	 * @return the placeholder text property
+	 * @since v0.6.0
+	 */
+	public StringProperty placeholderTextProperty() {
+		return placeholderText;
+	}
+
+
+	private Label createPlaceholder() {
+		var placeholder = new Label(placeholderText.getValueSafe());
+		placeholder.setWrapText(true);
+		placeholder.setTextAlignment(TextAlignment.CENTER);
+		placeholder.setPadding(new Insets(5.0));
+		placeholder.textProperty().bind(placeholderText);
+		placeholder.styleProperty().bind(Bindings.createStringBinding(() -> {
+			Integer rgb = PathPrefs.viewerBackgroundColorProperty().getValue();
+			var c = rgb == null ? javafx.scene.paint.Color.BLACK : ColorToolsFX.getCachedColor(rgb);
+			if (c.getBrightness() > 0.5)
+				return "-fx-text-fill: black;";
+			else
+				return "-fx-text-fill: white";
+		}, PathPrefs.viewerBackgroundColorProperty()));
+		placeholder.setOpacity(0.7);
+		placeholder.visibleProperty().bind(imageDataProperty.isNull().and(placeholderText.isNotEmpty()));
+		return placeholder;
+	}
+
 	
 	/**
 	 * Update allOverlayLayers to make sure it contains all the required PathOverlays.
@@ -735,9 +778,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		setOverlayOptions(overlayOptions);
 		
-		// We need a simple repaint for color changes & simple (thick) line changes
+		// We need a simple repaint for color changes and simple (thick) line changes
 		manager.attachListener(PathPrefs.annotationStrokeThicknessProperty(), repainter);
 		manager.attachListener(PathPrefs.newDetectionRenderingProperty(), repainter);
+		manager.attachListener(PathPrefs.pointRadiusProperty(), repainter);
 
 		gammaProperty.set(PathPrefs.viewerGammaProperty().get());
 		gammaProperty.bind(PathPrefs.viewerGammaProperty());
@@ -776,7 +820,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		this.imageDisplay = imageDisplay;
 		if (imageDisplay != null)
-			imageDisplay.changeTimestampProperty().addListener(repainterEntire);
+			imageDisplay.eventCountProperty().addListener(repainterEntire);
 
 		// Prepare overlay layers
 		customOverlayLayers.addListener((Change<? extends PathOverlay> e) -> refreshAllOverlayLayers());
@@ -893,7 +937,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @return
 	 */
 	public Point2D getMousePosition() {
-		if (mouseX >= 0 && mouseX <= canvas.getWidth() && mouseY >= 0 && mouseY <= canvas.getWidth())
+		if (mouseX >= 0 && mouseX <= canvas.getWidth() && mouseY >= 0 && mouseY <= canvas.getHeight())
 			return new Point2D.Double(mouseX, mouseY);
 		return null;
 	}
@@ -910,10 +954,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (overlayOptions != null) {
 			
 			overlayOptionsManager.attachListener(overlayOptions.fillDetectionsProperty(), repainterOverlay);
-			overlayOptionsManager.attachListener(overlayOptions.hiddenClassesProperty(), repainterOverlay);
+			overlayOptionsManager.attachListener(overlayOptions.selectedClassesProperty(), repainterOverlay);
+			overlayOptionsManager.attachListener(overlayOptions.selectedClassVisibilityModeProperty(), repainterOverlay);
+			overlayOptionsManager.attachListener(overlayOptions.useExactSelectedClassesProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.measurementMapperProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.detectionDisplayModeProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.showConnectionsProperty(), repainterOverlay);
+			overlayOptionsManager.attachListener(overlayOptions.showObjectPredicateProperty(), repainterOverlay);
 
 			overlayOptionsManager.attachListener(overlayOptions.showAnnotationsProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showNamesProperty(), repainter);
@@ -1390,8 +1437,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 
-	private IntegerProperty tPosition = new SimpleIntegerProperty(0);
-	private IntegerProperty zPosition = new SimpleIntegerProperty(0);
+	private final IntegerProperty tPosition = new SimpleIntegerProperty(0);
+	private final IntegerProperty zPosition = new SimpleIntegerProperty(0);
 
 	/**
 	 * Set the requested z-slice to be visible.
@@ -2288,10 +2335,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			Point2D p = componentPointToImagePoint(x, y, null, false);
 			TMACoreObject core = PathObjectTools.getTMACoreForPixel(tmaGrid, p.getX(), p.getY());
 			if (core != null) {
-				if (core.isMissing())
-					return String.format("TMA Core %s\n(missing)", core.getName());
-				else
-					return String.format("TMA Core %s", core.getName());
+				return MessageFormat.format(
+						QuPathResources.getString(core.isMissing() ? "Viewer.QuPathViewer.tmaCoreMissing" : "Viewer.QuPathViewer.tmaCoreX"),
+						core.getName()
+				);
 			}
 		}
 		return null;
@@ -2640,7 +2687,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					.filter(pathObject -> pathObject.isDetection())
 					.map(pathObject -> {
 				var pathClass = pathObject.getPathClass();
-				return pathClass == null ? "Unclassified" : pathClass.toString();
+				return pathClass == null ? PathClass.NULL_CLASS.toString() : pathClass.toString();
 			}).collect(Collectors.joining(", "));
 		}
 		return "";
@@ -2670,7 +2717,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			xDisplay *= cal.getPixelWidthMicrons();
 			yDisplay *= cal.getPixelHeightMicrons();
 		} else {
-			units = "px";
+			units = QuPathResources.getString("Viewer.QuPathViewer.px");
 		}
 		
 		// See if we're on top of a TMA core
@@ -2680,14 +2727,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			TMACoreObject core = PathObjectTools.getTMACoreForPixel(tmaGrid, xx, yy);
 			if (core != null) {
 				if (core.getName() != null)
-					prefix = "Core: " + core.getName();
+					prefix = MessageFormat.format(QuPathResources.getString("Viewer.QuPathViewer.core"), core.getName());
 				else
-					prefix = "TMA core";
+					prefix = QuPathResources.getString("Viewer.QuPathViewer.tmaCore");
 				var pathClass = core.getPathClass();
 				if (pathClass != null)
 					prefix += " (" + pathClass + ")";
 				if (core.isMissing())
-					prefix += " (missing)";
+					prefix += " " + QuPathResources.getString("Viewer.QuPathViewer.missing");
 				prefix += "\n";
 			}
 		}
@@ -3087,6 +3134,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	/**
 	 * Current z-position for the z-slice currently visible in the viewer.
+	 *
 	 * @return
 	 */
 	public IntegerProperty zPositionProperty() {
@@ -3145,7 +3193,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			KeyCode code = event.getCode();
 						
 			// Handle backspace/delete to remove selected object
-			if (event.getEventType() == KeyEvent.KEY_RELEASED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
+			if (event.getEventType() == KeyEvent.KEY_PRESSED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
 				if (getROIEditor().hasActiveHandle() || getROIEditor().isTranslating()) {
 					logger.debug("Cannot delete object - ROI being edited");
 					return;

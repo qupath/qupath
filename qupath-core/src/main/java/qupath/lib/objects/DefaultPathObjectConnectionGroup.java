@@ -23,6 +23,14 @@
 
 package qupath.lib.objects;
 
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.index.SpatialIndex;
+import org.locationtech.jts.index.quadtree.Quadtree;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -34,15 +42,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.index.SpatialIndex;
-import org.locationtech.jts.index.quadtree.Quadtree;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Simple, default implementation of {@link PathObjectConnectionGroup}.

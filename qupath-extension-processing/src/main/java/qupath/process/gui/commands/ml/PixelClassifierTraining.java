@@ -21,21 +21,18 @@
 
 package qupath.process.gui.commands.ml;
 
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_ml;
-import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_ml;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
-
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.RegionRequest;

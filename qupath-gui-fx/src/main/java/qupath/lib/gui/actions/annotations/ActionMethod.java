@@ -21,13 +21,13 @@
 
 package qupath.lib.gui.actions.annotations;
 
+import org.controlsfx.control.action.Action;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-
-import org.controlsfx.control.action.Action;
 
 /**
  * Annotation indicating that a method should be converted to an {@link Action} if possible.

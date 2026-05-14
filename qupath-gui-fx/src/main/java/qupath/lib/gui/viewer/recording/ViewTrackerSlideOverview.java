@@ -23,17 +23,6 @@
 
 package qupath.lib.gui.viewer.recording;
 
-import java.awt.Shape;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.PathIterator;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -44,17 +33,28 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.WritableImage;
-import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.gui.viewer.recording.ViewTrackerAnalysisCommand.DataMapsLocationString;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.regions.ImageRegion;
+
+import java.awt.Shape;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.PathIterator;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 
 final class ViewTrackerSlideOverview {
 	// TODO: Make sure we reset the shapeVisible (I think?) when we change T or Z manually from the slider (because it should always correspond to a specific frame)
@@ -128,13 +128,16 @@ final class ViewTrackerSlideOverview {
 		});
 
 		canvas.setOnContextMenuRequested(e -> {
-			final MenuItem tifExportItem = new MenuItem("Export data as TIF");
-		    final MenuItem copyItem = new MenuItem("Copy image to clipboard");
+			final MenuItem tifExportItem = new MenuItem(QuPathResources.getString("Viewer.ViewTrackerSlideOverview.exportData"));
+		    final MenuItem copyItem = new MenuItem(QuPathResources.getString("Viewer.ViewTrackerSlideOverview.copyImageToClipboard"));
 		    final ContextMenu contextMenu = new ContextMenu(tifExportItem, copyItem);
 		    
 		    tifExportItem.setOnAction(event -> {
-		    	var path = FileChoosers.promptToSaveFile("Save data map", new File("data map"),
-						FileChoosers.createExtensionFilter("TIFF image", ".tif"));
+		    	var path = FileChoosers.promptToSaveFile(
+						QuPathResources.getString("Viewer.ViewTrackerSlideOverview.saveDataMap"),
+						new File("data map"),
+						FileChoosers.createExtensionFilter(QuPathResources.getString("Viewer.ViewTrackerSlideOverview.tiffImage"), ".tif")
+				);
 		    	if (path == null)
 		    		return;
 		    	

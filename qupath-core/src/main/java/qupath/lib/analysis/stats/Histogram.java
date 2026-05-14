@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,9 +23,9 @@
 
 package qupath.lib.analysis.stats;
 
-import java.util.Collection;
-
 import qupath.lib.objects.PathObject;
+
+import java.util.Collection;
 
 
 /**
@@ -87,6 +87,15 @@ public class Histogram { // implements Serializable {
 	 */
 	public double getBinRightEdge(int ind) {
 		return edges[ind+1];
+	}
+
+	/**
+	 * Get average of the left and right bin edges.
+	 * @param ind index of the bin
+	 * @return
+	 */
+	public double getBinCenter(int ind) {
+		return (getBinLeftEdge(ind) + getBinRightEdge(ind)) / 2;
 	}
 	
 	/**
@@ -266,11 +275,7 @@ public class Histogram { // implements Serializable {
 	
 	@Override
 	public String toString() {
-		double count = getCountSum();
-		if (count == (long)count)
-			return String.format("Histogram: Min %.2f, Max %.2f, Total count: %d, N Bins %d", getEdgeMin(), getEdgeMax(), (long)count, nBins());
-		else
-			return String.format("Histogram: Min %.2f, Max %.2f, Total count: %.2f, N Bins %d", getEdgeMin(), getEdgeMax(), getCountSum(), nBins());
+		return String.format("Histogram: Min %.2f, Max %.2f, Total count: %d, N Bins %d", getEdgeMin(), getEdgeMax(), getCountSum(), nBins());
 	}
 	
 	
@@ -334,6 +339,49 @@ public class Histogram { // implements Serializable {
 		this(values, nBins, Double.NaN, Double.NaN);
 	}
 
+	/**
+	 * Create histogram from an array wrapper, using a specified number of bins and the data min/max as the min/max edges.
+	 * @param values
+	 * @param nBins
+	 * @param minEdge
+	 * @param maxEdge
+	 */
+	public Histogram(ArrayWrappers.ArrayWrapper values, int nBins, double minEdge, double maxEdge) {
+		buildHistogram(values, nBins, minEdge, maxEdge);
+	}
+
+    /**
+     * Create histogram from an existing edges and counts arrays.
+     * <p>
+     * This is useful when a histogram already exists in another format, and it would be too expensive to rebuild
+     * from the original values.
+     * <p>
+     * Note that the statistics (min, max, mean, std.dev. and variance) are estimated from the bin centers, and may not
+     * match the values from the data originally used to build the histogram.
+     *
+     * @param edges an array of edges, which should be of length {@code nBins + 1}.
+     * @param counts an array of counts, which should be of length {@code nBins}.
+     */
+    public Histogram(double[] edges, long[] counts) {
+        this.edgeMin = edges[0];
+        this.edgeMax = edges[edges.length-1];
+        this.edges = edges.clone();
+        this.counts = counts.clone();
+        boolean maybeInteger = true;
+        long countsSum = 0L;
+        var stats = new RunningStatistics();
+        for (int i = 0; i < edges.length-1; i++) {
+            double center = (edges[i] + edges[i+1]) / 2.0;
+            maybeInteger = maybeInteger && Math.round(center) == center;
+            for (long k = 0; k < counts[i]; k++) {
+                stats.addValue(center);
+                countsSum++;
+            }
+        }
+        this.isInteger = maybeInteger;
+        this.stats = stats;
+        this.countSum = countsSum;
+    }
 
 	
 	private void buildHistogram(final ArrayWrappers.ArrayWrapper values, int nBins, double minEdge, double maxEdge) {
@@ -346,7 +394,7 @@ public class Histogram { // implements Serializable {
 		isInteger = values.isIntegerWrapper();
 		boolean maybeInteger = !isInteger;
 		stats = new RunningStatistics();
-		int n = values.size();
+		long n = values.size();
 		for (int i = 0; i < n; i++) {
 			double v = values.getDouble(i);
 			stats.addValue(v);

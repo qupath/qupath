@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,43 +22,6 @@
  */
 
 package qupath.process.gui.commands;
-
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.WeakHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.FutureTask;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import org.bytedeco.javacpp.PointerScope;
-import org.bytedeco.javacpp.indexer.UByteIndexer;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Scalar;
-import org.bytedeco.opencv.opencv_ml.ANN_MLP;
-import org.bytedeco.opencv.opencv_ml.KNearest;
-import org.bytedeco.opencv.opencv_ml.RTrees;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -101,9 +64,20 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import org.bytedeco.javacpp.PointerScope;
+import org.bytedeco.javacpp.indexer.UByteIndexer;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_ml.ANN_MLP;
+import org.bytedeco.opencv.opencv_ml.KNearest;
+import org.bytedeco.opencv.opencv_ml.RTrees;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.fx.controls.PredicateTextField;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
-import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
@@ -112,13 +86,10 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectTools;
@@ -136,6 +107,32 @@ import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.objects.features.Preprocessing;
 import qupath.opencv.tools.OpenCVTools;
 import qupath.process.gui.commands.ml.ProjectClassifierBindings;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.WeakHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 
 /**
@@ -169,7 +166,6 @@ public class ObjectClassifierCommand implements Runnable {
 	public void run() {
 		if (dialog == null) {
 			dialog = new Stage();
-			FXUtils.addCloseWindowShortcuts(dialog);
 			if (qupath != null)
 				dialog.initOwner(qupath.getStage());
 			dialog.setTitle(name);
@@ -183,6 +179,8 @@ public class ObjectClassifierCommand implements Runnable {
 			scrollPane.setFitToHeight(true);
 			dialog.setScene(new Scene(scrollPane));
 
+			dialog.setMinWidth(320);
+			dialog.setMinHeight(320);
 			panel.registerListeners(qupath);
 			dialog.setOnCloseRequest(e -> {
 				dialog = null; // Reset the dialog so a new one will be created next time
@@ -442,7 +440,7 @@ public class ObjectClassifierCommand implements Runnable {
 							logger.debug("Will not load data for {} - will use the training annotations from the open viewer", entry);
 							var tempData = trainingMap.remove(entry);
 							if (tempData != null)
-								tempData.getServer().close();
+								tempData.close();
 						} else {
 							var tempData = trainingMap.get(entry);
 							if (tempData == null) {
@@ -1470,9 +1468,9 @@ public class ObjectClassifierCommand implements Runnable {
 			// Ensure we have closed any cached images
 			for (var data : trainingMap.values()) {
 				try {
-					data.getServer().close();
+					data.close();
 				} catch (Exception e) {
-					logger.warn("Error closing server: " + e.getLocalizedMessage(), e);
+                    logger.warn("Error closing server: {}", e.getMessage(), e);
 				}
 			}
 			trainingEntries.clear();

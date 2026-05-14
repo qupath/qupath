@@ -21,37 +21,18 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import com.google.gson.Strictness;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.Strictness;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Unmatched;
@@ -72,6 +53,23 @@ import qupath.lib.io.GsonTools;
 import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.ImageRegion;
+
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Helper class for working with {@link ImageServer} objects.
@@ -101,6 +99,10 @@ public class ImageServers {
 			.registerSubtype(ColorDeconvolutionServerBuilder.class, "color_deconvolved")
 			.registerSubtype(NormalizedImageServerBuilder.class, "normalized")
 			.registerSubtype(TypeConvertImageServerBuilder.class, "typeConvert")
+			.registerSubtype(SlicedImageServerBuilder.class, "sliced")
+			.registerSubtype(ZProjectedImageServerBuilder.class, "z_projected")
+			.registerSubtype(ZConcatenatedImageServerBuilder.class, "z_concatenated")
+			.registerSubtype(FlippedImageServerBuilder.class, "flipped")
 			;
 
 	private static GsonTools.SubTypeAdapterFactory<BufferedImageNormalizer> normalizerFactory =
@@ -535,29 +537,35 @@ public class ImageServers {
 		private final ServerBuilder<BufferedImage> builder;
 		private final int zStart;
 		private final int zEnd;
+		private final int zStep;
 		private final int tStart;
 		private final int tEnd;
+		private final int tStep;
 
 		public SlicedImageServerBuilder(
 				ImageServerMetadata metadata,
 				ServerBuilder<BufferedImage> builder,
 				int zStart,
 				int zEnd,
+				int zStep,
 				int tStart,
-				int tEnd
+				int tEnd,
+				int tStep
 		) {
 			super(metadata);
 
 			this.builder = builder;
 			this.zStart = zStart;
 			this.zEnd = zEnd;
+			this.zStep = zStep;
 			this.tStart = tStart;
 			this.tEnd = tEnd;
+			this.tStep = tStep;
 		}
 
 		@Override
 		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
-			return new SlicedImageServer(builder.build(), zStart, zEnd, tStart, tEnd);
+			return new SlicedImageServer(builder.build(), zStart, zEnd, zStep, tStart, tEnd, tStep);
 		}
 
 		@Override
@@ -576,12 +584,106 @@ public class ImageServers {
 						newBuilder,
 						zStart,
 						zEnd,
+						zStep,
 						tStart,
-						tEnd
+						tEnd,
+						tStep
 				);
 			}
 		}
+	}
 
+	static class ZProjectedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+
+		private final ServerBuilder<BufferedImage> builder;
+		private final ZProjectedImageServer.Projection projection;
+		private final int runningOffset;
+
+		public ZProjectedImageServerBuilder(
+				ImageServerMetadata metadata,
+				ServerBuilder<BufferedImage> builder,
+				ZProjectedImageServer.Projection projection,
+				int runningOffset
+		) {
+			super(metadata);
+
+			this.builder = builder;
+			this.projection = projection;
+			this.runningOffset = runningOffset;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new ZProjectedImageServer(builder.build(), projection, runningOffset);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder) {
+				return this;
+			} else {
+				return new ZProjectedImageServerBuilder(
+						getMetadata().orElse(null),
+						newBuilder,
+						projection,
+						runningOffset
+				);
+			}
+		}
+	}
+
+	static class ZConcatenatedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+
+		private final List<ServerBuilder<BufferedImage>> builders;
+
+		public ZConcatenatedImageServerBuilder(
+				ImageServerMetadata metadata,
+				List<ServerBuilder<BufferedImage>> builders
+		) {
+			super(metadata);
+
+			this.builders = builders;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			List<ImageServer<BufferedImage>> servers = new ArrayList<>();
+			for (var builder: builders) {
+				servers.add(builder.build());
+			}
+
+			return new ZConcatenatedImageServer(servers, getMetadata().map(ImageServerMetadata::getZSpacingMicrons).orElse(null));
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builders.stream()
+					.map(ServerBuilder::getURIs)
+					.flatMap(Collection::stream)
+					.toList();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			List<ServerBuilder<BufferedImage>> newBuilders = builders.stream()
+					.map(builder -> builder.updateURIs(updateMap))
+					.toList();
+
+			if (newBuilders.equals(builders)) {
+				return this;
+			} else {
+				return new ZConcatenatedImageServerBuilder(
+						getMetadata().orElse(null),
+						newBuilders
+				);
+			}
+		}
 	}
 	
 	static class AffineTransformImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
@@ -772,6 +874,48 @@ public class ImageServers {
 	
 	}
 
+	static class FlippedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+
+		private final ServerBuilder<BufferedImage> builder;
+		private final FlippedImageServer.Flip flip;
+
+		public FlippedImageServerBuilder(
+				ImageServerMetadata metadata,
+				ServerBuilder<BufferedImage> builder,
+				FlippedImageServer.Flip flip
+		) {
+			super(metadata);
+
+			this.builder = builder;
+			this.flip = flip;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new FlippedImageServer(builder.build(), flip);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+
+			if (newBuilder == builder) {
+				return this;
+			} else {
+				return new FlippedImageServerBuilder(
+						getMetadata().orElse(null),
+						newBuilder,
+						flip
+				);
+			}
+		}
+	}
+
 	static class NormalizedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 
 		private ServerBuilder<BufferedImage> builder;
@@ -909,15 +1053,7 @@ public class ImageServers {
 		ImageServerTypeAdapter(boolean includeMetadata) {
 			this.includeMetadata = includeMetadata;
 		}
-		
-		
-//		private Gson gson = new GsonBuilder()
-//				.setLenient()
-//				.serializeSpecialFloatingPointValues()
-//				.setPrettyPrinting()
-//				.registerTypeAdapterFactory(serverBuilderFactory)
-////				.registerTypeAdapterFactory(new ImageServerTypeAdapterFactory())
-//				.create();
+
 		
 		@Override
 		public void write(JsonWriter out, ImageServer<BufferedImage> server) throws IOException {

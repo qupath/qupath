@@ -22,6 +22,11 @@
 
 package qupath.lib.gui.localization;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.localization.LocalizedResourceManager;
+import qupath.lib.gui.UserDirectoryManager;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,13 +40,6 @@ import java.util.Locale.Category;
 import java.util.MissingResourceException;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.fx.localization.LocalizedResourceManager;
-import qupath.lib.gui.ExtensionClassLoader;
-import qupath.lib.gui.UserDirectoryManager;
 
 /**
  * Load strings from the default resource bundle.
@@ -99,7 +97,7 @@ public class QuPathResources {
 	public static boolean hasBundleForLocale(String bundle, Locale locale) {
 		if (locale == Locale.US || locale == Locale.ENGLISH)
 			return true;
-		return CONTROL.hasBundle(bundle, locale, ExtensionClassLoader.getInstance());
+		return CONTROL.hasBundle(bundle, locale, QuPathResources.class.getClassLoader());
 	}
 	
 	public static boolean hasDefaultBundleForLocale(Locale locale) {
@@ -110,7 +108,12 @@ public class QuPathResources {
 		if (bundleName == null || bundleName.isEmpty())
 			bundleName = DEFAULT_BUNDLE;
 		try {
-			return ResourceBundle.getBundle(bundleName, Locale.getDefault(Category.DISPLAY), ExtensionClassLoader.getInstance(), CONTROL);
+			return ResourceBundle.getBundle(
+					bundleName,
+					Locale.getDefault(Category.DISPLAY),
+					QuPathResources.class.getClassLoader(),
+					CONTROL
+			);
 		} catch (MissingResourceException e) {
 			logger.error("Missing resource bundle {}", bundleName);
 			return null;
@@ -136,7 +139,7 @@ public class QuPathResources {
 						.toURI())
 						.getParent();
 			} catch (Exception e) {
-				logger.debug("Error identifying code directory: " + e.getLocalizedMessage(), e);
+                logger.debug("Error identifying code directory: {}", e.getLocalizedMessage(), e);
 			}
 		}
 		
@@ -151,8 +154,14 @@ public class QuPathResources {
 
 			// If the bundle is not found in the default location, see if we need to use the extension class loader.
 			// (The default is the app class loader, because extensions are in the unnamed module.)
-			if (loader != ExtensionClassLoader.getInstance()) {
-				bundle = super.newBundle(baseName, locale, format, ExtensionClassLoader.getInstance(), reload);
+			if (loader != QuPathResources.class.getClassLoader()) {
+				bundle = super.newBundle(
+						baseName,
+						locale,
+						format,
+						QuPathResources.class.getClassLoader(),
+						reload
+				);
 				if (bundle != null)
 					return bundle;
 			}

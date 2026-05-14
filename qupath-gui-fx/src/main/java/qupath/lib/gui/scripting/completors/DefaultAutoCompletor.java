@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022, 2024 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,6 +21,13 @@
 
 package qupath.lib.gui.scripting.completors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.gui.scripting.QPEx;
+import qupath.lib.scripting.languages.AutoCompletions;
+import qupath.lib.scripting.languages.AutoCompletions.Completion;
+import qupath.lib.scripting.languages.ScriptAutoCompletor;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -29,14 +36,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.gui.scripting.QPEx;
-import qupath.lib.scripting.languages.AutoCompletions;
-import qupath.lib.scripting.languages.AutoCompletions.Completion;
-import qupath.lib.scripting.languages.ScriptAutoCompletor;
 
 /**
  * Default auto-completor for JVM-based languages, optionally including QuPath default imports.
@@ -102,11 +101,19 @@ public class DefaultAutoCompletor implements ScriptAutoCompletor {
 	
 	/**
 	 * Constructor.
-	 * @param addQuPathCompletions if true, add standard Java completions for core QuPath classes.
+	 * @param completions optionally include specific code completions, or an empty list if no completions
+	 *                    should be added.
 	 */
-	public DefaultAutoCompletor(boolean addQuPathCompletions) {
-		if (addQuPathCompletions)
-			allCompletions.addAll(DEFAULT_QUPATH_JAVA_COMPLETIONS);
+	public DefaultAutoCompletor(Collection<? extends Completion> completions) {
+		if (completions != null)
+			allCompletions.addAll(completions);
+	}
+
+	/**
+	 * Constructor, using the default Java code completions for QuPath.
+	 */
+	public DefaultAutoCompletor() {
+		this(DEFAULT_QUPATH_JAVA_COMPLETIONS);
 	}
 	
 	protected void addCompletion(Completion completion) {

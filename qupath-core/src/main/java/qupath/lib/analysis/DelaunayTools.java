@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -20,22 +20,6 @@
  */
 
 package qupath.lib.analysis;
-
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.locationtech.jts.densify.Densifier;
 import org.locationtech.jts.geom.Coordinate;
@@ -60,7 +44,6 @@ import org.locationtech.jts.triangulate.quadedge.QuadEdgeSubdivision;
 import org.locationtech.jts.triangulate.quadedge.Vertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.LogTools;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
@@ -72,6 +55,22 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Tools for creating and querying Delaunay triangulations and Voronoi diagrams.
@@ -149,7 +148,12 @@ public class DelaunayTools {
 			for (int i = 0; i < n ; i++) {
 				var c = coords[i];
 				p2.makePrecise(c);
-				if (i == 0 || c.distance(lastCoordinate) > minDistance) {
+				// Three rules:
+				// 1. Always add the first coordinate
+				// 2. Add 'intermediate' coordinates if they are sufficiently far from the last that was added
+				// 3. Add the last coordinate if it is sufficiently far from the first, and from the last added
+				if (i == 0 || (c.distance(lastCoordinate) > minDistance &&
+						(i < n-1 || c.distance(coords[0]) > minDistance))) {
 					output.add(c);
 					lastCoordinate = c;
 				}
@@ -409,7 +413,7 @@ public class DelaunayTools {
 			for (var c : coordsTemp) {
 				var previous = coords.put(c, pathObject);
 				if (previous != null)
-					logger.warn("Previous coordinate: " + previous);
+                    logger.warn("Previous coordinate: {}", previous);
 			}
 		}
 		
@@ -423,6 +427,9 @@ public class DelaunayTools {
 		var envelope = DelaunayTriangulationBuilder.envelope(coords);
 		var subdiv = new QuadEdgeSubdivision(envelope, tolerance);
 		var triangulator = new IncrementalDelaunayTriangulator(subdiv);
+		// We need to turn this off to use Voronoi faces - otherwise we often get invalid polygons at boundaries
+		triangulator.forceConvex(false);
+
 		subdiv.setLocator(getDefaultLocator(subdiv));
 		var edgeSet = new HashSet<QuadEdge>();
 		for (var coord : prepareCoordinates(coords)) {
@@ -448,7 +455,11 @@ public class DelaunayTools {
 	 * @return
 	 */
 	private static Collection<Coordinate> prepareCoordinates(Collection<Coordinate> coords) {
-		return DelaunayTriangulationBuilder.unique(coords.toArray(Coordinate[]::new));
+		return coords.stream().distinct().sorted().toList();
+		// Changed in v0.8.0 because this method is no longer public in JTS
+		// It's expected that the above code should do the same, but this comment in preserved
+		// in case some unexpected case emerges
+//		return DelaunayTriangulationBuilder.unique(coords.toArray(Coordinate[]::new));
 	}
 	
 	/**
@@ -828,10 +839,12 @@ public class DelaunayTools {
 		private synchronized NeighborMap calculateAllNeighbors() {
 			
 			logger.debug("Calculating all neighbors for {} objects", size());
-			
+
+			// Sort the edges; note that we shouldn't use a parallel stream here, because this can cause
+			// get stuck if the common fork join pool is already in use & awaiting the results of this calculation
 			@SuppressWarnings("unchecked")
 			var edges = (List<QuadEdge>)subdivision.getEdges()
-					.parallelStream()
+					.stream()
 					.sorted(Comparator.comparingDouble(QuadEdge::getLength))
 					.toList();
 
@@ -906,8 +919,8 @@ public class DelaunayTools {
 					logger.warn("Missing object for coordinate {}", coord);
 					continue;
 				}
-				// Occasionally happens when a polygon is especially thin
-				// (at least with a fixed point precision model)
+				// Occasionally happens when a polygon is especially thin (at least with a fixed point precision model) -
+				// but this has been mostly addressed by setting IncrementalDelanayTriangulator.forceConvex(false)
 				// We don't have a fix now, but we could one day...
 				if (!polygon.isValid()) {
 					invalidPolygons.add(polygon);
@@ -936,11 +949,11 @@ public class DelaunayTools {
 					geometry = geometry.buffer(0.0);
 					geometry = precisionReducer.reduce(geometry);
 				} catch (Exception e) {
-					logger.debug("Error doing fast geometry combine for Voronoi faces: " + e.getLocalizedMessage(), e);
+                    logger.debug("Error doing fast geometry combine for Voronoi faces: {}", e.getMessage(), e);
 					try {
 						geometry = GeometryTools.union(list);
 					} catch (Exception e2) {
-						logger.debug("Error doing fallback geometry combine for Voronoi faces: " + e2.getLocalizedMessage(), e2);
+                        logger.debug("Error doing fallback geometry combine for Voronoi faces: {}", e2.getMessage(), e2);
 					}
 				}
 //				// If there were invalid pieces, we could try to fix this
@@ -950,7 +963,10 @@ public class DelaunayTools {
 				map.put(pathObject, geometry);
 			}
 			if (!invalidPolygons.isEmpty()) {
-				logger.warn("Number of invalid polygons found in Voronoi diagram: {}/{}", invalidPolygons.size(), polygons.size());
+				// Invalid polygons can happen quite a bit for dense computations - so only warn if we have a *lot*,
+				// otherwise just log at debug level
+				String message = "Number of invalid polygons found in Voronoi diagram: {}/{}";
+				logger.warn(message, invalidPolygons.size(), polygons.size());
 			}
 			return map;
 		}
@@ -966,8 +982,7 @@ public class DelaunayTools {
 
 			@SuppressWarnings("unchecked")
 			var polygons = (List<Polygon>)subdivision.getVoronoiCellPolygons(GeometryTools.getDefaultFactory());
-//			var polygons = (List<Polygon>)subdivision.getVoronoiCellPolygons(new GeometryFactory());
-			
+
 			var map = new HashMap<PathObject, Geometry>();
 			var mapToMerge = new HashMap<PathObject, List<Geometry>>();
 			
@@ -1003,11 +1018,11 @@ public class DelaunayTools {
 				try {
 					geometry = GeometryCombiner.combine(list).buffer(0.0);
 				} catch (Exception e) {
-					logger.debug("Error doing fast geometry combine for Voronoi faces: " + e.getLocalizedMessage(), e);
+                    logger.debug("Error doing fast geometry combine for Voronoi faces: {}", e.getMessage(), e);
 					try {
 						geometry = GeometryTools.union(list);
 					} catch (Exception e2) {
-						logger.debug("Error doing fallback geometry combine for Voronoi faces: " + e2.getLocalizedMessage(), e2);
+                        logger.debug("Error doing fallback geometry combine for Voronoi faces: {}", e2.getMessage(), e2);
 					}
 				}
 				map.put(pathObject, geometry);

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,61 @@
 
 package qupath.lib.gui.tools;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.value.ObservableIntegerValue;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.SnapshotParameters;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.WritableImage;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.ClosePath;
+import javafx.scene.shape.CubicCurveTo;
+import javafx.scene.shape.Ellipse;
+import javafx.scene.shape.Line;
+import javafx.scene.shape.LineTo;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
+import javafx.scene.shape.QuadCurve;
+import javafx.scene.shape.QuadCurveTo;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.Shape;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
+import javafx.scene.text.TextBoundsType;
+import javafx.scene.transform.Transform;
+import org.controlsfx.glyphfont.FontAwesome;
+import org.controlsfx.glyphfont.Glyph;
+import org.controlsfx.glyphfont.GlyphFont;
+import org.controlsfx.glyphfont.GlyphFontRegistry;
+import org.controlsfx.tools.Duplicatable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.geom.Point2;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.viewer.DownsampledShapeCache;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.roi.EllipseROI;
+import qupath.lib.roi.LineROI;
+import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
@@ -34,59 +89,6 @@ import java.util.WeakHashMap;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-
-import javafx.collections.ObservableList;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Scene;
-import javafx.scene.SnapshotParameters;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.image.Image;
-import javafx.scene.image.WritableImage;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
-import javafx.scene.shape.Arc;
-import javafx.scene.shape.CubicCurveTo;
-import javafx.scene.shape.QuadCurve;
-import javafx.scene.text.TextAlignment;
-import javafx.scene.text.TextBoundsType;
-import javafx.scene.transform.Transform;
-import org.controlsfx.glyphfont.FontAwesome;
-import org.controlsfx.glyphfont.Glyph;
-import org.controlsfx.glyphfont.GlyphFont;
-import org.controlsfx.glyphfont.GlyphFontRegistry;
-import org.controlsfx.tools.Duplicatable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.beans.binding.Bindings;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.value.ObservableIntegerValue;
-import javafx.scene.Group;
-import javafx.scene.Node;
-import javafx.scene.control.Label;
-import javafx.scene.paint.Color;
-import javafx.scene.paint.Paint;
-import javafx.scene.shape.Circle;
-import javafx.scene.shape.ClosePath;
-import javafx.scene.shape.Ellipse;
-import javafx.scene.shape.Line;
-import javafx.scene.shape.LineTo;
-import javafx.scene.shape.MoveTo;
-import javafx.scene.shape.Path;
-import javafx.scene.shape.QuadCurveTo;
-import javafx.scene.shape.Rectangle;
-import javafx.scene.shape.Shape;
-import javafx.scene.text.Text;
-import qupath.lib.geom.Point2;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.roi.EllipseROI;
-import qupath.lib.roi.LineROI;
-import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Factory class for creating icons.
@@ -107,14 +109,14 @@ public class IconFactory {
 	        GlyphFontRegistry.register("icomoon", IconFactory.class.getClassLoader().getResourceAsStream("fonts/icomoon.ttf") , 12);
 	    }
 
-		private static GlyphFont icoMoon = GlyphFontRegistry.font("icomoon");
-		private static GlyphFont fontAwesome = GlyphFontRegistry.font("FontAwesome");
+		private static final GlyphFont icoMoon = GlyphFontRegistry.font("icomoon");
+		private static final GlyphFont fontAwesome = GlyphFontRegistry.font("FontAwesome");
 
 		static class FontIconSupplier implements IntFunction<Node> {
 			
-			private GlyphFont font;
+			private final GlyphFont font;
 			
-			private char code;
+			private final char code;
 			private javafx.scene.paint.Color color;// = javafx.scene.paint.Color.GRAY;
 			private ObservableIntegerValue observableColor;
 			
@@ -179,7 +181,11 @@ public class IconFactory {
 		}
 		
 		static IntFunction<Node> fontAwesome(FontAwesome.Glyph glyph) {
-			return new FontIconSupplier(fontAwesome, glyph.getChar());
+			return fontAwesome(glyph.getChar());
+		}
+
+		static IntFunction<Node> fontAwesome(char c) {
+			return new FontIconSupplier(fontAwesome, c);
 		}
 		
 		static IntFunction<Node> icoMoon(char c) {
@@ -206,10 +212,9 @@ public class IconFactory {
 			var fill = IconSuppliers.icoMoon('\ue900', PathPrefs.colorDefaultObjectsProperty()).apply(size);
 			fill.setOpacity(0.5);
 			var outline = IconSuppliers.icoMoon('\ue901', PathPrefs.colorDefaultObjectsProperty()).apply(size);
-			var group = new Group(
-					fill, outline
-			);
-			return group;
+            return new Group(
+                    fill, outline
+            );
 		}
 
 		static IntFunction<Node> fillDetectionsIcon() {
@@ -220,10 +225,9 @@ public class IconFactory {
 			var fill = IconSuppliers.icoMoon('\ue907', DETECTION_COLOR).apply(size);
 			fill.setOpacity(0.75);
 			var outline = IconSuppliers.icoMoon('\ue908', DETECTION_COLOR).apply(size);
-			var group = new Group(
-					fill, outline
-			);
-			return group;
+            return new Group(
+                    fill, outline
+            );
 		}
 		
 		static IntFunction<Node> arrowToolIcon(String cap) {
@@ -274,13 +278,20 @@ public class IconFactory {
 			return i -> new DuplicatableNode(() -> drawViewerGridIcon(i, rows, cols));
 		}
 
+		static IntFunction<Node> createGridIcon() {
+			return i -> new DuplicatableNode(() -> drawGridIcon(i, 4));
+		}
+
+		static IntFunction<Node> createGridSpacingIcon() {
+			return i -> new DuplicatableNode(() -> drawGridIcon(i, 2));
+		}
+
 	}
 	
 	
 	/**
 	 * Default icons for QuPath commands.
 	 */
-	@SuppressWarnings("javadoc")
 	public enum PathIcons {	ACTIVE_SERVER(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(0, 200, 0))),
 									ANNOTATIONS(IconSuppliers.icoMoon('\ue901', PathPrefs.colorDefaultObjectsProperty())),
 									ANNOTATIONS_FILL(IconSuppliers.fillAnnotationsIcon()),
@@ -290,12 +301,13 @@ public class IconFactory {
 									ARROW_DOUBLE_TOOL(IconSuppliers.arrowToolIcon("<>")),
 
 									BRUSH_TOOL(IconSuppliers.brushToolIcon()),
-									
+
 									CELL_NUCLEI_BOTH(IconSuppliers.icoMoon('\ue903')),
 									CELL_ONLY(IconSuppliers.icoMoon('\ue904')),
 									CENTROIDS_ONLY(IconSuppliers.icoMoon('\ue913')),
 
-									COG(IconSuppliers.icoMoon('\ue905')),
+									COG(IconSuppliers.fontAwesome(FontAwesome.Glyph.COG)),
+									COMMAND_LIST(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_UL)),
 									CONTRAST(IconSuppliers.icoMoon('\ue906')),
 
 									DETECTIONS(IconSuppliers.icoMoon('\ue908', DETECTION_COLOR)),
@@ -305,7 +317,8 @@ public class IconFactory {
 									ELLIPSE_TOOL(IconSuppliers.ellipseToolIcon()),
 									EXTRACT_REGION(IconSuppliers.icoMoon('\ue90a')),
 
-									GRID(IconSuppliers.icoMoon('\ue90b')),
+									GRID(IconSuppliers.createGridIcon()),
+									GRID_SPACING(IconSuppliers.createGridSpacingIcon()),
 									GITHUB(IconSuppliers.fontAwesome(FontAwesome.Glyph.GITHUB)),
 
 									HELP(IconSuppliers.fontAwesome(FontAwesome.Glyph.QUESTION_CIRCLE)),
@@ -313,12 +326,16 @@ public class IconFactory {
 									INFO(IconSuppliers.fontAwesome(FontAwesome.Glyph.INFO)),
 									INACTIVE_SERVER(IconSuppliers.icoMoon('\ue915', ColorToolsFX.getCachedColor(200, 0, 0))),
 
+									KEYBOARD(IconSuppliers.fontAwesome(FontAwesome.Glyph.KEYBOARD_ALT)),
+
 									LOG_VIEWER(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_ALT)), // Shows list in window
 //									LOG_VIEWER(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_UL)), // Alternative
 									LINE_TOOL(IconSuppliers.lineToolIcon()),
 									LOCATION(IconSuppliers.icoMoon('\ue90d')),
-									
+
+									MAP_PIN(IconSuppliers.fontAwesome(FontAwesome.Glyph.MAP_MARKER)),
 									MEASURE(IconSuppliers.icoMoon('\ue90e')),
+									MEMORY_MONITOR(IconSuppliers.fontAwesome(FontAwesome.Glyph.AREA_CHART)),
 									MINUS(IconSuppliers.fontAwesome(FontAwesome.Glyph.MINUS)),
 									MOVE_TOOL(IconSuppliers.icoMoon('\ue90f')),
 									
@@ -333,7 +350,8 @@ public class IconFactory {
 									POLYGON_TOOL(IconSuppliers.polygonToolIcon()),
 									
 									POLYLINE_TOOL(IconSuppliers.polylineToolIcon()),
-									
+
+									RECENT_COMMANDS(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_OL)),
 									RECTANGLE_TOOL(IconSuppliers.rectangleToolIcon()),
 									REFRESH(IconSuppliers.fontAwesome(FontAwesome.Glyph.REFRESH)),
 
@@ -353,6 +371,8 @@ public class IconFactory {
 									TABLE(IconSuppliers.icoMoon('\ue91a')),
 									TMA_GRID(IconSuppliers.icoMoon('\ue91b', PathPrefs.colorTMAProperty())),
 
+									UNDO(IconSuppliers.fontAwesome(FontAwesome.Glyph.UNDO)),
+
 									VIEWER_GRID_1x1(IconSuppliers.createViewerGridIcon(1, 1)),
 									VIEWER_GRID_1x2(IconSuppliers.createViewerGridIcon(1, 2)),
 									VIEWER_GRID_2x1(IconSuppliers.createViewerGridIcon(2, 1)),
@@ -361,13 +381,14 @@ public class IconFactory {
 
 									WAND_TOOL(IconSuppliers.icoMoon('\ue91c', PathPrefs.colorDefaultObjectsProperty())),
 									WARNING(IconSuppliers.fontAwesome(FontAwesome.Glyph.WARNING)),
-									
+
+									Z_PROJECT(IconSuppliers.fontAwesome(FontAwesome.Glyph.CUBE)),
 									ZOOM_IN(IconSuppliers.icoMoon('\ue91d')),
 									ZOOM_OUT(IconSuppliers.icoMoon('\ue91e')),
 									ZOOM_TO_FIT(IconSuppliers.icoMoon('\ue91f'))
 									;
 		
-		private IntFunction<Node> fun;
+		private final IntFunction<Node> fun;
 									
 		PathIcons(IntFunction<Node> fun) {
 			this.fun = fun;
@@ -378,7 +399,7 @@ public class IconFactory {
 		}
 		
 	};
-	
+
 	private static Node createLineOrArrowIcon(int size, String cap) {
 		return new DuplicatableNode(() -> drawLineOrArrowIcon(size, size, cap));
 	}
@@ -439,14 +460,24 @@ public class IconFactory {
 		return wrapInGroup(size, shape);
 	}
 
-	private static void bindStrokeToSelectionMode(ObservableList<Double> dashList) {
-		PathPrefs.selectionModeStatus().addListener((obs, oldVal, newVal) -> {
-			if (newVal) {
-				dashList.setAll(3.0, 3.0);
-			} else {
-				dashList.clear();
-			}
-		});
+	// A dash array that depends upon the selection mode property
+	private static ObservableList<Double> strokeDashArray;
+
+	private static void bindStrokeToSelectionMode(ObservableList<Double> dashArray) {
+		Bindings.bindContent(dashArray, getStrokeDashArray());
+	}
+
+	private static ObservableList<Double> getStrokeDashArray() {
+		if (strokeDashArray == null) {
+			strokeDashArray = FXCollections.observableArrayList();
+			PathPrefs.selectionModeStatus().addListener((v, o, n) -> {
+				if (n)
+					strokeDashArray.setAll(3.0, 3.0);
+				else
+					strokeDashArray.clear();
+			});
+		}
+		return strokeDashArray;
 	}
 
 	/**
@@ -472,39 +503,58 @@ public class IconFactory {
 		var rect = new Rectangle(0, 0, width, height);
 		rect.setFill(Color.TRANSPARENT);
 		var group = new Group(nodes);
-		group.getChildren().add(0, rect);
+		group.getChildren().addFirst(rect);
 		return group;
 	}
 
 	private static Node drawPointsIcon(int sizeOrig) {
-		return drawPointsIcon(sizeOrig, null);
+		return drawPointsIcon(sizeOrig, null, PathPrefs.multipointToolProperty().map(b -> b ? 3 : 1), -1);
 	}
 
 	private static Node drawPointsIcon(int sizeOrig, Color color) {
+		return drawPointsIcon(sizeOrig, color, null, -1);
+	}
+
+	private static Node drawPointsIcon(int sizeOrig, Color color, int nPointsFixed) {
+		return drawPointsIcon(sizeOrig, color, null, nPointsFixed);
+	}
+
+	private static Node drawPointsIcon(int sizeOrig, Color color, ObservableValue<? extends Number> nPoints, int nPointsFixed) {
 		
 		double pad = 1.0;
 		double size = sizeOrig - pad*2;
 		double radius = size/5.0;
-		
-		var c1 = new Circle(pad+size/2.0, pad+radius, radius, Color.TRANSPARENT);
 
-		var c2 = new Circle(pad+radius, pad+size-radius, radius, Color.TRANSPARENT);
+		List<Circle> circles = Arrays.asList(
+					new Circle(pad+size/2.0, pad+radius, radius, Color.TRANSPARENT),
+					new Circle(pad+radius, pad+size-radius, radius, Color.TRANSPARENT),
+					new Circle(pad+size-radius, pad+size-radius, radius, Color.TRANSPARENT)
+			);
 
-		var c3 = new Circle(pad+size-radius, pad+size-radius, radius, Color.TRANSPARENT);
+		double translucent = 0.15;
+		if (nPoints != null) {
+			circles.get(0).opacityProperty().bind(nPoints.map(n -> n.doubleValue() >= 1 ? 1.0 : translucent));
+			circles.get(1).opacityProperty().bind(nPoints.map(n -> n.doubleValue() >= 2 ? 1.0 : translucent));
+			circles.get(2).opacityProperty().bind(nPoints.map(n -> n.doubleValue() >= 3 ? 1.0 : translucent));
+		} else if (nPointsFixed >= 0 && nPointsFixed < 3) {
+			if (nPointsFixed < 1)
+				circles.get(0).setOpacity(translucent);
+			if (nPointsFixed < 2)
+				circles.get(1).setOpacity(translucent);
+			if (nPointsFixed < 3)
+				circles.get(2).setOpacity(translucent);
+		}
+
 		if (color != null) {
 			// Use fixed color
-			c1.setStroke(color);
-			c2.setStroke(color);
-			c3.setStroke(color);
+			circles.forEach(c -> c.setStroke(color));
 		} else {
 			// Use default object color
-			bindShapeColorToObjectColor(c1);
-			bindShapeColorToObjectColor(c2);
-			bindShapeColorToObjectColor(c3);
+			circles.forEach(IconFactory::bindShapeColorToObjectColor);
 		}
 
 //		return new Group(c1, c2, c3);
-		return wrapInGroup(sizeOrig, c1, c2, c3);
+		return wrapInGroup(sizeOrig, circles.toArray(Node[]::new));
 	}
 	
 	
@@ -652,6 +702,7 @@ public class IconFactory {
 	
 	private static Node drawShowNamesIcon(int size) {
 		var text = new Text("N");
+		text.setTextAlignment(TextAlignment.CENTER);
 		bindColorPropertyToRGB(text.fillProperty(), PathPrefs.colorDefaultObjectsProperty());
 		return text;
 	}
@@ -662,6 +713,23 @@ public class IconFactory {
 		return label;
 	}
 
+	private static Node drawGridIcon(int size, int n) {
+		List<Node> lines = new ArrayList<>();
+		double offset = size / (double)n;
+		double k = offset/2.0;
+		for (int i = 0; i < n; i++) {
+			var line1 = new Line(0, k, size, k);
+			styleIconShape(line1);
+			lines.add(line1);
+			var line2 = new Line(k, 0, k, size);
+			styleIconShape(line2);
+			lines.add(line2);
+			k += offset;
+		}
+		var group = wrapInGroup(size, lines.toArray(Node[]::new));
+		group.getStyleClass().add("qupath-icon");
+		return group;
+	}
 
 	private static Node drawViewerGridIcon(int size, int rows, int cols) {
 		double pad = 2.0;
@@ -777,7 +845,6 @@ public class IconFactory {
 		bindShapeColor(shape, PathPrefs.colorDefaultObjectsProperty());
 	}
 	
-	
 	private static void bindShapeColor(Shape shape, ObservableIntegerValue color) {
 		bindColorPropertyToRGB(shape.strokeProperty(), color);
 	}
@@ -791,7 +858,7 @@ public class IconFactory {
 	
 	private static class DuplicatableNode extends Label implements Duplicatable<Node> {
 		
-		private Supplier<Node> supplier;
+		private final Supplier<Node> supplier;
 		
 		DuplicatableNode(Supplier<Node> supplier) {
 			this.supplier = supplier;
@@ -816,7 +883,7 @@ public class IconFactory {
 	public static Node createPathObjectIcon(PathObject pathObject, int width, int height) {
 		var color = ColorToolsFX.getDisplayedColor(pathObject);
 		var roi = pathObject.getROI();
-		var roiNucleus = PathObjectTools.getROI(pathObject, true);
+		var roiNucleus = PathObjectTools.getNucleusROI(pathObject);
 		if (roi == null)
 			roi = roiNucleus;
 		if (roi == null)
@@ -836,7 +903,7 @@ public class IconFactory {
 		return createROIIcon(roi, width, height, color);
 	}
 	
-	private static Map<ROI, Path> pathCache = new WeakHashMap<>();	
+	private static final Map<ROI, Path> roiIconCache = new WeakHashMap<>();
 	
 	/**
 	 * Create an icon depicting a ROI.
@@ -876,30 +943,31 @@ public class IconFactory {
 			return line;
 		} else if (roi.isPoint()) {
 			// Just show generic points
-			var node = drawPointsIcon(Math.min(width, height), color);
-			return node;
+			return drawPointsIcon(Math.min(width, height), color, roi.getNumPoints());
 		} else {
-			var path = pathCache.getOrDefault(roi, null);
-			if (path == null) {
-				var shape = RoiTools.getShape(roi);
-//				var shape = roi.isArea() ? RoiTools.getArea(roi) : RoiTools.getShape(roi);
-				if (shape != null) {
-					var transform = new AffineTransform();
-					transform.translate(-roi.getBoundsX(), -roi.getBoundsY());
-					transform.scale(scale, scale);
-					PathIterator iterator = shape.getPathIterator(transform, Math.max(0.5, 1.0/scale));
-					path = createShapeIcon(iterator, color);
-					pathCache.put(roi, path);
-				}
-			} else {
+			var path = roiIconCache.computeIfAbsent(roi, r -> createPath(r, scale, color));
+			if (path != null) {
 				path = new Path(path.getElements());
 				path.setStroke(color);
-			}
-			if (path != null)
 				return path;
+			}
 		}
 		logger.warn("Unable to create icon for ROI: {}", roi);
 		return null;
+	}
+
+	private static Path createPath(ROI roi, double scale, Color color) {
+		double downsample = 1.0/(scale * 2);
+		var shape = roi.isArea() && roi.getNumPoints() > 100 ?
+				DownsampledShapeCache.getShapeForDownsample(roi, downsample) :
+				RoiTools.getShape(roi);
+		if (shape == null)
+			return null;
+		var transform = new AffineTransform();
+		transform.translate(-roi.getBoundsX(), -roi.getBoundsY());
+		transform.scale(scale, scale);
+		PathIterator iterator = shape.getPathIterator(transform, Math.max(0.5, 1.0/scale));
+		return createShapeIcon(iterator, color);
 	}
 	
 	private static Path createShapeIcon(PathIterator iterator, Color color) {
@@ -960,6 +1028,46 @@ public class IconFactory {
 			return null;
 		}
 	}
+
+
+	/**
+	 * Create a node from a FontAwesome Glyph.
+	 * @param glyph the glyph (should be part of the free FontAwesome collection supported by ControlsFX)
+	 * @param size the glyph size
+	 * @return a duplicatable node
+	 */
+	public static Node createNode(FontAwesome.Glyph glyph, int size) {
+		return new DuplicatableNode(() -> IconSuppliers.fontAwesome(glyph).apply(size));
+	}
+
+	/**
+	 * Create a node from a FontAwesome Glyph with the default size for toolbars.
+	 * @param glyph the glyph (should be part of the free FontAwesome collection supported by ControlsFX)
+	 * @return a duplicatable node
+	 */
+	public static Node createNode(FontAwesome.Glyph glyph) {
+		return new DuplicatableNode(() -> IconSuppliers.fontAwesome(glyph).apply(QuPathGUI.TOOLBAR_ICON_SIZE));
+	}
+
+	/**
+	 * Create a node from a FontAwesome Glyph with the default size for toolbars.
+	 * @param character the character for the Glyph
+	 * @return a duplicatable node
+	 */
+	public static Node createFontAwesome(char character) {
+		return new DuplicatableNode(() -> IconSuppliers.fontAwesome(character).apply(QuPathGUI.TOOLBAR_ICON_SIZE));
+	}
+
+	/**
+	 * Create a node from a FontAwesome Glyph with the default size for toolbars.
+	 * @param character the character for the Glyph
+	 * @param size the glyph size
+	 * @return a duplicatable node
+	 */
+	public static Node createFontAwesome(char character, int size) {
+		return new DuplicatableNode(() -> IconSuppliers.fontAwesome(character).apply(size));
+	}
+
 
 	/**
 	 * Create an image from a default icon glyph.

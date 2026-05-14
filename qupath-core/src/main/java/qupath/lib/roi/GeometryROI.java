@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,13 +21,6 @@
 
 package qupath.lib.roi;
 
-import java.awt.Shape;
-import java.awt.geom.Area;
-import java.awt.geom.Path2D;
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
-
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
@@ -41,14 +34,22 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 import org.locationtech.jts.io.WKBWriter;
+import org.locationtech.jts.operation.predicate.RectangleIntersects;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.Shape;
+import java.awt.geom.Area;
+import java.awt.geom.Path2D;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * ROI based on Java Topology Suite Geometry objects.
@@ -65,13 +66,15 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private static Logger logger = LoggerFactory.getLogger(GeometryROI.class);
+	private static final Logger logger = LoggerFactory.getLogger(GeometryROI.class);
 	
-	private Geometry geometry;
+	private final Geometry geometry;
 	private boolean checkValid = false;
 	
 	private transient GeometryStats stats = null;
-	private transient Shape shape = null;
+
+	// May be expensive
+	private transient int hashCode;
 
 	/**
 	 * Cache a locator for faster 'contains' checks.
@@ -103,6 +106,11 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		if (geometry instanceof Polygonal && geometry.getNumPoints() > 1000) {
 			logger.trace("Creating IndexedPointInAreaLocator for large geometry");
 			cachedLocator = new IndexedPointInAreaLocator(geometry);
+		}
+		// Check the precision model & warn if it doesn't match
+		if (!Objects.equals(geometry.getPrecisionModel(), GeometryTools.getDefaultFactory().getPrecisionModel())) {
+			logger.warn("Geometry precision model for ROI {} does not match default precision model {}",
+					geometry.getPrecisionModel(), GeometryTools.getDefaultFactory().getPrecisionModel());
 		}
 	}
 
@@ -174,17 +182,16 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 
 	@Override
 	public Shape getShape() {
-		if (shape == null) {
-			// Cache complex shapes
-			if (getNumPoints() < 10000)
-				return GeometryTools.geometryToShape(geometry);
-			else
-				shape = GeometryTools.geometryToShape(geometry);
-		}
+		var shape = getShapeInternal();
 		if (shape instanceof Area)
 			return new Area(shape);
 		else
 			return new Path2D.Float(shape);
+	}
+
+	@Override
+	public Shape createShape() {
+		return GeometryTools.geometryToShape(geometry);
 	}
 
 	@Override
@@ -234,6 +241,14 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		} else
 			return false;
 	}
+
+	@Override
+	public boolean intersects(double x, double y, double width, double height) {
+		if (!intersectsBounds(x, y, width, height))
+			return false;
+		return RectangleIntersects.intersects(GeometryTools.createRectangle(x, y, width, height), geometry);
+	}
+
 
 	@Override
 	public ROI translate(double dx, double dy) {
@@ -361,7 +376,22 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 				plane);
 	}
 
-//	@Override
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+		GeometryROI that = (GeometryROI) o;
+		return Objects.equals(getImagePlane(), that.getImagePlane()) && Objects.equals(geometry, that.geometry);
+	}
+
+	@Override
+	public int hashCode() {
+		if (hashCode == 0) {
+			hashCode = Objects.hash(geometry, getImagePlane());
+		}
+		return hashCode;
+	}
+
+	//	@Override
 //	public double getMaxDiameter() {
 //		return getGeometryStats().getMaxDiameter();
 //	}
@@ -393,7 +423,7 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		private final byte[] wkb;
 		private final int c, z, t;
 
-		private GeometryStats stats;
+		private final GeometryStats stats;
 
 		WKBSerializationProxy(final GeometryROI roi) {
 			this.wkb = new WKBWriter(2).write(roi.geometry);
@@ -406,7 +436,9 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		}
 
 		private Object readResolve() throws ParseException {
-			var geometry = new WKBReader().read(wkb);
+			// Assume we can use the default factory, since we wrote the ROI -
+			// although if we were decreasing precision this could be problematic
+			var geometry = new WKBReader(GeometryTools.getDefaultFactory()).read(wkb);
 			GeometryROI roi = new GeometryROI(geometry, ImagePlane.getPlaneWithChannel(c, z, t));
 			roi.stats = this.stats;
 			return roi;

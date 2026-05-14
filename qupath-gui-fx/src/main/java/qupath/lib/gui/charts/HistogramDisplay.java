@@ -23,37 +23,36 @@
 
 package qupath.lib.gui.charts;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ObservableValue;
+import javafx.beans.property.StringProperty;
 import javafx.geometry.Insets;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.util.Callback;
+import org.controlsfx.control.SearchableComboBox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.HistogramChart.HistogramData;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.plugins.parameters.IntParameter;
 import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
+
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Wrapper close to enable the generation and display of histograms relating to a data table.
@@ -64,28 +63,55 @@ import qupath.lib.plugins.parameters.ParameterList;
  */
 public class HistogramDisplay implements ParameterChangeListener {
 
-	static final Logger logger = LoggerFactory.getLogger(HistogramDisplay.class);
+	private static final Logger logger = LoggerFactory.getLogger(HistogramDisplay.class);
 
 	private PathTableData<?> model;
-	private BorderPane pane = new BorderPane();
+	private final BorderPane pane = new BorderPane();
 
-	private ComboBox<String> comboName = new ComboBox<>();
-	private HistogramChart histogramChart = new HistogramChart();
-	private ParameterPanelFX panelParams;
+	private final SearchableComboBox<String> comboName = new SearchableComboBox<>();
+	private final HistogramChart histogramChart = new HistogramChart();
+	private final ParameterPanelFX panelParams;
+
+	private final StringProperty selectedColumn = new SimpleStringProperty();
 
 	private int currentBins;
 	private double[] currentValues;
 	private String currentColumn = null;
 
-	private ParameterList params = new ParameterList()
-			.addChoiceParameter("countsTransform", "Counts",
-					HistogramChart.CountsTransformMode.RAW, Arrays.asList(HistogramChart.CountsTransformMode.values()),
-					"Normalize counts (probability distribution)")
-			.addIntParameter("nBins", "Number of bins", 32, null, "Number of histogram bins (>= 2 and <= 1000)")
-			.addBooleanParameter("drawGrid", "Draw grid", true, "Draw grid")
-			.addBooleanParameter("drawAxes", "Draw axes", true, "Draw axes")
-			.addBooleanParameter("animate", "Animate changes", false, "Animate changes");
-	private TableView<Property<Number>> table = new TableView<>();
+	private final ParameterList paramsHistogram = new ParameterList()
+			.addChoiceParameter(
+					"countsTransform",
+					QuPathResources.getString("Charts.HistogramDisplay.counts"),
+					HistogramChart.CountsTransformMode.RAW,
+					Arrays.asList(HistogramChart.CountsTransformMode.values()),
+					QuPathResources.getString("Charts.HistogramDisplay.countsDescription")
+			)
+			.addIntParameter(
+					"nBins",
+					QuPathResources.getString("Charts.HistogramDisplay.numberOfBins"),
+					32,
+					null,
+					QuPathResources.getString("Charts.HistogramDisplay.numberOfBinsDescription")
+			)
+			.addBooleanParameter(
+					"drawGrid",
+					QuPathResources.getString("Charts.HistogramDisplay.drawGrid"),
+					true,
+					QuPathResources.getString("Charts.HistogramDisplay.drawGrid")
+			)
+			.addBooleanParameter(
+					"drawAxes",
+					QuPathResources.getString("Charts.HistogramDisplay.drawAxes"),
+					true,
+					QuPathResources.getString("Charts.HistogramDisplay.drawAxes")
+			)
+			.addBooleanParameter(
+					"animate",
+					QuPathResources.getString("Charts.HistogramDisplay.animateChanges"),
+					false,
+					QuPathResources.getString("Charts.HistogramDisplay.animateChanges")
+			);
+	private final TableView<Property<Number>> table = new TableView<>();
 
 	/**
 	 * Constructor.
@@ -113,20 +139,10 @@ public class HistogramDisplay implements ParameterChangeListener {
 			comboName.getSelectionModel().select(selectColumn);
 
 		
-		TableColumn<Property<Number>, String> colName = new TableColumn<>("Measurement");
-		colName.setCellValueFactory(new Callback<>() {
-            @Override
-            public ObservableValue<String> call(CellDataFeatures<Property<Number>, String> p) {
-                return new SimpleStringProperty(p.getValue().getName());
-            }
-        });
-		TableColumn<Property<Number>, Number> colValue = new TableColumn<>("Value");
-		colValue.setCellValueFactory(new Callback<>() {
-            @Override
-            public ObservableValue<Number> call(CellDataFeatures<Property<Number>, Number> p) {
-                return p.getValue();
-            }
-        });
+		TableColumn<Property<Number>, String> colName = new TableColumn<>(QuPathResources.getString("Charts.HistogramDisplay.measurement"));
+		colName.setCellValueFactory(p -> new SimpleStringProperty(p.getValue().getName()));
+		TableColumn<Property<Number>, Number> colValue = new TableColumn<>(QuPathResources.getString("Charts.HistogramDisplay.value"));
+		colValue.setCellValueFactory(TableColumn.CellDataFeatures::getValue);
 		colValue.setCellFactory(column -> {
 			return new TableCell<>() {
                 @Override
@@ -146,29 +162,28 @@ public class HistogramDisplay implements ParameterChangeListener {
 		});
 		table.getColumns().add(colName);
 		table.getColumns().add(colValue);
-		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 		table.maxHeightProperty().bind(table.prefHeightProperty());
-
+		table.setPrefHeight(180);
+		table.setMinWidth(100);
+		table.setStyle("-fx-font-size: 0.8em");
 
 		BorderPane panelMain = new BorderPane();
 		panelMain.setCenter(histogramChart);
 
-		comboName.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+		selectedColumn.bindBidirectional(comboName.valueProperty());
+		selectedColumn.addListener((v, o, n) -> {
 			setHistogram(model, n);
 		});
+		histogramChart.setShowTickLabels(paramsHistogram.getBooleanParameterValue("drawAxes"));
 
-		histogramChart.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
 
-
-		panelParams = new ParameterPanelFX(params);
+		panelParams = new ParameterPanelFX(paramsHistogram);
 		panelParams.addParameterChangeListener(this);
 		panelParams.getPane().setPadding(new Insets(20, 5, 5, 5));
 		panelParams.getPane().setMinWidth(Pane.USE_PREF_SIZE);
 		updateTable(null);
 
-		table.setPrefHeight(180);
-		table.setMinWidth(100);
-		table.setStyle("-fx-font-size: 0.8em");
 //		var panelSouth = PaneTools.createColumnGrid(panelParams.getPane(), table);
 		
 		GridPane panelSouth = new GridPane();
@@ -207,24 +222,28 @@ public class HistogramDisplay implements ParameterChangeListener {
 	 * Set the number of bins for the histogram.
 	 * @param nBins the number of bins to use
 	 */
-	public void setNumBins(final int nBins) {
+	public void setNumBins(int nBins) {
+		if (nBins > 1e5) {
+			logger.warn("nBins set to strange value {}; resetting to 32.", nBins);
+			nBins = 32;
+		}
 		if (panelParams != null)
 			panelParams.setNumericParameterValue("nBins", nBins);
 		else
-			((IntParameter)params.getParameters().get("nBins")).setValue(nBins);
+			((IntParameter) paramsHistogram.getParameters().get("nBins")).setValue(nBins);
 	}
 
 	/**
 	 * Get the requested number of bins used for the histogram.
-	 * @return
+	 * @return The number of bins
 	 */
 	public int getNumBins() {
-		return params.getIntParameterValue("nBins");
+		return paramsHistogram.getIntParameterValue("nBins");
 	}
 
 	/**
 	 * Get the pane containing the histogram and associated UI components, for addition to a scene.
-	 * @return
+	 * @return The pane
 	 */
 	public Pane getPane() {
 		return pane;
@@ -233,7 +252,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 	void setHistogram(final PathTableData<?> model, final String columnName) {
 		if (model != null && model.getMeasurementNames().contains(columnName)) {
 			double[] values = model.getDoubleValues(columnName);
-			int nBins = params.getIntParameterValue("nBins");
+			int nBins = paramsHistogram.getIntParameterValue("nBins");
 			if (nBins < 2)
 				nBins = 2;
 			else if (nBins > 1000)
@@ -250,7 +269,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 //			histogram.setNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
 
 			HistogramData histogramData = HistogramChart.createHistogramData(histogram, (Integer)null);
-			updateCountsTransform(histogramChart, params);
+			updateCountsTransform(histogramChart, paramsHistogram);
 			histogramChart.getHistogramData().setAll(histogramData);
 
 
@@ -258,14 +277,14 @@ public class HistogramDisplay implements ParameterChangeListener {
 			histogramChart.setHorizontalGridLinesVisible(true);
 			histogramChart.setLegendVisible(false);
 			histogramChart.setCreateSymbols(false); // Can't stop them being orange...
-			histogramChart.getXAxis().setLabel("Values");
-			histogramChart.getYAxis().setLabel("Counts");
+			histogramChart.getXAxis().setLabel(QuPathResources.getString("Charts.HistogramDisplay.values"));
+			histogramChart.getYAxis().setLabel(QuPathResources.getString("Charts.HistogramDisplay.counts"));
 			histogramChart.getYAxis().setTickLabelsVisible(true);
 			histogramChart.getYAxis().setTickMarkVisible(true);
 			histogramChart.getXAxis().setTickLabelsVisible(true);
 			histogramChart.getXAxis().setTickMarkVisible(true);
 
-			histogramChart.setAnimated(params.getBooleanParameterValue("animate"));
+			histogramChart.setAnimated(paramsHistogram.getBooleanParameterValue("animate"));
 
 			updateTable(histogram);
 
@@ -273,8 +292,10 @@ public class HistogramDisplay implements ParameterChangeListener {
 			currentBins = nBins;
 			currentValues = values;
 			this.model = model;
-		} else
+		} else {
 			histogramChart.getHistogramData().clear();
+			currentValues = null;
+		}
 	}
 
 	private static void updateCountsTransform(HistogramChart histogramChart, ParameterList params) {
@@ -282,9 +303,12 @@ public class HistogramDisplay implements ParameterChangeListener {
 		if (transform instanceof HistogramChart.CountsTransformMode mode) {
 			histogramChart.setCountsTransform(mode);
 			if (transform == HistogramChart.CountsTransformMode.RAW)
-				histogramChart.getYAxis().setLabel("Counts");
+				histogramChart.getYAxis().setLabel(QuPathResources.getString("Charts.HistogramDisplay.counts"));
 			else
-				histogramChart.getYAxis().setLabel("Counts (" + transform + ")");
+				histogramChart.getYAxis().setLabel(MessageFormat.format(
+						QuPathResources.getString("Charts.HistogramDisplay.countsX"),
+						transform
+				));
 		} else
 			logger.warn("Histogram counts transform not supported: {}", transform);
 	}
@@ -316,14 +340,14 @@ public class HistogramDisplay implements ParameterChangeListener {
 		if ("countsTransform".equals(key)) {
 			updateCountsTransform(histogramChart, parameterList);
 		} else if ("drawGrid".equals(key)) {
-			histogramChart.setHorizontalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
-			histogramChart.setVerticalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
+			histogramChart.setHorizontalGridLinesVisible(paramsHistogram.getBooleanParameterValue("drawGrid"));
+			histogramChart.setVerticalGridLinesVisible(paramsHistogram.getBooleanParameterValue("drawGrid"));
 		} else if ("drawAxes".equals(key)) {
-			histogramChart.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
+			histogramChart.setShowTickLabels(paramsHistogram.getBooleanParameterValue("drawAxes"));
 		} else if ("nBins".equals(key)) {
 			setHistogram(model, comboName.getSelectionModel().getSelectedItem());
 		} else if ("animate".equals(key)) {
-			histogramChart.setAnimated(params.getBooleanParameterValue("animate"));
+			histogramChart.setAnimated(paramsHistogram.getBooleanParameterValue("animate"));
 		}
 	}
 
@@ -332,25 +356,23 @@ public class HistogramDisplay implements ParameterChangeListener {
 	void updateTable(final Histogram histogram) {
 		if (histogram == null) {
 			List<Property<Number>> stats = new ArrayList<>();
-			stats.add(new SimpleDoubleProperty(null, "Count", Double.NaN));
-			stats.add(new SimpleDoubleProperty(null, "Missing", Double.NaN));
-			stats.add(new SimpleDoubleProperty(null, "Mean", Double.NaN));
-			stats.add(new SimpleDoubleProperty(null, "Std.Dev", Double.NaN));
-			stats.add(new SimpleDoubleProperty(null, "Min", Double.NaN));
-			stats.add(new SimpleDoubleProperty(null, "Max", Double.NaN));
+			stats.add(new SimpleDoubleProperty(null, QuPathResources.getString("Charts.HistogramDisplay.count"), Double.NaN));
+			stats.add(new SimpleDoubleProperty(null, QuPathResources.getString("Charts.HistogramDisplay.missing"), Double.NaN));
+			stats.add(new SimpleDoubleProperty(null, QuPathResources.getString("Charts.HistogramDisplay.mean"), Double.NaN));
+			stats.add(new SimpleDoubleProperty(null, QuPathResources.getString("Charts.HistogramDisplay.stdDev"), Double.NaN));
+			stats.add(new SimpleDoubleProperty(null, QuPathResources.getString("Charts.HistogramDisplay.min"), Double.NaN));
+			stats.add(new SimpleDoubleProperty(null, QuPathResources.getString("Charts.HistogramDisplay.max"), Double.NaN));
 			table.getItems().setAll(stats);
 			return;
 		}
-
 		List<Property<Number>> stats = new ArrayList<>();
-		stats.add(new SimpleLongProperty(null, "Count", histogram.nValues()));
-		stats.add(new SimpleLongProperty(null, "Missing", histogram.nMissingValues()));
-		stats.add(new SimpleDoubleProperty(null, "Mean", histogram.getMeanValue()));
-		stats.add(new SimpleDoubleProperty(null, "Std.Dev", histogram.getStdDev()));
-		stats.add(new SimpleDoubleProperty(null, "Min", histogram.getMinValue()));
-		stats.add(new SimpleDoubleProperty(null, "Max", histogram.getMaxValue()));
+		stats.add(new SimpleLongProperty(null, QuPathResources.getString("Charts.HistogramDisplay.count"), histogram.nValues()));
+		stats.add(new SimpleLongProperty(null, QuPathResources.getString("Charts.HistogramDisplay.missing"), histogram.nMissingValues()));
+		stats.add(new SimpleDoubleProperty(null, QuPathResources.getString("Charts.HistogramDisplay.mean"), histogram.getMeanValue()));
+		stats.add(new SimpleDoubleProperty(null, QuPathResources.getString("Charts.HistogramDisplay.stdDev"), histogram.getStdDev()));
+		stats.add(new SimpleDoubleProperty(null, QuPathResources.getString("Charts.HistogramDisplay.min"), histogram.getMinValue()));
+		stats.add(new SimpleDoubleProperty(null, QuPathResources.getString("Charts.HistogramDisplay.max"), histogram.getMaxValue()));
 		table.getItems().setAll(stats);
 	}
-
 
 }

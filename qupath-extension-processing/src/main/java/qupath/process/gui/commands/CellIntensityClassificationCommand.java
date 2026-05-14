@@ -21,6 +21,33 @@
 
 package qupath.process.gui.commands;
 
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.analysis.stats.Histogram;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.charts.ChartThresholdPane;
+import qupath.lib.gui.charts.HistogramChart;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.plugins.workflow.WorkflowStep;
+import qupath.lib.scripting.QP;
+
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,34 +57,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.GridPane;
-import qupath.fx.utils.FXUtils;
-import qupath.lib.analysis.stats.Histogram;
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.charts.HistogramChart;
-import qupath.lib.gui.charts.ChartThresholdPane;
-import qupath.fx.dialogs.Dialogs;
-import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
-import qupath.lib.plugins.workflow.WorkflowStep;
-import qupath.lib.scripting.QP;
 
 /**
  * Command to (sub)classify cells as Negative/Positive or Negative/1+/2+/3+ based on a single (usually intensity-based) measurement.

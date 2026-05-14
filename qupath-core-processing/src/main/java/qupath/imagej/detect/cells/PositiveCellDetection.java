@@ -23,14 +23,6 @@
 
 package qupath.imagej.detect.cells;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -38,6 +30,14 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Alternative implementation of {@link WatershedCellDetection} that automatically applies 1 or 3 intensity thresholds to classify cells.

@@ -21,36 +21,19 @@
 
 package qupath.lib.io;
 
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.AbstractCollection;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
-import java.util.UUID;
-
-import com.google.gson.Strictness;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.Strictness;
 import com.google.gson.TypeAdapter;
+import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.LogTools;
 import qupath.lib.io.GsonTools.PathClassTypeAdapter;
@@ -70,6 +53,21 @@ import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.AbstractCollection;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 class QuPathTypeAdapters {
 	

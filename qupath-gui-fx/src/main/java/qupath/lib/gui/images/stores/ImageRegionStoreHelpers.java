@@ -23,18 +23,18 @@
 
 package qupath.lib.gui.images.stores;
 
-import java.awt.Shape;
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+
+import java.awt.Shape;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Helper methods related to image region storage.

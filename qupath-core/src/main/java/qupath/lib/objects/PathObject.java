@@ -23,6 +23,19 @@
 
 package qupath.lib.objects;
 
+import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.LogTools;
+import qupath.lib.interfaces.MinimalMetadataStore;
+import qupath.lib.io.PathIO;
+import qupath.lib.measurements.MeasurementList;
+import qupath.lib.measurements.MeasurementListFactory;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -37,19 +50,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.LogTools;
-import qupath.lib.interfaces.MinimalMetadataStore;
-import qupath.lib.io.PathIO;
-import qupath.lib.measurements.MeasurementList;
-import qupath.lib.measurements.MeasurementListFactory;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Fundamental object of interest in QuPath.
@@ -385,7 +385,7 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	 * @param list
 	 * @param toRemove
 	 */
-	private static <T> void removeAllQuickly(Collection<T> list, Collection<T> toRemove) {
+	private static <T> void removeAllQuickly(Collection<T> list, Collection<? extends T> toRemove) {
 		int size = 10;
 		if (!(toRemove instanceof Set)  && toRemove.size() > size) {
 			toRemove = new HashSet<>(toRemove);
@@ -405,10 +405,12 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 
 	/**
 	 * Remove a single object from the child list of this object.
-	 * @param pathObject
+	 * @param pathObject the object to remove
 	 * @since v0.4.0
+	 * @throws NullPointerException if the object to remove is null
 	 */
-	public void removeChildObject(PathObject pathObject) {
+	public void removeChildObject(PathObject pathObject) throws NullPointerException {
+		Objects.requireNonNull(pathObject, "PathObject passed to removeChildObject(PathObject) must not be null!");
 		if (!hasChildObjects())
 			return;
 		if (pathObject.parent == this)
@@ -419,10 +421,12 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	
 	/**
 	 * Remove multiple objects from the child list of this object.
-	 * @param pathObjects
+	 * @param pathObjects the objects to remove
 	 * @since v0.4.0
+	 * @throws NullPointerException if the collection passed as a parameter is null
 	 */
-	public synchronized void removeChildObjects(Collection<PathObject> pathObjects) {
+	public synchronized void removeChildObjects(Collection<? extends PathObject> pathObjects) throws NullPointerException {
+		Objects.requireNonNull(pathObjects, "Collection passed to removeChildObjects(Collection) must not be null! Maybe you want to call removeAllChildObjects() instead?");
 		if (!hasChildObjects())
 			return;
 		for (PathObject pathObject : pathObjects) {
@@ -434,12 +438,11 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 		}
 	}
 
-	
 	/**
 	 * Remove all child objects.
-	 * @since v0.4.0
+	 * @since v0.8.0
 	 */
-	public void clearChildObjects() {
+	public void removeAllChildObjects() {
 		if (!hasChildObjects())
 			return;
 		synchronized (childList) {
@@ -449,6 +452,18 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 			}
 			childList.clear();
 		}
+	}
+
+
+	/**
+	 * Remove all child objects.
+	 * @since v0.4.0
+	 * @deprecated use instead {@link #removeAllChildObjects()}
+	 */
+	@Deprecated(since="0.8.0")
+	public void clearChildObjects() {
+		LogTools.warnOnce(logger, "clearChildObjects() has been replaced by removeAllChildObjects()");
+		removeAllChildObjects();
 	}
 
 	
@@ -774,10 +789,10 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	}
 
 	/**
-	 * Convenience method to et the classification of the object from a string representation.
+	 * Convenience method to set the classification of the object from a string representation.
 	 * If the string is null or empty, the classification is reset.
 	 * Otherwise, it is equivalent to calling {@code setPathClass(PathClass.fromString(classification))}
-	 * @param classification
+	 * @param classification string representation of the classification to use
 	 * @see #getClassification()
 	 * @see #setPathClass(PathClass)
 	 * @see #setClassifications(Collection)
@@ -788,6 +803,26 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 			resetPathClass();
 		else
 			setPathClass(PathClass.fromString(classification));
+	}
+
+	/**
+	 * Companion method for {@link #setClassification(String)} to reduce the risk of issues when using Groovy.
+	 * <p>
+	 * Without this, calling {@code setClassification(["First", "Second"])} would result in a string representation
+	 * of the list being used as the name for the class.
+	 * @param obj the classification to set
+	 * @since v0.6.0
+	 */
+	public void setClassification(Object obj) {
+        switch (obj) {
+            case null -> resetPathClass();
+            case String s -> setClassification(s);
+            case Collection<?> collection ->
+                    throw new IllegalArgumentException("setClassification(String) requires a string " +
+                            "- did you mean to call setClassifications(Collection)?");
+            default -> throw new IllegalArgumentException("setClassification(String) requires a string input - " +
+                    "cannot parse " + obj);
+        }
 	}
 
 	/**
@@ -971,8 +1006,6 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 				cachedUnmodifiableChildren = Collections.unmodifiableCollection(childList);
 			}
 		}
-//			childList = new TreeSet<PathObject>(DefaultPathObjectComparator.getInstance());
-//			childList = new ArrayList<PathObject>();
 	}
 	
 	/**
@@ -1055,7 +1088,8 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 	 * Note that the returned map currently is <i>not</i> threadsafe.
 	 * This may change in future versions.
 	 * <p>
-	 * When adding metadata,
+	 * It is preferable not to add metadata too eagerly, especially to large numbers of objects,
+	 * as this can considerably increase the memory footprint.
 	 * @return
 	 * @since v0.5.0
 	 */
@@ -1068,6 +1102,18 @@ public abstract class PathObject implements Externalizable, MinimalMetadataStore
 			}
 		}
 		return metadata;
+	}
+
+	/**
+	 * Query whether the object has any metadata associated with it.
+	 * <p>
+	 * Because calls to {@link #getMetadata()} unavoidably result in creating a new metadata
+	 * object, it is strongly recommended to call this before requesting the metadata if
+	 * no changes will be made and empty metadata can be ignored.
+	 * @return true if {@link #getMetadata()} would return a non-empty map, false otherwise
+	 */
+	public boolean hasMetadata() {
+		return metadata != null && !metadata.isEmpty();
 	}
 	
 	

@@ -23,15 +23,15 @@
 
 package qupath.lib.images.writers;
 
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.IndexColorModel;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 
 /**
  * ImageWriter implementation to write PNG images using ImageIO.

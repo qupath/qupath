@@ -21,6 +21,39 @@
 
 package qupath.lib.images.writers.ome;
 
+import loci.formats.FormatException;
+import loci.formats.FormatWriter;
+import loci.formats.IFormatWriter;
+import loci.formats.ImageWriter;
+import loci.formats.MetadataTools;
+import loci.formats.codec.CodecOptions;
+import loci.formats.meta.IMetadata;
+import loci.formats.meta.IPyramidStore;
+import loci.formats.out.OMETiffWriter;
+import loci.formats.out.PyramidOMETiffWriter;
+import loci.formats.out.TiffWriter;
+import loci.formats.tiff.IFD;
+import ome.units.UNITS;
+import ome.units.quantity.Length;
+import ome.xml.model.enums.DimensionOrder;
+import ome.xml.model.primitives.Color;
+import ome.xml.model.primitives.PositiveInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
 import java.io.File;
@@ -35,45 +68,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import loci.formats.FormatException;
-import loci.formats.FormatWriter;
-import loci.formats.IFormatWriter;
-import loci.formats.ImageWriter;
-import loci.formats.MetadataTools;
-import loci.formats.meta.IMetadata;
-import loci.formats.meta.IPyramidStore;
-import loci.formats.out.OMETiffWriter;
-import loci.formats.out.PyramidOMETiffWriter;
-import loci.formats.out.TiffWriter;
-import loci.formats.tiff.IFD;
-import ome.units.UNITS;
-import ome.units.quantity.Length;
-import ome.xml.model.enums.DimensionOrder;
-import ome.xml.model.primitives.Color;
-import ome.xml.model.primitives.PositiveInteger;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.common.ColorTools;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.ServerTools;
-import qupath.lib.images.servers.TileRequest;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.servers.ImageServers;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Write OME-TIFF files based on QuPath ImageServers.
@@ -280,12 +281,11 @@ public class OMEPyramidWriter {
 	/**
 	 * Write an image consisting of one or more series to the specified path.
 	 * @param path
-	 * @throws FormatException
 	 * @throws IOException
 	 * @see #createWriter(Collection)
 	 * @see #createWriter(OMEPyramidSeries...)
 	 */
-	public void writeImage(final String path) throws FormatException, IOException {
+	public void writeImage(final String path) throws IOException {
 		IMetadata meta = MetadataTools.createOMEXMLMetadata();
 		
 		File file = new File(path);
@@ -323,9 +323,8 @@ public class OMEPyramidWriter {
 			
 			// Switch automatically to bigtiff is we have a large image or it has already been requested
 			var wrappedWriter = writer.getWriter(path);
-			if (wrappedWriter instanceof TiffWriter) {
-				var tiffWriter = (TiffWriter)wrappedWriter;
-				if (bigTiff) {
+			if (wrappedWriter instanceof TiffWriter tiffWriter) {
+                if (bigTiff) {
 					logger.debug("Setting bigtiff to true");
 					tiffWriter.setBigTiff(true);
 				} else if (noBigTiff) {
@@ -341,6 +340,13 @@ public class OMEPyramidWriter {
 					}
 				}
 			}
+
+			// The codec options need to be set before writer.setId(), otherwise they are not taken into account
+			series.stream()
+					.map(s -> s.codecOptions)
+					.filter(Objects::nonNull)
+					.findAny()
+					.ifPresent(writer::setCodecOptions);
 			
 			writer.setId(path);
 			for (int s = 0; s < series.size(); s++) {
@@ -348,10 +354,10 @@ public class OMEPyramidWriter {
 				logger.info("Writing {} to {} (series {}/{})", ServerTools.getDisplayableImageName(temp.getOriginalServer()), path, s+1, series.size());
 				temp.writeSeries(writer.getWriter(), meta, s);
 			}
+		} catch (FormatException e) {
+			throw new IOException(e);
 		}
-		
 	}
-	
 	
 	/**
 	 * Class representing a single series to write to an OME-TIFF.
@@ -385,6 +391,8 @@ public class OMEPyramidWriter {
 		private ChannelExportType channelExportType = ChannelExportType.DEFAULT;
 	
 		private CompressionType compression = CompressionType.DEFAULT;
+
+		private CodecOptions codecOptions;
 		
 		private static int[] RGB_CHANNEL_ARRAY = new int[] {0, 1, 2};
 		
@@ -485,7 +493,7 @@ public class OMEPyramidWriter {
 					meta.setChannelID("Channel:0:" + c, series, c);			
 	//				meta.setChannelSamplesPerPixel(new PositiveInteger(nSamples), series, c);
 	//				Integer color = server.getChannels().get(c).getColor();
-					ImageChannel channel = serverOriginal.getChannel(c);
+					ImageChannel channel = serverOriginal.getChannel(channels[c]);
 					Integer color = channel.getColor();
 					meta.setChannelColor(new Color(
 							ColorTools.red(color),
@@ -544,12 +552,11 @@ public class OMEPyramidWriter {
 		 * Write an OME-TIFF pyramidal image to the given file.
 		 * 
 		 * @param path file path for output
-		 * @throws FormatException
 		 * @throws IOException
 		 * @deprecated use {@link #writeSeries(String)} instead
 		 */
 		@Deprecated
-		public void writePyramid(final String path) throws FormatException, IOException {
+		public void writePyramid(final String path) throws IOException {
 			var writer = new OMEPyramidWriter();
 			writer.series.add(this);
 			writer.writeImage(path);
@@ -559,10 +566,9 @@ public class OMEPyramidWriter {
 		 * Write an image to the given file.
 		 * 
 		 * @param path file path for output
-		 * @throws FormatException
 		 * @throws IOException
 		 */
-		public void writeSeries(final String path) throws FormatException, IOException {
+		public void writeSeries(final String path) throws IOException {
 			var writer = new OMEPyramidWriter();
 			writer.series.add(this);
 			writer.writeImage(path);
@@ -574,7 +580,6 @@ public class OMEPyramidWriter {
 		 * @param writer the current writer; it should already be initialized, with metadata and ID set
 		 * @param meta the metadata, which should already have been initialized and set in the writer before writing any pixels
 		 * @param series number of series to be written (starting with 0; assumes previous series already written)
-		 * @throws FormatException
 		 * @throws IOException
 		 * 
 		 * @see Builder
@@ -582,7 +587,7 @@ public class OMEPyramidWriter {
 		 * @deprecated use {@link #writeSeries(IFormatWriter, IMetadata, int)} instead
 		 */
 		@Deprecated
-		public void writePyramid(final PyramidOMETiffWriter writer, IMetadata meta, final int series) throws FormatException, IOException {
+		public void writePyramid(final PyramidOMETiffWriter writer, IMetadata meta, final int series) throws IOException {
 			writeSeries(writer, meta, series);
 		}
 		
@@ -599,18 +604,17 @@ public class OMEPyramidWriter {
 		 * @param writer the current writer; it should already be initialized, with metadata and ID set
 		 * @param meta the metadata, which should already have been initialized and set in the writer before writing any pixels
 		 * @param series number of series to be written (starting with 0; assumes previous series already written)
-		 * @throws FormatException
 		 * @throws IOException
 		 * 
 		 * @see Builder
 		 * @see #initializeMetadata(IMetadata, int)
 		 */
-		public void writeSeries(IFormatWriter writer, IMetadata meta, final int series) throws FormatException, IOException {
-	
+		public void writeSeries(IFormatWriter writer, IMetadata meta, final int series) throws IOException {
+
 			// We need to get the writer directly to be able to check if it is a TiffWriter
 			while (writer instanceof ImageWriter)
 				writer = ((ImageWriter)writer).getWriter();
-			
+
 			boolean isRGB = doExportRGB();
 			int nChannels = meta.getPixelsSizeC(series).getValue();
 			int nSamples = meta.getChannelSamplesPerPixel(series, 0).getValue();
@@ -641,8 +645,12 @@ public class OMEPyramidWriter {
 			}
 			if (compressionString != null) {
 				logger.info("Setting series {} compression to {}", series, compressionString);
-				writer.setCompression(compressionString);
-			}
+                try {
+                    writer.setCompression(compressionString);
+                } catch (FormatException e) {
+                    throw new IOException(e);
+                }
+            }
 
 			writer.setInterleaved(meta.getPixelsInterleaved(series));
 						
@@ -650,8 +658,12 @@ public class OMEPyramidWriter {
 			int tileHeight = this.tileHeight;
 			boolean isTiled = tileWidth > 0 && tileHeight > 0;
 			if (isTiled) {
-				tileWidth = writer.setTileSizeX(tileWidth);
-				tileHeight = writer.setTileSizeY(tileHeight);	
+                try {
+                    tileWidth = writer.setTileSizeX(tileWidth);
+					tileHeight = writer.setTileSizeY(tileHeight);
+				} catch (FormatException e) {
+                    throw new IOException(e);
+                }
 				if (this.tileWidth != tileWidth || this.tileHeight != tileHeight) {
 					logger.warn("Requested tile size {}x{}, tile size accepted by image writer {}x{}",
 							this.tileWidth, this.tileHeight,
@@ -668,14 +680,22 @@ public class OMEPyramidWriter {
 					logger.warn("Error setting classification color model: {}", e.getLocalizedMessage());
 				}
 			}
-	
-			writer.setSeries(series);
-			
-			boolean isTiff = writer instanceof TiffWriter;
+
+            try {
+                writer.setSeries(series);
+            } catch (FormatException e) {
+                throw new IOException(e);
+            }
+
+            boolean isTiff = writer instanceof TiffWriter;
 			Map<Integer, IFD> map = new HashMap<>();
-			
-			writer.setSeries(series);
-			for (int level = 0; level < downsamples.length; level++) {
+
+            try {
+                writer.setSeries(series);
+            } catch (FormatException e) {
+                throw new IOException(e);
+            }
+            for (int level = 0; level < downsamples.length; level++) {
 				
 				writer.setResolution(level);
 				
@@ -776,8 +796,12 @@ public class OMEPyramidWriter {
 							logger.info("Writing plane {}/{}", plane+1, nPlanes);
 								
 							// We *must* write the first region first
-							writeRegion(writer, plane, ifd, server, firstTile, isRGB, localChannels);
-							if (!tiles.isEmpty()) {
+                            try {
+                                writeRegion(writer, plane, ifd, server, firstTile, isRGB, localChannels);
+                            } catch (FormatException e) {
+                                throw new IOException(e);
+                            }
+                            if (!tiles.isEmpty()) {
 								
 								// Reversing the regions means that for a large image we can still get some tiles from the cache
 								// Do this for channels and levels, since we sometimes need to request the same tiles when exporting 
@@ -1493,6 +1517,17 @@ public class OMEPyramidWriter {
 		}
 
 		/**
+		 * Set options for compressing data.
+		 *
+		 * @param codecOptions the codec options to set
+		 * @return this builder
+		 */
+		public Builder codecOptions(CodecOptions codecOptions) {
+			series.codecOptions = codecOptions;
+			return this;
+		}
+
+		/**
 		 * Create an {@link OMEPyramidSeries} to write the OME-TIFF.
 		 * @return the series
 		 */
@@ -1616,10 +1651,9 @@ public class OMEPyramidWriter {
 	 * 
 	 * @param server
 	 * @param path
-	 * @throws FormatException
 	 * @throws IOException
 	 */
-	public static void writeImage(ImageServer<BufferedImage> server, String path) throws FormatException, IOException {
+	public static void writeImage(ImageServer<BufferedImage> server, String path) throws IOException {
 		writeImage(server, path, null);
 	}
 	
@@ -1630,10 +1664,9 @@ public class OMEPyramidWriter {
 	 * @param server
 	 * @param path
 	 * @param compression
-	 * @throws FormatException
 	 * @throws IOException
 	 */
-	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression) throws FormatException, IOException {
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression) throws IOException {
 		writeImage(server, path, compression, RegionRequest.createInstance(server), true, true);
 	}
 	
@@ -1646,11 +1679,10 @@ public class OMEPyramidWriter {
 	 * @param path path to output file
 	 * @param compression image compression method; may be null to use the default compression
 	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used.
-	 * 
-	 * @throws FormatException
+	 *
 	 * @throws IOException
 	 */
-	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression, ImageRegion region) throws FormatException, IOException {
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression, ImageRegion region) throws IOException {
 		if (region == null) {
 			writeImage(server, path, compression);
 			return;
@@ -1669,11 +1701,10 @@ public class OMEPyramidWriter {
 	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used.
 	 * @param allZ if true, export all z-slices otherwise export slice defined by region (ignored if image is not a z-stack)
 	 * @param allT if true, export all timepoints otherwise export timepoint defined by region (ignored if image is not a timeseries)
-	 * 
-	 * @throws FormatException
+	 *
 	 * @throws IOException
 	 */
-	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression, ImageRegion region, boolean allZ, boolean allT) throws FormatException, IOException {
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression, ImageRegion region, boolean allZ, boolean allT) throws IOException {
 		if (region == null) {
 			writeImage(server, path, compression);
 			return;

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,31 @@
 
 package qupath.lib.gui.prefs;
 
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener.Change;
+import javafx.collections.ObservableList;
+import javafx.scene.text.FontWeight;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.prefs.PreferenceManager;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.common.Version;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.objects.classes.PathClass;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -33,6 +58,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -42,26 +68,7 @@ import java.util.function.Function;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
-
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.*;
-import javafx.beans.value.ObservableBooleanValue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener.Change;
-import javafx.collections.ObservableList;
-import javafx.scene.text.FontWeight;
-import qupath.fx.prefs.PreferenceManager;
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.common.Version;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.localization.QuPathResources;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.projects.ProjectIO;
+import java.util.stream.Collectors;
 
 /**
  * Central storage of QuPath preferences.
@@ -85,14 +92,14 @@ public class PathPrefs {
 	/**
 	 * Default name for preference node in this QuPath version
 	 */
-	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.6";
+	private static final String DEFAULT_NODE_NAME = "io.github.qupath/0.7";
 
 	/**
 	 * Previous preference node, in case these need to be restored.
 	 * For now, this isn't supported.
 	 */
 	@SuppressWarnings("unused")
-	private static final String PREVIOUS_NODE_NAME = "io.github.qupath/0.5";
+	private static final String PREVIOUS_NODE_NAME = "io.github.qupath/0.6";
 
 	/**
 	 * The preference manager used to store preferences.
@@ -109,7 +116,7 @@ public class PathPrefs {
 		return PreferenceManager.createForUserPreferences(nodeName);
 	}
 
-	private static BooleanProperty useSystemMenubar = new SimpleBooleanProperty();
+	private static final BooleanProperty useSystemMenubar = new SimpleBooleanProperty();
 
 	/**
 	 * Legacy property used to specify whether the system menubar should be used for the main QuPath stage.
@@ -225,18 +232,12 @@ public class PathPrefs {
 		
 		@Override
 		public String toString() {
-			switch(this) {
-			case EXTENSIONS_ONLY:
-				return "Extensions only";
-			case NONE:
-				return "None";
-			case QUPATH_AND_EXTENSIONS:
-				return "QuPath + extensions";
-			case QUPATH_ONLY:
-				return "QuPath only";
-			default:
-				return super.toString();
-			}
+            return QuPathResources.getString(switch (this) {
+                case EXTENSIONS_ONLY -> "Prefs.PathPrefs.extensionsOnly";
+                case NONE -> "Prefs.PathPrefs.none";
+                case QUPATH_AND_EXTENSIONS -> "Prefs.PathPrefs.quPathExtensions";
+                case QUPATH_ONLY -> "Prefs.PathPrefs.quPathOnly";
+            });
 		}
 		
 	}
@@ -318,13 +319,24 @@ public class PathPrefs {
 	
 	private static BooleanProperty showStartupMessage = createPersistentPreference("showStartupMessage", true);
 	
-	
+
 	/**
 	 * Show a startup message when QuPath is launched.
 	 * @return
 	 */
 	public static BooleanProperty showStartupMessageProperty() {
 		return showStartupMessage;
+	}
+
+
+	private static BooleanProperty showLicenseMessageProperty = createPersistentPreference("showLicenseMessage", true);
+
+	/**
+	 * Show a startup message about license when QuPath is launched.
+	 * @return
+	 */
+	public static BooleanProperty showLicenseMessageOnStartupProperty() {
+		return showLicenseMessageProperty;
 	}
 
 
@@ -350,7 +362,7 @@ public class PathPrefs {
 	}
 	
 		
-	private static IntegerProperty maxMemoryMB;
+	private static DoubleProperty maxMemoryPercent;
 	
 	/**
 	 * Attempt to load user JVM defaults - may fail if packager.jar (and any required native library) isn't found.
@@ -419,73 +431,120 @@ public class PathPrefs {
 	 * 
 	 * @return
 	 */
-	public static synchronized IntegerProperty maxMemoryMBProperty() {
-		if (maxMemoryMB == null) {
-			maxMemoryMB = createPersistentPreference("maxMemoryMB", -1);
-			long requestedMaxMemoryMB = maxMemoryMB.get();
-			long currentMaxMemoryMB = Runtime.getRuntime().maxMemory() / (1024L * 1024L);
-			if (requestedMaxMemoryMB > 0 && requestedMaxMemoryMB != currentMaxMemoryMB) {
-				logger.debug("Requested max memory ({} MB) does not match the current max ({} MB) - resetting preference to default value", 
-						requestedMaxMemoryMB, currentMaxMemoryMB);
-				maxMemoryMB.set(-1);
-			}
-			// Update Java preferences for restart
-			maxMemoryMB.addListener((v, o, n) -> {
-				try {
-					if (n.intValue() <= 512) {
-						logger.warn("Cannot set memory to {}, must be >= 512 MB", n);
-						n = 512;
-					}
-					// Note: with jpackage 14, the following was used
-//					String memory = "-Xmx" + n.intValue() + "M";
-					// With jpackage 15+, this should work
-					String memory = "java-options=-Xmx" + n.intValue() + "M";
-					Path config = getConfigPath();
-					if (config == null || !Files.exists(config)) {
-						logger.error("Cannot find config file!");
-						return;
-					}
-					logger.info("Reading config file {}", config);
-					List<String> lines = Files.readAllLines(config);
-					int jvmOptions = -1;
-					int argOptions = -1;
-					int lineXx = -1;
-					int lineXmx = -1;
-					int i = 0;
-					for (String line : lines) {
-					    if (line.startsWith("[JVMOptions]") || line.startsWith("[JavaOptions]"))
-					        jvmOptions = i;
-					    if (line.startsWith("[ArgOptions]"))
-					        argOptions = i;
-					    if (line.toLowerCase().contains("-xx:maxrampercentage"))
-					    	lineXx = i;
-					    if (line.toLowerCase().contains("-xmx"))
-					        lineXmx = i;
-					    i++;
-					}
-					if (lineXx >= 0)
-						lines.set(lineXx, memory);
-					else if (lineXmx >= 0)
-					    lines.set(lineXmx, memory);
-					else if (argOptions > jvmOptions && jvmOptions >= 0) {
-					    lines.add(jvmOptions+1, memory);
-					} else {
-					    logger.error("Cannot find where to insert memory request to .cfg file!");
-					    return;
-					}
-					logger.info("Setting JVM option to {}", memory);
-					Files.copy(config, Paths.get(config.toString() + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
-					Files.write(config, lines);
-					return;
-				} catch (AccessDeniedException e) {
-					logger.error("I'm not allowed to access the config file - see the QuPath installation instructions to set the memory manually", e);
-				} catch (Exception e) {
-					logger.error("Unable to set max memory: " + e.getLocalizedMessage(), e);
-				}
-			});
-		}
-		return maxMemoryMB;
+	public static synchronized DoubleProperty maxMemoryPercentProperty() {
+		if (maxMemoryPercent == null) {
+            maxMemoryPercent = createPersistentPreference("maxMemoryMB", 50.0);
+            var maxMemoryFromConfig = getMaxMemoryFromConfig();
+            if (maxMemoryFromConfig > 0 && maxMemoryFromConfig <= 100 &&
+                    !GeneralTools.almostTheSame(maxMemoryFromConfig, maxMemoryPercent.get(), 1e-3)) {
+                logger.debug("Updating max memory from config {} -> {}", maxMemoryPercent.get(), maxMemoryFromConfig);
+                maxMemoryPercent.set(maxMemoryFromConfig);
+            }
+            // Update Java preferences for restart
+            maxMemoryPercent.addListener(PathPrefs::handleMaxMemoryChange);
+        }
+        return maxMemoryPercent;
 	}
+
+    private static void handleMaxMemoryChange(ObservableValue<? extends Number> value, Number oldValue, Number newValue) {
+        if (newValue == null) {
+            logger.debug("Attempt to set max memory to null");
+            return;
+        }
+        logger.trace("Attempt to set max memory {} -> {}", oldValue, newValue);
+        try {
+            double percent = newValue.doubleValue();
+            if (percent < 10) {
+                logger.warn("Cannot set max memory to {}%, using minimum of 10% instead", percent);
+                maxMemoryPercent.set(10);
+                return;
+            } else if (percent > 90) {
+                logger.warn("Cannot set max memory to {}%, using maximum of 90% instead", percent);
+                maxMemoryPercent.set(90);
+                return;
+            }
+            // With jpackage 15+, this should work
+            String memory = "java-options=-XX:MaxRAMPercentage=" + percent;
+            Path config = getConfigPath();
+            if (config == null || !Files.exists(config)) {
+                logger.error("Cannot find config file!");
+                return;
+            }
+            logger.info("Reading config file {}", config);
+            List<String> lines = Files.readAllLines(config);
+            // Find lines where the memory could be inserted in the config file
+            // (replacing existing values, or added in the right section)
+            int jvmOptions = -1;
+            int argOptions = -1;
+            int lineXx = -1;
+            int lineXmx = -1;
+            int i = 0;
+            for (String line : lines) {
+                if (line.startsWith("[JVMOptions]") || line.startsWith("[JavaOptions]"))
+                    jvmOptions = i;
+                if (line.startsWith("[ArgOptions]"))
+                    argOptions = i;
+                if (line.toLowerCase().contains("-xx:maxrampercentage"))
+                    lineXx = i;
+                if (line.toLowerCase().contains("-xmx"))
+                    lineXmx = i;
+                i++;
+            }
+            if (lineXx >= 0)
+                lines.set(lineXx, memory);
+            else if (lineXmx >= 0)
+                lines.set(lineXmx, memory);
+            else if (argOptions > jvmOptions && jvmOptions >= 0) {
+                lines.add(jvmOptions+1, memory);
+            } else {
+                logger.error("Cannot find where to insert memory request to .cfg file!");
+                return;
+            }
+            logger.info("Setting JVM option to {}", memory);
+            Files.copy(config, Paths.get(config + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
+            Files.write(config, lines);
+            return;
+        } catch (AccessDeniedException e) {
+            logger.error("I'm not allowed to access the config file - see the QuPath installation instructions to set the memory manually", e);
+        } catch (Exception e) {
+            logger.error("Unable to set max memory: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Try to get the max memory from the config file.
+     * @return a max memory value, or -1 if none could be found
+     */
+    private static double getMaxMemoryFromConfig() {
+        // Try to get the current max memory from the config file
+        try {
+            Path config = getConfigPath();
+            if (config != null && Files.exists(config)) {
+                var currentMax = Files.readAllLines(config).stream().mapToDouble(PathPrefs::tryToParseMaxMemory).max().orElse(-1);
+                if (currentMax > 0 && currentMax < 100) {
+                    return currentMax;
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error trying to parse max memory: {}", e.getMessage(), e);
+        }
+        return -1;
+    }
+
+    private static double tryToParseMaxMemory(String line) {
+        if (line.startsWith("java-options=")) {
+            String key = "-XX:MaxRAMPercentage=";
+            int ind = line.indexOf(key);
+            if (ind >= 0) {
+                try {
+                    return Double.parseDouble(line.substring(ind + key.length()).strip());
+                } catch (NumberFormatException e) {
+                    logger.debug("Exception trying to parse max memory from {}: {}", line, e.getMessage(), e);
+                }
+            }
+        }
+        return -1;
+    }
 	
 	/**
 	 * Get the {@link Preferences} object for storing user preferences.
@@ -560,7 +619,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static IntegerProperty navigationSpeedProperty = createPersistentPreference("Navigation speed %", 100);
+	private static IntegerProperty navigationSpeedProperty = createPersistentPreference("Navigation speed %", 10);
 	
 	/**
 	 * Percentage to scale navigation speed.
@@ -766,38 +825,54 @@ public class PathPrefs {
 	}
 	
 	
-	private static ObservableList<URI> recentProjects = createRecentProjectsList(5);
-	
-	private static ObservableList<URI> createRecentProjectsList(int maxRecentProjects) {
+	private static final ObservableList<URI> recentProjects = createPersistentUriList("recentProject", 8);
+
+	/**
+	 * Create an observable list backed by preferences to store URIs.
+	 * This is intended for us
+	 *
+	 * @param key the preference key
+	 * @param maxUris the maximum number of URIs to store in the preferences.
+	 *                If the list contains more URIs, these will not be included.
+	 *                Note that this should be between 1 and 1024.
+	 * @param extensions optional array of extensions to filter valid URIs
+	 * @return an observable list
+	 * @throws IllegalArgumentException if the maximum number of URIs is not a positive integer &leq; 1024.
+	 */
+	public static ObservableList<URI> createPersistentUriList(String key, int maxUris, String... extensions) throws IllegalArgumentException {
+		if (maxUris <= 0 || maxUris > 1024) {
+			throw new IllegalArgumentException("Max URIs must be between 1 and 1024");
+		}
 		// Try to load the recent projects
-		ObservableList<URI> recentProjects = FXCollections.observableArrayList();
-		for (int i = 0; i < maxRecentProjects; i++) {
-			String project = getUserPreferences().get("recentProject" + i, null);
-			if (project == null || project.length() == 0)
+		ObservableList<URI> recentUris = FXCollections.observableArrayList();
+		var prefs = MANAGER.getPreferences();
+		var exts = Arrays.stream(extensions).map(String::toLowerCase).collect(Collectors.toSet());
+		for (int i = 0; i < maxUris; i++) {
+			String nextUri = prefs.get(key + i, null);
+			if (nextUri == null || nextUri.isEmpty())
 				break;
 			// Only allow project files
-			if (!(project.toLowerCase().endsWith(ProjectIO.getProjectExtension()))) {
+			var lowerUri = nextUri.toLowerCase();
+			if (!exts.isEmpty() && exts.stream().noneMatch(lowerUri::endsWith)) {
 				continue;
 			}
 			try {
-				recentProjects.add(GeneralTools.toURI(project));
+				recentUris.add(GeneralTools.toURI(nextUri));
 			} catch (URISyntaxException e) {
-				logger.warn("Unable to parse URI from " + project, e);
+                logger.warn("Unable to parse URI from {}", nextUri, e);
 			}
 		}
 		// Add a listener to keep storing the preferences, as required
-		recentProjects.addListener((Change<? extends URI> c) -> {
-			int i = 0;
-			for (URI project : recentProjects) {
-				getUserPreferences().put("recentProject" + i, project.toString());
-				i++;
-			}
-			while (i < maxRecentProjects) {
-				getUserPreferences().put("recentProject" + i, "");
-				i++;
+		recentUris.addListener((Change<? extends URI> c) -> {
+			var prefsCurrent = MANAGER.getPreferences();
+			for (int i = 0; i < maxUris; i++) {
+				if (i < recentUris.size())
+					prefsCurrent.put(key + i, recentUris.get(i).toString());
+				else
+					prefsCurrent.put(key + i, "");
 			}
 		});
-		return recentProjects;
+		return recentUris;
 	}
 	
 	/**
@@ -810,8 +885,8 @@ public class PathPrefs {
 	
 	
 	
-	private static IntegerProperty maxUndoLevels = PathPrefs.createPersistentPreference("undoMaxLevels", 10);
-	private static IntegerProperty maxUndoHierarchySize = PathPrefs.createPersistentPreference("undoMaxHierarchySize", 10000);
+	private static final IntegerProperty maxUndoLevels = PathPrefs.createPersistentPreference("undoMaxLevels", 10);
+	private static final IntegerProperty maxUndoHierarchySize = PathPrefs.createPersistentPreference("undoMaxHierarchySize", 10000);
 
 	/**
 	 * The requested maximum number of undo levels that QuPath should support.
@@ -832,35 +907,7 @@ public class PathPrefs {
 	}
 
 	
-	private static ObservableList<URI> recentScripts = createRecentScriptsList(8);
-	
-	private static ObservableList<URI> createRecentScriptsList(int nRecentScripts) {
-		// Try to load the recent scripts
-		ObservableList<URI> recentScripts = FXCollections.observableArrayList();
-		for (int i = 0; i < nRecentScripts; i++) {
-			String project = getUserPreferences().get("recentScript" + i, null);
-			if (project == null || project.length() == 0)
-				break;
-			try {
-				recentScripts.add(GeneralTools.toURI(project));
-			} catch (URISyntaxException e) {
-				logger.warn("Unable to parse URI from " + project, e);
-			}
-		}
-		// Add a listener to keep storing the preferences, as required
-		recentScripts.addListener((Change<? extends URI> c) -> {
-			int i = 0;
-			for (URI project : recentScripts) {
-				getUserPreferences().put("recentScript" + i, project.toString());
-				i++;
-			}
-			while (i < nRecentScripts) {
-				getUserPreferences().put("recentScript" + i, "");
-				i++;
-			}
-		});
-		return recentScripts;
-	}
+	private static final ObservableList<URI> recentScripts = createPersistentUriList("recentScript", 8);
 	
 	/**
 	 * Get a list of the most recent scripts that were opened.
@@ -871,7 +918,7 @@ public class PathPrefs {
 	}
 
 
-	private static BooleanProperty skipProjectUriChecks = createPersistentPreference("Skip checking URIs in the project browser",
+	private static final BooleanProperty skipProjectUriChecks = createPersistentPreference("Skip checking URIs in the project browser",
 			false);
 
 	/**
@@ -909,15 +956,15 @@ public class PathPrefs {
 	}
 	
 	
-	private static DoubleProperty gridStartX = createPersistentPreference("gridStartX", 0.0);
+	private final static DoubleProperty gridStartX = createPersistentPreference("gridStartX", 0.0);
 
-	private static DoubleProperty gridStartY = createPersistentPreference("gridStartY", 0.0);
+	private final static DoubleProperty gridStartY = createPersistentPreference("gridStartY", 0.0);
 	
-	private static DoubleProperty gridSpacingX = createPersistentPreference("gridSpacingX", 250.0);
+	private final static DoubleProperty gridSpacingX = createPersistentPreference("gridSpacingX", 250.0);
 
-	private static DoubleProperty gridSpacingY = createPersistentPreference("gridSpacingY", 250.0);
+	private final static DoubleProperty gridSpacingY = createPersistentPreference("gridSpacingY", 250.0);
 
-	private static BooleanProperty gridScaleMicrons = createPersistentPreference("gridScaleMicrons", true);
+	private final static BooleanProperty gridScaleMicrons = createPersistentPreference("gridScaleMicrons", true);
 
 
 	/**
@@ -960,9 +1007,17 @@ public class PathPrefs {
 		return gridScaleMicrons;
 	}
 
+	private final static BooleanProperty showViewerPlaceholderText = createPersistentPreference("showViewerPlaceholderText", true);
+
+	/**
+	 * Property to determine whether placeholder text should be shown when the viewer is empty.
+	 * @return
+	 */
+	public static BooleanProperty showViewerPlaceholderTextProperty() {
+		return showViewerPlaceholderText;
+	}
 	
-	
-	private static DoubleProperty autoBrightnessContrastSaturation = PathPrefs.createPersistentPreference("autoBrightnessContrastSaturationPercentage", 0.1);
+	private final static DoubleProperty autoBrightnessContrastSaturation = PathPrefs.createPersistentPreference("autoBrightnessContrastSaturationPercentage", 0.1);
 
 	/**
 	 * Controls percentage of saturated pixels to apply when automatically setting brightness/contrast.
@@ -1019,16 +1074,11 @@ public class PathPrefs {
 		
 		@Override
 		public String toString() {
-			switch(this) {
-			case AUTO_ESTIMATE:
-				return "Auto estimate";
-			case NONE:
-				return "Unset";
-			case PROMPT:
-				return "Prompt";
-			default:
-				return "Unknown";
-			}
+            return QuPathResources.getString(switch (this) {
+                case AUTO_ESTIMATE -> "Prefs.PathPrefs.autoEstimate";
+                case NONE -> "Prefs.PathPrefs.unset";
+                case PROMPT -> "Prefs.PathPrefs.prompt";
+            });
 		}
 		
 	}
@@ -1060,7 +1110,8 @@ public class PathPrefs {
 	private static StringProperty tableDelimiter = createPersistentPreference("tableDelimiter", "\t");
 
 	/**
-	 * Delimiter to use when exporting tables. Default is {@code "\t"}. Commas should be used with caution because of potential localization trouble.
+	 * Delimiter to use when exporting tables. Default is {@code "\t"}.
+	 * Commas should be used with caution because of potential localization trouble.
 	 * @return
 	 */
 	public static StringProperty tableDelimiterProperty() {
@@ -1230,7 +1281,7 @@ public class PathPrefs {
 	}
 		
 	
-	private static BooleanProperty multipointTool = MANAGER.createTransientBooleanProperty("multipointTool", true);
+	private static final BooleanProperty multipointTool = MANAGER.createPersistentBooleanProperty("multipointTool", true);
 	
 	/**
 	 * Create multiple points within the same annotation when using the counting tool.
@@ -1363,7 +1414,7 @@ public class PathPrefs {
 	 * @since v0.4.0
 	 * @see #detectionTreeDisplayModeProperty
 	 */
-	public static enum DetectionTreeDisplayModes {
+	public enum DetectionTreeDisplayModes {
 		/**
 		 * Do not show detections
 		 */
@@ -1378,16 +1429,11 @@ public class PathPrefs {
 		WITH_ICONS;
 			@Override
 			public String toString() {
-				switch(this) {
-				case NONE:
-					return "None";
-				case WITHOUT_ICONS:
-					return "Without icons";
-				case WITH_ICONS:
-					return "With icons";
-				default:
-					return "Unknown";
-				}
+                return QuPathResources.getString(switch (this) {
+                    case NONE -> "Prefs.PathPrefs.none";
+                    case WITHOUT_ICONS -> "Prefs.PathPrefs.withoutIcons";
+                    case WITH_ICONS -> "Prefs.PathPrefs.withIcons";
+                });
 			}
 	}
 	
@@ -1437,38 +1483,24 @@ public class PathPrefs {
 		 * @return
 		 */
 		public String getFontSize() {
-			switch(this) {
-			case HUGE:
-				return "1.4em";
-			case LARGE:
-				return "1.2em";
-			case MEDIUM:
-				return "1.0em";
-			case SMALL:
-				return "0.8em";
-			case TINY:
-				return "0.6em";
-			default:
-				return "1em";
-			}
+            return switch (this) {
+                case HUGE -> "1.4em";
+                case LARGE -> "1.2em";
+                case MEDIUM -> "1.0em";
+                case SMALL -> "0.8em";
+                case TINY -> "0.6em";
+            };
 		}
 		
 		@Override
 		public String toString() {
-			switch(this) {
-			case HUGE:
-				return "Huge";
-			case LARGE:
-				return "Large";
-			case MEDIUM:
-				return "Medium";
-			case SMALL:
-				return "Small";
-			case TINY:
-				return "Tiny";
-			default:
-				return "Unknown";
-			}
+            return QuPathResources.getString(switch (this) {
+                case HUGE -> "Prefs.PathPrefs.huge";
+                case LARGE -> "Prefs.PathPrefs.large";
+                case MEDIUM -> "Prefs.PathPrefs.medium";
+                case SMALL -> "Prefs.PathPrefs.small";
+                case TINY -> "Prefs.PathPrefs.tiny";
+            });
 		}
 	}
 	
@@ -1713,11 +1745,11 @@ public class PathPrefs {
     	return strokeThickThickness;
     }
 
-	private static BooleanProperty newDetectionRendering = new SimpleBooleanProperty(false);
+	private static final BooleanProperty newDetectionRendering = createPersistentPreference("newDetectionRendering", true);
 
 	/**
 	 * Flag to enable the new rendering strategy for detections.
-	 * This can be used to temporarily turn on/off the rendering, to help refine the behavior.
+	 * This can be used to turn on/off the rendering, in case users prefer the 'old' approach.
 	 * @return
 	 * @since v0.6.0
 	 */

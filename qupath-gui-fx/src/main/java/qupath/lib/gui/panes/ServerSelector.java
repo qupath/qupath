@@ -21,11 +21,52 @@
 
 package qupath.lib.gui.panes;
 
+import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.Window;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.ProjectCommands;
+import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -42,46 +83,6 @@ import java.util.concurrent.Executors;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
-import javafx.scene.control.SelectionMode;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
-import javafx.scene.control.ButtonBar.ButtonData;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.BorderPane;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import javafx.stage.Window;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.ProjectCommands;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-
 /**
  * Helper class for selecting one image server out of a collection.
  * 
@@ -96,21 +97,21 @@ public class ServerSelector {
 	private static boolean buildParallel = true;
 	
 	private static enum Attribute {
-		PATH("Full Path"),
-		TYPE("Server Type"),
-		INDEX("Image index"), // Index in the list of builders (*sometimes* meaningful, e.g. when builders represent series in a Bio-Format server, in order)
-		WIDTH("Width"),
-		HEIGHT("Height"),
-		DIMENSIONS("Dimensions (CZT)"),
-		PIXEL_WIDTH("Pixel Width"),
-		PIXEL_HEIGHT("Pixel Height"),
-		PIXEL_TYPE("Pixel Type"),
-		PYRAMID("Pyramid");
+		PATH("Panes.ServerSelector.fullPath"),
+		TYPE("Panes.ServerSelector.serverType"),
+		INDEX("Panes.ServerSelector.imageIndex"), // Index in the list of builders (*sometimes* meaningful, e.g. when builders represent series in a Bio-Format server, in order)
+		WIDTH("Panes.ServerSelector.width"),
+		HEIGHT("Panes.ServerSelector.height"),
+		DIMENSIONS("Panes.ServerSelector.dimensions"),
+		PIXEL_WIDTH("Panes.ServerSelector.pixelWidth"),
+		PIXEL_HEIGHT("Panes.ServerSelector.pixelHeight"),
+		PIXEL_TYPE("Panes.ServerSelector.pixelType"),
+		PYRAMID("Panes.ServerSelector.pyramid");
 		
 		private String text;
 		
 		private Attribute(String text) {
-			this.text = text;
+			this.text = QuPathResources.getString(text);
 		}
 		
 		public String getText() {
@@ -179,7 +180,7 @@ public class ServerSelector {
 	@SuppressWarnings("unchecked")
 	private List<ImageServer<BufferedImage>> promptToSelectServers(boolean multiSelection, String promptBase) {	
 		
-		var prompt = promptBase == null ? "Select" : promptBase;
+		var prompt = promptBase == null ? QuPathResources.getString("Panes.ServerSelector.select") : promptBase;
 		
 		// Get thumbnails in separate thread
 		ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
@@ -205,7 +206,7 @@ public class ServerSelector {
 						thumbnailBank.put(server.getMetadata().getName(), ProjectCommands.getThumbnailRGB(server));
 						Platform.runLater( () -> listSeries.refresh());
 					} catch (IOException e) {
-						logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
+                        logger.warn("Error loading thumbnail: {}", e.getLocalizedMessage(), e);
 					}
 				});
 			} else {
@@ -238,18 +239,17 @@ public class ServerSelector {
 		// Info table - Changes according to selected series
 		TableView<Attribute> tableInfo = new TableView<>();
 		tableInfo.setMinHeight(200);
-		tableInfo.setMinWidth(500);
 		
 		// First column (attribute names)
-		TableColumn<Attribute, String> attributeCol = new TableColumn<>("Attribute");
+		TableColumn<Attribute, String> attributeCol = new TableColumn<>(QuPathResources.getString("Panes.ServerSelector.attribute"));
 		attributeCol.setResizable(true);
 		attributeCol.setCellValueFactory(cellData -> {
 			return new ReadOnlyObjectWrapper<>(cellData.getValue() == null ? null : cellData.getValue().getText());
 		});
 		
 		// Second column (attribute values)
-		TableColumn<Attribute, String> valueCol = new TableColumn<>("Value");
-		valueCol.setMinWidth(242);
+		TableColumn<Attribute, String> valueCol = new TableColumn<>(QuPathResources.getString("Panes.ServerSelector.value"));
+		
 		valueCol.setResizable(true);
 		valueCol.setCellValueFactory(cellData -> {
 			int ind = listSeries.getSelectionModel().getSelectedIndex();
@@ -292,7 +292,7 @@ public class ServerSelector {
 		paneSelector.setCenter(paneSeries);
 		
 		var paneFilter = new BorderPane(tfFilter);
-		var labelFilter = new Label("Search: ");
+		var labelFilter = new Label(QuPathResources.getString("Panes.ServerSelector.search") + " ");
 		labelFilter.setAlignment(Pos.CENTER_LEFT);
 		labelFilter.setMaxHeight(Double.MAX_VALUE);
 		labelFilter.setLabelFor(tfFilter);
@@ -304,9 +304,11 @@ public class ServerSelector {
 
 		BorderPane pane = new BorderPane();
 		pane.setCenter(paneSelector);
-		
-		
+
+
 		Dialog<ButtonType> dialog = new Dialog<>();
+		dialog.setResizable(true);
+
 		var qupath = QuPathGUI.getInstance();
 		
 		// Try to ensure we have a suitable owner, even if a progress dialog is visible
@@ -321,14 +323,23 @@ public class ServerSelector {
 		dialog.initOwner(owner);
 		
 		if (multiSelection)
-			dialog.setTitle(prompt + " images");
+			dialog.setTitle(MessageFormat.format(
+					QuPathResources.getString("Panes.ServerSelector.images"),
+					prompt
+			));
 		else
-			dialog.setTitle(prompt + " image");
-		ButtonType typeImportSelected = new ButtonType(prompt + " selected", ButtonData.OK_DONE);
+			dialog.setTitle(MessageFormat.format(
+					QuPathResources.getString("Panes.ServerSelector.image"),
+					prompt
+			));
+		ButtonType typeImportSelected = new ButtonType(
+				MessageFormat.format(QuPathResources.getString("Panes.ServerSelector.selected"), prompt),
+				ButtonData.OK_DONE
+		);
 		dialog.getDialogPane().getButtonTypes().addAll(typeImportSelected, ButtonType.CANCEL);
 
 		dialog.getDialogPane().setContent(pane);
-		
+
 		listSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectedRow, selectedRow) -> {
 		    tableInfo.refresh();
 		});
@@ -357,12 +368,14 @@ public class ServerSelector {
 		var btnSelected = (Button)dialog.getDialogPane().lookupButton(typeImportSelected);
 		if (multiSelection) {
 			btnSelected.textProperty().bind(Bindings.createStringBinding(() -> {
-				return selectAll.get() ? prompt + " all" : prompt + " " + nSelected.get();
+				return selectAll.get() ?
+						prompt + " " + QuPathResources.getString("Panes.ServerSelector.all") :
+						prompt + " " + nSelected.get();
 			}, selectAll));
 		} else {
 			btnSelected.disableProperty().bind(nSelected.isNotEqualTo(1));
 		}
-		
+
 		Optional<ButtonType> result = dialog.showAndWait();
 		
 		Set<ImageServer<BufferedImage>> selectedToReturn;
@@ -442,7 +455,7 @@ public class ServerSelector {
 			return String.format("%d x %d x %d", server.nChannels(), server.nZSlices(), server.nTimepoints());
 		case PYRAMID:
 			if (server.nResolutions() == 1)
-				return "No";
+				return QuPathResources.getString("Panes.ServerSelector.no");
 			return GeneralTools.arrayToString(Locale.getDefault(Locale.Category.FORMAT), server.getPreferredDownsamples(), 1);
 		default:
 			return null;
@@ -503,8 +516,11 @@ public class ServerSelector {
 			}
 			
 			String name = entry.getMetadata().getName();
-			String text = name == null || name.isBlank() ? "(No image name)" : name + "\n";
-			text = text + "(Image " + (getIndex()+1) + ")";
+			String text = name == null || name.isBlank() ? QuPathResources.getString("Panes.ServerSelector.noImageName") : name + "\n";
+			text += MessageFormat.format(
+					QuPathResources.getString("Panes.ServerSelector.imageN"),
+					getIndex() + 1
+			);
 			
 			var thumbnail = imageCache.get(name);
 			if (thumbnail != null)

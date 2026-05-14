@@ -23,6 +23,63 @@
 
 package qupath.lib.gui.scripting;
 
+import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.image.Image;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.stage.Stage;
+import javafx.stage.Window;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.DirectServerChannelInfo;
+import qupath.lib.display.ImageDisplay;
+import qupath.lib.display.settings.DisplaySettingUtils;
+import qupath.lib.display.settings.ImageDisplaySettings;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.TaskRunnerFX;
+import qupath.lib.gui.UserDirectoryManager;
+import qupath.lib.gui.charts.Charts;
+import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
+import qupath.lib.gui.images.servers.RenderedImageServer;
+import qupath.lib.gui.logging.LogManager;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.ui.SummaryMeasurementTable;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tma.TMADataIO;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.MeasurementExporter;
+import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.LabeledImageServer;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.writers.ImageWriterTools;
+import qupath.lib.io.UriUpdater;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectFilter;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.TMACoreObject;
+import qupath.lib.plugins.CommandLineTaskRunner;
+import qupath.lib.plugins.PathPlugin;
+import qupath.lib.plugins.TaskRunner;
+import qupath.lib.plugins.TaskRunnerUtils;
+import qupath.lib.regions.RegionRequest;
+import qupath.lib.scripting.QP;
+
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -40,58 +97,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.application.Platform;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.scene.Node;
-import javafx.scene.Scene;
-import javafx.scene.image.Image;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.stage.Stage;
-import javafx.stage.Window;
-import qupath.fx.dialogs.FileChoosers;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.display.ChannelDisplayInfo;
-import qupath.lib.display.DirectServerChannelInfo;
-import qupath.lib.display.ImageDisplay;
-import qupath.lib.display.settings.DisplaySettingUtils;
-import qupath.lib.display.settings.ImageDisplaySettings;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.TaskRunnerFX;
-import qupath.lib.gui.UserDirectoryManager;
-import qupath.lib.gui.charts.Charts;
-import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.fx.dialogs.Dialogs;
-import qupath.lib.gui.images.servers.RenderedImageServer;
-import qupath.lib.gui.logging.LogManager;
-import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tma.TMADataIO;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.MenuTools;
-import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.LabeledImageServer;
-import qupath.lib.images.servers.ServerTools;
-import qupath.lib.images.writers.ImageWriterTools;
-import qupath.lib.io.UriUpdater;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathRootObject;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathDetectionObject;
-import qupath.lib.objects.TMACoreObject;
-import qupath.lib.plugins.CommandLineTaskRunner;
-import qupath.lib.plugins.PathPlugin;
-import qupath.lib.plugins.TaskRunner;
-import qupath.lib.plugins.TaskRunnerUtils;
-import qupath.lib.regions.RegionRequest;
-import qupath.lib.scripting.QP;
+import java.util.function.Predicate;
 
 /**
  * Alternative to QP offering static methods of use for scripting, 
@@ -117,6 +123,8 @@ public class QPEx extends QP {
 			GridPaneUtils.class,
 			
 			LabeledImageServer.class,
+
+			MeasurementExporter.class,
 			
 			PathPrefs.class,
 			
@@ -518,6 +526,26 @@ public class QPEx extends QP {
 	public static void saveDetectionMeasurements(final String path, final String... includeColumns) {
 		saveMeasurements(getCurrentImageData(), PathDetectionObject.class, path, includeColumns);
 	}
+
+	/**
+	 * Save cell measurements for the current image.
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 * @since v0.6.0
+	 */
+	public static void saveCellMeasurements(final String path, final String... includeColumns) {
+		saveMeasurements(getCurrentImageData(), PathCellObject.class, path, includeColumns);
+	}
+
+	/**
+	 * Save tile measurements for the current image.
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 * @since v0.6.0
+	 */
+	public static void saveTileMeasurements(final String path, final String... includeColumns) {
+		saveMeasurements(getCurrentImageData(), PathTileObject.class, path, includeColumns);
+	}
 	
 	/**
 	 * Save whole image measurements for the current image.
@@ -601,11 +629,11 @@ public class QPEx extends QP {
 				excludeColumns = new LinkedHashSet<>(model.getAllNames());
 				excludeColumns.removeAll(Arrays.asList(includeColumns));
 			}
-			for (String row : SummaryMeasurementTableCommand.getTableModelStrings(model, PathPrefs.tableDelimiterProperty().get(), excludeColumns))
+			for (String row : SummaryMeasurementTable.getTableModelStrings(model, PathPrefs.tableDelimiterProperty().get(), excludeColumns))
 				writer.println(row);
 			writer.close();
 		} catch (IOException e) {
-			logger.error("Error writing file to " + fileOutput, e);
+            logger.error("Error writing file to {}", fileOutput, e);
 		}
 	}
 	
@@ -769,6 +797,128 @@ public class QPEx extends QP {
 		}
 	}
 
-	
+
+	/**
+	 * Show a measurement table for TMA core objects from the current image.
+	 * @since v0.6.0
+	 */
+	public static void showTmaCoreMeasurementTable() {
+		showTmaCoreMeasurementTable(getCurrentImageData());
+	}
+
+	/**
+	 * Show a measurement table for TMA core objects from the specified image.
+	 * @param imageData the image data
+	 * @since v0.6.0
+	 */
+	public static void showTmaCoreMeasurementTable(ImageData<BufferedImage> imageData) {
+		showMeasurementTable(imageData, PathObjectFilter.TMA_CORES);
+	}
+
+	/**
+	 * Show a measurement table for all detection objects from the current image.
+	 * @since v0.6.0
+	 */
+	public static void showDetectionMeasurementTable() {
+		showDetectionMeasurementTable(getCurrentImageData());
+	}
+
+	/**
+	 * Show a measurement table for all detection objects from the specified image.
+	 * @param imageData the image data
+	 * @since v0.6.0
+	 */
+	public static void showDetectionMeasurementTable(ImageData<BufferedImage> imageData) {
+		showMeasurementTable(imageData, PathObjectFilter.DETECTIONS_ALL);
+	}
+
+	/**
+	 * Show a measurement table for annotation objects from the current image.
+	 * @since v0.6.0
+	 */
+	public static void showAnnotationMeasurementTable() {
+		showAnnotationMeasurementTable(getCurrentImageData());
+	}
+
+	/**
+	 * Show a measurement table for annotation objects from the specified image.
+	 * @param imageData the image data
+	 * @since v0.6.0
+	 */
+	public static void showAnnotationMeasurementTable(ImageData<BufferedImage> imageData) {
+		showMeasurementTable(imageData, PathObjectFilter.ANNOTATIONS);
+	}
+
+	/**
+	 * Show a measurement table for tile objects from the current image.
+	 * @since v0.6.0
+	 */
+	public static void showCellMeasurementTable() {
+		showCellMeasurementTable(getCurrentImageData());
+	}
+
+	/**
+	 * Show a measurement table for cell objects from the specified image.
+	 * @param imageData the image data
+	 * @since v0.6.0
+	 */
+	public static void showCellMeasurementTable(ImageData<BufferedImage> imageData) {
+		showMeasurementTable(imageData, PathObjectFilter.CELLS);
+	}
+
+	/**
+	 * Show a measurement table for tile objects from the current image.
+	 * @since v0.6.0
+	 */
+	public static void showTileMeasurementTable() {
+		showTileMeasurementTable(getCurrentImageData());
+	}
+
+	/**
+	 * Show a measurement table for tile objects from the specified image.
+	 * @param imageData the image data
+	 * @since v0.6.0
+	 */
+	public static void showTileMeasurementTable(ImageData<BufferedImage> imageData) {
+		showMeasurementTable(imageData, PathObjectFilter.TILES);
+	}
+
+	/**
+	 * Show a measurement table for the current image.
+	 * <p>
+	 * This method is provided for flexibility, and accepts an arbitrary predicate to select objects precisely.
+	 * If the table should contain all objects of a specific type (e.g. detections, cells, annotations)
+	 * then one of the related 'show' methods should be used instead, because they are better optimized and
+	 * can log export scripts.
+	 *
+	 * @param filter the filter to use when selecting objects to display
+	 * @see PathObjectFilter
+	 * @since v0.6.0
+	 */
+	public static void showMeasurementTable(Predicate<PathObject> filter) {
+		showMeasurementTable(getCurrentImageData(), filter);
+	}
+
+	/**
+	 * Show a measurement table for the specified image.
+	 * <p>
+	 * This method is provided for flexibility, and accepts an arbitrary predicate to select objects precisely.
+	 * If the table should contain all objects of a specific type (e.g. detections, cells, annotations)
+	 * then one of the related 'show' methods should be used instead, because they are better optimized and
+	 * can log export scripts.
+	 * 
+	 * @param imageData the image data
+	 * @param filter the filter to use when selecting objects to display
+	 * @see PathObjectFilter
+	 * @since v0.6.0
+	 */
+	public static void showMeasurementTable(ImageData<BufferedImage> imageData, Predicate<PathObject> filter) {
+		if (imageData == null) {
+			logger.warn("Can't show measurement table - image data is null");
+			return;
+		}
+		var command = new SummaryMeasurementTableCommand(QuPathGUI.getInstance());
+		FXUtils.runOnApplicationThread(() -> command.showTable(imageData, filter));
+	}
 	
 }

@@ -22,9 +22,9 @@
 
 package qupath.opencv.dnn;
 
-import java.util.List;
-
 import org.bytedeco.opencv.opencv_core.Mat;
+
+import java.util.List;
 
 /**
  * Convert OpenCV Mats into blobs (tensors) for use with a deep learning framework.

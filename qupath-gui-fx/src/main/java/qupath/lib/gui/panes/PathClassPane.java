@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,59 +21,86 @@
 
 package qupath.lib.gui.panes;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
-import javafx.scene.control.*;
-import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.geometry.Side;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.shape.Rectangle;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.util.StringConverter;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.control.action.ActionUtils;
+import org.controlsfx.glyphfont.FontAwesome;
+import org.controlsfx.glyphfont.GlyphFontRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.controls.PredicateTextField;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.Commands;
-import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.MenuTools;
-import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Component used to display and edit available {@linkplain PathClass PathClasses}.
@@ -87,46 +114,78 @@ class PathClassPane {
 	private static final KeyCombination copyCombo = new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN);
 	private static final KeyCombination pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCodeCombination.SHORTCUT_DOWN);
 	
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 	
-	private ObservableList<PathClass> availablePathClasses;
+	private final ObservableList<PathClass> availablePathClasses;
 	
-	private Pane pane;
+	private final Pane pane;
 	private ListView<PathClass> listClasses;
-	
-	private StringProperty filterText = new SimpleStringProperty("");
-	
+
 	/**
 	 * If set, request that new annotations have their classification set automatically
 	 */
-	private BooleanProperty doAutoSetPathClass = new SimpleBooleanProperty(false);
+	private final BooleanProperty doAutoSetPathClass = new SimpleBooleanProperty(false);
 	
 	PathClassPane(QuPathGUI qupath) {
 		this.qupath = qupath;
 		this.availablePathClasses = qupath.getAvailablePathClasses();
-		pane = createClassPane();
+		var mainPane = createClassPane();
+		var titled = GuiTools.createLeftRightTitledPane(QuPathResources.getString("Panes.PathClass.classList"), createTitleNode());
+		titled.setContent(mainPane);
+		mainPane.setPadding(Insets.EMPTY);
+
+		titled.setContentDisplay(ContentDisplay.RIGHT);
+		pane = new BorderPane(titled);
+
+		// Refresh when visibilities change
+		var options = qupath.getOverlayOptions();
+		InvalidationListener refresher = o -> listClasses.refresh();
+		options.selectedClassVisibilityModeProperty().addListener(refresher);
+		options.useExactSelectedClassesProperty().addListener(refresher);
+		options.selectedClassesProperty().addListener(refresher);
+	}
+
+
+
+	private Pane createTitleNode() {
+		int iconSize = 8;
+
+		Action addNewAction = new Action(e -> promptToAddClass());
+		addNewAction.setGraphic(IconFactory.createNode(FontAwesome.Glyph.PLUS, iconSize));
+		addNewAction.setLongText(QuPathResources.getString("Panes.PathClass.addClassToList"));
+
+		Action removeSelected = new Action(e -> promptToRemoveSelectedClasses());
+		removeSelected.setGraphic(IconFactory.createNode(FontAwesome.Glyph.MINUS, iconSize));
+		removeSelected.disabledProperty().bind(Bindings.createBooleanBinding(() ->
+				listClasses.getSelectionModel().getSelectedItems().stream().noneMatch(p -> p != PathClass.NULL_CLASS),
+				listClasses.getSelectionModel().getSelectedItems()));
+		removeSelected.setLongText(QuPathResources.getString("Panes.PathClass.removeClassFromList"));
+
+		Button btnAdd = ActionUtils.createButton(addNewAction);
+		Button btnRemove = ActionUtils.createButton(removeSelected);
+
+		var btnMore = GuiTools.createMoreButton(createClassesMenu(), Side.RIGHT);
+		btnMore.setText(null);
+		btnMore.setGraphic(IconFactory.createNode(FontAwesome.Glyph.CARET_RIGHT, 12));
+
+		var spacer = new Pane();
+		spacer.setPrefWidth(4.0);
+
+		return new HBox(btnAdd, btnRemove, btnMore);
 	}
 
 	
-	private Predicate<PathClass> createPathClassListFilter(String filterText) {
-		if (filterText == null || filterText.isBlank())
-			return p -> true;
-		String text2 = filterText.toLowerCase();
-		return (PathClass p) -> {
-			return p == null || p == PathClass.NULL_CLASS ||
-					p.toString().toLowerCase().contains(text2);
-		};
-	}
-	
 	private Pane createClassPane() {
 		listClasses = new ListView<>();
-		
-		var filteredList = availablePathClasses.filtered(createPathClassListFilter(null));
+
+		// To fix https://github.com/qupath/qupath/issues/2101
+		listClasses.setFixedCellSize(24.0);
+
+		var filteredList = availablePathClasses.filtered(p -> true);
 		listClasses.setItems(filteredList);
-		listClasses.setTooltip(new Tooltip("Available classifications (right-click to add or remove).\n" +
-				"Names ending with an Asterisk* are 'ignored' under certain circumstances - see the docs for more info."));
-		
-		listClasses.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateAutoSetPathClassProperty());
+
+		listClasses.getSelectionModel().selectedItemProperty()
+				.addListener((v, o, n) -> updateAutoSetPathClassProperty());
 		
 		listClasses.setCellFactory(v -> new PathClassListCell(qupath));
 
@@ -146,46 +205,92 @@ class PathClassPane {
 			}
 		});
 
-		ContextMenu menuClasses = createClassesMenu();
-		listClasses.setContextMenu(menuClasses);
+		ContextMenu popup = createSelectedMenu();
+		listClasses.setContextMenu(popup);
 		
 		// Add the class list
 		BorderPane paneClasses = new BorderPane();
 		paneClasses.setCenter(listClasses);
 
-		Action setSelectedObjectClassAction = new Action("Set selected", e -> promptToSetClass());
-		setSelectedObjectClassAction.setLongText("Set the class of the currently-selected annotation(s)");
+		Action setSelectedObjectClassAction = new Action(QuPathResources.getString("Panes.PathClass.setSelected"), e -> promptToSetClass());
+		setSelectedObjectClassAction.setLongText(QuPathResources.getString("Panes.PathClass.setSelectedDescription"));
 
-		Action autoClassifyAnnotationsAction = new Action("Auto set");
-		autoClassifyAnnotationsAction.setLongText("Automatically set all new annotations to the selected class");
+		Action autoClassifyAnnotationsAction = new Action(QuPathResources.getString("Panes.PathClass.autoSet"));
+		autoClassifyAnnotationsAction.setLongText(QuPathResources.getString("Panes.PathClass.autoSetDescription"));
 		autoClassifyAnnotationsAction.selectedProperty().bindBidirectional(doAutoSetPathClass);
 		
 		doAutoSetPathClass.addListener((e, f, g) -> updateAutoSetPathClassProperty());
 
 		Button btnSetClass = ActionUtils.createButton(setSelectedObjectClassAction);
 		ToggleButton btnAutoClass = ActionUtils.createToggleButton(autoClassifyAnnotationsAction);
-		
-		// Create a button to show context menu (makes it more obvious to the user that it exists)
-		Button btnMore = GuiTools.createMoreButton(menuClasses, Side.RIGHT);
+
+		// Context menu button to work with selected objects & classifications
+		Button btnMoreObjects = GuiTools.createMoreButton(createSelectedMenu(), Side.RIGHT);
+
 		GridPane paneClassButtons = new GridPane();
-		paneClassButtons.add(btnSetClass, 0, 0);
-		paneClassButtons.add(btnAutoClass, 1, 0);
-		paneClassButtons.add(btnMore, 2, 0);
-		GridPane.setHgrow(btnSetClass, Priority.ALWAYS);
-		GridPane.setHgrow(btnAutoClass, Priority.ALWAYS);
-		
-		var tfFilter = new TextField();
-		tfFilter.setTooltip(new Tooltip("Type to filter classifications in list"));
-		tfFilter.setPromptText("Filter classifications in list");
-		filterText.bind(tfFilter.textProperty());
-		filterText.addListener((v, o, n) -> filteredList.setPredicate(createPathClassListFilter(n)));
-		var paneBottom = GridPaneUtils.createRowGrid(tfFilter, paneClassButtons);
-		
-		GridPaneUtils.setMaxWidth(Double.MAX_VALUE,
-				btnSetClass, btnAutoClass, tfFilter);
-		
+		var col1 = new ColumnConstraints();
+		var col2 = new ColumnConstraints();
+		col1.setPercentWidth(50.0);
+		col2.setPercentWidth(50.0);
+		paneClassButtons.getColumnConstraints().setAll(col1, col2);
+
+		var paneMore = new VBox(btnMoreObjects);
+
+		paneClassButtons.add(btnSetClass, 0, 1);
+		paneClassButtons.add(btnAutoClass, 1, 1);
+
+		var filter = new PredicateTextField<PathClass>();
+		filter.setPromptText(QuPathResources.getString("Panes.PathClass.filterClasses"));
+		filter.setIgnoreCase(true);
+		filter.setUseRegex(true);
+		Tooltip.install(filter, new Tooltip(QuPathResources.getString("Panes.PathClass.filterClassesDescription")));
+
+		filteredList.predicateProperty().bind(filter.predicateProperty());
+
+		var paneBottom = new BorderPane(paneClassButtons);
+		paneBottom.setTop(filter);
+		paneBottom.setRight(paneMore);
+
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, btnSetClass, btnAutoClass);
+		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, btnSetClass, btnAutoClass, filter);
+
+		var comboSelectToShow = new ChoiceBox<OverlayOptions.ClassVisibilityMode>();
+		comboSelectToShow.setConverter(new ClassVisibilityConverter());
+		comboSelectToShow.getItems().setAll(OverlayOptions.ClassVisibilityMode.values());
+		comboSelectToShow.setMaxWidth(Double.MAX_VALUE);
+
+		var btnMoreVisible = GuiTools.createMoreButton(createVisbilityMenu(), Side.RIGHT);
+		var paneTop = new BorderPane(comboSelectToShow);
+		paneTop.setRight(btnMoreVisible);
+		comboSelectToShow.valueProperty()
+				.bindBidirectional(getOverlayOptions().selectedClassVisibilityModeProperty());
+		comboSelectToShow.getSelectionModel().selectFirst();
+
+		paneClasses.setTop(paneTop);
 		paneClasses.setBottom(paneBottom);
 		return paneClasses;
+	}
+
+	private static class ClassVisibilityConverter extends StringConverter<OverlayOptions.ClassVisibilityMode> {
+
+		@Override
+		public String toString(OverlayOptions.ClassVisibilityMode object) {
+			return switch (object) {
+				case HIDE_SELECTED -> QuPathResources.getString("Panes.PathClass.showByDefault");
+				case SHOW_SELECTED -> QuPathResources.getString("Panes.PathClass.hideByDefault");
+			};
+		}
+
+		@Override
+		public OverlayOptions.ClassVisibilityMode fromString(String string) {
+			if (QuPathResources.getString("Panes.PathClass.showByDefault").equals(string)) {
+				return OverlayOptions.ClassVisibilityMode.HIDE_SELECTED;
+			} else if (QuPathResources.getString("Panes.PathClass.hideByDefault").equals(string)) {
+				return OverlayOptions.ClassVisibilityMode.SHOW_SELECTED;
+			} else {
+				return null;
+			}
+		}
 	}
 	
 	
@@ -239,7 +344,8 @@ class PathClassPane {
 		} else if (copyCombo.match(e)) {
 			// Copy the list if needed
 			String s = listClasses.getSelectionModel().getSelectedItems()
-					.stream().map(p -> p.toString()).collect(Collectors.joining(System.lineSeparator()));
+					.stream().map(PathClass::toString)
+					.collect(Collectors.joining(System.lineSeparator()));
 			if (!s.isBlank()) {
 				Clipboard.getSystemClipboard().setContent(
 						Map.of(DataFormat.PLAIN_TEXT, s));
@@ -247,35 +353,27 @@ class PathClassPane {
 			e.consume();
 			return;
 		} else if (pasteCombo.match(e)) {
-			logger.debug("Paste not implemented for classification list!");
+			logger.debug("Paste not implemented for class list!");
 			e.consume();
 			return;
 		}
 	}
 	
-	
-	private Action createAddClassAction() {
-		return new Action("Add class", e -> promptToAddClass());
-	}
 
-	private Action createRemoveSelectedClassesAction() {
-		return new Action("Remove class", e -> promptToRemoveSelectedClasses());
-	}
-	
 	private Action createResetToDefaultClassesAction() {
-		return new Action("Reset to default classes", e -> promptToResetClasses());
+		return new Action(QuPathResources.getString("Panes.PathClass.resetToDefaultClasses"), e -> promptToResetClasses());
 	}
 	
 	private Action createImportClassesFromProjectAction() {
-		return new Action("Import classes from project", e -> promptToImportClasses());
+		return new Action(QuPathResources.getString("Panes.PathClass.importClassesFromProject"), e -> promptToImportClasses());
 	}
 	
 	private BooleanBinding createRemoveClassDisabledBinding() {
 		return Bindings.createBooleanBinding(() -> {
-			PathClass item = listClasses.getSelectionModel().getSelectedItem();
-			return item == null || PathClass.NULL_CLASS == item;
-		},
-		listClasses.getSelectionModel().selectedItemProperty()
+					PathClass item = listClasses.getSelectionModel().getSelectedItem();
+					return item == null || PathClass.NULL_CLASS == item;
+				},
+				listClasses.getSelectionModel().selectedItemProperty()
 		);
 	}
 
@@ -283,48 +381,22 @@ class PathClassPane {
 	private ContextMenu createClassesMenu() {
 		ContextMenu menu = new ContextMenu();
 		
-		Action actionAddClass = createAddClassAction();
-		Action actionRemoveClass = createRemoveSelectedClassesAction();
 		Action actionResetClasses = createResetToDefaultClassesAction();
 		Action actionImportClasses = createImportClassesFromProjectAction();
 
-		actionRemoveClass.disabledProperty().bind(createRemoveClassDisabledBinding());
-		
-		MenuItem miRemoveClass = ActionUtils.createMenuItem(actionRemoveClass);
-		MenuItem miAddClass = ActionUtils.createMenuItem(actionAddClass);
 		MenuItem miResetAllClasses = ActionUtils.createMenuItem(actionResetClasses);
 
-		MenuItem miPopulateFromImage = new MenuItem("All classes (including sub-classes)");
+		MenuItem miPopulateFromImage = new MenuItem(QuPathResources.getString("Panes.PathClass.allClasses"));
 		miPopulateFromImage.setOnAction(e -> promptToPopulateFromImage(false));
-		MenuItem miPopulateFromImageBase = new MenuItem("Base classes only");
+		MenuItem miPopulateFromImageBase = new MenuItem(QuPathResources.getString("Panes.PathClass.baseClasses"));
 		miPopulateFromImageBase.setOnAction(e -> promptToPopulateFromImage(true));
 		
-		MenuItem miPopulateFromChannels = new MenuItem("Populate from image channels");
+		MenuItem miPopulateFromChannels = new MenuItem(QuPathResources.getString("Panes.PathClass.populateFromImageChannels"));
 		miPopulateFromChannels.setOnAction(e -> promptToPopulateFromChannels());
 
-		Menu menuPopulate = new Menu("Populate from existing objects");
+		Menu menuPopulate = new Menu(QuPathResources.getString("Panes.PathClass.populateFromObjects"));
 		menuPopulate.getItems().addAll(
 				miPopulateFromImage, miPopulateFromImageBase);
-
-		MenuItem miSelectObjects = new MenuItem("Select objects by classification");
-		miSelectObjects.disableProperty().bind(Bindings.createBooleanBinding(
-				() -> {
-					var item = listClasses.getSelectionModel().getSelectedItem();
-					return item == null;
-				},
-				listClasses.getSelectionModel().selectedItemProperty()));
-		
-		miSelectObjects.setOnAction(e -> {
-			var imageData = qupath.getImageData();
-			if (imageData == null)
-				return;
-			Commands.selectObjectsByClassification(imageData, getSelectedPathClasses().toArray(PathClass[]::new));
-		});		
-
-		MenuItem miSetHidden = new MenuItem("Hide classes in viewer");
-		miSetHidden.setOnAction(e -> setSelectedClassesVisibility(false));
-		MenuItem miSetVisible = new MenuItem("Show classes in viewer");
-		miSetVisible.setOnAction(e -> setSelectedClassesVisibility(true));
 		
 		menu.setOnShowing(e -> {
 			var hierarchy = getHierarchy();
@@ -332,33 +404,80 @@ class PathClassPane {
 			miPopulateFromImage.setDisable(hierarchy == null);
 			miPopulateFromImageBase.setDisable(hierarchy == null);
 			miPopulateFromChannels.setDisable(qupath.getImageData() == null);
-			var selected = getSelectedPathClasses();
-			boolean hasClasses = !selected.isEmpty();
-			miSetVisible.setDisable(!hasClasses);
-			miSetHidden.setDisable(!hasClasses);
 		});
 		
 		MenuItem miImportFromProject = ActionUtils.createMenuItem(actionImportClasses);
 		
 		menu.getItems().addAll(
-				MenuTools.createMenu("Add/Remove...", 
-						miAddClass,
-						miRemoveClass
-						),
 				menuPopulate,
 				miPopulateFromChannels,
 				miResetAllClasses,
-				miImportFromProject,
-				new SeparatorMenuItem(),
-				MenuTools.createMenu("Show/Hide...", 
-						miSetVisible,
-						miSetHidden
-						),
-				miSelectObjects);
+				miImportFromProject
+		);
 		
 		return menu;
 	}
-	
+
+	private ContextMenu createVisbilityMenu() {
+		ContextMenu menu = new ContextMenu();
+
+		CheckMenuItem miSelectExact = new CheckMenuItem(QuPathResources.getString("Panes.PathClass.showHideExactClassMatches"));
+		miSelectExact.selectedProperty().bindBidirectional(getOverlayOptions().useExactSelectedClassesProperty());
+
+		MenuItem miResetClassVisibility = new MenuItem(QuPathResources.getString("Panes.PathClass.resetSelectedClasses"));
+		miResetClassVisibility.setOnAction(e -> resetSelectedClassVisibility());
+
+		MenuItem miRestoreClassVisibilityDefaults = new MenuItem(QuPathResources.getString("Panes.PathClass.defaultSettings"));
+		miRestoreClassVisibilityDefaults.setOnAction(e -> restoreClassVisibilityDefaults());
+
+		menu.getItems().addAll(
+				miSelectExact,
+				new SeparatorMenuItem(),
+				miResetClassVisibility,
+				miRestoreClassVisibilityDefaults
+		);
+		return menu;
+	}
+
+
+	private void resetSelectedClassVisibility() {
+		var options = getOverlayOptions();
+		options.selectedClassesProperty().clear();
+	}
+
+	private void restoreClassVisibilityDefaults() {
+		var options = getOverlayOptions();
+		options.setSelectedClassVisibilityMode(OverlayOptions.ClassVisibilityMode.HIDE_SELECTED);
+		options.setUseExactSelectedClasses(false);
+		options.selectedClassesProperty().clear();
+	}
+
+	private ContextMenu createSelectedMenu() {
+		ContextMenu menu = new ContextMenu();
+
+		MenuItem miSelectObjects = new MenuItem(QuPathResources.getString("Panes.PathClass.selectObjectsByClassification"));
+		miSelectObjects.disableProperty().bind(Bindings.createBooleanBinding(
+				() -> {
+					var item = listClasses.getSelectionModel().getSelectedItem();
+					return item == null && getHierarchy() != null;
+				},
+				listClasses.getSelectionModel().selectedItemProperty(),
+				qupath.imageDataProperty()));
+
+		miSelectObjects.setOnAction(e -> {
+			var imageData = qupath.getImageData();
+			if (imageData == null)
+				return;
+			Commands.selectObjectsByClassification(imageData, getSelectedPathClasses().toArray(PathClass[]::new));
+		});
+
+
+		menu.getItems().addAll(
+				miSelectObjects);
+
+		return menu;
+	}
+
 	
 	
 	/**
@@ -366,20 +485,20 @@ class PathClassPane {
 	 */
 	public void refresh() {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> refresh());
+			Platform.runLater(this::refresh);
 			return;
 		}
 		listClasses.refresh();
 	}
 	
 	private OverlayOptions getOverlayOptions() {
-		return qupath.getViewer().getOverlayOptions();
+		return qupath.getOverlayOptions();
 	}
 	
 	private void toggleSelectedClassesVisibility() {
 		OverlayOptions overlayOptions = getOverlayOptions();
 		for (var pathClass : getSelectedPathClasses()) {
-			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
+			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.selectedClassesProperty().contains(pathClass));
 		}
 		listClasses.refresh();
 	}
@@ -424,14 +543,20 @@ class PathClassPane {
 			newClasses.add(PathClass.fromString(channel.getName(), channel.getColor()));
 		}
 		if (newClasses.isEmpty()) {
-			Dialogs.showErrorMessage("Set available classes", "No channels found, somehow!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Panes.PathClass.setAvailableClasses"),
+					QuPathResources.getString("Panes.PathClass.noChannelsFound")
+			);
 			return false;
 		}
 		
 		List<PathClass> currentClasses = new ArrayList<>(availablePathClasses);
 		currentClasses.remove(null);
 		if (currentClasses.equals(newClasses)) {
-			Dialogs.showInfoNotification("Set available classes", "Class lists are the same - no changes to make!");
+			Dialogs.showInfoNotification(
+					QuPathResources.getString("Panes.PathClass.setAvailableClasses"),
+					QuPathResources.getString("Panes.PathClass.noChanges")
+			);
 			return false;
 		}
 		// Always need to be able to ignore...
@@ -439,12 +564,15 @@ class PathClassPane {
 		
 		var btn = ButtonType.YES;
 		if (availablePathClasses.size() > 1)
-			btn = Dialogs.showYesNoCancelDialog("Set available classes", "Keep existing available classes?");
+			btn = Dialogs.showYesNoCancelDialog(
+					QuPathResources.getString("Panes.PathClass.setAvailableClasses"),
+					QuPathResources.getString("Panes.PathClass.keepExistingClasses")
+			);
 		if (btn == ButtonType.YES) {
 			newClasses.removeAll(availablePathClasses);
 			return availablePathClasses.addAll(newClasses);
 		} else if (btn == ButtonType.NO) {
-			newClasses.add(0, PathClass.NULL_CLASS);
+			newClasses.addFirst(PathClass.NULL_CLASS);
 			return availablePathClasses.setAll(newClasses);
 		} else
 			return false;
@@ -460,19 +588,22 @@ class PathClassPane {
 		var hierarchy = getHierarchy();
 		if (hierarchy == null)
 			return false;
-		
-		Set<PathClass> representedClasses = hierarchy.getFlattenedObjectList(null).stream()
+
+		List<PathClass> newClasses = hierarchy.getFlattenedObjectList(null)
+				.stream()
 				.filter(p -> !p.isRootObject())
-				.map(p -> p.getPathClass())
+				.map(PathObject::getPathClass)
 				.filter(p -> p != null && p != PathClass.NULL_CLASS)
 				.map(p -> baseClassesOnly ? p.getBaseClass() : p)
-				.collect(Collectors.toSet());
-		
-		List<PathClass> newClasses = new ArrayList<>(representedClasses);
-		Collections.sort(newClasses);
-		
+				.distinct()
+				.sorted()
+				.collect(Collectors.toCollection(ArrayList::new));
+
 		if (newClasses.isEmpty()) {
-			Dialogs.showErrorMessage("Set available classes", "No classifications found in current image!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Panes.PathClass.setAvailableClasses"),
+					QuPathResources.getString("Panes.PathClass.noClassesFound")
+			);
 			return false;
 		}
 		
@@ -481,18 +612,24 @@ class PathClassPane {
 		List<PathClass> currentClasses = new ArrayList<>(availablePathClasses);
 		currentClasses.remove(null);
 		if (currentClasses.equals(newClasses)) {
-			Dialogs.showInfoNotification("Set available classes", "Class lists are the same - no changes to make!");
+			Dialogs.showInfoNotification(
+					QuPathResources.getString("Panes.PathClass.setAvailableClasses"),
+					QuPathResources.getString("Panes.PathClass.noChanges")
+			);
 			return false;
 		}
 		
 		var btn = ButtonType.YES;
 		if (availablePathClasses.size() > 1)
-			btn = Dialogs.showYesNoCancelDialog("Set available classes", "Keep existing available classes?");
+			btn = Dialogs.showYesNoCancelDialog(
+					QuPathResources.getString("Panes.PathClass.setAvailableClasses"),
+					QuPathResources.getString("Panes.PathClass.keepExistingClasses")
+			);
 		if (btn == ButtonType.YES) {
 			newClasses.removeAll(availablePathClasses);
 			return availablePathClasses.addAll(newClasses);
 		} else if (btn == ButtonType.NO) {
-			newClasses.add(0, PathClass.NULL_CLASS);
+			newClasses.addFirst(PathClass.NULL_CLASS);
 			return availablePathClasses.setAll(newClasses);
 		} else
 			return false;
@@ -503,29 +640,49 @@ class PathClassPane {
 	 * @return true if the class list was changed, false otherwise.
 	 */
 	boolean promptToImportClasses() {
-		File file = FileChoosers.promptForFile("Import classifications",
-				FileChoosers.createExtensionFilter("QuPath project", ProjectIO.getProjectExtension()));
+		File file = FileChoosers.promptForFile(
+				QuPathResources.getString("Panes.PathClass.importClassifications"),
+				FileChoosers.createExtensionFilter(QuPathResources.getString("Panes.PathClass.quPathProject"), ProjectIO.getProjectExtension())
+		);
 		if (file == null)
 			return false;
 		if (!file.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())) {
-			Dialogs.showErrorMessage("Import PathClasses", file.getName() + " is not a project file!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Panes.PathClass.importPathClasses"),
+					MessageFormat.format(
+							QuPathResources.getString("Panes.PathClass.notProjectFile"),
+							file.getName()
+					)
+			);
 			return false;
 		}
 		try {
 			Project<?> project = ProjectIO.loadProject(file, BufferedImage.class);
 			List<PathClass> pathClasses = project.getPathClasses();
 			if (pathClasses.isEmpty()) {
-				Dialogs.showErrorMessage("Import PathClasses", "No classes found in " + file.getName());
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Panes.PathClass.importPathClasses"),
+						MessageFormat.format(
+								QuPathResources.getString("Panes.PathClass.noClassesFoundIn"),
+								file.getName()
+						)
+				);
 				return false;
 			}
 			if (pathClasses.size() == availablePathClasses.size() && availablePathClasses.containsAll(pathClasses)) {
-				Dialogs.showInfoNotification("Import PathClasses", file.getName() + " contains same classifications - no changes to make");
+				Dialogs.showInfoNotification(
+						QuPathResources.getString("Panes.PathClass.importPathClasses"),
+						MessageFormat.format(
+								QuPathResources.getString("Panes.PathClass.containsSameClasses"),
+								file.getName()
+						)
+				);
 				return false;
 			}
 			availablePathClasses.setAll(pathClasses);
 			return true;
 		} catch (Exception ex) {
-			Dialogs.showErrorMessage("Error reading project", ex);
+			Dialogs.showErrorMessage(QuPathResources.getString("Panes.PathClass.errorReadingProject"), ex);
 			logger.error(ex.getMessage(), ex);
 			return false;
 		}
@@ -537,7 +694,10 @@ class PathClassPane {
 	 * @return true if the class list was changed, false otherwise
 	 */
 	private boolean promptToResetClasses() {
-		if (Dialogs.showConfirmDialog("Reset classes", "Reset all available classes?")) {
+		if (Dialogs.showConfirmDialog(
+				QuPathResources.getString("Panes.PathClass.resetClasses"),
+				QuPathResources.getString("Panes.PathClass.resetAvailableClasses")
+		)) {
 			return qupath.resetAvailablePathClasses();
 		}
 		return false;
@@ -549,15 +709,28 @@ class PathClassPane {
 	 * @return true if a new classification was added, false otherwise
 	 */
 	private boolean promptToAddClass() {
-		String input = Dialogs.showInputDialog("Add class", "Class name", "");
+		String input = Dialogs.showInputDialog(
+				QuPathResources.getString("Panes.PathClass.addClass"),
+				QuPathResources.getString("Panes.PathClass.className"),
+				""
+		);
 		if (input == null || input.trim().isEmpty())
 			return false;
 		PathClass pathClass = PathClass.fromString(input);
 		if (availablePathClasses.contains(pathClass)) {
-			Dialogs.showErrorMessage("Add class", "Class '" + input + "' already exists!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Panes.PathClass.addClass"),
+					MessageFormat.format(
+							QuPathResources.getString("Panes.PathClass.classAlreadyExists"),
+							input
+					)
+			);
 			return false;
-		} else if (input.toLowerCase().equals("null")) {
-			Dialogs.showErrorMessage("Add class", "Cannot add a 'null' class, try another name!");
+		} else if (input.equalsIgnoreCase("null")) {
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Panes.PathClass.addClass"),
+					QuPathResources.getString("Panes.PathClass.cannotAddNullClass")
+			);
 			return false;
 		}
 		availablePathClasses.add(pathClass);
@@ -572,22 +745,28 @@ class PathClassPane {
 	private boolean promptToEditSelectedClass() {
 		PathClass pathClassSelected = getSelectedPathClass();
 		if (Commands.promptToEditClass(pathClassSelected)) {
-			//					listModelPathClasses.fireListDataChangedEvent();
-			GuiTools.refreshList(listClasses);
-			var project = qupath.getProject();
-			// Make sure we have updated the classes in the project
-			if (project != null) {
-				project.setPathClasses(listClasses.getItems());
-			}
-			qupath.getViewerManager().repaintAllViewers();
-			// TODO: Considering the only thing that can change is the color, firing an event should be unnecessary?
-			// In any case, it doesn't make sense to do the current image only... should do all or none
-			var hierarchy = getHierarchy();
-			if (hierarchy != null)
-				hierarchy.fireHierarchyChangedEvent(listClasses);
+			handleClassUpdated();
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Call this method when a class changes (e.g. the colors).
+	 */
+	private void handleClassUpdated() {
+		GuiTools.refreshList(listClasses);
+		var project = qupath.getProject();
+		// Make sure we have updated the classes in the project
+		if (project != null) {
+			project.setPathClasses(listClasses.getItems());
+		}
+		qupath.getViewerManager().repaintAllViewers();
+		// TODO: Considering the only thing that can change is the color, firing an event should be unnecessary?
+		// In any case, it doesn't make sense to do the current image only... should do all or none
+		var hierarchy = getHierarchy();
+		if (hierarchy != null)
+			hierarchy.fireHierarchyChangedEvent(listClasses);
 	}
 	
 	/**
@@ -614,18 +793,32 @@ class PathClassPane {
 	private boolean promptToRemoveSelectedClasses() {
 		List<PathClass> pathClasses = getSelectedPathClasses()
 				.stream()
-				.filter(p -> p != null && p != PathClass.NULL_CLASS)
+				.filter(PathClassPane::isNotNull)
 				.toList();
 		if (pathClasses.isEmpty())
 			return false;
 		String message;
 		if (pathClasses.size() == 1)
-			message = "Remove '" + pathClasses.get(0).toString() + "' from class list?";
+			message = MessageFormat.format(
+					QuPathResources.getString("Panes.PathClass.removeFromClassList"),
+					pathClasses.getFirst().toString()
+			);
 		else
-			message = "Remove " + pathClasses.size() + " classes from list?";
-		if (Dialogs.showConfirmDialog("Remove classes", message))
+			message = MessageFormat.format(
+					QuPathResources.getString("Panes.PathClass.removeClassesFromList"),
+					pathClasses.size()
+			);
+		if (Dialogs.showConfirmDialog(QuPathResources.getString("Panes.PathClass.removeClasses"), message))
 			return availablePathClasses.removeAll(pathClasses);
 		return false;
+	}
+
+	private static boolean isNotNull(PathClass pathClass) {
+		return !isNull(pathClass);
+	}
+
+	private static boolean isNull(PathClass pathClass) {
+		return pathClass == null || pathClass == PathClass.NULL_CLASS;
 	}
 	
 	
@@ -644,74 +837,226 @@ class PathClassPane {
 	private List<PathClass> getSelectedPathClasses() {
 		return listClasses.getSelectionModel().getSelectedItems()
 				.stream()
-				.map(p -> p.getName() == null ? null : p)
+				.map(p -> p.getName() == null ? null : p) // Return null for NULL_CLASS
 				.toList();
 	}
 	
 	
 	/**
-	 * Extract annotations from a hierarchy with a specific classification.
-	 * @param hierarchy
-	 * @param pathClass
-	 * @return
-	 */
-	private static List<PathObject> getAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
-		if (hierarchy == null)
-			return Collections.emptyList();
-		List<PathObject> annotations = new ArrayList<>();
-		for (PathObject pathObject : hierarchy.getAnnotationObjects()) {
-			if (pathClass.equals(pathObject.getPathClass()))
-				annotations.add(pathObject);
-		}
-		return annotations;
-	}
-	
-	
-	/**
-	 * A {@link ListCell} for displaying {@linkplain PathClass PathClasses}, including annotation counts 
-	 * for the classes if available.
+	 * A {@link ListCell} to display a {@link PathClass}.
 	 */
 	private static class PathClassListCell extends ListCell<PathClass> {
 		
-		private QuPathGUI qupath;
-		
+		private final QuPathGUI qupath;
+		private final OverlayOptions overlayOptions;
+
+		private final BorderPane pane = new BorderPane();
+		private final Label label = new Label();
+
+		private final ColorPicker colorPicker = new ColorPicker();
+		private final int colorPickerSize = 10;
+		private final int eyeSize = 14;
+
+		private final Node iconShowing = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE, eyeSize));
+		private final Node iconHidden = new StackPane(IconFactory.createNode(FontAwesome.Glyph.EYE_SLASH, eyeSize));
+		private final Node iconUnavailable = new StackPane(GlyphFontRegistry.font("FontAwesome")
+				.create('\uf2a8')
+				.size(eyeSize));
+
+		private static final String STYLE_HIDDEN = "-fx-font-family:arial; -fx-font-style:italic;";
+		private static final String STYLE_SHOWING = "-fx-font-family:arial; -fx-font-style:normal;";
+
 		PathClassListCell(QuPathGUI qupath) {
 			this.qupath = qupath;
+			this.overlayOptions = qupath == null ? null : qupath.getOverlayOptions();
+			label.setMaxWidth(Double.MAX_VALUE);
+			label.setMinWidth(20);
+
+			colorPicker.getStyleClass().addAll( "minimal-color-picker", "always-opaque", "button");
+			colorPicker.setStyle("-fx-color-rect-width: " + colorPickerSize + "; -fx-color-rect-height: " + colorPickerSize + ";");
+			colorPicker.setOnHiding(e -> this.handleColorChange(colorPicker.getValue()));
+
+			label.setGraphic(colorPicker);
+
+			// Tooltip for the main label (but not the visibility part)
+			Tooltip tooltip = new Tooltip(QuPathResources.getString("Panes.PathClass.availableClasses"));
+			label.setTooltip(tooltip);
+			label.setTextOverrun(OverrunStyle.ELLIPSIS);
+
+			var sp = new StackPane(label);
+			label.setMaxWidth(Double.MAX_VALUE);
+			sp.setPrefWidth(1.0);
+			sp.setMinHeight(0.0);
+			StackPane.setAlignment(label, Pos.CENTER_LEFT);
+			pane.setCenter(sp);
+
+			configureHiddenIcon();
+			configureShowingIcon();
+			configureUnavailableIcon();
+		}
+
+		private void handleColorChange(Color color) {
+			var pathClass = getItem();
+			if (pathClass != null && pathClass != PathClass.NULL_CLASS) {
+				var rgb = ColorToolsFX.getRGB(color);
+				if (!Objects.equals(rgb, pathClass.getColor())) {
+					pathClass.setColor(rgb);
+					var qupath = QuPathGUI.getInstance();
+					if (qupath != null) {
+						// TODO: Consider whether project class list needs to be updated
+						for (var viewer : qupath.getAllViewers()) {
+							// Technically we only need to repaint the viewers, but we need to ensure that
+							// any cached tiles are updated as well - so it's easiest to fire a hierarchy changed event
+							var hierarchy = viewer.getHierarchy();
+							if (hierarchy != null) {
+								hierarchy.fireHierarchyChangedEvent(pathClass);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		private void configureHiddenIcon() {
+			iconHidden.opacityProperty().bind(opacityBinding);
+			if (overlayOptions != null) {
+				Tooltip.install(iconHidden, new Tooltip(QuPathResources.getString("Panes.PathClass.classHidden")));
+				iconHidden.setOnMouseClicked(this::handleToggleVisibility);
+			}
+		}
+
+		private void configureShowingIcon() {
+			iconShowing.opacityProperty().bind(opacityBinding);
+			if (overlayOptions != null) {
+				Tooltip.install(iconShowing, new Tooltip(QuPathResources.getString("Panes.PathClass.classShowing")));
+				iconShowing.setOnMouseClicked(this::handleToggleVisibility);
+			}
+		}
+
+		private DoubleBinding opacityBinding = Bindings.createDoubleBinding(this::calculateOpacity,
+				hoverProperty(), selectedProperty(), itemProperty());
+
+		private boolean isSelected(PathClass pathClass) {
+			return overlayOptions.selectedClassesProperty().contains(pathClass);
+		}
+
+		private double calculateOpacity() {
+			var item = getItem();
+			if (item == null)
+				return 0.0;
+			if (isHover() || isSelected())
+				return 0.8;
+			var mode = overlayOptions.getSelectedClassVisibilityMode();
+			switch (mode) {
+				case HIDE_SELECTED:
+					if (isHidden(item))
+						return isSelected(item) ? 0.8 : 0.6;
+					else
+						return 0.1;
+				case SHOW_SELECTED:
+					if (isHidden(item))
+						return 0.4;
+					else
+						return isSelected(item) ? 0.8 : 0.6;
+			}
+			return 1.0;
+		}
+
+		private void configureUnavailableIcon() {
+			iconUnavailable.opacityProperty().bind(opacityBinding);
+			if (overlayOptions != null) {
+				Tooltip.install(iconUnavailable, new Tooltip(QuPathResources.getString("Panes.PathClass.derivedClassHidden")));
+				iconUnavailable.setOnMouseClicked(this::handleToggleVisibility);
+			}
+		}
+
+		private void handleToggleVisibility(MouseEvent e) {
+			var pathClass = getItem();
+			var options = overlayOptions;
+			if (pathClass != null && options != null) {
+				options.setPathClassHidden(pathClass, !options.selectedClassesProperty().contains(pathClass));
+				getListView().refresh();
+			}
+			e.consume();
+		}
+
+
+		private PathObjectHierarchy getHierarchy() {
+			var imageData = qupath == null ? null : qupath.getImageData();
+			return imageData == null ? null : imageData.getHierarchy();
+		}
+
+		private boolean isHidden(PathClass pathClass) {
+			return overlayOptions != null && overlayOptions.isPathClassHidden(pathClass);
+		}
+
+		private long getAnnotationCount(PathClass pathClass) {
+			var hierarchy = getHierarchy();
+			if (hierarchy != null) {
+				try {
+					return hierarchy.getAnnotationObjects()
+							.stream()
+							.filter(p -> pathClass.equals(p.getPathClass()))
+							.count();
+				} catch (Exception e) {
+					logger.debug("Exception while counting objects for class", e);
+				}
+			}
+			return -1;
+		}
+
+		private String getText(PathClass pathClass) {
+			if (pathClass.getBaseClass() == pathClass && pathClass.getName() == null) {
+				return QuPathResources.getString("Panes.PathClass.none");
+			} else {
+				long n = getAnnotationCount(pathClass);
+				if (n > 0)
+					return pathClass + " (" + n + ")";
+				else
+					return pathClass.toString();
+			}
+		}
+
+		private Color getColor(PathClass pathClass) {
+			var rgb = pathClass.getColor();
+			if (rgb == null || PathClassTools.isNullClass(pathClass)) {
+				return Color.TRANSPARENT;
+			} else {
+				return ColorToolsFX.getPathClassColor(pathClass);
+			}
 		}
 
 		@Override
 		protected void updateItem(PathClass value, boolean empty) {
 			super.updateItem(value, empty);
-			QuPathViewer viewer = qupath == null ? null : qupath.getViewer();
-			PathObjectHierarchy hierarchy = viewer == null ? null : viewer.getHierarchy();
-			int size = 10;
 			if (value == null || empty) {
 				setText(null);
 				setGraphic(null);
-			} else if (value.getBaseClass() == value && value.getName() == null) {
-				setText("None");
-				setGraphic(new Rectangle(size, size, ColorToolsFX.getCachedColor(0, 0, 0, 0)));
-			} else {
-				int n = 0; 
-				if (hierarchy != null) {
-					try {
-						n = getAnnotationsForClass(hierarchy, value).size();
-					} catch (Exception e) {
-						logger.debug("Exception while counting objects for class", e);
-					}
-				}
-				if (n == 0)
-					setText(value.toString());
-				else
-					setText(value.toString() + " (" + n + ")");
-				setGraphic(new Rectangle(size, size, ColorToolsFX.getPathClassColor(value)));
+				return;
 			}
-			if (!empty && viewer != null && viewer.getOverlayOptions().isPathClassHidden(value)) {
-				setStyle("-fx-font-family:arial; -fx-font-style:italic;");		
-				setText(getText() + " (hidden)");
-			} else
-				setStyle("-fx-font-family:arial; -fx-font-style:normal;");
+			colorPicker.setValue(getColor(value));
+			colorPicker.setDisable(value == PathClass.NULL_CLASS);
+
+			String text = getText(value);
+			var mode = overlayOptions.getSelectedClassVisibilityMode();
+			if (isHidden(value)) {
+				label.setStyle(STYLE_HIDDEN);
+				if (value == PathClass.NULL_CLASS) {
+					pane.setRight(iconHidden);
+				} else if (mode == OverlayOptions.ClassVisibilityMode.HIDE_SELECTED &&
+						!isSelected(value)) {
+					pane.setRight(iconUnavailable);
+				} else {
+					pane.setRight(iconHidden);
+				}
+			} else {
+				label.setStyle(STYLE_SHOWING);
+				pane.setRight(iconShowing);
+			}
+			label.setText(text);
+			setGraphic(pane);
 		}
+
 	}
 	
 }

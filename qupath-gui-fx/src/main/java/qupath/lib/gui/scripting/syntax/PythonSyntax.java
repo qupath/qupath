@@ -22,9 +22,9 @@
 
 package qupath.lib.gui.scripting.syntax;
 
-import java.util.Set;
-
 import qupath.lib.gui.scripting.EditableText;
+
+import java.util.Set;
 
 class PythonSyntax extends GeneralCodeSyntax {
 	
@@ -33,7 +33,7 @@ class PythonSyntax extends GeneralCodeSyntax {
 		
 	@Override
 	public Set<String> getLanguageNames() {
-		return Set.of("python", "jython");
+		return Set.of("python", "jython", "graalpy", "python py4j", "cpython");
 	}
 	
 	@Override

@@ -1,5 +1,6 @@
 package qupath.lib.images.writers.ome;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -30,7 +31,6 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
-import org.apache.commons.io.FileUtils;
 
 public class TestConvertCommand {
 
@@ -44,11 +44,8 @@ public class TestConvertCommand {
         static void createInputImage() throws Exception {
             deleteFileOrDirectory(inputImagePath);
 
-            try (
-                    ImageServer<BufferedImage> sampleServer = new SampleImageServer();
-                    OMEZarrWriter writer = new OMEZarrWriter.Builder(sampleServer, inputImagePath).build()
-            ) {
-                writer.writeImage();
+            try (ImageServer<BufferedImage> sampleServer = new SampleImageServer()) {
+                new OMEZarrWriter.Builder(sampleServer).build(inputImagePath).writeImage();
             }
         }
 

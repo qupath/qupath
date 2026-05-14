@@ -23,17 +23,16 @@
 
 package qupath.lib.objects.hierarchy;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.TMACoreObject;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.TMACoreObject;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SuppressWarnings("javadoc")
 public class TestDefaultTMAGrid {

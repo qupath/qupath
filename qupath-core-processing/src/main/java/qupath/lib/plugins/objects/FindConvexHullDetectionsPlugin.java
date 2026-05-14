@@ -23,14 +23,6 @@
 
 package qupath.lib.plugins.objects;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
@@ -43,6 +35,14 @@ import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.TaskRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.ConvexHull;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Plugin to identify/remove detections from the convex hull of all detections.

@@ -21,13 +21,13 @@
 
 package qupath.lib.gui.actions.annotations;
 
+import qupath.lib.gui.tools.IconFactory;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-
-import qupath.lib.gui.tools.IconFactory;
 
 /**
  * Default icon for an action.

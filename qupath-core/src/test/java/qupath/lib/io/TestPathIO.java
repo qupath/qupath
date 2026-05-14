@@ -23,10 +23,11 @@
 
 package qupath.lib.io;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.Test;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.roi.ROIs;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -42,12 +43,10 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.ROIs;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings("javadoc")
 public class TestPathIO {

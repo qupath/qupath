@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,6 +22,7 @@
 package qupath.lib.gui.tools;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ObservableList;
 import javafx.css.StyleOrigin;
@@ -29,7 +30,10 @@ import javafx.css.StyleableObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.geometry.Side;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -38,6 +42,8 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -47,17 +53,21 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.robot.Robot;
+import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -88,6 +98,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -108,14 +119,15 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * Assorted static methods to help with JavaFX and QuPath GUI-related tasks.
@@ -128,8 +140,15 @@ public class GuiTools {
 	/**
 	 * Vertical ellipsis, which can be used to indicate a 'more' button.
 	 */
-	private static String MORE_ELLIPSIS = "⋮";
-	
+	private static final String MORE_ELLIPSIS = "⋮";
+
+	/**
+	 * Style class to use with placeholder text.
+	 * This is commonly used in a list or table to indicate that no items are present.
+	 */
+	public static final String STYLE_PLACEHOLDER_TEXT = "text-placeholder";
+
+
 	/**
 	 * Create a {@link Button} with a standardized icon and tooltip text to indicate 'More', 
 	 * which triggers a {@link ContextMenu} when clicked.
@@ -140,7 +159,7 @@ public class GuiTools {
 	 */
 	public static Button createMoreButton(ContextMenu menu, Side side) {
 		Button btnMore = new Button(MORE_ELLIPSIS);
-		btnMore.setTooltip(new Tooltip("More options"));
+		btnMore.setTooltip(new Tooltip(QuPathResources.getString("Tools.GuiTools.moreOptions")));
 		btnMore.setOnAction(e -> {
 			menu.show(btnMore, side, 0, 0);
 		});
@@ -176,11 +195,27 @@ public class GuiTools {
 		Dialogs.showErrorMessage(title, QuPathResources.getString("Dialogs.noProject"));
 	}
 
+	/**
+	 * Create a {@link Text} object for use as a placeholder in a list or table.
+	 * This is used to overcome the fact that the default styling does not update with the application
+	 * theme (e.g. dark mode), and {@link Text} nodes do not have a style class associated with them
+	 * by default.
+	 * @param text the text to display
+	 * @return a text object showing the requested text
+	 * @see #STYLE_PLACEHOLDER_TEXT
+	 * @since v0.6.0
+	 */
+	public static Text createPlaceholderText(String text) {
+		var textNode = new Text(text);
+		textNode.getStyleClass().add(STYLE_PLACEHOLDER_TEXT);
+		return textNode;
+	}
+
 
 	/**
 	 * Kinds of snapshot image that can be created for QuPath.
 	 */
-	public static enum SnapshotType {
+	public enum SnapshotType {
 		/**
 		 * Snapshot of the current viewer content.
 		 */
@@ -209,7 +244,13 @@ public class GuiTools {
 	 */
 	public static boolean browseDirectory(final File file) {
 		if (file == null || !file.exists()) {
-			Dialogs.showErrorMessage("Open", "File " + file + " does not exist!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Tools.GuiTools.open"),
+					MessageFormat.format(
+							QuPathResources.getString("Tools.GuiTools.fileNotExist"),
+							file
+					)
+			);
 			return false;
 		}
 		if (Desktop.isDesktopSupported()) {
@@ -235,8 +276,10 @@ public class GuiTools {
 					return true;
 				}
 				// If we didn't manage to open the directory, offer to copy the path at least
-				if (Dialogs.showConfirmDialog("Browse directory",
-						"Directory browsing not supported on this platform!\nCopy directory path to clipboard instead?")) {
+				if (Dialogs.showConfirmDialog(
+						QuPathResources.getString("Tools.GuiTools.browseDirectory"),
+						QuPathResources.getString("Tools.GuiTools.directoryBrowsingNotSupported")
+				)) {
 					var content = new ClipboardContent();
 					content.putString(file.getAbsolutePath());
 					Clipboard.getSystemClipboard().setContent(content);
@@ -247,7 +290,7 @@ public class GuiTools {
 				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR))
 					SwingUtilities.invokeLater(() -> desktop.browseFileDirectory(file));
 				else {
-					Dialogs.showErrorNotification("Browse directory", e1);
+					Dialogs.showErrorNotification(QuPathResources.getString("Tools.GuiTools.browseDirectory"), e1);
 					logger.error(e1.getMessage(), e1);
 				}
 			}
@@ -452,9 +495,9 @@ public class GuiTools {
 		double angleDAB = StainVector.computeAngle(stainMean, stainsH_DAB.getStain(2));
 	
 		// For H&E staining, eosin is expected to predominate... if it doesn't, assume H-DAB
-		logger.debug("Angle hematoxylin: " + angleH);
-		logger.debug("Angle eosin: " + angleE);
-		logger.debug("Angle DAB: " + angleDAB);
+        logger.debug("Angle hematoxylin: {}", angleH);
+        logger.debug("Angle eosin: {}", angleE);
+        logger.debug("Angle DAB: {}", angleDAB);
 		if (angleDAB < angleE || angleH < angleE) {
 			logger.info("Estimating H-DAB staining");
 			return ImageData.ImageType.BRIGHTFIELD_H_DAB;
@@ -518,7 +561,7 @@ public class GuiTools {
 			}
 		case FULL_SCREENSHOT:
 			// Make the screenshot of the screen containing QuPath, if possible
-			var screen = stage == null ? Screen.getPrimary() : FXUtils.getScreen(stage);
+			var screen = FXUtils.getScreenOrPrimary(stage);
 			var bounds = screen.getBounds();
 			return createScreenCapture(bounds.getMinX(), bounds.getMinY(), bounds.getWidth(), bounds.getHeight(), GeneralTools.isMac());
 		default:
@@ -646,19 +689,25 @@ public class GuiTools {
 	
 		if (selected.isEmpty()) {
 			if (selectedRaw.size() > selected.size())
-				Dialogs.showErrorMessage("Delete selected objects", "No valid objects selected! \n\nNote: Individual TMA cores cannot be deleted with this method.");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Tools.GuiTools.deleteSelectedObjects"),
+						QuPathResources.getString("Tools.GuiTools.noValidObjectsSelected")
+				);
 			else
-				Dialogs.showErrorMessage("Delete selected objects", "No objects selected!");
+				Dialogs.showErrorMessage(
+						QuPathResources.getString("Tools.GuiTools.deleteSelectedObjects"),
+						QuPathResources.getString("Tools.GuiTools.noObjectsSelected")
+				);
 			return false;
 		}
 	
 		int n = selected.size();
 		String message;
 		if (n == 1)
-			message = "Delete selected object?";
+			message = QuPathResources.getString("Tools.GuiTools.deleteSelectedObject");
 		else
-			message = "Delete " + n + " selected objects?";
-		if (Dialogs.showYesNoDialog("Delete objects", message)) {
+			message = MessageFormat.format(QuPathResources.getString("Tools.GuiTools.deleteNSelectedObjects"), n);
+		if (Dialogs.showYesNoDialog(QuPathResources.getString("Tools.GuiTools.deleteObjects"), message)) {
 			// Check for descendants
 			List<PathObject> children = new ArrayList<>();
 			for (PathObject temp : selected) {
@@ -667,7 +716,10 @@ public class GuiTools {
 			children.removeAll(selected);
 			boolean keepChildren = true;
 			if (!children.isEmpty()) {
-				ButtonType response = Dialogs.showYesNoCancelDialog("Delete objects", "Keep descendant objects?");
+				ButtonType response = Dialogs.showYesNoCancelDialog(
+						QuPathResources.getString("Tools.GuiTools.deleteObjects"),
+						QuPathResources.getString("Tools.GuiTools.keepDescendantObjects")
+				);
 				if (response == ButtonType.CANCEL)
 					return false;
 				keepChildren = response == ButtonType.YES;
@@ -676,13 +728,19 @@ public class GuiTools {
 			
 			hierarchy.removeObjects(selected, keepChildren);
 			hierarchy.getSelectionModel().clearSelection();
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Delete selected objects", "clearSelectedObjects(" + keepChildren + ");"));
-			if (keepChildren)
-				logger.info(selected.size() + " object(s) deleted");
-			else
-				logger.info(selected.size() + " object(s) deleted with descendants");
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Delete selected objects", "clearSelectedObjects();"));
-			logger.info(selected.size() + " object(s) deleted");
+			if (keepChildren) {
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+						QuPathResources.getString("Tools.GuiTools.deleteSelectedObjects"),
+						"removeSelectedObjects()"
+				));
+				logger.info("{} object(s) deleted", selected.size());
+			} else {
+				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
+						QuPathResources.getString("Tools.GuiTools.deleteSelectedObjectsAndDescendants"),
+						"removeSelectedObjectsAndDescendants()"
+				));
+				logger.info("{} object(s) deleted with descendants", selected.size());
+			}
 			return true;
 		} else
 			return false;
@@ -705,8 +763,10 @@ public class GuiTools {
 
 		if (pathObjectSelected.hasChildObjects()) {
 			int nDescendants = PathObjectTools.countDescendants(pathObjectSelected);
-			String message = nDescendants == 1 ? "Keep descendant object?" : String.format("Keep %d descendant objects?", nDescendants);
-			ButtonType confirm = Dialogs.showYesNoCancelDialog("Delete object", message);
+			String message = nDescendants == 1 ?
+					QuPathResources.getString("Tools.GuiTools.keepDescendantObject") :
+					MessageFormat.format(QuPathResources.getString("Tools.GuiTools.keepNDescendantObjects"), nDescendants);
+			ButtonType confirm = Dialogs.showYesNoCancelDialog(QuPathResources.getString("Tools.GuiTools.deleteObject"), message);
 			if (confirm == ButtonType.CANCEL)
 				return false;
 			if (confirm == ButtonType.YES)
@@ -716,7 +776,10 @@ public class GuiTools {
 		} else if (PathObjectTools.hasPointROI(pathObjectSelected)) {
 			int nPoints = ((PointsROI)pathObjectSelected.getROI()).getNumPoints();
 			if (nPoints > 1) {
-				if (!Dialogs.showYesNoDialog("Delete object", String.format("Delete %d points?", nPoints)))
+				if (!Dialogs.showYesNoDialog(
+						QuPathResources.getString("Tools.GuiTools.deleteObject"),
+						MessageFormat.format(QuPathResources.getString("Tools.GuiTools.deleteNPoints"), nPoints)
+				))
 					return false;
 				else
 					hierarchy.removeObject(pathObjectSelected, false);
@@ -724,7 +787,10 @@ public class GuiTools {
 				hierarchy.removeObject(pathObjectSelected, false);	
 		} else if (pathObjectSelected.isDetection()) {
 			// Check whether to delete a detection object... can't simply be redrawn (like an annotation), so be cautious...
-			if (!Dialogs.showYesNoDialog("Delete object", "Are you sure you want to delete this detection object?"))
+			if (!Dialogs.showYesNoDialog(
+					QuPathResources.getString("Tools.GuiTools.deleteObject"),
+					QuPathResources.getString("Tools.GuiTools.deleteDetection")
+			))
 				return false;
 			else
 				hierarchy.removeObject(pathObjectSelected, false);
@@ -749,7 +815,13 @@ public class GuiTools {
 	 */
 	public static boolean openFile(final File file) {
 		if (file == null || !file.exists()) {
-			Dialogs.showErrorMessage("Open", "File " + file + " does not exist!");
+			Dialogs.showErrorMessage(
+					QuPathResources.getString("Tools.GuiTools.open"),
+					MessageFormat.format(
+							QuPathResources.getString("Tools.GuiTools.fileNotExist"),
+							file
+					)
+			);
 			return false;
 		}
 		if (file.isDirectory())
@@ -767,8 +839,10 @@ public class GuiTools {
 						}
 					});
 				} else {
-					if (Dialogs.showConfirmDialog("Open file",
-							"Opening files not supported on this platform!\nCopy directory path to clipboard instead?")) {
+					if (Dialogs.showConfirmDialog(
+							QuPathResources.getString("Tools.GuiTools.openFile"),
+							QuPathResources.getString("Tools.GuiTools.openingFilesNotSupported")
+					)) {
 						var content = new ClipboardContent();
 						content.putString(file.getAbsolutePath());
 						Clipboard.getSystemClipboard().setContent(content);
@@ -776,7 +850,7 @@ public class GuiTools {
 				}
 				return true;
 			} catch (Exception e1) {
-				Dialogs.showErrorNotification("Open file", e1);
+				Dialogs.showErrorNotification(QuPathResources.getString("Tools.GuiTools.openFile"), e1);
 				logger.error(e1.getMessage(), e1);
 			}
 		}
@@ -860,15 +934,28 @@ public class GuiTools {
 				.toList();
 		
 		if (promptToSetAnnotationProperties((PathAnnotationObject)currentObject, otherAnnotations)) {
-			hierarchy.fireObjectsChangedEvent(null, Collections.singleton(currentObject));
+			var changedObjects = new ArrayList<PathObject>();
+			changedObjects.add(currentObject);
+			changedObjects.addAll(otherAnnotations);
+			hierarchy.fireObjectsChangedEvent(null, changedObjects);
 			// Ensure the object is still selected
-			hierarchy.getSelectionModel().setSelectedObject(currentObject);
+			hierarchy.getSelectionModel().setSelectedObjects(changedObjects, currentObject);
 			return true;
 		}
 		return false;
 	}
-	
-	
+
+	// Special PathClass to represent that we don't want to change the current classification
+	private static final PathClass PATH_CLASS_UNCHANGED = PathClass.fromString(
+			UUID.randomUUID().toString(),
+			ColorTools.packARGB(0, 255, 255, 255));
+
+	private static String pathClassStringFun(PathClass pathClass) {
+		if (pathClass == PATH_CLASS_UNCHANGED)
+			return QuPathResources.getString("Tools.GuiTools.doNotChange");
+		return PathClassListCell.defaultStringFunction(pathClass);
+	}
+
 	private static boolean promptToSetAnnotationProperties(final PathAnnotationObject annotation, Collection<PathAnnotationObject> otherAnnotations) {
 		
 		GridPane panel = new GridPane();
@@ -879,56 +966,77 @@ public class GuiTools {
 			textField.setText(annotation.getName());
 		textField.setPrefColumnCount(20);
 		// Post focus request to run later, after dialog displayed
-		Platform.runLater(() -> textField.requestFocus());
-		
-		panel.add(new Label("Name "), 0, 0);
-		panel.add(textField, 1, 0);
+		Platform.runLater(textField::requestFocus);
 
+		int row = 0;
+		panel.addRow(row++, new Label(QuPathResources.getString("Tools.GuiTools.name") + " "), textField);
+
+		// We could change this to prompt for color only if we don't have a classification
 		boolean promptForColor = true;
-		ColorPicker colorPicker = null;
+
+		ComboBox<PathClass> comboClasses = new ComboBox<>();
+		var availableClasses = new ArrayList<>(QuPathGUI.getInstance().getAvailablePathClasses());
+		var currentClass = annotation.getPathClass();
+		if (currentClass == null)
+			currentClass = PathClass.NULL_CLASS;
+		if (!availableClasses.contains(currentClass)) {
+			availableClasses.add(currentClass);
+		}
+		comboClasses.getItems().setAll(availableClasses);
+		comboClasses.setCellFactory(c -> new PathClassListCell(GuiTools::pathClassStringFun));
+		comboClasses.setButtonCell(new PathClassListCell(GuiTools::pathClassStringFun));
+		// If we have multiple objects with different classifications, we need some option that won't change them
+		if (otherAnnotations != null && otherAnnotations.stream().anyMatch(p -> p.getPathClass() != annotation.getPathClass())) {
+			comboClasses.getItems().addFirst(PATH_CLASS_UNCHANGED);
+			comboClasses.getSelectionModel().select(PATH_CLASS_UNCHANGED);
+		} else {
+			comboClasses.setValue(currentClass);
+		}
+		panel.addRow(row++, new Label(QuPathResources.getString("Tools.GuiTools.class") + " "), comboClasses);
+
+
 		var originalColor = ColorToolsFX.getDisplayedColor(annotation);
 		var colorChanged = new SimpleBooleanProperty(false); // Track if the user changed anything, so that we don't set the color unnecessarily
+		ColorPicker colorPicker = new ColorPicker(originalColor);
 		if (promptForColor) {
-			colorPicker = new ColorPicker(originalColor);
 			// If we don't touch the color picker, don't set the color (because it might be the default)
 			colorPicker.valueProperty().addListener((v, o, n) -> colorChanged.set(true));
-			panel.add(new Label("Color "), 0, 1);
-			panel.add(colorPicker, 1, 1);
+			panel.addRow(row++, new Label(QuPathResources.getString("Tools.GuiTools.color") + " "), colorPicker);
 			colorPicker.prefWidthProperty().bind(textField.widthProperty());
 		}
 		
-		Label labDescription = new Label("Description");
+		Label labDescription = new Label(QuPathResources.getString("Tools.GuiTools.description"));
 		TextArea textAreaDescription = new TextArea(annotation.getDescription());
 		textAreaDescription.setPrefRowCount(8);
 		textAreaDescription.setPrefColumnCount(40);
 		labDescription.setLabelFor(textAreaDescription);
 		textAreaDescription.setStyle("-fx-font-family: monospaced;");
 		textAreaDescription.setWrapText(true);
-		panel.add(labDescription, 0, 2);
-		panel.add(textAreaDescription, 1, 2);
-		
+		panel.addRow(row++, labDescription, textAreaDescription);
+
 		CheckBox cbLocked = new CheckBox("");
 		cbLocked.setSelected(annotation.isLocked());
-		Label labelLocked = new Label("Locked");
-		panel.add(labelLocked, 0, 3);
+		Label labelLocked = new Label(QuPathResources.getString("Tools.GuiTools.locked"));
 		labelLocked.setLabelFor(cbLocked);
-		panel.add(cbLocked, 1, 3);
-		
+		panel.addRow(row++, labelLocked, cbLocked);
+
 		
 		CheckBox cbAll = new CheckBox("");
 		boolean hasOthers = otherAnnotations != null && !otherAnnotations.isEmpty();
 		cbAll.setSelected(hasOthers);
-		Label labelApplyToAll = new Label("Apply to all");
-		cbAll.setTooltip(new Tooltip("Apply properties to all " + (otherAnnotations.size() + 1) + " selected annotations"));
 		if (hasOthers) {
-			panel.add(labelApplyToAll, 0, 4);
+			Label labelApplyToAll = new Label(QuPathResources.getString("Tools.GuiTools.applyToAll"));
+			cbAll.setTooltip(new Tooltip(MessageFormat.format(
+					QuPathResources.getString("Tools.GuiTools.applyToAllDescription"),
+					otherAnnotations.size() + 1
+			)));
 			labelApplyToAll.setLabelFor(cbAll);
-			panel.add(cbAll, 1, 4);
+			panel.addRow(row++, labelApplyToAll, cbAll);
 		}
-		
-		GridPaneUtils.setToExpandGridPaneWidth(textField, colorPicker, textAreaDescription, cbLocked, cbAll);
+
+		GridPaneUtils.setToExpandGridPaneWidth(textField, colorPicker, comboClasses, textAreaDescription, cbLocked, cbAll);
 //		PaneTools.setHGrowPriority(Priority.NEVER, labDescription);
-		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, colorPicker, textAreaDescription, cbLocked, cbAll);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, colorPicker, comboClasses, textAreaDescription, cbLocked, cbAll);
 		GridPaneUtils.setVGrowPriority(Priority.NEVER, colorPicker);
 		GridPaneUtils.setToExpandGridPaneHeight(textAreaDescription);
 		
@@ -938,7 +1046,7 @@ public class GuiTools {
 				);
 				
 		var dialog = Dialogs.builder()
-			.title("Set annotation properties")
+			.title(QuPathResources.getString("Tools.GuiTools.setAnnotationProperties"))
 			.content(panel)
 			.modality(Modality.APPLICATION_MODAL)
 			.buttons(ButtonType.APPLY, ButtonType.CANCEL)
@@ -961,15 +1069,24 @@ public class GuiTools {
 			toChange.addAll(otherAnnotations);
 		
 		String name = textField.getText().trim();
-		
+		var pathClass = comboClasses.getValue();
+		if (pathClass == PathClass.NULL_CLASS)
+			pathClass = null;
+
 		for (var temp : toChange) {
-			if (name.length() > 0)
+			if (!name.isEmpty())
 				temp.setName(name);
 			else
 				temp.setName(null);
+
 			if (promptForColor && colorChanged.get())
 				temp.setColor(ColorToolsFX.getARGB(colorPicker.getValue()));
-	
+
+			// Set the classification - this may override the color
+			if (pathClass != PATH_CLASS_UNCHANGED && pathClass != temp.getPathClass()) {
+				temp.setPathClass(pathClass);
+			}
+
 			// Set the description only if we have to
 			String description = textAreaDescription.getText();
 			if (description == null || description.isEmpty())
@@ -1008,12 +1125,12 @@ public class GuiTools {
 	
 	private static void createAnnotationsMenuImpl(QuPathGUI qupath, Object menu) {
 		// Add annotation options
-		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
-		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
+		CheckMenuItem miLockAnnotations = new CheckMenuItem(QuPathResources.getString("Tools.GuiTools.lock"));
+		CheckMenuItem miUnlockAnnotations = new CheckMenuItem(QuPathResources.getString("Tools.GuiTools.unlock"));
 		miLockAnnotations.setOnAction(e -> setSelectedAnnotationsLocked(qupath.getImageData(), true));
 		miUnlockAnnotations.setOnAction(e -> setSelectedAnnotationsLocked(qupath.getImageData(), false));
 		
-		MenuItem miSetProperties = new MenuItem("Set properties");
+		MenuItem miSetProperties = new MenuItem(QuPathResources.getString("Tools.GuiTools.setProperties"));
 		miSetProperties.setOnAction(e -> {
 			var hierarchy = qupath.getViewer().getHierarchy();
 			if (hierarchy != null)
@@ -1022,30 +1139,30 @@ public class GuiTools {
 		
 		
 		var actionInsertInHierarchy = qupath.createImageDataAction(imageData -> Commands.insertSelectedObjectsInHierarchy(imageData));
-		actionInsertInHierarchy.setText("Insert in hierarchy");
+		actionInsertInHierarchy.setText(QuPathResources.getString("Tools.GuiTools.insertInHierarchy"));
 		var miInsertHierarchy = ActionTools.createMenuItem(actionInsertInHierarchy);
 		
 		var actionMerge = qupath.createImageDataAction(imageData -> Commands.mergeSelectedAnnotations(imageData));
-		actionMerge.setText("Merge selected");
+		actionMerge.setText(QuPathResources.getString("Tools.GuiTools.mergeSelected"));
 		var actionSubtract = qupath.createImageDataAction(imageData -> Commands.combineSelectedAnnotations(imageData, CombineOp.SUBTRACT));
-		actionSubtract.setText("Subtract selected");
+		actionSubtract.setText(QuPathResources.getString("Tools.GuiTools.subtractSelected"));
 		var actionIntersect = qupath.createImageDataAction(imageData -> Commands.combineSelectedAnnotations(imageData, CombineOp.INTERSECT));
-		actionIntersect.setText("Intersect selected");
+		actionIntersect.setText(QuPathResources.getString("Tools.GuiTools.intersectSelected"));
 		
 		var actionInverse = qupath.createImageDataAction(imageData -> Commands.makeInverseAnnotation(imageData));
-		actionInverse.setText("Make inverse");
+		actionInverse.setText(QuPathResources.getString("Tools.GuiTools.makeInverse"));
 		
 		Menu menuCombine = MenuTools.createMenu(
-				"Edit multiple",
+				QuPathResources.getString("Tools.GuiTools.editMultipleAnnotations"),
 				actionMerge,
 				actionSubtract, // TODO: Make this less ambiguous!
 				actionIntersect
 				);
 		
 		Menu menuEdit = MenuTools.createMenu(
-				"Edit single",
+				QuPathResources.getString("Tools.GuiTools.editOneAnnotation"),
 				actionInverse,
-				qupath.createPluginAction("Split", SplitAnnotationsPlugin.class, null)
+				qupath.createPluginAction(QuPathResources.getString("Tools.GuiTools.split"), SplitAnnotationsPlugin.class, null)
 				);
 		
 //		Menu menuPoints = MenuTools.createMenu(
@@ -1066,7 +1183,7 @@ public class GuiTools {
 				selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
 				allSelected = new ArrayList<>(imageData.getHierarchy().getSelectionModel().getSelectedObjects());
 				hasSelectedAnnotation = selected != null && selected.isAnnotation();
-				allSelectedAnnotations = allSelected.stream().allMatch(p -> p.isAnnotation());
+				allSelectedAnnotations = allSelected.stream().allMatch(PathObject::isAnnotation);
 			}
 			miLockAnnotations.setDisable(!hasSelectedAnnotation);
 			miUnlockAnnotations.setDisable(!hasSelectedAnnotation);
@@ -1147,10 +1264,10 @@ public class GuiTools {
 	public static boolean promptForSliderRange(Slider slider) {
 
 		var params = new ParameterList()
-				.addEmptyParameter("Specify the min/max values supported by the slider")
-				.addDoubleParameter("minValue", "Slider minimum", slider.getMin())
-				.addDoubleParameter("maxValue", "Slider maximum", slider.getMax());
-		if (!showParameterDialog("Slider range", params))
+				.addEmptyParameter(QuPathResources.getString("Tools.GuiTools.specifyMinMax"))
+				.addDoubleParameter("minValue", QuPathResources.getString("Tools.GuiTools.sliderMinimum"), slider.getMin())
+				.addDoubleParameter("maxValue", QuPathResources.getString("Tools.GuiTools.sliderMaximum"), slider.getMax());
+		if (!showParameterDialog(QuPathResources.getString("Tools.GuiTools.sliderRange"), params))
 			return false;
 
 		slider.setMin(params.getDoubleParameterValue("minValue"));
@@ -1196,7 +1313,7 @@ public class GuiTools {
 
 	private static String getNameFromURI(URI uri) {
 		if (uri == null)
-			return "No URI";
+			return QuPathResources.getString("Tools.GuiTools.noUri");
 			
 		String[] path = uri.getPath().split("/");
 		if (path.length == 0)
@@ -1210,33 +1327,43 @@ public class GuiTools {
 	
 	
 	/**
-	 * Create a menu that displays recent items, stored in the form of URIs, using default text to show for the menu item.
+	 * Create a menu that displays recent items, stored in the form of URIs.
+	 * <p>
+	 * This menu updates its items based upon the list of recent tiles.
+	 * <p>
+	 * An important limitation is that this requires setting the menu validation listener for any parent of the
+	 * menu that is created, since this is used to populate the items.
 	 * 
-	 * @param menuTitle
-	 * @param recentItems
-	 * @param consumer
-	 * @return
+	 * @param menuTitle name for the new menu
+	 * @param recentItems list containing URIs for recent items
+	 * @param consumer consumer to process a URI when the corresponding menu item is selected
+	 * @return a menu that automatically populates based upon a list of URIs
+	 * @see #configureRecentItemsMenu(Menu, ObservableList, Consumer) 
 	 */
 	public static Menu createRecentItemsMenu(String menuTitle, ObservableList<URI> recentItems, Consumer<URI> consumer) {
-		return createRecentItemsMenu(menuTitle, recentItems, consumer, GuiTools::getNameFromURI);
-	}
-	
-	
-	/**
-	 * Create a menu that displays recent items, stored in the form of URIs, customizing the text displayed for the menu items.
-	 * 
-	 * @param menuTitle
-	 * @param recentItems
-	 * @param consumer
-	 * @param menuitemText 
-	 * @return
-	 */
-	public static Menu createRecentItemsMenu(String menuTitle, ObservableList<URI> recentItems, Consumer<URI> consumer, Function<URI, String> menuitemText) {
 		// Create a recent projects list in the File menu
 		Menu menuRecent = MenuTools.createMenu(menuTitle);
+		configureRecentItemsMenu(menuRecent, recentItems, consumer);
+		return menuRecent;
+	}
 
+	/**
+	 * Configure a menu to displays recent items, stored in the form of URIs.
+	 * <p>
+	 * The menu updates its items based upon the list of recent tiles.
+	 * <p>
+	 * An important limitation is that this requires setting the menu validation listener for any parent of the
+	 * menu that is created, since this is used to populate the items.
+	 *
+	 * @param menuRecent the menu to configure
+	 * @param recentItems list containing URIs for recent items
+	 * @param consumer consumer to process a URI when the corresponding menu item is selected
+	 * @since v0.6.0
+	 * @see #createRecentItemsMenu(String, ObservableList, Consumer) 
+	 */
+	public static void configureRecentItemsMenu(Menu menuRecent, ObservableList<URI> recentItems, Consumer<URI> consumer) {
 		EventHandler<Event> validationHandler = e -> {
-			menuRecent.getItems().clear();
+			List<MenuItem> items = new ArrayList<>();
 			for (URI uri : recentItems) {
 				if (uri == null)
 					continue;
@@ -1244,8 +1371,9 @@ public class GuiTools {
 				name = ".../" + name;
 				MenuItem item = new MenuItem(name);
 				item.setOnAction(event -> consumer.accept(uri));
-				menuRecent.getItems().add(item);
+				items.add(item);
 			}
+			menuRecent.getItems().setAll(items);
 		};
 
 		// Ensure the menu is populated
@@ -1255,9 +1383,8 @@ public class GuiTools {
 			if (n != null)
 				n.setOnMenuValidation(validationHandler);
 		});
-
-		return menuRecent;
-
+		if (menuRecent.getParentMenu() != null)
+			menuRecent.getParentMenu().setOnMenuValidation(validationHandler);
 	}
 
 
@@ -1298,12 +1425,12 @@ public class GuiTools {
 		for (Class<? extends PathObject> cls : availableTypes)
 			choices.put(PathObjectTools.getSuitableName(cls, true), cls);
 		if (supportedParents.contains(PathRootObject.class))
-			choices.put("Entire image", PathRootObject.class);
+			choices.put(QuPathResources.getString("Tools.GuiTools.entireImage"), PathRootObject.class);
 		ArrayList<String> choiceList = new ArrayList<>(choices.keySet());
 		
 		// Add selected objects option, if required
 		if (includeSelected)
-			choiceList.add(0, "Selected objects");
+			choiceList.add(0, QuPathResources.getString("Tools.GuiTools.selectedObjects"));
 
 		// Determine the currently-selected object
 		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedObject();
@@ -1324,24 +1451,30 @@ public class GuiTools {
 			if (supportedParents.contains(PathRootObject.class))
 				return true;
 			else {
-				String message = name + " requires parent objects of one of the following types:";
+				String message = MessageFormat.format(
+						QuPathResources.getString("Tools.GuiTools.requiresParents"),
+						name
+				);
 				for (Class<? extends PathObject> cls : supportedParents)
 					message += ("\n" + PathObjectTools.getSuitableName(cls, false));
-				Dialogs.showErrorMessage(name + " error", message);
+				Dialogs.showErrorMessage(
+						MessageFormat.format(QuPathResources.getString("Tools.GuiTools.error"), name),
+						message
+				);
 				return false;
 			}
 		}
 
 		// Prepare to prompt
 		ParameterList paramsParents = new ParameterList();
-		paramsParents.addChoiceParameter(KEY_REGIONS, "Process all", choiceList.get(0), choiceList);
+		paramsParents.addChoiceParameter(KEY_REGIONS, QuPathResources.getString("Tools.GuiTools.processAll"), choiceList.get(0), choiceList);
 
-		if (!showParameterDialog("Process regions", paramsParents))
+		if (!showParameterDialog(QuPathResources.getString("Tools.GuiTools.processRegions"), paramsParents))
 			return false;
 
 		
 		String choiceString = (String)paramsParents.getChoiceParameterValue(KEY_REGIONS);
-		if (!"Selected objects".equals(choiceString))
+		if (!QuPathResources.getString("Tools.GuiTools.selectedObjects").equals(choiceString))
 			Commands.selectObjectsByClass(imageData, choices.get(choiceString));
 		//			QP.selectObjectsByClass(hierarchy, choices.get(paramsParents.getChoiceParameterValue(InteractivePluginTools.KEY_REGIONS)));
 
@@ -1390,5 +1523,71 @@ public class GuiTools {
 		stage.setMaxHeight(previousMaxHeight);
 	}
 
+
+
+	/**
+	 * Create a {@link TitledPane} with a text heading aligned to the left, and additional content
+	 * (usually one or more buttons) aligned to the right.
+	 * @param name the text to appear in the title
+	 * @param rightNodes the nodes to show aligned to the right; if more than 1, these will be wrapped in an {@link HBox}
+	 * @return the titled pane
+	 * @since v0.6.0
+	 */
+	public static TitledPane createLeftRightTitledPane(String name, Node... rightNodes) {
+		var right = new HBox(rightNodes);
+        right.getStyleClass().add("titled-button-pane");
+		var pane = new TitledPane(name, null);
+        pane.setGraphic(right);
+        pane.setGraphicTextGap(5);
+        pane.setContentDisplay(ContentDisplay.RIGHT);
+        pane.setAlignment(Pos.CENTER_LEFT);
+        // See https://stackoverflow.com/questions/52457813/javafx-11-add-a-graphic-to-a-titledpane-on-the-right-side
+        right.translateXProperty().bind(Bindings.createDoubleBinding(
+                () -> pane.getWidth() - right.getLayoutX() - right.getWidth() - 10,
+                pane.widthProperty(), right.widthProperty())
+        );
+        pane.setMaxHeight(Double.MAX_VALUE);
+        pane.setCollapsible(false);
+        pane.paddingProperty().bind(Bindings.createObjectBinding(() -> {
+            if (pane.isCollapsible())
+                return new Insets(0, 0, 0, 25);
+            else
+                return Insets.EMPTY;
+        }, pane.collapsibleProperty()));
+		return pane;
+	}
+
+	/**
+	 * Create a {@link TitledPane} with content aligned to the left and right of the title.
+	 * @param left the left content
+	 * @param right the right content
+	 * @return the titled pane
+	 * @since v0.6.0
+     * @deprecated v0.7.0 because it was broken in JavaFX 25
+	 */
+    @Deprecated
+	public static TitledPane createLeftRightTitledPane(Node left, Node right) {
+		var pane = new BorderPane();
+		pane.getStyleClass().add("titled-button-pane");
+		pane.setLeft(left);
+		pane.setRight(right);
+		pane.setMaxWidth(Double.MAX_VALUE);
+		var titled = new TitledPane();
+		titled.setGraphic(pane);
+		titled.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+		titled.setAlignment(Pos.CENTER);
+		titled.setMaxWidth(Double.MAX_VALUE);
+		titled.setMaxHeight(Double.MAX_VALUE);
+		titled.setCollapsible(false);
+		pane.paddingProperty().bind(Bindings.createObjectBinding(() -> {
+			if (titled.isCollapsible())
+				return new Insets(0, 0, 0, 25);
+			else
+				return new Insets(0, 0, 0, 0);
+		}, titled.collapsibleProperty()));
+        // This line breaks in JavaFX 25
+//		pane.minWidthProperty().bind(titled.widthProperty());
+		return titled;
+	}
 
 }

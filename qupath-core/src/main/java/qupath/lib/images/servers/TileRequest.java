@@ -21,16 +21,15 @@
 
 package qupath.lib.images.servers;
 
-import java.util.Collection;
-import java.util.LinkedHashSet;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.LogTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+
+import java.util.Collection;
+import java.util.LinkedHashSet;
 
 /**
  * A wrapper for a {@link RegionRequest}, useful to precisely specify image tiles at a particular resolution.

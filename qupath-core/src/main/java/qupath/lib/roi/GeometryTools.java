@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,29 +21,7 @@
 
 package qupath.lib.roi;
 
-import java.awt.Shape;
-import java.awt.Rectangle;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Area;
-import java.awt.geom.GeneralPath;
-import java.awt.geom.Path2D;
-import java.awt.geom.PathIterator;
-import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
-import java.text.NumberFormat;
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.StringTokenizer;
-import java.util.function.Function;
+import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.awt.GeometryCollectionShape;
 import org.locationtech.jts.awt.PointTransformation;
@@ -59,6 +37,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -84,12 +63,34 @@ import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.Rectangle;
+import java.awt.Shape;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
+import java.awt.geom.GeneralPath;
+import java.awt.geom.Path2D;
+import java.awt.geom.PathIterator;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.function.Function;
 
 /**
  * Convert between QuPath {@code ROI} objects and Java Topology Suite {@code Geometry} objects.
@@ -99,9 +100,32 @@ import qupath.lib.roi.interfaces.ROI;
 public class GeometryTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(GeometryTools.class);
-	
+
+	static {
+		/*
+		 * Use OverlayNG with Java Topology Suite by default.
+		 * This can greatly reduce TopologyExceptions.
+		 * Use -Djts.overlay=old to turn off this behavior.
+		 */
+		var propOverlay = System.getProperty("jts.overlay");
+		if (!"old".equalsIgnoreCase(propOverlay)) {
+			logger.debug("Setting -Djts.overlay=ng");
+			System.setProperty("jts.overlay", "ng");
+		}
+
+		/*
+		 * Use RelateNG with Java Topology Suite by default.
+		 * This should be considerably faster.
+		 */
+		var propRelate = System.getProperty("jts.relate");
+		if (!"old".equalsIgnoreCase(propRelate)) {
+			logger.debug("Setting -Djts.relate=ng");
+			System.setProperty("jts.relate", "ng");
+		}
+	}
+
 	private static final GeometryFactory DEFAULT_FACTORY = new GeometryFactory(
-			new PrecisionModel(100.0),
+			new PrecisionModel(-0.01), // Consider use of PrecisionModel.FLOATING_SINGLE
 			0,
 			PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 
@@ -263,7 +287,33 @@ public class GeometryTools {
 		geometry = DouglasPeuckerSimplifier.simplify(geometry, 0.0);
 		return geometry;
 	}
-	
+
+	/**
+	 * Update a geometry to have the precision model of the default factory.
+	 * This can help ensure consistency among geometries used in QuPath.
+	 * @param geometry the input geometry
+	 * @return the input geometry if it already had the required precision model,
+	 *         or a duplicate geometry after precision reduction.
+	 */
+	public static Geometry ensurePrecision(Geometry geometry) {
+		return ensurePrecision(geometry, GeometryTools.getDefaultFactory().getPrecisionModel());
+	}
+
+	/**
+	 * Update a geometry to have the specified precision model.
+	 * @param geometry the input geometry
+	 * @param precisionModel the target precision model
+	 * @return the input geometry if it already had the required precision model,
+	 *         or a duplicate geometry after precision reduction.
+	 */
+	public static Geometry ensurePrecision(Geometry geometry, PrecisionModel precisionModel) {
+		if (geometry.getFactory().getPrecisionModel() == precisionModel)
+			return geometry;
+		var reducer = new GeometryPrecisionReducer(precisionModel);
+		reducer.setChangePrecisionModel(true);
+		return reducer.reduce(geometry);
+	}
+
 	/**
 	 * Compute the intersection of a Geometry and a specified bounding box.
 	 * The original Geometry <i>may</i> be returned unchanged if no changes are required to fit within the bounds.
@@ -280,15 +330,66 @@ public class GeometryTools {
 			geometry = geometry.intersection(GeometryTools.createRectangle(x, y, width, height));
 		return geometry;
 	}
+
+	/**
+	 * Calculate the intersection over union, based on geometry areas.
+	 * @param a first geometry
+	 * @param b second geometry
+	 * @return intersection over union for a and b
+	 */
+	public static double iou(Geometry a, Geometry b) {
+		double areaA = a.getArea();
+		double areaB = b.getArea();
+		double intersection = intersectionArea(a, b);
+		return intersection / (areaA + areaB - intersection);
+	}
+
+	/**
+	 * Calculate the intersection area between two polygonal geometries.
+	 * @param a first geometry
+	 * @param b second geometry
+	 * @return the intersection area, or 0 if the geometries do not intersect
+	 */
+	public static double intersectionArea(Geometry a, Geometry b) {
+		// Only non-empty polygons can have an area > 0
+		if (a.getDimension() < 2 || b.getDimension() < 2 || a.isEmpty() || b.isEmpty())
+			return 0;
+
+		// If the envelopes don't intersect, the geometries can't intersect
+		if (!a.getEnvelopeInternal().intersects(b.getEnvelopeInternal()))
+			return 0;
+
+		// Get areas
+		double areaA = a.getArea();
+		double areaB = b.getArea();
+
+		// If the areas are the same, and the geometries are the same, then the intersection is the area
+		if (areaA == areaB) {
+			if (a.equalsExact(b))
+				return areaA;
+		}
+
+		// Check relationship between geometries to handle 'easy' cases
+		var relate = a.relate(b);
+		if (relate.isCovers())
+			return areaB;
+		if (relate.isCoveredBy())
+			return areaA;
+		if (relate.isDisjoint() || relate.isTouches(a.getDimension(), b.getDimension()))
+			return 0;
+
+		// Resort to expensive intersection calculation only if we need to
+		return a.intersection(b).getArea();
+	}
 	
     
     /**
      * Create a rectangular Geometry for the specified bounding box.
-     * @param x
-     * @param y
-     * @param width
-     * @param height
-     * @return
+     * @param x x ordinate for the top left of the rectangle bounding box
+     * @param y y ordinate for the top left of the rectangle bounding box
+     * @param width width of the rectangle bounding box
+     * @param height height of the rectangle bounding box
+     * @return a polygon representing the rectangle
      */
     public static Polygon createRectangle(double x, double y, double width, double height) {
     	var shapeFactory = new GeometricShapeFactory(DEFAULT_FACTORY);
@@ -299,6 +400,26 @@ public class GeometryTools {
 				);
 		return shapeFactory.createRectangle();
     }
+
+
+	/**
+	 * Create a polygonal geometry that approximates an ellipse.
+	 * @param x x ordinate for the top left of the ellipse bounding box
+	 * @param y y ordinate for the top left of the ellipse bounding box
+	 * @param width width of the ellipse bounding box
+	 * @param height height of the ellipse bounding box
+	 * @param nPoints number of points to use for the ellipse; more points will approximate the ellipse more closely
+	 * @return a polygon representing the ellipse
+	 */
+	public static Polygon createEllipse(double x, double y, double width, double height, int nPoints) {
+		var shapeFactory = new GeometricShapeFactory(DEFAULT_FACTORY);
+		shapeFactory.setNumPoints(nPoints); // Probably 5, but should be increased automatically
+		shapeFactory.setEnvelope(
+				new Envelope(
+						x, x+width, y, y+height)
+		);
+		return shapeFactory.createEllipse();
+	}
 
 
 	/**
@@ -329,13 +450,23 @@ public class GeometryTools {
     
     /**
      * Convert a JTS Geometry to a QuPath ROI.
-     * @param geometry
-     * @param plane 
-     * @return
+	 * @param geometry the geometry from which to create a ROI
+     * @param plane the plane that should contain the ROI
+     * @return a new ROI
      */
     public static ROI geometryToROI(Geometry geometry, ImagePlane plane) {
     	return DEFAULT_INSTANCE.geometryToROI(geometry, plane);
     }
+
+	/**
+	 * Convert a JTS Geometry to a QuPath ROI on the default image plane.
+	 * @param geometry the geometry from which to create a ROI
+	 * @return a new ROI
+	 * @see ImagePlane#getDefaultPlane()
+	 */
+	public static ROI geometryToROI(Geometry geometry) {
+		return geometryToROI(geometry, ImagePlane.getDefaultPlane());
+	}
     
     /**
      * Convert to QuPath ROI to a JTS Geometry.
@@ -393,7 +524,7 @@ public class GeometryTools {
     	if (geometries.size() == 1)
     		return geometries.iterator().next();
 		try {
-			if (geometries.size() > 2 || geometries.stream().allMatch(g -> g instanceof Polygonal)) {
+			if (geometries.size() > 2 && geometries.stream().allMatch(g -> g instanceof Polygonal)) {
 				// If we have multiple polygonal geometries, do things the 'fast' way
 				// (which may admittedly be slightly slower in some cases, but orders of magnitude faster in others)
 				return FastPolygonUnion.union(geometries);
@@ -881,7 +1012,10 @@ public class GeometryTools {
 	        	if (pixelWidth == 1 && pixelHeight == 1)
 	        		this.factory = DEFAULT_FACTORY;
 	        	else
-	        		this.factory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE), 0, PackedCoordinateSequenceFactory.FLOAT_FACTORY);
+	        		this.factory = new GeometryFactory(
+							new PrecisionModel(PrecisionModel.FLOATING_SINGLE),
+							0,
+							PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 	    	} else
 	    		this.factory = factory;
 	        this.flatness = flatness;
@@ -940,8 +1074,8 @@ public class GeometryTools {
 	    }
 	    
 	    private Geometry areaToGeometry(ROI roi) {
-	    	if (roi.isEmpty())
-	    		return factory.createPolygon();
+//	    	if (roi.isEmpty())
+//	    		return factory.createPolygon();
 	    	if (roi instanceof EllipseROI || roi instanceof RectangleROI) {
 	    		var shapeFactory = new GeometricShapeFactory(factory);
 	    		shapeFactory.setEnvelope(
@@ -958,35 +1092,15 @@ public class GeometryTools {
 	    			return shapeFactory.createRectangle();
 	    		}
 	    	}
-            // TODO: Test if this is as reliable
-            // Update August 2024... it is not. Tests added to TestGeometryTools show it
-            // fails faster for complex (random) polygons than the old method, which
-            // converts via a java.awt.geom.Area.
-            //
-            // Exploratory code for v0.4.0, but rejected to reduce risk.
-            // Seems marginally faster, but not by a huge amount
-//	    	if (roi instanceof PolygonROI) {
-//		    	PrecisionModel precisionModel = factory.getPrecisionModel();
-//		    	Polygonizer polygonizer = new Polygonizer(true);
-//		    	List<Coordinate> coords = new ArrayList<>();
-//				Coordinate lastCoord = null;
-//		    	for (var p : roi.getAllPoints()) {
-//		    		var c = new Coordinate(p.getX(), p.getY());
-//		    		precisionModel.makePrecise(c);
-//					if (!Objects.equals(lastCoord, c))
-//			    		coords.add(c);
-//					lastCoord = c;
-//		    	}
-//		    	// Close if needed
-//		    	if (!coords.getFirst().equals(coords.getLast()))
-//		    		coords.add(coords.getFirst().copy());
-//	    		LineString lineString = factory.createLineString(coords.toArray(Coordinate[]::new));
-//		    	polygonizer.add(lineString.union());
-//		    	return polygonizer.getGeometry();
-//	    	}
-	    	
-	    	Area shape = RoiTools.getArea(roi);
-	    	return areaToGeometry(shape);
+
+			if (roi.isEmpty()) {
+				var shape = RoiTools.getShape(roi);
+				var iterator = shape.getPathIterator(transform, flatness);
+				return getShapeReader().read(iterator);
+			} else {
+				Area area = RoiTools.getArea(roi);
+				return areaToGeometry(area);
+			}
 	    }
 	    
 	    private Geometry shapeToGeometry(Shape shape) {
@@ -1030,34 +1144,77 @@ public class GeometryTools {
 	     * being generated within some operations as described by https://github.com/locationtech/jts/issues/434
     	 * Consequently, there may be some loss of efficiency.
     	 * <p>
-    	 * See also https://github.com/locationtech/jts/issues/408
+    	 * See also https://github.com/locationtech/jts/issues/408 and
+		 * https://github.com/qupath/qupath/pull/2135
 	     * 
 	     * @param area
 	     * @param transform
 	     * @param flatness
 	     * @param factory
 	     * @return a geometry corresponding to the Area object
+		 * @throws IllegalArgumentException if the winding rule is not WIND_NON_ZERO
 	     */
-	    private static Geometry convertAreaToGeometry(final Area area, final AffineTransform transform, final double flatness, final GeometryFactory factory) {
+	    private static Geometry convertAreaToGeometry(final Area area, final AffineTransform transform, final double flatness, final GeometryFactory factory) throws IllegalArgumentException {
+
+			// This code become more complex, and limited to WIND_NON_ZERO, to cope with a change in behavior for Area
+			// introduces around April 2026 (Java 25.0.3).
+			// We make the association the orientation (CW, CCW) allows us to tell if a coordinate sequence is an
+			// outer ring or a hole.
+			// See https://github.com/qupath/qupath/pull/2135
 
 	    	PathIterator iter = area.getPathIterator(transform, flatness);
+			if (iter.getWindingRule() != PathIterator.WIND_NON_ZERO) {
+				throw new IllegalArgumentException("Winding rule is " + iter.getWindingRule() + " but must be " +
+						PathIterator.WIND_NON_ZERO + " (WIND_NON_ZERO)");
+			}
 
 	    	PrecisionModel precisionModel = factory.getPrecisionModel();
-	    	Polygonizer polygonizer = new Polygonizer(true);
 
-	    	List<Coordinate[]> coords = (List<Coordinate[]>)ShapeReader.toCoordinates(iter);
-	    	List<Geometry> geometries = new ArrayList<>();
-	    	for (Coordinate[] array : coords) {
-	    		for (var c : array)
-	    			precisionModel.makePrecise(c);
+			List<Coordinate[]> coords = (List<Coordinate[]>)ShapeReader.toCoordinates(iter);
+			List<Geometry> geometries = new ArrayList<>();
+			List<Geometry> holes = new ArrayList<>();
+			CoordinateList coordList = new CoordinateList();
+			boolean allowRepeated = false;
+			for (Coordinate[] array : coords) {
+				coordList.clear();
+				for (var c : array) {
+					precisionModel.makePrecise(c);
+					coordList.add(c, allowRepeated);
+				}
 
-	    		LineString lineString = factory.createLineString(array);
-	    		geometries.add(lineString);
-	    	}
-			var geom = factory.buildGeometry(geometries).union();
-	    	polygonizer.add(geom);
-	    	return polygonizer.getGeometry();
+				Coordinate[] lineStringCoords = coordList.toCoordinateArray();
+				Geometry lineString = factory.createLineString(lineStringCoords).union();
+				Polygonizer polygonizer = new Polygonizer(true);
+				polygonizer.add(lineString);
 
+				// If we have self-intersections, we want to estimate the orientation from the line with most coordinates
+				if (lineString instanceof MultiLineString multiLineString) {
+					lineStringCoords = multiLineString.getGeometryN(0).getCoordinates();
+					for (int i = 1; i < multiLineString.getNumGeometries(); i++) {
+						var temp = multiLineString.getGeometryN(i).getCoordinates();
+						if (temp.length > lineStringCoords.length)
+							lineStringCoords = temp;
+					}
+				}
+
+				// Use the orientation - should be trustworthy (we think...) because of winding rule
+				if (Orientation.isCCW(lineStringCoords)) {
+					holes.add(polygonizer.getGeometry());
+				} else {
+					geometries.add(polygonizer.getGeometry());
+				}
+			}
+
+			var mainGeometry = union(geometries);
+			var allHoles = union(holes);
+			if (allHoles.isEmpty())
+				return mainGeometry;
+
+			// If things have worked, the main geometry will be bigger than the holes
+			if (mainGeometry.getArea() >= allHoles.getArea())
+				return mainGeometry.difference(allHoles);
+			logger.warn("Switching main geometry and holes based on area - this is unexpected and might be a bug");
+			return allHoles.difference(mainGeometry);
 	    }
 
 	    /**
@@ -1313,7 +1470,9 @@ public class GeometryTools {
 	
 	
 	    private ShapeWriter getShapeWriter() {
-	    	return new ShapeWriter(transformer);
+	    	var writer = new ShapeWriter(transformer);
+	    	writer.setRemoveDuplicatePoints(true);
+	    	return writer;
 	    }
 	
 
@@ -1334,7 +1493,7 @@ public class GeometryTools {
 	    	if (geometry.isEmpty())
 	    		return ROIs.createEmptyROI(plane);
 	    	
-	    	// Make sure out Geometry is all of the same type
+	    	// Make sure our Geometry is all of the same type
 	    	var geometry2 = homogenizeGeometryCollection(geometry);
 	    	if (geometry2 != geometry) {
 	    		logger.warn("Geometries must all be of the same type when converting to a ROI! Converted {} to {}.", geometry.getGeometryType(), geometry2.getGeometryType());
@@ -1348,9 +1507,25 @@ public class GeometryTools {
 	    		List<Point2> points = Arrays.stream(coords).map(c -> new Point2(c.x, c.y)).toList();
 	    		return ROIs.createPointsROI(points, plane);
 	    	}
-	    	// For anything complicated, return a Geometry ROI
-	    	if (geometry.getNumGeometries() > 1 || (geometry instanceof Polygon && ((Polygon)geometry).getNumInteriorRing() > 0))
+	    	// For multi-part geometries, return a Geometry ROI
+	    	if (geometry.getNumGeometries() > 1)
 	    		return new GeometryROI(geometry, plane);
+			if (geometry instanceof Polygon polygon) {
+				// For polygons with holes, return a Geometry ROI
+				if (polygon.getNumInteriorRing() > 0)
+					return new GeometryROI(polygon, plane);
+				// For non-rectangular polygons without holes, return a polygon ROI
+				// This avoid the issue where a polygon with zero area can lead to a 'general'
+				// empty ROI being returned, rather than one with the appropriate vertices
+				if (!polygon.isRectangle()) {
+					var points = Arrays.stream(polygon.getCoordinates())
+							.map(coord -> new Point2(coord.x, coord.y))
+							.toList();
+					// TODO: Consider if/when we could convert this to a Rectangle when it *is* a
+					// rectangle with zero area
+					return ROIs.createPolygonROI(points, plane);
+				}
+			}
 	    	// Otherwise return a (possibly easier to edit) ROI
 	        return RoiTools.getShapeROI(geometryToShape(geometry), plane, flatness);
 	    }

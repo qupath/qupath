@@ -23,18 +23,6 @@
 
 package qupath.lib.gui.commands;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.text.TextAlignment;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -42,6 +30,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Separator;
@@ -51,15 +40,19 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.fx.dialogs.Dialogs;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -67,6 +60,12 @@ import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Command to open up a counting panel to aid with creating Point annotations.
@@ -87,7 +86,7 @@ public class CountingDialogCommand implements Runnable, ChangeListener<ImageData
 	private Slider sliderRadius;
 	private Button btnLoad, btnSave;
 	
-	private String savingOption = "Selected points";
+	private String savingOption = QuPathResources.getString("Commands.CountingDialog.selectedPoints");
 	
 	/**
 	 * Constructor.
@@ -138,17 +137,20 @@ public class CountingDialogCommand implements Runnable, ChangeListener<ImageData
 //		panel.setSpacing(10);
 		
 		BorderPane sliderPane = new BorderPane();
-		sliderPane.setLeft(new Label("Point size"));
+		sliderPane.setLeft(new Label(QuPathResources.getString("Commands.CountingDialog.pointSize")));
 		sliderPane.setCenter(sliderRadius);
 		
 		
 		
 		// Add load/save buttons
-		btnLoad = new Button("Load points");
+		btnLoad = new Button(QuPathResources.getString("Commands.CountingDialog.loadPoints"));
 		btnLoad.setOnAction(event -> {
 				if (hierarchy == null)
 					return;
-				File file = FileChoosers.promptForFile(FileChoosers.createExtensionFilter("TSV (Tab delimited)", "*.tsv"));
+				File file = FileChoosers.promptForFile(FileChoosers.createExtensionFilter(
+						QuPathResources.getString("Commands.CountingDialog.tsv"),
+						"*.tsv"
+				));
 				if (file == null)
 					return;
 				try {
@@ -164,12 +166,12 @@ public class CountingDialogCommand implements Runnable, ChangeListener<ImageData
 							hierarchy.addObject(points);
 					}
 				} catch (IOException e) {
-					Dialogs.showErrorMessage("Load points error", e);
+					Dialogs.showErrorMessage(QuPathResources.getString("Commands.CountingDialog.loadPointsError"), e);
 					logger.error(e.getMessage(), e);
 				}
 			}
 		);
-		btnSave = new Button("Save points");
+		btnSave = new Button(QuPathResources.getString("Commands.CountingDialog.savePoints"));
 		btnSave.setOnAction(event -> {
 				if (countingPane == null)
 					return;
@@ -179,19 +181,27 @@ public class CountingDialogCommand implements Runnable, ChangeListener<ImageData
 				var selection = listView.getSelectionModel().getSelectedItems();
 				List<PathObject> pointsList = countingPane.getPathObjects();
 				if (!selection.isEmpty()) {
-					ArrayList<String> choiceList = new ArrayList<>();
-					choiceList.addAll(Arrays.asList("All point annotations", "Selected objects"));
-					
-					var choice = Dialogs.showChoiceDialog("Save points", "Choose point annotations to save", Arrays.asList("All points", "Selected points"), savingOption);
+					var choice = Dialogs.showChoiceDialog(
+							QuPathResources.getString("Commands.CountingDialog.savePoints"),
+							QuPathResources.getString("Commands.CountingDialog.choosePointAnnotationsToSave"),
+							Arrays.asList(
+									QuPathResources.getString("Commands.CountingDialog.allPoints"),
+									QuPathResources.getString("Commands.CountingDialog.selectedPoints")
+							),
+							savingOption
+					);
 					if (choice == null)
 						return;
-					if (choice.equals("Selected points"))
+					if (choice.equals(QuPathResources.getString("Commands.CountingDialog.selectedPoints")))
 						pointsList = selection;
 					savingOption = choice;
 				}
 
 				if (pointsList.isEmpty()) {
-					Dialogs.showErrorMessage("Save points", "No points available!");
+					Dialogs.showErrorMessage(
+							QuPathResources.getString("Commands.CountingDialog.savePoints"),
+							QuPathResources.getString("Commands.CountingDialog.noPointsAvailable")
+					);
 					return;
 				}
 				File defaultName = null;
@@ -201,14 +211,17 @@ public class CountingDialogCommand implements Runnable, ChangeListener<ImageData
 				} catch (Exception e) {
 					// Ignore...
 				};
-				File file = FileChoosers.promptToSaveFile(null, defaultName,
-						FileChoosers.createExtensionFilter("TSV (Tab delimited)", "tsv"));
+				File file = FileChoosers.promptToSaveFile(
+						null,
+						defaultName,
+						FileChoosers.createExtensionFilter(QuPathResources.getString("Commands.CountingDialog.tsv"), "tsv")
+				);
 				if (file == null)
 					return;
 				try {
 					PointIO.writePoints(file, pointsList);
 				} catch (IOException e) {
-					Dialogs.showErrorMessage("Save points error", e);
+					Dialogs.showErrorMessage(QuPathResources.getString("Commands.CountingDialog.savePointsError"), e);
 					logger.error(e.getMessage(), e);
 				}
 			}
@@ -219,27 +232,41 @@ public class CountingDialogCommand implements Runnable, ChangeListener<ImageData
 				btnSave
 				);
 
-		var labelDelete = new Label("Delete individual points by clicking on them with the 'Alt' key pressed");
+		var labelDelete = new Label(QuPathResources.getString("Commands.CountingDialog.deleteIndividualPoints"));
 		labelDelete.setWrapText(true);
 		labelDelete.setMaxHeight(Double.MAX_VALUE);
 		labelDelete.prefWidthProperty().bind(panel.widthProperty().subtract(10));
 		labelDelete.setContentDisplay(ContentDisplay.CENTER);
 		labelDelete.setStyle("-fx-font-style: italic; -fx-opacity: 0.8;");
 		labelDelete.setTextAlignment(TextAlignment.CENTER);
-		
-		var actionConvexPoints = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
-		var actionSelectedColor = ActionTools.createSelectableAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
+
+		var actionMultipoint = ActionTools.createSelectableAction(
+				PathPrefs.multipointToolProperty(),
+				QuPathResources.getString("Commands.CountingDialog.createMultipointAnnotations")
+		);
+		actionMultipoint.setLongText(QuPathResources.getString("Commands.CountingDialog.createMultipointAnnotationsDescription"));
+
+		var actionConvexPoints = ActionTools.createSelectableAction(
+				PathPrefs.showPointHullsProperty(),
+				QuPathResources.getString("Commands.CountingDialog.showPointConvexHull")
+		);
+		var actionSelectedColor = ActionTools.createSelectableAction(
+				PathPrefs.useSelectedColorProperty(),
+				QuPathResources.getString("Commands.CountingDialog.highlightSelectedObjects")
+		);
 		var actionDetectionsToPoints = qupath.createImageDataAction(imageData -> Commands.convertDetectionsToPoints(imageData, true));
-		actionDetectionsToPoints.setText("Convert detections to points");
-		
+		actionDetectionsToPoints.setText(QuPathResources.getString("Commands.CountingDialog.convertDetectionsToPoints"));
+
 		var btnConvert = ActionTools.createButton(actionDetectionsToPoints);
 		var convertPane = new Pane(btnConvert);
 		btnConvert.prefWidthProperty().bind(convertPane.widthProperty());
-		
+
+		var cbMultipoint = ActionTools.createCheckBox(actionMultipoint);
 		var cbConvex = ActionTools.createCheckBox(actionConvexPoints);
 		var cbSelected = ActionTools.createCheckBox(actionSelectedColor);
 //		panel.setSpacing(5);
 		panel.getChildren().addAll(
+				cbMultipoint,
 				cbConvex,
 				cbSelected,
 				sliderPane,
@@ -287,7 +314,7 @@ public class CountingDialogCommand implements Runnable, ChangeListener<ImageData
 		}
 		
 		dialog = new Stage();
-		dialog.setTitle("Points");
+		dialog.setTitle(QuPathResources.getString("Commands.CountingDialog.points"));
 		FXUtils.addCloseWindowShortcuts(dialog);
 
 		countingPane = new CountingPane(qupath, hierarchy);

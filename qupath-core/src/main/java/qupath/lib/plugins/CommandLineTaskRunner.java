@@ -23,12 +23,11 @@
 
 package qupath.lib.plugins;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.regions.ImageRegion;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A PluginRunner that simply logs progress and output.

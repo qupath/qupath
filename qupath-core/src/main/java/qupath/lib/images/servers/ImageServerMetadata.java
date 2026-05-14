@@ -23,6 +23,12 @@
 
 package qupath.lib.images.servers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.objects.classes.PathClass;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,13 +37,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.objects.classes.PathClass;
 
 /**
  * Class for storing primary ImageServer metadata fields.
@@ -344,6 +343,18 @@ public class ImageServerMetadata {
 		}
 
 		/**
+		 * Set the pixel calibration to use.
+		 * Note that this will override any previous calibration that had been set on this builder.
+		 * @param cal the pixel calibration to use; if null, no changes will be made to the builder
+		 * @return
+		 */
+		public Builder pixelCalibration(final PixelCalibration cal) {
+			if (cal != null)
+				pixelCalibrationBuilder = new PixelCalibration.Builder(cal);
+			return this;
+		}
+
+		/**
 		 * Specify the pixel sizes, in microns.
 		 * @param pixelWidthMicrons
 		 * @param pixelHeightMicrons
@@ -434,7 +445,11 @@ public class ImageServerMetadata {
 
 //			if (metadata.path == null || metadata.path.isBlank())
 //				throw new IllegalArgumentException("Invalid metadata - path must be set (and not be blank)");
-						
+
+			// Set RGB channels, if needed
+			if (metadata.isRGB && (metadata.channels == null || metadata.channels.isEmpty()))
+				metadata.channels = ImageChannel.getDefaultRGBChannels();
+
 			// Set sensible tile sizes, if required
 			if (metadata.preferredTileWidth <= 0) {
 				if (metadata.levels.length == 1)

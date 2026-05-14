@@ -22,7 +22,6 @@
 package qupath.opencv.ml;
 
 import org.bytedeco.opencv.opencv_core.Mat;
-
 import qupath.lib.classifiers.Normalization;
 import qupath.opencv.ml.objects.features.Normalizer;
 import qupath.opencv.ml.objects.features.Preprocessing;

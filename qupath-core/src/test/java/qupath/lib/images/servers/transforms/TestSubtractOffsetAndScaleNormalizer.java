@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.io.GsonTools;
 
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
@@ -43,6 +44,7 @@ public class TestSubtractOffsetAndScaleNormalizer {
     @Test
     public void testFloat32() {
         var imgOnes = createImage(PixelType.FLOAT32, 1, 1, 1, 1);
+        var imgNegativeOnes = createImage(PixelType.FLOAT32, -1, -1, -1, -1);
 
         checkChannelPixelValues(
                 SubtractOffsetAndScaleNormalizer.createSubtractOffset(0, 1, 2, 3).filter(imgOnes, null),
@@ -52,6 +54,11 @@ public class TestSubtractOffsetAndScaleNormalizer {
         checkChannelPixelValues(
                 SubtractOffsetAndScaleNormalizer.createSubtractOffsetAndClipZero(0, 1, 2, 3).filter(imgOnes, null),
                 1, 0, 0, 0
+        );
+
+        checkChannelPixelValues(
+                SubtractOffsetAndScaleNormalizer.createSubtractOffsetAndClipZero(0, 0, 0, 0).filter(imgNegativeOnes, null),
+                0, 0, 0, 0
         );
 
         checkChannelPixelValues(
@@ -150,6 +157,34 @@ public class TestSubtractOffsetAndScaleNormalizer {
                 raster,
                 false,
                 null);
+    }
+
+    @Test
+    public void testSerializeSubtractOffset() {
+        var norm = SubtractOffsetAndScaleNormalizer.createSubtractOffset(0, 1, 2);
+        var norm2 = serializeDeserialize(norm);
+        assertEquals(norm, norm2);
+    }
+
+    @Test
+    public void testSerializeSubtractOffsetAndClipZero() {
+        var norm = SubtractOffsetAndScaleNormalizer.createSubtractOffsetAndClipZero(0, 1, 2);
+        var norm2 = serializeDeserialize(norm);
+        assertEquals(norm, norm2);
+    }
+
+    @Test
+    public void testSerializeSubtractOffsetAndClipRange() {
+        var norm = SubtractOffsetAndScaleNormalizer.createWithClipRange(new double[]{1, 2, 3}, new double[]{1, 2, 3}, -1, 1);
+        var norm2 = serializeDeserialize(norm);
+        assertEquals(norm, norm2);
+    }
+
+
+    private static SubtractOffsetAndScaleNormalizer serializeDeserialize(SubtractOffsetAndScaleNormalizer norm) {
+        var gson = GsonTools.getInstance();
+        var json = gson.toJson(norm);
+        return gson.fromJson(json, SubtractOffsetAndScaleNormalizer.class);
     }
 
 

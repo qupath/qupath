@@ -23,12 +23,6 @@
 
 package qupath.lib.projects;
 
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Path;
-import java.util.Collection;
-import java.util.List;
-
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
@@ -36,6 +30,12 @@ import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ResourceManager.Manager;
+
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Data structure to manage images and associated data in QuPath.

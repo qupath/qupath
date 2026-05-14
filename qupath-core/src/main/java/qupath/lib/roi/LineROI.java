@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2022, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,17 +23,19 @@
 
 package qupath.lib.roi;
 
+import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.interfaces.ROI;
+
 import java.awt.Shape;
 import java.awt.geom.Line2D;
+import java.awt.geom.Rectangle2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-
-import qupath.lib.geom.Point2;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.ROI;
+import java.util.Objects;
 
 /**
  * ROI representing a straight line, defined by its end points.
@@ -210,10 +212,15 @@ public class LineROI extends AbstractPathROI implements Serializable {
 		return Arrays.asList(new Point2(x, y),
 				new Point2(x2, y2));
 	}
-	
-	
+
 	@Override
 	public Shape getShape() {
+		// Create a new line (it isn't expensive)
+		return createShape();
+	}
+
+	@Override
+	protected Line2D createShape() {
 		return new Line2D.Double(x, y, x2, y2);
 	}
 	
@@ -224,12 +231,6 @@ public class LineROI extends AbstractPathROI implements Serializable {
 				plane);
 	}
 	
-	
-//	public Geometry getGeometry() {
-//		GeometryFactory factory = new GeometryFactory();
-//	}
-	
-	
 	@Override
 	public RoiType getRoiType() {
 		return RoiType.LINE;
@@ -239,7 +240,23 @@ public class LineROI extends AbstractPathROI implements Serializable {
 	public ROI getConvexHull() {
 		return this;
 	}
-	
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+		LineROI lineROI = (LineROI) o;
+		return Double.compare(x, lineROI.x) == 0 &&
+				Double.compare(y, lineROI.y) == 0 &&
+				Double.compare(x2, lineROI.x2) == 0 &&
+				Double.compare(y2, lineROI.y2) == 0 &&
+				getImagePlane().equals(lineROI.getImagePlane());
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(x, y, x2, y2, getImagePlane());
+	}
+
 	private Object writeReplace() {
 		return new SerializationProxy(this);
 	}
@@ -311,6 +328,13 @@ public class LineROI extends AbstractPathROI implements Serializable {
 	@Override
 	public boolean contains(double x, double y) {
 		return false;
+	}
+
+	@Override
+	public boolean intersects(double x, double y, double width, double height) {
+		if (!intersectsBounds(x, y, width, height))
+			return false;
+		return new Rectangle2D.Double(x, y, width, height).intersectsLine(getX1(), getY1(), getX2(), getY2());
 	}
 
 	@Override

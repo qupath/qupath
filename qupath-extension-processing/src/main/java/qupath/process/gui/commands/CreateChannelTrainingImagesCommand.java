@@ -21,27 +21,29 @@
 
 package qupath.process.gui.commands;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import org.controlsfx.control.CheckListView;
-
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxListCell;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.text.TextAlignment;
+import org.controlsfx.control.CheckListView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
+
+import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * Command to create training images based upon channel names, and add these to a project.
@@ -114,16 +116,27 @@ public class CreateChannelTrainingImagesCommand implements Runnable {
 		GridPaneUtils.addGridRow(pane, row++, 0, namePrompt, labelName, tfName);
 		GridPaneUtils.addGridRow(pane, row++, 0, "Channels to duplicate", list, list);
 		GridPaneUtils.addGridRow(pane, row++, 0, "Create Points annotations for the corresponding channel", cbInitializePoints, cbInitializePoints);
-		
+
+		if (imageData.isChanged()) {
+			var labelWarning = new Label("Image contains unsaved changes!\n" +
+					"These will not be transferred to the new images.");
+			labelWarning.setTextAlignment(TextAlignment.CENTER);
+			labelWarning.setStyle("-fx-text-fill: -qp-script-error-color;");
+			var paneWarning = new BorderPane(labelWarning);
+			pane.add(paneWarning, 0, row++, GridPane.REMAINING, 1);
+			GridPaneUtils.setToExpandGridPaneWidth(paneWarning);
+		}
+
 		GridPaneUtils.setFillWidth(Boolean.TRUE, label, tfName, list, cbInitializePoints);
 		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, label, tfName, list, cbInitializePoints);
 		GridPaneUtils.setVGrowPriority(Priority.ALWAYS, list);
 		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, label, tfName, list, cbInitializePoints);
 		list.setPrefHeight(240);
+		list.setPrefWidth(400);
 		pane.setHgap(5.0);
 		pane.setVgap(5.0);
 		
-		if (!Dialogs.showConfirmDialog(title, pane))
+		if (!Dialogs.showMessageDialog(title, pane))
 			return;
 		
 		var name = tfName.getText().trim();

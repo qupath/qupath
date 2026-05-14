@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2024 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,12 +21,24 @@
 
 package qupath.lib.roi;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.MultiLineString;
+import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.operation.polygonize.Polygonizer;
+import org.locationtech.jts.operation.valid.IsValidOp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.geom.Point2;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.geom.AffineTransform;
 import java.io.File;
@@ -38,23 +50,14 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.PrecisionModel;
-import org.locationtech.jts.geom.util.AffineTransformation;
-
-import org.locationtech.jts.operation.polygonize.Polygonizer;
-import org.locationtech.jts.operation.valid.IsValidOp;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import qupath.lib.geom.Point2;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.ROI;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Test {@link GeometryTools}. Note that most of the relevant tests for ROI conversion are in {@link TestROIs}.
@@ -102,7 +105,7 @@ public class TestGeometryTools {
 		File fileHierarchy = new File("src/test/resources/data/test-objects.hierarchy");
 		try (InputStream stream = Files.newInputStream(fileHierarchy.toPath())) {
 			var hierarchy = (PathObjectHierarchy)new ObjectInputStream(stream).readObject();
-			var geometries = hierarchy.getFlattenedObjectList(null).stream().filter(p -> p.hasROI()).map(p -> p.getROI().getGeometry()).collect(Collectors.toCollection(() -> new ArrayList<>()));
+			var geometries = hierarchy.getFlattenedObjectList(null).stream().filter(PathObject::hasROI).map(p -> p.getROI().getGeometry()).collect(Collectors.toCollection(ArrayList::new));
 			
 			// Include some extra geometries that we know can be troublesome
 			var rectangle = GeometryTools.createRectangle(0, 0, 100, 100);
@@ -115,19 +118,19 @@ public class TestGeometryTools {
 			
 			var filledNested = (Polygon)GeometryTools.fillHoles(nested);
 			assertNotEquals(nested.getArea(), filledNested.getArea());
-			assertNotEquals(nested.getNumGeometries(), 1);
-			assertEquals(filledNested.getNumInteriorRing(), 0);
+			assertNotEquals(1, nested.getNumGeometries());
+			assertEquals(0, filledNested.getNumInteriorRing());
 			assertEquals(filledNested.getArea(), GeometryTools.externalRingArea(filledNested));
 
 			var filledNested2 = (Polygon)GeometryTools.fillHoles(nested2);
 			assertNotEquals(nested2.getArea(), filledNested2.getArea());
-			assertNotEquals(nested2.getNumGeometries(), 1);
-			assertEquals(filledNested2.getNumInteriorRing(), 0);
+			assertNotEquals(1, nested2.getNumGeometries());
+			assertEquals(0, filledNested2.getNumInteriorRing());
 			assertEquals(filledNested2.getArea(), GeometryTools.externalRingArea(filledNested2));
 
 			for (var geom : geometries) {
-				
-				assertTrue(geom.isValid());
+
+				assertTrue(geom.isValid(), () -> "Invalid geometry: " + geom);
 				
 				var geom2 = GeometryTools.fillHoles(geom);
 				assertTrue(geom2.isValid());
@@ -187,6 +190,16 @@ public class TestGeometryTools {
 		// The fast polygon union discards lines
 		assertEquals(1, FastPolygonUnion.union(g1, gLine).getNumGeometries());
 	}
+
+    @Test
+    public void testUnionLines() {
+        var gLine = GeometryTools.createLineString(1000, 2000, 3000, 4000).norm();
+        var gLine2 = GeometryTools.createLineString(1000, 4000, 3000, 6000).norm();
+        var gLine3 = GeometryTools.createLineString(1000, 6000, 3000, 8000).norm();
+        var union = GeometryTools.union(gLine, gLine2, gLine3);
+        assertInstanceOf(MultiLineString.class, union);
+        assertEquals(3, union.getNumGeometries());
+    }
 
 
 	@Test
@@ -300,8 +313,8 @@ public class TestGeometryTools {
 	@Disabled
 	public void randomPolygonize() {
 		Random rng = new Random(100);
-		PrecisionModel pm = new PrecisionModel(100.0);
-		GeometryFactory factory = new GeometryFactory(pm);
+		GeometryFactory factory = GeometryTools.getDefaultFactory();
+		PrecisionModel pm = factory.getPrecisionModel();
 		// Note that increasing this to 1000 will cause the test to fail.
 		int n = 100;
 		Coordinate[] coords = new Coordinate[n];
@@ -382,5 +395,65 @@ public class TestGeometryTools {
 		assertTrue(geom.isValid());
 		assertEquals(area, geom.getArea(), eps);
 	}
+
+
+	@Test
+	public void testGeometryFactory() {
+		var factory = GeometryTools.getDefaultFactory();
+		assertFalse(factory.getPrecisionModel().isFloating());
+		assertEquals(100, factory.getPrecisionModel().getScale());
+	}
+
+
+	@Test
+	public void testRectangleIntersectionAreaTranslated() {
+		var a = GeometryTools.createRectangle(0, 0, 200, 100);
+		var b = GeometryTools.createRectangle(100, 0, 200, 100);
+		assertEquals(100*100, GeometryTools.intersectionArea(a, b), 1e-6);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
+	@Test
+	public void testRectangleIntersectionAreaEqual() {
+		var a = GeometryTools.createRectangle(0, 0, 200, 100);
+		var b = GeometryTools.createRectangle(0, 0, 200, 100);
+		assertEquals(200*100, GeometryTools.intersectionArea(a, b), 1e-6);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
+	@Test
+	public void testRectangleIntersectionAreaTouching() {
+		var a = GeometryTools.createRectangle(0, 0, 200, 100);
+		var b = GeometryTools.createRectangle(200, 0, 200, 100);
+		assertEquals(0, GeometryTools.intersectionArea(a, b), 1e-6);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
+
+	@Test
+	public void testEllipseIntersectionAreaTranslated() {
+		int nPoints = 100;
+		var a = GeometryTools.createEllipse(0, 0, 200, 100, nPoints);
+		var b = GeometryTools.createEllipse(100, 0, 200, 100, nPoints);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
+	@Test
+	public void testEllipseIntersectionAreaEqual() {
+		int nPoints = 100;
+		var a = GeometryTools.createEllipse(0, 0, 200, 100, nPoints);
+		var b = GeometryTools.createEllipse(0, 0, 200, 100, nPoints);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
+	@Test
+	public void testEllipseIntersectionAreaTouching() {
+		int nPoints = 100;
+		var a = GeometryTools.createEllipse(0, 0, 200, 100, nPoints);
+		var b = GeometryTools.createEllipse(200, 0, 200, 100, nPoints);
+		assertEquals(0, GeometryTools.intersectionArea(a, b), 1e-6);
+		assertEquals(a.intersection(b).getArea(), GeometryTools.intersectionArea(a, b), 1e-6);
+	}
+
 
 }

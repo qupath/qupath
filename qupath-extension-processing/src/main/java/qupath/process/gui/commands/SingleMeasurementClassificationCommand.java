@@ -21,6 +21,52 @@
 
 package qupath.process.gui.commands;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.geometry.Pos;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.stage.Modality;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
+import qupath.lib.analysis.stats.Histogram;
+import qupath.lib.classifiers.object.ObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifiers.ClassifyByMeasurementBuilder;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.charts.ChartThresholdPane;
+import qupath.lib.gui.charts.HistogramChart;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectFilter;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.process.gui.commands.ml.ProjectClassifierBindings;
+
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,53 +78,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
-
-import javafx.beans.binding.Bindings;
-import javafx.geometry.Pos;
-import javafx.scene.chart.NumberAxis;
-import javafx.scene.layout.BorderPane;
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.GridPane;
-import javafx.stage.Modality;
-import qupath.fx.utils.FXUtils;
-import qupath.lib.analysis.stats.Histogram;
-import qupath.lib.classifiers.object.ObjectClassifier;
-import qupath.lib.classifiers.object.ObjectClassifiers.ClassifyByMeasurementBuilder;
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.charts.HistogramChart;
-import qupath.lib.gui.charts.ChartThresholdPane;
-import qupath.fx.dialogs.Dialogs;
-import qupath.fx.utils.GridPaneUtils;
-import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectFilter;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.process.gui.commands.ml.ProjectClassifierBindings;
 
 /**
  * Command to (sub)classify objects based on a single measurement.
@@ -184,19 +183,9 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			pane = new GridPane();
 			pane.setHgap(5.0);
 			pane.setVgap(5.0);
-			
-			
+
 			comboAbove = new ComboBox<>(qupath.getAvailablePathClasses());
 			comboBelow = new ComboBox<>(qupath.getAvailablePathClasses());
-			
-			
-//			comboMeasurements.getEditor().textProperty().addListener((v, o, n) -> {
-//				String text = n == null ? "" : n.toLowerCase().strip();
-//				if (n.isEmpty())
-//					measurementsFiltered.setPredicate(p -> true);
-//				else
-//					measurementsFiltered.setPredicate(p -> p.toLowerCase().contains(text));
-//			});
 			
 			int row = 0;
 			
@@ -255,11 +244,13 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 					pane.getColumnCount(), 0, 1, pane.getRowCount()-1);
 			
 			// Add listeners
-			comboChannels.valueProperty().addListener((v, o, n) -> updateChannelFilter());
+			comboChannels.valueProperty().addListener((v, o, n) -> {
+				updateChannelFilter();
+			});
 			comboMeasurements.valueProperty().addListener((v, o, n) -> {
 				if (o != null)
 					previousThresholds.put(o, getThreshold());
-				updateThresholdSlider();
+				updateHistogramAndThreshold();
 				maybePreview();
 			});
 			sliderThreshold.valueProperty().addListener((v, o, n) -> maybePreview());
@@ -304,8 +295,11 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		
 		void updateChannelFilter() {
 			var selected = comboChannels.getSelectionModel().getSelectedItem();
+			var selectedMeasurement = comboMeasurements.getValue();
 			if (selected == null || selected.isBlank() || NO_CHANNEL_FILTER.equals(selected)) {
 				measurementsFiltered.setPredicate(ALWAYS_TRUE);
+				// ensure the same value is selected, because combobox may retain selected index with a filtered list
+				comboMeasurements.getSelectionModel().select(selectedMeasurement);
 			} else {
 				var lowerSelected = selected.trim().toLowerCase();
 				Predicate<String> predicate = m -> m.toLowerCase().contains(lowerSelected);
@@ -313,21 +307,21 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 					measurementsFiltered.setPredicate(predicate);
 				else
 					measurementsFiltered.setPredicate(ALWAYS_TRUE);
-				
-				if (comboMeasurements.getSelectionModel().getSelectedItem() == null && !comboMeasurements.getItems().isEmpty())
-					comboMeasurements.getSelectionModel().selectFirst();
-				
+				// if the filtered list contains the previous measurement, fine. Otherwise, select nothing
+				if (comboMeasurements.getItems().contains(selectedMeasurement)) {
+					comboMeasurements.getSelectionModel().select(selectedMeasurement);
+				} else {
+					comboMeasurements.valueProperty().set(null);
+				}
+
 				var imageData = getImageData();
 				var pathClass = qupath.getAvailablePathClasses().stream()
 						.filter(p -> p.toString().toLowerCase().contains(lowerSelected))
 						.findFirst().orElse(null);
 				if (imageData != null && pathClass != null) {
-//					if (imageData.isBrightfield()) {
 					comboAbove.getSelectionModel().select(pathClass);
 					comboBelow.getSelectionModel().select(null);
-//					}
 				}
-				tfSaveName.setText(selected.trim());
 			}
 		}
 		
@@ -377,8 +371,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			dialog.setOnCloseRequest(e -> {
 				var applyClassifier = ButtonType.APPLY.equals(dialog.getResult());
 				cleanup(applyClassifier);
-			});			
-			
+			});
 			dialog.show();
 			maybePreview();
 		}
@@ -446,7 +439,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		}
 		
 		String getSelectedMeasurement() {
-			return comboMeasurements.getSelectionModel().getSelectedItem();
+			return comboMeasurements.valueProperty().get();
 		}
 		
 		double getThreshold() {
@@ -477,9 +470,8 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		void refreshOptions() {
 			refreshTitle();
 			refreshChannels();
-//			updateAvailableClasses();
 			updateAvailableMeasurements();
-			updateThresholdSlider();
+			updateHistogramAndThreshold();
 		}
 		
 		void refreshChannels() {
@@ -503,11 +495,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			if (comboChannels.getSelectionModel().getSelectedItem() == null)
 				comboChannels.getSelectionModel().selectFirst();
 		}
-		
-//		void updateAvailableClasses() {
-//			comboAbove.getItems().setAll(qupath.getAvailablePathClasses());
-//			comboBelow.getItems().setAll(qupath.getAvailablePathClasses());
-//		}
+
 		
 		void resetClassifications(PathObjectHierarchy hierarchy, Map<PathObject, PathClass> mapPrevious) {
 			// Restore classifications if the user cancelled
@@ -516,17 +504,20 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 				hierarchy.fireObjectClassificationsChangedEvent(this, changed);
 		}
 		
-		void updateThresholdSlider() {
+		void updateHistogramAndThreshold() {
 			var measurement = getSelectedMeasurement();
 			var pathObjects = getCurrentObjects();
 			if (measurement == null || pathObjects.isEmpty()) {
 				sliderThreshold.setMin(0);
 				sliderThreshold.setMax(1);
 				sliderThreshold.setValue(0);
+				histogramPane.getHistogramData().clear();
 				return;
 			}
-			double[] allValues = pathObjects.stream().mapToDouble(p -> p.getMeasurementList().get(measurement))
-					.filter(d -> Double.isFinite(d)).toArray();
+			double[] allValues = pathObjects.stream()
+					.mapToDouble(p -> p.getMeasurementList().get(measurement))
+					.filter(d -> Double.isFinite(d))
+					.toArray();
 			var stats = new DescriptiveStatistics(allValues);
 			var histogram = new Histogram(allValues, 100, stats.getMin(), stats.getMax());
 			histogramPane.getHistogramData().setAll(HistogramChart.createHistogramData(histogram, ColorTools.packARGB(100, 200, 20, 20)));

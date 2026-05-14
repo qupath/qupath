@@ -23,7 +23,18 @@
 
 package qupath.lib.objects.hierarchy;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,19 +43,9 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.PathRootObject;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.ROI;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Legacy test class for PathObjectHierarchy.

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,7 @@ package qupath.lib.gui.images.stores;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.util.stream.Collectors;
 
 /**
  * Interface for objects capable of converting a {@link BufferedImage} for rendering using {@link Graphics2D}.
@@ -46,16 +47,18 @@ public interface ImageRenderer {
 	 *        if null or the image size is inconsistent, a new RGB image should be created
 	 * @return imgOutput, or a new RGB image created for the output
 	 */
-	public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput);
+	BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput);
 	
 	/**
-	 * Timestamp of the last change (probably in milliseconds).
+	 * Timestamp of the last change.
+	 * The format should not be assumed - only that the value increases.
+	 * This means that it might be in nanoseconds, milliseconds or 'events' (i.e. an incrementing value each time
+	 * there is a change).
 	 * <p>
-	 * This can be used to identify when the status has changed.
-	 * 
-	 * @return
+	 * This is useful to identify when the status has changed, for example to determine whether a repaint is necessary.
+	 * @return the value of the timestamp
 	 */
-	public long getLastChangeTimestamp();
+	long getLastChangeTimestamp();
 	
 	/**
 	 * Get a unique key, which will be used for caching.
@@ -66,6 +69,20 @@ public interface ImageRenderer {
 	 * 
 	 * @return
 	 */
-	public String getUniqueID();
+	String getUniqueID();
+
+	/**
+	 * Get a string representation of a transformed pixel value, using the currently-selected channels.
+	 * <p>
+	 * Note that this method is optional; the default implementation returns null.
+	 *
+	 * @param img image providing the value
+	 * @param x x-coordinate of the pixel
+	 * @param y y-coordinate of the pixel
+	 * @return a String representation of the pixel's transformed value, or null if no string representation is available
+	 */
+	default String getTransformedValueAsString(BufferedImage img, int x, int y) {
+		return null;
+	}
 	
 }

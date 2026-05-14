@@ -23,10 +23,10 @@
 
 package qupath.lib.plugins.workflow;
 
+import qupath.lib.common.GeneralTools;
+
 import java.util.Collections;
 import java.util.Map;
-
-import qupath.lib.common.GeneralTools;
 
 /**
  * WorkflowStep for running a saved PathObjectClassifier.

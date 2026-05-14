@@ -24,13 +24,13 @@
 
 package qupath.lib.gui;
 
+import qupath.lib.common.ThreadTools;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import qupath.lib.common.ThreadTools;
 
 
 /**

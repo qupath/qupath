@@ -23,6 +23,102 @@
 
 package qupath.lib.scripting;
 
+import com.google.common.collect.ObjectArrays;
+import org.locationtech.jts.geom.Geometry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.imagej.processing.IJFilters;
+import qupath.imagej.tools.IJProperties;
+import qupath.imagej.tools.IJTools;
+import qupath.lib.analysis.DelaunayTools;
+import qupath.lib.analysis.DistanceTools;
+import qupath.lib.analysis.features.ObjectMeasurements;
+import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
+import qupath.lib.analysis.heatmaps.ColorModels;
+import qupath.lib.analysis.heatmaps.DensityMaps;
+import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
+import qupath.lib.analysis.images.ContourTracing;
+import qupath.lib.awt.common.AffineTransforms;
+import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.classifiers.object.ObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifiers;
+import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.StainVector;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.LogTools;
+import qupath.lib.common.Timeit;
+import qupath.lib.common.Version;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.ImageData.ImageType;
+import qupath.lib.images.servers.ColorTransforms;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.LabeledImageServer;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.TransformedServerBuilder;
+import qupath.lib.images.writers.ImageWriterTools;
+import qupath.lib.images.writers.TileExporter;
+import qupath.lib.io.GsonTools;
+import qupath.lib.io.PathIO;
+import qupath.lib.io.PathIO.GeoJsonExportOptions;
+import qupath.lib.io.PointIO;
+import qupath.lib.io.UriResource;
+import qupath.lib.io.UriUpdater;
+import qupath.lib.objects.CellTools;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectFilter;
+import qupath.lib.objects.PathObjectPredicates;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.hierarchy.DefaultTMAGrid;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.objects.hierarchy.TMAGrid;
+import qupath.lib.objects.utils.ObjectMerger;
+import qupath.lib.objects.utils.Tiler;
+import qupath.lib.plugins.CommandLineTaskRunner;
+import qupath.lib.plugins.PathPlugin;
+import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectIO;
+import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.regions.Padding;
+import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.ShapeSimplifier;
+import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.dnn.DnnModelParams;
+import qupath.opencv.dnn.DnnModels;
+import qupath.opencv.dnn.DnnTools;
+import qupath.opencv.io.OpenCVTypeAdapters;
+import qupath.opencv.ml.BioimageIoTools;
+import qupath.opencv.ml.objects.OpenCVMLClassifier;
+import qupath.opencv.ml.objects.features.FeatureExtractors;
+import qupath.opencv.ml.pixel.PixelClassifierTools;
+import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
+import qupath.opencv.ml.pixel.PixelClassifiers;
+import qupath.opencv.ops.ImageOps;
+import qupath.opencv.tools.GroovyCV;
+import qupath.opencv.tools.NumpyTools;
+import qupath.opencv.tools.OpenCVTools;
+
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -57,100 +153,6 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import org.locationtech.jts.geom.Geometry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.ObjectArrays;
-
-import qupath.bioimageio.spec.BioimageIoSpec;
-import qupath.imagej.tools.IJTools;
-import qupath.lib.analysis.DelaunayTools;
-import qupath.lib.analysis.DistanceTools;
-import qupath.lib.analysis.features.ObjectMeasurements;
-import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
-import qupath.lib.analysis.heatmaps.ColorModels;
-import qupath.lib.analysis.heatmaps.DensityMaps;
-import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
-import qupath.lib.analysis.images.ContourTracing;
-import qupath.lib.awt.common.AffineTransforms;
-import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.classifiers.object.ObjectClassifier;
-import qupath.lib.classifiers.object.ObjectClassifiers;
-import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.LogTools;
-import qupath.lib.common.Timeit;
-import qupath.lib.common.Version;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.ImageData.ImageType;
-import qupath.lib.images.servers.ColorTransforms;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.images.servers.ImageServers;
-import qupath.lib.images.servers.LabeledImageServer;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.ServerTools;
-import qupath.lib.images.servers.TransformedServerBuilder;
-import qupath.lib.images.writers.ImageWriterTools;
-import qupath.lib.images.writers.TileExporter;
-import qupath.lib.io.GsonTools;
-import qupath.lib.io.PathIO;
-import qupath.lib.io.PathIO.GeoJsonExportOptions;
-import qupath.lib.io.PointIO;
-import qupath.lib.io.UriResource;
-import qupath.lib.io.UriUpdater;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectFilter;
-import qupath.lib.objects.PathObjectPredicates;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.PathTileObject;
-import qupath.lib.objects.CellTools;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathDetectionObject;
-import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassTools;
-import qupath.lib.objects.hierarchy.DefaultTMAGrid;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.objects.hierarchy.TMAGrid;
-import qupath.lib.objects.utils.ObjectMerger;
-import qupath.lib.objects.utils.Tiler;
-import qupath.lib.plugins.CommandLineTaskRunner;
-import qupath.lib.plugins.PathPlugin;
-import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectIO;
-import qupath.lib.projects.ProjectImageEntry;
-import qupath.lib.projects.Projects;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.regions.Padding;
-import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.GeometryTools;
-import qupath.lib.roi.ROIs;
-import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.dnn.DnnModelParams;
-import qupath.opencv.dnn.DnnModels;
-import qupath.opencv.dnn.DnnTools;
-import qupath.opencv.io.OpenCVTypeAdapters;
-import qupath.opencv.ml.BioimageIoTools;
-import qupath.opencv.ml.objects.OpenCVMLClassifier;
-import qupath.opencv.ml.objects.features.FeatureExtractors;
-import qupath.opencv.ml.pixel.PixelClassifierTools;
-import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
-import qupath.opencv.ml.pixel.PixelClassifiers;
-import qupath.opencv.ops.ImageOps;
-import qupath.opencv.tools.GroovyCV;
-import qupath.opencv.tools.NumpyTools;
-import qupath.opencv.tools.OpenCVTools;
 
 /**
  * Collection of static methods that are useful for scripting.
@@ -211,11 +213,20 @@ public class QP {
 	/**
 	 * Placeholder for the path to the current project.
 	 * May be used as follows:
-	 * <pre>
+	 * {@snippet :
 	 *   var path = buildFilePath(PROJECT_BASE_DIR, 'subdir', 'name.txt')
-	 * </pre>
+	 * }
 	 */
 	public static final String PROJECT_BASE_DIR = "{%PROJECT}";
+
+	/**
+	 * The user's home directory, as obtained from {@code System.getProperty("user.home")}.
+	 * May be used as follows:
+	 * {@snippet :
+	 *   var path = buildFilePath(USER_HOME, "Desktop", "file-on-desktop.txt")
+	 * }
+	 */
+	public static final String USER_HOME = System.getProperty("user.home");
 	
 	
 	/**
@@ -250,8 +261,14 @@ public class QP {
 		var predicates = new PathObjectPredicates();
 		@SuppressWarnings("unused")
 		var colorModels = new ColorModels();
-		@SuppressWarnings("unused")
-		var dnnTools = new DnnTools();
+
+		try {
+			@SuppressWarnings("unused")
+			var dnnTools = new DnnTools();
+		} catch (LinkageError e) {
+			logger.warn("Unable to initialize DnnTools: {}", e.getMessage());
+			logger.debug(e.getMessage(), e);
+		}
 		
 	}
 
@@ -304,6 +321,8 @@ public class QP {
 			PathClassTools.class,
 			GeometryTools.class,
 			IJTools.class,
+			IJProperties.class,
+			IJFilters.class,
 			OpenCVTools.class,
 			NumpyTools.class,
 			DnnTools.class,
@@ -314,7 +333,7 @@ public class QP {
 			ServerTools.class,
 			PixelClassifierTools.class,
 			
-			BioimageIoSpec.class,
+
 			BioimageIoTools.class,
 			
 			DensityMaps.class,
@@ -746,14 +765,13 @@ public class QP {
 	 */
 	public static String buildFilePath(String first, String... more) throws IllegalArgumentException {
 		File file = new File(resolvePath(first));
-		for (int i = 0; i < more.length; i++) {
-			var part = more[i];
-			if (part == null)
-				throw new IllegalArgumentException("Part of the file path given to buildFilePath() is null!");
-			else if (PROJECT_BASE_DIR.equals(part))
-				throw new IllegalArgumentException("PROJECT_BASE_DIR must be the first element given to buildFilePath()");
-			file = new File(file, part);
-		}
+        for (String part : more) {
+            if (part == null)
+                throw new IllegalArgumentException("Part of the file path given to buildFilePath() is null!");
+            else if (PROJECT_BASE_DIR.equals(part))
+                throw new IllegalArgumentException("PROJECT_BASE_DIR must be the first element given to buildFilePath()");
+            file = new File(file, part);
+        }
 		var path = file.getAbsolutePath();
 		// TODO: Consider checking for questionable characters
 		return path;
@@ -763,43 +781,89 @@ public class QP {
 	 * Build a file or directory path relative to the current project, but do not make 
 	 * any changes on the file system.
 	 * This is equivalent to calling
-	 * <pre>{@code
+	 * {@snippet :
 	 *   String path = buildFilePath(PROJECT_BASE_DIR, more);
-	 * }</pre>
-	 * <p>
-	 * If you want to additionally create the directory, see {@link #makePathInProject(String...)}
+	 * }
+	 * If you want to additionally create the directory, see {@link #makePathInProject(String...)}
 	 * 
-	 * @param more additional path components to append
+	 * @param parts additional path components to append
 	 * @return
 	 * @throws IllegalArgumentException if no project path is available
 	 * @since v0.4.0
 	 * @see #makePathInProject(String...)
 	 * @see #makeFileInProject(String...)
 	 */
-	public static String buildPathInProject(String... more) throws IllegalArgumentException {
-		return buildFilePath(PROJECT_BASE_DIR, more);
+	public static String buildPathInProject(String... parts) throws IllegalArgumentException {
+		return buildFilePath(PROJECT_BASE_DIR, parts);
+	}
+
+	/**
+	 * Build a path to a directory, and create the directory if it does not already exist.
+	 * <p>
+	 * This is an alternative to calling
+	 * {@snippet :
+	 *     var path = buildFilePath("first", "second");
+	 *     mkdirs(path);
+	 * }
+	 * Note that the path that is returned will end with a separator, e.g. {@code "/path/to/dir/"} rather than
+	 * {@code "/path/to/dir"}.
+	 * This is to permit string concatenation as a way to create a full file path.
+	 * @param first the first component of the file path
+	 * @param more additional path components to append
+	 * @return a path to the directory, ending with a suitable separator
+	 * @see #buildFilePath(String, String...) 
+	 * @see #createDirectoryInProject(String...)
+	 * @since v0.6.0
+	 */
+	public static String createDirectory(String first, String... more) {
+		var path = buildFilePath(first, more);
+		if (!path.endsWith(File.separator) && !path.endsWith("/"))
+			path += "/";
+		mkdirs(path);
+		return path;
+	}
+
+	/**
+	 * Build a path to a directory, and create the directory if it does not already exist.
+	 * <p>
+	 * This is an alternative to calling
+	 * {@snippet :
+	 *     var path = buildFilePath("first", "second");
+	 *     mkdirs(path);
+	 * }
+	 * Note that the path that is returned will end with a separator, e.g. {@code "/path/to/dir/"} rather than
+	 * {@code "/path/to/dir"}.
+	 * This is to permit string concatenation as a way to create a full file path.
+	 * @param parts additional path components to append
+	 * @return a path to the directory, ending with a suitable separator
+	 * @see #createDirectory(String, String...)
+	 * @see #buildPathInProject(String...)
+	 * @since v0.6.0
+	 */
+	public static String createDirectoryInProject(String... parts) {
+		return createDirectory(PROJECT_BASE_DIR, parts);
 	}
 	
 	/**
 	 * Build a file or directory path relative to the current project, and ensure that it exists.
 	 * If it does not, an attempt will be made to create a directory with the specified name, 
 	 * and all necessary parent directories.
-	 * <p>
 	 * This is equivalent to calling
-	 * <pre>{@code
+	 * {@snippet :
 	 *   String path = buildPathInProject(PROJECT_BASE_DIR, more);
 	 *   mkdirs(path);
-	 * }</pre>
-	 * <p>
+	 * }
 	 * Note that if you need a file and not a directory, see {@link #makeFileInProject(String...)}.
 	 *  
 	 * @param more additional path components to append
-	 * @return
+	 * @return a string representing the path
 	 * @throws IllegalArgumentException if no project path is available
 	 * @since v0.4.0
 	 * @see #buildPathInProject(String...)
 	 * @see #makeFileInProject(String...)
+	 * @deprecated v0.6.0, use {@link #createDirectoryInProject(String...)} instead.
 	 */
+	@Deprecated
 	public static String makePathInProject(String... more) throws IllegalArgumentException {
 		String path = buildPathInProject(more);
 		mkdirs(path);
@@ -812,13 +876,12 @@ public class QP {
 	 * <p>
 	 * The purpose is to reduce the lines of code needed to build a usable file in a QuPath 
 	 * script. 
-	 * A Groovy script showing this method in action:
-	 * <pre>
-	 *   File file = makeFileInProject("export", "file.txt")
-	 *   file.text = "Some text here"
-	 * </pre>
-	 * <p>
-	 * Note that, if the file does not already exist, it will not be created by this method - 
+	 * An example of this method in action:
+	 * {@snippet :
+	 *   File file = makeFileInProject("export", "file.txt");
+	 *   file.text = "Some text here";
+	 * }
+	 * Note that, if the file does not already exist, it will not be created by this method -
 	 * only the directories leading to it.
 	 * Additionally, if the file refers to an existing directory then the directory will be 
 	 * returned - and will not be writable as a file.
@@ -832,10 +895,9 @@ public class QP {
 	 */
 	public static File makeFileInProject(String... more) throws IllegalArgumentException {
 		if (more.length == 0)
-			return new File(makePathInProject());
-		String basePath = makePathInProject(Arrays.copyOfRange(more, 0, more.length-1));
-		Path path = Paths.get(basePath, more[more.length-1]);
-		return path.toFile();
+			return new File(createDirectoryInProject());
+		String basePath = createDirectoryInProject(Arrays.copyOfRange(more, 0, more.length-1));
+		return new File(basePath, more[more.length-1]);
 	}
 	
 	/**
@@ -932,8 +994,8 @@ public class QP {
 	 * 
 	 * @see #getCurrentImageData()
 	 */
-	public static ImageServer<?> getCurrentServer() {
-		ImageData<?> imageData = getCurrentImageData();
+	public static ImageServer<BufferedImage> getCurrentServer() {
+		ImageData<BufferedImage> imageData = getCurrentImageData();
 		if (imageData == null)
 			return null;
 		return imageData.getServer();
@@ -1006,7 +1068,7 @@ public class QP {
 			return null;
 		var selected = hierarchy.getSelectionModel().getSelectedObject();
 		if (selected == null && !hierarchy.getSelectionModel().noSelection())
-			logger.debug("getSelectedObject() is null because there is no primary selected object, "
+			logger.warn("getSelectedObject() is null because there is no primary selected object, "
 					+ "you might want getSelectedObjects() instead");
 		return selected;
 	}
@@ -1029,7 +1091,7 @@ public class QP {
 	}
 	
 	/**
-	 * Clear the selected objects for the current {@code PathObjectHierarchy}.
+	 * Unselect the selected objects for the current {@code PathObjectHierarchy}.
 	 */
 	public static void resetSelection() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
@@ -1075,7 +1137,7 @@ public class QP {
 	 * 
 	 * @param pathObjects
 	 */
-	public static void addObjects(PathObject[] pathObjects) {
+	public static void addObjects(PathObject... pathObjects) {
 		addObjects(Arrays.asList(pathObjects));
 	}
 	
@@ -1100,12 +1162,34 @@ public class QP {
 	 * 
 	 * @param pathObject
 	 * @param keepChildren
+	 * @deprecated
 	 */
+	@Deprecated(since="0.6.0")
 	public static void removeObject(PathObject pathObject, boolean keepChildren) {
-		PathObjectHierarchy hierarchy = getCurrentHierarchy();
-		if (hierarchy == null)
-			return;
-		hierarchy.removeObject(pathObject, keepChildren);
+		LogTools.warnOnce(logger, "removeObject(PathObject, boolean) is deprecated - " +
+				"use removeObject(PathObject) or removeObjectAndDescendants(PathObject) instead");
+		if (keepChildren)
+			removeObject(pathObject);
+		else
+			removeObjectAndDescendants(pathObject);
+	}
+
+	/**
+	 * Remove the specified object from the current {@code PathObjectHierarchy}, keeping any descendant objects.
+	 * @param pathObject
+	 * @since v0.6.0
+	 */
+	public static void removeObject(PathObject pathObject) {
+		removeObjectsImpl(Collections.singleton(pathObject), true);
+	}
+
+	/**
+	 * Remove the specified object and any descendant objects from the current {@code PathObjectHierarchy}.
+	 * @param pathObject
+	 * @since v0.6.0
+	 */
+	public static void removeObjectAndDescendants(PathObject pathObject) {
+		removeObjectsImpl(Collections.singleton(pathObject), false);
 	}
 	
 	/**
@@ -1114,9 +1198,16 @@ public class QP {
 	 * 
 	 * @param pathObjects
 	 * @param keepChildren
+	 * @deprecated Use {@link #removeObjects(PathObject[])} or {@link #removeObjectsAndDescendants(PathObject[])} instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void removeObjects(PathObject[] pathObjects, boolean keepChildren) {
-		removeObjects(Arrays.asList(pathObjects), keepChildren);
+		LogTools.warnOnce(logger, "removeObjects(PathObject[], boolean) is deprecated - " +
+				"use removeObjects(PathObject[]) or removeObjectsAndDescendants(PathObject[]) instead");
+		if (keepChildren)
+			removeObjects(pathObjects);
+		else
+			removeObjectsAndDescendants(pathObjects);
 	}
 	
 	/**
@@ -1136,15 +1227,58 @@ public class QP {
 	/**
 	 * Remove the specified collection of objects from the current {@code PathObjectHierarchy}, 
 	 * optionally keeping or removing descendant objects.
-	 * 
 	 * @param pathObjects
 	 * @param keepChildren
+	 * @deprecated Use {@link #removeObjects(Collection)} or {@link #removeObjectsAndDescendants(Collection)} instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void removeObjects(Collection<? extends PathObject> pathObjects, boolean keepChildren) {
+		removeObjectsImpl(pathObjects, keepChildren);
+	}
+
+	private static void removeObjectsImpl(Collection<? extends PathObject> pathObjects, boolean keepChildren) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
 		hierarchy.removeObjects(pathObjects, keepChildren);
+	}
+
+	/**
+	 * Remove the specified array of objects from the current {@code PathObjectHierarchy}.
+	 * Descendant objects are kept.
+	 * @param pathObjects the objects to remove
+	 * @since v0.6.0
+	 */
+	public static void removeObjects(PathObject... pathObjects) {
+		removeObjects(Arrays.asList(pathObjects));
+	}
+
+	/**
+	 * Remove the specified array of objects from the current {@code PathObjectHierarchy}, and all their descendants.
+	 * @param pathObjects the objects to remove
+	 * @since v0.6.0
+	 */
+	public static void removeObjectsAndDescendants(PathObject... pathObjects) {
+		removeObjectsAndDescendants(Arrays.asList(pathObjects));
+	}
+
+	/**
+	 * Remove the specified collection of objects from the current {@code PathObjectHierarchy}.
+	 * Descendant objects are kept.
+	 * @param pathObjects the objects to remove
+	 * @since v0.6.0
+	 */
+	public static void removeObjects(Collection<? extends PathObject> pathObjects) {
+		removeObjectsImpl(pathObjects, true);
+	}
+
+	/**
+	 * Remove the specified collection of objects from the current {@code PathObjectHierarchy}, and all their descendants.
+	 * @param pathObjects the objects to remove
+	 * @since v0.6.0
+	 */
+	public static void removeObjectsAndDescendants(Collection<? extends PathObject> pathObjects) {
+		removeObjectsImpl(pathObjects, false);
 	}
 	
 	
@@ -1163,10 +1297,22 @@ public class QP {
 	
 	/**
 	 * Remove all the objects in the current {@code PathObjectHierarchy}, and clear the selection.
-	 * 
+	 *
+	 * @see #getCurrentHierarchy
+	 * @deprecated For naming consistency; use #removeAllObjects instead.
+	 */
+	@Deprecated(since="0.6.0")
+	public static void clearAllObjects() {
+		LogTools.warnOnce(logger, "clearAllObjects() has been deprecated - use removeAllObjects() instead");
+		removeAllObjects();
+	}
+
+	/**
+	 * Remove all the objects in the current {@code PathObjectHierarchy}, and reset the selection.
+	 *
 	 * @see #getCurrentHierarchy
 	 */
-	public static void clearAllObjects() {
+	public static void removeAllObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
@@ -1179,11 +1325,27 @@ public class QP {
 	 * 
 	 * @param cls the class, e.g. {@code PathAnnotationObject.class}, {@code PathDetectionObject.class}, or
 	 * 			  {@code null} if all objects should be removed.
-	 * 
+	 *
+	 * @see #getCurrentHierarchy
+	 * @see qupath.lib.objects.hierarchy.PathObjectHierarchy#getObjects
+	 * @deprecated For naming consistency; use #removeAllObjects instead.
+	 */
+	@Deprecated(since="0.6.0")
+	public static void clearAllObjects(final Class<? extends PathObject> cls) {
+		LogTools.warnOnce(logger, "clearAllObjects(Class) has been deprecated - use removeAllObjects(Class) instead");
+		removeAllObjects(cls);
+	}
+
+	/**
+	 * Remove all the objects of a specified Java class.
+	 *
+	 * @param cls the class, e.g. {@code PathAnnotationObject.class}, {@code PathDetectionObject.class}, or
+	 * 			  {@code null} if all objects should be removed.
+	 *
 	 * @see #getCurrentHierarchy
 	 * @see qupath.lib.objects.hierarchy.PathObjectHierarchy#getObjects
 	 */
-	public static void clearAllObjects(final Class<? extends PathObject> cls) {
+	public static void removeAllObjects(final Class<? extends PathObject> cls) {
 		if (cls == null) {
 			clearAllObjects();
 			return;
@@ -1204,9 +1366,22 @@ public class QP {
 	 * 
 	 * @see #getCurrentHierarchy
 	 * @see #clearAllObjects
+	 * @deprecated For naming consistency; use #removeAnnotations instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearAnnotations() {
-		clearAllObjects(PathAnnotationObject.class);
+		LogTools.warnOnce(logger, "clearAnnotations() has been deprecated - use removeAnnotations() instead");
+		removeAnnotations();
+	}
+
+	/**
+	 * Remove all the annotation objects from the current {@code PathObjectHierarchy}.
+	 *
+	 * @see #getCurrentHierarchy
+	 * @see #removeAllObjects
+	 */
+	public static void removeAnnotations() {
+		removeAllObjects(PathAnnotationObject.class);
 	}
 	
 	/**
@@ -1214,17 +1389,42 @@ public class QP {
 	 * 
 	 * @see #getCurrentHierarchy
 	 * @see #clearAllObjects
+	 * @deprecated For naming consistency; use #removeDetections instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearDetections() {
-		clearAllObjects(PathDetectionObject.class);
+		LogTools.warnOnce(logger, "clearDetections() has been deprecated - use removeDetections() instead");
+		removeDetections();
 	}
-	
+
+	/**
+	 * Remove all the detection objects from the current {@code PathObjectHierarchy}.
+	 *
+	 * @see #getCurrentHierarchy
+	 * @see #removeAllObjects
+	 */
+	public static void removeDetections() {
+		removeAllObjects(PathDetectionObject.class);
+	 }
+
 	/**
 	 * Remove the TMA grid from the current {@code PathObjectHierarchy}.
 	 * 
 	 * @see #getCurrentHierarchy
+	 * @deprecated For naming consistency; use #removeTMAGrid instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearTMAGrid() {
+		LogTools.warnOnce(logger, "clearTMAGrid() has been deprecated - use removeTMAGrid() instead");
+		removeTMAGrid();
+	}
+
+	/**
+	 * Remove the TMA grid from the current {@code PathObjectHierarchy}.
+	 *
+	 * @see #getCurrentHierarchy
+	 */
+	public static void removeTMAGrid() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
@@ -1399,9 +1599,6 @@ public class QP {
 	/**
 	 * Set the channels for the specified ImageData.
 	 * Note that number of channels provided must match the number of channels of the current image.
-	 * <p>
-	 * Also, currently it is not possible to set channels for RGB images - attempting to do so 
-	 * will throw an IllegalArgumentException.
 	 * 
 	 * @param imageData 
 	 * @param channels
@@ -1410,9 +1607,6 @@ public class QP {
 	 */
 	public static void setChannels(ImageData<?> imageData, ImageChannel... channels) {
 		var metadata = imageData.getServerMetadata();
-		if (metadata.isRGB()) {
-			throw new IllegalArgumentException("Cannot set channels for RGB images");
-		}
 		List<ImageChannel> oldChannels = metadata.getChannels();
 		List<ImageChannel> newChannels = Arrays.asList(channels);
 		if (oldChannels.equals(newChannels)) {
@@ -1421,7 +1615,7 @@ public class QP {
 		}
 		if (oldChannels.size() != newChannels.size())
 			throw new IllegalArgumentException("Cannot set channels - require " + oldChannels.size() + " channels but you provided " + channels.length);
-		
+
 		// Set the metadata
 		var metadata2 = new ImageServerMetadata.Builder(metadata)
 				.channels(newChannels)
@@ -1645,7 +1839,21 @@ public class QP {
 	}
 
 	/**
-	 * Get all objects in the current hierarchy, including the root object.
+	 * Get all objects in the current hierarchy, excluding the root object (which represents the entire image).
+	 *
+	 * @return
+	 *
+	 * @see #getCurrentHierarchy
+	 * @see #getAllObjects()
+	 * @see #getAllObjects(boolean)
+	 * @since v0.6.0
+	 */
+	public static Collection<PathObject> getAllObjectsWithoutRoot() {
+		return getAllObjects(false);
+	}
+
+	/**
+	 * Get all objects in the current hierarchy, including the root object (which represents the entire image).
 	 * 
 	 * @return
 	 * 
@@ -1703,7 +1911,29 @@ public class QP {
 		imageData.setColorDeconvolutionStains(stains);
 		return true;
 	}
-	
+
+	/**
+	 * Set the color deconvolution stains for the current image data.
+	 *
+	 * @param stains a map of stain name to stain values. Each stain value must be a list containing at least three elements
+	 *               (otherwise the value is skipped). A stain must be provided with the name defined by {@link ColorDeconvolutionStains#BACKGROUND_KEY}.
+	 *               A stain with the name defined by {@link ColorDeconvolutionStains#RESIDUAL_KEY} will be set as {@link StainVector#isResidual() residual},
+	 *               others won't. The order of the map matters: the first entry will be the first stain (unless it's the background), and so on.
+	 * @param name the name of the color deconvolution stains
+	 * @throws IllegalStateException if there is no current image data
+	 * @throws IllegalArgumentException if the provided stains do not contain a stain with the name defined by {@link ColorDeconvolutionStains#BACKGROUND_KEY}
+	 * and with at least three values, or if the provided stains do not contain at least two non-{@link ColorDeconvolutionStains#BACKGROUND_KEY} stains with
+	 * at least three values
+	 * @throws NullPointerException if one of the parameter is null
+	 */
+	public static void setColorDeconvolutionStains(Map<String, List<Number>> stains, String name) {
+		ImageData<?> imageData = getCurrentImageData();
+		if (imageData == null) {
+			throw new IllegalStateException("No current image data. Cannot set color deconvolution stains");
+		}
+
+		imageData.setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStains(name, stains));
+	}
 	
 //	public static void classifyDetection(final Predicate<PathObject> p, final String className) {
 //		PathObjectHierarchy hierarchy = getCurrentHierarchy();
@@ -2303,18 +2533,43 @@ public class QP {
 	
 	/**
 	 * Clear selected objects, but keep child (descendant) objects.
+	 * @deprecated For consistency in naming; use #removeSelectedObjects instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearSelectedObjects() {
-		clearSelectedObjects(true);
+		LogTools.warnOnce(logger, "clearSelectedObjects() has been deprecated - use removeSelectedObjects() instead");
+		removeSelectedObjects();
 	}
-	
-	
+
+	/**
+	 * Remove selected objects, but keep child (descendant) objects.
+	 */
+	public static void removeSelectedObjects() {
+		removeSelectedObjects(true);
+	}
+
 	/**
 	 * Delete the selected objects from the current hierarchy, optionally keeping their child (descendant) objects.
 	 * 
-	 * @param keepChildren
+	 * @param keepChildren Whether to retain or remove child objects in the hierarchy.
+	 * @deprecated For consistency in naming; use #removeSelectedObjects instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearSelectedObjects(boolean keepChildren) {
+		LogTools.warnOnce(logger, "clearSelectedObjects(boolean) has been deprecated - " +
+				"use removeSelectedObjects() or removeSelectedObjectsAndDescendants() instead");
+		removeSelectedObjects(keepChildren);
+	}
+
+	/**
+	 * Delete the selected objects from the current hierarchy, including all the child and descendant objects.
+	 */
+	public static void removeSelectedObjectsAndDescendants() {
+		removeSelectedObjects(false);
+	}
+
+
+	private static void removeSelectedObjects(boolean keepChildren) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
@@ -2654,75 +2909,72 @@ public class QP {
 	@Deprecated
 	private static Predicate<PathObject> parsePredicate(final String command) throws NoSuchElementException {
 		String s = command.trim();
-		if (s.length() == 0)
+		if (s.isEmpty())
 			throw new NoSuchElementException("No command provided!");
-		Scanner scanner = new Scanner(s);
 
-		try {
-			Map<String, Predicate<Integer>> mapComparison = new HashMap<>();
-			mapComparison.put(">=", v -> v >= 0);
-			mapComparison.put("<=", v -> v <= 0);
-			mapComparison.put(">", v -> v > 0);
-			mapComparison.put("<", v -> v < 0);
-			mapComparison.put("=", v -> v == 0);
-			mapComparison.put("==", v -> v == 0);
-			mapComparison.put("!=", v -> v != 0);
-			mapComparison.put("~=", v -> v != 0);
+        try (Scanner scanner = new Scanner(s)) {
+            Map<String, Predicate<Integer>> mapComparison = new HashMap<>();
+            mapComparison.put(">=", v -> v >= 0);
+            mapComparison.put("<=", v -> v <= 0);
+            mapComparison.put(">", v -> v > 0);
+            mapComparison.put("<", v -> v < 0);
+            mapComparison.put("=", v -> v == 0);
+            mapComparison.put("==", v -> v == 0);
+            mapComparison.put("!=", v -> v != 0);
+            mapComparison.put("~=", v -> v != 0);
 
-			Predicate<PathObject> predicate = null;
-			Pattern comparePattern = Pattern.compile(">=|<=|==|!=|~=|=|>|<");
-			Pattern combinePattern = Pattern.compile("and|AND|or|OR");
-			Pattern notPattern = Pattern.compile("not|NOT");
-			while (scanner.hasNext()) {
-				String combine = null;
-				scanner.reset();
-				if (predicate != null) {
-					if (scanner.hasNext(combinePattern))
-						combine = scanner.next(combinePattern).trim().toUpperCase();
-					else
-						throw new NoSuchElementException("Missing combiner (AND, OR) between comparisons!");
-				}
+            Predicate<PathObject> predicate = null;
+            Pattern comparePattern = Pattern.compile(">=|<=|==|!=|~=|=|>|<");
+            Pattern combinePattern = Pattern.compile("and|AND|or|OR");
+            Pattern notPattern = Pattern.compile("not|NOT");
+            while (scanner.hasNext()) {
+                String combine = null;
+                scanner.reset();
+                if (predicate != null) {
+                    if (scanner.hasNext(combinePattern))
+                        combine = scanner.next(combinePattern).trim().toUpperCase();
+                    else
+                        throw new NoSuchElementException("Missing combiner (AND, OR) between comparisons!");
+                }
 
-				boolean negate = false;
-				if (scanner.hasNext(notPattern)) {
-					negate = true;
-					scanner.next(notPattern);
-				}
+                boolean negate = false;
+                if (scanner.hasNext(notPattern)) {
+                    negate = true;
+                    scanner.next(notPattern);
+                }
 
-				scanner.useDelimiter(comparePattern);
-				String measurement = scanner.next().trim();
-				scanner.reset();
-				if (!scanner.hasNext(comparePattern))
-					throw new NoSuchElementException("Missing comparison operator (<, >, <=, >=, ==) for measurement \"" + measurement + "\"");
-				String comparison = scanner.next(comparePattern).trim();
-				
-				if (!scanner.hasNextDouble())
-					throw new NoSuchElementException("Missing comparison value after \"" + measurement + " " + comparison + "\"");
-				double value = scanner.nextDouble();
+                scanner.useDelimiter(comparePattern);
+                String measurement = scanner.next().trim();
+                scanner.reset();
+                if (!scanner.hasNext(comparePattern))
+                    throw new NoSuchElementException("Missing comparison operator (<, >, <=, >=, ==) for measurement \"" + measurement + "\"");
+                String comparison = scanner.next(comparePattern).trim();
 
-				Predicate<PathObject> predicateNew = p -> {
-					double v = p.getMeasurementList().get(measurement);
-					return !Double.isNaN(v) && mapComparison.get(comparison).test(Double.compare(p.getMeasurementList().get(measurement), value));
-				};
-				if (negate)
-					predicateNew = predicateNew.negate();
+                if (!scanner.hasNextDouble())
+                    throw new NoSuchElementException("Missing comparison value after \"" + measurement + " " + comparison + "\"");
+                double value = scanner.nextDouble();
 
-				if (predicate == null) {
-					predicate = predicateNew;
-				} else {
-					if ("AND".equals(combine))
-						predicate = predicate.and(predicateNew);
-					else if ("OR".equals(combine))
-						predicate = predicate.or(predicateNew);
-					else
-						throw new NoSuchElementException("Unrecognised combination of predicates: " + combine);
-				}
-			}
+                Predicate<PathObject> predicateNew = p -> {
+                    double v = p.getMeasurementList().get(measurement);
+                    return !Double.isNaN(v) && mapComparison.get(comparison).test(Double.compare(p.getMeasurementList().get(measurement), value));
+                };
+                if (negate)
+                    predicateNew = predicateNew.negate();
 
-			return predicate;
-		} finally {
-			scanner.close();
-		}
+                if (predicate == null) {
+                    predicate = predicateNew;
+                } else {
+                    if ("AND".equals(combine))
+                        predicate = predicate.and(predicateNew);
+                    else if ("OR".equals(combine))
+                        predicate = predicate.or(predicateNew);
+                    else
+                        throw new NoSuchElementException("Unrecognised combination of predicates: " + combine);
+                }
+            }
+
+            return predicate;
+        }
 	}
 
 	/**
@@ -2869,7 +3121,7 @@ public class QP {
 	}
 	
 	/**
-	 * Clear the selection for the current hierarchy, so that no objects of any kind are selected.
+	 * Reset the selection for the current hierarchy, so that no objects of any kind are selected.
 	 * 
 	 */
 	public static void deselectAll() {
@@ -2879,7 +3131,7 @@ public class QP {
 	}
 	
 	/**
-	 * Clear the selection, so that no objects of any kind are selected.
+	 * Reset the selection, so that no objects of any kind are selected.
 	 * 
 	 * @param hierarchy
 	 */
@@ -2939,7 +3191,7 @@ public class QP {
 	 * Note that only one instance of any PathClass can exist at any time, therefore any existing 
 	 * PathClass with the same description will always be returned instead of creating a new one.
 	 * In this case, the color attribute of the existing PathClass will not be changed.
-	 * Therefore the color only has an effect when a new PathClass is created.
+	 * Therefore, the color only has an effect when a new PathClass is created.
 	 * 
 	 * @param baseClass
 	 * @param name
@@ -2952,8 +3204,8 @@ public class QP {
 
 	/**
 	 * Remove measurements from objects of a specific class for the current image data.
-	 * @param cls
-	 * @param measurementNames
+	 * @param cls The type of object.
+	 * @param measurementNames The measurement names to remove.
 	 */
 	public static void removeMeasurements(final Class<? extends PathObject> cls, final String... measurementNames) {
 		removeMeasurements(getCurrentHierarchy(), cls, measurementNames);
@@ -2961,9 +3213,9 @@ public class QP {
 
 	/**
 	 * Remove measurements from objects of a specific class for the specified hierarchy.
-	 * @param hierarchy
-	 * @param cls
-	 * @param measurementNames
+	 * @param hierarchy The relevant hierarchy.
+	 * @param cls The type of object.
+	 * @param measurementNames The measurement names to remove.
 	 */
 	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls, final String... measurementNames) {
 		if (hierarchy == null)
@@ -2987,17 +3239,41 @@ public class QP {
 	 * Clear the measurement lists for specified objects within a hierarchy.
 	 * @param hierarchy used to fire a hierarchy update, if specified (may be null if no update should be fired)
 	 * @param pathObjects collection of objects that should have their measurement lists cleared
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearMeasurements(final PathObjectHierarchy hierarchy, final PathObject... pathObjects) {
-		clearMeasurements(hierarchy, Arrays.asList(pathObjects));
+		LogTools.warnOnce(logger, "clearMeasurements(PathObjectHierarchy, PathObject...) has been deprecated - use removeMeasurements(PathObjectHierarchy, PathObject...) instead");
+		removeMeasurements(hierarchy, pathObjects);
+	}
+
+	/**
+	 * Remove the measurements from specified objects within a hierarchy.
+	 * @param hierarchy used to fire a hierarchy update, if specified (may be null if no update should be fired)
+	 * @param pathObjects collection of objects that should have their measurements removed.
+	 */
+	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final PathObject... pathObjects) {
+		removeMeasurements(hierarchy, Arrays.asList(pathObjects));
 	}
 	
 	/**
 	 * Clear the measurement lists for specified objects within a hierarchy.
 	 * @param hierarchy used to fire a hierarchy update, if specified (may be null if no update should be fired)
 	 * @param pathObjects collection of objects that should have their measurement lists cleared
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
-	public static void clearMeasurements(final PathObjectHierarchy hierarchy, final Collection<PathObject> pathObjects) {
+	@Deprecated(since="0.6.0")
+	public static void clearMeasurements(final PathObjectHierarchy hierarchy, final Collection<? extends PathObject> pathObjects) {
+		LogTools.warnOnce(logger, "clearMeasurements(PathObjectHierarchy, Collection<PathObject>) has been deprecated - use removeMeasurements(PathObjectHierarchy, Collection<PathObject>) instead");
+		removeMeasurements(hierarchy, pathObjects);
+	}
+
+	/**
+	 * Remove the measurements from specified objects within a hierarchy.
+	 * @param hierarchy used to fire a hierarchy update, if specified (can be null if no update should be fired)
+	 * @param pathObjects collection of objects that should have their measurements removed.
+	 */
+	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final Collection<? extends PathObject> pathObjects) {
 		for (PathObject pathObject : pathObjects) {
 			// Remove all measurements
 			pathObject.getMeasurementList().clear();
@@ -3006,141 +3282,299 @@ public class QP {
 		if (hierarchy != null)
 			hierarchy.fireObjectMeasurementsChangedEvent(null, pathObjects);
 	}
-	
+
+
 	/**
 	 * Clear the measurement lists for all annotations in a hierarchy.
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearAnnotationMeasurements(PathObjectHierarchy hierarchy) {
+		LogTools.warnOnce(logger, "clearAnnotationMeasurements(PathObjectHierarchy) has been deprecated - use removeAnnotationMeasurements(PathObjectHierarchy) instead");
+		removeAnnotationMeasurements(hierarchy);
+	}
+
+	/**
+	 * Remove the measurements from all annotations in a hierarchy.
+	 * @param hierarchy The relevant hierarchy.
+	 */
+	public static void removeAnnotationMeasurements(PathObjectHierarchy hierarchy) {
 		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getAnnotationObjects());
+			removeMeasurements(hierarchy, hierarchy.getAnnotationObjects());
 	}
 	
 	/**
 	 * Clear the measurement lists for all annotations in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeAnnotationMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearAnnotationMeasurements() {
-		clearAnnotationMeasurements(getCurrentHierarchy());
+		LogTools.warnOnce(logger, "clearAnnotationMeasurements() has been deprecated - use removeAnnotationMeasurements() instead");
+		removeAnnotationMeasurements();
+	}
+
+	/**
+	 * Remove the measurements from all annotations in the current hierarchy.
+	 */
+	public static void removeAnnotationMeasurements() {
+		removeAnnotationMeasurements(getCurrentHierarchy());
 	}
 	
 	/**
 	 * Clear the measurement lists for all detections in a hierarchy (including sub-classes of detections).
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
+	 * @deprecated For consistency in naming; use #removeDetectionMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearDetectionMeasurements(PathObjectHierarchy hierarchy) {
+		LogTools.warnOnce(logger, "clearDetectionMeasurements(PathObjectHierarchy) has been deprecated - use removeDetectionMeasurements(PathObjectHierarchy) instead");
+		removeDetectionMeasurements(hierarchy);
+	}
+
+	/**
+	 * Remove the measurements from all detections in a hierarchy (including sub-classes of detections).
+	 * @param hierarchy The relevant hierarchy.
+	 */
+	public static void removeDetectionMeasurements(PathObjectHierarchy hierarchy) {
 		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getDetectionObjects());
+			removeMeasurements(hierarchy, hierarchy.getDetectionObjects());
 	}
 	
 	/**
 	 * Clear the measurement lists for all detections in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeDetectionMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearDetectionMeasurements() {
-		clearDetectionMeasurements(getCurrentHierarchy());
+		LogTools.warnOnce(logger, "clearDetectionMeasurements() has been deprecated - use removeDetectionMeasurements() instead");
+		removeDetectionMeasurements();
+	}
+
+	/**
+	 * Remove the measurements from all detections in the current hierarchy.
+	 */
+	public static void removeDetectionMeasurements() {
+		removeDetectionMeasurements(getCurrentHierarchy());
 	}
 	
 	/**
 	 * Clear the measurement lists for all TMA core objects in a hierarchy.
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
+	 * @deprecated For consistency in naming; use #removeTMACoreMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearTMACoreMeasurements(PathObjectHierarchy hierarchy) {
+		LogTools.warnOnce(logger, "clearTMACoreMeasurements(PathObjectHierarchy) has been deprecated - use removeTMACoreMeasurements(PathObjectHierarchy) instead");
+		removeTMACoreMeasurements(hierarchy);
+	}
+
+	/**
+	 * Remove the measurements from all TMA core objects in a hierarchy.
+	 * @param hierarchy The relevant hierarchy.
+	 */
+	public static void removeTMACoreMeasurements(PathObjectHierarchy hierarchy) {
 		if (hierarchy != null)
-			clearMeasurements(hierarchy, TMACoreObject.class);
+			removeMeasurements(hierarchy, TMACoreObject.class);
 	}
 	
 	/**
 	 * Clear the measurement lists for all TMA core objects in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeTMACoreMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearTMACoreMeasurements() {
-		clearTMACoreMeasurements(getCurrentHierarchy());
+		LogTools.warnOnce(logger, "clearTMACoreMeasurements() has been deprecated - use removeTMACoreMeasurements() instead");
+		removeTMACoreMeasurements();
+	}
+
+	/**
+	 * Remove the measurements from all TMA core objects in the current hierarchy.
+	 */
+	public static void removeTMACoreMeasurements() {
+		removeTMACoreMeasurements(getCurrentHierarchy());
 	}
 	
 	/**
 	 * Clear the measurement lists for objects of a specific class in a hierarchy (subclasses are not included!).
-	 * @param hierarchy
-	 * @param cls 
+	 * @param hierarchy The relevant hierarchy.
+	 * @param cls The type of object.
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearMeasurements(PathObjectHierarchy hierarchy, Class<? extends PathObject> cls) {
-		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getObjects(null, null).stream().filter(p -> p.getClass().equals(cls)).toArray(PathObject[]::new));
+		LogTools.warnOnce(logger, "clearMeasurements(PathObjectHierarchy, Class) has been deprecated - use removeMeasurements(PathObjectHierarchy, Class) instead");
+		removeMeasurements(hierarchy, cls);
 	}
-	
+
+	/**
+	 * Remove the measurements from objects of a specific class in a hierarchy (subclasses are not included!).
+	 * @param hierarchy The relevant hierarchy.
+	 * @param cls The type of object.
+	 */
+	public static void removeMeasurements(PathObjectHierarchy hierarchy, Class<? extends PathObject> cls) {
+		if (hierarchy != null)
+			removeMeasurements(hierarchy, hierarchy.getObjects(null, null).stream().filter(p -> p.getClass().equals(cls)).toArray(PathObject[]::new));
+	}
+
+
 	/**
 	 * Clear the measurement lists for objects of a specific class in the current hierarchy (subclasses are not included!).
-	 * @param cls 
+	 * @param cls The type of object.
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearMeasurements(Class<? extends PathObject> cls) {
-		clearMeasurements(getCurrentHierarchy(), cls);
+		LogTools.warnOnce(logger, "clearMeasurements(Class) has been deprecated - use removeMeasurements(Class) instead");
+		removeMeasurements(cls);
+	}
+
+	/**
+	 * Remove the measurements from objects of a specific class in the current hierarchy (subclasses are not included!).
+	 * @param cls The type of object.
+	 */
+	public static void removeMeasurements(Class<? extends PathObject> cls) {
+		removeMeasurements(getCurrentHierarchy(), cls);
 	}
 	
 	/**
 	 * Clear the measurement lists for all detections in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearMeasurements() {
-		clearDetectionMeasurements(getCurrentHierarchy());
+		LogTools.warnOnce(logger, "clearMeasurements() has been deprecated - use removeMeasurements() instead");
+		removeMeasurements();
+	}
+
+	/**
+	 * Remove the measurements from all detections in the current hierarchy.
+	 */
+	public static void removeMeasurements() {
+		removeDetectionMeasurements(getCurrentHierarchy());
 	}
 	
 	/**
 	 * Clear the measurement lists for all cells in a hierarchy.
-	 * @param hierarchy
+	 * @deprecated For consistency in naming; use #removeCellMeasurements instead.
+	 * @param hierarchy The relevant hierarchy
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearCellMeasurements(PathObjectHierarchy hierarchy) {
-		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getCellObjects());
+		LogTools.warnOnce(logger, "clearCellMeasurements(PathObjectHierarchy) has been deprecated - use removeCellMeasurements(PathObjectHierarchy) instead");
+		removeCellMeasurements(hierarchy);
 	}
-	
+
+	/**
+	 * Remove the measurements from all cells in a hierarchy.
+	 * @param hierarchy The relevant hierarchy
+	 */
+	public static void removeCellMeasurements(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			removeMeasurements(hierarchy, hierarchy.getCellObjects());
+	}
+
 	/**
 	 * Clear the measurement lists for all cells in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeCellMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearCellMeasurements() {
-		clearCellMeasurements(getCurrentHierarchy());
+		LogTools.warnOnce(logger, "clearCellMeasurements() has been deprecated - use removeCellMeasurements() instead");
+		removeCellMeasurements();
+	}
+
+	/**
+	 * Remove the measurements from all cells in the current hierarchy.
+	 */
+	public static void removeCellMeasurements() {
+		removeCellMeasurements(getCurrentHierarchy());
 	}
 	
+	/**
+	 * Remove the measurements from all tiles in a hierarchy.
+	 * @param hierarchy The relevant hierarchy.
+	 */
+	public static void removeTileMeasurements(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			removeMeasurements(hierarchy, hierarchy.getTileObjects());
+	}
+
 	/**
 	 * Clear the measurement lists for all tiles in a hierarchy.
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
+	 * @deprecated For consistency in naming; use #removeTileMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearTileMeasurements(PathObjectHierarchy hierarchy) {
-		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getTileObjects());
+		LogTools.warnOnce(logger, "clearTileMeasurements(PathObjectHierarchy) has been deprecated - use removeTileMeasurements(PathObjectHierarchy) instead");
+		removeTileMeasurements(hierarchy);
 	}
-	
+
+
 	/**
-	 * Clear the measurement lists for all tiles in the current hierarchy.
+	 * Clear the measurements lists for all tiles in the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeTileMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearTileMeasurements() {
-		clearTileMeasurements(getCurrentHierarchy());
+		LogTools.warnOnce(logger, "clearTileMeasurements() has been deprecated - use removeTileMeasurements() instead");
+		removeTileMeasurements();
 	}
+
+	/**
+	 * Remove the measurements from all tiles in the current hierarchy.
+	 */
+	public static void removeTileMeasurements() {
+		removeTileMeasurements(getCurrentHierarchy());
+	}
+
 	
 	/**
 	 * Clear the measurement lists for the root object.
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
+	 * @deprecated For consistency in naming; use #removeRootMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearRootMeasurements(PathObjectHierarchy hierarchy) {
+		LogTools.warnOnce(logger, "clearRootMeasurements(PathObjectHierarchy) has been deprecated - use removeRootMeasurements(PathObjectHierarchy) instead");
+		removeRootMeasurements(hierarchy);
+	}
+
+	/**
+	 * Remove the measurements from the root object.
+	 * @param hierarchy The relevant hierarchy.
+	 */
+	public static void removeRootMeasurements(PathObjectHierarchy hierarchy) {
 		if (hierarchy != null)
-			clearMeasurements(hierarchy, hierarchy.getRootObject());
+			removeMeasurements(hierarchy, hierarchy.getRootObject());
 	}
 	
 	/**
-	 * Clear the measurement lists for the root object.
+	 * Clear the measurement lists for the root object of the current hierarchy.
+	 * @deprecated For consistency in naming; use #removeRootMeasurements instead.
 	 */
+	@Deprecated(since="0.6.0")
 	public static void clearRootMeasurements() {
-		clearRootMeasurements(getCurrentHierarchy());
+		LogTools.warnOnce(logger, "clearRootMeasurements() has been deprecated - use removeRootMeasurements() instead");
+		removeRootMeasurements();
 	}
-	
-	
-	
-	
+
+	/**
+	 * Remove measurements from the root object of the current hierarchy.
+	 */
+	public static void removeRootMeasurements() {
+		removeRootMeasurements(getCurrentHierarchy());
+	}
+
 	
 	/**
 	 * Get a base class - which is either a valid PathClass which is *not* an intensity class, or else null.
-	 * 
 	 * This will be null if {@code pathObject.getPathClass() == null}.
-	 * 
 	 * Otherwise, it will be {@code pathObject.getPathClass().getBaseClass()} assuming the result isn't an intensity class - or null otherwise.
 	 * 
-	 * @param pathObject
-	 * @return
+	 * @param pathObject The relevant PathObject.
+	 * @return The base class of the PathObject.
 	 */
 	public static PathClass getBasePathClass(final PathObject pathObject) {
 		PathClass baseClass = pathObject.getPathClass();
@@ -3155,12 +3589,11 @@ public class QP {
 
 	
 	/**
-	 * Get the first ancestor class of pathObject.getPathClass() that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).
-	 * 
+	 * Get the first ancestor class of pathObject.getPathClass() that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).*
 	 * This will return null if pathClass is null, or if no non-intensity classes are found.
 	 * 
-	 * @param pathObject
-	 * @return
+	 * @param pathObject The relevant PathObject.
+	 * @return The first non-intensity ancestor class.
 	 */
 	public static PathClass getNonIntensityAncestorPathClass(final PathObject pathObject) {
 		return PathClassTools.getNonIntensityAncestorClass(pathObject.getPathClass());
@@ -3170,7 +3603,7 @@ public class QP {
 	/**
 	 * Set the intensity classifications for the specified objects.
 	 * 
-	 * @param pathObjects
+	 * @param pathObjects The specified objects.
 	 * @param measurementName measurement to threshold
 	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
 	 */
@@ -3181,7 +3614,7 @@ public class QP {
 	/**
 	 * Set intensity classifications for all selected (detection) objects in the specified hierarchy.
 	 * 
-	 * @param hierarchy
+	 * @param hierarchy The relevant hierarchy.
 	 * @param measurementName measurement to threshold
 	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
 	 */
@@ -3249,8 +3682,9 @@ public class QP {
 	}
 	
 	/**
-	 * 
-	 * @param hierarchy
+	 * Set the intensity classifications for cells in the specified hierarchy.
+	 *
+	 * @param hierarchy the hierarchy containing cells
 	 * @param measurementName measurement to threshold
 	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
 	 */
@@ -3976,58 +4410,70 @@ public class QP {
 	}
 	
 	/**
-	 * Merge the specified annotations to create a new annotation containing the union of their ROIs.
+	 * Merge the specified annotations to create a new annotation containing the union of their ROIs. The new annotation
+	 * is then added to the provided hierarchy.
 	 * <p>
 	 * Note:
 	 * <ul>
-	 * <li>The existing annotations will be removed from the hierarchy if possible, therefore should be duplicated first 
-	 * if this is not desired.</li>
-	 * <li>The new object will be set to be the selected object in the hierarchy (which can be used to retrieve it if needed).</li>
+	 *     <li>
+	 *         The provided annotations that are used during the merge will be removed from the hierarchy if possible,
+	 *         therefore should be duplicated first if this is not desired.
+ 	 *     </li>
+	 *     <li>The new object will be set to be the selected object in the hierarchy (which can be used to retrieve it if needed).</li>
+	 *     <li>The ROIs of the provided annotations must all have the same {@link ImagePlane}, otherwise the operation will fail.</li>
+	 *     <li>If the provided annotations have the same {@link PathClass}, it will be applied to the created annotation.</li>
 	 * </ul>
 	 * 
-	 * @param hierarchy
-	 * @param annotations
+	 * @param hierarchy the hierarchy in which the merged annotation should be added
+	 * @param annotations the objects to merge. Only annotations with area or point ROI are taken into account
 	 * @return true if changes are made to the hierarchy, false otherwise
 	 */
 	public static boolean mergeAnnotations(final PathObjectHierarchy hierarchy, final Collection<PathObject> annotations) {
-		if (hierarchy == null)
+		if (hierarchy == null || annotations == null) {
+			logger.warn("The provided hierarchy or collection of annotations is null");
 			return false;
-		
-		// Get all the selected annotations with area
-		ROI shapeNew = null;
-		List<PathObject> merged = new ArrayList<>();
-		Set<PathClass> pathClasses = new HashSet<>();
-		for (PathObject annotation : annotations) {
-			if (annotation.isAnnotation() && annotation.hasROI() && (annotation.getROI().isArea() || annotation.getROI().isPoint())) {
-				if (shapeNew == null)
-					shapeNew = annotation.getROI();//.duplicate();
-				else if (shapeNew.getImagePlane().equals(annotation.getROI().getImagePlane()))
-					shapeNew = RoiTools.combineROIs(shapeNew, annotation.getROI(), RoiTools.CombineOp.ADD);
-				else {
-					logger.warn("Cannot merge ROIs across different image planes!");
-					return false;
-				}
-				if (annotation.getPathClass() != null)
-					pathClasses.add(annotation.getPathClass());
-				merged.add(annotation);
-			}
 		}
-		// Check if we actually merged anything
-		if (merged.isEmpty() || merged.size() == 1)
+
+		List<PathObject> annotationsToMerge = annotations.stream()
+				.filter(PathObject::isAnnotation)
+				.filter(PathObject::hasROI)
+				.filter(annotation -> annotation.getROI().isArea() || annotation.getROI().isPoint())
+				.toList();
+		if (annotationsToMerge.isEmpty()) {
+			logger.warn("No valid (i.e. area or point) annotation to merge");
 			return false;
-	
-		// Create and add the new object, removing the old ones
-		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
-		if (pathClasses.size() == 1)
-			pathObjectNew.setPathClass(pathClasses.iterator().next());
-		else
-			logger.warn("Cannot assign class unambiguously - " + pathClasses.size() + " classes represented in selection");
-		hierarchy.removeObjects(merged, true);
-		hierarchy.addObject(pathObjectNew);
-		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
-		//				pathObject.removePathObjects(children);
-		//				pathObject.addPathObject(pathObjectNew);
-		//				hierarchy.fireHierarchyChangedEvent(pathObject);
+		}
+
+		List<ImagePlane> imagePlanes = annotations.stream()
+				.map(annotation -> annotation.getROI().getImagePlane())
+				.distinct()
+				.toList();
+		if (imagePlanes.size() > 1) {
+			logger.warn("Cannot merge ROIs across different image planes! Got {}", imagePlanes);
+			return false;
+		}
+
+		PathObject mergedAnnotation = PathObjects.createAnnotationObject(RoiTools.union(
+				annotationsToMerge.stream().map(PathObject::getROI).toList()
+		));
+
+		List<PathClass> classifications = annotations.stream()
+				.map(PathObject::getPathClass)
+				.filter(Objects::nonNull)
+				.distinct()
+				.toList();
+		if (classifications.isEmpty()) {
+			logger.debug("No classification found in the provided annotations. The merged annotation will be unclassified");
+		} else if (classifications.size() == 1) {
+			mergedAnnotation.setPathClass(classifications.getFirst());
+		} else {
+			logger.warn("Cannot assign class unambiguously to merged annotation - {} represented in selection", classifications);
+		}
+
+		hierarchy.removeObjects(annotationsToMerge, true);
+		hierarchy.addObject(mergedAnnotation);
+		hierarchy.getSelectionModel().setSelectedObject(mergedAnnotation);
+
 		return true;
 	}
 
@@ -4422,10 +4868,30 @@ public class QP {
 	
 	/**
 	 * Get the logger associated with this class.
-	 * @return
+	 * @return the logger
 	 */
 	public static Logger getLogger() {
 		return logger;
+	}
+
+	/**
+	 * Get a logger with a specified name.
+	 * @param name the name of the logger
+	 * @return the logger
+	 * @since v0.6.0
+	 */
+	public static Logger getLogger(String name) {
+		return LoggerFactory.getLogger(name);
+	}
+
+	/**
+	 * Get a logger associated with a specified class.
+	 * @param cls the class used to determine the logger name
+	 * @return the logger
+	 * @since v0.6.0
+	 */
+	public static Logger getLogger(Class<?> cls) {
+		return LoggerFactory.getLogger(cls);
 	}
 	
 	
@@ -4755,6 +5221,119 @@ public class QP {
 		 return changes;
 	 }
 
+
+	/**
+	 * Remove all objects that touch the boundary of the current image.
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingImageBounds() {
+		return removeObjectsTouchingImageBounds(null);
+	}
+
+	/**
+	 * Remove all objects that touch the boundary of the current image.
+	 * @param filter optional filter to identify which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingImageBounds(Predicate<PathObject> filter) {
+		return removeObjectsTouchingImageBounds(getCurrentImageData(), filter);
+	}
+
+	/**
+	 * Remove objects that touch the boundary of the specified image.
+	 * @param imageData the image to process
+	 * @param filter optional filter to restrict which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingImageBounds(ImageData<?> imageData, Predicate<PathObject> filter) {
+		 if (imageData == null)
+			 return false;
+		 return PathObjectTools.removeTouchingImageBounds(imageData, filter);
+	}
+
+	/**
+	 * Remove all objects that touch or overlap the bounds of the selected objects in the current image.
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingSelectedBounds() {
+		return removeObjectsTouchingSelectedBounds(null);
+	}
+
+	/**
+	 * Remove objects that touch or overlap the bounds of the selected objects in the current image.
+	 * @param filter optional filter to restrict which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingSelectedBounds(Predicate<PathObject> filter) {
+		return removeObjectsTouchingSelectedBounds(getCurrentHierarchy(), filter);
+	}
+
+	/**
+	 * Remove objects that touch or overlap the bounds of the selected objects in the specified object hierarchy.
+	 * @param hierarchy the object hierarchy to use
+	 * @param filter optional filter to restrict which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeObjectsTouchingSelectedBounds(PathObjectHierarchy hierarchy, Predicate<PathObject> filter) {
+		if (hierarchy == null)
+			return false;
+		var selected = List.copyOf(hierarchy.getSelectionModel().getSelectedObjects());
+		boolean changes = false;
+		for (var obj : selected) {
+			changes = changes | PathObjectTools.removeTouchingBounds(hierarchy, obj, filter);
+		}
+		return changes;
+	}
+
+	/**
+	 * Remove all objects that touch or overlap the bounds of the selected objects in the current image,
+	 * and are direct children of the selected objects.
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeChildObjectsTouchingSelectedBounds() {
+		return removeChildObjectsTouchingSelectedBounds(null);
+	}
+
+	/**
+	 * Remove objects that touch or overlap the bounds of the selected objects in the current image,
+	 * and are direct children of the selected objects.
+	 * @param filter optional filter to restrict which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeChildObjectsTouchingSelectedBounds(Predicate<PathObject> filter) {
+		return removeChildObjectsTouchingSelectedBounds(getCurrentHierarchy(), filter);
+	}
+
+	/**
+	 * Remove objects that touch or overlap the bounds of the selected objects in the specified image,
+	 * and are direct children of the selected objects.
+	 * @param hierarchy the object hierarchy to use
+	 * @param filter optional filter to restrict which objects can be removed (e.g. only detections, only annotations)
+	 * @return true if objects were removed, false otherwise
+	 * @since v0.6.0
+	 */
+	public static boolean removeChildObjectsTouchingSelectedBounds(PathObjectHierarchy hierarchy, Predicate<PathObject> filter) {
+		if (hierarchy == null)
+			return false;
+		var selected = List.copyOf(hierarchy.getSelectionModel().getSelectedObjects());
+		boolean changes = false;
+		for (var obj : selected) {
+			Predicate<PathObject> predicate = (PathObject p) -> Objects.equals(obj, p.getParent());
+			if (filter != null)
+				predicate = filter.and(predicate);
+			changes = changes | PathObjectTools.removeTouchingBounds(hierarchy, obj, predicate);
+		}
+		return changes;
+	}
+
 	 
 	 /*
 	  * If Groovy finds a getXXX() it's liable to make xXX look like a variable...
@@ -4833,5 +5412,83 @@ public class QP {
 				 + "or default a local variable with 'def {}'", name, name, name);
 		 throw new UnsupportedOperationException(name + " cannot be set!");
 	 }
-	
+
+	/**
+	 * Simplify all annotations to a given threshold
+	 * @see ShapeSimplifier#simplifyPolygon(PolygonROI, double)
+	 * @param altitudeThreshold altitude value for simplification
+	 */
+	public static void simplifyAllAnnotations(double altitudeThreshold) {
+		 simplifySpecifiedAnnotations(getAnnotationObjects(), altitudeThreshold);
+	}
+
+	/**
+	 * Simplify the currently selected annotations to a given threshold
+	 * @see ShapeSimplifier#simplifyPolygon(PolygonROI, double)
+	 * @param altitudeThreshold altitude value for simplification
+	 */
+	public static void simplifySelectedAnnotations(double altitudeThreshold) {
+		simplifySpecifiedAnnotations(
+				Objects.requireNonNull(getSelectedObjects())
+						.stream()
+						.toList(),
+				altitudeThreshold);
+	}
+
+	/**
+	 * Simplify a set of pathObjects to a given threshold.
+	 * @see ShapeSimplifier#simplifyPolygon(PolygonROI, double)
+	 * @param pathObjects the path objects
+	 * @param altitudeThreshold altitude value for simplification
+	 */
+	public static void simplifySpecifiedAnnotations(Collection<? extends PathObject> pathObjects, double altitudeThreshold) {
+		int skipped = 0;
+		for (var po: pathObjects) {
+			if (!(po instanceof PathAnnotationObject pao)) {
+				skipped++;
+				continue;
+			}
+			pao.setROI(ShapeSimplifier.simplifyROI(po.getROI(), altitudeThreshold));
+		}
+		if (skipped > 0) {
+			logger.warn("{} non-annotation objects supplied to simplifySpecifiedAnnotations (ignored)", skipped);
+		}
+
+	}
+
+	/**
+	 * Convert the selected objects to points, based on the object centroids.
+	 * Cells are converted based on the nucleus ROI.
+	 * <br>
+	 * The original objects are not removed; see {@link QP#removeObjects(Collection pathObjects)}.
+	 * @see PathObjectTools#convertToPoints(Collection, boolean) if you want to use the cell ROI instead.
+	 */
+	public static void convertSelectedObjectsToPoints() {
+		convertSpecifiedObjectsToPoints(getCurrentHierarchy(), getSelectedObjects());
+	}
+
+
+	/**
+	 * Convert all detection objects to points, based on the object centroids.
+	 * Cells are converted based on the nucleus ROI.
+	 * <br>
+	 * The original objects are not removed; see {@link QP#removeObjects(Collection pathObjects)}.
+	 * @see PathObjectTools#convertToPoints(Collection, boolean) if you want to use the cell ROI instead.
+	 */
+	public static void convertDetectionsToPoints() {
+		convertSpecifiedObjectsToPoints(getCurrentHierarchy(), getDetectionObjects());
+	}
+
+	/**
+	 * Convert the selected objects to points, based on the object centroids.
+	 * Cells are converted based on the nucleus ROI.
+	 * <br>
+	 * The original objects are not removed; see {@link QP#removeObjects(Collection pathObjects)}.
+	 * @see PathObjectTools#convertToPoints(Collection, boolean) if you want to use the cell ROI instead.
+	 * @param hierarchy the hierarchy that the objects are contained in
+	 * @param pathObjects the objects to be converted to points (these will be removed from the object hierarchy).
+	 */
+	public static void convertSpecifiedObjectsToPoints(PathObjectHierarchy hierarchy, Collection<? extends PathObject> pathObjects) {
+		PathObjectTools.convertToPoints(hierarchy, pathObjects, true, false);
+	}
 }

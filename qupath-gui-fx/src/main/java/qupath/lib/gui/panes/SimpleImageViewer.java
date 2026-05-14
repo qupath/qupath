@@ -78,6 +78,7 @@ import qupath.lib.images.servers.WrappedBufferedImageServer;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.text.MessageFormat;
 import java.util.concurrent.Callable;
 
 /**
@@ -414,8 +415,14 @@ public class SimpleImageViewer {
             try {
                 ImageIO.write(img.get(), "PNG", fileOutput);
             } catch (Exception e) {
-                Dialogs.showErrorMessage("Save image",
-                        "Error saving " + fileOutput.getName() + "\n" + e.getLocalizedMessage());
+                Dialogs.showErrorMessage(
+                        QuPathResources.getString("SimpleImageViewer.saveImage"),
+                        MessageFormat.format(
+                                QuPathResources.getString("SimpleImageViewer.errorSaving"),
+                                fileOutput.getName(),
+                                e.getLocalizedMessage()
+                        )
+                );
             }
         }
     }
@@ -543,8 +550,10 @@ public class SimpleImageViewer {
 
     private void handleSetSaturation() {
         Double percent = Dialogs.showInputDialog(
-                "Set saturation",
-                "Set saturation percentage", saturation.get());
+                QuPathResources.getString("SimpleImageViewer.setSaturation"),
+                QuPathResources.getString("SimpleImageViewer.setSaturationDescription"),
+                saturation.get()
+        );
         if (percent != null && Double.isFinite(percent) && percent >= 0 && percent < 100) {
             setSaturationPercent(percent);
         }

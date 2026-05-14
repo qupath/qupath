@@ -21,6 +21,10 @@
 
 package qupath.lib.classifiers.object;
 
+import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -31,9 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.classes.PathClass;
 
 /**
  * Apply a collection of classifiers sequentially.

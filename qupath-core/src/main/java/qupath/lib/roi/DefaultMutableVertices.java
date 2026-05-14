@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,12 +23,12 @@
 
 package qupath.lib.roi;
 
-import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.geom.Point2;
+
+import java.util.List;
+import java.util.Objects;
 
 /**
  * Simple class to store x,y coordinates as floating point arrays.
@@ -40,9 +40,9 @@ import qupath.lib.geom.Point2;
  */
 class DefaultMutableVertices implements Vertices, MutableVertices {
 	
-	static Logger logger = LoggerFactory.getLogger(DefaultMutableVertices.class);
+	private static final Logger logger = LoggerFactory.getLogger(DefaultMutableVertices.class);
 	
-	private DefaultVertices vertices;
+	private final DefaultVertices vertices;
 	
 	DefaultMutableVertices(final DefaultVertices vertices) {
 		this.vertices = vertices;
@@ -202,7 +202,19 @@ class DefaultMutableVertices implements Vertices, MutableVertices {
 		return new DefaultMutableVertices((DefaultVertices)vertices.duplicate());
 	}
 
-//	@Override
+	@Override
+	public boolean equals(Object o) {
+		if (o == null || getClass() != o.getClass()) return false;
+		DefaultMutableVertices that = (DefaultMutableVertices) o;
+		return Objects.equals(vertices, that.vertices);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hashCode(vertices);
+	}
+
+	//	@Override
 //	public VerticesIterator getIterator() {
 //		return vertices.getIterator();
 //	}

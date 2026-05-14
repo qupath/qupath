@@ -21,10 +21,11 @@
 
 package qupath.lib.gui.scripting.richtextfx.stylers;
 
-import java.util.Collection;
-import java.util.Set;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
+
+import java.util.Collection;
+import java.util.Set;
 
 /**
  * Styling to apply to a {@link CodeArea}, based on Java .properties and .cfg file syntax.

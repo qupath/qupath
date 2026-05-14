@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,20 +23,15 @@
 
 package qupath.lib.gui.viewer.tools.handlers;
 
-import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
-import java.util.Collections;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.animation.Animation;
 import javafx.animation.Animation.Status;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.scene.Cursor;
 import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -45,9 +40,13 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RoiEditor;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.util.Collections;
 
 /**
  * The MoveTool is used for quite a lot of things, movement-related:
@@ -57,7 +56,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class MoveToolEventHandler extends AbstractPathToolEventHandler {
+public class MoveToolEventHandler extends AbstractPathToolEventHandler<MouseEvent> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(MoveToolEventHandler.class);
 
@@ -130,7 +129,8 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler {
 				if (!e.isConsumed() && canAdjust(currentObject) &&
 						(RoiTools.areaContains(currentROI, xx, yy) || ToolUtils.getSelectableObjectList(viewer, xx, yy).contains(currentObject))) {
 					// If we have a translatable ROI, try starting translation
-					if (editor.startTranslation(xx, yy, PathPrefs.usePixelSnappingProperty().get() && currentROI.isArea()))
+					// No translation should happen if we have points, because we never want to move all points together
+					if (!editor.getROI().isPoint() && editor.startTranslation(xx, yy, PathPrefs.usePixelSnappingProperty().get() && currentROI.isArea()))
 						e.consume();
 				}
 				if (e.isConsumed()) {

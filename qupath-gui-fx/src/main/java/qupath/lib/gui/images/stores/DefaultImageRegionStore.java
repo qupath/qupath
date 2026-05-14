@@ -23,6 +23,14 @@
 
 package qupath.lib.gui.images.stores;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.awt.common.AwtTools;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.regions.RegionRequest;
+
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -38,15 +46,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.awt.common.AwtTools;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.regions.RegionRequest;
 
 
 /**
@@ -125,7 +124,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 				logger.debug("Repaint skipped...");
 				continue;
 			} catch (InterruptedException e) {
-				logger.warn("Tile request interrupted in 'paintRegionCompletely': {}", e.getLocalizedMessage());
+				logger.debug("Tile request interrupted in 'paintRegionCompletely': {}", e.getLocalizedMessage());
 				return;
 			} catch (ExecutionException e) {
 				logger.error("Execution exception in 'paintRegionCompletely'", e);
@@ -143,7 +142,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 							if (imgTile != null)
 								cache.put(request, imgTile);
 						} catch (IOException e1) {
-							logger.warn("Unable to read tile for " + request, e1);
+                            logger.warn("Unable to read tile for {}", request, e1);
 						}
 					} else
 						try {

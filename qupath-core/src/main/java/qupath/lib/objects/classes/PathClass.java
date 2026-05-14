@@ -23,6 +23,10 @@
 
 package qupath.lib.objects.classes;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.ColorTools;
+
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -39,11 +43,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.ColorTools;
 
 /**
  * Representation of an object's classification - which can be defined using any unique string
@@ -176,12 +175,12 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	/**
 	 * Cache the set representation
 	 */
-	private transient Set<String> set;
+	private transient volatile Set<String> set;
 	
 	/**
 	 * Cache the list representation
 	 */
-	private transient List<String> list;
+	private transient volatile List<String> list;
 
 	private PathClass(UUID mySecret) {
 		if (!Objects.equals(secret, mySecret))
@@ -561,7 +560,7 @@ public final class PathClass implements Comparable<PathClass>, Serializable {
 	public static PathClass fromString(String string, Integer color) {
 		if (string == null)
 			return NULL_CLASS;
-		var names = Arrays.stream(string.split(DELIMITER)).map(s -> s.strip()).toList();
+		var names = Arrays.stream(string.split(DELIMITER)).map(String::strip).toList();
 		return fromCollection(names, color);
 	}
 

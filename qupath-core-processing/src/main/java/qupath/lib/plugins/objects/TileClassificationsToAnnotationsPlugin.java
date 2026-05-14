@@ -23,18 +23,8 @@
 
 package qupath.lib.plugins.objects;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -51,6 +41,15 @@ import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Plugin to merge classified tiles into annotation objects.
@@ -128,7 +127,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 			
 			params.addChoiceParameter("pathClass", "Choose class", defaultChoice, choices, "Choose PathClass to create annotations from")
 					.addBooleanParameter("deleteTiles", "Delete existing child objects", false, "Delete the tiles that were used for creating annotations - further training will not be possible after these are deleted")
-					.addBooleanParameter("clearAnnotations", "Clear existing annotations", true, "Remove all existing annotations (often a good idea if they were used to train a classifier, but are no longer needed)")
+					.addBooleanParameter("clearAnnotations", "Remove existing annotations", true, "Remove all existing annotations (often a good idea if they were used to train a classifier, but are no longer needed)")
 					.addBooleanParameter("splitAnnotations", "Split new annotations", false, "Split newly-created annotations into distinct regions (rather than have one large, possibly-discontinuous object)");
 	//				.addDoubleParameter("simplify", "Simplify shapes", 0);
 		}
@@ -236,7 +235,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 		public void taskComplete(boolean wasCancelled) {
 			if (!wasCancelled && !Thread.currentThread().isInterrupted()) {
 				if (params.getBooleanParameterValue("deleteTiles"))
-					parentObject.clearChildObjects();
+					parentObject.removeAllChildObjects();
 				if (pathAnnotations != null && !pathAnnotations.isEmpty())
 					parentObject.addChildObjects(pathAnnotations);
 				imageData.getHierarchy().fireHierarchyChangedEvent(parentObject);

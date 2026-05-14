@@ -1,0 +1,12 @@
+.title {
+    -fx-font-weight: bold;
+}
+
+.macro {
+    -fx-font-family: monospace;
+}
+
+.warning {
+    -fx-fill: -qp-script-error-color;
+    -fx-text-fill: -qp-script-error-color;
+}

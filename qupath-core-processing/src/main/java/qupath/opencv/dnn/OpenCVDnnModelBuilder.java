@@ -21,13 +21,11 @@
 
 package qupath.opencv.dnn;
 
+import org.bytedeco.opencv.opencv_dnn.Net;
+import qupath.lib.common.GeneralTools;
+
 import java.nio.file.Paths;
 import java.util.Set;
-
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_dnn.Net;
-
-import qupath.lib.common.GeneralTools;
 
 /**
  * A {@link DnnModelBuilder} implementation that uses OpenCV's DNN module 

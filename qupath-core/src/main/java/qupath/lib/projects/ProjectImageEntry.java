@@ -23,13 +23,6 @@
 
 package qupath.lib.projects;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -37,6 +30,14 @@ import qupath.lib.interfaces.MinimalMetadataStore;
 import qupath.lib.io.UriResource;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.ResourceManager.Manager;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  * Class to represent an image entry within a project.
@@ -288,7 +289,14 @@ public interface ProjectImageEntry<T> extends UriResource, MinimalMetadataStore 
 	 * @return
 	 */
 	Manager<ImageServer<T>> getImages();
-	
-	
 
+	/**
+	 * Returns a modifiable set containing tag values.
+	 * <p>
+	 * The returned set may or may not be thread-safe. Implementing classes must
+	 * document the thread-safeness of the set.
+	 *
+	 * @return the set of tags of this entry
+	 */
+	Set<String> getTags();
 }

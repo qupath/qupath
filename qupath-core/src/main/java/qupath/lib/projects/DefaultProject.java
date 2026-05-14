@@ -23,6 +23,30 @@
 
 package qupath.lib.projects;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.ImageData.ImageType;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.io.GsonTools;
+import qupath.lib.io.PathIO;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.projects.ResourceManager.ImageResourceManager;
+import qupath.lib.projects.ResourceManager.Manager;
+
+import javax.imageio.ImageIO;
+import javax.swing.SwingUtilities;
 import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
@@ -43,38 +67,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-
-import javax.imageio.ImageIO;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.ImageData.ImageType;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.io.GsonTools;
-import qupath.lib.io.PathIO;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.projects.ResourceManager.ImageResourceManager;
-import qupath.lib.projects.ResourceManager.Manager;
 
 /**
  * Data structure to store multiple images, relating these to a file system.
@@ -325,8 +326,8 @@ class DefaultProject implements Project<BufferedImage> {
 	public void removeImage(final ProjectImageEntry<?> entry, boolean removeAllData) {
 		boolean couldRemove = images.remove(entry);
 		// Need to make sure we only delete data if it's really inside this project!
-		if (couldRemove && removeAllData && entry instanceof DefaultProjectImageEntry) {
-			((DefaultProjectImageEntry)entry).moveDataToTrash();
+		if (couldRemove && removeAllData && entry instanceof DefaultProjectImageEntry defaultEntry) {
+			defaultEntry.moveDataToTrash();
 		}
 	}
 
@@ -442,6 +443,7 @@ class DefaultProject implements Project<BufferedImage> {
 		 * Map of associated metadata for the entry.
 		 */
 		private Map<String, String> metadata = Collections.synchronizedMap(new LinkedHashMap<>());
+		private final Set<String> tags = Collections.synchronizedSet(new LinkedHashSet<>());
 
 		/**
 		 * Store a soft reference to the thumbnail, so that it can be garbage collected if necessary.
@@ -480,9 +482,13 @@ class DefaultProject implements Project<BufferedImage> {
 			this.entryID = entry.entryID;
 			this.imageName = entry.imageName;
 			this.description = entry.description;
-			if (entry.metadata != null)
+			if (entry.metadata != null) {
 				this.metadata.putAll(entry.metadata);
-		}
+			}
+			if (entry.tags != null) {
+				this.tags.addAll(entry.tags);
+			}
+        }
 		
 		/**
 		 * Copy the image data from another entry.
@@ -527,7 +533,7 @@ class DefaultProject implements Project<BufferedImage> {
 			}
 			return imageManager;
 		}
-		
+
 		private String getFullProjectEntryID() {
 			return file.getAbsolutePath() + "::" + getID();
 		}
@@ -840,6 +846,19 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 
 		/**
+		 * Returns a thread-safe (see {@link Collections#synchronizedSet(Set)}) and modifiable set containing the tags
+		 * of this entry.
+		 * <p>
+		 * Modifications to this set are saved when calling {@link #syncChanges()}.
+		 *
+		 * @return the set of tags of this entry
+		 */
+		@Override
+		public Set<String> getTags() {
+			return tags;
+		}
+
+		/**
 		 * Reset the cached thumbnail, so that it will be reloaded next time it is requested.
 		 */
 		private synchronized void resetCachedThumbnail() {
@@ -847,17 +866,29 @@ class DefaultProject implements Project<BufferedImage> {
 			cachedThumbnail = null;
 		}
 		
-		synchronized boolean moveDataToTrash() {
+		synchronized void moveDataToTrash() {
 			Path path = getEntryPath();
 			if (!Files.exists(path))
-				return true;
+				return;
 			if (Desktop.isDesktopSupported()) {
 				var desktop = Desktop.getDesktop();
-				if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH))
-					return desktop.moveToTrash(path.toFile());
+				if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH)) {
+					// See https://github.com/qupath/qupath/issues/1738
+					// It's not clear if this will help, but Desktop sometimes cares about the event dispatch thread
+					if (SwingUtilities.isEventDispatchThread()) {
+						if (desktop.moveToTrash(path.toFile()))
+							return;
+					} else {
+						SwingUtilities.invokeLater(() -> {
+							if (!desktop.moveToTrash(path.toFile())) {
+								logger.warn("Unable to move {} to trash - please delete manually if required", path);
+							}
+						});
+						return;
+					}
+				}
 			}
 			logger.warn("Unable to move {} to trash - please delete manually if required", path);
-			return false;
 		}
 		
 	}

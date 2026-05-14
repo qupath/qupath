@@ -23,18 +23,17 @@
 
 package qupath.lib.color;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+import qupath.lib.common.ColorTools;
 
 import java.util.Locale;
 import java.util.Random;
 
-import org.junit.jupiter.api.Test;
-
-import qupath.lib.color.ColorTransformer.ColorTransformMethod;
-import qupath.lib.common.ColorTools;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("javadoc")
 public class TestColors {

@@ -21,27 +21,6 @@
 
 package qupath.process.gui.commands.density;
 
-import java.awt.Color;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.DataBuffer;
-import java.awt.image.Raster;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import org.controlsfx.control.action.Action;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import ij.CompositeImage;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -73,8 +52,13 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Modality;
 import javafx.stage.Window;
-import qupath.fx.utils.FXUtils;
+import org.controlsfx.control.action.Action;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
+import qupath.fx.utils.FXUtils;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.heatmaps.DensityMaps;
@@ -82,11 +66,9 @@ import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -100,6 +82,23 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
 import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 import qupath.process.gui.commands.ui.SaveResourcePaneBuilder;
+
+import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
+import java.awt.image.Raster;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * UI elements associated with density maps.
@@ -307,10 +306,15 @@ public class DensityMapUI {
 	}
 
 	/**
-	 * Ignore classification (accept all objects).
+	 * Ignore classification entirely (i.e. accept all objects).
 	 * Generated with a UUID for uniqueness, and because it should not be serialized.
 	 */
-	public static final PathClass ANY_CLASS = PathClass.fromString(UUID.randomUUID().toString());
+	public static final PathClass ANY_CLASS_OR_NONE = PathClass.fromString(UUID.randomUUID().toString());
+
+	/**
+	 * Any classification, but not no classification.
+	 */
+	public static final PathClass ANY_SPECIFIED_CLASS = PathClass.fromString(UUID.randomUUID().toString());
 
 	/**
 	 * Accept any positive classification, including 1+, 2+, 3+.
@@ -887,7 +891,7 @@ public class DensityMapUI {
 			var dialog = new Dialog<ButtonType>();
 			dialog.setTitle(title);
 			dialog.setHeaderText("How do you want to export the density map?");
-			dialog.setContentText("Choose 'Raw values' of 'Send to ImageJ' if you need the original counts, or 'Color overlay' if you want to keep the same visual appearance.");
+			dialog.setContentText("Choose 'Raw values' or 'Send to ImageJ' if you need the original counts, or 'Color overlay' if you want to keep the same visual appearance.");
 			var btOrig = new ButtonType("Raw values");
 			var btColor = new ButtonType("Color overlay");
 			var btImageJ = new ButtonType("Send to ImageJ");

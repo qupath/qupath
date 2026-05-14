@@ -21,14 +21,14 @@
 
 package qupath.process.gui.commands.ml;
 
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.PixelCalibration;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.PixelCalibration;
 
 /**
  * Wrapper for a {@link PixelCalibration} to be used to define classifier resolution.

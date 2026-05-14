@@ -21,10 +21,7 @@
 
 package qupath.lib.gui.actions.menus;
 
-import java.util.List;
-
 import org.controlsfx.control.action.Action;
-
 import qupath.lib.algorithms.IntensityFeaturesPlugin;
 import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.gui.QuPathGUI;
@@ -34,6 +31,8 @@ import qupath.lib.gui.actions.annotations.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
+
+import java.util.List;
 
 public class AnalyzeMenuActions implements MenuActions {
 	

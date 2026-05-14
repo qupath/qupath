@@ -21,17 +21,17 @@
 
 package qupath.process.gui.commands.ml;
 
-import java.awt.image.BufferedImage;
-import java.util.Collection;
-import java.util.TreeSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectExpression;
 import javafx.scene.control.TextField;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.projects.Project;
+
+import java.awt.image.BufferedImage;
+import java.util.Collection;
+import java.util.TreeSet;
 
 /**
  * Class to help with formatting text fields for entering pixel and object classifier names.

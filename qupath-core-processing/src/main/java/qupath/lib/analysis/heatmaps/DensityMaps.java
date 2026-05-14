@@ -22,27 +22,10 @@
 
 package qupath.lib.analysis.heatmaps;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.analysis.heatmaps.ColorModels.ColorModelBuilder;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -68,10 +51,27 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
+import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.tools.OpenCVTools;
 import qupath.opencv.tools.OpenCVTools.IndexedPixel;
-import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
+
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Class for constructing and using density maps.

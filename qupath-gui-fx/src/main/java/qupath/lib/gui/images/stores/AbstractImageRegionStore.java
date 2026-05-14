@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,6 +22,17 @@
  */
 
 package qupath.lib.gui.images.stores;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalCause;
+import com.google.common.cache.Weigher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.images.servers.GeneratingImageServer;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.RegionRequest;
 
 import java.awt.Shape;
 import java.io.IOException;
@@ -41,52 +52,32 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.RemovalCause;
-import com.google.common.cache.Weigher;
-
-import qupath.lib.awt.common.AwtTools;
-import qupath.lib.common.ThreadTools;
-import qupath.lib.images.servers.GeneratingImageServer;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.regions.RegionRequest;
-
 
 /**
  * A generic ImageRegionStore.
- * 
- * 
- * @author Pete Bankhead
- * @param <T> 
  *
+ * @author Pete Bankhead
+ * @param <T> the generic parameter for an image (most likely BufferedImage)
  */
 abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
-	
-	private static final int DEFAULT_THUMBNAIL_WIDTH = 1000;
-	
+
 	private static final Logger logger = LoggerFactory.getLogger(AbstractImageRegionStore.class);
 
+	private static final int DEFAULT_THUMBNAIL_WIDTH = 1024; // Increased from 1000 before v0.6.0
+
 	// Workers who can get individual tiles
-	private List<TileWorker<T>> workers = Collections.synchronizedList(new ArrayList<>());
+	private final List<TileWorker<T>> workers = Collections.synchronizedList(new ArrayList<>());
 	
 	// Set of regions for which a tile has been requested, but not yet fully loaded
-	private Map<RegionRequest, TileWorker<T>> waitingMap = new ConcurrentHashMap<>();
+	private final Map<RegionRequest, TileWorker<T>> waitingMap = new ConcurrentHashMap<>();
 
 	private boolean clearingCache = false; // Flag that cache is currently being cleared
 	
-	protected static boolean paintTileBorders = false; // For debugging only, not necessarily used
-
 	protected List<TileListener<T>> tileListeners = Collections.synchronizedList(new ArrayList<>());
 
 	// Cache of image tiles for specified regions
 	protected Map<RegionRequest, T> cache;
-	// Cache image thumbnails
-	protected Map<RegionRequest, T> thumbnailCache;
-	
+
 	/**
 	 * Maximum size of thumbnail, in any dimension.
 	 */
@@ -102,13 +93,13 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	 */
 	private long tileCacheSizeBytes;
 	
-	private TileRequestManager manager = new TileRequestManager(10);
+	private final TileRequestManager manager = new TileRequestManager(10);
 	
 	// Create two threadpools: a larger one for images that need to be fetched (e.g. from disk, cloud storage), and a smaller one
 	// for painting image tiles... the reason being that the high latency of distantly-stored images otherwise risks lowering
 	// repainting performance
-	private ExecutorService pool = Executors.newFixedThreadPool(Math.max(8, Math.min(Runtime.getRuntime().availableProcessors() * 4, 32)), ThreadTools.createThreadFactory("region-store-", false));
-	private ExecutorService poolLocal = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), ThreadTools.createThreadFactory("region-store-local-", false));
+	private final ExecutorService pool = Executors.newFixedThreadPool(Math.max(8, Math.min(Runtime.getRuntime().availableProcessors() * 4, 32)), ThreadTools.createThreadFactory("region-store-", false));
+	private final ExecutorService poolLocal = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), ThreadTools.createThreadFactory("region-store-local-", false));
 	
 	
 
@@ -129,23 +120,12 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 				.concurrencyLevel(concurrencyLevel)
 //				.recordStats()
 				.removalListener(n -> {
-					if (n.getCause() == RemovalCause.COLLECTED)
-						logger.debug("Cached tile collected" + n.getKey() + " (cache size=" + cache.size()+")");
-					})
-				.build();
+					if (n.getCause() == RemovalCause.COLLECTED) {
+                        logger.debug("Cached tile collected: {} (cache size={})", n.getKey(), cache.size());
+					} else {
+						logger.trace("Cached tile removed due to {}: {} (cache size={})", n.getCause(), n.getKey(), cache.size());
+					}}).build();
 		cache = originalCache.asMap();
-
-		Cache<RegionRequest, T> originalThumbnailCache = CacheBuilder.newBuilder()
-				.weigher(weigher)
-				.concurrencyLevel(1)
-				.maximumWeight(maxWeight)
-				.softValues()
-				.build();
-		
-		thumbnailCache = originalThumbnailCache.asMap();
-		
-//		cache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes);
-//		thumbnailCache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes/4);
 	}
 
 	
@@ -163,7 +143,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	}
 	
 	/**
-	 * 
+	 * Calculate the downsample value to use when generating a thumbnail image.
 	 * @param width
 	 * @param height
 	 * @return
@@ -174,7 +154,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		double minDim = Math.min(width, height);
 		if (minDim > minThumbnailSize) {
 			double maxDownsample = minDim / minThumbnailSize;
-			return Math.max(1, Math.min((double)maxDim / maxThumbnailSize, maxDownsample));				
+			return Math.max(1, Math.min(maxDim / maxThumbnailSize, maxDownsample));
 		}
 		return 1.0;
 	}
@@ -183,7 +163,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	RegionRequest getThumbnailRequest(final ImageServer<T> server, final int zPosition, final int tPosition) {
 		// Determine thumbnail size
 		double downsample = 1;
-		if (isTiledImageServer(server)) {
+		if (isPyramidalImageServer(server)) {
 			downsample = calculateThumbnailDownsample(server.getWidth(), server.getHeight());
 		}
 		// Ensure we aren't accidentally upsampling (shouldn't actually happen)
@@ -198,7 +178,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	@Override
 	public T getCachedThumbnail(ImageServer<T> server, int zPosition, int tPosition) {
 		RegionRequest request = getThumbnailRequest(server, zPosition, tPosition);
-		return thumbnailCache.get(request);
+		return cache.get(request);
 	}
 
 
@@ -213,10 +193,6 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	 */
 	protected void registerRequest(final TileListener<T> tileListener, final ImageServer<T> server, final Shape clipShape, final double downsampleFactor, final int zPosition, final int tPosition) {
 		manager.registerRequest(tileListener, server, clipShape, downsampleFactor, zPosition, tPosition);
-	}
-	
-	protected void registerRequest(final TileListener<T> tileListener, final ImageServer<T> server, final RegionRequest region, final double downsampleFactor, final int zPosition, final int tPosition) {
-		registerRequest(tileListener, server, AwtTools.getBounds(region), downsampleFactor, zPosition, tPosition);
 	}
 	
 	
@@ -269,9 +245,8 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	}	
 	
 	
-	static boolean isTiledImageServer(ImageServer<?> server) {
-		return server.getPreferredDownsamples().length > 1;
-//		return server.getWidth() > PathPrefs.maxNonWholeTiledImageLength() || server.getHeight() > PathPrefs.maxNonWholeTiledImageLength();
+	private static boolean isPyramidalImageServer(ImageServer<?> server) {
+		return server.nResolutions() > 1;
 	}
 	
 	
@@ -359,6 +334,11 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		// Start a worker & add to the list
 		TileWorker<T> worker = null;
 		worker = (TileWorker<T>)waitingMap.get(request); // TODO: Consider if this is a bad idea...
+		if (worker != null && worker.isCancelled()) {
+			// Try to fix a bug with z-projection overlays where the projection was lost when the cache filled up
+			workers.remove(worker);
+			worker = null;
+		}
 		if (worker == null) {
 			worker = createTileWorker(server, request, cache, ensureTileReturned);
 			workers.add(worker);
@@ -394,7 +374,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	@SuppressWarnings("unchecked")
 	public synchronized T getThumbnail(ImageServer<T> server, int zPosition, int tPosition, boolean addToCache) {
 		RegionRequest request = getThumbnailRequest(server, zPosition, tPosition);
-		Object result = requestImageTile(server, request, thumbnailCache, true);
+		Object result = requestImageTile(server, request, cache, true);
 		if (!(result instanceof TileWorker<?>))
 			return (T)result;
 		
@@ -412,7 +392,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			logger.warn("Fallback to requesting thumbnail directly...");
 			return server.readRegion(request);
 		} catch (IOException e) {
-			logger.error("Unable to obtain thumbnail for " + request, e);
+            logger.error("Unable to obtain thumbnail for {}", request, e);
 			return null;
 		}
 	}
@@ -422,29 +402,26 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	 * Clear the cache, including thumbnails, and cancel any pending requests.
 	 */
 	public synchronized void clearCache() {
-		clearCache(true, true);
+		clearCache(true);
 	}
 	
 	
 	/**
 	 * Clear the cache, optionally including thumbnails and stopping any pending requests.
 	 * 
-	 * @param stopWaiting
-	 * @param clearThumbnails
+	 * @param stopWaiting cancel any tasks that are currently fetching tiles
 	 */
-	public synchronized void clearCache(final boolean clearThumbnails, final boolean stopWaiting) {
+	public synchronized void clearCache(final boolean stopWaiting) {
 		clearingCache = true;
 		// Try to cancel anything we're waiting for
 		try {
 			if (stopWaiting) {
-				for (TileWorker<T> worker : waitingMap.values().toArray(TileWorker[]::new)) {
+				for (TileWorker<?> worker : waitingMap.values().toArray(TileWorker[]::new)) {
 					worker.cancel(true);
 				}
 				waitingMap.clear();
 				workers.clear();
 			}
-			if (clearThumbnails)
-				thumbnailCache.clear();
 			cache.clear();
 		} finally {
 			clearingCache = false;
@@ -468,14 +445,13 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 					logger.trace("Waiting map size during server clear: {}", waitingMap.size());
 					Entry<RegionRequest, TileWorker<T>> entry = iter.next();
 					if (serverPath.equals(entry.getKey().getPath())) {
-						logger.trace("Removing entry from waiting map for thread  {}", Thread.currentThread().getId());
+						logger.trace("Removing entry from waiting map for thread  {}", Thread.currentThread().threadId());
 						iter.remove();
 						entry.getValue().cancel(true);
 						workers.remove(entry.getValue());
 					}
 				}
 			}
-			clearCacheForServer(thumbnailCache, server);
 			clearCacheForServer(cache, server);
 		} finally {
 			clearingCache = false;			
@@ -506,19 +482,11 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	
 	private synchronized void clearCacheForServer(Map<RegionRequest, T> map, ImageServer<?> server) {
 		String serverPath = server.getPath();
-		var iterator = map.entrySet().iterator();
-		while (iterator.hasNext()) {
-			if (serverPath.equals(iterator.next().getKey().getPath()))
-				iterator.remove();
-		}
+        map.entrySet().removeIf(entry -> serverPath.equals(entry.getKey().getPath()));
 	}
 	
 	private synchronized void clearCacheForRequestOverlap(Map<RegionRequest, T> map, RegionRequest request) {
-		var iterator = map.entrySet().iterator();
-		while (iterator.hasNext()) {
-			if (request.overlapsRequest(iterator.next().getKey()))
-				iterator.remove();
-		}
+        map.entrySet().removeIf(regionRequestTEntry -> request.overlapsRequest(regionRequestTEntry.getKey()));
 	}
 	
 	
@@ -544,11 +512,11 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		static final int MAX_Z_SEPARATION = 10;
 		private List<TileRequestCollection<T>> list = new ArrayList<>();
 		
-		private TileRequestComparator<T> comparator = new TileRequestComparator<>();
-		private int nThreads;
+		private final TileRequestComparator<T> comparator = new TileRequestComparator<>();
+		private final int nThreads;
 		private int busyThreads = 0;
 		
-		private List<TileWorker<T>> requestedWorkers = new ArrayList<>();
+		private final List<TileWorker<T>> requestedWorkers = new ArrayList<>();
 				
 		TileRequestManager(final int nThreads) {
 			this.nThreads = nThreads;
@@ -578,13 +546,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		}
 		
 		public synchronized void deregisterRequest(final TileListener<T> tileListener) {
-			Iterator<TileRequestCollection<T>> iter = list.iterator();
-			while (iter.hasNext()) {
-				TileRequestCollection<T> temp = iter.next();
-				if (temp.tileListener == tileListener) {
-					iter.remove();
-				}
-			}
+            list.removeIf(temp -> temp.tileListener == tileListener);
 		}
 		
 		
@@ -595,13 +557,6 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			while (busyThreads < nThreads && ind < list.size()) {
 				TileRequestCollection<T> temp = list.get(ind);
 				if (!temp.hasMoreTiles()) {
-					// v0.5.0 change - the list wasn't emptying, which caused a memory leak by retaining image servers
-					// indefinitely
-//					ind++;
-//					if (ind < list.size())
-//						temp = list.get(ind);
-//					else
-//						break;
 					list.remove(temp);
 					continue;
 				}
@@ -630,7 +585,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			if (!requestedWorkers.remove(worker))
 				return;
 			busyThreads--;
-			logger.trace("Number of busy threads: " + busyThreads);
+            logger.trace("Number of busy threads: {}", busyThreads);
 			Collections.sort(list, comparator);
 			assignTasks();
 		}
@@ -766,8 +721,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 					// Check if we still need the tile... if not, and we go searching, there can be a backlog
 					// making any requests slower to fulfill
 					// (Also, grab a snapshot of the listener list to avoid concurrent modifications)
-					T img = server.readRegion(request);
-					return img;
+                    return server.readRegion(request);
 				}
 
 			});

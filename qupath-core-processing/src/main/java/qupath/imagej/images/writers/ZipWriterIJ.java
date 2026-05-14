@@ -23,16 +23,16 @@
 
 package qupath.imagej.images.writers;
 
+import ij.ImagePlus;
+import ij.io.FileSaver;
+import qupath.lib.common.GeneralTools;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
-import ij.ImagePlus;
-import ij.io.FileSaver;
-import qupath.lib.common.GeneralTools;
 
 /**
  * ImageWriter implementation to write zipped TIFF images using ImageJ.
