@@ -36,8 +36,12 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
+import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,12 +114,16 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	private final BufferedImage imgGray = new BufferedImage(w, w, BufferedImage.TYPE_BYTE_GRAY);
 	
 	private Mat mat = null; //new Mat(w, w, CV_8U);
+	// Mask needs 1 pixel padding for use with floodFill
 	private final Mat matMask = new Mat(w+2, w+2, CV_8UC1);
 	private final TraceableMask mask = new TraceableMask(matMask);
 	
 	private final Mat matFloat = new Mat(w, w, CV_32FC3);
 	
 	private final Scalar threshold = Scalar.all(1.0);
+	// Seed for circle needs to use the (padding) dimensions of matMask
+	private final Point seedCircle = new Point(w/2+1, w/2+1);
+	// Seed for flood fill needs to use the (unpadded) dimensions of w x w image
 	private final Point seed = new Point(w/2, w/2);
 	private final Mat strel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, new Size(5, 5));;
 
@@ -138,7 +146,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	}
 
 	
-	private static BooleanProperty wandUseOverlays = PathPrefs.createPersistentPreference("wandUseOverlays", true);
+	private static final BooleanProperty wandUseOverlays = PathPrefs.createPersistentPreference("wandUseOverlays", true);
 
 	/**
 	 * Property specifying whether the wand tool should be influenced by pixel values painted on image overlays.
@@ -270,17 +278,18 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 	@Override
 	protected Geometry createShape(MouseEvent e, double x, double y, boolean useTiles, Geometry addToShape) {
 		
-		if (addToShape != null && pLast != null && pLast.distanceSq(x, y) < 2)
+		if (addToShape != null && pLast != null && pLast.distanceSq(x, y) < 1.0)
 			return null;
-		
+
 		long startTime = System.currentTimeMillis();
-		
+		pLast = null;
+
 		QuPathViewer viewer = getViewer();
 		if (viewer == null)
 			return null;
 		
 		double downsample = Math.max(1, Math.round(viewer.getDownsampleFactor() * 4)) / 4.0;
-		
+
 		var regionStore = viewer.getImageRegionStore();
 		
 		// Paint the image as it is currently being viewed
@@ -293,9 +302,9 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 		g2d.setColor(Color.BLACK);
 		g2d.setClip(0, 0, w, w);
 		g2d.fillRect(0, 0, w, w);
-		double xStart = Math.round(x-w*downsample*0.5);
-		double yStart = Math.round(y-w*downsample*0.5);
-		bounds.setFrame(xStart, yStart, w*downsample, w*downsample);
+		double xStart = x - w * downsample / 2.0;
+		double yStart = y - w * downsample / 2.0;
+		bounds.setFrame(xStart, yStart, w * downsample, w * downsample);
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-xStart, -yStart);
 		regionStore.paintRegion(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), downsample, null, null, viewer.getImageDisplay());
@@ -325,7 +334,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 		byte[] buffer = ((DataBufferByte)imgTemp.getRaster().getDataBuffer()).getData();
 	    ByteBuffer matBuffer = mat.createBuffer();
 	    matBuffer.put(buffer);
-	    
+
 	    boolean doSimpleSelection = e.isShortcutDown() && !e.isShiftDown();
 	    
 	    if (doSimpleSelection) {
@@ -334,15 +343,14 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 			subtractPut(matMask, Scalar.ONE);
 	    	
 	    } else {
-		
 			double blurSigma = Math.max(0.5, getWandSigmaPixels());
-			int size = (int)Math.ceil(blurSigma * 2) * 2 + 1;
+			int size = (int) Math.ceil(blurSigma * 2) * 2 + 1;
 			blurSize.width(size);
 			blurSize.height(size);
-			
+
 			// Smooth a little
 			opencv_imgproc.GaussianBlur(mat, mat, blurSize, blurSigma);
-			
+
 			// Choose mat to threshold (can be adjusted)
 			Mat matThreshold = mat;
 			
@@ -397,14 +405,19 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 			int radius = (int)Math.round(w / 2.0 * QuPathPenManager.getPenManager().getPressure());
 			if (radius == 0)
 				return null;
+
+			// Create a circle in the past, remembering that the mask is w+2 x w+2 pixels
 			matMask.put(Scalar.ZERO);
-			opencv_imgproc.circle(matMask, seed, radius, Scalar.ONE);
+			opencv_imgproc.circle(matMask, seedCircle, radius, Scalar.ONE);
+
+			// Flood fill the image, which is w x w pixels
 			opencv_imgproc.floodFill(matThreshold, matMask, seed, Scalar.ONE, null, threshold, threshold, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
 			subtractPut(matMask, Scalar.ONE);
-			
+
 			opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_CLOSE, strel);
 	    }
 
+		var mask = new TraceableMask(matMask);
 		var geometry = ContourTracing.createTracedGeometry(
 				mask,
 				0.5,
@@ -420,14 +433,32 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 
 		// Transform to map to integer pixel locations in the full-resolution image
 		var transform = new AffineTransformation()
-				.translate(-w/2.0-1, -w/2.0-1)
 				.scale(downsample, downsample)
-				.translate(x, y);
+				.translate(xStart, yStart);
 		geometry = transform.transform(geometry);
 		geometry = GeometryTools.roundCoordinates(geometry);
 		geometry = GeometryTools.constrainToBounds(geometry, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
-		if (geometry.getArea() <= 1)
-			return null;
+
+		// After coordinate rounding the geometry can be fragmented - so we need to pick only the connected region
+		if (geometry instanceof MultiPolygon multipolygon) {
+			var coord = new Coordinate(x, y);
+			for (var i = 0; i < multipolygon.getNumGeometries(); i++) {
+				if (SimplePointInAreaLocator.locate(coord, multipolygon.getGeometryN(i)) != Location.EXTERIOR) {
+					geometry = multipolygon.getGeometryN(i);
+					break;
+				}
+			}
+		}
+		// We couldn't find a single geometry of a reasonable size
+		// If we are zoomed in, at least select the current pixel
+		if (geometry instanceof GeometryCollection) {
+			if (downsample >= 1) {
+				logger.trace("Creating single-pixel geometry to replace collection");
+				geometry = GeometryTools.createRectangle(Math.floor(x), Math.floor(y), 1, 1);
+			} else {
+				return null;
+			}
+		}
 
 		long endTime = System.currentTimeMillis();
         logger.trace("{} time: {}", getClass().getSimpleName(), endTime - startTime);
@@ -462,14 +493,16 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 		private final UByteIndexer indexer;
 
 		private TraceableMask(Mat mat) {
-			width = mat.cols();
-			height = mat.rows();
+			// The mask is padded by 1 pixel on all sides (for floodFill),
+			// so for tracing we remove this padding
+			width = mat.cols() - 2;
+			height = mat.rows() - 2;
 			indexer = mat.createIndexer();
 		}
 
 		@Override
 		public float getValue(int x, int y) {
-			return indexer.get(y, x);
+			return indexer.get(y+1, x+1);
 		}
 
 		@Override

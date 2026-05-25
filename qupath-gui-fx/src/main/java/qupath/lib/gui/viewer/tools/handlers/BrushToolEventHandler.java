@@ -156,7 +156,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 		
 		// Determine if we are creating a new object
 //		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
-		Point2D p = mouseLocationToImage(e, false, requestPixelSnapping());
+		Point2D p = mouseLocationToImage(e, false, false);
 		double xx = p.getX();
 		double yy = p.getY();
 		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight()) {
