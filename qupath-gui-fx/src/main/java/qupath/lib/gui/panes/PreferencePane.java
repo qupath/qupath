@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -445,8 +445,11 @@ public class PreferencePane {
 		public final BooleanProperty clipROIsForHierarchy = PathPrefs.clipROIsForHierarchyProperty();
 
 		@IntegerPref("Prefs.Drawing.brushDiameter")
-		public final IntegerProperty brushDiameter = PathPrefs.brushDiameterProperty();		
-		
+		public final IntegerProperty brushDiameter = PathPrefs.brushDiameterProperty();
+
+		@BooleanPref("Prefs.Drawing.rasterBrush")
+		public final BooleanProperty rasterBrush = PathPrefs.useRasterBrushProperty();
+
 		@BooleanPref("Prefs.Drawing.tileBrush")
 		public final BooleanProperty tileBrush = PathPrefs.useTileBrushProperty();
 
