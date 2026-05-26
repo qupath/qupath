@@ -22,6 +22,7 @@
 package qupath.lib.roi;
 
 import org.locationtech.jts.algorithm.Orientation;
+import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.awt.GeometryCollectionShape;
 import org.locationtech.jts.awt.PointTransformation;
@@ -37,6 +38,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
@@ -56,6 +58,7 @@ import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.overlayng.UnaryUnionNG;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
+import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.locationtech.jts.operation.valid.TopologyValidationError;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
@@ -64,6 +67,7 @@ import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.LogTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
@@ -381,8 +385,69 @@ public class GeometryTools {
 		// Resort to expensive intersection calculation only if we need to
 		return a.intersection(b).getArea();
 	}
-	
-    
+
+	/**
+	 * Experimental method (use with caution!) that attempts to rasterize a geometry,
+	 * ensuring that it contains only horizontal and vertical lines at integer coordinates.
+	 * <p>
+	 * <b>Warning!</b> This uses a scanline approach that can be very slow for large and complex geometries.
+	 * The behavior of the method may change in a future release.
+	 *
+	 * @param geom the input geometry
+	 * @return a rasterized version of the geometry
+	 * @since v0.8.0
+	 */
+	public static Geometry rasterize(Geometry geom) {
+
+		// TODO: Find a way to short-circuit if the expensive calculations aren't needed!
+		LogTools.warnOnce(logger, "GeometryTools.rasterize(geom) is an experimental method that may change in a later version");
+
+		List<Polygon> rasterizedPolygons = new ArrayList<>();
+		var locator = new IndexedPointInAreaLocator(geom);
+		Coordinate coordinate = new Coordinate();
+		var envelope = geom.getEnvelopeInternal();
+		double minX = Math.floor(envelope.getMinX()) - 0.5;
+		double minY = Math.floor(envelope.getMinY()) - 0.5;
+		double maxX = Math.ceil(envelope.getMaxX()) + 1.5; // Go too far, so we'll definitely be outside
+		double maxY = Math.ceil(envelope.getMaxY()) + 1.5;
+		double scanlineStart = Double.NEGATIVE_INFINITY;
+		double scanlineEnd = Double.NEGATIVE_INFINITY;
+
+		// Create polygons (rectangles) for each scanline
+		for (double y = minY; y <= maxY; y++) {
+			coordinate.setY(y);
+			for (double x = minX; x <= maxX; x++) {
+				coordinate.setX(x);
+				int location = locator.locate(coordinate);
+				if (location == Location.EXTERIOR) {
+					if (Double.isFinite(scanlineEnd))
+						rasterizedPolygons.add(
+								GeometryTools.createRectangle(scanlineStart-0.5, y-0.5, scanlineEnd-scanlineStart+1, 1.0)
+						);
+					scanlineStart = Double.NEGATIVE_INFINITY;
+					scanlineEnd = Double.NEGATIVE_INFINITY;
+					continue;
+				}
+				// Keep if point is interior or at a left edge
+				// TODO: Ideally we'd know if point is at a top edge as well...
+				if (location == Location.INTERIOR || !Double.isFinite(scanlineStart)) {
+					if (!Double.isFinite(scanlineStart))
+						scanlineStart = x;
+					scanlineEnd = x;
+				}
+			}
+		}
+		// Merge the polygons
+		var geomNew = UnaryUnionOp.union(rasterizedPolygons);
+
+		// Remove unnecessary vertices on vertical lines
+		if (geomNew == null || geomNew.isEmpty())
+			return geom.getFactory().createPolygon();
+		else
+			return DouglasPeuckerSimplifier.simplify(geomNew, 0);
+	}
+
+
     /**
      * Create a rectangular Geometry for the specified bounding box.
      * @param x x ordinate for the top left of the rectangle bounding box

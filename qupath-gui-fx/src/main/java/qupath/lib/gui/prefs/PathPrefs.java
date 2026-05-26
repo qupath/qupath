@@ -715,6 +715,17 @@ public class PathPrefs {
 		return useTileBrush;
 	}
 
+	private static final BooleanProperty useRasterBrush = createPersistentPreference("useRasterBrush", false);
+
+	/**
+	 * Request that the brush tool created 'rasterized' shapes.
+	 * These contain only integer coordinates, connected by horizontal or vertical lines.
+	 * @return
+	 */
+	public static BooleanProperty useRasterBrushProperty() {
+		return useRasterBrush;
+	}
+
 	private static BooleanProperty selectionMode = MANAGER.createTransientBooleanProperty("selectionMode", false);
 
 	/**
