@@ -92,13 +92,18 @@ class ReaderPool implements AutoCloseable {
         registerReader(mainReader);
     }
 
-    private synchronized void registerReader(SynchronizedImageReader reader) {
-        cleanables.add(
-                cleaner.register(this,
-                        new ReaderCleaner(Integer.toString(cleanables.size() + 1), reader)
-                )
-        );
-        queue.add(reader);
+    private synchronized void registerReader(SynchronizedImageReader reader) throws IOException {
+        if (!isClosed) {
+            cleanables.add(
+                    cleaner.register(this,
+                            new ReaderCleaner(Integer.toString(cleanables.size() + 1), reader)
+                    )
+            );
+            queue.add(reader);
+        } else {
+            logger.debug("Reader added after close request, will close");
+            reader.close();
+        }
     }
 
     List<Series> getAllSeries() {
@@ -263,7 +268,7 @@ class ReaderPool implements AutoCloseable {
 
 
     @Override
-    public void close() throws Exception {
+    public synchronized void close() {
         logger.debug("Closing ReaderManager");
         isClosed = true;
         pool.shutdownNow();
