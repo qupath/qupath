@@ -1223,7 +1223,15 @@ public class GeometryTools {
 			// outer ring or a hole.
 			// See https://github.com/qupath/qupath/pull/2135
 
-	    	PathIterator iter = area.getPathIterator(transform, flatness);
+			// Creating a transformed area doesn't look like it should be necessary,
+			// but somehow it ends up getting failing tests to pass
+			PathIterator iter;
+			if (transform != null)
+				iter = area.createTransformedArea(transform).getPathIterator(null, flatness);
+			else
+				iter = area.getPathIterator(transform, flatness);
+
+//	    	PathIterator iter = area.getPathIterator(transform, flatness);
 			if (iter.getWindingRule() != PathIterator.WIND_NON_ZERO) {
 				throw new IllegalArgumentException("Winding rule is " + iter.getWindingRule() + " but must be " +
 						PathIterator.WIND_NON_ZERO + " (WIND_NON_ZERO)");
