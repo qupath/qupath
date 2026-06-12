@@ -24,9 +24,11 @@
 package qupath.lib.roi;
 
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jts.shape.random.RandomPointsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -417,6 +419,83 @@ public class RoiTools {
 		if (geometry2 == null)
 			return ROIs.createEmptyROI(roi.getImagePlane());
 		return GeometryTools.geometryToROI(geometry2, roi.getImagePlane());
+	}
+
+	/**
+	 * Remove small fragments and fill small holes of an area ROI, using the full geometry area
+	 * of each fragment after any hole filling has been applied.
+	 * <p>
+	 * This differs from {@link #removeSmallPieces(ROI, double, double)}, which preserves the
+	 * historical behavior of applying the fragment threshold to each polygon's exterior ring.
+	 *
+	 * @param roi the ROI to refine
+	 * @param minAreaPixels the minimum geometry area of a fragment to retain
+	 * @param minHoleAreaPixels the minimum size of a hole to retain, or -1 if all holes should be retained
+	 * @return an updated ROI - which may be empty if the modifications caused the ROI to disappear
+	 */
+	public static ROI removeSmallPiecesByArea(ROI roi, double minAreaPixels, double minHoleAreaPixels) {
+		logger.trace("Removing small pieces from {} using geometry area (min = {}, max = {})", roi, minAreaPixels, minHoleAreaPixels);
+
+		// We can't have holes if we don't have an AreaROI
+		if (roi instanceof RectangleROI || roi instanceof EllipseROI || roi instanceof LineROI || roi instanceof PolylineROI) {
+			if (roi.getArea() < minAreaPixels)
+				return ROIs.createEmptyROI(roi.getImagePlane());
+			else
+				return roi;
+		}
+
+		var geometry = roi.getGeometry();
+		var geometry2 = refineAreasByArea(geometry, minAreaPixels, minHoleAreaPixels);
+		if (geometry == geometry2)
+			return roi;
+		if (geometry2 == null)
+			return ROIs.createEmptyROI(roi.getImagePlane());
+		return GeometryTools.geometryToROI(geometry2, roi.getImagePlane());
+	}
+
+	/**
+	 * Remove small fragments and fill small interior rings within a Geometry, using the full
+	 * geometry area of each fragment after any hole filling has been applied.
+	 * <p>
+	 * Note that any modifications to the geometry will result in points and lines being stripped away,
+	 * leaving only polygons.
+	 *
+	 * @param geometry input geometry to refine
+	 * @param minAreaPixels minimum geometry area of a fragment to keep
+	 * @param minHoleAreaPixels minimum size of an interior hole to keep
+	 * @return the refined geometry (possibly the original unchanged), or empty geometry if the changes resulted in the Geometry disappearing
+	 * @see GeometryTools#removeInteriorRings(Geometry, double)
+	 */
+	public static Geometry refineAreasByArea(Geometry geometry, double minAreaPixels, double minHoleAreaPixels) {
+		if (minAreaPixels <= 0 && minHoleAreaPixels <= 0)
+			return geometry;
+
+		var geometry2 = GeometryTools.ensurePolygonal(geometry);
+		geometry2 = GeometryTools.removeInteriorRings(geometry2, minHoleAreaPixels);
+		geometry2 = removeFragmentsByArea(geometry2, minAreaPixels);
+		return geometry2;
+	}
+
+	private static Geometry removeFragmentsByArea(Geometry geometry, double minAreaPixels) {
+		if (minAreaPixels <= 0)
+			return geometry;
+		if (geometry instanceof Polygon) {
+			if (geometry.getArea() >= minAreaPixels)
+				return geometry;
+			else
+				return geometry.getFactory().createPolygon();
+		}
+		@SuppressWarnings("unchecked")
+		var polygons = (List<Polygon>)PolygonExtracter.getPolygons(geometry);
+		if (polygons.isEmpty())
+			return geometry.getFactory().createPolygon();
+		var filtered = polygons
+				.stream()
+				.filter(g -> g.getArea() >= minAreaPixels)
+				.toList();
+		if (filtered.isEmpty())
+			return geometry.getFactory().createPolygon();
+		return geometry.getFactory().buildGeometry(filtered);
 	}
 
 	/**

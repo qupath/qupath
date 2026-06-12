@@ -24,6 +24,7 @@ package qupath.opencv.ml.pixel;
 
 import ij.process.ByteProcessor;
 import ij.process.ImageStatistics;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.locationtech.jts.operation.valid.IsValidOp;
@@ -222,6 +223,69 @@ class TestPixelClassifierTools {
 			assertEquals(hist[label], totalArea);
 		}
 		
+	}
+
+	@Test
+	void testSplitObjectsFiltersHoledRegionsByNetArea() throws IOException {
+		var server = createHoledClassificationServer();
+		try {
+			var objects = PixelClassifierTools.createObjectsFromPixelClassifier(
+					server,
+					server.getMetadata().getClassificationLabels(),
+					null,
+					PathObjects::createAnnotationObject,
+					50, 0,
+					true);
+			assertTrue(objects.isEmpty());
+		} finally {
+			server.close();
+		}
+	}
+
+	@Test
+	void testSplitObjectsFillHolesBeforeAreaFiltering() throws IOException {
+		var server = createHoledClassificationServer();
+		try {
+			var objects = PixelClassifierTools.createObjectsFromPixelClassifier(
+					server,
+					server.getMetadata().getClassificationLabels(),
+					null,
+					PathObjects::createAnnotationObject,
+					50, 100,
+					true);
+			assertEquals(2, objects.size());
+			assertEquals(200.0, objects.stream().mapToDouble(p -> p.getROI().getArea()).sum(), 1e-6);
+		} finally {
+			server.close();
+		}
+	}
+
+	private static ImageServer<BufferedImage> createHoledClassificationServer() {
+		var img = new BufferedImage(26, 12, BufferedImage.TYPE_BYTE_GRAY);
+		paintRectangle(img, 1, 1, 10, 10, 1);
+		paintRectangle(img, 2, 2, 8, 8, 0);
+		paintRectangle(img, 14, 1, 10, 10, 1);
+		paintRectangle(img, 15, 2, 8, 8, 0);
+
+		ImageServer<BufferedImage> server = new WrappedBufferedImageServer(UUID.randomUUID().toString(), img);
+		var classificationLabels = new LinkedHashMap<Integer, PathClass>();
+		classificationLabels.put(1, PathClass.getInstance("Class 1"));
+		server.setMetadata(
+				new ImageServerMetadata.Builder(server.getOriginalMetadata())
+						.channelType(ChannelType.CLASSIFICATION)
+						.classificationLabels(classificationLabels)
+						.build()
+		);
+		return server;
+	}
+
+	private static void paintRectangle(BufferedImage img, int x, int y, int width, int height, int value) {
+		var raster = img.getRaster();
+		for (int yy = y; yy < y + height; yy++) {
+			for (int xx = x; xx < x + width; xx++) {
+				raster.setSample(xx, yy, 0, value);
+			}
+		}
 	}
 	
 

@@ -43,6 +43,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.pixel.PixelClassifiers.ClassifierFunction;
 
@@ -177,7 +178,7 @@ public class PixelClassifierTools {
 	 * 
 	 * @return true if the command ran successfully to completion, false otherwise.
 	 * @throws IOException 
-	 * @see GeometryTools#refineAreas(Geometry, double, double)
+	 * @see RoiTools#refineAreasByArea(Geometry, double, double)
 	 */
 	public static boolean createObjectsFromPredictions(
 			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, Collection<PathObject> selectedObjects, 
@@ -440,7 +441,7 @@ public class PixelClassifierTools {
 	
 	private static List<PathObject> geometryToObjects(Geometry geometry, Function<ROI, ? extends PathObject> creator, PathClass pathClass, double minAreaPixels, double minHoleAreaPixels, boolean doSplit, ImagePlane plane) {
 		// Apply size filters
-		geometry = GeometryTools.refineAreas(geometry, minAreaPixels, minHoleAreaPixels);
+		geometry = RoiTools.refineAreasByArea(geometry, minAreaPixels, minHoleAreaPixels);
 		if (geometry == null || geometry.isEmpty())
 			return Collections.emptyList();
 		

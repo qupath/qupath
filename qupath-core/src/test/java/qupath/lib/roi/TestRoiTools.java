@@ -135,6 +135,29 @@ public class TestRoiTools {
 		assertTrue(RoiTools.removeSmallPieces(points, 50, 0).isEmpty());
 
 	}
+
+	@Test
+	public void testRemoveSmallRegionsByArea() {
+
+		var plane = ImagePlane.getDefaultPlane();
+		var outer = ROIs.createRectangleROI(0, 0, 10, 10, plane);
+		var inner = ROIs.createRectangleROI(0.5, 0.5, 9, 9, plane);
+		var holed = RoiTools.combineROIs(outer, inner, CombineOp.SUBTRACT);
+
+		assertEquals(19.0, holed.getArea(), 1e-6);
+		assertFalse(RoiTools.removeSmallPieces(holed, 20, 0).isEmpty());
+		assertTrue(RoiTools.removeSmallPiecesByArea(holed, 20, 0).isEmpty());
+		assertFalse(RoiTools.removeSmallPiecesByArea(holed, 19, 0).isEmpty());
+
+		var filledBeforeFiltering = RoiTools.removeSmallPiecesByArea(holed, 50, 100);
+		assertFalse(filledBeforeFiltering.isEmpty());
+		assertEquals(100.0, filledBeforeFiltering.getArea(), 1e-6);
+
+		var solid = ROIs.createRectangleROI(20, 0, 10, 5, plane);
+		assertEquals(solid, RoiTools.removeSmallPiecesByArea(solid, 50, 0));
+		assertTrue(RoiTools.removeSmallPiecesByArea(solid, 51, 0).isEmpty());
+
+	}
 	
 	
 	
