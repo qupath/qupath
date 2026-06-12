@@ -21,7 +21,7 @@ class ReaderCleaner implements Runnable {
 
     @Override
     public void run() {
-        logger.info("Cleaner {} called for {} ({})", name, reader, reader.getID());
+        logger.debug("Cleaner {} called for {} ({})", name, reader, reader.getID());
         try {
             this.reader.close();
         } catch (IOException e) {
