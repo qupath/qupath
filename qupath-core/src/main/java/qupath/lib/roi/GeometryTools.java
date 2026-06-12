@@ -39,7 +39,6 @@ import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Location;
-import org.locationtech.jts.geom.MultiLineString;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -88,11 +87,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.function.Function;
 
@@ -1223,7 +1219,7 @@ public class GeometryTools {
 
 			// This code become more complex, and limited to WIND_NON_ZERO, to cope with a change in behavior for Area
 			// introduces around April 2026 (Java 25.0.3).
-			// We make the association the orientation (CW, CCW) allows us to tell if a coordinate sequence is an
+			// We make the assumption the orientation (CW, CCW) allows us to tell if a coordinate sequence is an
 			// outer ring or a hole.
 			// See https://github.com/qupath/qupath/pull/2135
 
@@ -1235,6 +1231,7 @@ public class GeometryTools {
 
 	    	PrecisionModel precisionModel = factory.getPrecisionModel();
 
+			@SuppressWarnings("unchecked")
 			List<Coordinate[]> coords = (List<Coordinate[]>)ShapeReader.toCoordinates(iter);
 			List<Geometry> geometries = new ArrayList<>();
 			List<Geometry> holes = new ArrayList<>();
@@ -1252,17 +1249,16 @@ public class GeometryTools {
 				Polygonizer polygonizer = new Polygonizer(true);
 				polygonizer.add(lineString);
 
-				// If we have self-intersections, we want to estimate the orientation from the line with most coordinates
-				if (lineString instanceof MultiLineString multiLineString) {
-					lineStringCoords = multiLineString.getGeometryN(0).getCoordinates();
-					for (int i = 1; i < multiLineString.getNumGeometries(); i++) {
-						var temp = multiLineString.getGeometryN(i).getCoordinates();
-						if (temp.length > lineStringCoords.length)
-							lineStringCoords = temp;
-					}
+				if (!array[0].equals(array[array.length-1])) {
+					logger.warn("Unexpected segment - first and last coordinates don't match ({})", Arrays.toString(array));
 				}
 
-				// Use the orientation - should be trustworthy (we think...) because of winding rule
+				// Use the orientation - it should allow us to identify holes (we think...) because of winding rule.
+				// Note that Orientation.isCCW can handle valid and 'mildly invalid' rings, and Area's path iterator
+				// can give self-intersections that are more problematic.
+				// However, I haven't seen a case that fails yet and an attempt to take the longest coordinate sequence
+				// from lineString (when a MultiLineString) definitely *did* fail, because this could give disconnected
+				// pieces that didn't form a ring, leading to https://github.com/qupath/qupath/issues/2140
 				if (Orientation.isCCW(lineStringCoords)) {
 					holes.add(polygonizer.getGeometry());
 				} else {
@@ -1270,240 +1266,60 @@ public class GeometryTools {
 				}
 			}
 
+			// Easy case with no holes
+			if (holes.isEmpty())
+				return union(geometries);
+
+			// Unexpected case - assume that holes have been wrongly assigned (should not happen)
+			if (geometries.isEmpty()) {
+				logger.warn("Geometry appears empty, although holes are non-empty - this may be an error");
+				return union(holes);
+			}
+
+			// Easy(ish) case with one outer geometry, no nested geometries
+			if (geometries.size() == 1) {
+				return union(geometries).difference(union(holes));
+			}
+
+			// Harder case... need to consider the possibility of polygons within holes within polygons within...
+			Geometry output = null;
 			var mainGeometry = union(geometries);
 			var allHoles = union(holes);
-			if (allHoles.isEmpty())
-				return mainGeometry;
+			while (true) {
+				// Subtract holes from the main geometry.
+				var currentLevel = mainGeometry.difference(allHoles);
 
-			// If things have worked, the main geometry will be bigger than the holes
-			if (mainGeometry.getArea() >= allHoles.getArea())
-				return mainGeometry.difference(allHoles);
-			logger.warn("Switching main geometry and holes based on area - this is unexpected and might be a bug");
-			return allHoles.difference(mainGeometry);
+				// If we've been here before, union the current level with the main output.
+				output = output == null ? currentLevel : output.union(currentLevel);
+
+				// Check if, before merging, we have 'positive' geometries nested within the holes.
+				// If not, we're done.
+				geometries = findCovered(allHoles, geometries);
+				if (geometries.isEmpty())
+					return output;
+
+				// If there are nested geometries, identify holes that may be nested within *them* and iterate again.
+				mainGeometry = union(geometries);
+				holes = findCovered(mainGeometry, holes);
+				allHoles = union(holes);
+			}
 	    }
 
-	    /**
-	     * Legacy version of {@link #convertAreaToGeometry(Area, AffineTransform, double, GeometryFactory)} before v0.3.0.
-	     * 
-	     * @param area
-	     * @param transform
-	     * @param flatness
-	     * @param factory
-	     * @return a geometry corresponding to the Area object
-	     */
-	    @Deprecated
-	    private static Geometry convertAreaToGeometryLegacy(final Area area, final AffineTransform transform, final double flatness, final GeometryFactory factory) {
-	
-			List<Geometry> positive = new ArrayList<>();
-			List<Geometry> negative = new ArrayList<>();
-	
-			PathIterator iter = area.getPathIterator(transform, flatness);
-	
-			CoordinateList points = new CoordinateList();
-			
-			PrecisionModel precisionModel = factory.getPrecisionModel();
-			
-			double areaTempSigned = 0;
-			double areaCached = 0;
-			
-			// Helpful for debugging where errors in conversion may occur
-			double areaPositive = 0;
-			double areaNegative = 0;
-			
-			double precision = 1.0e-4 * flatness;
-	//		double minDisplacement2 = precision * precision;
-			
-			int totalCount = 0;
-			int errorCount = 0;
-	
-			double[] seg = new double[6];
-			double startX = Double.NaN, startY = Double.NaN;
-			double x0 = 0, y0 = 0, x1 = 0, y1 = 0;
-			boolean closed = false;
-			while (!iter.isDone()) {
-				switch(iter.currentSegment(seg)) {
-				case PathIterator.SEG_MOVETO:
-					// Log starting positions - need them again for closing the path
-					startX = precisionModel.makePrecise(seg[0]);
-					startY = precisionModel.makePrecise(seg[1]);
-					x0 = startX;
-					y0 = startY;
-					iter.next();
-					areaCached += areaTempSigned;
-					areaTempSigned = 0;
-					points.clear();
-					points.add(new Coordinate(startX, startY));
-					closed = false;
-					continue;
-				case PathIterator.SEG_CLOSE:
-					x1 = startX;
-					y1 = startY;
-					closed = true;
-					break;
-				case PathIterator.SEG_LINETO:
-					x1 = precisionModel.makePrecise(seg[0]);
-					y1 = precisionModel.makePrecise(seg[1]);
-					// We only wand to add a point if the displacement is above a specified tolerance, 
-					// because JTS can be very sensitive to any hint of self-intersection - and does not always 
-					// like what the PathIterator provides
-					var next = new Coordinate(x1, y1);
-					if (points.isEmpty() || points.get(points.size()-1).distance(next) > precision)
-						points.add(next, false);
-					else
-						logger.trace("Skipping nearby points");
-					closed = false;
-					break;
-				default:
-					// Shouldn't happen because of flattened PathIterator
-					throw new RuntimeException("Invalid area computation!");
-				}
-				areaTempSigned += 0.5 * (x0 * y1 - x1 * y0);
-				// Add polygon if it has just been closed
-				if (closed && points.size() == 1) {
-					logger.debug("Error when converting area to Geometry: cannot create polygon from coordinate array of length 1!");
-				} else if (closed) {
-					points.closeRing();
-					if (points.size() <= 3) {
-						logger.debug("Discarding small 'ring' segment during area conversion (only 3 coordinates)");
-						x0 = x1;
-						y0 = y1;
-						iter.next();
-						continue;
-					}
-					
-					Coordinate[] coords = points.toCoordinateArray();
-					
-					// Need to ensure polygons are valid at this point
-					// Sometimes, self-intersections can thwart validity
-					Geometry polygon = factory.createPolygon(coords);
-					Geometry geomValid = tryToFixPolygon((Polygon)polygon);
-					if (polygon != geomValid) {
-						double areaBefore = polygon.getArea();
-						double areaAfter = geomValid.getArea();
-						if (GeneralTools.almostTheSame(areaBefore, areaAfter, 0.0001))
-							logger.debug("Invalid polygon detected and fixed! Original area: {}, Area after fix: {}", areaBefore, areaAfter);
-						else
-							logger.warn("Invalid polygon detected! Beware of changes. Original area: {}, Area after attempted fix: {}", areaBefore, areaAfter);
-						polygon = geomValid;
-						errorCount++;
-					}
-					if (!polygon.isEmpty()) {
-						totalCount++;
-						if (areaTempSigned < 0) {
-							areaNegative += areaTempSigned;
-							for (int i = 0; i < polygon.getNumGeometries(); i++) {
-								Polygon p = (Polygon)polygon.getGeometryN(i);
-								if (!p.isEmpty())
-									negative.add(p);
-							}
-						} else if (areaTempSigned > 0) {
-							areaPositive += areaTempSigned;
-							for (int i = 0; i < polygon.getNumGeometries(); i++) {
-								Polygon p = (Polygon)polygon.getGeometryN(i);
-								if (!p.isEmpty())
-									positive.add(p);
-							}
-						}
-					}
-				}
-				// Update the coordinates
-				x0 = x1;
-				y0 = y1;
-				iter.next();
+		private static List<Geometry> findCovered(Geometry parent, Collection<? extends Geometry> maybeCovered) {
+			if (maybeCovered.isEmpty())
+				return List.of();
+			if (maybeCovered.size() == 1) {
+				var temp = maybeCovered.iterator().next();
+				if (parent.covers(temp))
+					return List.of(temp);
+				else
+					return List.of();
 			}
-			// TODO: Can I count on outer polygons and holes always being either positive or negative?
-			// Since I'm not sure, I decide here based on signed areas
-			areaCached += areaTempSigned;
-			List<Geometry> outer;
-			List<Geometry> holes;
-			@SuppressWarnings("unused")
-			double areaOuter;
-			@SuppressWarnings("unused")
-			double areaHoles;
-			if (areaCached < 0) {
-				areaOuter = -areaNegative;
-				areaHoles = areaPositive;
-				outer = negative;
-				holes = positive;
-			} else if (areaCached > 0) {
-				areaOuter = areaPositive;
-				areaHoles = -areaNegative;
-				outer = positive;
-				holes = negative;
-			} else {
-				return factory.createPolygon();
-			}
-			
-			Geometry geometry;
-			Geometry geometryOuter;
-			if (holes.isEmpty()) {
-				// If we have no holes, just use the outer geometry
-				geometryOuter = union(outer);
-				geometry = geometryOuter;
-			} else if (outer.size() == 1) {
-				// If we just have one outer geometry, remove all the holes
-				geometryOuter = union(outer);
-				geometry = geometryOuter.difference(union(holes));
-			} else {
-				// We need to handle holes... and, in particular, additional objects that may be nested within holes.
-				// To do that, we iterate through the holes and try to match these with the containing polygon, updating it accordingly.
-				// By doing this in order we should find the 'correct' containing polygon.
-				var ascendingArea = Comparator.comparingDouble((GeometryWithArea g) -> g.area);
-				var outerWithArea = outer.stream().map(GeometryWithArea::new).sorted(ascendingArea).toList();
-				var holesWithArea = holes.stream().map(GeometryWithArea::new).sorted(ascendingArea).toList();
-				
-				// For each hole, find the smallest polygon that contains it
-				Map<Geometry, List<Geometry>> matches = new HashMap<>();
-				for (var tempHole : holesWithArea) {
-					double holeArea = tempHole.area;
-					// We assume a single point inside is sufficient because polygons should be non-overlapping
-					var point = tempHole.geom.getCoordinate();
-					var iterOuter = outerWithArea.iterator();
-					@SuppressWarnings("unused")
-					int count = 0;
-					while (point != null && iterOuter.hasNext()) {
-						var tempOuter = iterOuter.next();
-						if (holeArea > tempOuter.area) {
-							continue;
-						}
-						if (SimplePointInAreaLocator.isContained(point, tempOuter.geom)) {
-							var list = matches.get(tempOuter.geom);
-							if (list == null) {
-								list = new ArrayList<>();
-								matches.put(tempOuter.geom, list);
-							}
-							list.add(tempHole.geom);
-							break;
-						}
-					}
-				}
-				
-				// Loop through the outer polygons and remove all their holes
-				List<Geometry> fixedGeometries = new ArrayList<>();
-				for (var tempOuter : outerWithArea) {
-					var list = matches.getOrDefault(tempOuter.geom, null);
-					if (list == null || list.isEmpty()) {
-						fixedGeometries.add(tempOuter.geom);
-					} else {
-						var mergedHoles = union(list);
-						fixedGeometries.add(tempOuter.geom.difference(mergedHoles));
-					}
-				}
-				geometry = union(fixedGeometries);
-				geometryOuter = geometry;
-			}
-			
-			// Perform a sanity check using areas
-			double computedArea = Math.abs(areaCached);
-			double geometryArea = geometry.getArea();
-			if (!GeneralTools.almostTheSame(computedArea, geometryArea, 0.01)) {
-				logger.debug("{}/{} geometries had topology validation errors", errorCount, totalCount);
-				double percent = Math.abs(computedArea - geometryArea) / (computedArea/2.0 + geometryArea/2.0) * 100.0;
-				logger.warn("Difference in area after JTS conversion! Computed area: {}, Geometry area: {} ({} %%)", Math.abs(areaCached), geometry.getArea(),
-						GeneralTools.formatNumber(percent, 3));
-			}
-			return geometry;
+			// It's probably worth creating a prepared geometry for performance
+			var prepared = PreparedGeometryFactory.prepare(parent);
+			return maybeCovered.stream().filter(prepared::covers).map(g -> (Geometry)g).toList();
 		}
+
 	    
 	    private static class GeometryWithArea {
 	    	
