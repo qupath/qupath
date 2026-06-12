@@ -20,12 +20,13 @@
 ### Dependency updates
 * Bio-Formats 8.5.0
 * Commonmark 0.28.0
-* Groovy 5.0.5
+* Groovy 5.0.6
 * Guava 33.6.0
 * JavaCPP 1.5.13
 * JavaFX 26.0.1
 * Logback 1.5.32
 * OpenCV 4.13.0
+* qupath-fxtras 0.4.1
 * SciJava POM 44.0.0
 
 
