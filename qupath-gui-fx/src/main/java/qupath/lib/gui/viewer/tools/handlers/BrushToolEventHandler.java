@@ -618,7 +618,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 		lastPoint = null;
 		Geometry geom = createShape(e, x, y, PathPrefs.useTileBrushProperty().get(), null);
 		if (geom == null || geom.isEmpty())
-			return ROIs.createEmptyROI();
+			return ROIs.createEmptyROI().updatePlane(plane);
 		var viewer = getViewer();
 		geom = GeometryTools.roundCoordinates(geom);
 		geom = GeometryTools.constrainToBounds(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());

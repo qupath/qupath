@@ -326,8 +326,14 @@ public class GeometryTools {
 	 */
 	public static Geometry constrainToBounds(Geometry geometry, double x, double y, double width, double height) {
 		var env = geometry.getEnvelopeInternal();
+		boolean isPolygonal = geometry instanceof Polygonal;
 		if (env.getMinX() < x || env.getMinY() < y || env.getMaxX() >= x + width || env.getMaxY() >= y + height)
 			geometry = geometry.intersection(GeometryTools.createRectangle(x, y, width, height));
+		// Don't permit lines to be introduced in a geometry that was previously polygonal
+		// (This fixes an issue where the wand tool didn't work at image bounds)
+		if (isPolygonal && (!(geometry instanceof Polygonal))) {
+			geometry = homogenizeGeometryCollection(geometry);
+		}
 		return geometry;
 	}
 
