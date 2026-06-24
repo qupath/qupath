@@ -9,7 +9,6 @@
 * Show values for only the current visible feature when viewing features through the pixel classifier dialog (https://github.com/qupath/qupath/issues/2123)
 * Support to close more windows with Ctrl/Cmd+W (https://github.com/qupath/qupath/issues/2107)
 * Lots more strings externalized (https://github.com/qupath/qupath/pull/2104)
-* Update bundled OpenSlide binaries to v4.0.1.2 (https://github.com/qupath/qupath/pull/2150)
 
 ### Bug fixes
 * StackOverflowError at ROITypeAdapters.writeCoordinates when exporting some geometries (https://github.com/qupath/qupath/issues/2115)
@@ -28,8 +27,8 @@
 * Logback 1.5.32
 * OpenCV 4.13.0
 * SciJava POM 44.0.0
-
-
+* OpenSlide 4.0.1.2
+* 
 ## Version 0.7.0
 
 ### Enhancements
