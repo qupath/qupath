@@ -28,8 +28,8 @@
 * OpenCV 4.13.0
 * qupath-fxtras 0.4.1
 * SciJava POM 44.0.0
-
-
+* OpenSlide 4.0.1.2
+* 
 ## Version 0.7.0
 
 ### Enhancements
