@@ -85,6 +85,9 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 	}
 
+	// Default color to fill tiles when not overridden within the image properties or string args
+	private static final Color DEFAULT_BACKGROUND_COLOR = Color.WHITE;
+
 	private static final Cleaner cleaner = Cleaner.create();
 	private final OpenSlideState state;
 	private final Cleaner.Cleanable cleanable;
@@ -249,28 +252,39 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		associatedImageList = Collections.unmodifiableList(osr.getAssociatedImages());
 		
 		// Try to get a background color
-		backgroundColor = Color.WHITE;
-		try {
-			// Update from properties, if available
-			String bg = properties.get(OpenSlide.PROPERTY_NAME_BACKGROUND_COLOR);
-			if (bg != null) {
-				backgroundColor = parseBackgroundColorFromString(bg).orElse(backgroundColor);
-			}
-			// Update from args, if available
-			backgroundColor = parseColorFromArgs(args).orElse(backgroundColor);
-		} catch (Exception e) {
-			logger.debug("Exception parsing background color: {}", e.getMessage(), e);
-		}
+		backgroundColor = findBackgroundColor(properties, args);
 
 		// Try reading a thumbnail... the point being that if this is going to fail,
 		// we want it to fail quickly so that it may yet be possible to try another server
 		// This can occur with corrupt .svs (.tif) files that Bioformats is able to handle better
 		try {
-			logger.debug("Test reading thumbnail with openslide: passed (" + getDefaultThumbnail(0, 0).toString() + ")");
+            logger.debug("Test reading thumbnail with openslide: passed ({})", getDefaultThumbnail(0, 0).toString());
 		} catch (IOException e) {
 			logger.error("Unable to read thumbnail using OpenSlide: {}", e.getLocalizedMessage());
 			throw(e);
 		}
+	}
+
+	private static Color findBackgroundColor(Map<String, String> properties, String[] args) {
+		// Try to get a background color
+		Color backgroundColor = null;
+		String bgProperty = properties.getOrDefault(OpenSlide.PROPERTY_NAME_BACKGROUND_COLOR, null);
+		if (bgProperty != null && !bgProperty.isBlank()) {
+			try {
+				// Update from properties, if available
+				backgroundColor = parseBackgroundColorFromString(bgProperty).orElse(backgroundColor);
+			} catch (Exception e) {
+				logger.warn("Exception parsing background color from property: {} ({})", bgProperty, e.getMessage(), e);
+			}
+		}
+
+		// Override background color using the args
+		try {
+			backgroundColor = parseColorFromArgs(args).orElse(backgroundColor);
+		} catch (Exception e) {
+			logger.warn("Exception parsing background color from args: {} ({})", Arrays.asList(args), e.getMessage(), e);
+		}
+		return backgroundColor == null ? DEFAULT_BACKGROUND_COLOR : backgroundColor;
 	}
 
 	private static Optional<Color> parseColorFromArgs(String[] args) {
@@ -292,7 +306,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		return Optional.empty();
 	}
 
-	static Optional<Color> parseBackgroundColorFromString(String value) {
+	static Optional<Color> parseBackgroundColorFromString(String value) throws NumberFormatException {
 		if (value == null || value.isBlank())
 			return Optional.empty();
 		var val = value.strip();
