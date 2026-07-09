@@ -3201,7 +3201,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				var hierarchy = getHierarchy();
 				if (hierarchy != null) {
 					if (hierarchy.getSelectionModel().singleSelection()) {
-						GuiTools.promptToRemoveSelectedObject(hierarchy.getSelectionModel().getSelectedObject(), hierarchy);
+						// Handle case when there is no primary selected object
+						var selected = hierarchy.getSelectionModel().getSelectedObject();
+						if (selected == null)
+							selected = hierarchy.getSelectionModel().getSelectedObjects().stream().findFirst().orElse(null);
+						GuiTools.promptToRemoveSelectedObject(selected, hierarchy);
 					} else {
 						GuiTools.promptToClearAllSelectedObjects(getImageData());
 					}
