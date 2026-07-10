@@ -359,7 +359,7 @@ class ProjectImportImagesCommand {
 				updateMessage(QuPathResources.getString("Commands.Project.ImportImages.checkingForCompatibleReaders"));
 				
 				// Limit the size of the thread pool
-				// The previous use of a cached thread pool caused trouble when importing may large, non-pyramidal images
+				// The previous use of a cached thread pool caused trouble when importing many large, non-pyramidal images
 				var pool = Executors.newFixedThreadPool(ThreadTools.getParallelism(), ThreadTools.createThreadFactory("project-import", true));
 				List<Future<List<ServerBuilder<BufferedImage>>>> results = new ArrayList<>();
 				List<ProjectImageEntry<BufferedImage>> projectImages = new ArrayList<>();
