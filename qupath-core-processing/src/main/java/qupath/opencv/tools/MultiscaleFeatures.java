@@ -490,7 +490,7 @@ public class MultiscaleFeatures {
 		/**
 		 * Set all Gaussian sigma values for the z-dimension filter.
 		 * <p>
-		 * Note that this value is in pixels by default, or may be microns is supported 
+		 * Note that this value is in pixels by default, or may be microns (if supported)
 		 * by setting the pixel calibration.
 		 * 
 		 * @param sigma
