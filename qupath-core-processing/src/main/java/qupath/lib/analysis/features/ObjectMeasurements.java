@@ -333,7 +333,7 @@ public class ObjectMeasurements {
 		if (features.contains(ShapeFeatures.AREA))
 			ml.put(baseName + "Area " + units2, ellipse.getScaledArea(pixelWidth, pixelHeight));
 		if (features.contains(ShapeFeatures.LENGTH))
-			ml.put(baseName + "Length " + units, ellipse.getLength());
+			ml.put(baseName + "Length " + units, ellipse.getScaledLength(pixelWidth, pixelHeight));
 		
 		if (features.contains(ShapeFeatures.CIRCULARITY)) {
 			ml.put(baseName + "Circularity", 1.0);
