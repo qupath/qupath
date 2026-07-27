@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -72,9 +72,6 @@ import qupath.lib.roi.interfaces.ROI;
  * Experimental class to generate object measurements.
  * <p>
  * May very well be moved, removed or refactored in a future release...
- * 
- * @author Pete Bankhead
- *
  */
 public class ObjectMeasurements {
 	
