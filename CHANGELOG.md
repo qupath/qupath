@@ -17,6 +17,7 @@
 * Removing child objects can give an unexpected exception in scripts (https://github.com/qupath/qupath/issues/2111)
 * Nested detections render poorly when filled (https://github.com/qupath/qupath/issues/2112)
 * 'Add shape features' wrongly gives 'Length µm' in pixels (https://github.com/qupath/qupath/issues/2158)
+* Adding single points can cause unhelpful 'empty' point annotations to remain (https://github.com/qupath/qupath/issues/2155)
 
 ### Dependency updates
 * Bio-Formats 8.5.0
