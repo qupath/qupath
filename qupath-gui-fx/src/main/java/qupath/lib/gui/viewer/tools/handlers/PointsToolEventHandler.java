@@ -86,13 +86,16 @@ class PointsToolEventHandler extends AbstractPathToolEventHandler<MouseEvent> {
 		editor.resetActiveHandle();
 		
 		var currentObject = viewer.getSelectedObject();
-		viewer.getHierarchy().updateObject(currentObject, false);
-//		viewer.getHierarchy().fireHierarchyChangedEvent(this, vcurrentObject);
 
-//		// Find out the coordinates in the image domain & update the adjustment
-//		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, false);
-//		points.finishAdjusting(p.getX(), p.getY(), e.isShiftDown());
-//		points.resetMeasurements();
+		// If in single-point mode and we've removed the only point, remove the object.
+		// Don't remove the object in multi-point mode, because in that case we may want to
+		// retain the object's properties (e.g., classification)
+		var hierarchy = viewer.getHierarchy();
+		if (points.isEmpty() && !PathPrefs.multipointToolProperty().get()) {
+			hierarchy.removeObject(currentObject, true);
+		} else {
+			viewer.getHierarchy().updateObject(currentObject, false);
+		}
 	}
 	
 	
@@ -150,9 +153,8 @@ class PointsToolEventHandler extends AbstractPathToolEventHandler<MouseEvent> {
 			if (points.getImagePlane().equals(viewerPlane)) {
 				ROI points2 = removeNearbyPoint(points, x, y, distance);
 				if (points != points2) {
-					((PathROIObject)currentObject).setROI(points2);
+					((PathROIObject) currentObject).setROI(points2);
 					hierarchy.updateObject(currentObject, false);
-	//				hierarchy.fireHierarchyChangedEvent(this, currentObject);
 					return true;
 				}
 			}
@@ -225,13 +227,14 @@ class PointsToolEventHandler extends AbstractPathToolEventHandler<MouseEvent> {
 		if (currentROI != null && currentROI.isPoint() && (currentROI.isEmpty() || currentROI.getImagePlane().equals(viewerPlane)))
 			points = currentROI;
 		
-		// If Alt is pressed, try to delete a point
 		if (e.isAltDown()) {
+			// If Alt is pressed, try to delete a point
 			handleAltClick(viewer, xx, yy, currentObject);
-		} 
-		// Create a new ROI if we've got Alt & Shift pressed - or we just don't have a point ROI
-		else if (points == null || !currentUnlocked || (!PathPrefs.multipointToolProperty().get() && !editor.grabHandle(xx, yy, radius, e.isShiftDown()))
+		} else if (points == null || !currentUnlocked
+				|| (!PathPrefs.multipointToolProperty().get() && !editor.grabHandle(xx, yy, radius, e.isShiftDown()) && points.getNumPoints() > 0)
 				|| (e.isShiftDown() && e.getClickCount() > 1)) {
+			// Create a new ROI if we've got Alt & Shift pressed - or we just don't have a point ROI
+
 			// PathPoints is effectively ready from the start - don't need to finalize
 			points = ROIs.createPointsROI(xx, yy, viewerPlane);
 			
