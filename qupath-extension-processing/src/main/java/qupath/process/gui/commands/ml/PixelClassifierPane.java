@@ -25,8 +25,6 @@ import java.time.Duration;
 import java.util.Random;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.ObjectExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -56,7 +54,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 import javafx.util.Subscription;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -68,7 +65,6 @@ import org.bytedeco.opencv.opencv_ml.KNearest;
 import org.bytedeco.opencv.opencv_ml.LogisticRegression;
 import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.bytedeco.opencv.opencv_ml.TrainData;
-import org.controlsfx.control.action.Action;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,7 +77,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.InfoMessage;
-import qupath.lib.gui.commands.ContextHelpViewer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
@@ -517,7 +512,7 @@ public class PixelClassifierPane {
         featuresIncompatible.set(
 				imageData != null &&
 				op != null &&
-				!op.build(imageData, PixelCalibration.getDefaultInstance()).supportsImage(imageData)
+				!op.supportsImage(imageData, PixelCalibration.getDefaultInstance())
 		);
 	}
 
@@ -705,11 +700,7 @@ public class PixelClassifierPane {
 
 	private void updateAvailableFeatureOpBuilders(ImageData<BufferedImage> imageData) {
 		featureOpBuilders.add(MultiscaleImageDataOpBuilder.create2D(imageData));
-		// TODO: Handle 3D serialization and remove warning
-		if (imageData != null && imageData.getServer().nZSlices() > 1) {
-			logger.warn("Adding 3D support (experimental, doesn't support saving/reloading classifiers!)");
-			featureOpBuilders.add(MultiscaleImageDataOpBuilder.create3D(imageData));
-		}
+		featureOpBuilders.add(MultiscaleImageDataOpBuilder.create3D(imageData));
 		featureOpBuilders.addAll(defaultFeatureCalculatorBuilders);
 	}
 	

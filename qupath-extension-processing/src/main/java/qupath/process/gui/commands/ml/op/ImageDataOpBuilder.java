@@ -43,6 +43,23 @@ public interface ImageDataOpBuilder {
 	ImageDataOp build(ImageData<BufferedImage> imageData, PixelCalibration resolution);
 
 	/**
+	 * Query whether the current op supports the provided image and resolution,
+	 * with the current settings.
+	 * <p>
+	 * Note that this method may return {@code false}, but could be address by a call to
+	 * <p>
+	 * The default implementation always returns true; it is recommended that subclasses
+	 * implement proper checks.
+	 * {@link #doCustomize(ImageData)}.
+	 * @param imageData the image data
+	 * @param resolution the resolution to check
+	 * @return true if a compatible op can be built, false otherwise
+	 */
+	default boolean supportsImage(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
+		return true;
+	}
+
+	/**
 	 * Get the name of the builder.
 	 * The default implementation uses the class name.
 	 * @return

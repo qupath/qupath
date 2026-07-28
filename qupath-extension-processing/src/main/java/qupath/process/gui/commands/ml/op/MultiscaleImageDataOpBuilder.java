@@ -11,10 +11,12 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Pos;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.layout.GridPane;
+import javafx.scene.text.TextAlignment;
 import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +67,8 @@ public class MultiscaleImageDataOpBuilder implements ImageDataOpBuilder {
 
     private final ObservableObjectValue<NormalizationType> normalization;
     private final ObservableObjectValue<Double> normalizationSigma;
+
+    private final Label labelWarning = new Label();
 
     private final boolean do3D;
 
@@ -180,6 +184,14 @@ public class MultiscaleImageDataOpBuilder implements ImageDataOpBuilder {
                     labelNormalizeScale, spinnerNormalize);
         }
 
+        GridPaneUtils.addGridRow(pane, row++, 0, null, labelWarning, labelWarning);
+        GridPaneUtils.setToExpandGridPaneWidth(labelWarning);
+        labelWarning.setWrapText(true);
+        labelWarning.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        labelWarning.setTextAlignment(TextAlignment.CENTER);
+        labelWarning.setAlignment(Pos.CENTER);
+        labelWarning.getStyleClass().add("warn-label-text");
+
         pane.setHgap(5);
         pane.setVgap(6);
 
@@ -278,6 +290,24 @@ public class MultiscaleImageDataOpBuilder implements ImageDataOpBuilder {
         return List.copyOf(selectedChannels);
     }
 
+    @Override
+    public boolean supportsImage(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
+        if (imageData == null || resolution == null)
+            return false;
+
+        if (do3D && imageData.getServer().nZSlices() <= 1)
+            return false;
+
+        var channels = getAvailableChannels(imageData);
+        if (!channels.containsAll(selectedChannels))
+            return false;
+
+        var op = build(imageData, resolution);
+        if (op == null)
+            return false;
+        else
+            return op.supportsImage(imageData);
+    }
 
     @Override
     public boolean canCustomize(ImageData<BufferedImage> imageData) {
@@ -287,17 +317,24 @@ public class MultiscaleImageDataOpBuilder implements ImageDataOpBuilder {
     @Override
     public boolean doCustomize(ImageData<BufferedImage> imageData) {
 
+        List<String> messages = new ArrayList<>();
+
         @SuppressWarnings("resource")
         var server = imageData == null ? null : imageData.getServer();
         if (server != null) {
             var channels = new ArrayList<>(getAvailableChannels(imageData));
             if (!comboChannels.getItems().equals(channels)) {
-                logger.warn("Image channels changed - will update & select all channels for the feature calculator");
+                if (!comboChannels.getItems().isEmpty())
+                    messages.add("Channels have been updated to match the current image.");
                 comboChannels.getCheckModel().clearChecks();
                 comboChannels.getItems().setAll(channels);
                 comboChannels.getCheckModel().checkIndices(IntStream.range(0, imageData.getServer().nChannels()).toArray());
             }
+            if (do3D && server.nZSlices() <= 1) {
+                messages.add("This calculates 3D features, but image is 2D.");
+            }
         }
+        labelWarning.setText(String.join("\n", messages));
 
         boolean success = Dialogs.showMessageDialog("Select features", pane);
         if (success) {
