@@ -70,6 +70,7 @@ import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
+import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
@@ -162,22 +163,42 @@ public class PixelClassifierPane {
 
 	private Subscription subscription = Subscription.EMPTY;
 
+	private Stage stage;
+
 	/**
 	 * Constructor.
 	 * @param qupath the current {@link QuPathGUI} that will be used for interactive training.
 	 */
 	public PixelClassifierPane(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.overlayManager = new PixelClassifierOverlayManager(qupath.getViewerManager(), qupath.getImageRegionStore(), helper);
-		this.trainingImageManager = new TrainingImageManager(qupath);
-		this.trainingViewerPane = new TrainingViewerPane(qupath.viewerProperty(), overlayManager);
-		initialize();
+		this.overlayManager = createOverlayManager(qupath, helper);
+		this.trainingImageManager = createTrainingImageManager(qupath);
+		this.trainingViewerPane = createTrainingViewerPane(qupath, overlayManager);
 	}
 
-	private void initialize() {
-		initializeSubscriptions();
-		initializeOverlayManager();
-		initializeUI();
+	private PixelClassifierOverlayManager createOverlayManager(QuPathGUI qupath, PixelClassifierTraining helper) {
+		var overlayManager = new PixelClassifierOverlayManager(qupath.getViewerManager(), qupath.getImageRegionStore(), helper);
+		overlayManager.classifierProperty().bind(currentClassifier);
+		overlayManager.livePredictionProperty().bind(livePrediction);
+		return overlayManager;
+	}
+
+	private static TrainingImageManager createTrainingImageManager(QuPathGUI qupath) {
+		return new TrainingImageManager(qupath);
+	}
+
+	private static TrainingViewerPane createTrainingViewerPane(QuPathGUI qupath, PixelClassifierOverlayManager overlayManager) {
+		return new TrainingViewerPane(qupath.viewerProperty(), overlayManager);
+	}
+
+	/**
+	 * Show the stage containing this pane.
+	 */
+	public void showStage() {
+		if (stage == null) {
+			stage = createUI();
+		}
+		stage.show();
 	}
 
 	private void initializeSubscriptions() {
@@ -192,7 +213,8 @@ public class PixelClassifierPane {
 				}),
 				opBuilder.subscribe(this::updateFeatureCalculator),
 				showMore.subscribe(this::handleShowDetails),
-				qupath.imageDataProperty().subscribe(this::handleImageDataChange)
+				qupath.imageDataProperty().subscribe(this::handleImageDataChange),
+				stage.focusedProperty().subscribe(this::handleStageFocussed)
 		);
 	}
 
@@ -214,14 +236,9 @@ public class PixelClassifierPane {
 		updateAvailableResolutions(newValue);
 	}
 
-	private void initializeOverlayManager() {
-		overlayManager.classifierProperty().bind(currentClassifier);
-		overlayManager.livePredictionProperty().bind(livePrediction);
-	}
 
 
-
-	private void initializeUI() {
+	private Stage createUI() {
 
 		var imageData = qupath.getImageData();
 		
@@ -256,13 +273,12 @@ public class PixelClassifierPane {
 
 		paneMain.setLeft(pane);
 
-		var stage = createStage(new BorderPane(paneMain));
-		stage.show();
-
 		ensureResolutionSelected(imageData);
 		updateFeatureCalculator();
 
 		handleImageDataChange(null, imageData);
+
+		return createStage(new BorderPane(paneMain));
 	}
 
 	private void handleShowDetails(boolean doShow) {
@@ -272,13 +288,19 @@ public class PixelClassifierPane {
 			paneMain.setCenter(paneDetails);
 			paneMain.getScene().getWindow().sizeToScene();
 		} else if (doShow) {
-			paneMain.setCenter(paneDetails);
-			var window = paneMain.getScene().getWindow();
-			window.setWidth(window.getWidth() + Math.max(100, paneDetails.getWidth()));
+			// Only update the width if we're actually adding a control
+			// (not if we've simply started re-subscribing to changes)
+			if (paneMain.getCenter() != paneDetails) {
+				paneMain.setCenter(paneDetails);
+				var window = paneMain.getScene().getWindow();
+				window.setWidth(window.getWidth() + Math.max(100, paneDetails.getWidth()));
+			}
 		} else if (paneDetails != null) {
-			paneMain.setCenter(null);
-			var window = paneMain.getScene().getWindow();
-			window.setWidth(window.getWidth() - paneDetails.getWidth());
+			if (paneMain.getCenter() != null) {
+				paneMain.setCenter(null);
+				var window = paneMain.getScene().getWindow();
+				window.setWidth(window.getWidth() - paneDetails.getWidth());
+			}
 		}
 	}
 
@@ -375,9 +397,7 @@ public class PixelClassifierPane {
 		stage.initOwner(qupath.getStage());
 		stage.setTitle("Train pixel classifier");
 
-		stage.setOnShown(this::handleStageShown);
-		stage.setOnCloseRequest(this::handleStageCloseRequest);
-		stage.focusedProperty().subscribe(this::handleStageFocussed);
+		stage.showingProperty().subscribe(this::handleStageShowingChange);
 
 		return stage;
 	}
@@ -896,12 +916,43 @@ public class PixelClassifierPane {
 		pieChart.updateCounts(counts);
 	}
 
-	private void handleStageShown(WindowEvent event) {
+	private void handleStageShowingChange(boolean isShowing) {
+		if (isShowing) {
+			handleStageShown();
+		} else {
+			handleStageHidden();
+		}
+	}
+
+	private void handleStageShown() {
+		initializeSubscriptions();
 		this.overlayManager.start();
+		var imageData = qupath.getImageData();
+		handleImageDataChange(null, imageData);
+
+		// TODO: Refactor this! Update feature op builder if the ones we have are incompatible with the current image
+		if (imageData != null && !featureOpBuilders.isEmpty()) {
+			var resolution = PixelCalibration.getDefaultInstance();
+			boolean incompatibleFeatures = false;
+			for (var opBuilder : featureOpBuilders) {
+				if (!opBuilder.build(imageData, resolution).supportsImage(imageData)) {
+					incompatibleFeatures = true;
+					break;
+				}
+			}
+			if (incompatibleFeatures)
+				featureOpBuilders.clear();
+		}
+		if (featureOpBuilders.isEmpty()) {
+			updateAvailableFeatureOpBuilders(imageData);
+		}
+
+		// Don't forget where we were after we're hidden
+		FXUtils.retainWindowPosition(stage);
 	}
 
 
-	private void handleStageCloseRequest(WindowEvent event) {
+	private void handleStageHidden() {
 		subscription.unsubscribe();
 		for (var viewer : qupath.getAllViewers()) {
 			var hierarchy = viewer.getHierarchy();
