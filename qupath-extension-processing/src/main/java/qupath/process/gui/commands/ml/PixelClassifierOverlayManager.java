@@ -1,5 +1,6 @@
 package qupath.process.gui.commands.ml;
 
+import java.awt.image.BufferedImage;
 import java.util.Objects;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -21,9 +22,11 @@ import javafx.util.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.ViewerManager;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
+import qupath.lib.images.ImageData;
 
 /**
  * Class to manage viewer overlays when training a pixel classifier,
@@ -35,7 +38,7 @@ class PixelClassifierOverlayManager implements AutoCloseable{
 
     public static final String DEFAULT_CLASSIFICATION_OVERLAY = "Show classification";
 
-    private final QuPathGUI qupath;
+    private final ViewerManager viewerManager;
     private final PixelClassifierTraining training;
     private final FeatureRenderer featureRenderer;
 
@@ -60,17 +63,36 @@ class PixelClassifierOverlayManager implements AutoCloseable{
 
     private final Subscription subscription;
 
-    PixelClassifierOverlayManager(QuPathGUI qupath, PixelClassifierTraining training) {
-        this.qupath = qupath;
+    PixelClassifierOverlayManager(ViewerManager viewerManager, DefaultImageRegionStore regionStore, PixelClassifierTraining training) {
+        this.viewerManager = viewerManager;
         this.training = training;
-        this.featureRenderer = new FeatureRenderer(qupath.getImageRegionStore());
+        this.featureRenderer = new FeatureRenderer(regionStore);
         this.subscription = this.overlayOpacity.subscribe(this::updateOpacity)
                 .and(this.livePrediction.subscribe(this::updateLivePrediction))
                 .and(this.classifier.subscribe(this::updateClassifier))
                 .and(this.featureMinDisplay.subscribe(this::updateFeatureDisplayRange))
-                .and(this.featureMaxDisplay.subscribe(this::updateFeatureDisplayRange));
+                .and(this.featureMaxDisplay.subscribe(this::updateFeatureDisplayRange))
+                .and(this.viewerManager.getAllViewers().subscribe(this::addMouseMovedFilters));
 
-        qupath.getStage().addEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
+        addMouseMovedFilters();
+    }
+
+    private void removeMouseMovedFilters() {
+        logger.debug("Removing mouse moved filters");
+        for (var viewer : viewerManager.getAllViewers()) {
+            logger.trace("Removing mouse moved filter from {}", viewer);
+            viewer.getView().removeEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
+        }
+    }
+
+    private void addMouseMovedFilters() {
+        logger.debug("Adding mouse moved filters");
+        for (var viewer : viewerManager.getAllViewers()) {
+            logger.trace("Adding mouse moved filter to {}", viewer);
+            // Remove, then add, to avoid duplicates
+            viewer.getView().removeEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
+            viewer.getView().addEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
+        }
     }
 
     private void updateClassifier(PixelClassifier classifier) {
@@ -79,7 +101,7 @@ class PixelClassifierOverlayManager implements AutoCloseable{
         } else {
             replaceOverlay(
                     PixelClassificationOverlay.create(
-                            qupath.getOverlayOptions(),
+                            viewerManager.getOverlayOptions(),
                             classifier,
                             predictionThreads.get())
             );
@@ -127,7 +149,7 @@ class PixelClassifierOverlayManager implements AutoCloseable{
         }
         if (overlay != null)
             overlay.setOpacity(opacity.doubleValue());
-        qupath.getViewerManager().repaintAllViewers();
+        viewerManager.repaintAllViewers();
     }
 
 
@@ -137,12 +159,12 @@ class PixelClassifierOverlayManager implements AutoCloseable{
             featureOverlay = null;
         }
 
-        var imageData = qupath.getImageData();
+        var imageData = getCurrentImageData();
         if (imageData == null)
             return;
         String featureName = selectedName.get();
         if (DEFAULT_CLASSIFICATION_OVERLAY.equals(featureName)) {
-            for (var viewer : qupath.getAllViewers())
+            for (var viewer : viewerManager.getAllViewers())
                 viewer.setCustomPixelLayerOverlay(overlay);
             return;
         }
@@ -159,7 +181,7 @@ class PixelClassifierOverlayManager implements AutoCloseable{
                 var channelBefore = featureRenderer.getSelectedChannel();
                 featureRenderer.setChannel(featureServer, channel, featureMinDisplay.get(), featureMaxDisplay.get());
                 var channelAfter = featureRenderer.getSelectedChannel();
-                featureOverlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), training::getFeatureServer, featureRenderer);
+                featureOverlay = PixelClassificationOverlay.create(viewerManager.getOverlayOptions(), training::getFeatureServer, featureRenderer);
                 featureOverlay.setMaxThreads(predictionThreads.get());
                 featureOverlay.setLivePrediction(true);
                 featureOverlay.setOpacity(overlayOpacity.get());
@@ -170,9 +192,14 @@ class PixelClassifierOverlayManager implements AutoCloseable{
             }
         }
         if (featureOverlay != null) {
-            for (var viewer : qupath.getAllViewers())
+            for (var viewer : viewerManager.getAllViewers())
                 viewer.setCustomPixelLayerOverlay(featureOverlay);
         }
+    }
+
+    private ImageData<BufferedImage> getCurrentImageData() {
+        var viewer = viewerManager.getActiveViewer();
+        return viewer == null ? null : viewer.getImageData();
     }
 
     public void autoFeatureContrast() {
@@ -190,7 +217,7 @@ class PixelClassifierOverlayManager implements AutoCloseable{
         if (featureRenderer == null || featureMinDisplay.getValue() == null || featureMaxDisplay.getValue() == null)
             return;
         featureRenderer.setRange(featureMinDisplay.get(), featureMaxDisplay.get());
-        qupath.getViewerManager().repaintAllViewers();
+        viewerManager.repaintAllViewers();
     }
 
     public StringProperty selectedNameProperty() {
@@ -236,7 +263,7 @@ class PixelClassifierOverlayManager implements AutoCloseable{
     private void handleMouseMoved(MouseEvent event) {
         if (overlay == null)
             return;
-        for (var viewer : qupath.getAllViewers()) {
+        for (var viewer : viewerManager.getAllViewers()) {
             var view = viewer.getView();
             var local = view.screenToLocal(event.getScreenX(), event.getScreenY());
             if (view.contains(local)) {
@@ -262,12 +289,13 @@ class PixelClassifierOverlayManager implements AutoCloseable{
 
     @Override
     public void close() {
+        logger.debug("Closing overlay manager");
         if (overlay != null)
             overlay.stop();
 
         subscription.unsubscribe();
 
-        for (var viewer : qupath.getAllViewers()) {
+        for (var viewer : viewerManager.getAllViewers()) {
             viewer.resetCustomPixelLayerOverlay();
             if (featureOverlay != null) {
                 viewer.getCustomOverlayLayers().remove(featureOverlay);
@@ -278,6 +306,6 @@ class PixelClassifierOverlayManager implements AutoCloseable{
         featureOverlay = null;
         overlay = null;
 
-        qupath.getStage().removeEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
+        removeMouseMovedFilters();
     }
 }

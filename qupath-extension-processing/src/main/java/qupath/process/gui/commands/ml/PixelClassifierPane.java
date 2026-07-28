@@ -181,7 +181,7 @@ public class PixelClassifierPane {
 	 */
 	public PixelClassifierPane(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.overlayManager = new PixelClassifierOverlayManager(qupath, helper);
+		this.overlayManager = new PixelClassifierOverlayManager(qupath.getViewerManager(), qupath.getImageRegionStore(), helper);
 		this.trainingImageManager = new TrainingImageManager(qupath);
 		this.trainingViewerPane = new TrainingViewerPane(qupath.getViewer(), overlayManager);
 		initialize();
