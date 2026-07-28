@@ -381,6 +381,7 @@ public class PixelClassifierPane {
 		stage.initOwner(qupath.getStage());
 		stage.setTitle("Train pixel classifier");
 
+		stage.setOnShown(this::handleStageShown);
 		stage.setOnCloseRequest(this::handleStageCloseRequest);
 		stage.focusedProperty().subscribe(this::handleStageFocussed);
 
@@ -901,8 +902,12 @@ public class PixelClassifierPane {
 		pieChart.updateCounts(counts);
 	}
 
+	private void handleStageShown(WindowEvent event) {
+		this.overlayManager.start();
+	}
 
-    private void handleStageCloseRequest(WindowEvent event) {
+
+	private void handleStageCloseRequest(WindowEvent event) {
 		qupath.imageDataProperty().removeListener(imageDataListener);
 
 		for (var viewer : qupath.getAllViewers()) {
@@ -910,7 +915,7 @@ public class PixelClassifierPane {
 			if (hierarchy != null)
 				hierarchy.removeListener(hierarchyListener);
 		}
-		overlayManager.close();
+		overlayManager.stop();
 		trainingImageManager.close();
 
 		subscription.unsubscribe();

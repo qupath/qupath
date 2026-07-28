@@ -32,7 +32,7 @@ import qupath.lib.images.ImageData;
  * Class to manage viewer overlays when training a pixel classifier,
  * both for the classifier output and for feature display.
  */
-class PixelClassifierOverlayManager implements AutoCloseable{
+class PixelClassifierOverlayManager {
 
     private static final Logger logger = LoggerFactory.getLogger(PixelClassifierOverlayManager.class);
 
@@ -61,20 +61,12 @@ class PixelClassifierOverlayManager implements AutoCloseable{
     private PixelClassificationOverlay overlay;
     private PixelClassificationOverlay featureOverlay;
 
-    private final Subscription subscription;
+    private Subscription subscription;
 
     PixelClassifierOverlayManager(ViewerManager viewerManager, DefaultImageRegionStore regionStore, PixelClassifierTraining training) {
         this.viewerManager = viewerManager;
         this.training = training;
         this.featureRenderer = new FeatureRenderer(regionStore);
-        this.subscription = this.overlayOpacity.subscribe(this::updateOpacity)
-                .and(this.livePrediction.subscribe(this::updateLivePrediction))
-                .and(this.classifier.subscribe(this::updateClassifier))
-                .and(this.featureMinDisplay.subscribe(this::updateFeatureDisplayRange))
-                .and(this.featureMaxDisplay.subscribe(this::updateFeatureDisplayRange))
-                .and(this.viewerManager.getAllViewers().subscribe(this::addMouseMovedFilters));
-
-        addMouseMovedFilters();
     }
 
     private void removeMouseMovedFilters() {
@@ -94,6 +86,65 @@ class PixelClassifierOverlayManager implements AutoCloseable{
             viewer.getView().addEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
         }
     }
+
+    /**
+     * Start the overlay manager.
+     * This attached property and mouse listeners, so that viewers are updated.
+     * It must be called for the overlay manager to do anything useful.
+     * <p>
+     * This should be called from the JavaFX application thread.
+     */
+    public void start() {
+        logger.debug("Starting overlay manager");
+        this.subscription = this.overlayOpacity.subscribe(this::updateOpacity)
+                .and(this.livePrediction.subscribe(this::updateLivePrediction))
+                .and(this.classifier.subscribe(this::updateClassifier))
+                .and(this.featureMinDisplay.subscribe(this::updateFeatureDisplayRange))
+                .and(this.featureMaxDisplay.subscribe(this::updateFeatureDisplayRange))
+                .and(this.viewerManager.getAllViewers().subscribe(this::addMouseMovedFilters));
+
+        addMouseMovedFilters();
+    }
+
+    /**
+     * Query whether the overlay manager is running.
+     * @return true if {@link #start()} has been called after any previous call to {@link #stop()}.
+     */
+    public boolean isRunning() {
+        return subscription != null;
+    }
+
+    /**
+     * Stop the overlay manager.
+     * This removes property and mouse listeners, so that changes do not cause viewers to update.
+     * <p>
+     * This should be called from the JavaFX application thread.
+     */
+    public void stop() {
+        if (!isRunning()) {
+            logger.warn("Stop request for overlay manager, but it is not running");
+            return;
+        }
+        logger.debug("Stopping overlay manager");
+        if (overlay != null)
+            overlay.stop();
+
+        subscription.unsubscribe();
+
+        for (var viewer : viewerManager.getAllViewers()) {
+            viewer.resetCustomPixelLayerOverlay();
+            if (featureOverlay != null) {
+                viewer.getCustomOverlayLayers().remove(featureOverlay);
+                featureOverlay.stop();
+            }
+        }
+
+        featureOverlay = null;
+        overlay = null;
+
+        removeMouseMovedFilters();
+    }
+
 
     private void updateClassifier(PixelClassifier classifier) {
         if (classifier == null) {
@@ -286,26 +337,4 @@ class PixelClassifierOverlayManager implements AutoCloseable{
             cursorLocation.set(results);
     }
 
-
-    @Override
-    public void close() {
-        logger.debug("Closing overlay manager");
-        if (overlay != null)
-            overlay.stop();
-
-        subscription.unsubscribe();
-
-        for (var viewer : viewerManager.getAllViewers()) {
-            viewer.resetCustomPixelLayerOverlay();
-            if (featureOverlay != null) {
-                viewer.getCustomOverlayLayers().remove(featureOverlay);
-                featureOverlay.stop();
-            }
-        }
-
-        featureOverlay = null;
-        overlay = null;
-
-        removeMouseMovedFilters();
-    }
 }
