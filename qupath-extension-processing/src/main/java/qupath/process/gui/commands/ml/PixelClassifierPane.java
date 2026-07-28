@@ -60,7 +60,6 @@ import javafx.stage.WindowEvent;
 import javafx.util.Subscription;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.TermCriteria;
@@ -680,7 +679,7 @@ public class PixelClassifierPane {
 		// This is a bit of a hack because we know some implementations will fail with more channels than OpenCV
 		// can handle (on a call to OpenCVTools.mergeChannels).
 		// We'd rather show a notification instead of just logging the error - although this risks being a problem
-		// for an implementation that *would* work, so we may consider restricting the check to only know failures.
+		// for an implementation that *would* work, so we may consider restricting the check to only known failures.
 		var featureOpBuilder = opBuilder.get();
 		var featureOp = featureOpBuilder.build(imageData, cal);
 		int nFeatures = featureOp.getChannels(imageData).size();
@@ -725,6 +724,17 @@ public class PixelClassifierPane {
 				logger.debug("doClassification() called, but no images are open");
 				return;
 			}
+		}
+
+		var op = helper.getFeatureOp();
+		if (op == null) {
+			Dialogs.showWarningNotification("Pixel classifier", "No features selected!");
+			return;
+		}
+
+		if (!op.supportsImage(imageData)) {
+			Dialogs.showWarningNotification("Pixel classifier", "Selected features aren't compatible with the current image");
+			return;
 		}
 
 		var model = statModel.get();
