@@ -25,6 +25,8 @@ import java.time.Duration;
 import java.util.Random;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.ObjectExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -66,6 +68,7 @@ import org.bytedeco.opencv.opencv_ml.KNearest;
 import org.bytedeco.opencv.opencv_ml.LogisticRegression;
 import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.bytedeco.opencv.opencv_ml.TrainData;
+import org.controlsfx.control.action.Action;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +79,9 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.actions.InfoMessage;
+import qupath.lib.gui.commands.ContextHelpViewer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
@@ -123,6 +129,8 @@ public class PixelClassifierPane {
 
 	private final QuPathGUI qupath;
 
+	private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+
 	private final ObservableList<ImageDataOpBuilder> featureOpBuilders = FXCollections.observableArrayList();
     private final ObservableList<ClassificationResolution> resolutions = FXCollections.observableArrayList();
 
@@ -148,7 +156,9 @@ public class PixelClassifierPane {
 	private final ObjectProperty<ImageServerMetadata.ChannelType> outputType = new SimpleObjectProperty<>();
 
 	private final PathObjectHierarchyListener hierarchyListener = this::handleHierarchyChange;
-	
+
+	private final BooleanProperty featuresIncompatible = new SimpleBooleanProperty(false);
+
 	/**
 	 * The last trained classifier
 	 */
@@ -171,6 +181,7 @@ public class PixelClassifierPane {
 	 */
 	public PixelClassifierPane(final QuPathGUI qupath) {
 		this.qupath = qupath;
+		this.imageDataProperty.bind(qupath.imageDataProperty());
 		this.overlayManager = createOverlayManager(qupath, helper);
 		this.trainingImageManager = createTrainingImageManager(qupath);
 		this.trainingViewerPane = createTrainingViewerPane(qupath, overlayManager);
@@ -213,7 +224,7 @@ public class PixelClassifierPane {
 				}),
 				opBuilder.subscribe(this::updateFeatureCalculator),
 				showMore.subscribe(this::handleShowDetails),
-				qupath.imageDataProperty().subscribe(this::handleImageDataChange),
+				imageDataProperty.subscribe(this::handleImageDataChange),
 				stage.focusedProperty().subscribe(this::handleStageFocussed)
 		);
 	}
@@ -234,13 +245,14 @@ public class PixelClassifierPane {
 		if (newValue != null)
 			newValue.getHierarchy().addListener(hierarchyListener);
 		updateAvailableResolutions(newValue);
+		checkFeaturesCompatible();
 	}
 
 
 
 	private Stage createUI() {
 
-		var imageData = qupath.getImageData();
+		var imageData = imageDataProperty.get();
 		
         GridPane pane = new GridPane();
 		pane.setHgap(5);
@@ -321,7 +333,7 @@ public class PixelClassifierPane {
 				return "Calculate feature importance";
 		}, featureDetailsPane.hasImportanceProperty()));
 		btnImportance.setMaxWidth(Double.MAX_VALUE);
-		btnImportance.disableProperty().bind(qupath.imageDataProperty().isNull());
+		btnImportance.disableProperty().bind(imageDataProperty.isNull());
 		btnImportance.setOnAction(e -> calculateVariableImportance());
 		paneImportance.setBottom(btnImportance);
 		tabPane.getTabs().add(
@@ -338,7 +350,7 @@ public class PixelClassifierPane {
 			else
 				return "Compute cross validation";
 		}, hasMetrics));
-		btnCrossValidation.disableProperty().bind(qupath.imageDataProperty().isNull());
+		btnCrossValidation.disableProperty().bind(imageDataProperty.isNull());
 		btnCrossValidation.setOnAction(e -> computeCrossValidation());
 		paneMetrics.setBottom(btnCrossValidation);
 		tabPane.getTabs().add(
@@ -467,19 +479,28 @@ public class PixelClassifierPane {
 		opBuilder.bind(comboFeatures.getSelectionModel().selectedItemProperty());
 		comboFeatures.getSelectionModel().selectFirst();
 
-		var btnCustomizeFeatures = new Button("Edit");
-		btnCustomizeFeatures.setMinWidth(Button.USE_PREF_SIZE);
-		btnCustomizeFeatures.setMaxWidth(Button.USE_PREF_SIZE);
 
-		btnCustomizeFeatures.disableProperty().bind(Bindings.createBooleanBinding(() -> {
-			var calc = opBuilder.get();
-			return calc == null || !calc.canCustomize(imageData);
-		}, opBuilder));
-		btnCustomizeFeatures.setOnAction(e -> {
-			if (opBuilder.get().doCustomize(imageData)) {
+		var actionCustomFeatures = ActionTools.createAction(() -> {
+			var imageDataTemp = imageDataProperty.get();
+			if (opBuilder.get().doCustomize(imageDataTemp)) {
 				updateFeatureCalculator();
+				checkFeaturesCompatible();
 			}
 		});
+		actionCustomFeatures.setText("Edit");
+		actionCustomFeatures.disabledProperty().bind(Bindings.createBooleanBinding(() -> {
+			var calc = opBuilder.get();
+			var imageDataTemp = imageDataProperty.get();
+			return calc == null || imageDataTemp == null || !calc.canCustomize(imageDataTemp);
+		}, opBuilder, imageDataProperty));
+
+		var incompatibleMessage = InfoMessage.error("Features are not compatible with the current image");
+		ActionTools.installInfoMessage(actionCustomFeatures,
+				Bindings.when(featuresIncompatible).then(incompatibleMessage).otherwise((InfoMessage)null));
+
+		var btnCustomizeFeatures = ActionTools.createButton(actionCustomFeatures);
+		btnCustomizeFeatures.setMinWidth(Button.USE_PREF_SIZE);
+		btnCustomizeFeatures.setMaxWidth(Button.USE_PREF_SIZE);
 
 		comboFeatures.getSelectionModel().select(0);
 
@@ -488,6 +509,16 @@ public class PixelClassifierPane {
 		GridPaneUtils.addGridRow(pane, pane.getRowCount(), 0,
 				"Select features for the classifier",
 				labelFeatures, comboFeatures, btnCustomizeFeatures);
+	}
+
+	private void checkFeaturesCompatible() {
+		var imageData = imageDataProperty.get();
+		var op = opBuilder.get();
+        featuresIncompatible.set(
+				imageData != null &&
+				op != null &&
+				!op.build(imageData, PixelCalibration.getDefaultInstance()).supportsImage(imageData)
+		);
 	}
 
 	private void addOutputTypeControls(GridPane pane) {
@@ -568,7 +599,7 @@ public class PixelClassifierPane {
 		var classifierName = new SimpleStringProperty(null);
 		var panePostProcess = new VBox(
 				PixelClassifierUI.createSavePixelClassifierPane(qupath.projectProperty(), currentClassifier, classifierName),
-				PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier, classifierName)
+				PixelClassifierUI.createPixelClassifierButtons(imageDataProperty, currentClassifier, classifierName)
 		);
 		panePostProcess.setSpacing(5);
 		pane.add(panePostProcess, 0, pane.getRowCount(), GridPane.REMAINING, 1);
@@ -688,7 +719,7 @@ public class PixelClassifierPane {
 		if (resolution == null)
 			return;
 		var cal = resolution.getPixelCalibration();
-		var imageData = qupath.getImageData();
+		var imageData = imageDataProperty.get();
 		
 		// Check we can support the requested channels before proceeding
 		// This is a bit of a hack because we know some implementations will fail with more channels than OpenCV
@@ -713,6 +744,7 @@ public class PixelClassifierPane {
 			);
 		}
 		updateClassifier();
+		checkFeaturesCompatible();
 	}
 
 
@@ -733,7 +765,7 @@ public class PixelClassifierPane {
 
 
 	private void doClassification() {
-		var imageData = qupath.getImageData();
+		var imageData = imageDataProperty.get();
 		if (imageData == null) {
 			if (qupath.getAllViewers().stream().noneMatch(v -> v.getImageData() != null)) {
 				logger.debug("doClassification() called, but no images are open");
@@ -927,25 +959,8 @@ public class PixelClassifierPane {
 	private void handleStageShown() {
 		initializeSubscriptions();
 		this.overlayManager.start();
-		var imageData = qupath.getImageData();
+		var imageData = imageDataProperty.get();
 		handleImageDataChange(null, imageData);
-
-		// TODO: Refactor this! Update feature op builder if the ones we have are incompatible with the current image
-		if (imageData != null && !featureOpBuilders.isEmpty()) {
-			var resolution = PixelCalibration.getDefaultInstance();
-			boolean incompatibleFeatures = false;
-			for (var opBuilder : featureOpBuilders) {
-				if (!opBuilder.build(imageData, resolution).supportsImage(imageData)) {
-					incompatibleFeatures = true;
-					break;
-				}
-			}
-			if (incompatibleFeatures)
-				featureOpBuilders.clear();
-		}
-		if (featureOpBuilders.isEmpty()) {
-			updateAvailableFeatureOpBuilders(imageData);
-		}
 
 		// Don't forget where we were after we're hidden
 		FXUtils.retainWindowPosition(stage);
@@ -977,7 +992,7 @@ public class PixelClassifierPane {
 
 
     private void promptToAddResolution() {
-		var imageData = qupath.getImageData();
+		var imageData = imageDataProperty.get();
 		ImageServer<BufferedImage> server = imageData == null ? null : imageData.getServer();
 		if (server == null) {
 			GuiTools.showNoImageError("Add resolution");
@@ -1013,7 +1028,7 @@ public class PixelClassifierPane {
 	
 	private void updateResolution(ClassificationResolution resolution) {
 		trainingViewerPane.setResolution(resolution);
-		ImageServer<BufferedImage> server = qupath.getImageData() == null ? null : qupath.getImageData().getServer();
+		ImageServer<BufferedImage> server = imageDataProperty.get() == null ? null : imageDataProperty.get().getServer();
 		if (server == null || resolution == null)
 			return;
 		helper.setResolution(resolution.cal);
