@@ -30,8 +30,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -162,18 +160,7 @@ public class PixelClassifierPane {
 
 	private final ComboBox<ClassificationResolution> comboResolutions = PixelClassifierUtils.createHGrowComboBox(resolutions);
 
-    private final ChangeListener<ImageData<BufferedImage>> imageDataListener = this::handleImageDataChange;
-
 	private Subscription subscription = Subscription.EMPTY;
-
-	private void handleImageDataChange(ObservableValue<? extends ImageData<BufferedImage>> observable,
-						ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
-		if (oldValue != null)
-			oldValue.getHierarchy().removeListener(hierarchyListener);
-		if (newValue != null)
-			newValue.getHierarchy().addListener(hierarchyListener);
-		updateAvailableResolutions(newValue);
-	}
 
 	/**
 	 * Constructor.
@@ -204,7 +191,8 @@ public class PixelClassifierPane {
 					overlayManager.ensureOverlaySet();
 				}),
 				opBuilder.subscribe(this::updateFeatureCalculator),
-				showMore.subscribe(this::handleShowDetails)
+				showMore.subscribe(this::handleShowDetails),
+				qupath.imageDataProperty().subscribe(this::handleImageDataChange)
 		);
 	}
 
@@ -216,6 +204,14 @@ public class PixelClassifierPane {
 
 	private void appendSubscription(Subscription subscription) {
 		this.subscription = this.subscription.and(subscription);
+	}
+
+	private void handleImageDataChange(ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
+		if (oldValue != null)
+			oldValue.getHierarchy().removeListener(hierarchyListener);
+		if (newValue != null)
+			newValue.getHierarchy().addListener(hierarchyListener);
+		updateAvailableResolutions(newValue);
 	}
 
 	private void initializeOverlayManager() {
@@ -266,9 +262,7 @@ public class PixelClassifierPane {
 		ensureResolutionSelected(imageData);
 		updateFeatureCalculator();
 
-		qupath.imageDataProperty().addListener(imageDataListener);
-		if (qupath.getImageData() != null)
-			qupath.getImageData().getHierarchy().addListener(hierarchyListener);
+		handleImageDataChange(null, imageData);
 	}
 
 	private void handleShowDetails(boolean doShow) {
@@ -908,17 +902,14 @@ public class PixelClassifierPane {
 
 
 	private void handleStageCloseRequest(WindowEvent event) {
-		qupath.imageDataProperty().removeListener(imageDataListener);
-
+		subscription.unsubscribe();
 		for (var viewer : qupath.getAllViewers()) {
 			var hierarchy = viewer.getHierarchy();
 			if (hierarchy != null)
 				hierarchy.removeListener(hierarchyListener);
 		}
 		overlayManager.stop();
-		trainingImageManager.close();
-
-		subscription.unsubscribe();
+		trainingImageManager.reset();
 	}
 	
 	

@@ -19,7 +19,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.projects.ProjectImageEntry;
 
-class TrainingImageManager implements AutoCloseable {
+class TrainingImageManager {
 
     private static final Logger logger = LoggerFactory.getLogger(TrainingImageManager.class);
 
@@ -122,14 +122,16 @@ class TrainingImageManager implements AutoCloseable {
         return trainingEntries.size();
     }
 
-    @Override
-    public void close() {
+    /**
+     * Reset all stored training entries, including cached data.
+     */
+    public void reset() {
         // Ensure we have closed any cached images
         for (var data : trainingMap.values()) {
             try {
                 data.close();
             } catch (Exception e) {
-                logger.warn("Error closing server: {}", e.getMessage(), e);
+                logger.warn("Error closing image: {}", e.getMessage(), e);
             }
         }
         trainingEntries.clear();
