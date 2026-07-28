@@ -1,9 +1,11 @@
 package qupath.process.gui.commands.ml;
 
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -29,13 +31,15 @@ import qupath.fx.utils.GridPaneUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.lib.gui.commands.MiniViewers;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.ImageData;
 
 /**
  * A mini viewer and associated controls to view overlays for pixel classifier output and features.
  */
 class TrainingViewerPane extends Control implements Skinnable {
 
-    private final QuPathViewer viewer;
+    private final ObjectProperty<QuPathViewer> viewer = new SimpleObjectProperty<>();
+    private final ObjectProperty<ImageData<BufferedImage>> imageData = new SimpleObjectProperty<>();
     private final PixelClassifierOverlayManager overlayManager;
 
     /**
@@ -48,9 +52,10 @@ class TrainingViewerPane extends Control implements Skinnable {
      */
     private final ObservableList<String> availableFeatures = FXCollections.observableArrayList();
 
-    TrainingViewerPane(QuPathViewer viewer, PixelClassifierOverlayManager overlayManager) {
+    TrainingViewerPane(ObservableValue<QuPathViewer> viewer, PixelClassifierOverlayManager overlayManager) {
         super();
-        this.viewer = viewer;
+        this.viewer.bind(viewer);
+        this.imageData.bind(viewer.flatMap(QuPathViewer::imageDataProperty));
         this.overlayManager = overlayManager;
     }
 
@@ -71,7 +76,7 @@ class TrainingViewerPane extends Control implements Skinnable {
     }
 
     protected Skin<?> createDefaultSkin() {
-        return new TrainingViewerPaneSkin(this, viewer);
+        return new TrainingViewerPaneSkin(this);
     }
 
     private static class TrainingViewerPaneSkin implements Skin<TrainingViewerPane> {
@@ -80,7 +85,7 @@ class TrainingViewerPane extends Control implements Skinnable {
 
         private final BorderPane pane = new BorderPane();
 
-        private final MiniViewers.MiniViewerManager miniViewer;
+        private final ObjectProperty<MiniViewers.MiniViewerManager> miniViewer = new SimpleObjectProperty<>();
         private final ComboBox<String> comboDisplayFeatures = PixelClassifierUtils.createHGrowComboBox();
         private final Slider sliderFeatureOpacity = new Slider(0.0, 1.0, 1.0);
         private final Spinner<Double> spinFeatureMin = FXUtils.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.1, 1);
@@ -98,13 +103,23 @@ class TrainingViewerPane extends Control implements Skinnable {
         private final ListChangeListener<String> featureChangeListener = this::handleAvailableFeaturesChange;
         private Subscription subscription;
 
-        private TrainingViewerPaneSkin(TrainingViewerPane skinnable, QuPathViewer viewer) {
+        private TrainingViewerPaneSkin(TrainingViewerPane skinnable) {
             this.skinnable = skinnable;
-            this.miniViewer = MiniViewers.createManager(viewer);
             this.overlayManager = skinnable.overlayManager;
             this.minDisplay = overlayManager.featureMinDisplayProperty().asObject();
             this.maxDisplay = overlayManager.featureMaxDisplayProperty().asObject();
-            initialize();
+        }
+
+        private MiniViewers.MiniViewerManager createMiniViewer(QuPathViewer viewer) {
+            if (viewer == null) {
+                return miniViewer.get();
+            } else {
+                var manager = MiniViewers.createManager(viewer);
+                var pane = manager.getPane();
+                Tooltip.install(pane, resolutionTooltip);
+                resolutionTooltip.setText("View image at classification resolution");
+                return manager;
+            }
         }
 
         private void initialize() {
@@ -113,9 +128,7 @@ class TrainingViewerPane extends Control implements Skinnable {
         }
 
         private void initializeViewer() {
-            var viewerPane = miniViewer.getPane();
-            Tooltip.install(viewerPane, new Tooltip("View image at classification resolution"));
-            pane.setCenter(viewerPane);
+            pane.centerProperty().bind(miniViewer.map(MiniViewers.MiniViewerManager::getPane));
         }
 
         private void initializeControls() {
@@ -159,7 +172,7 @@ class TrainingViewerPane extends Control implements Skinnable {
             btnShow.setContentDisplay(ContentDisplay.RIGHT);
             btnShow.setTooltip(new Tooltip("Send classification or features to ImageJ"));
             btnShow.setOnAction(this::handleSendToImageJ);
-            btnShow.disableProperty().bind(skinnable.viewer.imageDataProperty().isNull()
+            btnShow.disableProperty().bind(skinnable.imageData.isNull()
                     .or(overlayManager.classifierProperty().isNull()));
 
             GridPaneUtils.addGridRow(paneFeatures, 0, 0, null,
@@ -182,10 +195,13 @@ class TrainingViewerPane extends Control implements Skinnable {
             var overlay = PixelClassifierOverlayManager.DEFAULT_CLASSIFICATION_OVERLAY.equals(overlayManager.selectedNameProperty().get()) ?
                     overlayManager.getOverlay() :
                     overlayManager.getFeatureOverlay();
-            PixelClassifierUtils.showImageJClassifierOutput(
-                    skinnable.viewer,
-                    overlay
-            );
+            var viewer = skinnable.viewer.get();
+            if (viewer != null) {
+                PixelClassifierUtils.showImageJClassifierOutput(
+                        viewer,
+                        overlay
+                );
+            }
         }
 
         @Override
@@ -205,26 +221,44 @@ class TrainingViewerPane extends Control implements Skinnable {
         }
 
         private void bindControls() {
+            initialize();
             minDisplay.bindBidirectional(spinFeatureMin.getValueFactory().valueProperty());
             maxDisplay.bindBidirectional(spinFeatureMax.getValueFactory().valueProperty());
             overlayManager.selectedNameProperty().bind(comboDisplayFeatures.getSelectionModel().selectedItemProperty());
             overlayManager.overlayOpacityProperty().bindBidirectional(sliderFeatureOpacity.valueProperty());
             skinnable.getAvailableFeatures().addListener(featureChangeListener);
-            subscription = skinnable.resolutionProperty().subscribe(this::updateResolution);
-            updateResolution(skinnable.getResolution());
+            subscription = skinnable.resolutionProperty()
+                    .subscribe(this::updateResolution)
+                    .and(miniViewer.subscribe(this::updateResolution))
+                    .and(skinnable.viewer.subscribe(this::updateMiniViewer));
+            updateMiniViewer(skinnable.viewer.get());
             updateAvailableFeatures();
         }
 
-        private void updateResolution(ClassificationResolution resolution) {
-            var server = skinnable.viewer.getServer();
+        private void updateMiniViewer(QuPathViewer viewer) {
+            if (viewer == null)
+                return;
+            var previous = miniViewer.get();
+            miniViewer.setValue(createMiniViewer(viewer));
+            if (previous != null) {
+                previous.close();
+            }
+        }
+
+        private void updateResolution() {
+            var resolution = skinnable.resolution.get();
+            var imageData = skinnable.imageData.get();
+            var server = imageData == null ? null : imageData.getServer();
             if (resolution != null && server != null) {
                 resolutionTooltip.setText("Classification resolution: \n" + resolution);
-                miniViewer.setDownsample(resolution.cal.getAveragedPixelSize().doubleValue()  /
-                        server.getPixelCalibration().getAveragedPixelSize().doubleValue());
+                var mini = miniViewer.get();
+                if (mini != null) {
+                    mini.setDownsample(resolution.cal.getAveragedPixelSize().doubleValue() /
+                            server.getPixelCalibration().getAveragedPixelSize().doubleValue());
+                }
             } else {
                 resolutionTooltip.setText("No image available");
             }
-            Tooltip.install(miniViewer.getPane(), resolutionTooltip);
         }
 
         private void handleAvailableFeaturesChange(ListChangeListener.Change<? extends String> change) {
@@ -251,6 +285,8 @@ class TrainingViewerPane extends Control implements Skinnable {
         }
 
         private void unbindControls() {
+            pane.centerProperty().unbind();
+            pane.setCenter(null);
             minDisplay.unbindBidirectional(spinFeatureMin.getValueFactory().valueProperty());
             maxDisplay.unbindBidirectional(spinFeatureMax.getValueFactory().valueProperty());
             overlayManager.selectedNameProperty().unbind();
@@ -258,6 +294,10 @@ class TrainingViewerPane extends Control implements Skinnable {
             skinnable.getAvailableFeatures().removeListener(featureChangeListener);
             if (subscription != null)
                 subscription.unsubscribe();
+            var mini = miniViewer.get();
+            if (mini != null) {
+                mini.close();
+            }
         }
 
     }
