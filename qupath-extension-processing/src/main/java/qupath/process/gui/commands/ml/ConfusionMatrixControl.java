@@ -14,6 +14,7 @@ import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.VPos;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
@@ -158,7 +159,7 @@ class ConfusionMatrixControl<T> extends Control implements Skinnable {
             var rowLabel = createVerticalLabel(padding);
             rowLabel.textProperty().bind(skinnable.rowLabel);
             rowLabel.setStyle("-fx-font-weight: bold;");
-            pane.add(rowLabel, 0, 2, 1, GridPane.REMAINING);
+            pane.add(new Group(rowLabel), 0, 2, 1, GridPane.REMAINING);
 
             for (int i = 0; i < labels.size(); i++) {
                 var binding = createLabelStringBinding(labels.get(i));
@@ -171,7 +172,8 @@ class ConfusionMatrixControl<T> extends Control implements Skinnable {
                 var gridColLabel = createVerticalLabel(padding);
                 gridColLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
                 gridColLabel.textProperty().bind(binding);
-                pane.add(gridColLabel, 1, 2+i, 1, 1);
+                // See https://stackoverflow.com/questions/29031565/rotating-label-90-degrees-takes-up-unnecessary-horizontal-space
+                pane.add(new Group(gridColLabel), 1, 2+i, 1, 1);
             }
 
             int r = 2;
@@ -205,6 +207,7 @@ class ConfusionMatrixControl<T> extends Control implements Skinnable {
             var label = new Label();
             label.setMaxWidth(Double.MAX_VALUE);
             label.setAlignment(Pos.CENTER);
+            label.setWrapText(true);
             GridPane.setHgrow(label, Priority.ALWAYS);
             GridPane.setHalignment(label, HPos.CENTER);
             GridPane.setFillWidth(label, Boolean.TRUE);
@@ -215,7 +218,8 @@ class ConfusionMatrixControl<T> extends Control implements Skinnable {
 
         private Label createVerticalLabel(double padding) {
             var label = new Label();
-            label.setMaxHeight(Double.MAX_VALUE);
+            label.setMaxWidth(Double.MAX_VALUE);
+            label.setWrapText(true);
             label.setAlignment(Pos.CENTER);
             label.setRotate(-90);
             GridPane.setVgrow(label, Priority.ALWAYS);
