@@ -116,9 +116,10 @@ public class ClassificationResolution {
 
 	/**
 	 * Get a list of default resolutions to show, derived from {@link PixelCalibration} objects.
-	 * @param imageData
-	 * @param selected
-	 * @return
+	 * @param imageData the current image
+	 * @param selected any currently-selected resolution; if not null, then a resolution with
+	 *                 a matching pixel calibration will be included in the output list.
+	 * @return a list of suitable resolutions
 	 */
 	public static List<ClassificationResolution> getDefaultResolutions(ImageData<?> imageData, ClassificationResolution selected) {
 		var temp = new ArrayList<ClassificationResolution>();
@@ -127,15 +128,20 @@ public class ClassificationResolution {
 		int scale = 1;
 		for (String name : resolutionNames) {
 			var newResolution = new ClassificationResolution(name, cal.createScaledInstance(scale, scale, 1));
-			if (Objects.equals(selected, newResolution))
-				temp.add(selected);
-			else
-				temp.add(newResolution);
+			// If the resolution matches the selected resolution, we don't need to add it separately
+			if (selected != null && Objects.equals(selected.getPixelCalibration(), newResolution.getPixelCalibration())) {
+				selected = null;
+			}
+			temp.add(newResolution);
 			scale *= 2;
 		}
-		if (selected != null && !temp.contains(selected))
-			temp.add(selected);
-		
+		if (selected != null) {
+			var current = new ClassificationResolution(
+					"Current",
+					selected.getPixelCalibration()
+			);
+			temp.addFirst(current);
+		}
 		return temp;
 	}
 	

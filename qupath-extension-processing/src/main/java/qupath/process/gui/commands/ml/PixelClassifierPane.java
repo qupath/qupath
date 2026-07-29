@@ -22,6 +22,7 @@
 package qupath.process.gui.commands.ml;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Random;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -153,6 +154,7 @@ public class PixelClassifierPane {
 	private final PathObjectHierarchyListener hierarchyListener = this::handleHierarchyChange;
 
 	private final BooleanProperty featuresIncompatible = new SimpleBooleanProperty(false);
+	private final BooleanProperty resolutionsIncompatible = new SimpleBooleanProperty(false);
 
 	/**
 	 * The last trained classifier
@@ -241,6 +243,7 @@ public class PixelClassifierPane {
 			newValue.getHierarchy().addListener(hierarchyListener);
 		updateAvailableResolutions(newValue);
 		checkFeaturesCompatible();
+		checkResolutionsCompatible();
 	}
 
 
@@ -458,10 +461,17 @@ public class PixelClassifierPane {
 	private void addResolutionSelectionControls(GridPane pane) {
 		var labelResolution = createFixedWidthLabelForNode("Resolution", comboResolutions);
 
-		var btnResolution = createFixedWidthButton("Add");
-		btnResolution.setOnAction(e -> promptToAddResolution());
+		var actionAddResolution = ActionTools.createAction(this::promptToAddResolution);
+		actionAddResolution.setText("Edit");
+
 		resolution.bind(comboResolutions.getSelectionModel().selectedItemProperty());
 
+		var incompatibleMessage = InfoMessage.error("Selected resolution does not match the current image.\n" +
+				"Consider selecting a different resolution.");
+		ActionTools.installInfoMessage(actionAddResolution,
+				Bindings.when(resolutionsIncompatible).then(incompatibleMessage).otherwise((InfoMessage)null));
+
+		var btnResolution = ActionTools.createButton(actionAddResolution);
 		GridPaneUtils.addGridRow(pane, pane.getRowCount(), 0,
 				"Choose the base image resolution based upon required detail in the classification (see preview on the right)",
 				labelResolution, comboResolutions, btnResolution);
@@ -489,7 +499,8 @@ public class PixelClassifierPane {
 			return calc == null || imageDataTemp == null || !calc.canCustomize(imageDataTemp);
 		}, opBuilder, imageDataProperty));
 
-		var incompatibleMessage = InfoMessage.error("Features are not compatible with the current image");
+		var incompatibleMessage = InfoMessage.error("Features are not compatible with the current image.\n" +
+				"Please select different features.");
 		ActionTools.installInfoMessage(actionCustomFeatures,
 				Bindings.when(featuresIncompatible).then(incompatibleMessage).otherwise((InfoMessage)null));
 
@@ -513,6 +524,21 @@ public class PixelClassifierPane {
 				imageData != null &&
 				op != null &&
 				!op.supportsImage(imageData, PixelCalibration.getDefaultInstance())
+		);
+	}
+
+	private void checkResolutionsCompatible() {
+		var imageData = imageDataProperty.get();
+		var res = resolution.getValue();
+		if (imageData == null || res == null) {
+			resolutionsIncompatible.set(false);
+			return;
+		}
+		var cal = imageData.getServer().getPixelCalibration();
+		resolutionsIncompatible.set(
+				!Objects.equals(cal.getPixelWidthUnit(), res.getPixelCalibration().getPixelWidthUnit()) ||
+						!Objects.equals(cal.getPixelHeightUnit(), res.getPixelCalibration().getPixelHeightUnit()) ||
+						cal.getAveragedPixelSize().doubleValue() > res.getPixelCalibration().getAveragedPixelSize().doubleValue()
 		);
 	}
 
@@ -693,7 +719,14 @@ public class PixelClassifierPane {
 		var requestedResolutions = ClassificationResolution.getDefaultResolutions(imageData, selected);
 		if (!resolutions.equals(requestedResolutions)) {
 			resolutions.setAll(ClassificationResolution.getDefaultResolutions(imageData, selected));
-			comboResolutions.getSelectionModel().select(selected);
+			for (var r : resolutions) {
+				if (selected != null && selected.getPixelCalibration().equals(r.getPixelCalibration())) {
+					comboResolutions.getSelectionModel().select(r);
+					break;
+				}
+			}
+			if (!resolutions.isEmpty() && comboResolutions.getSelectionModel().getSelectedItem() == null)
+				comboResolutions.getSelectionModel().selectFirst();
 		}
 	}
 
@@ -831,8 +864,8 @@ public class PixelClassifierPane {
 				try (ClassifierTrainingData otherImages = ClassifierTrainingData.merge(allTrainingData)) {
 					var trainedModel = trainer.train(model, otherImages);
 					featureDetailsPane.update(model, trainedModel.getFeatureNames(trainingImages.iterator().next()));
-					}
 				}
+			}
 		} catch (Exception e) {
 			logger.error("Error calculating variable importance: {}", e.getMessage(), e);
 		}
@@ -1056,7 +1089,6 @@ public class PixelClassifierPane {
 		var trainer = new ModelTrainer(helper, advancedOptions);
 
 		try (var scope = new PointerScope()) {
-			// TODO: Incorporate pre-processing, reweighting
 			for (int i = 0; i < allTrainingData.size(); i++) {
 				var holdOutData = allTrainingData.get(i);
 				try (ClassifierTrainingData otherImages = ClassifierTrainingData.merge(
