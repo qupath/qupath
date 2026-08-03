@@ -242,3 +242,8 @@
   -fx-stroke: white;
   -fx-stroke-dash-offset: 3;
 }
+
+/* Use bold font in titled pane title */
+.bold-title.titled-pane > .title > .text {
+  -fx-font-weight: bold;
+}

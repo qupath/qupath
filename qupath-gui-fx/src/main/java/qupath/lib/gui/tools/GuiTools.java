@@ -1541,11 +1541,14 @@ public class GuiTools {
         pane.setGraphicTextGap(5);
         pane.setContentDisplay(ContentDisplay.RIGHT);
         pane.setAlignment(Pos.CENTER_LEFT);
+		var textChangeFlag = new SimpleBooleanProperty();
         // See https://stackoverflow.com/questions/52457813/javafx-11-add-a-graphic-to-a-titledpane-on-the-right-side
         right.translateXProperty().bind(Bindings.createDoubleBinding(
                 () -> pane.getWidth() - right.getLayoutX() - right.getWidth() - 10,
-                pane.widthProperty(), right.widthProperty())
+                pane.widthProperty(), right.widthProperty(), textChangeFlag)
         );
+		// It's not elegant, but this helps recover when the text width changes
+		pane.textProperty().subscribe(() -> Platform.runLater(() -> textChangeFlag.set(!textChangeFlag.get())));
         pane.setMaxHeight(Double.MAX_VALUE);
         pane.setCollapsible(false);
         pane.paddingProperty().bind(Bindings.createObjectBinding(() -> {

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,14 +25,25 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.binding.StringExpression;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
+import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Cell;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.TreeTableCell;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.paint.Paint;
 import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +51,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -76,9 +88,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * Helper class for generating standardized UI components for pixel classification.
- * 
- * @author Pete Bankhead
+ * Helper class for generating standardized UI components for pixel classification
+ * when both training and loading classifiers.
  */
 public class PixelClassifierUI {
 	
@@ -433,7 +444,7 @@ public class PixelClassifierUI {
 	
 	
 	
-	private static enum SelectionChoice {
+	private enum SelectionChoice {
 		CURRENT_SELECTION, ANNOTATIONS, DETECTIONS, CELLS, TILES, TMA, FULL_IMAGE;
 		
 		private void handleSelection(ImageData<?> imageData) {
@@ -455,42 +466,28 @@ public class PixelClassifierUI {
 		}
 		
 		private Class<? extends PathObject> getObjectClass() {
-			switch (this) {
-			case ANNOTATIONS:
-				return PathAnnotationObject.class;
-			case CELLS:
-				return PathCellObject.class;
-			case DETECTIONS:
-				return PathDetectionObject.class;
-			case TMA:
-				return TMACoreObject.class;
-			case TILES:
-				return PathTileObject.class;
-			default:
-				return null;
-			}
+            return switch (this) {
+                case ANNOTATIONS -> PathAnnotationObject.class;
+                case CELLS -> PathCellObject.class;
+                case DETECTIONS -> PathDetectionObject.class;
+                case TMA -> TMACoreObject.class;
+                case TILES -> PathTileObject.class;
+                default -> null;
+            };
 		}
 		
 		@Override
 		public String toString() {
-			switch (this) {
-			case ANNOTATIONS:
-				return "All annotations";
-			case CELLS:
-				return "All cells";
-			case CURRENT_SELECTION:
-				return "Current selection";
-			case DETECTIONS:
-				return "All detections";
-			case TMA:
-				return "TMA cores";
-			case FULL_IMAGE:
-				return "Full image";
-			case TILES:
-				return "All tiles";
-			default:
-				throw new IllegalArgumentException("Unknown enum " + this);
-			}
+            return switch (this) {
+                case ANNOTATIONS -> "All annotations";
+                case CELLS -> "All cells";
+                case CURRENT_SELECTION -> "Current selection";
+                case DETECTIONS -> "All detections";
+                case TMA -> "TMA cores";
+                case FULL_IMAGE -> "Full image";
+                case TILES -> "All tiles";
+                default -> throw new IllegalArgumentException("Unknown enum " + this);
+            };
 		}
 	}
 	
@@ -565,6 +562,123 @@ public class PixelClassifierUI {
 		}
 		return false;
 	}
-	
+
+
+
+	/**
+	 * Table cell to display numbers.
+	 * @param <T> generic parameter for the row value
+	 */
+	public static class NumberTableCell<T> extends TableCell<T, Number> {
+
+		private final int maxDecimalPlaces;
+
+		public NumberTableCell(int maxDecimalPlaces) {
+			super();
+			this.maxDecimalPlaces = maxDecimalPlaces;
+		}
+
+		@Override
+		protected void updateItem(Number item, boolean empty) {
+			super.updateItem(item, empty);
+			if (item == null || empty || !Double.isFinite(item.doubleValue())) {
+				setText(null);
+				setGraphic(null);
+				return;
+			}
+			setText(numerToString(item, maxDecimalPlaces));
+		}
+
+	}
+
+	/**
+	 * Tree table cell to display numbers.
+	 * @param <T> generic parameter for the row value
+	 */
+	public static class NumberTreeTableCell<T> extends TreeTableCell<T, Number> {
+
+		private final int maxDecimalPlaces;
+
+		NumberTreeTableCell(int maxDecimalPlaces) {
+			super();
+			this.maxDecimalPlaces = maxDecimalPlaces;
+		}
+
+		@Override
+		protected void updateItem(Number item, boolean empty) {
+			super.updateItem(item, empty);
+			if (item == null || empty) {
+				setText(null);
+				setGraphic(null);
+				return;
+			}
+			setText(numerToString(item, maxDecimalPlaces));
+		}
+
+	}
+
+	private static String numerToString(Number item, int maxDecimalPlaces) {
+		if (item instanceof Integer || item instanceof Long || item instanceof Short || item instanceof Byte)
+			return Objects.toString(item);
+		if (Double.isNaN(item.doubleValue()))
+			return "-";
+		return GeneralTools.formatNumber(item.doubleValue(), maxDecimalPlaces);
+	}
+
+	// This could be made available if needed
+	private static final CornerRadii DEFAULT_CORNER_RADII = new CornerRadii(0, 2, 2, 0, false);
+
+	/**
+	 * Bind the background fill to the numeric value stored in a cell.
+	 * This creates a kind of 'progress bar' appearance behind the text, and can be used as a way to visualize
+	 * how large the value is relative to some 'maximum'.
+	 * @param cell the cell to format
+	 * @param maxValue the maximum value. The cell's numeric value will be divided by this to get a fill proportion.
+	 * @param fill the fill color
+	 */
+	public static void bindCellFillBackground(Cell<? extends Number> cell,
+											  double maxValue,
+											  Paint fill) {
+		bindCellFillBackground(cell, new SimpleDoubleProperty(maxValue), new SimpleObjectProperty<>(fill));
+	}
+
+	/**
+	 * Bind the background fill to the numeric value stored in a cell, using observable values.
+	 * This creates a kind of 'progress bar' appearance behind the text, and can be used as a way to visualize
+	 * how large the value is relative to some 'maximum'.
+	 * @param cell the cell to format
+	 * @param maxVal the maximum value. The cell's numeric value will be divided by this to get a fill proportion.
+	 * @param fill the fill color
+	 */
+    public static void bindCellFillBackground(Cell<? extends Number> cell,
+											   ObservableValue<? extends Number> maxVal,
+											   ObservableValue<? extends Paint> fill) {
+        cell.backgroundProperty().bind(
+                Bindings.createObjectBinding(() ->
+                                computeBackground(cell.getItem(), maxVal.getValue(), cell.getWidth(), fill.getValue(), DEFAULT_CORNER_RADII),
+                        maxVal, cell.itemProperty(), cell.widthProperty(), fill));
+    }
+
+    private static Background computeBackground(Number val,
+                                                Number maxVal,
+                                                double cellWidth,
+                                                Paint fill,
+                                                CornerRadii cornerRadii) {
+        if (val == null || maxVal == null)
+            return null;
+        double importance = val.doubleValue();
+        if (!Double.isFinite(val.doubleValue()) || importance <= 0)
+            return null;
+        double pad = 4.0;
+        double width = cellWidth - pad * 2;
+        double length = Math.min(val.doubleValue() / maxVal.doubleValue(),1.0) * width;
+        return new Background(
+                new BackgroundFill(
+                        fill,
+                        cornerRadii,
+                        new Insets(pad, width - length, pad, pad))
+        );
+    }
+
 
 }

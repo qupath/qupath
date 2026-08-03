@@ -21,113 +21,96 @@
 
 package qupath.process.gui.commands.ml;
 
-import ij.CompositeImage;
+import java.time.Duration;
+import java.util.Objects;
+import java.util.Random;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
-import javafx.geometry.Point2D;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
-import javafx.geometry.Side;
+import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.chart.PieChart;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
-import javafx.scene.control.OverrunStyle;
-import javafx.scene.control.Slider;
-import javafx.scene.control.Spinner;
+import javafx.scene.control.Separator;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
-import javafx.util.Callback;
+import javafx.util.Subscription;
+import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.TermCriteria;
 import org.bytedeco.opencv.opencv_ml.ANN_MLP;
 import org.bytedeco.opencv.opencv_ml.KNearest;
 import org.bytedeco.opencv.opencv_ml.LogisticRegression;
 import org.bytedeco.opencv.opencv_ml.RTrees;
+import org.bytedeco.opencv.opencv_ml.TrainData;
+import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
-import qupath.imagej.gui.IJExtension;
-import qupath.imagej.tools.IJTools;
-import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.charts.ChartTools;
-import qupath.lib.gui.commands.MiniViewers;
-import qupath.lib.gui.dialogs.ProjectDialogs;
+import qupath.lib.gui.actions.ActionTools;
+import qupath.lib.gui.actions.InfoMessage;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.projects.ProjectImageEntry;
-import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.RectangleROI;
+import qupath.opencv.ml.ConfusionMatrix;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
-import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
 import qupath.opencv.ml.pixel.PixelClassifiers;
-import qupath.opencv.ops.ImageOp;
+import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOps;
-import qupath.process.gui.commands.ml.ImageDataTransformerBuilder.DefaultFeatureCalculatorBuilder;
+import qupath.process.gui.commands.ml.op.MultiscaleImageDataOpBuilder;
+import qupath.process.gui.commands.ml.op.ImageDataOpBuilder;
 import qupath.process.gui.commands.ml.PixelClassifierTraining.ClassifierTrainingData;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.WeakHashMap;
-import java.util.stream.IntStream;
 
 /**
  * Main user interface for interactively training a {@link PixelClassifier}.
@@ -138,70 +121,56 @@ public class PixelClassifierPane {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierPane.class);
 	
-	private static ObservableList<ImageDataTransformerBuilder> defaultFeatureCalculatorBuilders = FXCollections.observableArrayList();
-	
-	
-	private QuPathGUI qupath;
+	private static final ObservableList<ImageDataOpBuilder> defaultFeatureCalculatorBuilders = FXCollections.observableArrayList();
 
-	private GridPane pane;
-	
-	private ObservableList<ClassificationResolution> resolutions = FXCollections.observableArrayList();
-	private ComboBox<ClassificationResolution> comboResolutions = new ComboBox<>(resolutions);
-	private ReadOnlyObjectProperty<ClassificationResolution> selectedResolution;
-	
-	// To display features as overlays across the image
-	private ComboBox<String> comboDisplayFeatures = new ComboBox<>();
-	private Slider sliderFeatureOpacity = new Slider(0.0, 1.0, 1.0);
-	private Spinner<Double> spinFeatureMin = FXUtils.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.1, 1);
-	private Spinner<Double> spinFeatureMax = FXUtils.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 1, 0.1, 1);
-	private String DEFAULT_CLASSIFICATION_OVERLAY = "Show classification";
+	private final QuPathGUI qupath;
 
-	/**
-	 * Other images from which training annotations should be used
-	 */
-	private List<ProjectImageEntry<BufferedImage>> trainingEntries = new ArrayList<>();
-	
-	private Map<ProjectImageEntry<BufferedImage>, ImageData<BufferedImage>> trainingMap = new WeakHashMap<>();
-	
-	
-	private MiniViewers.MiniViewerManager miniViewer;
-	
-	private BooleanProperty livePrediction = new SimpleBooleanProperty(false);
-	
-	private ReadOnlyObjectProperty<OpenCVStatModel> selectedClassifier;
+	private final ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 
-	private ReadOnlyObjectProperty<ImageDataTransformerBuilder> selectedFeatureCalculatorBuilder;
+	private final ObservableList<ImageDataOpBuilder> featureOpBuilders = FXCollections.observableArrayList();
+    private final ObservableList<ClassificationResolution> resolutions = FXCollections.observableArrayList();
 
-	private ReadOnlyObjectProperty<ImageServerMetadata.ChannelType> selectedOutputType;
-	
-	private StringProperty cursorLocation = new SimpleStringProperty();
-	
-	private PieChart pieChart;
+	private final TrainingViewerPane trainingViewerPane;
+	private final TrainingDetailsPane trainingDetailsPane = new TrainingDetailsPane();
+	private final FeatureDetailsPane featureDetailsPane = new FeatureDetailsPane();
+	private final JsonDisplay<PixelClassifier> jsonDisplay = new JsonDisplay<>();
+	private final MetricsBrowser<PathClass> metricsBrowser = new MetricsBrowser<>();
 
-	private HierarchyListener hierarchyListener = new HierarchyListener();
+	private final BorderPane paneMain = new BorderPane();
+	private Pane paneDetails;
+
+	private final BooleanProperty showMore = new SimpleBooleanProperty(false);
+
+	private final TrainingPieChart pieChart = new TrainingPieChart();
+	private final TrainingImageManager trainingImageManager;
 	
+	private final BooleanProperty livePrediction = new SimpleBooleanProperty(false);
+
+	private final ObjectProperty<ClassificationResolution> resolution = new SimpleObjectProperty<>();
+	private final ObjectProperty<OpenCVStatModel> statModel = new SimpleObjectProperty<>();
+	private final ObjectProperty<ImageDataOpBuilder> opBuilder = new SimpleObjectProperty<>();
+	private final ObjectProperty<ImageServerMetadata.ChannelType> outputType = new SimpleObjectProperty<>();
+
+	private final PathObjectHierarchyListener hierarchyListener = this::handleHierarchyChange;
+
+	private final BooleanProperty featuresIncompatible = new SimpleBooleanProperty(false);
+	private final BooleanProperty resolutionsIncompatible = new SimpleBooleanProperty(false);
+
 	/**
 	 * The last trained classifier
 	 */
-	private ObjectProperty<PixelClassifier> currentClassifier = new SimpleObjectProperty<>();
-	
-	private PixelClassificationOverlay overlay;
-	private PixelClassificationOverlay featureOverlay;
-	private FeatureRenderer featureRenderer;
+	private final ObjectProperty<PixelClassifier> currentClassifier = new SimpleObjectProperty<>();
 
-	private ChangeListener<ImageData<BufferedImage>> imageDataListener = this::handleImageDataChange;
+	private final PixelClassifierOverlayManager overlayManager;
+
+	private final PixelClassifierTraining helper = new PixelClassifierTraining(null);
+	private final PixelClassifierAdvancedOptions advancedOptions = new PixelClassifierAdvancedOptions();
+
+	private final ComboBox<ClassificationResolution> comboResolutions = PixelClassifierUtils.createHGrowComboBox(resolutions);
+
+	private Subscription subscription = Subscription.EMPTY;
 
 	private Stage stage;
-
-	private void handleImageDataChange(ObservableValue<? extends ImageData<BufferedImage>> observable,
-						ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
-		if (oldValue != null)
-			oldValue.getHierarchy().removeListener(hierarchyListener);
-		if (newValue != null)
-			newValue.getHierarchy().addListener(hierarchyListener);
-		updateTitle();
-		updateAvailableResolutions(newValue);
-	}
 
 	/**
 	 * Constructor.
@@ -209,433 +178,513 @@ public class PixelClassifierPane {
 	 */
 	public PixelClassifierPane(final QuPathGUI qupath) {
 		this.qupath = qupath;
-//		this.viewer = qupath.getViewer();
-		helper = new PixelClassifierTraining(null);
-		featureRenderer = new FeatureRenderer(qupath.getImageRegionStore());
-		initialize();
+		this.imageDataProperty.bind(qupath.imageDataProperty());
+		this.overlayManager = createOverlayManager(qupath, helper);
+		this.trainingImageManager = createTrainingImageManager(qupath);
+		this.trainingViewerPane = createTrainingViewerPane(qupath, overlayManager);
 	}
 
-	
-	private void initialize() {
+	private PixelClassifierOverlayManager createOverlayManager(QuPathGUI qupath, PixelClassifierTraining helper) {
+		var overlayManager = new PixelClassifierOverlayManager(qupath.getViewerManager(), qupath.getImageRegionStore(), helper);
+		overlayManager.classifierProperty().bind(currentClassifier);
+		overlayManager.livePredictionProperty().bind(livePrediction);
+		return overlayManager;
+	}
+
+	private static TrainingImageManager createTrainingImageManager(QuPathGUI qupath) {
+		return new TrainingImageManager(qupath);
+	}
+
+	private static TrainingViewerPane createTrainingViewerPane(QuPathGUI qupath, PixelClassifierOverlayManager overlayManager) {
+		return new TrainingViewerPane(qupath.viewerProperty(), overlayManager);
+	}
+
+	/**
+	 * Show the stage containing this pane.
+	 */
+	public void showStage() {
+		if (stage == null) {
+			stage = createUI();
+		}
+		stage.show();
+	}
+
+	private void initializeSubscriptions() {
+		appendAllSubscriptions(
+				livePrediction.subscribe(this::updateClassifier),
+				statModel.subscribe(this::updateClassifier),
+				outputType.subscribe(this::updateClassifier),
+				resolution.subscribe(n -> {
+					updateResolution(n);
+					updateClassifier();
+					overlayManager.ensureOverlaySet();
+				}),
+				opBuilder.subscribe(this::updateFeatureCalculator),
+				showMore.subscribe(this::handleShowDetails),
+				imageDataProperty.subscribe(this::handleImageDataChange),
+				stage.focusedProperty().subscribe(this::handleStageFocussed)
+		);
+	}
+
+	private void appendAllSubscriptions(Subscription... subscriptions) {
+		for (var subscription : subscriptions) {
+			appendSubscription(subscription);
+		}
+	}
+
+	private void appendSubscription(Subscription subscription) {
+		this.subscription = this.subscription.and(subscription);
+	}
+
+	private void handleImageDataChange(ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
+		if (oldValue != null)
+			oldValue.getHierarchy().removeListener(hierarchyListener);
+		if (newValue != null)
+			newValue.getHierarchy().addListener(hierarchyListener);
+		updateAvailableResolutions(newValue);
+		checkFeaturesCompatible();
+		checkResolutionsCompatible();
+	}
+
+
+
+	private Stage createUI() {
+
+		var imageData = imageDataProperty.get();
 		
-		var imageData = qupath.getImageData();
+        GridPane pane = new GridPane();
+		pane.setHgap(5);
+		pane.setVgap(5);
+		pane.setMinWidth(400);
+		pane.setMaxWidth(400);
+		pane.setPadding(new Insets(5));
+
+		// Update options
+		updateAvailableResolutions(imageData);
+		updateAvailableFeatureOpBuilders(imageData);
+
+		// Add main options
+		addClassifierSelectionControls(pane);
+		addResolutionSelectionControls(pane);
+		addFeatureSelectionControls(pane, imageData);
+		addOutputTypeControls(pane);
+		addRegionSelectionControls(pane);
+
+		addAdvancedOptions(pane);
+		addLivePredictionButton(pane);
+
+		addPieChart(pane);
+
+		addShowDetailsPane(pane);
+
+		addSeparator(pane);
 		
-		int row = 0;
-		
-		// Classifier
-		pane = new GridPane();
-		
-		var labelClassifier = new Label("Classifier");
-		var comboClassifier = new ComboBox<OpenCVStatModel>();
-		labelClassifier.setLabelFor(comboClassifier);
-		
-		selectedClassifier = comboClassifier.getSelectionModel().selectedItemProperty();
-		selectedClassifier.addListener((v, o, n) -> updateClassifier());
-		var btnEditClassifier = new Button("Edit");
-		btnEditClassifier.setOnAction(e -> editClassifierParameters());
-		btnEditClassifier.disableProperty().bind(selectedClassifier.isNull());
-		
-		GridPaneUtils.addGridRow(pane, row++, 0,
-				"Choose classifier type (RTrees or ANN_MLP are generally good choices)",
-				labelClassifier, comboClassifier, comboClassifier, btnEditClassifier);
-		
-		// Image resolution
-		var labelResolution = new Label("Resolution");
-		labelResolution.setLabelFor(comboResolutions);
-		var btnResolution = new Button("Add");
-		btnResolution.setOnAction(e -> addResolution());
-		selectedResolution = comboResolutions.getSelectionModel().selectedItemProperty();
-		
-		GridPaneUtils.addGridRow(pane, row++, 0,
-				"Choose the base image resolution based upon required detail in the classification (see preview on the right)",
-				labelResolution, comboResolutions, comboResolutions, btnResolution);
-		
-		
-		// Features
-		var labelFeatures = new Label("Features");
-		var comboFeatures = new ComboBox<ImageDataTransformerBuilder>();
-		comboFeatures.getItems().add(new ImageDataTransformerBuilder.DefaultFeatureCalculatorBuilder(imageData));
-//		comboFeatures.getItems().add(new FeatureCalculatorBuilder.ExtractNeighborsFeatureCalculatorBuilder(viewer.getImageData()));
-		labelFeatures.setLabelFor(comboFeatures);
-		selectedFeatureCalculatorBuilder = comboFeatures.getSelectionModel().selectedItemProperty();
-		
-		var btnShowFeatures = new Button("Show");
-		btnShowFeatures.setOnAction(e -> showFeatures());
-		
-		var btnCustomizeFeatures = new Button("Edit");
-		btnCustomizeFeatures.disableProperty().bind(Bindings.createBooleanBinding(() -> {
-			var calc = selectedFeatureCalculatorBuilder.get();
-			return calc == null || !calc.canCustomize(imageData);
-		},
-				selectedFeatureCalculatorBuilder));
-		btnCustomizeFeatures.setOnAction(e -> {
-			if (selectedFeatureCalculatorBuilder.get().doCustomize(imageData)) {
-				updateFeatureCalculator();
+		addStandardPixelClassifierButtons(pane);
+
+		paneMain.setLeft(pane);
+
+		ensureResolutionSelected(imageData);
+		updateFeatureCalculator();
+
+		handleImageDataChange(null, imageData);
+
+		return createStage(new BorderPane(paneMain));
+	}
+
+	private void handleShowDetails(boolean doShow) {
+		boolean createPane = paneDetails == null && doShow;
+		if (createPane) {
+			paneDetails = createDetailsPane();
+			paneMain.setCenter(paneDetails);
+			paneMain.getScene().getWindow().sizeToScene();
+		} else if (doShow) {
+			// Only update the width if we're actually adding a control
+			// (not if we've simply started re-subscribing to changes)
+			if (paneMain.getCenter() != paneDetails) {
+				paneMain.setCenter(paneDetails);
+				var window = paneMain.getScene().getWindow();
+				window.setWidth(window.getWidth() + Math.max(100, paneDetails.getWidth()));
 			}
-		});
-		comboFeatures.getItems().addAll(defaultFeatureCalculatorBuilders);
-		
-		comboFeatures.getSelectionModel().select(0);
-		comboFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateFeatureCalculator());
-
-		GridPaneUtils.addGridRow(pane, row++, 0,
-				"Select features for the classifier",
-				labelFeatures, comboFeatures, btnCustomizeFeatures, btnShowFeatures);
-
-		
-		// Output
-		var labelOutput = new Label("Output");
-		var comboOutput = new ComboBox<ImageServerMetadata.ChannelType>();
-		comboOutput.getItems().addAll(ImageServerMetadata.ChannelType.CLASSIFICATION, ImageServerMetadata.ChannelType.PROBABILITY);
-		selectedOutputType = comboOutput.getSelectionModel().selectedItemProperty();
-		selectedOutputType.addListener((v, o, n) -> {
-			updateClassifier();
-		});
-		comboOutput.getSelectionModel().clearAndSelect(0);
-		var btnShowOutput = new Button("Show");
-		btnShowOutput.setOnAction(e -> showOutput());
-		
-		GridPaneUtils.addGridRow(pane, row++, 0,
-				"Choose whether to output classifications only, or estimated probabilities per class (not all classifiers support probabilities, which also require more memory)",
-				labelOutput, comboOutput, comboOutput, btnShowOutput);
-		
-		
-		// Region
-		var labelRegion = new Label("Region");
-		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
-		GridPaneUtils.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
-				labelRegion, comboRegionFilter, comboRegionFilter, comboRegionFilter);
-
-		
-		// Live predict
-		var btnAdvancedOptions = new Button("Advanced options");
-		btnAdvancedOptions.setTooltip(new Tooltip("Advanced options to customize preprocessing and classifier behavior"));
-		btnAdvancedOptions.setOnAction(e -> {
-			if (showAdvancedOptions())
-				updateClassifier();
-		});
-		
-		// Live predict
-		var btnProject = new Button("Load training");
-		btnProject.setTooltip(new Tooltip("Train using annotations from more images in the current project"));
-		btnProject.setOnAction(e -> {
-			if (promptToLoadTrainingImages()) {
-				updateClassifier();
-				int n = trainingEntries.size();
-				if (n > 0)
-					btnProject.setText("Load training (" + n + ")");
-				else
-					btnProject.setText("Load training");
+		} else if (paneDetails != null) {
+			if (paneMain.getCenter() != null) {
+				paneMain.setCenter(null);
+				var window = paneMain.getScene().getWindow();
+				window.setWidth(window.getWidth() - paneDetails.getWidth());
 			}
-		});
-		btnProject.disableProperty().bind(qupath.projectProperty().isNull());
-		
-		var btnLive = new ToggleButton("Live prediction");
-		btnLive.selectedProperty().bindBidirectional(livePrediction);
-		btnLive.setTooltip(new Tooltip("Toggle whether to calculate classification 'live' while viewing the image"));
-		livePrediction.addListener((v, o, n) -> {
-			if (overlay == null) {
-				if (n) {
-					updateClassifier(n);				
-					return;
-				}
-			} else {
-				overlay.setLivePrediction(n);
-			}
-			if (featureOverlay != null)
-				featureOverlay.setLivePrediction(n);
-		});
-				
-		var panePredict = GridPaneUtils.createColumnGridControls(btnProject, btnAdvancedOptions);
-		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
-		pane.add(btnLive, 0, row++, pane.getColumnCount(), 1);
-		
-		pieChart = new PieChart();
-		pieChart.getStyleClass().add("training-chart");
-		pieChart.setAnimated(false);
-		
-		pieChart.setLabelsVisible(false);
-		pieChart.setLegendVisible(true);
-		pieChart.setMinSize(40, 40);
-		pieChart.setPrefSize(120, 120);
-		pieChart.setLegendSide(Side.RIGHT);
-		var paneChart = new BorderPane(pieChart);
+		}
+	}
 
-		GridPaneUtils.setFillWidth(Boolean.TRUE, paneChart);
-		GridPaneUtils.setFillHeight(Boolean.TRUE, paneChart);
-		GridPaneUtils.setVGrowPriority(Priority.ALWAYS, paneChart);
-		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, paneChart);
+	private Pane createDetailsPane() {
+		var tabPane = new TabPane();
+		tabPane.getTabs().add(
+				new Tab("Viewer", trainingViewerPane)
+		);
+		tabPane.getTabs().add(
+				new Tab("Classifier", trainingDetailsPane)
+		);
+		var paneImportance = new BorderPane(featureDetailsPane);
+		var btnImportance = new Button();
+		btnImportance.textProperty().bind(Bindings.createStringBinding(() -> {
+			if (featureDetailsPane.hasImportanceProperty().get())
+				return "Update feature importance";
+			else
+				return "Calculate feature importance";
+		}, featureDetailsPane.hasImportanceProperty()));
+		btnImportance.setMaxWidth(Double.MAX_VALUE);
+		btnImportance.disableProperty().bind(imageDataProperty.isNull());
+		btnImportance.setOnAction(e -> calculateVariableImportance());
+		paneImportance.setBottom(btnImportance);
+		tabPane.getTabs().add(
+				new Tab("Features", paneImportance)
+		);
 
-		pane.add(paneChart, 0, row++, pane.getColumnCount(), 1);
-		
-		// Label showing cursor location
-		var labelCursor = new Label();
-		labelCursor.textProperty().bindBidirectional(cursorLocation);
-		labelCursor.setAlignment(Pos.CENTER);
-		labelCursor.setTextAlignment(TextAlignment.CENTER);
-		labelCursor.setContentDisplay(ContentDisplay.CENTER);
-		labelCursor.setWrapText(true);
-		labelCursor.setMaxHeight(Double.MAX_VALUE);
-		labelCursor.setMinWidth(100);
-		labelCursor.setPrefWidth(390);
-		labelCursor.setMaxWidth(390);
-		
-		labelCursor.setTooltip(new Tooltip("Prediction for current cursor location"));
-		paneChart.setBottom(labelCursor);
-		// This tends to make it harder to read the proportions as tooltips when putting the mouse over the pie chart
-//		Tooltip.install(paneChart, new Tooltip("Relative proportion of training samples"));
+		var paneMetrics = new BorderPane(metricsBrowser);
+		var btnCrossValidation = new Button();
+		btnCrossValidation.setMaxWidth(Double.MAX_VALUE);
+		var hasMetrics = Bindings.isNotEmpty(metricsBrowser.getConfusionMatrices());
+		btnCrossValidation.textProperty().bind(Bindings.createStringBinding(() -> {
+			if (hasMetrics.get())
+				return "Update cross validation";
+			else
+				return "Compute cross validation";
+		}, hasMetrics));
+		btnCrossValidation.disableProperty().bind(imageDataProperty.isNull());
+		btnCrossValidation.setOnAction(e -> computeCrossValidation());
+		paneMetrics.setBottom(btnCrossValidation);
+		tabPane.getTabs().add(
+				new Tab("Metrics", paneMetrics)
+		);
+		jsonDisplay.itemProperty().bind(currentClassifier);
+		tabPane.getTabs().add(
+				new Tab("JSON", jsonDisplay)
+		);
+		for (var tab : tabPane.getTabs()) {
+			tab.setClosable(false);
+		}
+		var pane = new BorderPane(tabPane);
+		pane.setLeft(new Separator(Orientation.VERTICAL));
+		return pane;
+	}
 
-		paneChart.setMaxWidth(400);
 
-//		PaneTools.addGridRow(pane, row++, 0, 
-//				"Prediction for current cursor location",
-//				labelCursor, labelCursor, labelCursor);
-		
+	private void ensureResolutionSelected(ImageData<?> imageData) {
+		if (comboResolutions.getItems().isEmpty()) {
+			logger.warn("No resolutions available!");
+			return;
+		}
+		// If no image, pick middle resolution (previous default)
+		if (imageData == null || resolutions.size() == 1) {
+			comboResolutions.getSelectionModel().clearAndSelect(resolutions.size() / 2);
+			return;
+		}
+		// If we have an image, try to pick a sensible default based on the image size.
+		// This is mostly to pick the full resolution for 'small' images,
+		// rather than a low resolution that is unlikely to be desired.
+		var server = imageData.getServer();
+		double maxDim = Math.max(server.getWidth(), server.getHeight());
+		double pixelSize = server.getPixelCalibration().getAveragedPixelSize().doubleValue();
+		int ind = 0;
+		while (ind < resolutions.size()-1) {
+			var res = resolutions.get(ind);
+			// We assume the pixel calibration units are the same...
+			var cal = res.getPixelCalibration();
+			double downsample = cal.getAveragedPixelSize().doubleValue() / pixelSize;
+			if (maxDim / downsample <= 4096)
+				break;
+			ind++;
+		}
+		comboResolutions.getSelectionModel().select(ind);
+	}
+
+	private Stage createStage(Pane content) {
+		var stage = new Stage();
+		stage.setScene(new Scene(content));
+
+		stage.setMinHeight(450);
+		stage.setMinWidth(400);
+		stage.sizeToScene();
+
+		stage.initOwner(qupath.getStage());
+		stage.setTitle("Train pixel classifier");
+
+		stage.showingProperty().subscribe(this::handleStageShowingChange);
+
+		return stage;
+	}
+
+
+	private static Label createFixedWidthLabelForNode(String text, Node nodeFor) {
+		var label = new Label(text);
+		label.setMinWidth(Label.USE_PREF_SIZE);
+		label.setMaxWidth(Label.USE_PREF_SIZE);
+		if (nodeFor != null)
+			label.setLabelFor(nodeFor);
+		return label;
+	}
+
+	private static Button createFixedWidthButton(String text) {
+		var button = new Button(text);
+		button.setMinWidth(Label.USE_PREF_SIZE);
+		button.setMaxWidth(Double.MAX_VALUE);
+		GridPane.setFillWidth(button, Boolean.TRUE);
+		return button;
+	}
+
+
+
+	private void addClassifierSelectionControls(GridPane pane) {
+		ComboBox<OpenCVStatModel> comboClassifier = PixelClassifierUtils.createHGrowComboBox();
+		var labelClassifier = createFixedWidthLabelForNode("Classifier", comboClassifier);
+
 		comboClassifier.getItems().addAll(
 				OpenCVClassifiers.createStatModel(RTrees.class),
 				OpenCVClassifiers.createStatModel(ANN_MLP.class),
 				OpenCVClassifiers.createStatModel(LogisticRegression.class),
 				OpenCVClassifiers.createStatModel(KNearest.class)
-				);
-		
+		);
+
 		comboClassifier.getSelectionModel().clearAndSelect(1);
-		
-		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboClassifier, comboFeatures);
-		GridPaneUtils.setFillWidth(Boolean.TRUE, comboResolutions, comboClassifier, comboFeatures);
-		
-		miniViewer = MiniViewers.createManager(qupath.getViewer());
-		var viewerPane = miniViewer.getPane();
-		Tooltip.install(viewerPane, new Tooltip("View image at classification resolution"));
-		
-		updateAvailableResolutions(imageData);	
-		selectedResolution.addListener((v, o, n) -> {
-			updateResolution(n);
-			updateClassifier();
-			ensureOverlaySet();
+
+		labelClassifier.setLabelFor(comboClassifier);
+
+		statModel.bind(comboClassifier.getSelectionModel().selectedItemProperty());
+		var btnEditClassifier = createFixedWidthButton("Edit");
+		btnEditClassifier.setOnAction(e -> promptToEditClassifierParameters());
+		btnEditClassifier.disableProperty().bind(statModel.isNull());
+
+		GridPaneUtils.addGridRow(pane, pane.getRowCount(), 0,
+				"Choose classifier type (RTrees or ANN_MLP are generally good choices)",
+				labelClassifier, comboClassifier, btnEditClassifier);
+	}
+
+
+	private void addResolutionSelectionControls(GridPane pane) {
+		var labelResolution = createFixedWidthLabelForNode("Resolution", comboResolutions);
+
+		var actionAddResolution = ActionTools.createAction(this::promptToAddResolution);
+		actionAddResolution.setText("Edit");
+
+		resolution.bind(comboResolutions.getSelectionModel().selectedItemProperty());
+
+		var incompatibleMessage = InfoMessage.error("Selected resolution does not match the current image.\n" +
+				"Consider selecting a different resolution.");
+		ActionTools.installInfoMessage(actionAddResolution,
+				Bindings.when(resolutionsIncompatible).then(incompatibleMessage).otherwise((InfoMessage)null));
+
+		var btnResolution = ActionTools.createButton(actionAddResolution);
+		GridPaneUtils.addGridRow(pane, pane.getRowCount(), 0,
+				"Choose the base image resolution based upon required detail in the classification (see preview on the right)",
+				labelResolution, comboResolutions, btnResolution);
+	}
+
+	private void addFeatureSelectionControls(GridPane pane, ImageData<BufferedImage> imageData) {
+		ComboBox<ImageDataOpBuilder> comboFeatures = PixelClassifierUtils.createHGrowComboBox(featureOpBuilders);
+
+		var labelFeatures = createFixedWidthLabelForNode("Features", comboFeatures);
+		opBuilder.bind(comboFeatures.getSelectionModel().selectedItemProperty());
+		comboFeatures.getSelectionModel().selectFirst();
+
+
+		var actionCustomFeatures = ActionTools.createAction(() -> {
+			var imageDataTemp = imageDataProperty.get();
+			if (opBuilder.get().doCustomize(imageDataTemp)) {
+				updateFeatureCalculator();
+				checkFeaturesCompatible();
+			}
 		});
-		if (!comboResolutions.getItems().isEmpty())
-			comboResolutions.getSelectionModel().clearAndSelect(resolutions.size()/2);
-		
-		pane.setHgap(5);
-		pane.setVgap(6);
-		
+		actionCustomFeatures.setText("Edit");
+		actionCustomFeatures.disabledProperty().bind(Bindings.createBooleanBinding(() -> {
+			var calc = opBuilder.get();
+			var imageDataTemp = imageDataProperty.get();
+			return calc == null || imageDataTemp == null || !calc.canCustomize(imageDataTemp);
+		}, opBuilder, imageDataProperty));
+
+		var incompatibleMessage = InfoMessage.error("Features are not compatible with the current image.\n" +
+				"Please select different features.");
+		ActionTools.installInfoMessage(actionCustomFeatures,
+				Bindings.when(featuresIncompatible).then(incompatibleMessage).otherwise((InfoMessage)null));
+
+		var btnCustomizeFeatures = ActionTools.createButton(actionCustomFeatures);
+		btnCustomizeFeatures.setMinWidth(Button.USE_PREF_SIZE);
+		btnCustomizeFeatures.setMaxWidth(Button.USE_PREF_SIZE);
+
+		comboFeatures.getSelectionModel().select(0);
+
+		HBox.setHgrow(comboFeatures, Priority.ALWAYS);
+		HBox.setHgrow(btnCustomizeFeatures, Priority.NEVER);
+		GridPaneUtils.addGridRow(pane, pane.getRowCount(), 0,
+				"Select features for the classifier",
+				labelFeatures, comboFeatures, btnCustomizeFeatures);
+	}
+
+	private void checkFeaturesCompatible() {
+		var imageData = imageDataProperty.get();
+		var op = opBuilder.get();
+        featuresIncompatible.set(
+				imageData != null &&
+				op != null &&
+				!op.supportsImage(imageData, PixelCalibration.getDefaultInstance())
+		);
+	}
+
+	private void checkResolutionsCompatible() {
+		var imageData = imageDataProperty.get();
+		var res = resolution.getValue();
+		if (imageData == null || res == null) {
+			resolutionsIncompatible.set(false);
+			return;
+		}
+		var cal = imageData.getServer().getPixelCalibration();
+		resolutionsIncompatible.set(
+				!Objects.equals(cal.getPixelWidthUnit(), res.getPixelCalibration().getPixelWidthUnit()) ||
+						!Objects.equals(cal.getPixelHeightUnit(), res.getPixelCalibration().getPixelHeightUnit()) ||
+						cal.getAveragedPixelSize().doubleValue() > res.getPixelCalibration().getAveragedPixelSize().doubleValue()
+		);
+	}
+
+	private void addOutputTypeControls(GridPane pane) {
+		ComboBox<ImageServerMetadata.ChannelType> comboOutput = PixelClassifierUtils.createHGrowComboBox();
+		comboOutput.getItems().addAll(ImageServerMetadata.ChannelType.CLASSIFICATION, ImageServerMetadata.ChannelType.PROBABILITY);
+		outputType.bind(comboOutput.getSelectionModel().selectedItemProperty());
+
+		comboOutput.getSelectionModel().clearAndSelect(0);
+		var labelOutput = createFixedWidthLabelForNode("Output", comboOutput);
+		GridPaneUtils.addGridRow(pane, pane.getRowCount(), 0,
+				"Choose whether to output classifications only, or estimated probabilities per class (not all classifiers support probabilities, which also require more memory)",
+				labelOutput, comboOutput, comboOutput);
+	}
+
+	private void addAdvancedOptions(GridPane pane) {
+		// Add training & prediction buttons
+		var btnProject = createLoadTrainingButton();
+		var btnAdvancedOptions = createAdvancedOptionsButton();
+
+		// Add pie chart and cursor tracking
+		var panePredict = GridPaneUtils.createColumnGridControls(btnProject, btnAdvancedOptions);
+		pane.add(panePredict, 0, pane.getRowCount(), GridPane.REMAINING, 1);
+	}
+
+	private void addLivePredictionButton(GridPane pane) {
+		var btnLive = createLivePredictionButton();
+		pane.add(btnLive, 0, pane.getRowCount(), GridPane.REMAINING, 1);
+	}
+
+	private void addPieChart(GridPane pane) {
+		GridPaneUtils.setFillWidth(Boolean.TRUE, pieChart);
+		GridPaneUtils.setFillHeight(Boolean.TRUE, pieChart);
+		GridPaneUtils.setVGrowPriority(Priority.ALWAYS, pieChart);
+		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, pieChart);
+		pane.add(pieChart, 0, pane.getRowCount(), GridPane.REMAINING, 1);
+	}
+
+	private void addShowDetailsPane(GridPane pane) {
+		var paneShowDetails = new BorderPane(createCursorLabel());
+		paneShowDetails.setRight(createShowDetailsButton());
+		pane.add(paneShowDetails, 0, pane.getRowCount(), GridPane.REMAINING, 1);
+	}
+
+	private Label createCursorLabel() {
+		// Label showing classification at cursor location
+		var labelCursor = new Label();
+		labelCursor.textProperty().bind(overlayManager.cursorLocationProperty());
+		labelCursor.setAlignment(Pos.CENTER);
+		labelCursor.setTextAlignment(TextAlignment.CENTER);
+		labelCursor.setContentDisplay(ContentDisplay.CENTER);
+		labelCursor.setWrapText(true);
+		labelCursor.setMaxHeight(Double.MAX_VALUE);
+		labelCursor.setMaxWidth(Double.MAX_VALUE);
+
+		labelCursor.setTooltip(new Tooltip("Prediction for current cursor location"));
+		return labelCursor;
+	}
+
+	private ToggleButton createShowDetailsButton() {
+		var btnShowDetails = new ToggleButton();
+		btnShowDetails.setContentDisplay(ContentDisplay.RIGHT);
+		btnShowDetails.selectedProperty().bindBidirectional(showMore);
+		btnShowDetails.textProperty().bind(Bindings.when(showMore)
+				.then("Less")
+				.otherwise("More"));
+
+		var iconMore = IconFactory.createNode(FontAwesome.Glyph.CARET_RIGHT);
+		var iconLess = IconFactory.createNode(FontAwesome.Glyph.CARET_LEFT);
+		btnShowDetails.graphicProperty().bind(Bindings.when(showMore)
+				.then(iconLess)
+				.otherwise(iconMore));
+		btnShowDetails.setPrefWidth(70);
+		return btnShowDetails;
+	}
+
+
+	private void addStandardPixelClassifierButtons(GridPane pane) {
 		var classifierName = new SimpleStringProperty(null);
-		var panePostProcess = GridPaneUtils.createRowGrid(
+		var panePostProcess = new VBox(
 				PixelClassifierUI.createSavePixelClassifierPane(qupath.projectProperty(), currentClassifier, classifierName),
-				PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier, classifierName)
-				);
-		panePostProcess.setVgap(5);
-		
-//		var panePostProcess = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
-				
-		pane.add(panePostProcess, 0, row++, pane.getColumnCount(), 1);
+				PixelClassifierUI.createPixelClassifierButtons(imageDataProperty, currentClassifier, classifierName)
+		);
+		panePostProcess.setSpacing(5);
+		pane.add(panePostProcess, 0, pane.getRowCount(), GridPane.REMAINING, 1);
+	}
 
-		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
-		
-		var viewerBorderPane = new BorderPane(viewerPane);
-		
-		comboDisplayFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> ensureOverlaySet());
-		comboDisplayFeatures.setMaxWidth(Double.MAX_VALUE);
-		spinFeatureMin.setPrefWidth(100);
-		spinFeatureMax.setPrefWidth(100);
-		spinFeatureMin.valueProperty().addListener((v, o, n) -> updateFeatureDisplayRange());
-		spinFeatureMax.valueProperty().addListener((v, o, n) -> updateFeatureDisplayRange());
-		sliderFeatureOpacity.valueProperty().addListener((v, o, n) -> {
-			if (featureOverlay != null) {
-				featureOverlay.setOpacity(n.doubleValue());
-			}
-			if (overlay != null)
-				overlay.setOpacity(n.doubleValue());
-			qupath.getViewerManager().repaintAllViewers();
-		});
+	private void addSeparator(GridPane pane) {
+		pane.add(new Separator(), 0, pane.getRowCount(), GridPane.REMAINING, 1);
+	}
 
-		var btnFeatureAuto = new Button("Auto");
-		btnFeatureAuto.setOnAction(e -> autoFeatureContrast());
-		comboDisplayFeatures.getItems().setAll(DEFAULT_CLASSIFICATION_OVERLAY);
-		comboDisplayFeatures.getSelectionModel().select(DEFAULT_CLASSIFICATION_OVERLAY);
-		var featureDisableBinding = comboDisplayFeatures.valueProperty().isEqualTo(DEFAULT_CLASSIFICATION_OVERLAY).or(comboDisplayFeatures.valueProperty().isNull());
-		btnFeatureAuto.disableProperty().bind(featureDisableBinding);
-		btnFeatureAuto.setMaxHeight(Double.MAX_VALUE);
-		spinFeatureMin.disableProperty().bind(featureDisableBinding);
-		spinFeatureMin.setEditable(true);
-		FXUtils.restrictTextFieldInputToNumber(spinFeatureMin.getEditor(), true);
-		FXUtils.resetSpinnerNullToPrevious(spinFeatureMin);
-		
-		spinFeatureMax.disableProperty().bind(featureDisableBinding);
-		spinFeatureMax.setEditable(true);
-		FXUtils.restrictTextFieldInputToNumber(spinFeatureMax.getEditor(), true);
-		FXUtils.resetSpinnerNullToPrevious(spinFeatureMax);
-		
-		var paneFeatures = new GridPane();spinFeatureMax.setTooltip(new Tooltip("Choose classification result or feature overlay to display (Warning: This requires a lot of memory & computation!)"));
-		spinFeatureMin.setTooltip(new Tooltip("Min display value for feature overlay"));
-		spinFeatureMax.setTooltip(new Tooltip("Max display value for feature overlay"));
-		sliderFeatureOpacity.setTooltip(new Tooltip("Adjust classification/feature overlay opacity"));
-		
-		GridPaneUtils.addGridRow(paneFeatures, 0, 0, null,
-				comboDisplayFeatures, comboDisplayFeatures, comboDisplayFeatures, comboDisplayFeatures);
-		GridPaneUtils.addGridRow(paneFeatures, 1, 0, null,
-				sliderFeatureOpacity, spinFeatureMin, spinFeatureMax, btnFeatureAuto);
-
-		
-		var factory = new Callback<ListView<String>, ListCell<String>>() {
-
-			@Override
-			public ListCell<String> call(ListView<String> param) {
-				var listCell = new ListCell<String>() {
-					@Override
-					public void updateItem(String value, boolean empty) {
-						super.updateItem(value, empty);
-						if (value == null || empty)
-							setText(null);
-						else
-							setText(value);
-					}
-				};
-				listCell.setTextOverrun(OverrunStyle.ELLIPSIS);
-				return listCell;
-			}
-		};
-		comboDisplayFeatures.setCellFactory(factory);
-		comboDisplayFeatures.setButtonCell(factory.call(null));
-		
-		GridPaneUtils.setMaxWidth(Double.MAX_VALUE, comboDisplayFeatures, sliderFeatureOpacity);
-		GridPaneUtils.setFillWidth(Boolean.TRUE, comboDisplayFeatures, sliderFeatureOpacity);
-		GridPaneUtils.setHGrowPriority(Priority.ALWAYS, comboDisplayFeatures, sliderFeatureOpacity);
-		paneFeatures.setHgap(5);
-		paneFeatures.setVgap(5);
-		paneFeatures.setPadding(new Insets(5));
-		paneFeatures.prefWidthProperty().bind(viewerBorderPane.prefWidthProperty());
-		viewerBorderPane.setBottom(paneFeatures);
-		
-		var splitPane = new BorderPane(viewerBorderPane);
-		splitPane.setLeft(pane);
-		pane.setMinWidth(400);
-//		pane.setPrefWidth(400);
-//		pane.setMaxWidth(400);
-		
-		var fullPane = splitPane;//new StackPane(splitPane);
-		
-		pane.setPadding(new Insets(5));
-		
-		stage = new Stage();
-		stage.setScene(new Scene(fullPane));
-		
-		stage.setMinHeight(400);
-		stage.setMinWidth(600);
-		stage.sizeToScene();
-
-		stage.initOwner(QuPathGUI.getInstance().getStage());
-		
-//		stage.getScene().getRoot().disableProperty().bind(
-//				QuPathGUI.getInstance().viewerProperty().isNotEqualTo(viewer)
-//				);
-		
-		updateTitle();
-		
-		updateFeatureCalculator();
-		
-		GridPaneUtils.setMinWidth(
-				Region.USE_PREF_SIZE,
-				FXUtils.getContentsOfType(stage.getScene().getRoot(), Region.class, true).toArray(Region[]::new));
-
+	private void addRegionSelectionControls(GridPane pane) {
+		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
 		// Hack... this seems to fix a bug whereby the stage would grow in size whenever
 		// this combo box (and subsequently others) was clicked on
-		comboRegionFilter.setPrefWidth(100);
+//		comboRegionFilter.setPrefWidth(100);
+		var labelRegion = createFixedWidthLabelForNode("Region", comboRegionFilter);
+		GridPaneUtils.addGridRow(pane,  pane.getRowCount(), 0, "Control where the pixel classification is applied during preview",
+				labelRegion, comboRegionFilter, comboRegionFilter);
+	}
 
-		stage.show();
-		stage.setOnCloseRequest(e -> destroy());
-		
-		qupath.getStage().addEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
-		
-		qupath.imageDataProperty().addListener(imageDataListener);
-		if (qupath.getImageData() != null)
-			qupath.getImageData().getHierarchy().addListener(hierarchyListener);
-		
-		stage.focusedProperty().addListener((v, o, n) -> {
-			if (n) {
-				for (var viewer : qupath.getAllViewers()) {
-					var currentOverlay = viewer.getCustomPixelLayerOverlay();
-					if (currentOverlay != this.featureOverlay && currentOverlay != this.overlay) {
-						ensureOverlaySet();
-						break;
-					}
-				}
+	private Button createAdvancedOptionsButton() {
+		var button = createFixedWidthButton("Advanced options");
+		button.setTooltip(new Tooltip("Advanced options to customize preprocessing and classifier behavior"));
+		button.setOnAction(e -> {
+			if (advancedOptions.promptToUpdateOptions()) {
+				updateClassifier();
+				overlayManager.predictionThreadsProperty().set(getLivePredictionThreads());
 			}
 		});
-		
-		nThreads.addListener((v, o, n) -> {
-			if (n == null)
-				return;
-			if (overlay != null)
-				overlay.setMaxThreads(n.intValue());
-			if (featureOverlay != null)
-				featureOverlay.setMaxThreads(n.intValue());
-		});
-		
+		return button;
 	}
-	
-	/**
-	 * Get all the training images currently requested.
-	 * Often this is just the current image... unless there are a) multiple viewers, and/or b) project images required.
-	 * @return
-	 */
-	private Collection<ImageData<BufferedImage>> getTrainingImageData() {
-		// We use the current viewer to determine the image type
-		var imageData = qupath.getImageData();
-		if (imageData == null) {
-			logger.warn("Cannot train classifier - a valid image needs to be open in the current viewer");
-			return Collections.emptyList();
-		}
-		
-		// Read annotations from all compatible images (which here means same channel names)
-		List<ImageData<BufferedImage>> list = new ArrayList<>();
-		for (var viewer : qupath.getAllViewers()) {
-			var tempData = viewer.getImageData();
-			if (tempData != null && compatibleChannels(imageData.getServer(), tempData.getServer()))
-				list.add(tempData);
-		}
-		
-		// Read any other requested images for the project
-		if (!trainingEntries.isEmpty()) {
-			var currentEntries = ProjectDialogs.getCurrentImages(qupath);
-			for (var entry : trainingEntries) {
-				try {
-					if (currentEntries.contains(entry)) {
-						logger.debug("Will not load data for {} - will use the training annotations from the open viewer", entry);
-						var tempData = trainingMap.remove(entry);
-						if (tempData != null)
-							tempData.close();
-					} else {
-						var tempData = trainingMap.get(entry);
-						if (tempData == null) {
-							tempData = entry.readImageData();
-							trainingMap.put(entry, tempData);
-						}
-						if (compatibleChannels(imageData.getServer(), tempData.getServer()))
-							list.add(tempData);
-					}
-				} catch (Exception e) {
-					logger.error(e.getLocalizedMessage(), e);
-				}
+
+	private Button createLoadTrainingButton() {
+		var button = createFixedWidthButton("Load training");
+		button.setTooltip(new Tooltip("Train using annotations from more images in the current project"));
+		button.setOnAction(e -> {
+			if (trainingImageManager.promptToLoadTrainingImages()) {
+				updateClassifier();
+				int n = trainingImageManager.size();
+				if (n > 0)
+					button.setText("Load training (" + n + ")");
+				else
+					button.setText("Load training");
 			}
-		}
-		
-		return list;
+		});
+		button.disableProperty().bind(qupath.projectProperty().isNull());
+		return button;
 	}
-	
-	private static boolean compatibleChannels(ImageServer<?> server, ImageServer<?> server2) {
-		if (server == server2)
-			return true;
-		if (server.nChannels() != server2.nChannels())
-			return false;
-		for (int c = 0; c < server.nChannels(); c++) {
-			if (!server.getChannel(c).getName().equals(server2.getChannel(c).getName()))
-				return false;
-		}
-		return true;
+
+	private ToggleButton createLivePredictionButton() {
+		var button = new ToggleButton("Live prediction");
+		button.setMaxWidth(Double.MAX_VALUE);
+		button.selectedProperty().bindBidirectional(livePrediction);
+		button.setTooltip(new Tooltip("Toggle whether to calculate classification 'live' while viewing the image"));
+		return button;
 	}
-	
-	
+
+
+	private void handleStageFocussed(boolean isFocused) {
+		if (isFocused) {
+			overlayManager.ensureOverlaySet();
+		}
+	}
+
+
 	/**
 	 * Add to the list of default feature calculator builders that will be available when 
 	 * this pane is opened.
@@ -647,27 +696,15 @@ public class PixelClassifierPane {
 	 * 
 	 * @return true if the builder was added, false otherwise.
 	 */
-	public static synchronized boolean installDefaultFeatureClassificationBuilder(ImageDataTransformerBuilder builder) {
+	public static synchronized void installDefaultFeatureClassificationBuilder(ImageDataOpBuilder builder) {
+		if (!Platform.isFxApplicationThread()) {
+			logger.debug("Delegating installDefaultFeatureClassificationBuilder to the application thread");
+			Platform.runLater(() -> installDefaultFeatureClassificationBuilder(builder));
+		}
 		if (!defaultFeatureCalculatorBuilders.contains(builder)) {
 			defaultFeatureCalculatorBuilders.add(builder);
-			return true;
 		}
-		return false;
 	}
-	
-	
-	private void updateTitle() {
-		if (stage == null)
-			return;
-		stage.setTitle("Train pixel classifier");
-	}
-	
-	private MouseListener mouseListener = new MouseListener();
-	
-	private PixelClassifierTraining helper;
-
-	private FeatureNormalization normalization = new FeatureNormalization();
-	private ImageOp preprocessingOp = null;
 
 		
 	/**
@@ -675,647 +712,329 @@ public class PixelClassifierPane {
 	 * @param imageData
 	 */
 	private void updateAvailableResolutions(ImageData<BufferedImage> imageData) {
-		var selected = selectedResolution.get();
 		if (imageData == null) {
-//			if (selected != null)
-//				resolutions.setAll(selected);
-//			else
-//				resolutions.clear();
 			return;
 		}
+		var selected = resolution.get();
 		var requestedResolutions = ClassificationResolution.getDefaultResolutions(imageData, selected);
 		if (!resolutions.equals(requestedResolutions)) {
 			resolutions.setAll(ClassificationResolution.getDefaultResolutions(imageData, selected));
-			comboResolutions.getSelectionModel().select(selected);
+			for (var r : resolutions) {
+				if (selected != null && selected.getPixelCalibration().equals(r.getPixelCalibration())) {
+					comboResolutions.getSelectionModel().select(r);
+					break;
+				}
+			}
+			if (!resolutions.isEmpty() && comboResolutions.getSelectionModel().getSelectedItem() == null)
+				comboResolutions.getSelectionModel().selectFirst();
 		}
+	}
+
+
+	private void updateAvailableFeatureOpBuilders(ImageData<BufferedImage> imageData) {
+		featureOpBuilders.add(MultiscaleImageDataOpBuilder.create2D(imageData));
+		featureOpBuilders.add(MultiscaleImageDataOpBuilder.create3D(imageData));
+		featureOpBuilders.addAll(defaultFeatureCalculatorBuilders);
 	}
 	
 	
 	private void updateFeatureCalculator() {
-		var cal = getSelectedResolution();
-		var imageData = qupath.getImageData();
+		var resolution = this.resolution.get();
+		if (resolution == null)
+			return;
+		var cal = resolution.getPixelCalibration();
+		var imageData = imageDataProperty.get();
 		
 		// Check we can support the requested channels before proceeding
-		// This is a bit of a hack for the DefaultFeatureCalculatorBuilder because we know it will fail with too many channels 
-		// on a call to OpenCVTools.mergeChannels - and we'd rather show a notification instead of just logging the error
-		var featureOpBuilder = selectedFeatureCalculatorBuilder.get();
+		// This is a bit of a hack because we know some implementations will fail with more channels than OpenCV
+		// can handle (on a call to OpenCVTools.mergeChannels).
+		// We'd rather show a notification instead of just logging the error - although this risks being a problem
+		// for an implementation that *would* work, so we may consider restricting the check to only known failures.
+		var featureOpBuilder = opBuilder.get();
 		var featureOp = featureOpBuilder.build(imageData, cal);
-		if (featureOpBuilder instanceof DefaultFeatureCalculatorBuilder) {
-			int nFeatures = featureOp.getChannels(imageData).size();
-			if (nFeatures > opencv_core.CV_CN_MAX) {
-				Dialogs.showErrorNotification("Pixel classifier", "Too many features! Requested " + featureOp.getChannels(imageData).size() + " but maximum is " + opencv_core.CV_CN_MAX + 
-						".\nFeatures will not be updated - please select a smaller number and continue training.");
-//				comboDisplayFeatures.getItems().setAll(DEFAULT_CLASSIFICATION_OVERLAY);
-				return;		
-			}
+		int nFeatures = featureOp.getChannels(imageData).size();
+		if (nFeatures > opencv_core.CV_CN_MAX) {
+			Dialogs.showErrorNotification("Pixel classifier", "Too many features! Requested " + nFeatures + " but maximum is " + opencv_core.CV_CN_MAX +
+					".\nFeatures will not be updated - please select a smaller number and continue training.");
+			return;
 		}
 		helper.setFeatureOp(featureOp);
 		var featureServer = helper.getFeatureServer(imageData);
 		if (featureServer == null) {
-			comboDisplayFeatures.getItems().setAll(DEFAULT_CLASSIFICATION_OVERLAY);
+			trainingViewerPane.getAvailableFeatures().clear();
 		} else {
-			List<String> featureNames = new ArrayList<>();
-			featureNames.add(DEFAULT_CLASSIFICATION_OVERLAY);
-			for (var channel : featureServer.getMetadata().getChannels())
-				featureNames.add(channel.getName());
-			comboDisplayFeatures.getItems().setAll(featureNames);
+			trainingViewerPane.getAvailableFeatures().setAll(
+					featureServer.getMetadata().getChannels().stream().map(ImageChannel::getName).toList()
+			);
 		}
-		comboDisplayFeatures.getSelectionModel().select(DEFAULT_CLASSIFICATION_OVERLAY);
 		updateClassifier();
+		checkFeaturesCompatible();
 	}
-	
-	
-	private void autoFeatureContrast() {
-		var selectedChannel = featureRenderer == null ? null : featureRenderer.getSelectedChannel();
-		if (selectedChannel != null) {
-			featureRenderer.autoSetDisplayRange();
-			double min = (double)selectedChannel.getMinDisplay();
-			double max = (double)selectedChannel.getMaxDisplay();
-			spinFeatureMin.getValueFactory().setValue(min);
-			spinFeatureMax.getValueFactory().setValue(max);
-		}
-	}
-	
-	private void ensureOverlaySet() {
-		if (featureOverlay != null) {
-			featureOverlay.stop();
-			featureOverlay = null;
-		}
-		
-		for (var viewer : qupath.getAllViewers()) {
-			if (viewer.getCustomPixelLayerOverlay() == featureOverlay)
-				viewer.resetCustomPixelLayerOverlay();
-		}
-		
-		var imageData = qupath.getImageData();
-		if (imageData == null)
-			return;
-		String featureName = comboDisplayFeatures.getSelectionModel().getSelectedItem();
-		if (DEFAULT_CLASSIFICATION_OVERLAY.equals(featureName)) {
-			for (var viewer : qupath.getAllViewers())
-				viewer.setCustomPixelLayerOverlay(overlay);
-			return;
-		}
-		int channel = -1;
-		var featureServer = helper.getFeatureServer(imageData);
-		if (featureServer != null && featureName != null) {
-			for (int c = 0; c < featureServer.nChannels(); c++) {
-				if (featureName.equals(featureServer.getChannel(c).getName())) {
-					channel = c;
-					break;
-				}
-			}
-			if (channel >= 0) {
-				featureRenderer.setChannel(featureServer, channel, spinFeatureMin.getValue(), spinFeatureMax.getValue());
-				featureOverlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), data -> helper.getFeatureServer(data), featureRenderer);
-				featureOverlay.setMaxThreads(getLivePredictionThreads());
-				((PixelClassificationOverlay)featureOverlay).setLivePrediction(true);
-				featureOverlay.setOpacity(sliderFeatureOpacity.getValue());
-				featureOverlay.setLivePrediction(livePrediction.get());
-				autoFeatureContrast();
-			}
-		}
-		if (featureOverlay != null) {
-			for (var viewer : qupath.getAllViewers())
-				viewer.setCustomPixelLayerOverlay(featureOverlay);
-		}
-	}
-	
-	
-	int getLivePredictionThreads() {
-		int n = nThreads.get();
+
+
+
+
+	private int getLivePredictionThreads() {
+		int n = advancedOptions.getNumThreads();
 		return  n < 0 ? PathPrefs.numCommandThreadsProperty().get() : Math.max(n, 1);
 	}
-	
-	
-	private void updateFeatureDisplayRange() {
-		if (featureRenderer == null || spinFeatureMin.getValue() == null || spinFeatureMax.getValue() == null)
-			return;
-		featureRenderer.setRange(spinFeatureMin.getValue(), spinFeatureMax.getValue());
-		qupath.getViewerManager().repaintAllViewers();
-	}
+
 	
 	private void updateClassifier() {
-		updateClassifier(livePrediction.get());
-	}
-	
-	
-	
-	private void updateClassifier(boolean doClassification) {
-		if (doClassification)
+		if (livePrediction.get())
 			doClassification();
 		else
-			replaceOverlay(null);
+			overlayManager.resetOverlay();
 	}
-	
-	private boolean reweightSamples = false;
-	private int maxSamples = 100_000;
-	private int rngSeed = 100;
-	
-	private IntegerProperty nThreads = PathPrefs.createPersistentPreference("pixelClassificationThreads", -1);
-	
-	private boolean showAdvancedOptions() {
-		
-		var existingStrategy = helper.getBoundaryStrategy();
-		
-		List<BoundaryStrategy> boundaryStrategies = new ArrayList<>();
-		boundaryStrategies.add(BoundaryStrategy.getSkipBoundaryStrategy());
-		boundaryStrategies.add(BoundaryStrategy.getDerivedBoundaryStrategy(1));
-		for (var pathClass : QuPathGUI.getInstance().getAvailablePathClasses())
-			boundaryStrategies.add(BoundaryStrategy.getClassifyBoundaryStrategy(pathClass, 1));
-		
-		String PCA_NONE = "No feature reduction";
-		String PCA_BASIC = "Do PCA projection";
-		String PCA_NORM = "Do PCA projection + normalize output";
-		
-		String pcaChoice = PCA_NONE;
-		if (normalization.getPCARetainedVariance() > 0) {
-			if (normalization.doPCANormalize())
-				pcaChoice = PCA_NORM;
-			else
-				pcaChoice = PCA_BASIC;
-		}
-		
-		
-		var params = new ParameterList()
-				.addTitleParameter("Live prediction")
-				.addIntParameter("numThreads", "Number of threads", nThreads.get(), null, "Maximum number of threads to use for live prediction, or -1 to use default threads")
-				.addTitleParameter("Training data")
-				.addIntParameter("maxSamples", "Maximum samples", maxSamples, null, "Maximum number of training samples - only needed if you have a lot of annotations, slowing down training")
-				.addIntParameter("rngSeed", "RNG seed", rngSeed, null, "Seed for the random number generator used when selecting training samples")
-				.addBooleanParameter("reweightSamples", "Reweight samples", reweightSamples, "Weight training samples according to frequency")
-				.addTitleParameter("Preprocessing")
-				.addChoiceParameter("normalization", "Feature normalization", normalization.getNormalization(),
-						Arrays.asList(Normalization.values()), "Method to normalize features - use only if needed, may make no difference with some common classifiers")
-				.addChoiceParameter("featureReduction", "Feature reduction", pcaChoice, List.of(PCA_NONE, PCA_BASIC, PCA_NORM), 
-						"Use Principal Component Analysis for feature reduction (must also specify retained variance)")
-				.addDoubleParameter("pcaRetainedVariance", "PCA retained variance", normalization.getPCARetainedVariance(), "",
-						"Retained variance if applying Principal Component Analysis for dimensionality reduction. Should be between 0 and 1; if <= 0 PCA will not be applied.")
-				.addTitleParameter("Annotation boundaries")
-				.addChoiceParameter("boundaryStrategy", "Boundary strategy", helper.getBoundaryStrategy(),
-						boundaryStrategies,
-						"Choose how annotation boundaries should influence classifier training")
-				.addDoubleParameter("boundaryThickness", "Boundary thickness", existingStrategy.getBoundaryThickness(), "pixels",
-						"Set the boundary thickness whenever annotation boundaries are trained separately")
-				;
-		
-		if (!GuiTools.showParameterDialog("Advanced options", params))
-			return false;
-		
-		reweightSamples = params.getBooleanParameterValue("reweightSamples");
-		maxSamples = params.getIntParameterValue("maxSamples");
-		rngSeed = params.getIntParameterValue("rngSeed");
-		
-		pcaChoice = (String)params.getChoiceParameterValue("featureReduction");
-		boolean pcaNormalize = PCA_NORM.equals(pcaChoice);
-		double pcaRetainedVariance = PCA_NONE.equals(pcaChoice) ? 0 : params.getDoubleParameterValue("pcaRetainedVariance");
-		
-		normalization.setNormalization((Normalization)params.getChoiceParameterValue("normalization"));
-		normalization.setPCARetainedVariance(pcaRetainedVariance);
-		normalization.setPCANormalize(pcaNormalize);
-		
-		nThreads.set(params.getIntParameterValue("numThreads"));
-		
-		var strategy = (BoundaryStrategy)params.getChoiceParameterValue("boundaryStrategy");
-		strategy = BoundaryStrategy.setThickness(strategy, params.getDoubleParameterValue("boundaryThickness"));
-		helper.setBoundaryStrategy(strategy);
-		
-		return true;
-	}
-	
-	
-	
+
+
 	private void doClassification() {
-//		if (helper == null || helper.getFeatureServer() == null) {
-////			updateFeatureCalculator();
-////			updateClassifier();
-//			if (helper == null) {
-//				logger.error("No pixel classifier helper available!");
-//				return;
-//			}
-//		}
-		var imageData = qupath.getImageData();
+		var imageData = imageDataProperty.get();
 		if (imageData == null) {
-			if (!qupath.getAllViewers().stream().anyMatch(v -> v.getImageData() != null)) {
-				logger.debug("doClassification() called, but no images are open"); 
-				return;			
+			if (qupath.getAllViewers().stream().noneMatch(v -> v.getImageData() != null)) {
+				logger.debug("doClassification() called, but no images are open");
+				return;
 			}
 		}
-		
-		var model = selectedClassifier.get();
+
+		var op = helper.getFeatureOp();
+		if (op == null) {
+			Dialogs.showWarningNotification("Pixel classifier", "No features selected!");
+			return;
+		}
+
+		if (!op.supportsImage(imageData)) {
+			Dialogs.showWarningNotification("Pixel classifier", "Selected features aren't compatible with the current image");
+			return;
+		}
+
+		var model = statModel.get();
 		if (model == null) {
 			Dialogs.showErrorNotification("Pixel classifier", "No classifier selected!");
 			return;
 		}
 
-		ClassifierTrainingData trainingData;
+		this.helper.setBoundaryStrategy(advancedOptions.getBoundaryStrategy());
+
+		List<ClassifierTrainingData> allTrainingData = getAllTrainingData();
+		if (allTrainingData.isEmpty()) {
+			pieChart.reset();
+			return;
+		}
+
+		var trainer = new ModelTrainer(helper, advancedOptions);
+
+		try (var trainingData = ClassifierTrainingData.merge(allTrainingData)) {
+			var trainedModel = trainer.train(model, trainingData);
+
+			currentClassifier.set(trainedModel.createPixelClassifier(
+					model.supportsProbabilities() ? outputType.get() : ImageServerMetadata.ChannelType.CLASSIFICATION));
+
+			updatePieChartCounts(trainedModel.labels(), trainedModel.countsIndexedByLabels());
+			trainingDetailsPane.update(
+					trainedModel.model(),
+					trainedModel.labels(),
+					trainedModel.trainingTime());
+			featureDetailsPane.update(
+					trainedModel.model(),
+					trainedModel.getFeatureNames(imageData));
+		}
+	}
+
+	private void calculateVariableImportance() {
+		var trainingImages = trainingImageManager.getTrainingImageData();
+		if (trainingImages.isEmpty()) {
+			logger.warn("Can't compute variable importance without an image open");
+			return;
+		}
+		try (var rtrees = RTrees.create()) {
+			rtrees.setMaxDepth(0);
+			rtrees.setTermCriteria(
+					new TermCriteria(TermCriteria.COUNT, 100, 0));
+			rtrees.setCalculateVarImportance(true);
+
+			var model = OpenCVClassifiers.wrapStatModel(rtrees);
+			List<ClassifierTrainingData> allTrainingData = helper.createTrainingData(trainingImages);
+			if (allTrainingData.isEmpty()) {
+				logger.warn("Can't compute variable importance without training data!");
+				return;
+			}
+			var trainer = new ModelTrainer(helper, advancedOptions);
+			try (var scope = new PointerScope()) {
+				try (ClassifierTrainingData otherImages = ClassifierTrainingData.merge(allTrainingData)) {
+					var trainedModel = trainer.train(model, otherImages);
+					featureDetailsPane.update(model, trainedModel.getFeatureNames(trainingImages.iterator().next()));
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Error calculating variable importance: {}", e.getMessage(), e);
+		}
+	}
+
+	private static OpenCVStatModel duplicateStatModel(OpenCVStatModel model) {
+		var gson = GsonTools.getInstance();
+		return gson.fromJson(
+				gson.toJson(model, OpenCVStatModel.class), OpenCVStatModel.class
+		);
+	}
+
+	private List<ClassifierTrainingData> getAllTrainingData() {
 		try {
-			var trainingImages = getTrainingImageData();
+			var trainingImages = trainingImageManager.getTrainingImageData();
 			if (trainingImages.size() > 1)
-				logger.info("Creating training data from {} images", trainingImages.size());
-			trainingData = helper.createTrainingData(trainingImages);
+				logger.debug("Creating training data from {} images", trainingImages.size());
+			return helper.createTrainingData(trainingImages);
 		} catch (Exception e) {
 			logger.error("Error when updating training data", e);
-			return;
-		}
-		 if (trainingData == null) {
-			 resetPieChart();
-			 return;
-		 }
-
-		 // TODO: Optionally limit the number of training samples we use
-		 //	     		var trainData = classifier.createTrainData(matFeatures, matTargets);
-
-		 // Ensure we seed the RNG for reproducibility
-		 opencv_core.setRNGSeed(rngSeed);
-		 
-		 // TODO: Prevent training K nearest neighbor with a huge number of samples (very slow!)
-		 var actualMaxSamples = this.maxSamples;
-		 
-		 var trainData = trainingData.getTrainData();
-		 if (actualMaxSamples > 0 && trainData.getNTrainSamples() > actualMaxSamples)
-			 trainData.setTrainTestSplit(actualMaxSamples, true);
-		 else
-			 trainData.shuffleTrainTest();
-
-		 // Apply normalization, if we need to
-		 FeaturePreprocessor preprocessor = normalization.build(trainData.getTrainSamples(), false);
-		 if (preprocessor.doesSomething()) {
-			 preprocessingOp = ImageOps.ML.preprocessor(preprocessor);
-		 } else
-			 preprocessingOp = null;
-		 
-		 var labels = trainingData.getLabelMap();
-		 // Using getTrainNormCatResponses() causes confusion if classes are not represented
-//		 var targets = trainData.getTrainNormCatResponses();
-		 var targets = trainData.getTrainResponses();
-		 IntBuffer buffer = targets.createBuffer();
-		 int n = (int)targets.total();
-		 var rawCounts = new int[labels.size()];
-		 for (int i = 0; i < n; i++) {
-			 rawCounts[buffer.get(i)] += 1;
-		 }
-		 Map<PathClass, Integer> counts = new LinkedHashMap<>();
-		 for (var entry : labels.entrySet()) {
-			 counts.put(entry.getKey(), rawCounts[entry.getValue()]);
-		 }
-		 updatePieChart(counts);
-		 
-		 Mat weights = null;
-		 if (reweightSamples) {
-			 weights = new Mat(n, 1, opencv_core.CV_32FC1);
-			 FloatIndexer bufferWeights = weights.createIndexer();
-			 float[] weightArray = new float[rawCounts.length];
-			 for (int i = 0; i < weightArray.length; i++) {
-				 int c = rawCounts[i];
-//				 weightArray[i] = c == 0 ? 1 : (float)1.f/c;
-				 weightArray[i] = c == 0 ? 1 : (float)n/c;
-			 }
-			 for (int i = 0; i < n; i++) {
-				 int label = buffer.get(i);
-				 bufferWeights.put(i, weightArray[label]);
-			 }
-			 bufferWeights.release();
-		 }
-		 
-		 // Create TrainData in an appropriate format (e.g. labels or one-hot encoding)
-		 var trainSamples = trainData.getTrainSamples();
-		 var trainResponses = trainData.getTrainResponses();
-		 preprocessor.apply(trainSamples, false);
-		 trainData = model.createTrainData(trainSamples, trainResponses, weights, false);
-		 
-		 logger.info("Training data: {} x {}, Target data: {} x {}", trainSamples.rows(), trainSamples.cols(), trainResponses.rows(), trainResponses.cols());
-		 model.train(trainData);
-		 
-		 // Calculate accuracy using whatever we can, as a rough guide to progress
-		 var test = trainData.getTestSamples();
-		 String testSet = "HELD-OUT TRAINING SET";
-		 if (test.empty()) {
-			 test = trainSamples;
-			 testSet = "TRAINING SET";
-		 } else {
-			 preprocessor.apply(test, false);
-			 buffer = trainData.getTestNormCatResponses().createBuffer();
-		 }
-		 var testResults = new Mat();
-		 model.predict(test, testResults, null);
-		 IntBuffer bufferResults = testResults.createBuffer();
-		 int nTest = (int)testResults.rows();
-		 int nCorrect = 0;
-		 for (int i = 0; i < nTest; i++) {
-			 if (bufferResults.get(i) == buffer.get(i))
-				 nCorrect++;
-		 }
-		 logger.info("Current accuracy on the {}: {} %", testSet, GeneralTools.formatNumber(nCorrect*100.0/n, 1));
-
-		 if (model instanceof RTreesClassifier) {
-			 var trees = (RTreesClassifier)model;
-			 if (trees.hasFeatureImportance() && imageData != null)
-				 logVariableImportance(trees,
-						 helper.getFeatureOp().getChannels(imageData).stream()
-						 .map(c -> c.getName()).toList());
-		 }
-		 
-		 trainData.close();
-
-		 
-		 var featureCalculator = helper.getFeatureOp();
-		 if (preprocessingOp != null)
-			 featureCalculator = featureCalculator.appendOps(preprocessingOp);
-		 
-		 // TODO: CHECK IF INPUT SIZE SHOULD BE DEFINED
-		 int inputWidth = 512;
-		 int inputHeight = 512;
-//		 int inputWidth = featureCalculator.getInputSize().getWidth();
-//		 int inputHeight = featureCalculator.getInputSize().getHeight();
-		 var cal = helper.getResolution();
-		 var channelType = ImageServerMetadata.ChannelType.CLASSIFICATION;
-		 if (model.supportsProbabilities()) {
-			 channelType = selectedOutputType.get();
-		 }
-		 
-		 // Channels are needed for probability output (and work for classification as well)
-		 var labels2 = new TreeMap<Integer, PathClass>();
-		 for (var entry : labels.entrySet()) {
-			 var previous = labels2.put(entry.getValue(), entry.getKey());
-			 if (previous != null)
-				 logger.warn("Duplicate label found! {} matches with {} and {}, only the latter be used", entry.getValue(), previous, entry.getKey());
-		 }
-		 var channels = ServerTools.classificationLabelsToChannels(labels2, true);
-		 
-		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
-				 .inputResolution(cal)
-				 .inputShape(inputWidth, inputHeight)
-				 .setChannelType(channelType)
-//				 .classificationLabels(labels2)
-				 .outputChannels(channels)
-				 .build();
-
-		 currentClassifier.set(PixelClassifiers.createClassifier(model, featureCalculator, metadata, true));
-
-		 var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), currentClassifier.get(), getLivePredictionThreads());
-		 replaceOverlay(overlay);
-	}
-		
-	
-	
-	private void resetPieChart() {
-		updatePieChart(Collections.emptyMap());
-	}
-	
-	private void updatePieChart(Map<PathClass, Integer> counts) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> updatePieChart(counts));
-			return;
-		}
-		ChartTools.setPieChartData(pieChart, counts, PathClass::toString, p -> ColorToolsFX.getCachedColor(p.getColor()), true, !counts.isEmpty());
-		if (counts.isEmpty())
-			pieChart.setTitle(null);
-		else
-			pieChart.setTitle("Training data");
-	}
-	
-	
-	static boolean logVariableImportance(final RTreesClassifier trees, final List<String> features) {
-		var importance = trees.getFeatureImportance();
-		if (importance == null)
-			return false;
-		try {
-			var sorted = IntStream.range(0, importance.length)
-					.boxed()
-					.sorted((a, b) -> -Double.compare(importance[a], importance[b]))
-					.mapToInt(i -> i).toArray();
-			
-			if (sorted.length != features.size())
-				return false;
-			
-			var sb = new StringBuilder("Variable importance:");
-			for (int ind : sorted) {
-				sb.append("\n");
-				sb.append(String.format("%.4f \t %s", importance[ind], features.get(ind)));
-			}
-			logger.info(sb.toString());
-			return true;
-		} catch (Exception e) {
-			logger.debug("Error logging feature importance: {}", e.getLocalizedMessage());
-			return false;
+			return List.of();
 		}
 	}
-	
 
 	/**
-	 * Replace the overlay - making sure to do this on the application thread
-	 *
-	 * @param newOverlay
+	 * Evaluate the predictions of a classifier.
+	 * @param name name for confusion matrix
+	 * @param samples the samples to use as input to the model
+	 * @param normCatTargets the normalized categorical targets
+	 * @param classLabels the class labels associated with the targets; see {@link TrainData#getTrainNormCatResponses()}
+	 * @param model the model to use for prediction
+	 * @param preprocessor the preprocessor to apply to the samples
+	 * @param labels the QuPath-friendly mapping of classes to integer labels
+	 * @return
 	 */
-	private void replaceOverlay(PixelClassificationOverlay newOverlay) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> replaceOverlay(newOverlay));
-			return;
+	private static ConfusionMatrix<PathClass> evaluate(String name, Mat samples, Mat normCatTargets, Mat classLabels, OpenCVStatModel model,
+													   FeaturePreprocessor preprocessor, Map<PathClass, Integer> labels) {
+		if (preprocessor != null) {
+			samples = samples.clone();
+			preprocessor.apply(samples, false);
 		}
-		if (overlay != null) {
-			overlay.stop();
+		var confusion = new ConfusionMatrix<>(name, List.copyOf(labels.keySet()));
+		IntBuffer bufferGroundTruth = normCatTargets.createBuffer();
+		IntBuffer bufferClassList = classLabels.createBuffer();
+
+		// This assumes that our labels are dense and start with 0... rather than being
+		// all other the place, and potentially negative
+		int n = labels.values().stream().mapToInt(Integer::intValue).max().orElse(0) + 1;
+		PathClass[] pathClasses = new PathClass[n];
+		for (var entry : labels.entrySet()) {
+			pathClasses[entry.getValue()] = entry.getKey();
 		}
-		overlay = newOverlay;
-		if (overlay != null) {
-			overlay.setLivePrediction(livePrediction.get());
-			overlay.setOpacity(sliderFeatureOpacity.getValue());
+
+		var testResults = new Mat();
+		model.predict(samples, testResults, new Mat());
+		IntBuffer bufferPrediction = testResults.createBuffer();
+		int nTest = testResults.rows();
+		for (int i = 0; i < nTest; i++) {
+			int targetClassInd = bufferClassList.get(bufferGroundTruth.get(i));
+			confusion.accumulate(
+					pathClasses[targetClassInd],
+					pathClasses[bufferPrediction.get(i)]
+			);
 		}
-		ensureOverlaySet();
+		return confusion;
 	}
-		
-	
 
 
-
-	private void destroy() {
-		if (overlay != null)
-			overlay.stop();
-		
-		qupath.imageDataProperty().removeListener(imageDataListener);
-
-		for (var viewer : qupath.getAllViewers()) {
-			viewer.resetCustomPixelLayerOverlay();
-			if (featureOverlay != null) {
-				viewer.getCustomOverlayLayers().remove(featureOverlay);
-				featureOverlay.stop();
+	private static Mat createWeights(Mat targets, int[] countsIndexedByLabels) {
+		int n = (int) targets.total();
+		IntBuffer buffer = targets.createBuffer();
+		Mat weights = new Mat(n, 1, opencv_core.CV_32FC1);
+		try (FloatIndexer bufferWeights = weights.createIndexer()) {
+			float[] weightArray = new float[countsIndexedByLabels.length];
+			for (int i = 0; i < weightArray.length; i++) {
+				int c = countsIndexedByLabels[i];
+				weightArray[i] = c == 0 ? 1 : (float) n / c;
 			}
-	
-//			viewer.imageDataProperty().removeListener(imageDataListener);
+			for (int i = 0; i < n; i++) {
+				int label = buffer.get(i);
+				bufferWeights.put(i, weightArray[label]);
+			}
+		}
+		return weights;
+	}
+
+
+	private static int[] createCountsIndexedByLabels(Mat targets, Map<PathClass, Integer> labels) {
+		int n = (int) targets.total();
+		IntBuffer buffer = targets.createBuffer();
+		var countsIndexedByLabels = new int[labels.values().stream().mapToInt(Integer::intValue).max().orElse(0) + 1];
+		for (int i = 0; i < n; i++) {
+			countsIndexedByLabels[buffer.get(i)] += 1;
+		}
+		return countsIndexedByLabels;
+	}
+
+
+	private void updatePieChartCounts(Map<PathClass, Integer> labels, int[] countsIndexedByLabels) {
+		Map<PathClass, Integer> counts = new LinkedHashMap<>();
+		for (var entry : labels.entrySet()) {
+			counts.put(entry.getKey(), countsIndexedByLabels[entry.getValue()]);
+		}
+		pieChart.updateCounts(counts);
+	}
+
+	private void handleStageShowingChange(boolean isShowing) {
+		if (isShowing) {
+			handleStageShown();
+		} else {
+			handleStageHidden();
+		}
+	}
+
+	private void handleStageShown() {
+		initializeSubscriptions();
+		this.overlayManager.start();
+		var imageData = imageDataProperty.get();
+		handleImageDataChange(null, imageData);
+
+		// Don't forget where we were after we're hidden
+		FXUtils.retainWindowPosition(stage);
+	}
+
+
+	private void handleStageHidden() {
+		subscription.unsubscribe();
+		for (var viewer : qupath.getAllViewers()) {
 			var hierarchy = viewer.getHierarchy();
 			if (hierarchy != null)
 				hierarchy.removeListener(hierarchyListener);
 		}
-		featureOverlay = null;
-		overlay = null;
-//		setImageData(viewer, viewer.getImageData(), null);
-		if (stage != null && stage.isShowing())
-			stage.close();
-		
-		// Ensure we have closed any cached images
-		for (var data : trainingMap.values()) {
-			try {
-				data.close();
-			} catch (Exception e) {
-                logger.warn("Error closing server: {}", e.getMessage(), e);
-			}
-		}
-		trainingEntries.clear();
-		trainingMap.clear();
+		overlayManager.stop();
+		trainingImageManager.reset();
 	}
 	
 	
 	
-	
-	private boolean editClassifierParameters() {
-		var model = selectedClassifier.get();
+	private void promptToEditClassifierParameters() {
+		var model = statModel.get();
 		if (model == null) {
 			Dialogs.showErrorMessage("Edit parameters", "No classifier selected!");
-			return false;
+			return;
 		}
 		GuiTools.showParameterDialog("Edit parameters", model.getParameterList());
 		updateClassifier();
-		return true;
 	}
-	
-	
-	private boolean showOutput() {
-		if (overlay == null) {
-			Dialogs.showErrorMessage("Show output", "No pixel classifier has been trained yet!");
-			return false;
-		}
-		var viewer = qupath.getViewer();
-		var imageData = viewer.getImageData();
-		var server = imageData == null ? null : overlay.getPixelClassificationServer(imageData);
-		if (server == null)
-			return false;
-		var selected = viewer.getSelectedObject();
-		var roi = selected == null ? null : selected.getROI();
-		double downsample = server.getDownsampleForResolution(0);
-		RegionRequest request;
-		if (roi == null) {
-			request = RegionRequest.createInstance(
-					server.getPath(), downsample, 
-					0, 0, server.getWidth(), server.getHeight(), viewer.getZPosition(), viewer.getTPosition());			
-		} else {
-			request = RegionRequest.createInstance(server.getPath(), downsample, selected.getROI());
-		}
-		long estimatedPixels = (long)Math.ceil(request.getWidth()/request.getDownsample()) * (long)Math.ceil(request.getHeight()/request.getDownsample());
-		double estimatedMB = (estimatedPixels * server.nChannels() * (server.getPixelType().getBytesPerPixel())) / (1024.0 * 1024.0);
-		if (estimatedPixels >= Integer.MAX_VALUE - 16) {
-			Dialogs.showErrorMessage("Extract output", "Requested region is too big! Try selecting a smaller region.");
-			return false;
-		} else if (estimatedMB >= 200.0) {
-			if (!Dialogs.showConfirmDialog("Extract output",
-					String.format("Extracting this region will require approximately %.1f MB - are you sure you want to try this?", estimatedMB)))
-				return false;
-		}
-		
-		try {
-//			var imp = IJExtension.extractROI(server, selected, request, true, null).getImage();
-			var pathImage = IJTools.convertToImagePlus(
-					server,
-					request);
-			var imp = pathImage.getImage();
-			if (imp instanceof CompositeImage && server.getMetadata().getChannelType() != ChannelType.CLASSIFICATION)
-				((CompositeImage)imp).setDisplayMode(CompositeImage.GRAYSCALE);
-			if (roi != null && !(roi instanceof RectangleROI)) {
-				imp.setRoi(IJTools.convertToIJRoi(roi, pathImage));
-			}
-			IJExtension.getImageJInstance();
-			imp.show();
-			return true;
-		} catch (IOException e) {
-			logger.error("Error showing output", e);
-		}
-		return false;
-	}
-	
-	
-	private boolean showFeatures() {
-		var viewer = qupath.getViewer();
-		ImageData<BufferedImage> imageData = viewer.getImageData();
-		double cx = viewer.getCenterPixelX();
-		double cy = viewer.getCenterPixelY();
-		if (imageData == null)
-			return false;
 
-		try {
-			// Create a new FeatureServer if we need one
-			ImageServer<BufferedImage> featureServer;
-			
-			var op = helper.getFeatureOp();
-			if (preprocessingOp != null)
-				op = op.appendOps(preprocessingOp);
-			featureServer = ImageOps.buildServer(imageData, op, helper.getResolution());
-			
-//			boolean tempFeatureServer = false;
-//			if (helper.getImageData() == imageData) {
-//				featureServer = helper.getFeatureServer();
-//			} else {
-//				tempFeatureServer = true;
-//				featureServer = ImageOps.buildServer(imageData, helper.getFeatureOp(), helper.getResolution());
-//			}
-			double downsample = featureServer.getDownsampleForResolution(0);
-			int tw = (int)(featureServer.getMetadata().getPreferredTileWidth() * downsample);
-			int th = (int)(featureServer.getMetadata().getPreferredTileHeight() * downsample);
-			int x = (int)GeneralTools.clipValue(cx - tw/2.0, 0, featureServer.getWidth() - tw);
-			int y = (int)GeneralTools.clipValue(cy - th/2.0, 0, featureServer.getHeight() - th);
-			var request = RegionRequest.createInstance(
-					featureServer.getPath(),
-					downsample,
-					x, y, tw, th, viewer.getZPosition(), viewer.getTPosition());
-//			var tile = featureServer.getTileRequestManager().getTileRequest(
-//					0,
-//					(int)cx,
-//					(int)cy,
-//					viewer.getZPosition(), viewer.getTPosition());
-//			if (tile == null) {
-//				DisplayHelpers.showErrorMessage("Show features", "To file found - center the image within the viewer, then try again");
-//				return false;
-//			}
-			
-			var imp = IJTools.convertToImagePlus(featureServer, request).getImage();
 
-			CompositeImage impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);
-			impComp.setDimensions(imp.getStackSize(), 1, 1);
-			for (int s = 1; s <= imp.getStackSize(); s++) {
-				impComp.setPosition(s);
-				impComp.resetDisplayRange();
-//				impComp.getStack().setSliceLabel(feature.getName(), s++);
-			}
-			impComp.setPosition(1);
-			IJExtension.getImageJInstance();
-			impComp.show();
-			
-//			if (tempFeatureServer)
-				featureServer.close();
-			return true;
-		} catch (Exception e) {
-			logger.error("Error calculating features", e);
-		}
-		return false;
-	}
-	
-	private boolean addResolution() {
-		var imageData = qupath.getImageData();
+    private void promptToAddResolution() {
+		var imageData = imageDataProperty.get();
 		ImageServer<BufferedImage> server = imageData == null ? null : imageData.getServer();
 		if (server == null) {
 			GuiTools.showNoImageError("Add resolution");
-			return false;
+			return;
 		}
-		String units = null;
-		Double pixelSize = null;
+		String units;
+		Double pixelSize;
 		PixelCalibration cal = server.getPixelCalibration();
 		if (cal.hasPixelSizeMicrons()) {
 			pixelSize = Dialogs.showInputDialog("Add resolution", "Enter requested pixel size in " + GeneralTools.micrometerSymbol(), 1.0);
 			units = PixelCalibration.MICROMETER;
 		} else {
 			pixelSize = Dialogs.showInputDialog("Add resolution", "Enter requested downsample factor", 1.0);
+			units = null;
 		}
 		
 		if (pixelSize == null)
-			return false;
+			return;
 		
 		ClassificationResolution res;
 		if (PixelCalibration.MICROMETER.equals(units)) {
@@ -1326,109 +1045,214 @@ public class PixelClassifierPane {
 
 		List<ClassificationResolution> temp = new ArrayList<>(resolutions);
 		temp.add(res);
-		Collections.sort(temp, Comparator.comparingDouble((ClassificationResolution w) -> w.cal.getAveragedPixelSize().doubleValue()));
+		temp.sort(Comparator.comparingDouble((ClassificationResolution w) -> w.cal.getAveragedPixelSize().doubleValue()));
 		resolutions.setAll(temp);
 		comboResolutions.getSelectionModel().select(res);
-		
-		return true;
-	}	
-	
-	
-	private PixelCalibration getSelectedResolution() {
-		return selectedResolution.get().cal;
 	}
-	
 	
 	private void updateResolution(ClassificationResolution resolution) {
-		ImageServer<BufferedImage> server = qupath.getImageData() == null ? null : qupath.getImageData().getServer();
-		if (server == null || miniViewer == null || resolution == null)
+		trainingViewerPane.setResolution(resolution);
+		ImageServer<BufferedImage> server = imageDataProperty.get() == null ? null : imageDataProperty.get().getServer();
+		if (server == null || resolution == null)
 			return;
-		Tooltip.install(miniViewer.getPane(), new Tooltip("Classification resolution: \n" + resolution));
 		helper.setResolution(resolution.cal);
-		miniViewer.setDownsample(resolution.cal.getAveragedPixelSize().doubleValue()  / server.getPixelCalibration().getAveragedPixelSize().doubleValue());
 	}
-	
-	
-	
-	private boolean promptToLoadTrainingImages() {
-		var project = qupath.getProject();
-		if (project == null) {
-			GuiTools.showNoProjectError("Pixel classifier");
-			return false;
-		}
-		
-		var listView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), trainingEntries,
-				"Specified image is open!");
-		
-		var pane = new BorderPane(listView);
-		pane.setTop(new Label("Select images to use for training the pixel classifier.\n"
-				+ "Note that more images will require more memory and more processing time!"));
-		
-		if (Dialogs.builder()
-				.title("Pixel classifier training images")
-				.content(pane)
-				.resizable()
-				.buttons(ButtonType.APPLY, ButtonType.CANCEL)
-				.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.CANCEL)
-			return false;
-		
-		trainingEntries.clear();
-		trainingEntries.addAll(listView.getTargetItems());
-		
-		return true;
-	}
-	
-	
-	
-	
-	class MouseListener implements EventHandler<MouseEvent> {
 
-		@Override
-		public void handle(MouseEvent event) {
-			if (overlay == null)
-				return;
-			for (var viewer : qupath.getAllViewers()) {
-				var view = viewer.getView();
-				var local = view.screenToLocal(event.getScreenX(), event.getScreenY());
-				if (view.contains(local)) {
-					updateCursorLocation(viewer, local);
-					return;
-				}
-			}
-		}
-		
-		void updateCursorLocation(QuPathViewer viewer, Point2D localPoint) {
-			var p = viewer.componentPointToImagePoint(localPoint.getX(), localPoint.getY(), null, false);
-			var server = overlay.getPixelClassificationServer(viewer.getImageData());
-			String results = null;
-			if (server != null)
-				results = PixelClassificationOverlay.getDefaultLocationString(server,
-						null, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());
-			if (results == null)
-				cursorLocation.set("");
-			else
-				cursorLocation.set(results);
+
+	private void computeCrossValidation() {
+		// TODO: Train models using cross validation in a background thread
+		var model = statModel.get();
+		if (model == null) {
+			logger.warn("Can't compute cross validation, no model available");
 			return;
 		}
-		
-		
+		var modelCV = duplicateStatModel(model);
+		List<ConfusionMatrix<PathClass>> matrices = new ArrayList<>();
+		List<ClassifierTrainingData> allTrainingData = getAllTrainingData();
+		if (allTrainingData.isEmpty()) {
+			logger.warn("Can't compute cross validation, no training data available");
+			return;
+		}
+		var firstData = allTrainingData.getFirst();
+		var labels = firstData.getLabelMap(); // Labels should be identical, via PixelClassifierTraining
+		String splitType = allTrainingData.size() + " images";
+		if (allTrainingData.size() == 1) {
+			logger.warn("Splitting the training data");
+			int nSplits = Math.min(5, firstData.size() / 10);
+			if (nSplits <= 1) {
+				logger.error("No enough data to compute cross validation (size={})", firstData.size());
+				return;
+			}
+			allTrainingData = firstData.split(nSplits, new Random(advancedOptions.getRngSeed() + 1));
+			splitType = "single image";
+		}
+		var trainer = new ModelTrainer(helper, advancedOptions);
+
+		try (var scope = new PointerScope()) {
+			for (int i = 0; i < allTrainingData.size(); i++) {
+				var holdOutData = allTrainingData.get(i);
+				try (ClassifierTrainingData otherImages = ClassifierTrainingData.merge(
+						allTrainingData.stream().filter(d -> d != holdOutData).toList()
+				)) {
+					var trainedModel = trainer.train(modelCV, otherImages);
+					try (var holdOutTest = holdOutData.getTrainData()) {
+						var confusion = evaluate(
+								holdOutData.getName(),
+								holdOutTest.getTrainSamples(),
+								holdOutTest.getTrainNormCatResponses(),
+								holdOutTest.getClassLabels(),
+								trainedModel.model(),
+								trainedModel.featurePreprocessor(),
+								labels);
+						matrices.add(confusion);
+						logger.debug("Fold {}: Accuracy = {}, F1 = {}", i + 1, confusion.getAccuracy(), confusion.getF1());
+					}
+				}
+			}
+			if (matrices.size() > 1)
+				matrices.addFirst(ConfusionMatrix.sum("All splits (" + splitType + ")", matrices));
+			metricsBrowser.getConfusionMatrices().setAll(matrices);
+		}
 	}
 	
-	
-	
-	class HierarchyListener implements PathObjectHierarchyListener {
 
-		@Override
-		public void hierarchyChanged(PathObjectHierarchyEvent event) {
-			if (!event.isChanging() && !event.isObjectMeasurementEvent() && (event.isStructureChangeEvent() || event.isObjectClassificationEvent() || !event.getChangedObjects().isEmpty())) {
-				if (event.isObjectClassificationEvent() || event.getChangedObjects().stream().anyMatch(p -> p.getPathClass() != null)) {
-					if (event.getChangedObjects().stream().anyMatch(PathObject::isAnnotation) &&
-							!(event.isAddedOrRemovedEvent() && event.getChangedObjects().stream().allMatch(PathObject::isLocked)))
-						updateClassifier();
+	private void handleHierarchyChange(PathObjectHierarchyEvent event) {
+		// We want to update the classifier for every relevant event...  but not any unnecessary events
+		if (event.isChanging() || event.isObjectMeasurementEvent())
+			return;
+		var changedObjects = event.getChangedObjects();
+		if (event.isStructureChangeEvent() || event.isObjectClassificationEvent() || !changedObjects.isEmpty()) {
+			if (event.isObjectClassificationEvent() || changedObjects.stream().anyMatch(p -> p.getPathClass() != null)) {
+				if (changedObjects.stream().anyMatch(PathObject::isAnnotation) &&
+						!(event.isAddedOrRemovedEvent() && changedObjects.stream().allMatch(PathObject::isLocked)))
+					updateClassifier();
+			}
+		}
+	}
+
+
+	/**
+	 * Trainer for an {@link OpenCVStatModel} to use with a {@link PixelClassifier}.
+	 * <p>
+	 * This effectively snapshots the required settings in its constructor, so that the trainer could be reused
+	 * for multiple models.
+	 * <p>
+	 * Its purpose is to simplify the process of training multiple models using identical settings but different
+	 * data, for example for cross-validation.
+	 */
+	private static class ModelTrainer {
+
+		private final PixelCalibration resolution;
+		private final int actualMaxSamples;
+		private final FeatureNormalization featureNormalization;
+		private final ImageDataOp baseFeatureCalculator;
+		private final boolean reweightSamples;
+		private final int rngSeed;
+
+		ModelTrainer(PixelClassifierTraining helper, PixelClassifierAdvancedOptions advancedOptions) {
+			this.resolution = helper.getResolution();
+			this.baseFeatureCalculator = helper.getFeatureOp();;
+			this.actualMaxSamples = advancedOptions.getMaxSamples();
+			this.reweightSamples = advancedOptions.getReweightSamples();
+			this.featureNormalization = advancedOptions.getNormalization();
+			this.rngSeed = advancedOptions.getRngSeed();
+		}
+
+		public TrainedModel train(OpenCVStatModel model, ClassifierTrainingData trainingData) {
+
+			opencv_core.setRNGSeed(rngSeed);
+
+			var labels = trainingData.getLabelMap();
+
+			try (var trainData = trainingData.getTrainData()) {
+				if (actualMaxSamples > 0 && trainData.getNTrainSamples() > actualMaxSamples)
+					trainData.setTrainTestSplit(actualMaxSamples, true);
+				else
+					trainData.shuffleTrainTest();
+
+				// Apply feature preprocessing, if we need to
+				var preprocessor = featureNormalization.build(trainData.getTrainSamples(), false);
+				ImageDataOp featureCalculator;
+				if (preprocessor.doesSomething()) {
+					var preprocessingOp = ImageOps.ML.preprocessor(preprocessor);
+					featureCalculator = baseFeatureCalculator.appendOps(preprocessingOp);
+				} else {
+					featureCalculator = baseFeatureCalculator;
+				}
+
+				// Using getTrainNormCatResponses() causes confusion if classes are not represented
+				var targets = trainData.getTrainResponses();
+				var countsIndexedByLabels = createCountsIndexedByLabels(targets, labels);
+				Mat weights = reweightSamples ? createWeights(targets, countsIndexedByLabels) : null;
+
+				// Create TrainData in an appropriate format (e.g. labels or one-hot encoding)
+				var trainSamples = trainData.getTrainSamples();
+				preprocessor.apply(trainSamples, false);
+
+				Duration trainingTime;
+				int nLabels = labels.values().stream().mapToInt(Integer::intValue).max().orElse(0);
+				try (var modelTrainData = model.createTrainData(trainSamples, targets, nLabels, weights, false)) {
+					//		 logger.info("Training data: {} x {}, Target data: {} x {}", trainSamples.rows(), trainSamples.cols(), trainResponses.rows(), trainResponses.cols());
+					long startTime = System.nanoTime();
+					model.train(modelTrainData);
+					long endTime = System.nanoTime();
+					trainingTime = Duration.ofNanos(endTime - startTime);
+
+					return new TrainedModel(
+							model,
+							featureCalculator,
+							preprocessor,
+							labels,
+							countsIndexedByLabels,
+							resolution,
+							trainingTime
+							);
 				}
 			}
 		}
-		
+
+	}
+
+	record TrainedModel(OpenCVStatModel model,
+							 ImageDataOp featureCalculator,
+							 FeaturePreprocessor featurePreprocessor,
+							 Map<PathClass, Integer> labels,
+							 int[] countsIndexedByLabels,
+							 PixelCalibration resolution,
+							 Duration trainingTime) {
+
+		PixelClassifier createPixelClassifier(ImageServerMetadata.ChannelType outputType) {
+			return createPixelClassifier(512, 512, outputType);
+		}
+
+		PixelClassifier createPixelClassifier(int inputWidth, int inputHeight, ImageServerMetadata.ChannelType outputType) {
+			if (!model.supportsProbabilities() && !model.supportsProbabilities()) {
+				logger.warn("Output type {} not supported, will use {}", outputType, ImageServerMetadata.ChannelType.CLASSIFICATION);
+			}
+
+			// Channels are needed for probability output (and work for classification as well)
+			var labels2 = new TreeMap<Integer, PathClass>();
+			for (var entry : labels.entrySet()) {
+				var previous = labels2.put(entry.getValue(), entry.getKey());
+				if (previous != null)
+					logger.warn("Duplicate label found! {} matches with {} and {}, only the latter be used", entry.getValue(), previous, entry.getKey());
+			}
+			var channels = ServerTools.classificationLabelsToChannels(labels2, true);
+
+			PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
+					.inputResolution(resolution)
+					.inputShape(inputWidth, inputHeight)
+					.setChannelType(outputType)
+					.outputChannels(channels)
+					.build();
+
+			return PixelClassifiers.createClassifier(model, featureCalculator, metadata, true);
+		}
+
+		List<String> getFeatureNames(ImageData<BufferedImage> imageData) {
+			return featureCalculator.getChannels(imageData).stream().map(ImageChannel::getName).toList();
+		}
+
 	}
 
 

@@ -62,7 +62,7 @@ public class SaveResourcePaneBuilder<T> {
 
 	private static final Logger logger = LoggerFactory.getLogger(SaveResourcePaneBuilder.class);
 
-	private Class<T> cls;
+	private final Class<T> cls;
 	private String title = "Save resource";
 	private String textFieldPrompt = "Enter name";
 	private String labelText = "Classifier name";
@@ -149,8 +149,9 @@ public class SaveResourcePaneBuilder<T> {
 	 * @return
 	 */
 	public Pane build() {
-		
+		// v0.8.0 constrain label and button not to shrink below preferred size
 		var label = new Label(labelText);
+		label.setMinWidth(Label.USE_PREF_SIZE);
 		var defaultName = savedName.get();
 		var tfClassifierName = new TextField(defaultName == null ? "" : defaultName);
 		tfClassifierName.setPromptText(textFieldPrompt);
@@ -159,6 +160,7 @@ public class SaveResourcePaneBuilder<T> {
 		resource.addListener((v, o, n) -> savedName.set(null));
 		
 		var btnSave = new Button("Save");
+		btnSave.setMinWidth(Button.USE_PREF_SIZE);
 		btnSave.setOnAction(e -> {
 			var p = project.get();
 			var manager = p == null ? null : getResourceManager(p, cls);

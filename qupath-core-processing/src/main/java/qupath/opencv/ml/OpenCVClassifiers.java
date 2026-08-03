@@ -25,6 +25,9 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.IntStream;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
@@ -40,7 +43,6 @@ import org.bytedeco.opencv.opencv_ml.DTrees;
 import org.bytedeco.opencv.opencv_ml.EM;
 import org.bytedeco.opencv.opencv_ml.KNearest;
 import org.bytedeco.opencv.opencv_ml.LogisticRegression;
-import org.bytedeco.opencv.opencv_ml.NormalBayesClassifier;
 import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.bytedeco.opencv.opencv_ml.SVM;
 import org.bytedeco.opencv.opencv_ml.SVMSGD;
@@ -48,6 +50,7 @@ import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.io.GsonTools;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -92,10 +95,10 @@ public class OpenCVClassifiers {
 			return new DTreesClassifier();
 		
 		if (KNearest.class.equals(cls))
-			return new KNearestClassifierCV();
+			return new KNearestClassifier();
 		
 		if (ANN_MLP.class.equals(cls))
-			return new ANNClassifierCV();
+			return new ANNClassifier();
 		
 		if (LogisticRegression.class.equals(cls))
 			return new LogisticRegressionClassifier();
@@ -103,14 +106,14 @@ public class OpenCVClassifiers {
 		if (EM.class.equals(cls))
 			return new EMClusterer();
 
-		if (NormalBayesClassifier.class.equals(cls))
-			return new NormalBayesClassifierCV();
+		if (org.bytedeco.opencv.opencv_ml.NormalBayesClassifier.class.equals(cls))
+			return new NormalBayesClassifier();
 		
 		if (SVM.class.equals(cls))
-			return new SVMClassifierCV();
+			return new SVMClassifier();
 		
 		if (SVMSGD.class.equals(cls))
-			return new SVMSGDClassifierCV();
+			return new SVMSGDClassifier();
 		
 		throw new IllegalArgumentException("Unknown StatModel class " + cls);
 	}
@@ -147,10 +150,10 @@ public class OpenCVClassifiers {
 			return new DTreesClassifier((DTrees)statModel);
 		
 		if (KNearest.class.equals(cls))
-			return new KNearestClassifierCV((KNearest)statModel);
+			return new KNearestClassifier((KNearest)statModel);
 		
 		if (ANN_MLP.class.equals(cls))
-			return new ANNClassifierCV((ANN_MLP)statModel);
+			return new ANNClassifier((ANN_MLP)statModel);
 		
 		if (LogisticRegression.class.equals(cls))
 			return new LogisticRegressionClassifier((LogisticRegression)statModel);
@@ -158,14 +161,14 @@ public class OpenCVClassifiers {
 		if (EM.class.equals(cls))
 			return new EMClusterer((EM)statModel);
 
-		if (NormalBayesClassifier.class.equals(cls))
-			return new NormalBayesClassifierCV((NormalBayesClassifier)statModel);
+		if (org.bytedeco.opencv.opencv_ml.NormalBayesClassifier.class.equals(cls))
+			return new NormalBayesClassifier((org.bytedeco.opencv.opencv_ml.NormalBayesClassifier)statModel);
 		
 		if (SVM.class.equals(cls))
-			return new SVMClassifierCV((SVM)statModel);
+			return new SVMClassifier((SVM)statModel);
 		
 		if (SVMSGD.class.equals(cls))
-			return new SVMSGDClassifierCV((SVMSGD)statModel);
+			return new SVMSGDClassifier((SVMSGD)statModel);
 		
 		throw new IllegalArgumentException("Unknown StatModel class " + cls);
 	}
@@ -176,7 +179,7 @@ public class OpenCVClassifiers {
 	 * parameters can be set.
 	 */
 	@JsonAdapter(OpenCVClassifierTypeAdapter.class)
-	public abstract static class OpenCVStatModel {
+	public abstract static class OpenCVStatModel implements AutoCloseable {
 		
 		/**
 		 * Classifier can handle missing (NaN) values
@@ -227,17 +230,18 @@ public class OpenCVClassifiers {
 		 * Create training data in the format required by this classifier.
 		 * @param samples
 		 * @param targets
+		 * @param nLabels total number of labels, which are 0-nLabels-1
 		 * @param weights optional weights
 		 * @param doMulticlass 
 		 * @return
 		 * @see #train(TrainData)
 		 */
-		public abstract TrainData createTrainData(Mat samples, Mat targets, Mat weights, boolean doMulticlass);
+		public abstract TrainData createTrainData(Mat samples, Mat targets, int nLabels, Mat weights, boolean doMulticlass);
 		
 		/**
 		 * Train the classifier using data in an appropriate format.
 		 * @param trainData
-		 * @see #createTrainData(Mat, Mat, Mat, boolean)
+		 * @see #createTrainData(Mat, Mat, int, Mat, boolean)
 		 */
 		public abstract void train(TrainData trainData);
 
@@ -261,10 +265,10 @@ public class OpenCVClassifiers {
 		public abstract void predict(Mat samples, Mat results, Mat probabilities);
 		
 		abstract StatModel getStatModel();
-		
+
 		@Override
 		public String toString() {
-			return String.format("OpenCV ", getStatModel().getClass().getSimpleName());
+			return "OpenCV " + getStatModel().getClass().getSimpleName();
 		}
 		
 	}
@@ -330,7 +334,7 @@ public class OpenCVClassifiers {
 			var model = getStatModel();
 			return model instanceof RTrees ||
 					model instanceof ANN_MLP ||
-					model instanceof NormalBayesClassifier;
+					model instanceof org.bytedeco.opencv.opencv_ml.NormalBayesClassifier;
 		}
 		
 		@Override
@@ -358,7 +362,7 @@ public class OpenCVClassifiers {
 		}
 		
 		@Override
-		public TrainData createTrainData(Mat samples, Mat targets, Mat weights, boolean doMulticlass) {
+		public TrainData createTrainData(Mat samples, Mat targets, int nLabels, Mat weights, boolean doMulticlass) {
 			if (doMulticlass && !supportsMulticlass())
 				logger.warn("Multiclass classification requested, but not supported");
 			if (useUMat()) {
@@ -369,6 +373,7 @@ public class OpenCVClassifiers {
 				UMat uWeights = weights.getUMat(opencv_core.ACCESS_READ);
 				return TrainData.create(uSamples, opencv_ml.ROW_SAMPLE, uTargets, null, null, uWeights, null);				
 			}
+
 			if (weights == null || weights.empty())
 				return TrainData.create(samples, opencv_ml.ROW_SAMPLE, targets);
 			else
@@ -401,7 +406,6 @@ public class OpenCVClassifiers {
 			var statModel = getStatModel();
 			opencv_core.setRNGSeed(1012);
 			updateModel(statModel, getParameterList(), trainData);
-//			statModel.train(trainData);
 			statModel.train(trainData, getTrainFlags());
 		}
 		
@@ -429,7 +433,7 @@ public class OpenCVClassifiers {
 				return "K nearest neighbor";
 			else if (LogisticRegression.class.equals(cls))
 				return "Logistic regression";
-			else if (NormalBayesClassifier.class.equals(cls))
+			else if (org.bytedeco.opencv.opencv_ml.NormalBayesClassifier.class.equals(cls))
 				return "Normal Bayes classifier";
 			
 			return getStatModel().getClass().getSimpleName();
@@ -519,8 +523,14 @@ public class OpenCVClassifiers {
 		public boolean supportsMissingValues() {
 			return getStatModel() instanceof DTrees;
 		}
-		
-		
+
+		@Override
+		public void close() {
+			var model = getStatModel();
+			if (model != null)
+				model.close();
+		}
+
 	}
 	
 	
@@ -645,11 +655,11 @@ public class OpenCVClassifiers {
 			int minSampleCount = params.getIntParameterValue("minSampleCount");
 //			float regressionAccuracy = params.getDoubleParameterValue("regressionAccuracy").floatValue();
 			boolean use1SERule = params.getBooleanParameterValue("use1SERule");
-			
+
 //			model.setCVFolds(cvFolds < 1 ? 1 : cvFolds);
 			model.setCVFolds(0);
 			model.setMaxDepth(maxDepth <= 0 ? Integer.MAX_VALUE : maxDepth);
-			model.setMinSampleCount(minSampleCount < 1 ? 1 : minSampleCount);
+			model.setMinSampleCount(Math.max(minSampleCount, 1));
 //			model.setRegressionAccuracy(regressionAccuracy < 1e-6f ? 1e-6f : regressionAccuracy);
 			model.setUse1SERule(use1SERule);
 		}
@@ -686,7 +696,9 @@ public class OpenCVClassifiers {
 	 * Classifier based on {@link RTrees}.
 	 */
 	public static class RTreesClassifier extends AbstractTreeClassifier<RTrees> {
-		
+
+		private static final Logger logger = LoggerFactory.getLogger(RTreesClassifier.class);
+
 		private double[] featureImportance;
 		
 		RTreesClassifier() {
@@ -703,6 +715,7 @@ public class OpenCVClassifiers {
 			model.setMaxDepth(0);
 			model.setTermCriteria(
 					new TermCriteria(TermCriteria.COUNT, 50, 0));
+			model.setCalculateVarImportance(true);
 			return model;
 		}
 
@@ -715,7 +728,7 @@ public class OpenCVClassifiers {
 			int maxTrees = termCrit.maxCount();
 			double epsilon = termCrit.epsilon();
 			boolean calcImportance = model.getCalculateVarImportance();
-			
+
 			params.addIntParameter("activeVarCount", "Active variable count", activeVarCount, null, "Number of features per tree node (if <=0, will use square root of number of features)");
 			params.addIntParameter("maxTrees", "Maximum number of trees", maxTrees, null, "Maximum possible number of trees - but viewer may be used if 'Termination epsilon' is high");
 			params.addDoubleParameter("epsilon", "Termination epsilon", epsilon, null, "Termination criterion - if this is high, viewer trees may be used for classification");
@@ -741,7 +754,12 @@ public class OpenCVClassifiers {
 			} else
 				featureImportance = null;
 		}
-		
+
+		@Override
+		protected int getTrainFlags() {
+			return super.getTrainFlags();
+		}
+
 		/**
 		 * Check if the last time train was called, variable (feature) importance was calculated.
 		 * @return
@@ -807,27 +825,30 @@ public class OpenCVClassifiers {
 			// If we want probabilities, we can try our best using the votes
 			var votes = new Mat();
 			model.getVotes(samples, votes, RTrees.PREDICT_AUTO);
-			
-			int nClasses = votes.cols();
+
+			int nVoteColumns = votes.cols();
 			int nSamples = samples.rows();
 			IntIndexer indexer = votes.createIndexer();
-			
+
+			int[] orderedClasses = new int[nVoteColumns];
+			for (int c = 0; c < nVoteColumns; c++) {
+				orderedClasses[c] = indexer.get(0, c);
+			}
+
 			// Preallocate output
-			probabilities.create(nSamples, nClasses, opencv_core.CV_32FC1);
+			int maxClassInd = Arrays.stream(orderedClasses).max().orElse(nVoteColumns-1) + 1;
+			probabilities.create(nSamples, maxClassInd, opencv_core.CV_32FC1);
+			probabilities.put(Scalar.ZERO);
 			FloatIndexer idxProbabilities = probabilities.createIndexer();
 			results.create(nSamples, 1, opencv_core.CV_32SC1);
 			IntIndexer idxResults = results.createIndexer();
-			
-			int[] orderedClasses = new int[nClasses];
-			for (int c = 0; c < nClasses; c++) {
-				orderedClasses[c] = indexer.get(0, c);
-			}
+
 			long row = 1;
 			for (var i = 0; i < nSamples; i++) {
 				double sum = 0;
 				int maxCount = -1;
 				int maxInd = -1;
-				for (long c = 0; c < nClasses; c++) {
+				for (long c = 0; c < nVoteColumns; c++) {
 					int count = indexer.get(row, c);
 					if (count > maxCount) {
 						maxCount = count;
@@ -836,7 +857,7 @@ public class OpenCVClassifiers {
 					sum += count;
 				}
 				// Update probability estimates
-				for (int c = 0; c < nClasses; c++) {
+				for (int c = 0; c < nVoteColumns; c++) {
 					int count = indexer.get(row, c);
 					idxProbabilities.put(i, orderedClasses[c], (float)(count / sum));
 				}
@@ -851,8 +872,89 @@ public class OpenCVClassifiers {
 			idxResults.release();
 			votes.close();
 		}
-		
-		
+
+		/**
+		 * Log the variable importance, if this has been calculated.
+		 * @param features the feature names. This is required for logging;
+		 *                 if unknown, {@link #getFeatureImportance()} may still be used.
+		 * @param level the log level to use
+		 * @see #hasFeatureImportance()
+		 * @see #getFeatureImportance()
+		 * @see #logVariableImportance(List)
+		 */
+		public void logVariableImportance(final List<String> features, Level level) {
+			var importance = getFeatureImportance();
+			if (importance == null) {
+				logger.atLevel(level).log("Feature importance has not been calculated");
+				return;
+			}
+			try {
+				var sorted = IntStream.range(0, importance.length)
+						.boxed()
+						.sorted((a, b) -> -Double.compare(importance[a], importance[b]))
+						.mapToInt(i -> i).toArray();
+
+				if (sorted.length != features.size()) {
+					logger.warn("Length of variable importance array {} does not match length of feature names {}",
+							sorted.length, features.size());
+					return;
+				}
+
+				var sb = new StringBuilder("Variable importance:");
+				for (int ind : sorted) {
+					sb.append("\n");
+					sb.append(String.format("%.4f \t %s", importance[ind], features.get(ind)));
+				}
+				logger.atLevel(level).log(sb.toString());
+			} catch (Exception e) {
+				logger.warn("Error logging feature importance: {}", e.getMessage());
+			}
+		}
+
+		/**
+		 * Log the variable importance, if this has been calculated, at the default INFO level.
+		 * @param features the feature names
+		 */
+		public void logVariableImportance(final List<String> features) {
+			logVariableImportance(features, Level.INFO);
+		}
+
+		/**
+		 * Get the OOB error, if the model is trained and the OOB error is available.
+		 * @return the OOB error, or 0 if not available.
+		 */
+		public double getOOBError() {
+			return getStatModel().getOOBError();
+		}
+
+		/**
+		 * Get a list of variable importance values.
+		 * @param names the variable names.
+		 * @return a list of variable importance values, or an empty list if these are not available.
+		 *         This occurs if importance has not been calculated, or the feature names array is
+		 *         not of a matching length.
+		 * @since v0.8.0
+		 * @see #getFeatureImportance()
+		 */
+		public List<VariableImportance> getVariableImportance(List<String> names) {
+			double[] importance = getFeatureImportance();
+			if (importance == null || importance.length != names.size())
+				return List.of();
+			List<VariableImportance> list = new ArrayList<>();
+			for (int i = 0; i < importance.length; i++) {
+				list.add(new VariableImportance(names.get(i), importance[i]));
+			}
+			return list;
+		}
+
+		/**
+		 * Record to store a feature (variable) name and its importance,
+		 * as calculated using RTrees.
+		 * @param name the variable name
+		 * @param importance the importance value
+		 */
+		public record VariableImportance(String name, double importance) {}
+
 	}
 	
 	/**
@@ -915,28 +1017,20 @@ public class OpenCVClassifiers {
 			DISABLE, L1, L2;
 			
 			public int getRegularization() {
-				switch(this) {
-				case L1:
-					return LogisticRegression.REG_L1;
-				case L2:
-					return LogisticRegression.REG_L2;
-				case DISABLE:
-				default:
-					return LogisticRegression.REG_DISABLE;
-				}
+                return switch (this) {
+                    case L1 -> LogisticRegression.REG_L1;
+                    case L2 -> LogisticRegression.REG_L2;
+                    default -> LogisticRegression.REG_DISABLE;
+                };
 			}
 			
 			@Override
 			public String toString() {
-				switch(this) {
-				case L1:
-					return "L1";
-				case L2:
-					return "L2";
-				case DISABLE:
-				default:
-					return "None";
-				}
+                return switch (this) {
+                    case L1 -> "L1";
+                    case L2 -> "L2";
+                    default -> "None";
+                };
 			}
 		}
 		
@@ -974,9 +1068,9 @@ public class OpenCVClassifiers {
 		}
 		
 		@Override
-		public TrainData createTrainData(Mat samples, Mat targets, Mat weights, boolean doMulticlass) {
+		public TrainData createTrainData(Mat samples, Mat targets, int nLabels, Mat weights, boolean doMulticlass) {
 			targets.convertTo(targets, opencv_core.CV_32F);
-			return super.createTrainData(samples, targets, weights, doMulticlass);
+			return super.createTrainData(samples, targets, nLabels, weights, doMulticlass);
 		}
 
 		@Override
@@ -1006,37 +1100,37 @@ public class OpenCVClassifiers {
 	
 	
 	/**
-	 * Classifier based on {@link NormalBayesClassifier}.
+	 * Classifier based on {@link org.bytedeco.opencv.opencv_ml.NormalBayesClassifier}.
 	 */
-	public static class NormalBayesClassifierCV extends AbstractOpenCVClassifierML<NormalBayesClassifier> {
+	public static class NormalBayesClassifier extends AbstractOpenCVClassifierML<org.bytedeco.opencv.opencv_ml.NormalBayesClassifier> {
 
-		NormalBayesClassifierCV() {
+		NormalBayesClassifier() {
 			super();
 		}
 		
-		NormalBayesClassifierCV(final NormalBayesClassifier model) {
+		NormalBayesClassifier(final org.bytedeco.opencv.opencv_ml.NormalBayesClassifier model) {
 			super(model);
 		}
 		
 		@Override
-		ParameterList createParameterList(NormalBayesClassifier model) {
+		ParameterList createParameterList(org.bytedeco.opencv.opencv_ml.NormalBayesClassifier model) {
 			var params = new ParameterList();
 			params.addTitleParameter("No parameters to adjust!");
 			return params;
 		}
 
 		@Override
-		NormalBayesClassifier createStatModel() {
-			return NormalBayesClassifier.create();
+		org.bytedeco.opencv.opencv_ml.NormalBayesClassifier createStatModel() {
+			return org.bytedeco.opencv.opencv_ml.NormalBayesClassifier.create();
 		}
 		
 		@Override
 		Class<? extends StatModel> getStatModelClass() {
-			return NormalBayesClassifier.class;
+			return org.bytedeco.opencv.opencv_ml.NormalBayesClassifier.class;
 		}
 
 		@Override
-		void updateModel(NormalBayesClassifier model, ParameterList params, TrainData trainData) {}
+		void updateModel(org.bytedeco.opencv.opencv_ml.NormalBayesClassifier model, ParameterList params, TrainData trainData) {}
 		
 		@Override
 		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
@@ -1091,13 +1185,13 @@ public class OpenCVClassifiers {
 	/**
 	 * Classifier based on {@link SVM}.
 	 */
-	public static class SVMClassifierCV extends AbstractOpenCVClassifierML<SVM> {
+	public static class SVMClassifier extends AbstractOpenCVClassifierML<SVM> {
 
-		SVMClassifierCV() {
+		SVMClassifier() {
 			super();
 		}
 		
-		SVMClassifierCV(final SVM model) {
+		SVMClassifier(final SVM model) {
 			super(model);
 		}
 		
@@ -1132,13 +1226,13 @@ public class OpenCVClassifiers {
 	/**
 	 * Classifier based on {@link SVMSGD}.
 	 */
-	public static class SVMSGDClassifierCV extends AbstractOpenCVClassifierML<SVMSGD> {
+	public static class SVMSGDClassifier extends AbstractOpenCVClassifierML<SVMSGD> {
 
-		SVMSGDClassifierCV() {
+		SVMSGDClassifier() {
 			super();
 		}
 		
-		SVMSGDClassifierCV(final SVMSGD model) {
+		SVMSGDClassifier(final SVMSGD model) {
 			super(model);
 		}
 		
@@ -1173,13 +1267,13 @@ public class OpenCVClassifiers {
 	/**
 	 * Classifier based on {@link KNearest}.
 	 */
-	static class KNearestClassifierCV extends AbstractOpenCVClassifierML<KNearest> {
+	public static class KNearestClassifier extends AbstractOpenCVClassifierML<KNearest> {
 
-		KNearestClassifierCV() {
+		KNearestClassifier() {
 			super();
 		}
 		
-		KNearestClassifierCV(final KNearest model) {
+		KNearestClassifier(final KNearest model) {
 			super(model);
 		}
 		
@@ -1213,77 +1307,52 @@ public class OpenCVClassifiers {
 	/**
 	 * Classifier based on {@link ANN_MLP}.
 	 */
-	static class ANNClassifierCV extends AbstractOpenCVClassifierML<ANN_MLP> {
+	public static class ANNClassifier extends AbstractOpenCVClassifierML<ANN_MLP> {
 		
-		private static Logger logger = LoggerFactory.getLogger(ANNClassifierCV.class);
+		private static final Logger logger = LoggerFactory.getLogger(ANNClassifier.class);
 		
 		private int MAX_HIDDEN_LAYERS = 5;
 		
-		static enum ActivationFunction {
+		enum ActivationFunction {
 			IDENTITY, SIGMOID_SYM, GAUSSIAN, RELU, LEAKY_RELU;
 			
 			public int getActivationFunction() {
-				switch(this) {
-				case GAUSSIAN:
-					return ANN_MLP.GAUSSIAN;
-				case IDENTITY:
-					return ANN_MLP.IDENTITY;
-				case SIGMOID_SYM:
-					return ANN_MLP.SIGMOID_SYM;
-				case RELU:
-					return ANN_MLP.RELU;
-				case LEAKY_RELU:
-					return ANN_MLP.LEAKYRELU;
-				default:
-					return ANN_MLP.SIGMOID_SYM;
-				}
+                return switch (this) {
+                    case GAUSSIAN -> ANN_MLP.GAUSSIAN;
+                    case IDENTITY -> ANN_MLP.IDENTITY;
+                    case SIGMOID_SYM -> ANN_MLP.SIGMOID_SYM;
+                    case RELU -> ANN_MLP.RELU;
+                    case LEAKY_RELU -> ANN_MLP.LEAKYRELU;
+                    default -> ANN_MLP.SIGMOID_SYM;
+                };
 			}
 		}
 		
-		static enum TrainingMethod {
+		enum TrainingMethod {
 			BACKPROP, RPROP, ANNEAL;
 			
 			public int getTrainingMethod() {
-				switch(this) {
-				case BACKPROP:
-					return ANN_MLP.BACKPROP;
-				case RPROP:
-					return ANN_MLP.RPROP;
-				case ANNEAL:
-					return ANN_MLP.ANNEAL;
-				default:
-					return ANN_MLP.BACKPROP;
-				}
+                return switch (this) {
+                    case BACKPROP -> ANN_MLP.BACKPROP;
+                    case RPROP -> ANN_MLP.RPROP;
+                    case ANNEAL -> ANN_MLP.ANNEAL;
+                    default -> ANN_MLP.BACKPROP;
+                };
 			}
 		}
 		
 		
-		ANNClassifierCV() {
+		ANNClassifier() {
 			super();
 		}
 		
-		ANNClassifierCV(final ANN_MLP model) {
+		ANNClassifier(final ANN_MLP model) {
 			super(model);
 		}
 
 		@Override
 		ParameterList createParameterList(ANN_MLP model) {
-			// Parse existing layer sizes, if we have them
-			Mat sizes = model.getLayerSizes();
-			int[] layerSizes;
-			if (!sizes.empty()) {
-				var idx = sizes.createIndexer();
-				int n = (int)sizes.total();
-				layerSizes = new int[n];
-				for (int i = 0; i < n; i++)
-					layerSizes[i] = (int)idx.getDouble(i);
-				idx.release();
-				MAX_HIDDEN_LAYERS = n;
-			} else {
-				layerSizes = new int[MAX_HIDDEN_LAYERS];
-			}
-			
-			
+			int[] layerSizes = getLayerSizes(model, MAX_HIDDEN_LAYERS+2);
 			var params = new ParameterList();
 			
 //			// Set activation function
@@ -1302,7 +1371,7 @@ public class OpenCVClassifiers {
 			
 			// Hidden layer sizes
 			params.addTitleParameter("Hidden layers");
-			for (int i = 1; i <= layerSizes.length; i++) {
+			for (int i = 1; i < layerSizes.length; i++) {
 				params.addIntParameter("hidden" + i, "Layer " + i, layerSizes[i-1], "Nodes", "Size of first hidden layer (0 to omit layer)");				
 			}
 			
@@ -1325,9 +1394,39 @@ public class OpenCVClassifiers {
 		Class<? extends StatModel> getStatModelClass() {
 			return ANN_MLP.class;
 		}
+
+		/**
+		 * Get the layer sizes, including input, hidden and output layers.
+		 * @return the layer sizes, or an empty array if there is no model available.
+		 */
+		public int[] getLayerSizes() {
+			return getLayerSizes(getStatModel(), 0);
+		}
+
+		private int[] getLayerSizes(ANN_MLP model, int defaultLength) {
+			if (model == null)
+				return new int[defaultLength];
+			lock.writeLock().lock();
+			try {
+				Mat sizes = getStatModel().getLayerSizes();
+				if (!sizes.empty()) {
+					var idx = sizes.createIndexer();
+					int n = (int)sizes.total();
+					int[] layerSizes = new int[n];
+					for (int i = 0; i < n; i++)
+						layerSizes[i] = (int)idx.getDouble(i);
+					idx.release();
+					return layerSizes;
+				} else {
+					return new int[defaultLength];
+				}
+			} finally {
+				lock.writeLock().unlock();
+			}
+		}
 		
 		@Override
-		public TrainData createTrainData(Mat samples, Mat targets, Mat weights, boolean doMulticlass) {
+		public TrainData createTrainData(Mat samples, Mat targets, int nLabels, Mat weights, boolean doMulticlass) {
 			if (doMulticlass) {
 				var indexer = targets.createIndexer();
 				var targets2 = new Mat(targets.rows(), targets.cols(), opencv_core.CV_32FC1, Scalar.all(-1.0));
@@ -1350,8 +1449,7 @@ public class OpenCVClassifiers {
 				IntBuffer buffer = OpenCVTools.ensureContinuous(targets, false).createBuffer();
 				int[] vals = new int[targets.rows()];
 				buffer.get(vals);
-				int max = Arrays.stream(vals).max().orElse(0) + 1;
-				var targets2 = new Mat(targets.rows(), max, opencv_core.CV_32FC1, Scalar.all(-1.0));
+				var targets2 = new Mat(targets.rows(), nLabels + 1, opencv_core.CV_32FC1, Scalar.all(-1.0));
 				FloatIndexer idxTargets = targets2.createIndexer();
 				int row = 0;
 				for (var v : vals) {
@@ -1362,7 +1460,7 @@ public class OpenCVClassifiers {
 				targets2.close();
 			}
 			
-			return super.createTrainData(samples, targets, weights, doMulticlass);
+			return super.createTrainData(samples, targets, nLabels, weights, doMulticlass);
 		}
 		
 		
@@ -1374,7 +1472,7 @@ public class OpenCVClassifiers {
 //			double beta = params.getDoubleParameterValue("activationBeta");
 			
 			// For now, we only support SIGMOID_SYM as an activation function
-			// (Not least because we must save/reload models, and there is not get method for this)
+			// (Not least because we must save/reload models, and there is no get method for this)
 			boolean isSigmoidSym = true;
 			double beta = 1.0;
 			
@@ -1465,7 +1563,7 @@ public class OpenCVClassifiers {
 	/**
 	 * A multiclass version of ANN.
 	 */
-	static class MulticlassANNClassifierCV extends ANNClassifierCV {
+	static class MulticlassANNClassifier extends ANNClassifier {
 		
 		@Override
 		public boolean supportsMulticlass() {

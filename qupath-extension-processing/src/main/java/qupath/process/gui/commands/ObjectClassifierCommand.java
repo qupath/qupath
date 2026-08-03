@@ -865,6 +865,7 @@ public class ObjectClassifierCommand implements Runnable {
 				boolean doMulticlass) {
 
 			var pathClasses = getPathClasses(trainingCollection);
+			int nClasses = pathClasses.size();
 
 			List<Mat> matFeaturesList = new ArrayList<>();
 			List<Mat> matTargetsList = new ArrayList<>();
@@ -890,8 +891,7 @@ public class ObjectClassifierCommand implements Runnable {
 					var map = training.map;
 	
 					int nFeatures = extractor.nFeatures();
-					int nSamples = map.values().stream().mapToInt(l -> l.size()).sum();
-					int nClasses = pathClasses.size();
+					int nSamples = map.values().stream().mapToInt(Set::size).sum();
 					if (nSamples == 0)
 						continue;
 	
@@ -981,7 +981,7 @@ public class ObjectClassifierCommand implements Runnable {
 			try {
 				// Train the classifier - we don't want to enclose this in a PointerScope in case 
 				// new persistent objects are created (e.g. the StatModel)
-				trainClassifier(classifier, matAllFeatures, matAllTargets, doMulticlass);
+				trainClassifier(classifier, matAllFeatures, matAllTargets, nClasses, doMulticlass);
 	
 				if (classifier instanceof RTreesClassifier) {
 					tryLoggingVariableImportance((RTreesClassifier)classifier, extractor);
@@ -995,11 +995,11 @@ public class ObjectClassifierCommand implements Runnable {
 			return extractor;
 		}
 
-		static boolean trainClassifier(OpenCVStatModel classifier, Mat matFeatures, Mat matTargets, boolean doMulticlass) {		
+		static boolean trainClassifier(OpenCVStatModel classifier, Mat matFeatures, Mat matTargets, int nLabels, boolean doMulticlass) {
 			// Train classifier
 			// TODO: Optionally limit the number of training samples we use
 			long startTime = System.currentTimeMillis();
-			var trainData = classifier.createTrainData(matFeatures, matTargets, null, doMulticlass);
+			var trainData = classifier.createTrainData(matFeatures, matTargets, nLabels, null, doMulticlass);
 			classifier.train(trainData);
 			long endTime = System.currentTimeMillis();
 			logger.info("{} classifier trained with {} samples and {} features ({} ms)",
@@ -1008,23 +1008,8 @@ public class ObjectClassifierCommand implements Runnable {
 		}
 
 
-		static boolean tryLoggingVariableImportance(final RTreesClassifier trees, final FeatureExtractor<?> extractor) {
-			var importance = trees.getFeatureImportance();
-			if (importance == null)
-				return false;
-			var sorted = IntStream.range(0, importance.length)
-					.boxed()
-					.sorted((a, b) -> -Double.compare(importance[a], importance[b]))
-					.mapToInt(i -> i).toArray();
-
-			var names = extractor.getFeatureNames();
-			var sb = new StringBuilder("Variable importance:");
-			for (int ind : sorted) {
-				sb.append("\n");
-				sb.append(String.format("%.4f \t %s", importance[ind], names.get(ind)));
-			}
-			logger.info(sb.toString());
-			return true;
+		static void tryLoggingVariableImportance(final RTreesClassifier trees, final FeatureExtractor<?> extractor) {
+			trees.logVariableImportance(extractor.getFeatureNames());
 		}
 
 
