@@ -1,6 +1,11 @@
 ## Version 0.8.0 (IN PROGRESS!)
 
 ### Enhancements
+* Much improved pixel classifier user interface (https://github.com/qupath/qupath/pull/2162)
+  * Calculate feature importance
+  * Calculate performance metrics using cross validation
+  * Support 3D feature calculations (for small-ish images!)
+  * Remember settings within a QuPath session
 * Improved brush and wand tools (https://github.com/qupath/qupath/pull/2125 https://github.com/qupath/qupath/pull/2126)
   * View the size of the brush, and adjust it by scrolling with `Alt` key pressed
   * Press `F` while drawing with the brush or wand to fill holes
@@ -18,6 +23,7 @@
 * Nested detections render poorly when filled (https://github.com/qupath/qupath/issues/2112)
 * 'Add shape features' wrongly gives 'Length µm' in pixels (https://github.com/qupath/qupath/issues/2158)
 * Adding single points can cause unhelpful 'empty' point annotations to remain (https://github.com/qupath/qupath/issues/2155)
+* Calling `ImageServer.readRegion(RegionRequest)` can return the wrong pixels if `RegionRequest.getPath()` is wrong (https://github.com/qupath/qupath/issues/2164) 
 
 ### Dependency updates
 * Bio-Formats 8.5.0

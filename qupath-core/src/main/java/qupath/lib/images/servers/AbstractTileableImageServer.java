@@ -262,7 +262,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		// Check if we already have a tile for precisely this occasion - with the right server path
 		// Make a defensive copy, since the cache is critical
 		var cache = getCache();
-		var currentPath = request.getPath();
+		var currentPath = getPath();
 		if (request.getPath().equals(currentPath) && cache != null) {
 			BufferedImage img = cache.getOrDefault(request, null);
 			if (img != null)
