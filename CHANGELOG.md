@@ -14,6 +14,7 @@
 * Show values for only the current visible feature when viewing features through the pixel classifier dialog (https://github.com/qupath/qupath/issues/2123)
 * Support to close more windows with Ctrl/Cmd+W (https://github.com/qupath/qupath/issues/2107)
 * Lots more strings externalized (https://github.com/qupath/qupath/pull/2104)
+* Ask to remove projects that are not found (https://github.com/qupath/qupath/pull/2167)
 
 ### Bug fixes
 * StackOverflowError at ROITypeAdapters.writeCoordinates when exporting some geometries (https://github.com/qupath/qupath/issues/2115)

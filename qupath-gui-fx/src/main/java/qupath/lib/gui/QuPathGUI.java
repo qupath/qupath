@@ -26,6 +26,9 @@ package qupath.lib.gui;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import ij.IJ;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import javafx.application.Application;
 import javafx.application.HostServices;
 import javafx.application.Platform;
@@ -50,6 +53,7 @@ import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -1324,11 +1328,17 @@ public class QuPathGUI {
 				project = ProjectIO.loadProject(uri, BufferedImage.class);
 				setProject(project);
 			} catch (Exception e1) {
-				Dialogs.showErrorMessage(
-						QuPathResources.getString("QuPathGUI.projectError"),
-						MessageFormat.format(QuPathResources.getString("QuPathGUI.cannotFindProject"), uri)
-				);
 				logger.error("Error loading project", e1);
+				Optional<ButtonType> remove = Dialogs.builder()
+						.error()
+						.owner(this.stage)
+						.buttons(ButtonType.YES, ButtonType.NO)
+						.title(QuPathResources.getString("QuPathGUI.projectError"))
+						.contentText(MessageFormat.format(QuPathResources.getString("QuPathGUI.cannotFindProject"),
+								uri == null ? null : URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8)))
+						.showAndWait();
+				remove.filter(buttonType -> buttonType == ButtonType.YES)
+						.ifPresent((b) -> recentProjects.remove(uri));
 			}
 		});
 		
