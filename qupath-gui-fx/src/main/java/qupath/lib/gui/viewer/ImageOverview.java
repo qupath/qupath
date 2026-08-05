@@ -54,7 +54,7 @@ class ImageOverview implements QuPathViewerListener {
 
 	private QuPathViewer viewer;
 	
-	private Canvas canvas = new Canvas();
+	private final Canvas canvas = new Canvas();
 		
 	private boolean repaintRequested = false;
 
@@ -72,13 +72,13 @@ class ImageOverview implements QuPathViewerListener {
 	private BufferedImage imgLastThumbnail; // The last thumbnail the viewer gave us
 	private WritableImage imgPreview;       // The (probably downsampled) preview version
 
-	private int preferredWidth = 150; // Preferred component/image width - used for thumbnail scaling
+	private int maxLength = 150; // Maximum component width or height - used for thumbnail scaling
 
 	private Shape shapeVisible = null; // The visible shape (transformed already)
 	private AffineTransform transform;
 	
-	private static Color color = Color.rgb(200, 0, 0, .8);
-	private static Color colorBorder = Color.rgb(64, 64, 64);
+	private static final Color color = Color.rgb(200, 0, 0, .8);
+	private static final Color colorBorder = Color.rgb(64, 64, 64);
 
 	protected void mouseViewerToLocation(double x, double y) {
 		ImageServer<BufferedImage> server = viewer.getServer();
@@ -168,8 +168,6 @@ class ImageOverview implements QuPathViewerListener {
 					logger.debug("Unknown PathIterator type: {}", type);
 				iterator.next();
 			}
-			
-//			g2d.draw(shapeVisible);
 		}
 		
 		// Draw border
@@ -204,7 +202,9 @@ class ImageOverview implements QuPathViewerListener {
 		if (img == null) {
 			imgLastThumbnail = null;
 		} else {
-			int preferredHeight = (int)(img.getHeight() * (double)(preferredWidth / (double)img.getWidth()));
+			double scale = (double)maxLength / Math.max(img.getWidth(), img.getHeight());
+			int preferredWidth = (int)Math.round(img.getWidth() * scale);
+			int preferredHeight = (int)Math.round(img.getHeight() * scale);
 			
 			imgPreview = GuiTools.getScaledRGBInstance(img, preferredWidth, preferredHeight);
 

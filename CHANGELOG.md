@@ -25,6 +25,7 @@
 * 'Add shape features' wrongly gives 'Length µm' in pixels (https://github.com/qupath/qupath/issues/2158)
 * Adding single points can cause unhelpful 'empty' point annotations to remain (https://github.com/qupath/qupath/issues/2155)
 * Calling `ImageServer.readRegion(RegionRequest)` can return the wrong pixels if `RegionRequest.getPath()` is wrong (https://github.com/qupath/qupath/issues/2164) 
+* The image overview doesn't rescale for very 'tall' images (https://github.com/qupath/qupath/issues/2163)
 
 ### Dependency updates
 * Bio-Formats 8.5.0
