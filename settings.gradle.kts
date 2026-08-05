@@ -3,7 +3,7 @@ import java.nio.file.Paths
 
 pluginManagement {
     plugins {
-        kotlin("jvm") version "2.3.21"
+        kotlin("jvm") version "2.4.10"
     }
 }
 plugins {
