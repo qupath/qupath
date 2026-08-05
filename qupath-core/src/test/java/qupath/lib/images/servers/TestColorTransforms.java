@@ -193,7 +193,7 @@ public class TestColorTransforms {
                             .toList()
                             .indexOf(entry.getKey());
 
-                    expectedPixels[y*image.getWidth() + x] += entry.getValue() * SampleImageServer.getPixel(x, y, channelIndex);
+                    expectedPixels[y*image.getWidth() + x] += (float)(entry.getValue() * SampleImageServer.getPixel(x, y, channelIndex));
                 }
             }
         }
@@ -264,7 +264,7 @@ public class TestColorTransforms {
         for (int y=0; y<image.getHeight(); y++) {
             for (int x=0; x<image.getWidth(); x++) {
                 for (int i=0; i<coefficients.size(); i++) {
-                    expectedPixels[y*image.getWidth() + x] += coefficients.get(i) * SampleImageServer.getPixel(x, y, i);
+                    expectedPixels[y*image.getWidth() + x] += (float)(coefficients.get(i) * SampleImageServer.getPixel(x, y, i));
                 }
             }
         }
@@ -331,7 +331,7 @@ public class TestColorTransforms {
         for (int y=0; y<image.getHeight(); y++) {
             for (int x=0; x<image.getWidth(); x++) {
                 for (int i=0; i<coefficients.length; i++) {
-                    expectedPixels[y*image.getWidth() + x] += coefficients[i] * SampleImageServer.getPixel(x, y, i);
+                    expectedPixels[y*image.getWidth() + x] += (float)(coefficients[i] * SampleImageServer.getPixel(x, y, i));
                 }
             }
         }
@@ -379,7 +379,7 @@ public class TestColorTransforms {
         for (int y=0; y<image.getHeight(); y++) {
             for (int x=0; x<image.getWidth(); x++) {
                 for (int c=0; c<sampleServer.nChannels(); c++) {
-                    expectedPixels[y*image.getWidth() + x] += SampleImageServer.getPixel(x, y, c);
+                    expectedPixels[y*image.getWidth() + x] += (float)SampleImageServer.getPixel(x, y, c);
                 }
                 expectedPixels[y*image.getWidth() + x] /= sampleServer.nChannels();
             }

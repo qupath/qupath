@@ -307,8 +307,8 @@ public class OMEPyramidWriter {
 				if (!bigTiff && !noBigTiff && Boolean.FALSE.equals(temp.bigTiff))
 					noBigTiff = true;
 				for (double d : temp.downsamples) {
-					nPixelBytes += ((long)Math.ceil(temp.width / d) * Math.ceil(temp.height / d) 
-							* temp.channels.length 
+					nPixelBytes += (long)(Math.ceil(temp.width / d) * Math.ceil(temp.height / d)
+							* temp.channels.length
 							* temp.getExportPixelType().getBytesPerPixel() 
 							* (temp.tEnd - temp.tStart)
 							* (temp.zEnd - temp.zStart));

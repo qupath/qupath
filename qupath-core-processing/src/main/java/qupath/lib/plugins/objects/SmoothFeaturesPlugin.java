@@ -318,7 +318,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 				// Update the class weights for both objects currently being tested
 				// Compute weight based on centroid distances
 //				double weight = Math.exp(-distSq/sigma2);
-				double weight = distanceWeights[(int)(Math.sqrt(distSq) + .5)];// * pathObjects.get(j).getClassProbability();
+				float weight = (float)distanceWeights[(int)(Math.sqrt(distSq) + .5)];// * pathObjects.get(j).getClassProbability();
 				float [] temp = measurementValues[j];
 				float [] tempWeighted = measurementsWeighted[j];
 				float [] tempDenominator = measurementDenominators[j];
