@@ -2168,7 +2168,7 @@ public class TMASummaryViewer {
 			this.commandOriginal = predicate;
 			String quotedRegex = "\"([^\"]*)\"";
 			String test = predicate.replaceAll(quotedRegex, "");
-			isValid = test.replaceAll("[ ()+-<>=*/&|!]", "").trim().isEmpty(); // Check we don't have invalid characters
+			isValid = test.replaceAll("[ ()+\\-<>=*/&|!]", "").trim().isEmpty(); // Check we don't have invalid characters
 			
 			if (isValid) {
 				this.command = predicate.replaceAll(quotedRegex, "entry.getMeasurementAsDouble(\"$1\")").trim();
