@@ -6,6 +6,9 @@ name: Publish release to SciJava Maven
 on: 
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
