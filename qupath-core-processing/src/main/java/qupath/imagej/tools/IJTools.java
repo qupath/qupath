@@ -851,8 +851,11 @@ public class IJTools {
 	 * @throws IOException 
 	 */
 	public static PathImage<ImagePlus> convertToImagePlus(String title, ImageServer<BufferedImage> server, BufferedImage img, RegionRequest request) throws IOException {
-		if (img == null)
-			img = server.readRegion(request);
+		if (img == null) {
+			// Read region, updating the path in case the wrong one was provided
+			// (and we might inadvertently get inappropriate cached tiles)
+			img = server.readRegion(request.updatePath(server.getPath()));
+		}
 		ImagePlus imp = convertToUncalibratedImagePlus(title, img);
 		// Set dimensions - because RegionRequest is only 2D, every 'slice' is a channel
 		imp.setDimensions(imp.getStackSize(), 1, 1);
@@ -862,10 +865,11 @@ public class IJTools {
 			if (sampleModel.getNumBands() > 1) {
 				CompositeImage impComp = imp.isRGB() ? (CompositeImage) CompositeConverter.makeComposite(imp) : new CompositeImage(imp, CompositeImage.COMPOSITE);
 				for (int b = 0; b < sampleModel.getNumBands(); b++) {
+					var channel = server.getChannel(b);
 					impComp.setChannelLut(
 							LUT.createLutFromColor(
-									new Color(server.getChannel(b).getColor())), b + 1);
-					impComp.getStack().setSliceLabel(server.getChannel(b).getName(), b + 1);
+									new Color(channel.getColor())), b + 1);
+					impComp.getStack().setSliceLabel(channel.getName(), b + 1);
 				}
 				impComp.updateAllChannelsAndDraw();
 				impComp.resetDisplayRanges();
