@@ -26,6 +26,8 @@ package qupath.lib.gui;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import ij.IJ;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import javafx.application.Application;
 import javafx.application.HostServices;
@@ -1332,7 +1334,8 @@ public class QuPathGUI {
 						.owner(this.stage)
 						.buttons(ButtonType.YES, ButtonType.NO)
 						.title(QuPathResources.getString("QuPathGUI.projectError"))
-						.contentText(MessageFormat.format(QuPathResources.getString("QuPathGUI.cannotFindProject"), uri))
+						.contentText(MessageFormat.format(QuPathResources.getString("QuPathGUI.cannotFindProject"),
+								uri == null ? null : URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8)))
 						.showAndWait();
 				remove.filter(buttonType -> buttonType == ButtonType.YES)
 						.ifPresent((b) -> recentProjects.remove(uri));
