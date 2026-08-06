@@ -501,10 +501,11 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 		 // but live measurements are not made (because the actual prediction tiles are no longer in the cache)
     	var img = server.getCachedTile(request);
         if (img != null) {
-            if (img.getType() == BufferedImage.TYPE_INT_ARGB ||
+            if (renderer.get() == null &&
+					(img.getType() == BufferedImage.TYPE_INT_ARGB ||
             		img.getType() == BufferedImage.TYPE_INT_RGB ||
             		img.getType() == BufferedImage.TYPE_BYTE_INDEXED ||
-            		img.getType() == BufferedImage.TYPE_BYTE_GRAY) {
+            		img.getType() == BufferedImage.TYPE_BYTE_GRAY)) {
 				// Return tile if it is already renderable
                 return img;
             } else {
