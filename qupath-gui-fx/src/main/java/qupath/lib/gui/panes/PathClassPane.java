@@ -903,6 +903,10 @@ class PathClassPane {
 					pathClass.setColor(rgb);
 					var qupath = QuPathGUI.getInstance();
 					if (qupath != null) {
+						// Update the class list (even though entries are unchanged) - this notifies listeners
+						var available = List.copyOf(qupath.getAvailablePathClasses());
+						qupath.getAvailablePathClasses().setAll(available);
+
 						// TODO: Consider whether project class list needs to be updated
 						for (var viewer : qupath.getAllViewers()) {
 							// Technically we only need to repaint the viewers, but we need to ensure that
