@@ -14,8 +14,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.OverlayOptions;
 
+/**
+ * Command to implement the 'curtains' effect for an image overlay.
+ */
 public class CurtainsCommand implements Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(CurtainsCommand.class);
@@ -25,6 +29,7 @@ public class CurtainsCommand implements Runnable {
 
     public CurtainsCommand(OverlayOptions options) {
         Objects.requireNonNull(options);
+        logger.trace("Creating curtains command for {}", options);
         this.options = options;
     }
 
@@ -40,7 +45,7 @@ public class CurtainsCommand implements Runnable {
         var pane = createPane();
         var stage = new Stage();
         stage.initOwner(findOwner());
-        stage.setTitle("Overlay curtains");
+        stage.setTitle(QuPathResources.getString("Commands.Curtains.title"));
         stage.setScene(new Scene(pane));
         return stage;
     }
@@ -53,20 +58,20 @@ public class CurtainsCommand implements Runnable {
     private Pane createPane() {
         var pane = new GridPane();
 
-        var labelHorizontal = new Label("Horizontal");
+        var labelHorizontal = new Label(QuPathResources.getString("Commands.Curtains.horizontal"));
         var sliderHorizontal = createRangeSlider(options.curtainMinXProperty(), options.curtainMaxXProperty());
         labelHorizontal.setLabelFor(sliderHorizontal);
-        var btnResetHorizontal = new Button("Reset");
+        var btnResetHorizontal = new Button(QuPathResources.getString("Commands.Curtains.reset"));
         btnResetHorizontal.setOnAction(e -> reset(sliderHorizontal));
 
-        var labelVertical = new Label("Vertical");
+        var labelVertical = new Label(QuPathResources.getString("Commands.Curtains.vertical"));
         var sliderVertical = createRangeSlider(options.curtainMinYProperty(), options.curtainMaxYProperty());
         labelVertical.setLabelFor(sliderVertical);
-        var btnResetVertical = new Button("Reset");
+        var btnResetVertical = new Button(QuPathResources.getString("Commands.Curtains.reset"));
         btnResetVertical.setOnAction(e -> reset(sliderVertical));
 
-        GridPaneUtils.addGridRow(pane, 0, 0, "Change the horizontal curtain effect", labelHorizontal, sliderHorizontal, btnResetHorizontal);
-        GridPaneUtils.addGridRow(pane, 1, 0, "Change the vertical curtain effect", labelVertical, sliderVertical, btnResetVertical);
+        GridPaneUtils.addGridRow(pane, 0, 0, QuPathResources.getString("Commands.Curtains.horizontalDescription"), labelHorizontal, sliderHorizontal, btnResetHorizontal);
+        GridPaneUtils.addGridRow(pane, 1, 0, QuPathResources.getString("Commands.Curtains.verticalDescription"), labelVertical, sliderVertical, btnResetVertical);
 
         pane.setHgap(5);
         pane.setVgap(5);
