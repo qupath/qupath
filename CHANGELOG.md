@@ -10,6 +10,7 @@
   * View the size of the brush, and adjust it by scrolling with `Alt` key pressed
   * Press `F` while drawing with the brush or wand to fill holes
   * Avoid diagonal lines when using the wand, to make clearer when a pixel is 'inside' or 'outside'
+* New 'curtains' effect with image overlays (https://github.com/qupath/qupath/pull/2175)
 * Much faster `ObjectMeasurements`, especially for images with many channels (https://github.com/qupath/qupath/pull/2113)
 * Show values for only the current visible feature when viewing features through the pixel classifier dialog (https://github.com/qupath/qupath/issues/2123)
 * Support to close more windows with Ctrl/Cmd+W (https://github.com/qupath/qupath/issues/2107)
