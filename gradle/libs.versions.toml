@@ -6,7 +6,7 @@ omeZarrReader   = "0.6.0"
 blosc           = "1.21.6+01"
 
 caffeine        = "3.2.3"
-commonmark      = "0.29.0"
+commonmark      = "0.30.0"
 commonsMath3    = "3.6.1"
 commonsText     = "1.14.0"
 controlsFX      = "11.2.4"
@@ -26,7 +26,7 @@ jdk             = "25"
 # For gradle-javacpp-platform (no 1.5.11 available)
 javacpp         = "1.5.10"
 
-opencv          = "4.13.0-1.5.13"
+opencv          = "4.14.0-1.5.14"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
 javafx          = "26.0.2"
