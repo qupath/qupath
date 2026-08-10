@@ -28,6 +28,7 @@ import qupath.lib.gui.actions.annotations.ActionAccelerator;
 import qupath.lib.gui.actions.annotations.ActionConfig;
 import qupath.lib.gui.actions.annotations.ActionIcon;
 import qupath.lib.gui.commands.Commands;
+import qupath.lib.gui.commands.CurtainsCommand;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
@@ -108,6 +109,10 @@ public class OverlayActions {
 	@ActionIcon(PathIcons.SHOW_CONNECTIONS)
 	@ActionConfig("OverlayActions.showConnections")
 	public final Action SHOW_CONNECTIONS;
+
+	@ActionIcon(PathIcons.CURTAINS)
+	@ActionConfig("OverlayActions.curtains")
+	public final Action CURTAINS;
 	
 	private OverlayOptions overlayOptions;
 	
@@ -135,7 +140,9 @@ public class OverlayActions {
 		SHOW_CELL_CENTROIDS = ActionTools.createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS));
 		
 		SHOW_CONNECTIONS = ActionTools.createSelectableAction(overlayOptions.showConnectionsProperty());
-		
+
+		CURTAINS = ActionTools.createAction(new CurtainsCommand(overlayOptions));
+
 		ActionTools.getAnnotatedActions(this);
 	}
 	
