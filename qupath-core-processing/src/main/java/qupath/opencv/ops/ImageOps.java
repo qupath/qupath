@@ -21,6 +21,7 @@
 
 package qupath.opencv.ops;
 
+import java.awt.geom.AffineTransform;
 import org.apache.commons.math3.util.FastMath;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
@@ -1259,6 +1260,123 @@ public class ImageOps {
 			}
 			
 			
+		}
+
+		@OpType("rotatedFilter")
+		static class RotatedFilterFeatureOp extends PaddedOp {
+
+			private double sigmaX;
+			private double sigmaY;
+			private int nRotations;
+			private transient List<Mat> kernels;
+
+			RotatedFilterFeatureOp(double sigmaX, double sigmaY, int nRotations) {
+				this.sigmaX = sigmaX;
+				this.sigmaY = sigmaY;
+				this.nRotations = nRotations;
+			}
+
+			@Override
+			public List<Mat> transformPadded(Mat input) {
+				var outputType = input.depth() == opencv_core.CV_64F ? input.type() : opencv_core.CV_32FC(OpenCVTools.typeToChannels(input.type()));
+				var min = new Mat(input.rows(), input.cols(), outputType, Scalar.all(Double.POSITIVE_INFINITY));
+				var max = new Mat(input.rows(), input.cols(), outputType, Scalar.all(Double.NEGATIVE_INFINITY));
+				try (var temp = new Mat()) {
+					for (var k : getKernels()) {
+						opencv_imgproc.filter2D(input, temp, outputType, k);
+						opencv_core.min(min, temp, min);
+						opencv_core.max(max, temp, max);
+					}
+				}
+				return List.of(min, max);
+			}
+
+			private List<Mat> getKernels() {
+				if (kernels == null || kernels.size() < nRotations || kernels.stream().anyMatch(m -> m.isNull())) {
+					synchronized (this) {
+						if (kernels == null) {
+							kernels = createKernels();
+						}
+					}
+				}
+				return kernels;
+			}
+
+			private List<Mat> createKernels() {
+				var firstKernel = createFirstKernel();
+				List<Mat> kernels = new ArrayList<>();
+				kernels.add(firstKernel);
+				var transform = new AffineTransform();
+				int anchorX = firstKernel.cols() / 2;
+				int anchorY = firstKernel.rows() / 2;
+				try (var affine = new Mat(2, 3, opencv_core.CV_32F)) {
+					for (int rot = 1; rot < nRotations; rot++) {
+						double theta = Math.PI / nRotations * rot;
+						transform.setToIdentity();
+						transform.rotate(theta, anchorX, anchorY);
+						try (FloatIndexer idx = affine.createIndexer()) {
+							// TODO: Check if this returns elements in the required order! If not, transpose
+							idx.put(0, 0, (float)transform.getScaleX());
+							idx.put(0, 1, (float)transform.getShearX());
+							idx.put(0, 2, (float)transform.getTranslateX());
+							idx.put(1, 0, (float)transform.getShearY());
+							idx.put(1, 1, (float)transform.getScaleY());
+							idx.put(1, 2, (float)transform.getTranslateY());
+						}
+						var temp = firstKernel.clone();
+						opencv_imgproc.warpAffine(firstKernel, temp, affine, firstKernel.size());
+						kernels.add(temp);
+//						OpenCVTools.matToImagePlus("Rot " + Math.toDegrees(theta), temp).show();
+					}
+				}
+				return kernels;
+			}
+
+			private Mat createFirstKernel() {
+				double maxSigma = Math.max(sigmaX, sigmaY);
+				int size = (int)Math.ceil(maxSigma * 4) * 2 + 1;
+				var mat = new Mat(size, size, opencv_core.CV_64FC1, Scalar.ZERO);
+				int orderX = sigmaX < sigmaY ? 2 : 0;
+				int orderY = orderX == 2 ? 0 : 2;
+				try (DoubleIndexer idx = mat.createIndexer()) {
+					idx.put(size/2, size/2, 1.0);
+					try (var kx = OpenCVTools.getGaussianDerivKernel(sigmaX, orderX, false)) {
+						try (var ky = OpenCVTools.getGaussianDerivKernel(sigmaY, orderY, true)) {
+							opencv_imgproc.sepFilter2D(mat, mat, mat.depth(), kx, ky);
+						}
+					}
+				}
+				return mat;
+			}
+
+			@Override
+			public PixelType getOutputType(PixelType pixelType) {
+				return pixelType.isFloatingPoint() ? pixelType : PixelType.FLOAT32;
+			}
+
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				List<ImageChannel> output = new ArrayList<>();
+				String name = "%s (%s %d rotations, sigma=[%f,%f]";
+				for (var c : channels) {
+					output.add(ImageChannel.getInstance(
+							String.format(name, c.getName(), "min", nRotations, sigmaX, sigmaY),
+							c.getColor()));
+				}
+				for (var c : channels) {
+					output.add(ImageChannel.getInstance(
+							String.format(name, c.getName(), "max", nRotations, sigmaX, sigmaY),
+							c.getColor()));
+				}
+				return output;
+			}
+
+
+			@Override
+			protected Padding calculatePadding() {
+				double sigmaMax = Math.max(sigmaX, sigmaY);
+				return getDefaultGaussianPadding(sigmaMax, sigmaMax);
+			}
+
 		}
 		
 		
