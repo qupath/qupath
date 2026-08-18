@@ -1939,6 +1939,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		Graphics2D gOverlay = imgOverlay.createGraphics();
 		gOverlay.setBackground(new Color(0, true));
 		gOverlay.clearRect(0, 0, imgOverlay.getWidth(), imgOverlay.getHeight());
+		gOverlay.setClip(0, 0, imgOverlay.getWidth(), imgOverlay.getHeight());
 		gOverlay.transform(transform);
 
 		float opacity = overlayOptions.getOpacity();
