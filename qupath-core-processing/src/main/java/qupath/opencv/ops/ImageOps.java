@@ -1334,9 +1334,9 @@ public class ImageOps {
 						case MIN -> Scalar.all(Double.POSITIVE_INFINITY);
 						case MAX -> Scalar.all(Double.NEGATIVE_INFINITY);
 					};
-					output.add(
-							new Mat(input.rows(), input.cols(), outputType, fill)
-					);
+					var temp = new Mat(input.rows(), input.cols(), outputType, fill);
+					temp.retainReference();
+					output.add(temp);
 					fill.close();
 				}
 
@@ -1396,8 +1396,11 @@ public class ImageOps {
 						var temp = firstKernel.clone();
 						opencv_imgproc.warpAffine(firstKernel, temp, affine, firstKernel.size());
 						kernels.add(temp);
-//						OpenCVTools.matToImagePlus("Rot " + Math.toDegrees(theta), temp).show();
 					}
+				}
+				// Don't garbage collect too quickly
+				for (var k : kernels) {
+					k.retainReference();
 				}
 				return kernels;
 			}
