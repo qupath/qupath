@@ -64,6 +64,7 @@ catalog {
         library("qupath.app", qupathGroup, project(":qupath-app").name).versionRef("qupath")
 
         // Bundled extensions
+        library("qupath.ext.processing", qupathGroup, project(":qupath-extension-processing").name).versionRef("qupath")
         library("qupath.ext.bioformats", qupathGroup, project(":qupath-extension-bioformats").name).versionRef("qupath")
         library("qupath.ext.openslide", qupathGroup, project(":qupath-extension-openslide").name).versionRef("qupath")
         library("qupath.ext.script.editor", qupathGroup, project(":qupath-extension-script-editor").name).versionRef("qupath")
@@ -74,7 +75,7 @@ catalog {
 
         // Everything
         bundle("qupath.all", listOf("qupath.gui.fx", "qupath.core", "qupath.core.processing",
-            "qupath.app", "qupath.ext.bioformats", "qupath.ext.openslide", "qupath.ext.script.editor", "qupath.ext.svg"))
+            "qupath.app", "qupath.ext.processing", "qupath.ext.bioformats", "qupath.ext.openslide", "qupath.ext.script.editor", "qupath.ext.svg"))
     }
 }
 
