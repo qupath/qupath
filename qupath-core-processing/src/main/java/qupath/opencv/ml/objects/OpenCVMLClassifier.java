@@ -37,7 +37,7 @@ import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.classes.Reclassifier;
-import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.ml.models.OpenCVStatModel;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
 
 import java.nio.FloatBuffer;

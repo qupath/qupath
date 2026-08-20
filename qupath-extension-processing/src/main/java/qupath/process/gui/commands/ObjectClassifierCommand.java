@@ -98,9 +98,9 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.projects.ProjectImageEntry;
-import qupath.opencv.ml.OpenCVClassifiers;
-import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
-import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
+import qupath.opencv.ml.models.OpenCVClassifiers;
+import qupath.opencv.ml.models.OpenCVStatModel;
+import qupath.opencv.ml.models.RTreesClassifier;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
@@ -132,7 +132,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 
 /**
