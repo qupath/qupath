@@ -976,7 +976,8 @@ public class Commands {
 			return false;
 		lastSnapshotDirectory = fileOutput.getParentFile();
 
-		String ext = GeneralTools.getExtension(fileOutput).orElse(null);
+		String ext = GeneralTools.getExtension(fileOutput)
+				.orElse(chooser.getSelectedExtensionFilter().getExtensions().getFirst());
 		List<ImageWriter<BufferedImage>> compatibleWriters = ext == null ? Collections.emptyList() :
 				ImageWriterTools.getCompatibleWriters(BufferedImage.class, ext);
 		if (compatibleWriters.isEmpty()) {
