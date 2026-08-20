@@ -21,19 +21,25 @@
 
 package qupath.opencv.ml;
 
+import com.google.gson.JsonParser;
 import com.google.gson.TypeAdapter;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_ml;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.TermCriteria;
 import org.bytedeco.opencv.opencv_core.UMat;
@@ -278,12 +284,36 @@ public class OpenCVClassifiers {
 
 		@Override
 		public void write(JsonWriter out, OpenCVStatModel value) throws IOException {
-			OpenCVTypeAdapters.getTypeAdaptor(StatModel.class).write(out, value.getStatModel());
+			if (value instanceof EnsembleClassifier ensembleClassifier) {
+				out.beginArray();
+				for (var model : ensembleClassifier.models) {
+					OpenCVTypeAdapters.getTypeAdaptor(StatModel.class).write(out, model.getStatModel());
+				}
+				OpenCVTypeAdapters.getTypeAdaptor(StatModel.class).write(out, value.getStatModel());
+				out.endArray();
+			} else {
+				OpenCVTypeAdapters.getTypeAdaptor(StatModel.class).write(out, value.getStatModel());
+			}
 		}
 
 		@Override
 		public OpenCVStatModel read(JsonReader in) throws IOException {
-			var statModel = OpenCVTypeAdapters.getTypeAdaptor(StatModel.class).read(in);
+			var adaptor = OpenCVTypeAdapters.getTypeAdaptor(StatModel.class);
+			if (in.peek() == JsonToken.BEGIN_ARRAY) {
+				var array = JsonParser.parseReader(in).getAsJsonArray();
+				List<OpenCVStatModel> allModels = new ArrayList<>();
+				for (int i = 0; i < array.size()-1; i++) {
+					var obj = array.get(i);
+					allModels.add(wrapStatModel(adaptor.fromJsonTree(obj)));
+				}
+				var lastModel = adaptor.fromJsonTree(array.get(array.size()-1));
+				if (lastModel instanceof RTrees trees) {
+					return new EnsembleClassifier(allModels, trees);
+				} else {
+					throw new IOException("Expected last model to be DTrees, instead it was " + lastModel);
+				}
+			}
+			var statModel = adaptor.read(in);
 			return wrapStatModel(statModel);
 //			return new DefaultOpenCVStatModel<StatModel>(statModel);
 		}
@@ -1559,6 +1589,78 @@ public class OpenCVClassifiers {
 		}
 		
 	}
+
+	public static EnsembleClassifier createEnsemble(OpenCVStatModel... models) {
+		return new EnsembleClassifier(List.of(models));
+	}
+
+	public static class EnsembleClassifier extends RTreesClassifier {
+
+		private final List<OpenCVStatModel> models;
+
+		EnsembleClassifier(List<OpenCVStatModel> models) {
+			this.models = List.copyOf(models);
+		}
+
+		EnsembleClassifier(List<OpenCVStatModel> models, RTrees model) {
+			super(model);
+			this.models = List.copyOf(models);
+		}
+
+		@Override
+		public void trainWithLock(TrainData trainData) {
+			int nClasses = (int)OpenCVTools.maximum(trainData.getClassLabels()) + 1;
+			for (var initialModel : models) {
+				try (var tempTrain = initialModel.createTrainData(
+						trainData.getTrainSamples(),
+						trainData.getTrainNormCatResponses(),
+						nClasses,
+						trainData.getTrainSampleWeights(),
+						false)) {
+					initialModel.train(tempTrain);
+				}
+			}
+
+			var trainSamples = trainData.getTrainSamples();
+			// TODO: Consider whether it's better to include the samples or not (and, if a parameter, how to serialize it to JSON)
+			updateInputData(trainSamples, true);
+			var trainData2 = TrainData.create(trainSamples, trainData.getLayout(), trainData.getResponses(), null, null, trainData.getSampleWeights(), null);
+			super.trainWithLock(trainData2);
+		}
+
+		@Override
+		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
+			updateInputData(samples, true);
+			super.predictWithLock(samples, results, probabilities);
+		}
+
+
+		private void updateInputData(Mat samples, boolean includeSamples) {
+			try (var scope = new PointerScope()) {
+				MatVector toMerge = new MatVector();
+				if (includeSamples)
+					toMerge.push_back(samples);
+				for (var temp : models) {
+					var matResults = new Mat();
+					var matProb = temp.supportsProbabilities() ? new Mat() : null;
+					temp.predict(samples, matResults, matProb);
+					var toAdd = Objects.requireNonNullElse(matProb, matResults);
+					toAdd.convertTo(toAdd, samples.type());
+                    toMerge.push_back(toAdd);
+				}
+				opencv_core.hconcat(toMerge, samples);
+			}
+		}
+
+		@Override
+		public String toString() {
+			return "Ensemble " +
+					models.stream().map(OpenCVStatModel::getName).collect(Collectors.joining("+"))
+							+ " + DTrees";
+		}
+
+	}
+	
 	
 	/**
 	 * A multiclass version of ANN.
