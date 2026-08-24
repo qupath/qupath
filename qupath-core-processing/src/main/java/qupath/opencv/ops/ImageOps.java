@@ -1102,7 +1102,11 @@ public class ImageOps {
 			/**
 			 * Calculate the maximum pixel value across rotations.
 			 */
-			MAX
+			MAX,
+			/**
+			 * Take the pixel with the largest absolute value, retaining the original sign.
+			 */
+			MAX_ABS
 		}
 
 		/**
@@ -1344,6 +1348,7 @@ public class ImageOps {
 					Scalar fill = switch(proj) {
 						case MIN -> Scalar.all(Double.POSITIVE_INFINITY);
 						case MAX -> Scalar.all(Double.NEGATIVE_INFINITY);
+						case MAX_ABS -> Scalar.all(0.0);
 					};
 					var temp = new Mat(input.rows(), input.cols(), outputType, fill);
 					temp.retainReference();
@@ -1364,12 +1369,22 @@ public class ImageOps {
 								case MAX -> {
 									opencv_core.max(tempOutput, temp, tempOutput);
 								}
+								case MAX_ABS -> {
+									OpenCVTools.apply(tempOutput, temp, tempOutput, RotatedFilterFeatureOp::absMax);
+								}
 							}
 							ind++;
 						}
 					}
 				}
 				return List.copyOf(output);
+			}
+
+			private static double absMax(double a, double b) {
+				if (Math.abs(b) > Math.abs(a))
+					return b;
+				else
+					return a;
 			}
 
 			private List<Mat> getKernels() {
