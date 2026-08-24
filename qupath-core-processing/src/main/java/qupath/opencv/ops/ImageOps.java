@@ -1127,7 +1127,10 @@ public class ImageOps {
 		 * @return
 		 */
 		public static ImageOp rotatedRidge(double sigmaWidth, double sigmaLength, int nRotations, RidgeProjections... projections) {
-			return new RotatedFilterFeatureOp(sigmaWidth, sigmaLength, nRotations, projections);
+			return new RotatedFilterFeatureOp(
+					new RotatedFilterFeatureOp.GaussianDerivative(sigmaWidth, 2),
+					new RotatedFilterFeatureOp.GaussianDerivative(sigmaLength, 0),
+					nRotations, projections);
 		}
 		
 		/**
@@ -1304,23 +1307,31 @@ public class ImageOps {
 		@OpType("rotated-ridge")
 		static class RotatedFilterFeatureOp extends PaddedOp {
 
-			private double sigmaWidth;
-			private double sigmaLength;
+			private record GaussianDerivative(double sigma, int order) {}
+
+			private GaussianDerivative filterWidth;
+			private GaussianDerivative filterLength;
 			private int nRotations;
 			private List<RidgeProjections> projections;
 			private transient List<Mat> kernels;
 
-			RotatedFilterFeatureOp(double sigmaWidth, double sigmaLength, int nRotations, RidgeProjections... projections) {
-				if (sigmaWidth <= 0)
-					throw new IllegalArgumentException("sigmaWidth must be > 0");
-				if (sigmaLength <= 0)
-					throw new IllegalArgumentException("sigmaLength must be > 0");
+			RotatedFilterFeatureOp(GaussianDerivative filterWidth, GaussianDerivative filterLength, int nRotations, RidgeProjections... projections) {
+				this.filterWidth = validateFilter(filterWidth);
+				this.filterLength = validateFilter(filterLength);
 				if (nRotations < 1)
 					throw new IllegalArgumentException("nRotations must be > 1");
-				this.sigmaWidth = sigmaWidth;
-				this.sigmaLength = sigmaLength;
 				this.nRotations = nRotations;
 				this.projections = projections.length == 0 ? List.of(RidgeProjections.values()) : List.of(projections);
+			}
+
+			private static GaussianDerivative validateFilter(GaussianDerivative filter) {
+				if (filter == null)
+					throw new IllegalArgumentException("Filter must not be null");
+				if (filter.sigma() <= 0)
+					throw new IllegalArgumentException("Sigma must be > 0, not " + filter.sigma());
+				if (filter.order() < 0)
+					throw new IllegalArgumentException("Order must be >= 0, not " + filter.order());
+				return filter;
 			}
 
 			@Override
@@ -1385,7 +1396,6 @@ public class ImageOps {
 						transform.setToIdentity();
 						transform.rotate(theta, anchorX, anchorY);
 						try (FloatIndexer idx = affine.createIndexer()) {
-							// TODO: Check if this returns elements in the required order! If not, transpose
 							idx.put(0, 0, (float)transform.getScaleX());
 							idx.put(0, 1, (float)transform.getShearX());
 							idx.put(0, 2, (float)transform.getTranslateX());
@@ -1406,7 +1416,7 @@ public class ImageOps {
 			}
 
 			private double getMaxSigma() {
-				return Math.max(sigmaWidth, sigmaLength);
+				return Math.max(filterWidth.sigma(), filterLength.sigma());
 			}
 
 			private Mat createFirstKernel() {
@@ -1416,8 +1426,8 @@ public class ImageOps {
 				try (DoubleIndexer idx = mat.createIndexer()) {
 					// Use -1 to get positive values for 'bright' ridges, negative values for 'dark' ridges
 					idx.put(size/2, size/2, -1.0);
-					try (var kx = OpenCVTools.getGaussianDerivKernel(sigmaWidth, 2, false)) {
-						try (var ky = OpenCVTools.getGaussianDerivKernel(sigmaLength, 0, true)) {
+					try (var kx = OpenCVTools.getGaussianDerivKernel(filterWidth.sigma(), filterWidth.order(), false)) {
+						try (var ky = OpenCVTools.getGaussianDerivKernel(filterLength.sigma(), filterLength.order(), true)) {
 							opencv_imgproc.sepFilter2D(mat, mat, mat.depth(), kx, ky);
 						}
 					}
@@ -1432,12 +1442,12 @@ public class ImageOps {
 
 			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
 				List<ImageChannel> output = new ArrayList<>();
-				String name = "%s (%s %d rotations, sigma=[%f,%f]";
+				String name = "%s (%s %d rotations, sigma=[%.2f,%.2f], order=[%d,%d]";
 				for (var proj : projections) {
 					for (var c : channels) {
 						output.add(ImageChannel.getInstance(
 								String.format(name, c.getName(), proj.toString().toLowerCase(),
-													nRotations, sigmaWidth, sigmaLength),
+													nRotations, filterWidth.sigma(), filterLength.sigma(), filterWidth.order(), filterLength.order()),
 								c.getColor()));
 					}
 				}
