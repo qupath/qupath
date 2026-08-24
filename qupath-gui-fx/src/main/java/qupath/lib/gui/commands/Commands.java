@@ -979,7 +979,7 @@ public class Commands {
 		String ext = GeneralTools.getExtension(fileOutput)
 				.orElse(null);
 		if (ext == null) {
-			ext = chooser.getSelectedExtensionFilter().getExtensions().getFirst();
+			ext = chooser.getSelectedExtensionFilter().getExtensions().getFirst().replace("*", "");
 			fileOutput = new File(fileOutput + ext);
 		}
 		List<ImageWriter<BufferedImage>> compatibleWriters = ext == null ? Collections.emptyList() :
