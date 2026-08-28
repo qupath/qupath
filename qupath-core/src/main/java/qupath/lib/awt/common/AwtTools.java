@@ -128,8 +128,11 @@ public final class AwtTools {
 	 * @return
 	 */
 	public static ImageRegion getImageRegion(final Shape shape, final int z, final int t) {
-		if (shape instanceof Rectangle)
-			return getImageRegion((Rectangle)shape, z, t);
+		if (shape instanceof Rectangle rect)
+			return getImageRegion(rect, z, t);
+		else if (shape == null) {
+			throw new IllegalArgumentException("Shape is null!");
+		}
 		return getImageRegion(shape.getBounds(), z, t);
 	}
 
