@@ -27,6 +27,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -124,7 +125,8 @@ class PathClassPane {
 	/**
 	 * If set, request that new annotations have their classification set automatically
 	 */
-	private final BooleanProperty doAutoSetPathClass = new SimpleBooleanProperty(false);
+	private final BooleanProperty doAutoSetPathClass = PathPrefs.doAutoSetPathClassProperty();
+	private final ObjectProperty<PathClass> autoSetPathClass = PathPrefs.autoSetAnnotationClassProperty();
 	
 	PathClassPane(QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -185,7 +187,7 @@ class PathClassPane {
 		listClasses.setItems(filteredList);
 
 		listClasses.getSelectionModel().selectedItemProperty()
-				.addListener((v, o, n) -> updateAutoSetPathClassProperty());
+				.subscribe(this::updateAutoSetPathClassProperty);
 		
 		listClasses.setCellFactory(v -> new PathClassListCell(qupath));
 
@@ -193,6 +195,8 @@ class PathClassPane {
 		listClasses.setPrefSize(100, 200);
 		
 		listClasses.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+
+		autoSetPathClass.subscribe(this::syncListSelectionToAutoSetClass);
 				
 		// Intercept space presses because we handle them elsewhere
 		listClasses.addEventFilter(KeyEvent.KEY_PRESSED, this::filterKeyPresses);
@@ -219,7 +223,7 @@ class PathClassPane {
 		autoClassifyAnnotationsAction.setLongText(QuPathResources.getString("Panes.PathClass.autoSetDescription"));
 		autoClassifyAnnotationsAction.selectedProperty().bindBidirectional(doAutoSetPathClass);
 		
-		doAutoSetPathClass.addListener((e, f, g) -> updateAutoSetPathClassProperty());
+		doAutoSetPathClass.subscribe(this::updateAutoSetPathClassProperty);
 
 		Button btnSetClass = ActionUtils.createButton(setSelectedObjectClassAction);
 		ToggleButton btnAutoClass = ActionUtils.createToggleButton(autoClassifyAnnotationsAction);
@@ -269,6 +273,24 @@ class PathClassPane {
 		paneClasses.setTop(paneTop);
 		paneClasses.setBottom(paneBottom);
 		return paneClasses;
+	}
+
+	private void syncListSelectionToAutoSetClass() {
+		// We need to call this, even when making no changes, so any invalidation listener / subscription is reset
+		var pathClass = autoSetPathClass.get();
+		if (!doAutoSetPathClass.get())
+			return;
+		if (pathClass == null)
+			pathClass = PathClass.NULL_CLASS;
+		if (!Objects.equals(listClasses.getSelectionModel().getSelectedItem(), pathClass)) {
+			int ind = listClasses.getItems().indexOf(pathClass);
+			if (ind >= 0) {
+				listClasses.getSelectionModel().clearAndSelect(ind);
+			} else {
+				logger.warn("Requested auto-set class {} is not in the current list of classes", pathClass);
+				updateAutoSetPathClassProperty();
+			}
+		}
 	}
 
 	private static class ClassVisibilityConverter extends StringConverter<OverlayOptions.ClassVisibilityMode> {
@@ -518,9 +540,9 @@ class PathClassPane {
 			pathClass = getSelectedPathClass();
 		}
 		if (pathClass == null || pathClass == PathClass.NULL_CLASS)
-			PathPrefs.autoSetAnnotationClassProperty().set(null);
+			autoSetPathClass.set(null);
 		else
-			PathPrefs.autoSetAnnotationClassProperty().set(pathClass);
+			autoSetPathClass.set(pathClass);
 	}
 	
 	private PathObjectHierarchy getHierarchy() {
