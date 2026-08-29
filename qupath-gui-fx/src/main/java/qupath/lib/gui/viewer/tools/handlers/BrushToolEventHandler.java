@@ -136,7 +136,12 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 	
 	@Override
 	public void mousePressed(MouseEvent e) {
-		if (!e.isPrimaryButtonDown() || e.isConsumed()) {
+		// v0.8.0 change to skip clicks if ctrl/cmd down,
+		// because this gives a way to bring the viewer into focus
+		// without accidentally creating a new annotation.
+		// We can't use spacebar, because we don't know if it was pressed with
+		// any other window in focus.
+		if (!e.isPrimaryButtonDown() || e.isConsumed() || e.isShortcutDown()) {
             return;
         }
 
@@ -146,7 +151,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null)
 			return;
-		
+
 		PathObject currentObject = viewer.getSelectedObject();
 		
 		// Ignore the current object if it belongs to a different image plane
@@ -158,7 +163,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 				currentObject.getROI().getT() != viewer.getTPosition()) {
 			currentObject = null;
 		}
-		
+
 		// Determine if we are creating a new object
 //		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
 		Point2D p = mouseLocationToImage(e, false, false);
