@@ -68,13 +68,21 @@ class TrainingImageManager {
                         if (tempData != null)
                             tempData.close();
                     } else {
+                        // TODO: Create timestamp for entry changes, since otherwise we can't detect if data files
+                        //       were modified externally, and may wrongly return a cached value.
                         var tempData = trainingMap.get(entry);
                         if (tempData == null) {
                             tempData = entry.readImageData();
                             trainingMap.put(entry, tempData);
                         }
+                        // This is a stronger test than is required, because we could train a model across images
+                        // that have different channels as long as we only use shared channels...
+                        // however, managing this could become very complicated - so we are strict.
                         if (PixelClassifierUtils.compatibleChannels(imageData.getServer(), tempData.getServer()))
                             list.add(tempData);
+                        else
+                            logger.warn("Channels of {} are not compatible (expected {}, found {})", tempData.getServer(),
+                                    imageData.getServer().getMetadata().getChannels(), tempData.getServer().getMetadata().getChannels());
                     }
                 } catch (Exception e) {
                     logger.error(e.getLocalizedMessage(), e);

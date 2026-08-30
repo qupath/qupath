@@ -191,7 +191,8 @@ class PointsToolEventHandler extends AbstractPathToolEventHandler<MouseEvent> {
 	@Override
 	public void mousePressed(MouseEvent e) {
 		super.mousePressed(e);
-		if (!e.isPrimaryButtonDown() || e.isConsumed()) {
+		// v0.8.0 skip clicks with ctrl/cmd down, for consistency with brush/wand
+		if (!e.isPrimaryButtonDown() || e.isConsumed() || e.isShortcutDown()) {
             return;
         }
 		

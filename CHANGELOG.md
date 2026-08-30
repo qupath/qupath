@@ -16,6 +16,8 @@
 * Support to close more windows with Ctrl/Cmd+W (https://github.com/qupath/qupath/issues/2107)
 * Lots more strings externalized (https://github.com/qupath/qupath/pull/2104)
 * Ask to remove projects that are not found (https://github.com/qupath/qupath/pull/2167)
+* Hold down `Ctrl` (`Cmd` on macOS) when clicking viewer to focus it without creating an annotation with the brush, wand or points tool (https://github.com/qupath/qupath/pull/2185)
+* The 'Auto set' classification for new annotations can be changed from the popup menu in the viewer (https://github.com/qupath/qupath/pull/2186)
 
 ### Bug fixes
 * StackOverflowError at ROITypeAdapters.writeCoordinates when exporting some geometries (https://github.com/qupath/qupath/issues/2115)

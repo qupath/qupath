@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,6 +21,7 @@
 
 package qupath.opencv.ops;
 
+import java.awt.geom.AffineTransform;
 import org.apache.commons.math3.util.FastMath;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
@@ -1089,6 +1090,52 @@ public class ImageOps {
 		public static ImageOp features(Collection<MultiscaleFeature> features, double sigmaX, double sigmaY) {
 			return new MultiscaleFeatureOp(features, sigmaX, sigmaY);
 		}
+
+		/**
+		 * Enum giving ways to combine rotated ridge images.
+		 */
+		public enum RidgeProjections {
+			/**
+			 * Calculate the minimum pixel value across rotations.
+			 */
+			MIN,
+			/**
+			 * Calculate the maximum pixel value across rotations.
+			 */
+			MAX,
+			/**
+			 * Take the pixel with the largest absolute value, retaining the original sign.
+			 */
+			MAX_ABS
+		}
+
+		/**
+		 * Apply a ridge-enhancing filter rotated at different orientations, projecting the result onto one or more outputs.
+		 * @param sigmaWidth sigma value for the estimated ridge width; a second order Gaussian derivative would be calculated
+		 * @param projections optional array of projections.
+		 *                    If not set, all projections will be used.
+		 * @return
+		 */
+		public static ImageOp rotatedRidge(double sigmaWidth, RidgeProjections... projections) {
+			return rotatedRidge(sigmaWidth, sigmaWidth * 4,12, projections);
+		}
+
+		/**
+		 * Apply a ridge-enhancing filter rotated at different orientations, projecting the result onto one or more outputs.
+		 * @param sigmaWidth sigma value for the estimated ridge width; a second order Gaussian derivative would be calculated
+		 * @param sigmaLength sigma value for the filter length; this is usually &gt; sigmaWidth and relates to the ridge tortuosity
+		 *                    (for ridges with infrequent changes in orientations, a higher value may be used)
+		 * @param nRotations number of rotations to calculate (typically 8-12)
+		 * @param projections optional array of projections.
+		 *                    If not set, all projections will be used.
+		 * @return
+		 */
+		public static ImageOp rotatedRidge(double sigmaWidth, double sigmaLength, int nRotations, RidgeProjections... projections) {
+			return new RotatedFilterFeatureOp(
+					new RotatedFilterFeatureOp.GaussianDerivative(sigmaWidth, 2),
+					new RotatedFilterFeatureOp.GaussianDerivative(sigmaLength, 0),
+					nRotations, projections);
+		}
 		
 		/**
 		 * Apply a 2D maximum filter.
@@ -1259,6 +1306,176 @@ public class ImageOps {
 			}
 			
 			
+		}
+
+		@OpType("rotated-ridge")
+		static class RotatedFilterFeatureOp extends PaddedOp {
+
+			private record GaussianDerivative(double sigma, int order) {}
+
+			private GaussianDerivative filterWidth;
+			private GaussianDerivative filterLength;
+			private int nRotations;
+			private List<RidgeProjections> projections;
+			private transient List<Mat> kernels;
+
+			RotatedFilterFeatureOp(GaussianDerivative filterWidth, GaussianDerivative filterLength, int nRotations, RidgeProjections... projections) {
+				this.filterWidth = validateFilter(filterWidth);
+				this.filterLength = validateFilter(filterLength);
+				if (nRotations < 1)
+					throw new IllegalArgumentException("nRotations must be > 1");
+				this.nRotations = nRotations;
+				this.projections = projections.length == 0 ? List.of(RidgeProjections.values()) : List.of(projections);
+			}
+
+			private static GaussianDerivative validateFilter(GaussianDerivative filter) {
+				if (filter == null)
+					throw new IllegalArgumentException("Filter must not be null");
+				if (filter.sigma() <= 0)
+					throw new IllegalArgumentException("Sigma must be > 0, not " + filter.sigma());
+				if (filter.order() < 0)
+					throw new IllegalArgumentException("Order must be >= 0, not " + filter.order());
+				return filter;
+			}
+
+			@Override
+			public List<Mat> transformPadded(Mat input) {
+				var outputType = input.depth() == opencv_core.CV_64F ? input.type() : opencv_core.CV_32FC(OpenCVTools.typeToChannels(input.type()));
+
+				// Preallocate output
+				List<Mat> output = new ArrayList<>(projections.size());
+				for (var proj : projections) {
+					Scalar fill = switch(proj) {
+						case MIN -> Scalar.all(Double.POSITIVE_INFINITY);
+						case MAX -> Scalar.all(Double.NEGATIVE_INFINITY);
+						case MAX_ABS -> Scalar.all(0.0);
+					};
+					var temp = new Mat(input.rows(), input.cols(), outputType, fill);
+					temp.retainReference();
+					output.add(temp);
+					fill.close();
+				}
+
+				try (var temp = new Mat()) {
+					for (var k : getKernels()) {
+						opencv_imgproc.filter2D(input, temp, outputType, k);
+						int ind = 0;
+						for (var proj : projections) {
+							Mat tempOutput = output.get(ind);
+							switch (proj) {
+                                case MIN -> {
+									opencv_core.min(tempOutput, temp, tempOutput);
+								}
+								case MAX -> {
+									opencv_core.max(tempOutput, temp, tempOutput);
+								}
+								case MAX_ABS -> {
+									OpenCVTools.apply(tempOutput, temp, tempOutput, RotatedFilterFeatureOp::absMax);
+								}
+							}
+							ind++;
+						}
+					}
+				}
+				return List.copyOf(output);
+			}
+
+			private static double absMax(double a, double b) {
+				if (Math.abs(b) > Math.abs(a))
+					return b;
+				else
+					return a;
+			}
+
+			private List<Mat> getKernels() {
+				if (kernels == null || kernels.size() < nRotations || kernels.stream().anyMatch(m -> m.isNull())) {
+					synchronized (this) {
+						if (kernels == null) {
+							kernels = createKernels();
+						}
+					}
+				}
+				return kernels;
+			}
+
+			private List<Mat> createKernels() {
+				var firstKernel = createFirstKernel();
+				List<Mat> kernels = new ArrayList<>();
+				kernels.add(firstKernel);
+				var transform = new AffineTransform();
+				int anchorX = firstKernel.cols() / 2;
+				int anchorY = firstKernel.rows() / 2;
+				try (var affine = new Mat(2, 3, opencv_core.CV_32F)) {
+					for (int rot = 1; rot < nRotations; rot++) {
+						double theta = Math.PI / nRotations * rot;
+						transform.setToIdentity();
+						transform.rotate(theta, anchorX, anchorY);
+						try (FloatIndexer idx = affine.createIndexer()) {
+							idx.put(0, 0, (float)transform.getScaleX());
+							idx.put(0, 1, (float)transform.getShearX());
+							idx.put(0, 2, (float)transform.getTranslateX());
+							idx.put(1, 0, (float)transform.getShearY());
+							idx.put(1, 1, (float)transform.getScaleY());
+							idx.put(1, 2, (float)transform.getTranslateY());
+						}
+						var temp = firstKernel.clone();
+						opencv_imgproc.warpAffine(firstKernel, temp, affine, firstKernel.size());
+						kernels.add(temp);
+					}
+				}
+				// Don't garbage collect too quickly
+				for (var k : kernels) {
+					k.retainReference();
+				}
+				return kernels;
+			}
+
+			private double getMaxSigma() {
+				return Math.max(filterWidth.sigma(), filterLength.sigma());
+			}
+
+			private Mat createFirstKernel() {
+				double maxSigma = getMaxSigma();
+				int size = (int)Math.ceil(maxSigma * 4) * 2 + 1;
+				var mat = new Mat(size, size, opencv_core.CV_64FC1, Scalar.ZERO);
+				try (DoubleIndexer idx = mat.createIndexer()) {
+					// Use -1 to get positive values for 'bright' ridges, negative values for 'dark' ridges
+					idx.put(size/2, size/2, -1.0);
+					try (var kx = OpenCVTools.getGaussianDerivKernel(filterWidth.sigma(), filterWidth.order(), false)) {
+						try (var ky = OpenCVTools.getGaussianDerivKernel(filterLength.sigma(), filterLength.order(), true)) {
+							opencv_imgproc.sepFilter2D(mat, mat, mat.depth(), kx, ky);
+						}
+					}
+				}
+				return mat;
+			}
+
+			@Override
+			public PixelType getOutputType(PixelType pixelType) {
+				return pixelType.isFloatingPoint() ? pixelType : PixelType.FLOAT32;
+			}
+
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				List<ImageChannel> output = new ArrayList<>();
+				String name = "%s (%s %d rotations, sigma=[%.2f,%.2f], order=[%d,%d]";
+				for (var proj : projections) {
+					for (var c : channels) {
+						output.add(ImageChannel.getInstance(
+								String.format(name, c.getName(), proj.toString().toLowerCase(),
+													nRotations, filterWidth.sigma(), filterLength.sigma(), filterWidth.order(), filterLength.order()),
+								c.getColor()));
+					}
+				}
+				return output;
+			}
+
+
+			@Override
+			protected Padding calculatePadding() {
+				double sigmaMax = getMaxSigma();
+				return getDefaultGaussianPadding(sigmaMax, sigmaMax);
+			}
+
 		}
 		
 		

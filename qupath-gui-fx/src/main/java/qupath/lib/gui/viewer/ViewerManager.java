@@ -88,6 +88,7 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.roi.RoiTools;
@@ -1539,7 +1540,7 @@ public class ViewerManager implements QuPathViewerListener {
 		CirclePopupMenu circlePopup = new CirclePopupMenu(viewer.getView(), null);
 		viewer.getView().addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
 			if ((e.isPopupTrigger() || e.isSecondaryButtonDown()) && e.isShiftDown() && !qupath.getAvailablePathClasses().isEmpty()) {
-				circlePopup.setAnimationDuration(Duration.millis(200));
+				circlePopup.setAnimationDuration(Duration.millis(100));
 				updateSetAnnotationPathClassMenu(circlePopup, viewer);
 				circlePopup.show(e.getScreenX(), e.getScreenY());
 				e.consume();
@@ -1641,7 +1642,8 @@ public class ViewerManager implements QuPathViewerListener {
 		RadioMenuItem selected = null;
 		for (PathClass pathClass : availablePathClasses) {
 			PathClass pathClassToSet = pathClass.getName() == null ? null : pathClass;
-			String name = pathClass.getName() == null ? QuPathResources.getString("Viewer.ViewerManager.none") : pathClass.toString();
+			boolean nullClass = pathClass.getName() == null;
+			String name = nullClass ? QuPathResources.getString("Viewer.ViewerManager.none") : pathClass.toString();
 			Action actionSetClass = new Action(name, e -> {
 				List<PathObject> changed = new ArrayList<>();
 				for (PathObject pathObject : viewer.getAllSelectedObjects()) {
@@ -1651,24 +1653,29 @@ public class ViewerManager implements QuPathViewerListener {
 					changed.add(pathObject);
 				}
 				if (!changed.isEmpty())
-					viewer.getHierarchy().fireObjectClassificationsChangedEvent(this, changed);				
+					viewer.getHierarchy().fireObjectClassificationsChangedEvent(this, changed);
+				// Change the 'auto-set' classification
+				if (PathPrefs.doAutoSetPathClassProperty().get()) {
+					logger.debug("Updating auto-set class to {}", pathClassToSet);
+					PathPrefs.autoSetAnnotationClassProperty().set(pathClassToSet);
+				}
 			});
 			Node shape;
 			if (useFancyIcons) {
 				Ellipse r = new Ellipse(iconSize/2.0, iconSize/2.0, iconSize, iconSize);
-				if (QuPathResources.getString("Viewer.ViewerManager.none").equals(name)) {
+				if (nullClass) {
 					r.setFill(Color.rgb(255, 255, 255, 0.75));
 					
-				}
-				else
+				} else {
 					r.setFill(ColorToolsFX.getCachedColor(pathClass.getColor()));
+				}
 				r.setOpacity(0.8);
 				DropShadow effect = new DropShadow(6, -3, 3, Color.GRAY);
 				r.setEffect(effect);
 				shape = r;
 			} else {
 				Rectangle r = new Rectangle(0, 0, 8, 8);
-				r.setFill(QuPathResources.getString("Viewer.ViewerManager.none").equals(name) ?
+				r.setFill(nullClass ?
 						Color.TRANSPARENT :
 						ColorToolsFX.getCachedColor(pathClass.getColor())
 				);
@@ -1680,10 +1687,38 @@ public class ViewerManager implements QuPathViewerListener {
 			item.graphicProperty().unbind();
 			item.setGraphic(shape);
 			item.setToggleGroup(group);
+			item.setUserData(pathClass);
 			itemList.add(item);
 			if (pathClassToSet == currentClass)
 				selected = item;
 		}
+		// The following code is for the day someone thinks
+		// 'It would be nice to toggle auto-set from within this menu'.
+		// It's really hard to get this working intuitively, because the auto set class wouldn't necessarily
+		// match the class corresponding to the selected menu item, because the latter matches the class
+		// of the currently selected object... not whatever happens to be selected under the 'Annotations' pane.
+		// Should someone suppose intuitive behavior is possible, uncomment the code below and... well, good luck.
+//		if (!useFancyIcons) {
+//			itemList.add(new SeparatorMenuItem());
+//			var miAutoSet = new CheckMenuItem(QuPathResources.getString("Panes.PathClass.autoSet"));
+//			miAutoSet.selectedProperty().bindBidirectional(PathPrefs.doAutoSetPathClassProperty());
+//			miAutoSet.setOnAction(e -> {
+//				// A little convoluted... but if the user chooses to auto-set from this menu,
+//				// this will likely expect it to set the classification that is currently ticked,
+//				// and not the classification that is selected elsewhere in the UI (i.e. under the 'Annotations' tab)
+//				if (!miAutoSet.isSelected())
+//					return;
+//				if (group.getSelectedToggle() instanceof RadioMenuItem rmi) {
+//					if (rmi.getUserData() instanceof PathClass pathClass) {
+//						if (PathClassTools.isNullClass(pathClass))
+//							PathPrefs.autoSetAnnotationClassProperty().set(null);
+//						else
+//							PathPrefs.autoSetAnnotationClassProperty().set(pathClass);
+//					}
+//				}
+//			});
+//			itemList.add(miAutoSet);
+//		}
 		group.selectToggle(selected);
 		menuSetClassItems.setAll(itemList);
 	}
