@@ -29,9 +29,9 @@ import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.ml.models.RTreesClassifier;
 import qupath.opencv.ml.models.RTreesClassifier.VariableImportance;
-import qupath.opencv.ml.models.OpenCVStatModel;
 
 class FeatureDetailsPane extends Control implements Skinnable {
 
@@ -49,7 +49,7 @@ class FeatureDetailsPane extends Control implements Skinnable {
         super();
     }
 
-    void update(OpenCVStatModel model,
+    void update(PredictionModel model,
                 List<String> featureNames) {
 
         if (model instanceof RTreesClassifier rtrees && rtrees.hasFeatureImportance() && !featureNames.isEmpty()) {

@@ -95,7 +95,8 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.opencv.ml.ConfusionMatrix;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.models.OpenCVClassifiers;
-import qupath.opencv.ml.models.OpenCVStatModel;
+import qupath.opencv.ml.models.PredictionModel;
+import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOps;
@@ -147,7 +148,7 @@ public class PixelClassifierPane {
 	private final BooleanProperty livePrediction = new SimpleBooleanProperty(false);
 
 	private final ObjectProperty<ClassificationResolution> resolution = new SimpleObjectProperty<>();
-	private final ObjectProperty<OpenCVStatModel> statModel = new SimpleObjectProperty<>();
+	private final ObjectProperty<TrainableModel> statModel = new SimpleObjectProperty<>();
 	private final ObjectProperty<ImageDataOpBuilder> opBuilder = new SimpleObjectProperty<>();
 	private final ObjectProperty<ImageServerMetadata.ChannelType> outputType = new SimpleObjectProperty<>();
 
@@ -433,7 +434,7 @@ public class PixelClassifierPane {
 
 
 	private void addClassifierSelectionControls(GridPane pane) {
-		ComboBox<OpenCVStatModel> comboClassifier = PixelClassifierUtils.createHGrowComboBox();
+		ComboBox<TrainableModel> comboClassifier = PixelClassifierUtils.createHGrowComboBox();
 		var labelClassifier = createFixedWidthLabelForNode("Classifier", comboClassifier);
 
 		comboClassifier.getItems().addAll(
@@ -871,10 +872,10 @@ public class PixelClassifierPane {
 		}
 	}
 
-	private static OpenCVStatModel duplicateStatModel(OpenCVStatModel model) {
+	private static TrainableModel duplicateStatModel(TrainableModel model) {
 		var gson = GsonTools.getInstance();
 		return gson.fromJson(
-				gson.toJson(model, OpenCVStatModel.class), OpenCVStatModel.class
+				gson.toJson(model, TrainableModel.class), TrainableModel.class
 		);
 	}
 
@@ -901,7 +902,7 @@ public class PixelClassifierPane {
 	 * @param labels the QuPath-friendly mapping of classes to integer labels
 	 * @return
 	 */
-	private static ConfusionMatrix<PathClass> evaluate(String name, Mat samples, Mat normCatTargets, Mat classLabels, OpenCVStatModel model,
+	private static ConfusionMatrix<PathClass> evaluate(String name, Mat samples, Mat normCatTargets, Mat classLabels, PredictionModel model,
 													   FeaturePreprocessor preprocessor, Map<PathClass, Integer> labels) {
 		if (preprocessor != null) {
 			samples = samples.clone();
@@ -1132,7 +1133,7 @@ public class PixelClassifierPane {
 
 
 	/**
-	 * Trainer for an {@link OpenCVStatModel} to use with a {@link PixelClassifier}.
+	 * Trainer for an {@link TrainableModel} to use with a {@link PixelClassifier}.
 	 * <p>
 	 * This effectively snapshots the required settings in its constructor, so that the trainer could be reused
 	 * for multiple models.
@@ -1158,7 +1159,7 @@ public class PixelClassifierPane {
 			this.rngSeed = advancedOptions.getRngSeed();
 		}
 
-		public TrainedModel train(OpenCVStatModel model, ClassifierTrainingData trainingData) {
+		public TrainedModel train(TrainableModel model, ClassifierTrainingData trainingData) {
 
 			opencv_core.setRNGSeed(rngSeed);
 
@@ -1213,13 +1214,13 @@ public class PixelClassifierPane {
 
 	}
 
-	record TrainedModel(OpenCVStatModel model,
-							 ImageDataOp featureCalculator,
-							 FeaturePreprocessor featurePreprocessor,
-							 Map<PathClass, Integer> labels,
-							 int[] countsIndexedByLabels,
-							 PixelCalibration resolution,
-							 Duration trainingTime) {
+	record TrainedModel(TrainableModel model,
+	                    ImageDataOp featureCalculator,
+	                    FeaturePreprocessor featurePreprocessor,
+	                    Map<PathClass, Integer> labels,
+	                    int[] countsIndexedByLabels,
+	                    PixelCalibration resolution,
+	                    Duration trainingTime) {
 
 		PixelClassifier createPixelClassifier(ImageServerMetadata.ChannelType outputType) {
 			return createPixelClassifier(512, 512, outputType);

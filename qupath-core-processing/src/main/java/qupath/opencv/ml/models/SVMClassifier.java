@@ -8,7 +8,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Classifier based on {@link SVM}.
  */
-public class SVMClassifier extends AbstractOpenCVClassifierML<SVM> {
+public class SVMClassifier extends OpenCVStatModel<SVM> {
 
     SVMClassifier() {
         super();

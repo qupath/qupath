@@ -12,7 +12,7 @@ import qupath.lib.plugins.parameters.ParameterList;
  * Therefore, care needs to be taken to expose only options that work as adjustable parameters.
  * @param <T>
  */
-abstract class AbstractTreeClassifier<T extends DTrees> extends AbstractOpenCVClassifierML<T> {
+abstract class AbstractTreeClassifier<T extends DTrees> extends OpenCVStatModel<T> {
 
     AbstractTreeClassifier() {
         super();

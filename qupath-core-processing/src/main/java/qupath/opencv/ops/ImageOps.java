@@ -57,6 +57,7 @@ import qupath.opencv.dnn.DnnShape;
 import qupath.opencv.dnn.PredictionFunction;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.models.OpenCVStatModel;
+import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.tools.LocalNormalization;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleResultsBuilder;
@@ -3094,13 +3095,30 @@ public class ImageOps {
 	public static class ML {
 		
 		/**
-		 * Apply a {@link StatModel} to pixels to generate a prediction.
+		 * Apply am {@link OpenCVStatModel} to pixels to generate a prediction.
 		 * @param statModel
 		 * @param requestProbabilities
 		 * @return
+		 * @see #predictionModel(PredictionModel, boolean)
+		 * @deprecated since v0.8.0
 		 */
-		public static ImageOp statModel(OpenCVStatModel statModel, boolean requestProbabilities) {
+		@Deprecated
+		public static ImageOp statModel(OpenCVStatModel<?> statModel, boolean requestProbabilities) {
 			return new StatModelOp(statModel, requestProbabilities);
+		}
+
+		/**
+		 * Apply a {@link PredictionModel} to pixels to generate a prediction.
+		 * <p>
+		 * This replaces {@link #statModel(OpenCVStatModel, boolean)} in v0.8.0,
+		 * because it is more flexible.
+		 * @param model
+		 * @param requestProbabilities
+		 * @return
+		 * @since v0.8.0
+		 */
+		public static ImageOp predictionModel(PredictionModel model, boolean requestProbabilities) {
+			return new PredictionModelOp(model, requestProbabilities);
 		}
 		
 		/**
@@ -3290,15 +3308,42 @@ public class ImageOps {
 			}
 			
 		}
-		
-		
+
+		// New class added in v0.8.0 to replace StatModelOp,
+		// and to permit more prediction model implementations.
+		@OpType("prediction-model")
+		static class PredictionModelOp implements ImageOp {
+
+			private PredictionModel model;
+			private boolean requestProbabilities;
+
+			PredictionModelOp(PredictionModel model, boolean requestProbabilities) {
+				this.model = model;
+				this.requestProbabilities = requestProbabilities;
+			}
+
+			@SuppressWarnings("unchecked")
+			@Override
+			public Mat apply(Mat input) {
+				return applyPredictionModel(model, input, input, requestProbabilities);
+			}
+
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return model.getOutputType(requestProbabilities);
+			}
+
+		}
+
+		// This was the main op before v0.8.0, because only OpenCV models were supported.
+		// It is retained for deserialization.
 		@OpType("opencv-statmodel")
 		static class StatModelOp implements ImageOp {
 
-			private OpenCVStatModel model;
+			private OpenCVStatModel<?> model;
 			private boolean requestProbabilities;
 			
-			StatModelOp(OpenCVStatModel model, boolean requestProbabilities) {
+			StatModelOp(OpenCVStatModel<?> model, boolean requestProbabilities) {
 				this.model = model;
 				this.requestProbabilities = requestProbabilities;
 			}
@@ -3306,28 +3351,41 @@ public class ImageOps {
 			@SuppressWarnings("unchecked")
 			@Override
 			public Mat apply(Mat input) {
-				try (var scope = new PointerScope()) {
-					int w = input.cols();
-					int h = input.rows();
-					input.put(input.reshape(1, w * h));
-					var matResult = new Mat();
-					if (requestProbabilities) {
-						var temp = new Mat();
-						model.predict(input, temp, matResult);
-						temp.close();
-					} else
-						model.predict(input, matResult, null);
-					input.put(matResult.reshape(matResult.cols(), h));
-//					scope.deallocate();
-				}
-				return input;
-			}
-			
-			@Override
-			public PixelType getOutputType(PixelType inputType) {
-				return PixelType.FLOAT32;
+				return applyPredictionModel(model, input, input, requestProbabilities);
 			}
 
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return model.getOutputType(requestProbabilities);
+			}
+
+		}
+
+		/**
+		 * Apply a prediction model
+		 * @param model the prediction model
+		 * @param input the input to the op
+		 * @param output mat to use for output; must not be null, may be the same as input
+		 * @param requestProbabilities true if probabilities should be returned, false otherwise
+		 * @return the same mat as output
+		 */
+		private static Mat applyPredictionModel(PredictionModel model, Mat input, Mat output, boolean requestProbabilities) {
+			try (var scope = new PointerScope()) {
+				int w = input.cols();
+				int h = input.rows();
+				// Temporarily use the output (which might be the same as the input)
+				// when reshaping, in an attempt to minimize memory use
+				output.put(input.reshape(1, w * h));
+				var matResult = new Mat();
+				if (requestProbabilities) {
+					var temp = new Mat();
+					model.predict(output, temp, matResult);
+					temp.close();
+				} else
+					model.predict(input, matResult, null);
+				output.put(matResult.reshape(matResult.cols(), h));
+			}
+			return output;
 		}
 		
 	}

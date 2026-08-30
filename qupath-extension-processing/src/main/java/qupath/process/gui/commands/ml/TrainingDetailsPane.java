@@ -26,7 +26,7 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.plugins.parameters.Parameter;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.opencv.ml.models.ANNClassifier;
-import qupath.opencv.ml.models.OpenCVStatModel;
+import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.models.RTreesClassifier;
 
 class TrainingDetailsPane extends Control implements Skinnable {
@@ -40,7 +40,7 @@ class TrainingDetailsPane extends Control implements Skinnable {
         super();
     }
 
-    void update(OpenCVStatModel model,
+    void update(TrainableModel model,
                 Map<PathClass, Integer> labels,
                 Duration trainingTime) {
 
@@ -59,7 +59,7 @@ class TrainingDetailsPane extends Control implements Skinnable {
 
     }
 
-    private static Map<String, String> createClassifierDetailsMap(OpenCVStatModel model) {
+    private static Map<String, String> createClassifierDetailsMap(TrainableModel model) {
         if (model == null)
             return Map.of();
         var map = new LinkedHashMap<String, String>();

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -53,6 +53,11 @@ import org.bytedeco.opencv.opencv_ml.StatModel;
 
 import java.io.IOException;
 import java.util.Map;
+import qupath.lib.io.GsonTools;
+import qupath.opencv.ml.models.OpenCVClassifiers;
+import qupath.opencv.ml.models.OpenCVStatModel;
+import qupath.opencv.ml.models.PredictionModel;
+import qupath.opencv.ml.models.TrainableModel;
 
 
 /**
@@ -74,6 +79,22 @@ import java.util.Map;
  *
  */
 public class OpenCVTypeAdapters {
+
+	private static final GsonTools.SubTypeAdapterFactory<PredictionModel> predictionModelTypeAdapterFactory = GsonTools.createSubTypeAdapterFactory(
+			PredictionModel.class,
+			"model-type"
+	).registerSubtype(OpenCVStatModel.class);
+
+	/**
+	 * Get the type adaptor factory for {@link PredictionModel}.
+	 * This makes it possible to register new type adapters to add support for different model implementations.
+	 * <p>
+	 * Note that each requires a unique model type String to be specified.
+	 * @return
+	 */
+	public static GsonTools.SubTypeAdapterFactory<PredictionModel> getPredictionModelTypeAdapterFactory() {
+		return predictionModelTypeAdapterFactory;
+	}
 	
 	/**
 	 * Get a TypeAdapterFactory to pass to a GsonBuilder to aid with serializing OpenCV objects 
@@ -104,6 +125,8 @@ public class OpenCVTypeAdapters {
 			return (TypeAdapter<T>)new ScalarTypeAdapter();
 		if (Size.class == cls)
 			return (TypeAdapter<T>)new SizeTypeAdapter();
+		if (OpenCVStatModel.class == cls)
+			return (TypeAdapter<T>)new OpenCVStatModelTypeAdapter();
 		return null;
 	}
 	
@@ -116,7 +139,12 @@ public class OpenCVTypeAdapters {
 		@SuppressWarnings("unchecked")
 		@Override
 		public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-			return getTypeAdaptor((Class<T>)type.getRawType());
+			var adaptor = getTypeAdaptor((Class<T>)type.getRawType());
+			if (adaptor != null)
+				return adaptor;
+			if (TrainableModel.class.isAssignableFrom(type.getRawType()))
+				return getPredictionModelTypeAdapterFactory().create(gson, type);
+			return null;
 		}
 		
 	}
@@ -268,6 +296,22 @@ public class OpenCVTypeAdapters {
 		}
 		
 	}
+
+
+	private static class OpenCVStatModelTypeAdapter extends TypeAdapter<OpenCVStatModel> {
+
+		@Override
+		public void write(JsonWriter out, OpenCVStatModel value) throws IOException {
+			new StatModelTypeAdapter().write(out, value.getStatModel());
+		}
+
+		@Override
+		public OpenCVStatModel<?> read(JsonReader in) throws IOException {
+			var statModel = new StatModelTypeAdapter().read(in);
+			return OpenCVClassifiers.wrapStatModel(statModel);
+		}
+
+}
 	
 	
 	private static class StatModelTypeAdapter extends TypeAdapter<StatModel> {

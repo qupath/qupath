@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -37,7 +37,7 @@ import qupath.lib.io.GsonTools;
 import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.ml.models.OpenCVStatModel;
+import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
@@ -53,9 +53,6 @@ import java.util.Map;
 
 /**
  * Static methods and classes for working with pixel classifiers.
- * 
- * @author Pete Bankhead
- *
  */
 public class PixelClassifiers {
 	
@@ -176,10 +173,10 @@ public class PixelClassifiers {
 	 * @param do8Bit
 	 * @return
 	 */
-	public static PixelClassifier createClassifier(OpenCVStatModel statModel, ImageDataOp calculator, PixelClassifierMetadata metadata, boolean do8Bit) {
+	public static PixelClassifier createClassifier(PredictionModel statModel, ImageDataOp calculator, PixelClassifierMetadata metadata, boolean do8Bit) {
 		var ops = new ArrayList<ImageOp>();
 		boolean outputProbability = metadata.getOutputType() == ChannelType.PROBABILITY || metadata.getOutputType() == ChannelType.MULTICLASS_PROBABILITY;
-		ops.add(ImageOps.ML.statModel(statModel, outputProbability));
+		ops.add(ImageOps.ML.predictionModel(statModel, outputProbability));
 		if (metadata.getOutputType() == ChannelType.PROBABILITY) {
 			if (do8Bit)
 				ops.add(ImageOps.Normalize.channelSum(255.0));

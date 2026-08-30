@@ -11,7 +11,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Classifier based on {@link LogisticRegression}.
  */
-public class LogisticRegressionClassifier extends AbstractOpenCVClassifierML<LogisticRegression> {
+public class LogisticRegressionClassifier extends OpenCVStatModel<LogisticRegression> {
 
     static enum Regularization {
         DISABLE, L1, L2;

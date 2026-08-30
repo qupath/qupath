@@ -8,7 +8,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Classifier based on {@link KNearest}.
  */
-public class KNearestClassifier extends AbstractOpenCVClassifierML<KNearest> {
+public class KNearestClassifier extends OpenCVStatModel<KNearest> {
 
     KNearestClassifier() {
         super();
