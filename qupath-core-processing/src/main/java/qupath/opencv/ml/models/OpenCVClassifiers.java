@@ -192,9 +192,4 @@ public class OpenCVClassifiers {
 	}
 
 
-	public static EnsembleClassifier createEnsemble(OpenCVStatModel... models) {
-		return new EnsembleClassifier(List.of(models));
-	}
-
-
 }

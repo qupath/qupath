@@ -440,12 +440,7 @@ public class PixelClassifierPane {
 				OpenCVClassifiers.createStatModel(RTrees.class),
 				OpenCVClassifiers.createStatModel(ANN_MLP.class),
 				OpenCVClassifiers.createStatModel(LogisticRegression.class),
-				OpenCVClassifiers.createStatModel(KNearest.class),
-				OpenCVClassifiers.createEnsemble(
-						OpenCVClassifiers.createStatModel(ANN_MLP.class),
-						OpenCVClassifiers.createStatModel(LogisticRegression.class),
-						OpenCVClassifiers.createStatModel(RTrees.class)
-				)
+				OpenCVClassifiers.createStatModel(KNearest.class)
 		);
 
 		comboClassifier.getSelectionModel().clearAndSelect(1);
