@@ -1,4 +1,4 @@
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
 import org.bytedeco.opencv.opencv_ml.SVMSGD;
 import org.bytedeco.opencv.opencv_ml.StatModel;
@@ -8,7 +8,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Classifier based on {@link SVMSGD}.
  */
-public class SVMSGDClassifier extends AbstractOpenCVClassifier<SVMSGD> {
+class SVMSGDClassifier extends AbstractOpenCVClassifier<SVMSGD> {
 
     SVMSGDClassifier() {
         super();

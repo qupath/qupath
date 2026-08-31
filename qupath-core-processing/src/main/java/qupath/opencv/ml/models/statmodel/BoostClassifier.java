@@ -1,4 +1,4 @@
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
 import org.bytedeco.opencv.opencv_ml.Boost;
 import org.bytedeco.opencv.opencv_ml.StatModel;
@@ -8,7 +8,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Classifier based on {@link Boost}.
  */
-public class BoostClassifier extends AbstractTreeClassifier<Boost> {
+class BoostClassifier extends AbstractTreeClassifier<Boost> {
 
     BoostClassifier() {
         super();

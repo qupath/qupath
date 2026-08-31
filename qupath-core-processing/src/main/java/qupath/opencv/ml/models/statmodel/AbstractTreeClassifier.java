@@ -1,4 +1,4 @@
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
 import org.bytedeco.opencv.opencv_ml.DTrees;
 import org.bytedeco.opencv.opencv_ml.TrainData;

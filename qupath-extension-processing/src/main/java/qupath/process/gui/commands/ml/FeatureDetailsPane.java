@@ -29,9 +29,8 @@ import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.opencv.ml.models.PredictionModel;
-import qupath.opencv.ml.models.RTreesClassifier;
-import qupath.opencv.ml.models.RTreesClassifier.VariableImportance;
+import qupath.opencv.ml.models.TrainableModel;
+import qupath.opencv.ml.models.VariableImportance;
 
 class FeatureDetailsPane extends Control implements Skinnable {
 
@@ -49,17 +48,18 @@ class FeatureDetailsPane extends Control implements Skinnable {
         super();
     }
 
-    void update(PredictionModel model,
+    void update(TrainableModel model,
                 List<String> featureNames) {
 
-        if (model instanceof RTreesClassifier rtrees && rtrees.hasFeatureImportance() && !featureNames.isEmpty()) {
+        var currentImportance = model.getVariableImportance(featureNames);
+        if (!currentImportance.isEmpty()) {
             // Always use feature importance for RTrees when available
-            importance.setAll(rtrees.getVariableImportance(featureNames));
+            importance.setAll(currentImportance);
             hasImportance.set(true);
         } else if (!sameContents(importance.stream().map(VariableImportance::name).toList(), featureNames)) {
             // If we have feature importance values for the same features, don't overwrite them.
             importance.setAll(featureNames.stream()
-                    .map(n -> new RTreesClassifier.VariableImportance(n, Double.NaN))
+                    .map(n -> new VariableImportance(n, Double.NaN))
                     .toList());
             hasImportance.set(false);
         }

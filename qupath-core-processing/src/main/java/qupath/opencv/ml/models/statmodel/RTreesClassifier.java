@@ -1,8 +1,9 @@
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
@@ -16,12 +17,14 @@ import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.opencv.ml.models.VariableImportance;
 
 /**
  * Classifier based on {@link RTrees}.
  */
-public class RTreesClassifier extends AbstractTreeClassifier<RTrees> {
+class RTreesClassifier extends AbstractTreeClassifier<RTrees> {
 
     private static final Logger logger = LoggerFactory.getLogger(RTreesClassifier.class);
 
@@ -198,62 +201,6 @@ public class RTreesClassifier extends AbstractTreeClassifier<RTrees> {
         votes.close();
     }
 
-    /**
-     * Log the variable importance, if this has been calculated.
-     *
-     * @param features the feature names. This is required for logging;
-     *                 if unknown, {@link #getFeatureImportance()} may still be used.
-     * @param level    the log level to use
-     * @see #hasFeatureImportance()
-     * @see #getFeatureImportance()
-     * @see #logVariableImportance(List)
-     */
-    public void logVariableImportance(final List<String> features, Level level) {
-        var importance = getFeatureImportance();
-        if (importance == null) {
-            logger.atLevel(level).log("Feature importance has not been calculated");
-            return;
-        }
-        try {
-            var sorted = IntStream.range(0, importance.length)
-                    .boxed()
-                    .sorted((a, b) -> -Double.compare(importance[a], importance[b]))
-                    .mapToInt(i -> i).toArray();
-
-            if (sorted.length != features.size()) {
-                logger.warn("Length of variable importance array {} does not match length of feature names {}",
-                        sorted.length, features.size());
-                return;
-            }
-
-            var sb = new StringBuilder("Variable importance:");
-            for (int ind : sorted) {
-                sb.append("\n");
-                sb.append(String.format("%.4f \t %s", importance[ind], features.get(ind)));
-            }
-            logger.atLevel(level).log(sb.toString());
-        } catch (Exception e) {
-            logger.warn("Error logging feature importance: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * Log the variable importance, if this has been calculated, at the default INFO level.
-     *
-     * @param features the feature names
-     */
-    public void logVariableImportance(final List<String> features) {
-        logVariableImportance(features, Level.INFO);
-    }
-
-    /**
-     * Get the OOB error, if the model is trained and the OOB error is available.
-     *
-     * @return the OOB error, or 0 if not available.
-     */
-    public double getOOBError() {
-        return getStatModel().getOOBError();
-    }
 
     /**
      * Get a list of variable importance values.
@@ -265,6 +212,7 @@ public class RTreesClassifier extends AbstractTreeClassifier<RTrees> {
      * @see #getFeatureImportance()
      * @since v0.8.0
      */
+    @Override
     public List<VariableImportance> getVariableImportance(List<String> names) {
         double[] importance = getFeatureImportance();
         if (importance == null || importance.length != names.size())
@@ -276,14 +224,13 @@ public class RTreesClassifier extends AbstractTreeClassifier<RTrees> {
         return list;
     }
 
-    /**
-     * Record to store a feature (variable) name and its importance,
-     * as calculated using RTrees.
-     *
-     * @param name       the variable name
-     * @param importance the importance value
-     */
-    public record VariableImportance(String name, double importance) {
+    @Override
+    protected void updateDetails(Map<String, String> map) {
+        super.updateDetails(map);
+        double oob = getStatModel().getOOBError();
+        if (Double.isFinite(oob)) {
+            map.put("OOB error", GeneralTools.formatNumber(oob, 5));
+        }
     }
 
 }

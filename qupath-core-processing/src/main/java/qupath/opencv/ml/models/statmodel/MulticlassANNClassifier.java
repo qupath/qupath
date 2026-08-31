@@ -1,4 +1,4 @@
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
 /**
  * A multiclass version of ANN.

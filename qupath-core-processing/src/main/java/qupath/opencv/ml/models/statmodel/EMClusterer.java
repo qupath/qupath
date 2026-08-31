@@ -1,4 +1,4 @@
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
 import org.bytedeco.opencv.opencv_ml.EM;
 import org.bytedeco.opencv.opencv_ml.StatModel;
@@ -8,7 +8,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Clusterer based on {@link EM}.
  */
-public class EMClusterer extends AbstractOpenCVClassifier<EM> {
+class EMClusterer extends AbstractOpenCVClassifier<EM> {
 
     EMClusterer() {
         super();

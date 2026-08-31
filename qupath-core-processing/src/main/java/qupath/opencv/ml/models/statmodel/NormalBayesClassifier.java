@@ -1,4 +1,4 @@
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_ml.StatModel;
@@ -8,7 +8,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Classifier based on {@link org.bytedeco.opencv.opencv_ml.NormalBayesClassifier}.
  */
-public class NormalBayesClassifier extends AbstractOpenCVClassifier<org.bytedeco.opencv.opencv_ml.NormalBayesClassifier> {
+class NormalBayesClassifier extends AbstractOpenCVClassifier<org.bytedeco.opencv.opencv_ml.NormalBayesClassifier> {
 
     NormalBayesClassifier() {
         super();

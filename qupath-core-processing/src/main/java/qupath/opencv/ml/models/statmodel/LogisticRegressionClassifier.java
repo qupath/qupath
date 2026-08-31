@@ -1,4 +1,4 @@
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
 import java.util.Arrays;
 import org.bytedeco.opencv.global.opencv_core;
@@ -11,9 +11,9 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Classifier based on {@link LogisticRegression}.
  */
-public class LogisticRegressionClassifier extends AbstractOpenCVClassifier<LogisticRegression> {
+class LogisticRegressionClassifier extends AbstractOpenCVClassifier<LogisticRegression> {
 
-    static enum Regularization {
+    enum Regularization {
         DISABLE, L1, L2;
 
         public int getRegularization() {

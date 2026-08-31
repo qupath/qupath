@@ -94,7 +94,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.opencv.ml.ConfusionMatrix;
 import qupath.opencv.ml.FeaturePreprocessor;
-import qupath.opencv.ml.models.OpenCVClassifiers;
+import qupath.opencv.ml.models.statmodel.OpenCVClassifiers;
 import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.pixel.PixelClassifiers;

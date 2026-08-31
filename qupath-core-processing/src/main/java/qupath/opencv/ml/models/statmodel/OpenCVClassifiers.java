@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
 import org.bytedeco.opencv.opencv_core.TermCriteria;
 import org.bytedeco.opencv.opencv_ml.ANN_MLP;
@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.io.GsonTools;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.opencv.ml.models.TrainableModel;
 
 /**
  * QuPath wrappers for OpenCV classifiers, which are instances of StatModel.
@@ -59,52 +60,39 @@ public class OpenCVClassifiers {
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends StatModel> OpenCVTrainableModel<T> createStatModel(Class<T> cls) {
+	public static <T extends StatModel> TrainableStatModel<T> createStatModel(Class<T> cls) {
 		if (RTrees.class.equals(cls))
-			return new OpenCVTrainableModel(new RTreesClassifier());
+			return new TrainableStatModel(new RTreesClassifier());
 
 		if (Boost.class.equals(cls))
-			return new OpenCVTrainableModel(new BoostClassifier());
+			return new TrainableStatModel(new BoostClassifier());
 		
 		if (DTrees.class.equals(cls))	
-			return new OpenCVTrainableModel(new DTreesClassifier());
+			return new TrainableStatModel(new DTreesClassifier());
 		
 		if (KNearest.class.equals(cls))
-			return new OpenCVTrainableModel(new KNearestClassifier());
+			return new TrainableStatModel(new KNearestClassifier());
 		
 		if (ANN_MLP.class.equals(cls))
-			return new OpenCVTrainableModel(new ANNClassifier());
+			return new TrainableStatModel(new ANNClassifier());
 		
 		if (LogisticRegression.class.equals(cls))
-			return new OpenCVTrainableModel(new LogisticRegressionClassifier());
+			return new TrainableStatModel(new LogisticRegressionClassifier());
 		
 		if (EM.class.equals(cls))
-			return new OpenCVTrainableModel(new EMClusterer());
+			return new TrainableStatModel(new EMClusterer());
 
 		if (org.bytedeco.opencv.opencv_ml.NormalBayesClassifier.class.equals(cls))
-			return new OpenCVTrainableModel(new NormalBayesClassifier());
+			return new TrainableStatModel(new NormalBayesClassifier());
 		
 		if (SVM.class.equals(cls))
-			return new OpenCVTrainableModel(new SVMClassifier());
+			return new TrainableStatModel(new SVMClassifier());
 		
 		if (SVMSGD.class.equals(cls))
-			return new OpenCVTrainableModel(new SVMSGDClassifier());
+			return new TrainableStatModel(new SVMSGDClassifier());
 		
 		throw new IllegalArgumentException("Unknown StatModel class " + cls);
 	}
-	
-	
-//	/**
-//	 * Create a multiclass {@link StatModel}. Currently removed because it is hard to use.
-//	 * @param cls
-//	 * @return
-//	 */
-//	public static OpenCVStatModel createMulticlassStatModel(Class<? extends StatModel> cls) {		
-//		if (ANN_MLP.class.equals(cls))
-//			return new MulticlassANNClassifierCV();
-//		
-//		throw new IllegalArgumentException("Unknown StatModel class " + cls);
-//	}
 
 	
 	/**
@@ -113,8 +101,8 @@ public class OpenCVClassifiers {
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends StatModel> OpenCVTrainableModel<T> wrapStatModel(T statModel) {
-		return new OpenCVTrainableModel<>(wrap(statModel));
+	public static <T extends StatModel> TrainableStatModel<T> wrapStatModel(T statModel) {
+		return new TrainableStatModel<>(wrap(statModel));
 	}
 
 	@SuppressWarnings("unchecked")

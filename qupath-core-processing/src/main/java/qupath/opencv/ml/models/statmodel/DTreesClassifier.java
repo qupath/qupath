@@ -1,4 +1,4 @@
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
 import org.bytedeco.opencv.opencv_ml.DTrees;
 import org.bytedeco.opencv.opencv_ml.StatModel;
@@ -6,7 +6,7 @@ import org.bytedeco.opencv.opencv_ml.StatModel;
 /**
  * Classifier based on {@link DTrees}.
  */
-public class DTreesClassifier extends AbstractTreeClassifier<DTrees> {
+class DTreesClassifier extends AbstractTreeClassifier<DTrees> {
 
     DTreesClassifier() {
         super();

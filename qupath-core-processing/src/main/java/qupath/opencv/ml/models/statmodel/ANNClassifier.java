@@ -1,8 +1,9 @@
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
 import java.nio.IntBuffer;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.Map;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -20,7 +21,7 @@ import qupath.opencv.tools.OpenCVTools;
 /**
  * Classifier based on {@link ANN_MLP}.
  */
-public class ANNClassifier extends AbstractOpenCVClassifier<ANN_MLP> {
+class ANNClassifier extends AbstractOpenCVClassifier<ANN_MLP> {
 
     private static final Logger logger = LoggerFactory.getLogger(ANNClassifier.class);
 
@@ -137,6 +138,19 @@ public class ANNClassifier extends AbstractOpenCVClassifier<ANN_MLP> {
         } finally {
             lock.writeLock().unlock();
         }
+    }
+
+    @Override
+    protected void updateDetails(Map<String, String> map) {
+        super.updateDetails(map);
+        int[] layers = getLayerSizes();
+        String postfix = "";
+        if (layers.length >= 2) {
+            postfix = layers.length == 3 ?
+                    "   (1 hidden layer)" :
+                    "   (" + (layers.length - 2) + " hidden)";
+        }
+        map.put("Layers", Arrays.toString(layers) + postfix);
     }
 
     @Override

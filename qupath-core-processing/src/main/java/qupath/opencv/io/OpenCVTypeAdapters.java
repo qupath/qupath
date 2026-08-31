@@ -32,7 +32,7 @@ import org.bytedeco.opencv.opencv_core.SparseMat;
 import org.bytedeco.opencv.opencv_ml.StatModel;
 
 import qupath.lib.io.GsonTools;
-import qupath.opencv.ml.models.OpenCVTrainableModel;
+import qupath.opencv.ml.models.statmodel.TrainableStatModel;
 import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.ml.models.TrainableModel;
 
@@ -60,12 +60,12 @@ public class OpenCVTypeAdapters {
 	private static final GsonTools.SubTypeAdapterFactory<PredictionModel> predictionModelTypeAdapterFactory = GsonTools.createSubTypeAdapterFactory(
 			PredictionModel.class,
 			"model-type"
-	).registerSubtype(OpenCVTrainableModel.class);
+	).registerSubtype(TrainableStatModel.class);
 
 	private static final GsonTools.SubTypeAdapterFactory<TrainableModel> trainableModelTypeAdapterFactory = GsonTools.createSubTypeAdapterFactory(
 			TrainableModel.class,
 			"model-type"
-	).registerSubtype(OpenCVTrainableModel.class);
+	).registerSubtype(TrainableStatModel.class);
 
 	/**
 	 * Register a new JSON-serializable {@link PredictionModel} or {@link TrainableModel},

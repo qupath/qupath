@@ -1,5 +1,9 @@
-package qupath.opencv.ml.models;
+package qupath.opencv.ml.models.statmodel;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -17,9 +21,11 @@ import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.opencv.io.OpenCVTypeAdapters;
+import qupath.opencv.ml.models.TrainableModel;
+import qupath.opencv.ml.models.VariableImportance;
 
 /**
  * Abstract implementation of {@link TrainableModel} that is based upon {@link StatModel},
@@ -277,5 +283,19 @@ abstract class AbstractOpenCVClassifier<T extends StatModel> implements Trainabl
         if (model != null)
             model.close();
     }
+
+    @Override
+    public Map<String, String> getDetails() {
+        var map = new LinkedHashMap<String, String>();
+        updateDetails(map);
+        return map.isEmpty() ? Map.of() : Collections.unmodifiableMap(map);
+    }
+
+    /**
+     * Update a details map for this classifier.
+     * @param map
+     * @see #getDetails()
+     */
+    protected void updateDetails(Map<String, String> map) {}
 
 }

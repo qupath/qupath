@@ -1,6 +1,7 @@
 package qupath.opencv.ml.models;
 
 import com.google.gson.annotations.JsonAdapter;
+import java.util.List;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.bytedeco.opencv.opencv_ml.TrainData;
@@ -77,6 +78,17 @@ public interface TrainableModel extends PredictionModel {
      * @see #createTrainData(Mat, Mat, int, Mat, boolean)
      */
     void train(TrainData trainData);
+
+
+    /**
+     * Get a list of {@link VariableImportance}, if calculated during model training.
+     * Not all models can provide this; the default implementation returns an empty list.
+     * @param names the feature names; this is required to populate the list
+     * @return a list of feature importance values, or an empty list if the model cannot calculate feature importance
+     */
+    default List<VariableImportance> getVariableImportance(List<String> names) {
+        return List.of();
+    }
 
 
 }
