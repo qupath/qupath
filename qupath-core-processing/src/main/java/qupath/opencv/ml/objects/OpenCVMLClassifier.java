@@ -26,6 +26,7 @@ import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.classifiers.object.AbstractObjectClassifier;
@@ -37,6 +38,7 @@ import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.classes.Reclassifier;
+import qupath.opencv.ml.models.OpenCVClassifiers;
 import qupath.opencv.ml.models.OpenCVTrainableModel;
 import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.ml.models.TrainableModel;
@@ -69,12 +71,12 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	/**
 	 * Object classifier. Retained to support deserialization of classifiers before v0.8.0.
 	 */
-	private OpenCVTrainableModel<? extends org.bytedeco.opencv.opencv_ml.StatModel> classifier;
+	private StatModel classifier;
 
 	/**
 	 * Prediction model. Introduced in v0.8.0, this replaces classifier.
 	 */
-	private PredictionModel predictionModel;
+	private volatile PredictionModel predictionModel;
 
 	/**
 	 * Supported classifications - this is an ordered list, required to interpret labels
@@ -114,11 +116,21 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	public Collection<PathClass> getPathClasses() {
 		return pathClasses == null ? Collections.emptyList() : Collections.unmodifiableList(pathClasses);
 	}
+
+	private PredictionModel getPredictionModel() {
+		if (predictionModel == null) {
+			synchronized (this) {
+				if (predictionModel == null) {
+					predictionModel = OpenCVClassifiers.wrapStatModel(classifier);
+				}
+			}
+		}
+		return predictionModel;
+	}
 	
 	@Override
 	public int classifyObjects(ImageData<T> imageData, Collection<? extends PathObject> pathObjects, boolean resetExistingClass) {
-		var model = this.predictionModel == null ? classifier : this.predictionModel;
-		return classifyObjects(featureExtractor, model, pathClasses, imageData, pathObjects, resetExistingClass, requestProbabilityEstimate);
+		return classifyObjects(featureExtractor, getPredictionModel(), pathClasses, imageData, pathObjects, resetExistingClass, requestProbabilityEstimate);
 	}
 
 	
@@ -258,7 +270,7 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	
 	@Override
 	public String toString() {
-		return String.format("OpenCV object classifier (%s, %d classes)", classifier.getName(), getPathClasses().size());
+		return String.format("OpenCV object classifier (%s, %d classes)", getPredictionModel().getName(), getPathClasses().size());
 	}
 	
 	@Override

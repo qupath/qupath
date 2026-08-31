@@ -1,6 +1,5 @@
 package qupath.opencv.ml.models;
 
-import com.google.gson.annotations.JsonAdapter;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;

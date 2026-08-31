@@ -8,15 +8,18 @@ import org.bytedeco.opencv.opencv_ml.TrainData;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.plugins.parameters.ParameterList;
 
-@JsonAdapter(OpenCVStatModelTypeAdapter.class)
+/**
+ * A trainable model that uses an OpenCV {@code StatModel} for prediction.
+ * @param <T> the type of the StatModel.
+ */
 public class OpenCVTrainableModel<T extends StatModel> implements TrainableModel {
 
     private transient volatile AbstractOpenCVClassifier<T> wrapper;
 
-    private T model;
-
-    // Only for JSON serialization
-    private OpenCVTrainableModel() {}
+    // This *should* be T, but that makes de/serialization with Gson more complicated.
+    // By tolerating the casts here, we keep the awkwardness limited to be within this class.
+    // For example, see https://github.com/google/gson/issues/2563
+    private final StatModel model;
 
     OpenCVTrainableModel(T model) {
         this.model = model;
@@ -33,7 +36,7 @@ public class OpenCVTrainableModel<T extends StatModel> implements TrainableModel
         if (wrapper == null) {
             synchronized (this) {
                 if (wrapper == null) {
-                    wrapper = OpenCVClassifiers.wrap(model);
+                    wrapper = OpenCVClassifiers.wrap(getStatModel());
                 }
             }
         }
@@ -102,6 +105,11 @@ public class OpenCVTrainableModel<T extends StatModel> implements TrainableModel
     @Override
     public void close() throws Exception {
         getWrapper().close();
+    }
+
+    @Override
+    public String toString() {
+        return getWrapper().toString();
     }
 
 }
