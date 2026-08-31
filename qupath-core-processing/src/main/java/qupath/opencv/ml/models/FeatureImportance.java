@@ -7,4 +7,4 @@ package qupath.opencv.ml.models;
  * @param name       the variable name
  * @param importance the importance value
  */
-public record VariableImportance(String name, double importance) {}
+public record FeatureImportance(String name, double importance) {}

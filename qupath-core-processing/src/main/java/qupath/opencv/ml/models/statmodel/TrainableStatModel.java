@@ -8,7 +8,7 @@ import org.bytedeco.opencv.opencv_ml.TrainData;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.opencv.ml.models.TrainableModel;
-import qupath.opencv.ml.models.VariableImportance;
+import qupath.opencv.ml.models.FeatureImportance;
 
 /**
  * A trainable model that uses an OpenCV {@code StatModel} for prediction.
@@ -105,8 +105,8 @@ public class TrainableStatModel<T extends StatModel> implements TrainableModel {
     }
 
     @Override
-    public List<VariableImportance> getVariableImportance(List<String> names) {
-        return getWrapper().getVariableImportance(names);
+    public List<FeatureImportance> getFeatureImportance(List<String> names) {
+        return getWrapper().getFeatureImportance(names);
     }
 
     @Override
