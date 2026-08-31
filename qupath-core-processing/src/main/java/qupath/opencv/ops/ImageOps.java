@@ -56,7 +56,7 @@ import qupath.opencv.dnn.DnnModel;
 import qupath.opencv.dnn.DnnShape;
 import qupath.opencv.dnn.PredictionFunction;
 import qupath.opencv.ml.FeaturePreprocessor;
-import qupath.opencv.ml.models.OpenCVStatModel;
+import qupath.opencv.ml.models.OpenCVTrainableModel;
 import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.tools.LocalNormalization;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
@@ -3095,7 +3095,7 @@ public class ImageOps {
 	public static class ML {
 		
 		/**
-		 * Apply am {@link OpenCVStatModel} to pixels to generate a prediction.
+		 * Apply am {@link OpenCVTrainableModel} to pixels to generate a prediction.
 		 * @param statModel
 		 * @param requestProbabilities
 		 * @return
@@ -3103,14 +3103,14 @@ public class ImageOps {
 		 * @deprecated since v0.8.0
 		 */
 		@Deprecated
-		public static ImageOp statModel(OpenCVStatModel<?> statModel, boolean requestProbabilities) {
+		public static ImageOp statModel(OpenCVTrainableModel<? extends StatModel> statModel, boolean requestProbabilities) {
 			return new StatModelOp(statModel, requestProbabilities);
 		}
 
 		/**
 		 * Apply a {@link PredictionModel} to pixels to generate a prediction.
 		 * <p>
-		 * This replaces {@link #statModel(OpenCVStatModel, boolean)} in v0.8.0,
+		 * This replaces {@link #statModel(OpenCVTrainableModel, boolean)} in v0.8.0,
 		 * because it is more flexible.
 		 * @param model
 		 * @param requestProbabilities
@@ -3340,10 +3340,10 @@ public class ImageOps {
 		@OpType("opencv-statmodel")
 		static class StatModelOp implements ImageOp {
 
-			private OpenCVStatModel<?> model;
+			private OpenCVTrainableModel<? extends StatModel> model;
 			private boolean requestProbabilities;
 			
-			StatModelOp(OpenCVStatModel<?> model, boolean requestProbabilities) {
+			StatModelOp(OpenCVTrainableModel<? extends StatModel> model, boolean requestProbabilities) {
 				this.model = model;
 				this.requestProbabilities = requestProbabilities;
 			}

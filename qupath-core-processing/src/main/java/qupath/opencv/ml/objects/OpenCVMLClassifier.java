@@ -37,7 +37,7 @@ import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.classes.Reclassifier;
-import qupath.opencv.ml.models.OpenCVStatModel;
+import qupath.opencv.ml.models.OpenCVTrainableModel;
 import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
@@ -69,7 +69,7 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	/**
 	 * Object classifier. Retained to support deserialization of classifiers before v0.8.0.
 	 */
-	private OpenCVStatModel<?> classifier;
+	private OpenCVTrainableModel<? extends org.bytedeco.opencv.opencv_ml.StatModel> classifier;
 
 	/**
 	 * Prediction model. Introduced in v0.8.0, this replaces classifier.

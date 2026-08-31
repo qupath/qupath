@@ -8,7 +8,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Classifier based on {@link SVMSGD}.
  */
-public class SVMSGDClassifier extends OpenCVStatModel<SVMSGD> {
+public class SVMSGDClassifier extends AbstractOpenCVClassifier<SVMSGD> {
 
     SVMSGDClassifier() {
         super();

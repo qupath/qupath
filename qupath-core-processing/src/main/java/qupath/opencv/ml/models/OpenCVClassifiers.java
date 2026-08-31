@@ -59,36 +59,36 @@ public class OpenCVClassifiers {
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends StatModel> OpenCVStatModel<T> createStatModel(Class<T> cls) {
+	public static <T extends StatModel> OpenCVTrainableModel<T> createStatModel(Class<T> cls) {
 		if (RTrees.class.equals(cls))
-			return (OpenCVStatModel<T>)new RTreesClassifier();
+			return new OpenCVTrainableModel(new RTreesClassifier());
 
 		if (Boost.class.equals(cls))
-			return (OpenCVStatModel<T>)new BoostClassifier();
+			return new OpenCVTrainableModel(new BoostClassifier());
 		
 		if (DTrees.class.equals(cls))	
-			return (OpenCVStatModel<T>)new DTreesClassifier();
+			return new OpenCVTrainableModel(new DTreesClassifier());
 		
 		if (KNearest.class.equals(cls))
-			return (OpenCVStatModel<T>)new KNearestClassifier();
+			return new OpenCVTrainableModel(new KNearestClassifier());
 		
 		if (ANN_MLP.class.equals(cls))
-			return (OpenCVStatModel<T>)new ANNClassifier();
+			return new OpenCVTrainableModel(new ANNClassifier());
 		
 		if (LogisticRegression.class.equals(cls))
-			return (OpenCVStatModel<T>)new LogisticRegressionClassifier();
+			return new OpenCVTrainableModel(new LogisticRegressionClassifier());
 		
 		if (EM.class.equals(cls))
-			return (OpenCVStatModel<T>)new EMClusterer();
+			return new OpenCVTrainableModel(new EMClusterer());
 
 		if (org.bytedeco.opencv.opencv_ml.NormalBayesClassifier.class.equals(cls))
-			return (OpenCVStatModel<T>)new NormalBayesClassifier();
+			return new OpenCVTrainableModel(new NormalBayesClassifier());
 		
 		if (SVM.class.equals(cls))
-			return (OpenCVStatModel<T>)new SVMClassifier();
+			return new OpenCVTrainableModel(new SVMClassifier());
 		
 		if (SVMSGD.class.equals(cls))
-			return (OpenCVStatModel<T>)new SVMSGDClassifier();
+			return new OpenCVTrainableModel(new SVMSGDClassifier());
 		
 		throw new IllegalArgumentException("Unknown StatModel class " + cls);
 	}
@@ -108,44 +108,49 @@ public class OpenCVClassifiers {
 
 	
 	/**
-	 * Create an {@link OpenCVStatModel} by wrapping an existing {@link StatModel}.
+	 * Create an {@link AbstractOpenCVClassifier} by wrapping an existing {@link StatModel}.
 	 * @param statModel
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends StatModel> OpenCVStatModel<T> wrapStatModel(T statModel) {
+	public static <T extends StatModel> OpenCVTrainableModel<T> wrapStatModel(T statModel) {
+		return new OpenCVTrainableModel<>(wrap(statModel));
+	}
+
+	@SuppressWarnings("unchecked")
+	static <T extends StatModel> AbstractOpenCVClassifier<T> wrap(T statModel) {
 		var cls = statModel.getClass();
-		
+
 		if (statModel instanceof RTrees rTrees && RTrees.class.equals(cls))
-			return (OpenCVStatModel<T>)new RTreesClassifier(rTrees);
+			return (AbstractOpenCVClassifier)new RTreesClassifier(rTrees);
 
 		if (statModel instanceof Boost boost && Boost.class.equals(cls))
-			return (OpenCVStatModel<T>)new BoostClassifier(boost);
-		
+			return (AbstractOpenCVClassifier)new BoostClassifier(boost);
+
 		if (statModel instanceof DTrees trees && DTrees.class.equals(cls))
-			return (OpenCVStatModel<T>)new DTreesClassifier(trees);
-		
+			return (AbstractOpenCVClassifier)new DTreesClassifier(trees);
+
 		if (statModel instanceof KNearest knn && KNearest.class.equals(cls))
-			return (OpenCVStatModel<T>)new KNearestClassifier(knn);
-		
+			return (AbstractOpenCVClassifier)new KNearestClassifier(knn);
+
 		if (statModel instanceof ANN_MLP ann && ANN_MLP.class.equals(cls))
-			return (OpenCVStatModel<T>)new ANNClassifier(ann);
-		
+			return (AbstractOpenCVClassifier)new ANNClassifier(ann);
+
 		if (statModel instanceof LogisticRegression lr && LogisticRegression.class.equals(cls))
-			return (OpenCVStatModel<T>)new LogisticRegressionClassifier(lr);
-		
+			return (AbstractOpenCVClassifier)new LogisticRegressionClassifier(lr);
+
 		if (statModel instanceof EM em && EM.class.equals(cls))
-			return (OpenCVStatModel<T>)new EMClusterer(em);
+			return (AbstractOpenCVClassifier)new EMClusterer(em);
 
 		if (statModel instanceof org.bytedeco.opencv.opencv_ml.NormalBayesClassifier nb && org.bytedeco.opencv.opencv_ml.NormalBayesClassifier.class.equals(cls))
-			return (OpenCVStatModel<T>)new NormalBayesClassifier(nb);
-		
+			return (AbstractOpenCVClassifier)new NormalBayesClassifier(nb);
+
 		if (statModel instanceof SVM svm && SVM.class.equals(cls))
-			return (OpenCVStatModel<T>)new SVMClassifier(svm);
-		
+			return (AbstractOpenCVClassifier)new SVMClassifier(svm);
+
 		if (statModel instanceof SVMSGD svmsgd && SVMSGD.class.equals(cls))
-			return (OpenCVStatModel<T>)new SVMSGDClassifier(svmsgd);
-		
+			return (AbstractOpenCVClassifier)new SVMSGDClassifier(svmsgd);
+
 		throw new IllegalArgumentException("Unknown StatModel class " + cls);
 	}
 

@@ -8,7 +8,7 @@ import qupath.lib.images.servers.PixelType;
  * for example within an object or pixel classifier.
  * <p>
  * This is a new interface introduced in v0.8.0 to provide more flexibility.
- * The closest match to the previous code is {@link OpenCVStatModel},
+ * The closest match to the previous code is {@link AbstractOpenCVClassifier},
  * which is a more complicated interface that only supports an OpenCV {@code StatModel}.
  *
  * @since v0.8.0

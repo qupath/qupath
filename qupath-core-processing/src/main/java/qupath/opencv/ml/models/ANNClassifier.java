@@ -20,7 +20,7 @@ import qupath.opencv.tools.OpenCVTools;
 /**
  * Classifier based on {@link ANN_MLP}.
  */
-public class ANNClassifier extends OpenCVStatModel<ANN_MLP> {
+public class ANNClassifier extends AbstractOpenCVClassifier<ANN_MLP> {
 
     private static final Logger logger = LoggerFactory.getLogger(ANNClassifier.class);
 

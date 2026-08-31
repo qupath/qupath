@@ -8,7 +8,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Clusterer based on {@link EM}.
  */
-public class EMClusterer extends OpenCVStatModel<EM> {
+public class EMClusterer extends AbstractOpenCVClassifier<EM> {
 
     EMClusterer() {
         super();

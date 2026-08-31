@@ -8,7 +8,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Classifier based on {@link org.bytedeco.opencv.opencv_ml.NormalBayesClassifier}.
  */
-public class NormalBayesClassifier extends OpenCVStatModel<org.bytedeco.opencv.opencv_ml.NormalBayesClassifier> {
+public class NormalBayesClassifier extends AbstractOpenCVClassifier<org.bytedeco.opencv.opencv_ml.NormalBayesClassifier> {
 
     NormalBayesClassifier() {
         super();

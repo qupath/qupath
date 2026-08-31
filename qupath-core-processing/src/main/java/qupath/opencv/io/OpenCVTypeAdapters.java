@@ -32,7 +32,7 @@ import org.bytedeco.opencv.opencv_core.SparseMat;
 import org.bytedeco.opencv.opencv_ml.StatModel;
 
 import qupath.lib.io.GsonTools;
-import qupath.opencv.ml.models.OpenCVStatModel;
+import qupath.opencv.ml.models.OpenCVTrainableModel;
 import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.ml.models.TrainableModel;
 
@@ -60,12 +60,12 @@ public class OpenCVTypeAdapters {
 	private static final GsonTools.SubTypeAdapterFactory<PredictionModel> predictionModelTypeAdapterFactory = GsonTools.createSubTypeAdapterFactory(
 			PredictionModel.class,
 			"model-type"
-	);//.registerSubtype(OpenCVStatModel.class);
+	).registerSubtype(OpenCVTrainableModel.class);
 
 	private static final GsonTools.SubTypeAdapterFactory<TrainableModel> trainableModelTypeAdapterFactory = GsonTools.createSubTypeAdapterFactory(
 			TrainableModel.class,
 			"model-type"
-	);//.registerSubtype(OpenCVStatModel.class);
+	).registerSubtype(OpenCVTrainableModel.class);
 
 	/**
 	 * Register a new JSON-serializable {@link PredictionModel} or {@link TrainableModel},
@@ -136,9 +136,6 @@ public class OpenCVTypeAdapters {
 				return (TypeAdapter<T>)new ScalarTypeAdapter();
 			if (Size.class == cls)
 				return (TypeAdapter<T>)new SizeTypeAdapter();
-//			// This is for compatibility with v0.7.0 and earlier
-			if (OpenCVStatModel.class.isAssignableFrom(cls))
-				return (TypeAdapter<T>)new OpenCVStatModelTypeAdapter();
 			return null;
 		}
 
