@@ -267,8 +267,8 @@ abstract class AbstractOpenCVClassifier<T extends StatModel> implements Trainabl
     }
 
     @Override
-    public PixelType getOutputType(boolean requestProbabilities) {
-        return requestProbabilities ? PixelType.FLOAT32 : PixelType.INT32;
+    public PixelType getOutputType() {
+        return PixelType.INT32;
     }
 
     @Override

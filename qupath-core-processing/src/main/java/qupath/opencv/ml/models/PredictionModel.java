@@ -36,17 +36,18 @@ public interface PredictionModel extends AutoCloseable {
      * classification.
      *
      * @param samples       the input samples
-     * @param results       a Mat to receive the results
-     * @param probabilities a Mat to receive probability estimates, or null if probabilities are not needed
+     * @param results       a Mat to receive the results; the type is given by {@link #getOutputType()}
+     * @param probabilities a Mat to receive probability estimates, or null if probabilities are not needed.
+     *                      If returned, probabilities should be in {@link PixelType#FLOAT32}.
      */
     void predict(Mat samples, Mat results, Mat probabilities);
 
     /**
      * Get the output type of model predictions.
-     * @param requestProbabilities if true, return the pixel type for probability outputs
+     * This is the output for the {@code results} parameter in {@link #predict(Mat, Mat, Mat)}.
      * @return the type of the model output
      */
-    PixelType getOutputType(boolean requestProbabilities);
+    PixelType getOutputType();
 
 
 }

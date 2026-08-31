@@ -98,8 +98,8 @@ public class OpenCVTrainableModel<T extends StatModel> implements TrainableModel
     }
 
     @Override
-    public PixelType getOutputType(boolean requestProbabilities) {
-        return getWrapper().getOutputType(requestProbabilities);
+    public PixelType getOutputType() {
+        return getWrapper().getOutputType();
     }
 
     @Override

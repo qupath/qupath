@@ -3331,7 +3331,10 @@ public class ImageOps {
 
 			@Override
 			public PixelType getOutputType(PixelType inputType) {
-				return model.getOutputType(requestProbabilities);
+				if (requestProbabilities)
+					return PixelType.FLOAT32;
+				else
+					return model.getOutputType();
 			}
 
 		}
