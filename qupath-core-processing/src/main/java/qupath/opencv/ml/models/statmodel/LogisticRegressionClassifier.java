@@ -63,7 +63,7 @@ class LogisticRegressionClassifier extends AbstractOpenCVClassifier<LogisticRegr
 //			params.addIntParameter("miniBatchSize", "Mini batch size", miniBatchSize);
         params.addChoiceParameter("regularization", "Regularization", defaultReg, Arrays.asList(Regularization.values()));
 
-        OpenCVClassifiers.addTerminationCriteriaParameters(params, model.getTermCriteria());
+        OpenCVStatModels.addTerminationCriteriaParameters(params, model.getTermCriteria());
         return params;
     }
 
@@ -93,7 +93,7 @@ class LogisticRegressionClassifier extends AbstractOpenCVClassifier<LogisticRegr
         model.setLearningRate(learningRate);
         model.setIterations(nIterations);
 
-        model.setTermCriteria(OpenCVClassifiers.updateTermCriteria(params, model.getTermCriteria()));
+        model.setTermCriteria(OpenCVStatModels.updateTermCriteria(params, model.getTermCriteria()));
     }
 
 }

@@ -2,7 +2,6 @@ package qupath.opencv.ml.models.statmodel;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.bytedeco.javacpp.indexer.IntIndexer;
@@ -21,11 +20,9 @@ import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.opencv.ml.models.TrainableModel;
-import qupath.opencv.ml.models.VariableImportance;
 
 /**
  * Abstract implementation of {@link TrainableModel} that is based upon {@link StatModel},

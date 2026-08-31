@@ -25,7 +25,7 @@ public class TrainableStatModel<T extends StatModel> implements TrainableModel {
 
     TrainableStatModel(T model) {
         this.model = model;
-        this.wrapper = OpenCVClassifiers.wrap(model); // Call here so that any exception would be thrown early
+        this.wrapper = OpenCVStatModels.wrap(model); // Call here so that any exception would be thrown early
     }
 
     TrainableStatModel(AbstractOpenCVClassifier<T> wrapper) {
@@ -38,7 +38,7 @@ public class TrainableStatModel<T extends StatModel> implements TrainableModel {
         if (wrapper == null) {
             synchronized (this) {
                 if (wrapper == null) {
-                    wrapper = OpenCVClassifiers.wrap(getStatModel());
+                    wrapper = OpenCVStatModels.wrap(getStatModel());
                 }
             }
         }

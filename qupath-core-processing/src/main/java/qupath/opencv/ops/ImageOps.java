@@ -56,7 +56,7 @@ import qupath.opencv.dnn.DnnModel;
 import qupath.opencv.dnn.DnnShape;
 import qupath.opencv.dnn.PredictionFunction;
 import qupath.opencv.ml.FeaturePreprocessor;
-import qupath.opencv.ml.models.statmodel.OpenCVClassifiers;
+import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
 import qupath.opencv.ml.models.statmodel.TrainableStatModel;
 import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.tools.LocalNormalization;
@@ -3364,7 +3364,7 @@ public class ImageOps {
 					synchronized (this) {
 						if (op == null)
 							op = new PredictionModelOp(
-									OpenCVClassifiers.wrapStatModel(model),
+									OpenCVStatModels.wrapStatModel(model),
 									requestProbabilities);
 					}
 				}

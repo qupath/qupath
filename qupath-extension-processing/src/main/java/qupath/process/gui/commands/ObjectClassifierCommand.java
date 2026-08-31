@@ -69,9 +69,6 @@ import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
-import org.bytedeco.opencv.opencv_ml.ANN_MLP;
-import org.bytedeco.opencv.opencv_ml.KNearest;
-import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.controls.PredicateTextField;
@@ -98,8 +95,8 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.projects.ProjectImageEntry;
-import qupath.opencv.ml.models.VariableImportance;
-import qupath.opencv.ml.models.statmodel.OpenCVClassifiers;
+import qupath.opencv.ml.models.FeatureImportance;
+import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
 import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
@@ -1005,10 +1002,10 @@ public class ObjectClassifierCommand implements Runnable {
 
 
 		static void tryLoggingVariableImportance(final TrainableModel model, final FeatureExtractor<?> extractor) {
-			var importance = model.getVariableImportance(extractor.getFeatureNames());
+			var importance = model.getFeatureImportance(extractor.getFeatureNames());
 			if (importance.isEmpty())
 				return;
-			importance.stream().sorted(Comparator.comparingDouble(VariableImportance::importance).reversed())
+			importance.stream().sorted(Comparator.comparingDouble(FeatureImportance::importance).reversed())
 					.forEach(i -> logger.info("{}: {}", i.name(), i.importance()));
 		}
 
@@ -1155,10 +1152,9 @@ public class ObjectClassifierCommand implements Runnable {
 			var labelClassifier = new Label("Classifier");
 			var comboClassifier = new ComboBox<TrainableModel>();
 			comboClassifier.getItems().addAll(
-					OpenCVClassifiers.createStatModel(RTrees.class),
-					OpenCVClassifiers.createStatModel(ANN_MLP.class),
-					//					OpenCVClassifiers.createMulticlassStatModel(ANN_MLP.class),
-					OpenCVClassifiers.createStatModel(KNearest.class)
+					OpenCVStatModels.Models.R_TREES.createTrainableModel(),
+					OpenCVStatModels.Models.ANN.createTrainableModel(),
+					OpenCVStatModels.Models.KNN.createTrainableModel()
 					);
 			labelClassifier.setLabelFor(comboClassifier);
 			selectedModel = comboClassifier.getSelectionModel().selectedItemProperty();

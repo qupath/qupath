@@ -38,7 +38,7 @@ import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.classes.Reclassifier;
-import qupath.opencv.ml.models.statmodel.OpenCVClassifiers;
+import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
 import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
@@ -68,7 +68,9 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	private FeatureExtractor<T> featureExtractor;
 
 	/**
-	 * Object classifier. Retained to support deserialization of classifiers before v0.8.0.
+	 * StatModel that can be used as a classifier.
+	 * This is here to support deserialization of classifiers before v0.8.0;
+	 * recent code should instead use only predictionModel.
 	 */
 	private StatModel classifier;
 
@@ -120,7 +122,7 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 		if (predictionModel == null) {
 			synchronized (this) {
 				if (predictionModel == null) {
-					predictionModel = OpenCVClassifiers.wrapStatModel(classifier);
+					predictionModel = OpenCVStatModels.wrapStatModel(classifier);
 				}
 			}
 		}

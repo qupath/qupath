@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.IntStream;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -16,10 +15,9 @@ import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.event.Level;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.opencv.ml.models.VariableImportance;
+import qupath.opencv.ml.models.FeatureImportance;
 
 /**
  * Classifier based on {@link RTrees}.
@@ -213,13 +211,13 @@ class RTreesClassifier extends AbstractTreeClassifier<RTrees> {
      * @since v0.8.0
      */
     @Override
-    public List<VariableImportance> getVariableImportance(List<String> names) {
+    public List<FeatureImportance> getFeatureImportance(List<String> names) {
         double[] importance = getFeatureImportance();
         if (importance == null || importance.length != names.size())
             return List.of();
-        List<VariableImportance> list = new ArrayList<>();
+        List<FeatureImportance> list = new ArrayList<>();
         for (int i = 0; i < importance.length; i++) {
-            list.add(new VariableImportance(names.get(i), importance[i]));
+            list.add(new FeatureImportance(names.get(i), importance[i]));
         }
         return list;
     }

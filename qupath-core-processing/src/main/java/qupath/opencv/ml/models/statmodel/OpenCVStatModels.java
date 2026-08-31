@@ -36,72 +36,69 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.io.GsonTools;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.opencv.ml.models.TrainableModel;
+import qupath.opencv.ml.models.PredictionModel;
 
 /**
- * QuPath wrappers for OpenCV classifiers, which are instances of StatModel.
- * There are two main reasons to use these wrappers rather than StatModel directly:
+ * Class provide access to wrappers for OpenCV stat models.
+ * There are two main reasons to use these wrappers rather than {@link StatModel} directly:
  * <ol>
  *   <li>Improved API consistency when exchanging between classifiers. For example, some require 
  *   training data to be in a specified form (labels or one-hot encoding).</li>
  *   <li>Easier serialization to JSON along with other QuPath objects via {@link GsonTools}.</li>
  * </ol>
- * 
- * @author Pete Bankhead
- *
  */
-public class OpenCVClassifiers {
-	
-	private static final Logger logger = LoggerFactory.getLogger(OpenCVClassifiers.class);
-	
+public class OpenCVStatModels {
+
+	private static final Logger logger = LoggerFactory.getLogger(OpenCVStatModels.class);
+
 	/**
-	 * Create an {@link TrainableModel} for a specific class of {@link StatModel}.
-	 * @param cls
-	 * @return
+	 * Enum representing all the OpenCV {@link StatModel} implementations for which QuPath wrappers have been developed.
+	 * The wrappers standardize training and prediction, so that stat models may be used for pixel and object classifiers.
 	 */
-	@SuppressWarnings("unchecked")
-	public static <T extends StatModel> TrainableStatModel<T> createStatModel(Class<T> cls) {
-		if (RTrees.class.equals(cls))
-			return new TrainableStatModel(new RTreesClassifier());
+	public enum Models {
 
-		if (Boost.class.equals(cls))
-			return new TrainableStatModel(new BoostClassifier());
-		
-		if (DTrees.class.equals(cls))	
-			return new TrainableStatModel(new DTreesClassifier());
-		
-		if (KNearest.class.equals(cls))
-			return new TrainableStatModel(new KNearestClassifier());
-		
-		if (ANN_MLP.class.equals(cls))
-			return new TrainableStatModel(new ANNClassifier());
-		
-		if (LogisticRegression.class.equals(cls))
-			return new TrainableStatModel(new LogisticRegressionClassifier());
-		
-		if (EM.class.equals(cls))
-			return new TrainableStatModel(new EMClusterer());
+		R_TREES,
+		BOOST,
+		D_TREES,
+		KNN,
+		ANN,
+		LOGISTIC_REGRESSION,
+		EM_CLUSTERER,
+		NORMAL_BAYES,
+		SVM,
+		SVM_SGD;
 
-		if (org.bytedeco.opencv.opencv_ml.NormalBayesClassifier.class.equals(cls))
-			return new TrainableStatModel(new NormalBayesClassifier());
-		
-		if (SVM.class.equals(cls))
-			return new TrainableStatModel(new SVMClassifier());
-		
-		if (SVMSGD.class.equals(cls))
-			return new TrainableStatModel(new SVMSGDClassifier());
-		
-		throw new IllegalArgumentException("Unknown StatModel class " + cls);
+		/**
+		 * Create a trainable wrapper for an OpenCV {@link StatModel}.
+		 * @return a trainable model, using the stat model defined by the enum value
+		 */
+		public TrainableStatModel<?> createTrainableModel() {
+			return switch(this) {
+                case R_TREES -> new TrainableStatModel<>(new RTreesClassifier());
+                case BOOST -> new TrainableStatModel<>(new BoostClassifier());
+                case D_TREES -> new TrainableStatModel<>(new DTreesClassifier());
+                case KNN -> new TrainableStatModel<>(new KNearestClassifier());
+                case ANN -> new TrainableStatModel<>(new ANNClassifier());
+                case LOGISTIC_REGRESSION -> new TrainableStatModel<>(new LogisticRegressionClassifier());
+                case EM_CLUSTERER -> new TrainableStatModel<>(new EMClusterer());
+                case NORMAL_BAYES -> new TrainableStatModel<>(new NormalBayesClassifier());
+                case SVM -> new TrainableStatModel<>(new SVMClassifier());
+                case SVM_SGD -> new TrainableStatModel<>(new SVMSGDClassifier());
+            };
+		}
+
 	}
 
-	
 	/**
-	 * Create an {@link AbstractOpenCVClassifier} by wrapping an existing {@link StatModel}.
+	 * Create an {@link PredictionModel} by wrapping an existing {@link StatModel}.
 	 * @param statModel
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends StatModel> TrainableStatModel<T> wrapStatModel(T statModel) {
+	public static PredictionModel wrapStatModel(StatModel statModel) {
+		// Technically is *is* trainable... but the intended use is for prediction only,
+		// since we can't guarantee that parameter values match the actual model
+		// (because they can't all be queried)
 		return new TrainableStatModel<>(wrap(statModel));
 	}
 
