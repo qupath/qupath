@@ -1,0 +1,99 @@
+{
+  "pixel_classifier_type": "OpenCVPixelClassifier",
+  "metadata": {
+    "inputPadding": 0,
+    "inputWidth": -1,
+    "inputHeight": -1,
+    "inputNumChannels": 3,
+    "outputType": "CLASSIFICATION",
+    "outputChannels": [],
+    "classificationLabels": {
+      "0": {
+        "name": "First class",
+        "color": [
+          104,
+          245,
+          6
+        ]
+      },
+      "1": {
+        "name": "Second class",
+        "color": [
+          239,
+          143,
+          50
+        ]
+      }
+    }
+  },
+  "op": {
+    "type": "data.op.default",
+    "op": {
+      "type": "op.ml.opencv-statmodel",
+      "model": {
+        "class": "ANN_MLP",
+        "statmodel": {
+          "opencv_ml_ann_mlp": {
+            "format": 3,
+            "layer_sizes": [
+              3,
+              2
+            ],
+            "activation_function": "SIGMOID_SYM",
+            "f_param1": 1.0,
+            "f_param2": 1.0,
+            "min_val": -0.94999999999999996,
+            "max_val": 0.94999999999999996,
+            "min_val1": -0.97999999999999998,
+            "max_val1": 0.97999999999999998,
+            "training_params": {
+              "train_method": "RPROP",
+              "dw0": 0.10000000000000001,
+              "dw_plus": 1.2,
+              "dw_minus": 0.5,
+              "dw_min": 1.1920928955078125e-07,
+              "dw_max": 50.0,
+              "term_criteria": {
+                "epsilon": 0.01,
+                "iterations": 1000
+              }
+            },
+            "input_scale": [
+              0.87704221150642048,
+              -1.6208698112395044,
+              0.9038619036179687,
+              -1.7780406905073782,
+              0.84493100829711731,
+              -1.697278139486601
+            ],
+            "output_scale": [
+              1.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            "inv_output_scale": [
+              1.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            "weights": [
+              [
+                -4.1544762673640943,
+                2.3548182718959811,
+                -3.0144045668107302,
+                2.5767996651905816,
+                -3.7120057382677163,
+                3.0939454387018128,
+                0.72952981888782631,
+                -0.44149032743560246
+              ]
+            ]
+          }
+        }
+      },
+      "requestProbabilities": false
+    }
+  }
+}
