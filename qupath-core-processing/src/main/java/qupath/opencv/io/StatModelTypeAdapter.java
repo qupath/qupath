@@ -30,6 +30,10 @@ class StatModelTypeAdapter extends TypeAdapter<StatModel> {
 
     @Override
     public void write(JsonWriter out, StatModel value) throws IOException {
+        if (value == null) {
+            out.nullValue();
+            return;
+        }
         try (FileStorage fs = new FileStorage()) {
             fs.open("anything.json", FileStorage.FORMAT_JSON + FileStorage.WRITE + FileStorage.MEMORY);
 //				value.write(fs);
