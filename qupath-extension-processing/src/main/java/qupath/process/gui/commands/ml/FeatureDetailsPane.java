@@ -29,17 +29,17 @@ import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.opencv.ml.OpenCVClassifiers;
-import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier.VariableImportance;
+import qupath.opencv.ml.models.TrainableModel;
+import qupath.opencv.ml.models.FeatureImportance;
 
 class FeatureDetailsPane extends Control implements Skinnable {
 
     private static final Logger logger = LoggerFactory.getLogger(FeatureDetailsPane.class);
 
-    private final ObservableList<VariableImportance> importance =
+    private final ObservableList<FeatureImportance> importance =
             FXCollections.observableArrayList();
 
-    private final ObservableList<VariableImportance> unmodifiableImportance =
+    private final ObservableList<FeatureImportance> unmodifiableImportance =
             FXCollections.unmodifiableObservableList(importance);
 
     private final ReadOnlyBooleanWrapper hasImportance = new ReadOnlyBooleanWrapper(false);
@@ -48,17 +48,18 @@ class FeatureDetailsPane extends Control implements Skinnable {
         super();
     }
 
-    void update(OpenCVClassifiers.OpenCVStatModel model,
+    void update(TrainableModel model,
                 List<String> featureNames) {
 
-        if (model instanceof OpenCVClassifiers.RTreesClassifier rtrees && rtrees.hasFeatureImportance() && !featureNames.isEmpty()) {
+        var currentImportance = model.getFeatureImportance(featureNames);
+        if (!currentImportance.isEmpty()) {
             // Always use feature importance for RTrees when available
-            importance.setAll(rtrees.getVariableImportance(featureNames));
+            importance.setAll(currentImportance);
             hasImportance.set(true);
-        } else if (!sameContents(importance.stream().map(VariableImportance::name).toList(), featureNames)) {
+        } else if (!sameContents(importance.stream().map(FeatureImportance::name).toList(), featureNames)) {
             // If we have feature importance values for the same features, don't overwrite them.
             importance.setAll(featureNames.stream()
-                    .map(n -> new OpenCVClassifiers.RTreesClassifier.VariableImportance(n, Double.NaN))
+                    .map(n -> new FeatureImportance(n, Double.NaN))
                     .toList());
             hasImportance.set(false);
         }
@@ -92,11 +93,11 @@ class FeatureDetailsPane extends Control implements Skinnable {
 
         private final ObjectProperty<Color> fill = new SimpleObjectProperty<>(ColorToolsFX.getColorWithOpacity(Color.LIGHTGREEN, 0.5));
 
-        private final ObservableList<VariableImportance> baseList = FXCollections.observableArrayList();
-        private final SortedList<VariableImportance> sortedList = new SortedList<>(baseList);
-        private final TableView<VariableImportance> table = new TableView<>(sortedList);
-        private final TableColumn<VariableImportance, String> columnName = new TableColumn<>("Name");
-        private final TableColumn<VariableImportance, Number> columnImportance = new TableColumn<>("Importance");
+        private final ObservableList<FeatureImportance> baseList = FXCollections.observableArrayList();
+        private final SortedList<FeatureImportance> sortedList = new SortedList<>(baseList);
+        private final TableView<FeatureImportance> table = new TableView<>(sortedList);
+        private final TableColumn<FeatureImportance, String> columnName = new TableColumn<>("Name");
+        private final TableColumn<FeatureImportance, Number> columnImportance = new TableColumn<>("Importance");
 
         private final BorderPane pane = new BorderPane(table);
 
@@ -121,18 +122,18 @@ class FeatureDetailsPane extends Control implements Skinnable {
             table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_LAST_COLUMN);
         }
 
-        private TableCell<VariableImportance, Number> createCell(TableColumn<VariableImportance, Number> column) {
-            var cell = new PixelClassifierUI.NumberTableCell<VariableImportance>(5);
+        private TableCell<FeatureImportance, Number> createCell(TableColumn<FeatureImportance, Number> column) {
+            var cell = new PixelClassifierUI.NumberTableCell<FeatureImportance>(5);
             PixelClassifierUI.bindCellFillBackground(cell, maxImportance, fill);
             return cell;
         }
 
-        private ObservableValue<String> extractName(TableColumn.CellDataFeatures<VariableImportance, String> features) {
+        private ObservableValue<String> extractName(TableColumn.CellDataFeatures<FeatureImportance, String> features) {
             var val = features.getValue();
             return new SimpleStringProperty(val.name());
         }
 
-        private ObservableValue<Number> extractValue(TableColumn.CellDataFeatures<VariableImportance, Number> features) {
+        private ObservableValue<Number> extractValue(TableColumn.CellDataFeatures<FeatureImportance, Number> features) {
             var val = features.getValue();
             return new SimpleDoubleProperty(val.importance());
         }
@@ -158,7 +159,7 @@ class FeatureDetailsPane extends Control implements Skinnable {
             Bindings.unbindContent(baseList, skinnable.unmodifiableImportance);
         }
 
-        private void handleListChange(ListChangeListener.Change<? extends VariableImportance> event) {
+        private void handleListChange(ListChangeListener.Change<? extends FeatureImportance> event) {
             double maxImportance = 0.0;
             for (var v : event.getList()) {
                 if (Double.isFinite(v.importance())) {

@@ -2,7 +2,6 @@ package qupath.process.gui.commands.ml;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,11 +20,10 @@ import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
 import javafx.util.Subscription;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.plugins.parameters.Parameter;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.opencv.ml.OpenCVClassifiers;
+import qupath.opencv.ml.models.TrainableModel;
 
 class TrainingDetailsPane extends Control implements Skinnable {
 
@@ -38,7 +36,7 @@ class TrainingDetailsPane extends Control implements Skinnable {
         super();
     }
 
-    void update(OpenCVClassifiers.OpenCVStatModel model,
+    void update(TrainableModel model,
                 Map<PathClass, Integer> labels,
                 Duration trainingTime) {
 
@@ -57,26 +55,12 @@ class TrainingDetailsPane extends Control implements Skinnable {
 
     }
 
-    private static Map<String, String> createClassifierDetailsMap(OpenCVClassifiers.OpenCVStatModel model) {
+    private static Map<String, String> createClassifierDetailsMap(TrainableModel model) {
         if (model == null)
             return Map.of();
         var map = new LinkedHashMap<String, String>();
         map.put("Type", model.getName());
-        if (model instanceof OpenCVClassifiers.RTreesClassifier rtrees) {
-            double oob = rtrees.getOOBError();
-            if (Double.isFinite(oob)) {
-                map.put("OOB error", GeneralTools.formatNumber(oob, 5));
-            }
-        } else if (model instanceof OpenCVClassifiers.ANNClassifier ann) {
-            int[] layers = ann.getLayerSizes();
-            String postfix = "";
-            if (layers.length >= 2) {
-                postfix = layers.length == 3 ?
-                        "   (1 hidden layer)" :
-                        "   (" + (layers.length - 2) + " hidden)";
-            }
-            map.put("Layers", Arrays.toString(layers) + postfix);
-        }
+        map.putAll(model.getDetails());
         map.put("Supports missing values", Boolean.toString(model.supportsMissingValues()));
         map.put("Supports probabilities", Boolean.toString(model.supportsProbabilities()));
         return map;

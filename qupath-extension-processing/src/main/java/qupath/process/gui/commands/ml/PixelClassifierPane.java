@@ -60,11 +60,6 @@ import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.TermCriteria;
-import org.bytedeco.opencv.opencv_ml.ANN_MLP;
-import org.bytedeco.opencv.opencv_ml.KNearest;
-import org.bytedeco.opencv.opencv_ml.LogisticRegression;
-import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
@@ -94,8 +89,9 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.opencv.ml.ConfusionMatrix;
 import qupath.opencv.ml.FeaturePreprocessor;
-import qupath.opencv.ml.OpenCVClassifiers;
-import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
+import qupath.opencv.ml.models.PredictionModel;
+import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOps;
@@ -147,7 +143,7 @@ public class PixelClassifierPane {
 	private final BooleanProperty livePrediction = new SimpleBooleanProperty(false);
 
 	private final ObjectProperty<ClassificationResolution> resolution = new SimpleObjectProperty<>();
-	private final ObjectProperty<OpenCVStatModel> statModel = new SimpleObjectProperty<>();
+	private final ObjectProperty<TrainableModel> statModel = new SimpleObjectProperty<>();
 	private final ObjectProperty<ImageDataOpBuilder> opBuilder = new SimpleObjectProperty<>();
 	private final ObjectProperty<ImageServerMetadata.ChannelType> outputType = new SimpleObjectProperty<>();
 
@@ -433,14 +429,14 @@ public class PixelClassifierPane {
 
 
 	private void addClassifierSelectionControls(GridPane pane) {
-		ComboBox<OpenCVStatModel> comboClassifier = PixelClassifierUtils.createHGrowComboBox();
+		ComboBox<TrainableModel> comboClassifier = PixelClassifierUtils.createHGrowComboBox();
 		var labelClassifier = createFixedWidthLabelForNode("Classifier", comboClassifier);
 
 		comboClassifier.getItems().addAll(
-				OpenCVClassifiers.createStatModel(RTrees.class),
-				OpenCVClassifiers.createStatModel(ANN_MLP.class),
-				OpenCVClassifiers.createStatModel(LogisticRegression.class),
-				OpenCVClassifiers.createStatModel(KNearest.class)
+				OpenCVStatModels.Models.R_TREES.createTrainableModel(),
+				OpenCVStatModels.Models.ANN.createTrainableModel(),
+				OpenCVStatModels.Models.LOGISTIC_REGRESSION.createTrainableModel(),
+				OpenCVStatModels.Models.KNN.createTrainableModel()
 		);
 
 		comboClassifier.getSelectionModel().clearAndSelect(1);
@@ -693,8 +689,6 @@ public class PixelClassifierPane {
 	 * <p>
 	 * Note that the builder will only be added if it is not already present.
 	 * @param builder the builder to be installed
-	 * 
-	 * @return true if the builder was added, false otherwise.
 	 */
 	public static synchronized void installDefaultFeatureClassificationBuilder(ImageDataOpBuilder builder) {
 		if (!Platform.isFxApplicationThread()) {
@@ -847,13 +841,7 @@ public class PixelClassifierPane {
 			logger.warn("Can't compute variable importance without an image open");
 			return;
 		}
-		try (var rtrees = RTrees.create()) {
-			rtrees.setMaxDepth(0);
-			rtrees.setTermCriteria(
-					new TermCriteria(TermCriteria.COUNT, 100, 0));
-			rtrees.setCalculateVarImportance(true);
-
-			var model = OpenCVClassifiers.wrapStatModel(rtrees);
+		try (var model = OpenCVStatModels.Models.R_TREES.createTrainableModel()) {
 			List<ClassifierTrainingData> allTrainingData = helper.createTrainingData(trainingImages);
 			if (allTrainingData.isEmpty()) {
 				logger.warn("Can't compute variable importance without training data!");
@@ -871,10 +859,10 @@ public class PixelClassifierPane {
 		}
 	}
 
-	private static OpenCVStatModel duplicateStatModel(OpenCVStatModel model) {
+	private static TrainableModel duplicateStatModel(TrainableModel model) {
 		var gson = GsonTools.getInstance();
 		return gson.fromJson(
-				gson.toJson(model, OpenCVStatModel.class), OpenCVStatModel.class
+				gson.toJson(model, TrainableModel.class), TrainableModel.class
 		);
 	}
 
@@ -901,7 +889,7 @@ public class PixelClassifierPane {
 	 * @param labels the QuPath-friendly mapping of classes to integer labels
 	 * @return
 	 */
-	private static ConfusionMatrix<PathClass> evaluate(String name, Mat samples, Mat normCatTargets, Mat classLabels, OpenCVStatModel model,
+	private static ConfusionMatrix<PathClass> evaluate(String name, Mat samples, Mat normCatTargets, Mat classLabels, PredictionModel model,
 													   FeaturePreprocessor preprocessor, Map<PathClass, Integer> labels) {
 		if (preprocessor != null) {
 			samples = samples.clone();
@@ -1132,7 +1120,7 @@ public class PixelClassifierPane {
 
 
 	/**
-	 * Trainer for an {@link OpenCVStatModel} to use with a {@link PixelClassifier}.
+	 * Trainer for an {@link TrainableModel} to use with a {@link PixelClassifier}.
 	 * <p>
 	 * This effectively snapshots the required settings in its constructor, so that the trainer could be reused
 	 * for multiple models.
@@ -1158,7 +1146,7 @@ public class PixelClassifierPane {
 			this.rngSeed = advancedOptions.getRngSeed();
 		}
 
-		public TrainedModel train(OpenCVStatModel model, ClassifierTrainingData trainingData) {
+		public TrainedModel train(TrainableModel model, ClassifierTrainingData trainingData) {
 
 			opencv_core.setRNGSeed(rngSeed);
 
@@ -1213,13 +1201,13 @@ public class PixelClassifierPane {
 
 	}
 
-	record TrainedModel(OpenCVStatModel model,
-							 ImageDataOp featureCalculator,
-							 FeaturePreprocessor featurePreprocessor,
-							 Map<PathClass, Integer> labels,
-							 int[] countsIndexedByLabels,
-							 PixelCalibration resolution,
-							 Duration trainingTime) {
+	record TrainedModel(TrainableModel model,
+	                    ImageDataOp featureCalculator,
+	                    FeaturePreprocessor featurePreprocessor,
+	                    Map<PathClass, Integer> labels,
+	                    int[] countsIndexedByLabels,
+	                    PixelCalibration resolution,
+	                    Duration trainingTime) {
 
 		PixelClassifier createPixelClassifier(ImageServerMetadata.ChannelType outputType) {
 			return createPixelClassifier(512, 512, outputType);

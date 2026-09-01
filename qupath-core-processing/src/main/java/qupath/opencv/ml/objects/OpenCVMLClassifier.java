@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -26,6 +26,7 @@ import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.classifiers.object.AbstractObjectClassifier;
@@ -37,7 +38,9 @@ import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.classes.Reclassifier;
-import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
+import qupath.opencv.ml.models.PredictionModel;
+import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
 
 import java.nio.FloatBuffer;
@@ -49,7 +52,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * An {@link ObjectClassifier} that uses an {@link OpenCVStatModel} for classification.
+ * An {@link ObjectClassifier} that uses a {@link PredictionModel} for classification.
  * 
  * @author Pete Bankhead
  *
@@ -65,9 +68,16 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	private FeatureExtractor<T> featureExtractor;
 
 	/**
-	 * Object classifier
+	 * StatModel that can be used as a classifier.
+	 * This is here to support deserialization of classifiers before v0.8.0;
+	 * recent code should instead use only predictionModel.
 	 */
-	private OpenCVStatModel classifier;
+	private StatModel classifier;
+
+	/**
+	 * Prediction model. Introduced in v0.8.0, this replaces classifier.
+	 */
+	private volatile PredictionModel predictionModel;
 
 	/**
 	 * Supported classifications - this is an ordered list, required to interpret labels
@@ -79,42 +89,27 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	 * This isn't supported for all stat models, and can make things substantially slower.
 	 */
 	private boolean requestProbabilityEstimate = false;
-
-	
-//	public static List<OpenCVStatModel> createDefaultStatModels() {
-//		return Arrays.asList(
-//				OpenCVClassifiers.createStatModel(RTrees.class),
-//				OpenCVClassifiers.createStatModel(DTrees.class),
-//				OpenCVClassifiers.createStatModel(Boost.class),
-//				OpenCVClassifiers.createStatModel(ANN_MLP.class),
-//				OpenCVClassifiers.createStatModel(EM.class),
-//				OpenCVClassifiers.createStatModel(NormalBayesClassifier.class),
-//				OpenCVClassifiers.createStatModel(KNearest.class),
-//				OpenCVClassifiers.createStatModel(LogisticRegression.class),
-//				OpenCVClassifiers.createStatModel(SVM.class)
-//				);
-//	}
 	
 
-	OpenCVMLClassifier(OpenCVStatModel classifier, PathObjectFilter filter,
-			FeatureExtractor<T> extractor, List<PathClass> pathClasses) {
+	OpenCVMLClassifier(PredictionModel model, PathObjectFilter filter,
+                       FeatureExtractor<T> extractor, List<PathClass> pathClasses) {
 		super(filter);
-		this.classifier = classifier;
+		this.predictionModel = model;
 		this.featureExtractor = extractor;
 		this.pathClasses = new ArrayList<>(pathClasses);
 	}
 	
 	/**
-	 * Create a new {@link ObjectClassifier} that uses an {@link OpenCVStatModel} for classification.
+	 * Create a new {@link ObjectClassifier} that uses an {@link TrainableModel} for classification.
 	 * @param <T> generic type, which matches that of an {@link ImageData}
-	 * @param model the {@link OpenCVStatModel} used to apply the prediction
+	 * @param model the {@link TrainableModel} used to apply the prediction
 	 * @param filter a filter used to select objects from a hierarchy
 	 * @param extractor a feature extractor to determine features for each object
 	 * @param pathClasses available classifications; the order is important, and relates to the classification output
 	 * @return
 	 */
-	public static <T> ObjectClassifier<T> create(OpenCVStatModel model, PathObjectFilter filter,
-			FeatureExtractor<T> extractor, List<PathClass> pathClasses) {
+	public static <T> ObjectClassifier<T> create(PredictionModel model, PathObjectFilter filter,
+                                                 FeatureExtractor<T> extractor, List<PathClass> pathClasses) {
 		return new OpenCVMLClassifier<>(model, filter, extractor, pathClasses);
 	}
 
@@ -122,16 +117,27 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	public Collection<PathClass> getPathClasses() {
 		return pathClasses == null ? Collections.emptyList() : Collections.unmodifiableList(pathClasses);
 	}
+
+	private PredictionModel getPredictionModel() {
+		if (predictionModel == null) {
+			synchronized (this) {
+				if (predictionModel == null) {
+					predictionModel = OpenCVStatModels.wrapStatModel(classifier);
+				}
+			}
+		}
+		return predictionModel;
+	}
 	
 	@Override
 	public int classifyObjects(ImageData<T> imageData, Collection<? extends PathObject> pathObjects, boolean resetExistingClass) {
-		return classifyObjects(featureExtractor, classifier, pathClasses, imageData, pathObjects, resetExistingClass, requestProbabilityEstimate);
+		return classifyObjects(featureExtractor, getPredictionModel(), pathClasses, imageData, pathObjects, resetExistingClass, requestProbabilityEstimate);
 	}
 
 	
 	static <T> int classifyObjects(
 			FeatureExtractor<T> featureExtractor,
-			OpenCVStatModel classifier,
+			PredictionModel classifier,
 			List<PathClass> pathClasses,
 			ImageData<T> imageData,
 			Collection<? extends PathObject> pathObjects,
@@ -180,8 +186,10 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 						GeneralTools.formatNumber(nComplete * 100.0 / pathObjects.size(), 1));
 				lastTime = startTime;
 			}
-			
-			boolean doMulticlass = classifier.supportsMulticlass();
+
+			boolean doMulticlass = false;
+			if (classifier instanceof TrainableModel model)
+				doMulticlass = model.supportsMulticlass();
 			double threshold = 0.5;
 
 			try {
@@ -256,14 +264,14 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 			probabilities.close();
 
 		// Apply classifications now
-		reclassifiers.stream().forEach(p -> p.apply());
+		reclassifiers.forEach(Reclassifier::apply);
 
 		return counter;
 	}
 	
 	@Override
 	public String toString() {
-		return String.format("OpenCV object classifier (%s, %d classes)", classifier.getName(), getPathClasses().size());
+		return String.format("OpenCV object classifier (%s, %d classes)", getPredictionModel().getName(), getPathClasses().size());
 	}
 	
 	@Override

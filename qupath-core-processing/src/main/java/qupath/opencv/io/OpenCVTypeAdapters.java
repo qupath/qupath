@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,37 +22,19 @@
 package qupath.opencv.io;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.Strictness;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.opencv_core.FileNode;
-import org.bytedeco.opencv.opencv_core.FileStorage;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.bytedeco.opencv.opencv_core.SparseMat;
-import org.bytedeco.opencv.opencv_ml.ANN_MLP;
-import org.bytedeco.opencv.opencv_ml.Boost;
-import org.bytedeco.opencv.opencv_ml.DTrees;
-import org.bytedeco.opencv.opencv_ml.EM;
-import org.bytedeco.opencv.opencv_ml.KNearest;
-import org.bytedeco.opencv.opencv_ml.LogisticRegression;
-import org.bytedeco.opencv.opencv_ml.NormalBayesClassifier;
-import org.bytedeco.opencv.opencv_ml.RTrees;
-import org.bytedeco.opencv.opencv_ml.SVM;
-import org.bytedeco.opencv.opencv_ml.SVMSGD;
 import org.bytedeco.opencv.opencv_ml.StatModel;
 
-import java.io.IOException;
-import java.util.Map;
+import qupath.lib.io.GsonTools;
+import qupath.opencv.ml.models.statmodel.TrainableStatModel;
+import qupath.opencv.ml.models.PredictionModel;
+import qupath.opencv.ml.models.TrainableModel;
 
 
 /**
@@ -74,6 +56,44 @@ import java.util.Map;
  *
  */
 public class OpenCVTypeAdapters {
+
+	private static final GsonTools.SubTypeAdapterFactory<PredictionModel> predictionModelTypeAdapterFactory = GsonTools.createSubTypeAdapterFactory(
+			PredictionModel.class,
+			"model-type"
+	).registerSubtype(TrainableStatModel.class);
+
+	private static final GsonTools.SubTypeAdapterFactory<TrainableModel> trainableModelTypeAdapterFactory = GsonTools.createSubTypeAdapterFactory(
+			TrainableModel.class,
+			"model-type"
+	).registerSubtype(TrainableStatModel.class);
+
+	/**
+	 * Register a new JSON-serializable {@link PredictionModel} or {@link TrainableModel},
+	 * using the simple class name as "model-type".
+	 * @param cls the JSON-serializable class
+	 * @return
+	 */
+	public static void registerPredictionModel(Class<? extends PredictionModel> cls) {
+		registerPredictionModel(cls, cls.getSimpleName());
+	}
+
+	/**
+	 * Register a new JSON-serializable {@link PredictionModel} or {@link TrainableModel}.
+	 * @param cls the JSON-serializable class
+	 * @param label the "model-type" label; note that this must be unique.
+	 * @return
+	 */
+	@SuppressWarnings("unchecked")
+	public static void registerPredictionModel(Class<? extends PredictionModel> cls, String label) {
+		predictionModelTypeAdapterFactory.registerSubtype(cls, label);
+		if (TrainableModel.class.isAssignableFrom(cls)) {
+			registerTrainableModel((Class)cls, label);
+		}
+	}
+
+	private static void registerTrainableModel(Class<? extends TrainableModel> cls, String label) {
+		trainableModelTypeAdapterFactory.registerSubtype(cls, label);
+	}
 	
 	/**
 	 * Get a TypeAdapterFactory to pass to a GsonBuilder to aid with serializing OpenCV objects 
@@ -85,28 +105,7 @@ public class OpenCVTypeAdapters {
 		return new OpenCVTypeAdaptorFactory();
 	}
 	
-	
-	/**
-	 * Get a TypeAdapter to pass to a GsonBuilder for a specific supported OpenCV class.
-	 * 
-	 * @param cls the OpenCV class, i.e. {@link Mat}, {@link SparseMat} or {@link StatModel}
-	 * @return the required TypeAdaptor, or null if no supported adapter is available for the class.
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T> TypeAdapter<T> getTypeAdaptor(Class<T> cls) {
-		if (Mat.class == cls)
-			return (TypeAdapter<T>)new MatTypeAdapter();
-		if (SparseMat.class == cls)
-			return (TypeAdapter<T>)new SparseMatTypeAdapter();
-		if (StatModel.class.isAssignableFrom(cls))
-			return (TypeAdapter<T>)new StatModelTypeAdapter();
-		if (Scalar.class == cls)
-			return (TypeAdapter<T>)new ScalarTypeAdapter();
-		if (Size.class == cls)
-			return (TypeAdapter<T>)new SizeTypeAdapter();
-		return null;
-	}
-	
+
 	
 	/**
 	 * TypeAdapterFactory that helps make OpenCV's serialization methods more compatible with custom JSON/Gson serialization.
@@ -116,255 +115,32 @@ public class OpenCVTypeAdapters {
 		@SuppressWarnings("unchecked")
 		@Override
 		public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-			return getTypeAdaptor((Class<T>)type.getRawType());
+			var adaptor = getTypeAdaptor((Class<T>)type.getRawType());
+			if (adaptor != null)
+				return adaptor;
+			if (TrainableModel.class.isAssignableFrom(type.getRawType()))
+				return trainableModelTypeAdapterFactory.create(gson, type);
+			if (PredictionModel.class.isAssignableFrom(type.getRawType()))
+				return predictionModelTypeAdapterFactory.create(gson, type);
+			return null;
 		}
-		
+
+		private static <T> TypeAdapter<T> getTypeAdaptor(Class<T> cls) {
+			if (Mat.class == cls)
+				return (TypeAdapter<T>)new MatTypeAdapter();
+			if (SparseMat.class == cls)
+				return (TypeAdapter<T>)new SparseMatTypeAdapter();
+			if (StatModel.class.isAssignableFrom(cls))
+				return (TypeAdapter<T>)new StatModelTypeAdapter();
+			if (Scalar.class == cls)
+				return (TypeAdapter<T>)new ScalarTypeAdapter();
+			if (Size.class == cls)
+				return (TypeAdapter<T>)new SizeTypeAdapter();
+			return null;
+		}
+
+
 	}
-	
-	
-	private static class SizeTypeAdapter extends TypeAdapter<Size> {
 
-		@Override
-		public void write(JsonWriter out, Size value) throws IOException {
-			if (value == null || value.isNull())
-				out.nullValue();
-			else {
-				out.beginObject();
-				
-				out.name("width");
-				out.value(value.width());
-				
-				out.name("height");
-				out.value(value.height());
-	
-				out.endObject();
-			}
-		}
-
-		@Override
-		public Size read(JsonReader in) throws IOException {
-			in.beginObject();
-			var map = Map.of(
-					in.nextName().toLowerCase(), in.nextInt(),
-					in.nextName().toLowerCase(), in.nextInt()
-					);
-			in.endObject();
-			return new Size(map.get("width"), map.get("height"));
-		}
-		
-	}
-	
-	
-	private static class ScalarTypeAdapter extends TypeAdapter<Scalar> {
-
-		@Override
-		public void write(JsonWriter out, Scalar value) throws IOException {
-			if (value == null || value.isNull())
-				out.nullValue();
-			else {
-				out.beginArray();
-				for (int i = 0; i < 4; i++)
-					out.value(value.get(i));
-				out.endArray();
-			}
-		}
-
-		@Override
-		public Scalar read(JsonReader in) throws IOException {
-			in.beginArray();
-			double[] values = new double[4];
-			int n = 0;
-			while (in.hasNext() && n < values.length) {
-				values[n] = in.nextDouble();
-				n++;
-			}
-			in.endArray();
-			if (n == 0)
-				return new Scalar();
-			else if (n == 1)
-				return new Scalar(values[0]);
-			else if (n == 2)
-				return new Scalar(values[0], values[1]);
-			else
-				return new Scalar(values[0], values[1], values[2], values[3]);
-		}
-		
-	}
-	
-	
-	/**
-	 * TypeAdapter that helps include OpenCV-based objects within a Java object being serialized to JSON.
-	 * @param <T> 
-	 */
-	public abstract static class OpenCVTypeAdapter<T> extends TypeAdapter<T> {
-		
-		Gson gson = new GsonBuilder().setStrictness(Strictness.LENIENT).create();
-
-		@Override
-		public void write(JsonWriter out, T value) throws IOException {
-			var strictness = out.getStrictness();
-			String json = null;
-			try (FileStorage fs = new FileStorage()) {
-				fs.open("anything.json", FileStorage.FORMAT_JSON + FileStorage.WRITE + FileStorage.MEMORY);
-				write(fs, value);
-				json = fs.releaseAndGetString().getString().trim();
-				
-				JsonObject element = gson.fromJson(json.trim(), JsonObject.class);
-				gson.toJson(element, out);
-			} finally {
-				out.setStrictness(strictness);
-			}
-		}
-		
-		abstract void write(FileStorage fs, T value);
-		
-		abstract T read(FileStorage fs);
-
-		@Override
-		public T read(JsonReader in) throws IOException {
-			var strictness = in.getStrictness();
-			try {
-				JsonElement element = JsonParser.parseReader(in);
-				JsonObject obj = element.getAsJsonObject();
-				String inputString = obj.toString();//obj.get("mat").toString();
-				try (FileStorage fs = new FileStorage()) {
-					fs.open(inputString, FileStorage.FORMAT_JSON + FileStorage.READ + FileStorage.MEMORY);
-					return read(fs);
-				}
-			} finally {
-				in.setStrictness(strictness);
-			}
-		}
-		
-	}
-	
-	
-	private static class MatTypeAdapter extends OpenCVTypeAdapter<Mat> {
-
-		@Override
-		void write(FileStorage fs, Mat value) {
-			opencv_core.write(fs, "mat", value);
-		}
-
-		@Override
-		Mat read(FileStorage fs) {
-			return fs.getFirstTopLevelNode().mat();
-		}
-		
-	}
-	
-	private static class SparseMatTypeAdapter extends OpenCVTypeAdapter<SparseMat> {
-
-		@Override
-		void write(FileStorage fs, SparseMat value) {
-			opencv_core.write(fs, "sparsemat", value);
-		}
-
-		@Override
-		SparseMat read(FileStorage fs) {
-			SparseMat mat = new SparseMat();
-			opencv_core.read(fs.getFirstTopLevelNode(), mat);
-			return mat;
-		}
-		
-	}
-	
-	
-	private static class StatModelTypeAdapter extends TypeAdapter<StatModel> {
-		
-		Gson gson = new GsonBuilder().setStrictness(Strictness.LENIENT).create();
-
-		@Override
-		public void write(JsonWriter out, StatModel value) throws IOException {
-			try (FileStorage fs = new FileStorage()) {
-				fs.open("anything.json", FileStorage.FORMAT_JSON + FileStorage.WRITE + FileStorage.MEMORY);
-//				value.write(fs);
-				
-				// Change v0.3.0 - for KNearest (at least) it's important to write using the default name, otherwise the model cannot be loaded again
-				value.write(fs, value.getDefaultName());
-				String json = fs.releaseAndGetString().getString();
-				
-				out.beginObject();
-				out.name("class");
-				out.value(value.getClass().getSimpleName());
-				out.name("statmodel");
-				
-				// jsonValue works for JsonWriter but not JsonTreeWriter, so we try to work around this...
-				JsonObject element = gson.fromJson(json.trim(), JsonObject.class);
-				
-				gson.toJson(element, out);
-				out.endObject();
-			}
-		}
-
-        // model.read(FileNode) is reported to be deprecated in JavaCPP,
-        // but I can't find evidence in OpenCV that this is correct -
-        // and I can't find a replacement.
-        // The warning appears on every QuPath launch, so I'd like to remove it
-        // so that (real, actionable) warnings don't get ignored.
-        @SuppressWarnings("deprecation")
-        @Override
-		public StatModel read(JsonReader in) throws IOException {
-			
-			var strictness = in.getStrictness();
-			
-			try {
-				JsonElement element = JsonParser.parseReader(in);
-				
-				JsonObject obj = element.getAsJsonObject();
-				
-				String className = obj.get("class").getAsString();
-				
-				// It's a bit roundabout... but toString() gives Strings that are too long and unsupported 
-				// by OpenCV, so we take another tour through Gson.
-				var objStatModel = obj.get("statmodel");
-				String modelString = new GsonBuilder().setPrettyPrinting().create().toJson(objStatModel);
-				
-				// In QuPath v0.2 we didn't use OpenCV's default name for the classifier, in which case it would be insert as the root - 
-				// but this failed for KNearest, so now we need to use the name & cope with old classifiers
-				boolean useRoot = objStatModel.isJsonObject() && objStatModel.getAsJsonObject().has("format");
-				
-				StatModel model = null;
-				
-				if (RTrees.class.getSimpleName().equals(className))
-					model = RTrees.create();
-				else if (DTrees.class.getSimpleName().equals(className))
-					model = DTrees.create();
-				else if (Boost.class.getSimpleName().equals(className))
-					model = Boost.create();
-				else if (EM.class.getSimpleName().equals(className))
-					model = EM.create();
-				else if (LogisticRegression.class.getSimpleName().equals(className))
-					model = LogisticRegression.create();
-				else if (SVM.class.getSimpleName().equals(className))
-					model = SVM.create();
-				else if (SVMSGD.class.getSimpleName().equals(className))
-					model = SVMSGD.create();
-				else if (NormalBayesClassifier.class.getSimpleName().equals(className))
-					model = NormalBayesClassifier.create();
-				else if (KNearest.class.getSimpleName().equals(className))
-					model = KNearest.create();
-				else if (ANN_MLP.class.getSimpleName().equals(className))
-					model = ANN_MLP.create();
-				else
-					throw new IOException("Unknown StatModel class name " + className);
-				
-				// Load from the JSON data
-				try (FileStorage fs = new FileStorage()) {
-					fs.open(modelString, FileStorage.FORMAT_JSON + FileStorage.READ + FileStorage.MEMORY);
-					FileNode fn;
-					if (useRoot)
-						fn = fs.root();
-					else
-						fn = fs.getFirstTopLevelNode();
-					model.read(fn);
-					return model;
-				}
-			} finally {
-				in.setStrictness(strictness);
-			}
-		}
-		
-	}
 
 }
