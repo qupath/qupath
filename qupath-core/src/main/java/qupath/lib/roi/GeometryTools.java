@@ -1144,6 +1144,11 @@ public class GeometryTools {
 //	    	if (roi.isEmpty())
 //	    		return factory.createPolygon();
 	    	if (roi instanceof EllipseROI || roi instanceof RectangleROI) {
+				// If we serialize the bounds, we get a zero-area polygon that returns polygon.isEmpty() == false -
+				// but we also don't want to translate an empty polygon from some other location
+				if (roi.isEmpty() && roi.getBoundsX() == 0 && roi.getBoundsY() == 0)
+					return factory.createPolygon();
+
 	    		var shapeFactory = new GeometricShapeFactory(factory);
 	    		shapeFactory.setEnvelope(
 	    				new Envelope(
