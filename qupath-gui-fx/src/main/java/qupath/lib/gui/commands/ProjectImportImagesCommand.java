@@ -423,7 +423,18 @@ class ProjectImportImagesCommand {
 						));
 					for (var temp : projectImages) {
 						try {
-							project.addDuplicate(temp, true);
+							if (importObjects) {
+								project.addDuplicate(temp, true);
+							} else {
+								var newEntry = project.addDuplicate(temp, false);
+								if (temp.hasImageData()) {
+									var imageData = temp.readImageData();
+									if (imageData != null) {
+										imageData.getHierarchy().clearAll();
+										newEntry.saveImageData(imageData);
+									}
+								}
+							}
 						} catch (Exception e) {
 							failures.add(temp);
 						}
@@ -457,6 +468,8 @@ class ProjectImportImagesCommand {
 						try (ImageData<BufferedImage> imageData = PathIO.readImageData(file)) {
 							var entry = project.addImage(imageData.getServer().getBuilder());
 							initializeEntry(entry, imageData.getImageType(), false, false, flip);
+							if (!importObjects)
+								imageData.getHierarchy().clearAll();
 							entry.saveImageData(imageData);
 							updateProgress(counter.incrementAndGet(), max);
 						} catch (Exception e) {
