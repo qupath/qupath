@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -70,6 +70,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Popup;
 import javafx.stage.Stage;
@@ -136,10 +137,10 @@ public class CommandFinderTools {
 		
 	};
 
-	private static BooleanProperty autoCloseCommandListProperty = PathPrefs.createPersistentPreference("autoCloseCommandList", true); // Return to the pan tool after drawing a ROI
+	private static final BooleanProperty autoCloseCommandListProperty = PathPrefs.createPersistentPreference("autoCloseCommandList", true); // Return to the pan tool after drawing a ROI
 
 	
-	private static ObjectProperty<CommandBarDisplay> commandBarDisplay = PathPrefs.createPersistentPreference("commandFinderDisplayMode", CommandBarDisplay.NEVER, CommandBarDisplay.class);
+	private static final ObjectProperty<CommandBarDisplay> commandBarDisplay = PathPrefs.createPersistentPreference("commandFinderDisplayMode", CommandBarDisplay.NEVER, CommandBarDisplay.class);
 	
 	/**
 	 * Property specifying where the command bar should be displayed relative to the main viewer window.
@@ -162,10 +163,49 @@ public class CommandFinderTools {
 	 * @return
 	 */
 	public static HiddenSidesPane createCommandFinderPane(final QuPathGUI qupath, final Node node, final ObjectProperty<CommandBarDisplay> displayMode) {
+		var paneCommands = createCommandFinderPane(qupath, false);
+		var textField = paneCommands.getChildren().stream().filter(TextField.class::isInstance).findFirst().orElseThrow(() -> new RuntimeException("Can't find TextField for command finder"));
+		HiddenSidesPane paneViewer = new HiddenSidesPane();
+		paneViewer.pinnedSideProperty().bind(
+				Bindings.createObjectBinding(() -> switch (displayMode.get()) {
+					case ALWAYS -> Side.TOP;
+					case NEVER -> null;
+					default -> textField.isFocused() ? Side.TOP : null;
+				}, textField.focusedProperty(), displayMode)
+		);
+
+		displayMode.addListener((v, o, n) -> {
+			if (n == CommandBarDisplay.NEVER)
+				paneViewer.setTop(null);
+			else
+				paneViewer.setTop(paneCommands);
+		});
+
+		if (displayMode.get() != CommandBarDisplay.NEVER)
+			paneViewer.setTop(paneCommands);
+		paneViewer.setContent(node);
+
+		commandBarDisplay.addListener((v, o, n) -> {
+			var viewers = qupath.getAllViewers();
+			for (var viewer: viewers) {
+				if (viewer instanceof QuPathViewerPlus viewerPlus) {
+					viewerPlus.setSpinnersPosition(!n.equals(CommandBarDisplay.NEVER));
+				}
+			}
+		});
+
+		return paneViewer;
+	}
+
+	public static Pane createSingleColumnCommandFinderPane(final QuPathGUI qupath) {
+		return createCommandFinderPane(qupath, true);
+	}
+
+	private static Pane createCommandFinderPane(final QuPathGUI qupath, boolean singleColumn) {
 		MenuManager menuManager = MenuManager.getInstance(qupath.getMenuBar());
 		
 		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getCommands());
-		TableView<CommandEntry> table = createCommandTable(commands);
+		TableView<CommandEntry> table = createCommandTable(commands, singleColumn);
 		TextField textField = createTextField(table, commands, true, null, null);
 		
 		BorderPane paneCommands = new BorderPane();
@@ -203,7 +243,6 @@ public class CommandFinderTools {
 		
 		table.getStylesheets().add(CommandFinderTools.class.getClassLoader().getResource("css/table_without_header.css").toExternalForm());
 		
-		
 		DoubleBinding opacityBinding = Bindings.createDoubleBinding(() -> {
 				if (textField.isFocused())
 					return 0.9;
@@ -213,37 +252,7 @@ public class CommandFinderTools {
 				textField.focusedProperty());
 		textField.opacityProperty().bind(opacityBinding);
 		
-		
-		HiddenSidesPane paneViewer = new HiddenSidesPane();
-		paneViewer.pinnedSideProperty().bind(
-				Bindings.createObjectBinding(() -> switch (displayMode.get()) {
-                    case ALWAYS -> Side.TOP;
-                    case NEVER -> null;
-                    default -> textField.isFocused() ? Side.TOP : null;
-                }, textField.focusedProperty(), displayMode)
-			);
-		
-		displayMode.addListener((v, o, n) -> {
-			if (n == CommandBarDisplay.NEVER)
-				paneViewer.setTop(null);
-			else
-				paneViewer.setTop(paneCommands);				
-		});
-
-		if (displayMode.get() != CommandBarDisplay.NEVER)
-			paneViewer.setTop(paneCommands);
-		paneViewer.setContent(node);
-		
-		commandBarDisplay.addListener((v, o, n) -> {
-			var viewers = qupath.getAllViewers();
-			for (var viewer: viewers) {
-				if (viewer instanceof QuPathViewerPlus) {
-					((QuPathViewerPlus)viewer).setSpinnersPosition(!n.equals(CommandBarDisplay.NEVER));
-				}
-			}
-		});
-		
-		return paneViewer;
+		return paneCommands;
 	}
 	
 	
@@ -278,7 +287,7 @@ public class CommandFinderTools {
 		stage.setTitle(QuPathResources.getString("Tools.CommandFinderTools.recentCommands"));
 
 		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getRecentCommands());
-		TableView<CommandEntry> table = createCommandTable(commands);
+		TableView<CommandEntry> table = createFullCommandTable(commands);
 		// Don't make recent command sortable
 		for (var col : table.getColumns())
 			col.setSortable(false);
@@ -343,7 +352,7 @@ public class CommandFinderTools {
 		cbAutoClose.setPadding(new Insets(2, 2, 2, 2));
 
 		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getCommands());			
-		TableView<CommandEntry> table = createCommandTable(commands);
+		TableView<CommandEntry> table = createFullCommandTable(commands);
 		TextField textField = createTextField(table, commands, false, stage, cbAutoClose.selectedProperty());
 		textField.setPromptText(QuPathResources.getString("Tools.CommandFinderTools.searchAllCommands"));
 		
@@ -543,6 +552,7 @@ public class CommandFinderTools {
 	
 	private static TextField createTextField(final TableView<CommandEntry> table, final FilteredList<CommandEntry> commands, final boolean clearTextOnRun, final Stage dialog, final ObservableBooleanValue hideDialogOnRun) {
 		TextField textField = new TextField();
+		textField.setPromptText(QuPathResources.getString("Tools.CommandFinderTools.prompt"));
 		
 		textField.setTooltip(new Tooltip(QuPathResources.getString("Tools.CommandFinderTools.typeToSearchCommands")));
 		
@@ -599,9 +609,16 @@ public class CommandFinderTools {
 				commands.add(CommandEntry.getInstance(item, menuPath));
 		}
 	}
-	
-	
-	static TableView<CommandEntry> createCommandTable(final ObservableList<CommandEntry> commands) {
+
+	private static TableView<CommandEntry> createFullCommandTable(final ObservableList<CommandEntry> commands) {
+		return createCommandTable(commands, false);
+	}
+
+	private static TableView<CommandEntry> createSingleColumnCommandTable(final ObservableList<CommandEntry> commands) {
+		return createCommandTable(commands, true);
+	}
+
+	private static TableView<CommandEntry> createCommandTable(final ObservableList<CommandEntry> commands, boolean singleColumn) {
 		TableView<CommandEntry> table = new TableView<>();
 		SortedList<CommandEntry> items = new SortedList<>(commands);
 		items.comparatorProperty().bind(table.comparatorProperty());
@@ -609,19 +626,33 @@ public class CommandFinderTools {
 		
 		TableColumn<CommandEntry, String> col1 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.command"));
 		col1.setCellValueFactory(new PropertyValueFactory<>("text"));
-		TableColumn<CommandEntry, String> col2 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.menuPath"));
-		col2.setCellValueFactory(new PropertyValueFactory<>("menuPath"));
-		TableColumn<CommandEntry, String> col3 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.keys"));
-		col3.setCellValueFactory(new PropertyValueFactory<>("acceleratorText"));
-		TableColumn<CommandEntry, String> col4 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.help"));
-		col4.setCellValueFactory(new PropertyValueFactory<>("longText"));
-		
+
 		Function<CommandEntry, String> tipExtractor = entry -> entry == null ? null : entry.getLongText();
 		col1.setCellFactory(v -> new TooltipCellFactory<>(tipExtractor));
-		col2.setCellFactory(v -> new TooltipCellFactory<>(tipExtractor));
-		col3.setCellFactory(v -> new TooltipCellFactory<>(tipExtractor));
-		col4.setCellFactory(v -> new HelpCellFactory<>());
-		
+		table.getColumns().add(col1);
+
+		if (!singleColumn) {
+			TableColumn<CommandEntry, String> col2 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.menuPath"));
+			col2.setCellValueFactory(new PropertyValueFactory<>("menuPath"));
+			TableColumn<CommandEntry, String> col3 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.keys"));
+			col3.setCellValueFactory(new PropertyValueFactory<>("acceleratorText"));
+			TableColumn<CommandEntry, String> col4 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.help"));
+			col4.setCellValueFactory(new PropertyValueFactory<>("longText"));
+
+			col2.setCellFactory(v -> new TooltipCellFactory<>(tipExtractor));
+			col3.setCellFactory(v -> new TooltipCellFactory<>(tipExtractor));
+			col4.setCellFactory(v -> new HelpCellFactory<>());
+
+			col2.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
+			col3.prefWidthProperty().bind(table.widthProperty().multiply(0.1).subtract(6));
+			col4.prefWidthProperty().bind(table.widthProperty().multiply(0.1).subtract(6));
+
+			col1.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
+			table.getColumns().add(col2);
+			table.getColumns().add(col3);
+			table.getColumns().add(col4);
+		}
+
 		// Indicate if an item is enabled or not
 		table.setRowFactory(e -> new CommandTableRow());
 
@@ -634,18 +665,7 @@ public class CommandFinderTools {
 					runSelectedCommand(selected);
 			}
 		});
-		
-		
-		col1.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
-		col2.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
-		col3.prefWidthProperty().bind(table.widthProperty().multiply(0.1).subtract(6));
-		col4.prefWidthProperty().bind(table.widthProperty().multiply(0.1).subtract(6));
-		
-		table.getColumns().add(col1);
-		table.getColumns().add(col2);
-		table.getColumns().add(col3);
-		table.getColumns().add(col4);
-		
+
 		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		table.setFocusTraversable(false);
 		return table;
