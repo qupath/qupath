@@ -660,8 +660,35 @@ public class QuPathGUI {
 			var title = new Label();
 			title.textProperty().bind(titleBinding);
 			title.setStyle("-fx-font-weight: bold;");
+			// Searching for the TextField would ideally not be necessary, but the command finder would need refactoring
 			var commandFinder = CommandFinderTools.createSingleColumnCommandFinderPane(this);
-			commandFinder.setPrefWidth(200);
+			commandFinder.getChildren().stream()
+					.filter(TextField.class::isInstance)
+					.map(TextField.class::cast)
+					.findFirst().ifPresent(tf -> {
+				tf.setPrefColumnCount(20);
+				var previousFocusOwner = new SimpleObjectProperty<Node>();
+				var actionSearch = new Action("Focus search field",
+						e -> tf.requestFocus());
+				actionSearch.setAccelerator(new KeyCodeCombination(
+						KeyCode.F, KeyCombination.SHORTCUT_DOWN));
+				var comboResetFocus = new KeyCodeCombination(KeyCode.ESCAPE);
+				tf.addEventFilter(KeyEvent.ANY, e -> {
+					if (comboResetFocus.match(e) && tf.isFocused()) {
+						if (previousFocusOwner.get() != null)
+							previousFocusOwner.get().requestFocus();
+						e.consume();
+					}
+				});
+				registerAccelerator(actionSearch);
+				content.addEventFilter(KeyEvent.ANY, event -> {
+							if (actionSearch.getAccelerator().match(event)) {
+								previousFocusOwner.set(content.getScene().getFocusOwner());
+								actionSearch.handle(new ActionEvent());
+								event.consume();
+							}
+						});
+			});
 			HeaderBar.setMargin(commandFinder, new Insets(0, 5, 0, 5));
 			header.setRight(commandFinder);
 			header.setCenter(title);

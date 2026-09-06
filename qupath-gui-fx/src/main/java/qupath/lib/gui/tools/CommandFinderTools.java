@@ -68,6 +68,7 @@ import javafx.scene.control.skin.TableColumnHeader;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
@@ -97,7 +98,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 
 /**
@@ -222,7 +222,7 @@ public class CommandFinderTools {
 				popup.hide();
 			else {
 				Bounds bounds = textField.localToScreen(textField.getBoundsInLocal());
-				popup.show(textField, bounds.getMinX(), bounds.getMaxY());			
+				popup.show(textField, bounds.getMinX(), bounds.getMaxY());
 			}
 		});
 		textField.focusedProperty().addListener((v, o, n) -> {
@@ -237,7 +237,9 @@ public class CommandFinderTools {
 					textField.clear();
 			}
 		});
-		table.prefWidthProperty().bind(textField.widthProperty());
+		table.prefWidthProperty().bind(Bindings.max(
+				240, textField.widthProperty()
+		));
 
 		popup.getContent().add(table);
 		
@@ -460,7 +462,7 @@ public class CommandFinderTools {
 		
 		String description = entry.getLongText();
 		if (worthwhile(description))
-			writer.println("" + description);
+			writer.println(description);
 
 		writer.println();		
 	}
@@ -480,8 +482,8 @@ public class CommandFinderTools {
 	
 	private static class TooltipCellFactory<S, T> extends TableCell<S, T> {
 		
-		private Function<S, String> funTip;
-		private Tooltip tooltip = new Tooltip();
+		private final Function<S, String> funTip;
+		private final Tooltip tooltip = new Tooltip();
 		
 		public TooltipCellFactory(Function<S, String> funTip) {
 			super();
@@ -511,14 +513,14 @@ public class CommandFinderTools {
 	}
 	
 	
-	static class HelpCellFactory<S> extends TableCell<S, String> {
+	private static class HelpCellFactory<S> extends TableCell<S, String> {
 		
 		/*
 		 * Tooltip to show help message.
 		 * Popover was used prior to v0.4.0 - but the behavior was a bit unreliable.
 		 * See https://github.com/qupath/qupath/issues/1132
 		 */
-		private Tooltip tooltip = new Tooltip();
+		private final Tooltip tooltip = new Tooltip();
 		
 		public HelpCellFactory() {
 			super();
@@ -559,9 +561,14 @@ public class CommandFinderTools {
 		textField.textProperty().addListener((v, o, n) -> {
 			updateTableFilter(n.toLowerCase(), commands);
 		});
-		
-		textField.setOnKeyReleased(e -> {
-			if (e.getCode() == KeyCode.ENTER) {
+
+		KeyCombination comboEnter = new KeyCodeCombination(KeyCode.ENTER);
+		// If using 'keyReleased', we can enter a loop if a dialog is shown
+		// by the command, which the user dismisses by pressing 'ENTER'.
+		// The command gets run again, the dialog appears again, the user
+		// pressed 'ENTER' again...
+		textField.setOnKeyPressed(e -> {
+			if (!e.isConsumed() && comboEnter.match(e)) {
 				if (!runSelectedCommand(table.getSelectionModel().getSelectedItem()))
 					return;
 				
@@ -597,7 +604,7 @@ public class CommandFinderTools {
 	}
 	
 	
-	static void addMenuComponents(final Menu menu, final String menuPath, final List<CommandEntry> commands) {
+	private static void addMenuComponents(final Menu menu, final String menuPath, final List<CommandEntry> commands) {
 		for (MenuItem item : menu.getItems()) {
 			if (!item.isVisible())
 				continue;
@@ -627,7 +634,7 @@ public class CommandFinderTools {
 		TableColumn<CommandEntry, String> col1 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.command"));
 		col1.setCellValueFactory(new PropertyValueFactory<>("text"));
 
-		Function<CommandEntry, String> tipExtractor = entry -> entry == null ? null : entry.getLongText();
+		Function<CommandEntry, String> tipExtractor = CommandFinderTools::extractTooltipText;
 		col1.setCellFactory(v -> new TooltipCellFactory<>(tipExtractor));
 		table.getColumns().add(col1);
 
@@ -670,16 +677,19 @@ public class CommandFinderTools {
 		table.setFocusTraversable(false);
 		return table;
 	}
+
+	private static String extractTooltipText(CommandEntry entry) {
+		if (entry == null)
+			return null;
+		var longText = entry.getLongText();
+		if (longText == null || longText.isBlank())
+			return entry.getCommandPath();
+		else
+			return entry.getCommandPath() + "\n\n" + longText;
+	}
 	
-	
-	static void updateTableFilter(final String text, final FilteredList<CommandEntry> commands) {
-		commands.setPredicate(new Predicate<>() {
-			@Override
-			public boolean test(CommandEntry entry) {
-				return entry.getCommandPath().toLowerCase().contains(text);
-			}
-		});
-		
+	private static void updateTableFilter(final String text, final FilteredList<CommandEntry> commands) {
+		commands.setPredicate(e -> e.getCommandPath().toLowerCase().contains(text));
 	}
 
 
@@ -693,7 +703,7 @@ public class CommandFinderTools {
 	}
 
 	
-	static boolean runSelectedCommand(final CommandEntry entry) {
+	private static boolean runSelectedCommand(final CommandEntry entry) {
 		if (entry != null) {
 			MenuItem item = entry.getMenuItem();
 			return MenuManager.fireMenuItem(item);
@@ -703,7 +713,7 @@ public class CommandFinderTools {
 
 	private static class CommandTableRow extends TableRow<CommandEntry> {
 
-		private ContextMenu popup;
+		private final ContextMenu popup;
 
 		private CommandTableRow() {
 			popup = new ContextMenu();
@@ -731,15 +741,15 @@ public class CommandFinderTools {
 	
 	private static class MenuManager {
 		
-		private static Logger logger = LoggerFactory.getLogger(MenuManager.class);
+		private static final Logger logger = LoggerFactory.getLogger(MenuManager.class);
+
+		private static final Map<MenuBar, MenuManager> managerMap = new WeakHashMap<>();
+
+		private final MenuBar menubar;
+		private final ObservableList<CommandEntry> commandsBase = FXCollections.observableArrayList();
 		
-		private MenuBar menubar;
-		private ObservableList<CommandEntry> commandsBase = FXCollections.observableArrayList();
-		
-		private ObservableList<CommandEntry> recentCommands = FXCollections.observableArrayList();
-		
-		private static Map<MenuBar, MenuManager> managerMap = new WeakHashMap<>();
-		
+		private final ObservableList<CommandEntry> recentCommands = FXCollections.observableArrayList();
+
 		/**
 		 * Get MenuManager for the specified menubar.
 		 * Returns a cached instance if possible, creates a new one if necessary.
@@ -747,7 +757,7 @@ public class CommandFinderTools {
 		 * @return
 		 */
 		public static MenuManager getInstance(MenuBar menubar) {
-			return managerMap.computeIfAbsent(menubar, m -> new MenuManager(m));
+			return managerMap.computeIfAbsent(menubar, MenuManager::new);
 		}
 
 		private MenuManager(final MenuBar menubar) {
@@ -813,19 +823,19 @@ public class CommandFinderTools {
 	 * Helper class to wrap summary data for a command to display in the list.
 	 */
 	public static class CommandEntry {
+
+		private static final Map<MenuItem, CommandEntry> map = new WeakHashMap<>();
+
+		private final StringProperty menuPath = new SimpleStringProperty();
+		private final ObjectProperty<MenuItem> item = new SimpleObjectProperty<>();
+		private final StringProperty text = new SimpleStringProperty();
+		private final StringProperty acceleratorText = new SimpleStringProperty();
+		private final StringProperty longText = new SimpleStringProperty();
 		
-		private StringProperty menuPath = new SimpleStringProperty();
-		private ObjectProperty<MenuItem> item = new SimpleObjectProperty<>();
-		private StringProperty text = new SimpleStringProperty();
-		private StringProperty acceleratorText = new SimpleStringProperty();
-		private StringProperty longText = new SimpleStringProperty();
-		
-		private CommandListener listener = new CommandListener();
+		private final CommandListener listener = new CommandListener();
 		
 		private ObservableList<CommandEntry> recent;
-		
-		private static Map<MenuItem, CommandEntry> map = new WeakHashMap<>();
-		
+
 		static synchronized CommandEntry getInstance(final MenuItem item, final String menuPath) {
 			var cached = map.getOrDefault(item, null);
 			if (cached == null || !Objects.equals(cached.getMenuPath(), menuPath)) {
@@ -849,7 +859,7 @@ public class CommandFinderTools {
 			
 			var action = item == null ? null : ActionTools.getActionProperty(item);
 			if (action != null) {
-				longText = action.longTextProperty();
+				longText.bind(action.longTextProperty());
 			}
 
 			this.acceleratorText.bind(Bindings.createStringBinding(() -> {
@@ -961,18 +971,18 @@ public class CommandFinderTools {
 			// Add or remove listeners, as needed
 			var item = getMenuItem();
 			if (recent == null) {
-				if (item instanceof CheckMenuItem) {
-					((CheckMenuItem) item).selectedProperty().removeListener(listener);
-				} else if (item instanceof RadioMenuItem) {
-					((RadioMenuItem) item).selectedProperty().removeListener(listener);
+				if (item instanceof CheckMenuItem cmi) {
+					cmi.selectedProperty().removeListener(listener);
+				} else if (item instanceof RadioMenuItem rmi) {
+					rmi.selectedProperty().removeListener(listener);
 				} else {
 					item.removeEventHandler(ActionEvent.ACTION, listener);
 				}
 			} else {
-				if (item instanceof CheckMenuItem) {
-					((CheckMenuItem) item).selectedProperty().addListener(listener);
-				} else if (item instanceof RadioMenuItem) {
-					((RadioMenuItem) item).selectedProperty().addListener(listener);
+				if (item instanceof CheckMenuItem cmi) {
+					cmi.selectedProperty().addListener(listener);
+				} else if (item instanceof RadioMenuItem rmi) {
+					rmi.selectedProperty().addListener(listener);
 				} else {
 					item.addEventHandler(ActionEvent.ACTION, listener);
 				}
