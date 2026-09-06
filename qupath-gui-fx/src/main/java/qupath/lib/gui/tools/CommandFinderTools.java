@@ -51,7 +51,9 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -72,6 +74,7 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Popup;
 import javafx.stage.Stage;
@@ -478,8 +481,51 @@ public class CommandFinderTools {
 				.replace("shift", "Shift")
 				.replace("alt", "Alt");
 	}
-	
-	
+
+
+	private static class FullCommandTableCell extends TableCell<CommandEntry, String> {
+
+		private final Tooltip tooltip = new Tooltip();
+		private final Label labelText = new Label();
+		private final StringProperty text = labelText.textProperty();
+		private final Label labelPath = new Label();
+		private final StringProperty menuPath = labelPath.textProperty();
+
+		private final VBox graphic = new VBox(labelText, labelPath);
+
+		public FullCommandTableCell() {
+			super();
+			setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+			labelPath.setStyle("-fx-font-size: 80%; -fx-opacity: 0.6; -fx-alignment: left;");
+			labelText.setStyle("-fx-alignment: left;");
+			setPadding(new Insets(2));
+		}
+
+		@Override
+		public void updateItem(String item, boolean empty) {
+			super.updateItem(item, empty);
+			var row = getTableRow();
+			var entry = row == null ? null : row.getItem();
+			if (item == null || empty || entry == null) {
+				setText(null);
+				setGraphic(null);
+				menuPath.set(null);
+				if (row != null)
+					row.setTooltip(null);
+				return;
+			}
+			tooltip.setText(extractTooltipText(entry));
+			row.setTooltip(tooltip);
+			text.set(entry.getText());
+			menuPath.set(entry.getMenuPath());
+			setGraphic(graphic);
+//			setText(entry.getText());
+//			menuPath.set(entry.getMenuPath());
+		}
+
+	}
+
+
 	private static class TooltipCellFactory<S, T> extends TableCell<S, T> {
 		
 		private final Function<S, String> funTip;
@@ -631,14 +677,20 @@ public class CommandFinderTools {
 		items.comparatorProperty().bind(table.comparatorProperty());
 		table.setItems(items);
 		
-		TableColumn<CommandEntry, String> col1 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.command"));
-		col1.setCellValueFactory(new PropertyValueFactory<>("text"));
+		if (singleColumn) {
+			TableColumn<CommandEntry, String> column = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.command"));
+			column.setCellValueFactory(new PropertyValueFactory<>("text"));
 
-		Function<CommandEntry, String> tipExtractor = CommandFinderTools::extractTooltipText;
-		col1.setCellFactory(v -> new TooltipCellFactory<>(tipExtractor));
-		table.getColumns().add(col1);
+			column.setCellFactory(v -> new FullCommandTableCell());
+			table.getColumns().add(column);
+		} else {
+			TableColumn<CommandEntry, String> col1 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.command"));
+			col1.setCellValueFactory(new PropertyValueFactory<>("text"));
 
-		if (!singleColumn) {
+			Function<CommandEntry, String> tipExtractor = CommandFinderTools::extractTooltipText;
+			col1.setCellFactory(v -> new TooltipCellFactory<>(tipExtractor));
+			table.getColumns().add(col1);
+
 			TableColumn<CommandEntry, String> col2 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.menuPath"));
 			col2.setCellValueFactory(new PropertyValueFactory<>("menuPath"));
 			TableColumn<CommandEntry, String> col3 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.keys"));

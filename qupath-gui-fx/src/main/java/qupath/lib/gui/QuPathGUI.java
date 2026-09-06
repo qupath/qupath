@@ -667,6 +667,7 @@ public class QuPathGUI {
 					.map(TextField.class::cast)
 					.findFirst().ifPresent(tf -> {
 				tf.setPrefColumnCount(20);
+				tf.setFocusTraversable(true);
 				var previousFocusOwner = new SimpleObjectProperty<Node>();
 				var actionSearch = new Action("Focus search field",
 						e -> tf.requestFocus());
