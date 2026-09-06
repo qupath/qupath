@@ -26,6 +26,7 @@ package qupath.lib.gui.tools;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
+import javafx.beans.binding.ListBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
@@ -39,15 +40,15 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableSet;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
+import javafx.collections.transformation.TransformationList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.geometry.Side;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
@@ -72,6 +73,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
@@ -80,7 +82,6 @@ import javafx.stage.Popup;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
-import org.controlsfx.control.HiddenSidesPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
@@ -88,7 +89,6 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.QuPathViewerPlus;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -96,6 +96,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -110,32 +111,43 @@ public class CommandFinderTools {
 
 	private static final BooleanProperty autoCloseCommandListProperty = PathPrefs.createPersistentPreference("autoCloseCommandList", true); // Return to the pan tool after drawing a ROI
 
+	private static final KeyCombination comboEnter = new KeyCodeCombination(KeyCode.ENTER);
+	private static final KeyCombination comboUp = new KeyCodeCombination(KeyCode.UP);
+	private static final KeyCombination comboDown = new KeyCodeCombination(KeyCode.DOWN);
+
+
 	/**
 	 * Create a minimal command finder pane based upon a single {@link TextField}.
 	 * @param qupath
 	 * @return
 	 */
 	public static Pane createMinimalCommandFinderPane(final QuPathGUI qupath) {
-		return createCommandFinderPane(qupath, true);
-	}
-
-	private static Pane createCommandFinderPane(final QuPathGUI qupath, boolean singleColumn) {
 		MenuManager menuManager = MenuManager.getInstance(qupath.getMenuBar());
-		
+
 		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getCommands());
-		TableView<CommandEntry> table = createCommandTable(commands, singleColumn);
+		TableView<CommandEntry> table = createSingleColumnCommandTable(commands);
 		TextField textField = createTextField(table, commands, true, null, null);
-		
+
+		// When the text field is empty, show recent commands
+		var itemsMain = table.getItems();
+		var recentReversed = new ListReverser<>(menuManager.getRecentCommands(), true).getReversed();
+		table.itemsProperty().bind(Bindings.when(textField.textProperty().isNotEmpty())
+				.then(itemsMain).otherwise(recentReversed));
+
 		BorderPane paneCommands = new BorderPane();
 		paneCommands.setPadding(new Insets(5, 10, 5, 10));
 		paneCommands.setCenter(textField);
-		
+
 		Popup popup = new Popup();
+		textField.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+			if (!popup.isShowing() && textField.textProperty().getValueSafe().isEmpty() &&
+					!table.getItems().isEmpty() && (comboUp.match(event) || comboDown.match(event))) {
+				Bounds bounds = textField.localToScreen(textField.getBoundsInLocal());
+				popup.show(textField, bounds.getMinX(), bounds.getMaxY());
+				event.consume();
+			}
+		});
 		textField.textProperty().addListener((v, o, n) -> {
-			// Ensure the table is up to date if we are just starting
-			if (o.isEmpty() && !n.isEmpty())
-				menuManager.refresh(true);
-			
 			if (n.trim().isEmpty())
 				popup.hide();
 			else {
@@ -144,10 +156,12 @@ public class CommandFinderTools {
 			}
 		});
 		textField.focusedProperty().addListener((v, o, n) -> {
-			if (!n)
+			if (n) {
+				menuManager.refresh(true);
+			} else {
 				popup.hide();
+			}
 		});
-		
 
 		table.setOnMouseClicked(e -> {
 			if (!e.isConsumed() && e.getClickCount() > 1) {
@@ -158,6 +172,7 @@ public class CommandFinderTools {
 		table.prefWidthProperty().bind(Bindings.max(
 				240, textField.widthProperty()
 		));
+		table.setPrefHeight(240);
 
 		popup.getContent().add(table);
 		
@@ -411,8 +426,7 @@ public class CommandFinderTools {
 		public FullCommandTableCell() {
 			super();
 			setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-			labelPath.setStyle("-fx-font-size: 80%; -fx-opacity: 0.6; -fx-alignment: left;");
-			labelText.setStyle("-fx-alignment: left;");
+			labelPath.setStyle("-fx-font-size: 80%; -fx-opacity: 0.6;");
 			setPadding(new Insets(2));
 		}
 
@@ -523,13 +537,14 @@ public class CommandFinderTools {
 			updateTableFilter(n.toLowerCase(), commands);
 		});
 
-		KeyCombination comboEnter = new KeyCodeCombination(KeyCode.ENTER);
 		// If using 'keyReleased', we can enter a loop if a dialog is shown
 		// by the command, which the user dismisses by pressing 'ENTER'.
 		// The command gets run again, the dialog appears again, the user
 		// pressed 'ENTER' again...
-		textField.setOnKeyPressed(e -> {
-			if (!e.isConsumed() && comboEnter.match(e)) {
+		textField.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+			if (e.isConsumed())
+				return;
+			if (comboEnter.match(e)) {
 				if (!runSelectedCommand(table.getSelectionModel().getSelectedItem()))
 					return;
 				
@@ -540,7 +555,7 @@ public class CommandFinderTools {
 					dialog.hide();
 				}
 				e.consume();
-			} else if (e.getCode() == KeyCode.DOWN) {
+			} else if (comboDown.match(e)) {
 				if (table.getItems().size() == 1)
 					table.getSelectionModel().select(0);
 				else {
@@ -549,7 +564,7 @@ public class CommandFinderTools {
 						table.getSelectionModel().select(row);
 				}
 				e.consume();
-			} else if (e.getCode() == KeyCode.UP) {
+			} else if (comboUp.match(e)) {
 				if (table.getItems().size() == 1)
 					table.getSelectionModel().select(0);
 				else {
@@ -598,6 +613,8 @@ public class CommandFinderTools {
 
 			column.setCellFactory(v -> new FullCommandTableCell());
 			table.getColumns().add(column);
+			column.setMaxWidth(Double.MAX_VALUE);
+			table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
 		} else {
 			TableColumn<CommandEntry, String> col1 = new TableColumn<>(QuPathResources.getString("Tools.CommandFinderTools.command"));
 			col1.setCellValueFactory(new PropertyValueFactory<>("text"));
@@ -633,14 +650,14 @@ public class CommandFinderTools {
 		table.setOnKeyPressed(e -> {
 			if (e.isConsumed())
 				return;
-			if (e.getCode() == KeyCode.ENTER) {
+			if (comboEnter.match(e)) {
 				var selected = table.getSelectionModel().getSelectedItem();
 				if (selected != null)
 					runSelectedCommand(selected);
 			}
+			table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		});
 
-		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		table.setFocusTraversable(false);
 		return table;
 	}
@@ -841,7 +858,7 @@ public class CommandFinderTools {
 		private void addToRecent() {
 			if (recent == null)
 				return;
-			if (recent.isEmpty() || recent.get(recent.size()-1).getMenuItem() != this.getMenuItem())
+			if (recent.isEmpty() || recent.getLast().getMenuItem() != this.getMenuItem())
 				recent.add(this);
 		}
 		
@@ -973,6 +990,37 @@ public class CommandFinderTools {
 		
 		
 	}
-	
-	
+
+	private static class ListReverser<T> {
+
+		private final ObservableList<T> list;
+		private final ObservableList<T> reversed;
+		private final boolean makeUnique;
+
+		ListReverser(ObservableList<T> list, boolean makeUnique) {
+			this.list = list;
+			this.reversed = FXCollections.observableArrayList();
+			this.list.addListener(this::handleListChange);
+			this.makeUnique = makeUnique;
+			syncList();
+		}
+
+		private void handleListChange(Change<? extends T> change) {
+			syncList();
+		}
+
+		private void syncList() {
+
+			if (makeUnique)
+				this.reversed.setAll(new LinkedHashSet<>(list.reversed()));
+			else
+				this.reversed.setAll(list.reversed());
+		}
+
+		public ObservableList<T> getReversed() {
+			return reversed;
+		}
+
+	}
+
 }
