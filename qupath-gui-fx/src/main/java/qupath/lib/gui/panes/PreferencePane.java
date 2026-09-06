@@ -73,8 +73,6 @@ import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.prefs.QuPathStyleManager.StyleOption;
 import qupath.lib.gui.prefs.SystemMenuBar;
-import qupath.lib.gui.tools.CommandFinderTools;
-import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -262,9 +260,6 @@ public class PreferencePane {
 		@Pref(value = "Prefs.General.imageType", type = ImageTypeSetting.class)
 		public final ObjectProperty<ImageTypeSetting> setImageType = PathPrefs.imageTypeSettingProperty();
 
-		@Pref(value = "Prefs.General.commandBar", type = CommandBarDisplay.class)
-		public final ObjectProperty<CommandBarDisplay> commandBarDisplay = CommandFinderTools.commandBarDisplayProperty();
-		
 		@BooleanPref("Prefs.General.showExperimental")
 		public final BooleanProperty showExperimentalCommands = PathPrefs.showExperimentalOptionsProperty();
 

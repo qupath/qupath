@@ -661,7 +661,7 @@ public class QuPathGUI {
 			title.textProperty().bind(titleBinding);
 			title.setStyle("-fx-font-weight: bold;");
 			// Searching for the TextField would ideally not be necessary, but the command finder would need refactoring
-			var commandFinder = CommandFinderTools.createSingleColumnCommandFinderPane(this);
+			var commandFinder = CommandFinderTools.createMinimalCommandFinderPane(this);
 			commandFinder.getChildren().stream()
 					.filter(TextField.class::isInstance)
 					.map(TextField.class::cast)

@@ -124,11 +124,6 @@ public class QuPathViewerPlus extends QuPathViewer {
 		AnchorPane.setBottomAnchor(scalebarNode, (double)padding);
 		AnchorPane.setLeftAnchor(scalebarNode, (double)padding);
 
-		
-		// Set spinners' position so they make space for command bar (only if needed!)
-		var commandBarDisplay = CommandFinderTools.commandBarDisplayProperty().getValue();
-		setSpinnersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
-
 		basePane.getChildren().addAll(dimensionControls.getPane());
 
 		updateSpinners();

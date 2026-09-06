@@ -104,103 +104,18 @@ import java.util.function.Function;
 
 
 /**
- * 
  * Helper tools for creating components that enable fast access to menu commands via a filtered list.
- * 
- * @author Pete Bankhead
- *
  */
 public class CommandFinderTools {
-	
-	/**
-	 * Available modes for displaying the command bar.
-	 */
-	public enum CommandBarDisplay {
-		/**
-		 * Always display
-		 */
-		ALWAYS,
-		/**
-		 * Never display
-		 */
-		NEVER,
-		/**
-		 * Display only when the cursor hovers nearby
-		 */
-		HOVER;
-		
-		@Override
-		public String toString() {
-            return QuPathResources.getString(switch (this) {
-                case ALWAYS -> "Tools.CommandFinderTools.always";
-                case HOVER -> "Tools.CommandFinderTools.whenCursorNear";
-                case NEVER -> "Tools.CommandFinderTools.never";
-            });
-		}
-		
-	};
 
 	private static final BooleanProperty autoCloseCommandListProperty = PathPrefs.createPersistentPreference("autoCloseCommandList", true); // Return to the pan tool after drawing a ROI
 
-	
-	private static final ObjectProperty<CommandBarDisplay> commandBarDisplay = PathPrefs.createPersistentPreference("commandFinderDisplayMode", CommandBarDisplay.NEVER, CommandBarDisplay.class);
-	
 	/**
-	 * Property specifying where the command bar should be displayed relative to the main viewer window.
-	 * @return
-	 */
-	public static ObjectProperty<CommandBarDisplay> commandBarDisplayProperty() {
-		return commandBarDisplay;
-	}
-	
-	
-	
-	/**
-	 * Create a component that contains a {@link TextField} for entering menu commands to run quickly.
-	 * 
-	 * This component is a container that holds a main {@link Node}, and displays the {@link TextField} only when requested.
-	 * 
+	 * Create a minimal command finder pane based upon a single {@link TextField}.
 	 * @param qupath
-	 * @param node
-	 * @param displayMode
 	 * @return
 	 */
-	public static HiddenSidesPane createCommandFinderPane(final QuPathGUI qupath, final Node node, final ObjectProperty<CommandBarDisplay> displayMode) {
-		var paneCommands = createCommandFinderPane(qupath, false);
-		var textField = paneCommands.getChildren().stream().filter(TextField.class::isInstance).findFirst().orElseThrow(() -> new RuntimeException("Can't find TextField for command finder"));
-		HiddenSidesPane paneViewer = new HiddenSidesPane();
-		paneViewer.pinnedSideProperty().bind(
-				Bindings.createObjectBinding(() -> switch (displayMode.get()) {
-					case ALWAYS -> Side.TOP;
-					case NEVER -> null;
-					default -> textField.isFocused() ? Side.TOP : null;
-				}, textField.focusedProperty(), displayMode)
-		);
-
-		displayMode.addListener((v, o, n) -> {
-			if (n == CommandBarDisplay.NEVER)
-				paneViewer.setTop(null);
-			else
-				paneViewer.setTop(paneCommands);
-		});
-
-		if (displayMode.get() != CommandBarDisplay.NEVER)
-			paneViewer.setTop(paneCommands);
-		paneViewer.setContent(node);
-
-		commandBarDisplay.addListener((v, o, n) -> {
-			var viewers = qupath.getAllViewers();
-			for (var viewer: viewers) {
-				if (viewer instanceof QuPathViewerPlus viewerPlus) {
-					viewerPlus.setSpinnersPosition(!n.equals(CommandBarDisplay.NEVER));
-				}
-			}
-		});
-
-		return paneViewer;
-	}
-
-	public static Pane createSingleColumnCommandFinderPane(final QuPathGUI qupath) {
+	public static Pane createMinimalCommandFinderPane(final QuPathGUI qupath) {
 		return createCommandFinderPane(qupath, true);
 	}
 
