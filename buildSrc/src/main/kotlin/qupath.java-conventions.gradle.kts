@@ -56,12 +56,12 @@ afterEvaluate {
                 "QuPath-build-time" to formatter.format(LocalDateTime.now())
             )
             // Set the module name where we can
-            val moduleName = properties.getOrDefault("moduleName", null)
+            val moduleName = ext.properties.getOrDefault("moduleName", null)
             if (moduleName != null) {
                 manifestAttributes["Automatic-Module-Name"] = "io.github.$moduleName"
             }
 
-            val gitCommit = properties.getOrDefault("git.commit", null)
+            val gitCommit = ext.properties.getOrDefault("git.commit", null)
             if (gitCommit is String) {
                 manifestAttributes["QuPath-latest-commit"] = gitCommit
             }
