@@ -9,13 +9,13 @@ caffeine        = "3.2.3"
 commonmark      = "0.30.0"
 commonsMath3    = "3.6.1"
 commonsText     = "1.14.0"
-controlsFX      = "11.2.4"
+controlsFX      = "11.2.5"
 
-deepJavaLibrary = "0.36.0"
+deepJavaLibrary = "0.37.0"
 
 groovy          = "5.0.8"
 gson            = "2.14.0"
-guava           = "33.6.0-jre"
+guava           = "33.7.1-jre"
 
 ikonli          = "12.4.0"
 imagej          = "1.54p"
