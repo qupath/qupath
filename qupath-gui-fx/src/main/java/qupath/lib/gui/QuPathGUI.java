@@ -48,19 +48,21 @@ import javafx.collections.ObservableList;
 import javafx.embed.swing.JFXPanel;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.ToolBar;
 import javafx.scene.image.Image;
@@ -71,9 +73,11 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HeaderBar;
 import javafx.scene.layout.Pane;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import org.controlsfx.control.action.Action;
@@ -114,6 +118,7 @@ import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.scripting.languages.GroovyLanguage;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
+import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.DragDropImportListener;
@@ -637,7 +642,7 @@ public class QuPathGUI {
 		Scene scene;
 		try {
 			Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
-			scene = new Scene(content,
+			scene = new Scene(tryToAddHeaderBar(content),
                     bounds.getWidth()*0.8,
                    bounds.getHeight()*0.8);
 		} catch (Exception e) {
@@ -649,9 +654,59 @@ public class QuPathGUI {
 		return scene;
 	}
 
+	private Parent tryToAddHeaderBar(Parent content) {
+		try {
+			var header = new HeaderBar();
+			var title = new Label();
+			title.textProperty().bind(titleBinding);
+			title.setStyle("-fx-font-weight: bold;");
+			// Searching for the TextField would ideally not be necessary, but the command finder would need refactoring
+			var commandFinder = CommandFinderTools.createMinimalCommandFinderPane(this);
+			commandFinder.getChildren().stream()
+					.filter(TextField.class::isInstance)
+					.map(TextField.class::cast)
+					.findFirst().ifPresent(tf -> {
+				tf.setPrefColumnCount(20);
+				tf.setFocusTraversable(true);
+				var previousFocusOwner = new SimpleObjectProperty<Node>();
+				var actionSearch = new Action("Focus search field",
+						e -> tf.requestFocus());
+				actionSearch.setAccelerator(new KeyCodeCombination(
+						KeyCode.F, KeyCombination.SHORTCUT_DOWN));
+				var comboResetFocus = new KeyCodeCombination(KeyCode.ESCAPE);
+				tf.addEventFilter(KeyEvent.ANY, e -> {
+					if (comboResetFocus.match(e) && tf.isFocused()) {
+						if (previousFocusOwner.get() != null)
+							previousFocusOwner.get().requestFocus();
+						e.consume();
+					}
+				});
+				registerAccelerator(actionSearch);
+				content.addEventFilter(KeyEvent.ANY, event -> {
+							if (actionSearch.getAccelerator().match(event)) {
+								previousFocusOwner.set(content.getScene().getFocusOwner());
+								actionSearch.handle(new ActionEvent());
+								event.consume();
+							}
+						});
+			});
+			HeaderBar.setMargin(commandFinder, new Insets(0, 5, 0, 5));
+			header.setRight(commandFinder);
+			header.setCenter(title);
+			var pane = new BorderPane(content);
+			pane.setTop(header);
+			return pane;
+		} catch (RuntimeException e) {
+			logger.warn("Header bar is not supported (requires JavaFX 27, or -Djavafx.enablePreview=true)");
+			return content;
+		}
+	}
 	
 	
 	private void initializeStage(Scene scene) {
+		if (scene.getRoot().getChildrenUnmodifiable().stream().anyMatch(HeaderBar.class::isInstance)) {
+			stage.initStyle(StageStyle.EXTENDED);
+		}
 		stage.setScene(scene);
 		stage.setOnCloseRequest(this::handleCloseMainStageRequest);
 		stage.getIcons().addAll(loadIconList());
