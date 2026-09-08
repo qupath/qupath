@@ -163,8 +163,9 @@ dependencies {
     // Include Groovy scripting
     runtimeOnly(libs.bundles.groovy)
 
-    includedProjects.forEach {
-        implementation(it)
+    includedProjects.forEach { p ->
+        // Direct inclusion of project object is deprecated
+        implementation(project(p.name))
     }
 
     with (gradle.extra["qupath.included.dependencies"] as List<*>) {
