@@ -13,7 +13,8 @@ plugins {
  * Can use -Pfiji=true or even just -Pfiji
  */
 var buildWithFiji: Boolean by project.extra {
-    providers.gradleProperty("fiji").getOrElse("false").trim().lowercase() != "false"
+    providers.gradleProperty("fiji")
+        .getOrElse("false").trim().lowercase() != "false"
 }
 
 if (buildWithFiji) {
@@ -37,10 +38,8 @@ if (buildWithFiji) {
             "java.desktop/sun.awt.X11=ALL-UNNAMED",
             "java.desktop/com.apple.eawt=ALL-UNNAMED",
             // Scenery
-            "java.base/java.lang=ALL-UNNAMED",
             "java.base/java.lang.invoke=ALL-UNNAMED",
             "java.base/java.net=ALL-UNNAMED",
-            "java.base/java.nio=ALL-UNNAMED",
             "java.base/java.time=ALL-UNNAMED",
             "java.base/java.util.concurrent.atomic=ALL-UNNAMED",
             "java.base/sun.nio.ch=ALL-UNNAMED",
