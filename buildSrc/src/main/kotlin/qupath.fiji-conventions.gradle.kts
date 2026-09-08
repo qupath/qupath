@@ -1,3 +1,5 @@
+import org.gradle.internal.extensions.core.extra
+
 /**
  * This performs some extra configuration when building QuPath
  * with Fiji's dependencies.
@@ -12,10 +14,10 @@ plugins {
  * Check if we should build with Fiji dependencies
  * Can use -Pfiji=true or even just -Pfiji
  */
-var buildWithFiji: Boolean by project.extra {
-    providers.gradleProperty("fiji")
-        .getOrElse("false").trim().lowercase() != "false"
-}
+val buildWithFiji: Boolean = providers.gradleProperty("fiji")
+    .getOrElse("false").trim().lowercase() != "false"
+project.extra.set("buildWithFiji", buildWithFiji)
+
 
 if (buildWithFiji) {
 
