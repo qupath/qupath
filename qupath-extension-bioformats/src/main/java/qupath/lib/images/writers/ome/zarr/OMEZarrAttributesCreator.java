@@ -1,5 +1,6 @@
 package qupath.lib.images.writers.ome.zarr;
 
+import java.util.LinkedHashMap;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
@@ -16,7 +17,7 @@ import java.util.stream.IntStream;
  */
 class OMEZarrAttributesCreator {
 
-    private static final String VERSION = "0.4";
+    private static final String VERSION = "0.5";
     private final ImageServerMetadata metadata;
     private enum Dimension {
         X,
@@ -40,7 +41,7 @@ class OMEZarrAttributesCreator {
      * be at the root of the image files
      */
     public Map<String, Object> getGroupAttributes() {
-        Map<String, Object> out = new HashMap<>();
+        Map<String, Object> out = new LinkedHashMap<>();
         out.put("multiscales", List.of(Map.of(
                         "axes", getAxes(),
                         "datasets", getDatasets(),

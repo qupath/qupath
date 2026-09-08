@@ -1,14 +1,16 @@
 package qupath.lib.images.writers.ome.zarr;
 
-import com.bc.zarr.Compressor;
-import com.bc.zarr.CompressorFactory;
-import com.bc.zarr.ZarrArray;
-import com.bc.zarr.ZarrGroup;
+import dev.zarr.zarrjava.ZarrException;
+import dev.zarr.zarrjava.core.Attributes;
+import dev.zarr.zarrjava.store.FilesystemStore;
+import dev.zarr.zarrjava.v3.Array;
+import dev.zarr.zarrjava.v3.Group;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TileRequestManager;
 import qupath.lib.images.servers.TransformedServerBuilder;
@@ -26,6 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import ucar.ma2.DataType;
 
 /**
  * An OME-Zarr file writer as described by version 0.4 of the specifications of the
@@ -43,7 +46,7 @@ public class OMEZarrWriter {
     private static final Logger logger = LoggerFactory.getLogger(OMEZarrWriter.class);
     private final ImageServer<BufferedImage> server;
     private final int numberOfThreads;
-    private final Map<Integer, ZarrArray> levels;
+    private final Map<Integer, Array> levels;
     private final Consumer<TileRequest> onTileWritten;
 
     private OMEZarrWriter(Builder builder, Path path) throws IOException {
@@ -82,22 +85,33 @@ public class OMEZarrWriter {
 
         OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(server.getMetadata());
 
-        ZarrGroup root = ZarrGroup.create(path, attributes.getGroupAttributes());
+//        ZarrGroup root = ZarrGroup.create(path, attributes.getGroupAttributes());
+        var rootStore = new FilesystemStore(path).resolve();
 
         try {
-            ZarrWriterUtils.createOmeSubGroup(root, path, server.getMetadata());
-        } catch (Exception e) {
-            logger.warn("Error while creating OME XML file of {}. Some image metadata won't be written", path, e);
+            Attributes attrs = new Attributes();
+            attrs.putAll(attributes.getGroupAttributes());
+            Group group = Group.create(
+                    rootStore,
+                    attrs
+            );
+//            ZarrWriterUtils.createOmeSubGroup(root, path, server.getMetadata());
+        } catch (ZarrException e) {
+            logger.warn("Error while creating OME metadata file of {}. Some image metadata won't be written", path, e);
         }
 
-        this.levels = ZarrWriterUtils.createLevels(
-                server.getMetadata(),
-                root,
-                server.getMetadata().getPreferredTileWidth(),
-                server.getMetadata().getPreferredTileHeight(),
-                attributes.getLevelAttributes(),
-                builder.compressor
-        );
+        try {
+            this.levels = ZarrWriterUtils.createLevels(
+                    server.getMetadata(),
+                    rootStore,
+                    server.getMetadata().getPreferredTileWidth(),
+                    server.getMetadata().getPreferredTileHeight(),
+                    attributes.getLevelAttributes(),
+                    null
+            );
+        } catch (ZarrException e) {
+            throw new RuntimeException(e);
+        }
 
         this.onTileWritten = builder.onTileWritten;
     }
@@ -158,15 +172,20 @@ public class OMEZarrWriter {
      */
     public void writeTile(TileRequest tileRequest) throws Exception {
         try {
-            levels.get(tileRequest.getLevel()).write(
-                    ZarrWriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest())),
+            // todo
+            ucar.ma2.Array aa = ucar.ma2.Array.factory(
+                    ZarrWriterUtils.getUcarDatatype(server.getPixelType()),
                     ZarrWriterUtils.getDimensionsOfTile(server.getMetadata(), tileRequest),
-                    ZarrWriterUtils.getOffsetsOfTile(server.getMetadata(), tileRequest)
+                    ZarrWriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest())));
+            levels.get(tileRequest.getLevel()).write(
+                    ZarrWriterUtils.getOffsetsOfTile(server.getMetadata(), tileRequest),
+                    aa
             );
         } finally {
             onTileWritten.accept(tileRequest);
         }
     }
+
 
     /**
      * Get the image server used internally by this writer to read the tiles. It can be
@@ -189,7 +208,7 @@ public class OMEZarrWriter {
         private static final String FILE_EXTENSION = ".ome.zarr";
         private final static Consumer<TileRequest> NOP_CONSUMER = t -> {};
         private final ImageServer<BufferedImage> server;
-        private Compressor compressor = CompressorFactory.createDefaultCompressor();
+//        private Compressor compressor = CompressorFactory.createDefaultCompressor(); // todo
         private int numberOfThreads = ThreadTools.getParallelism();
         private double[] downsamples = new double[0];
         private int maxNumberOfChunks = -1;
@@ -213,18 +232,18 @@ public class OMEZarrWriter {
             this.zEnd = this.server.nZSlices();
             this.tEnd = this.server.nTimepoints();
         }
-
-        /**
-         * Set the compressor to use when writing tiles. By default, the blocs compression is used.
-         *
-         * @param compressor the compressor to use when writing tiles
-         * @return this builder
-         * @throws NullPointerException if the provided compressor is null
-         */
-        public Builder compression(Compressor compressor) {
-            this.compressor = Objects.requireNonNull(compressor);
-            return this;
-        }
+// todo
+//        /**
+//         * Set the compressor to use when writing tiles. By default, the blocs compression is used.
+//         *
+//         * @param compressor the compressor to use when writing tiles
+//         * @return this builder
+//         * @throws NullPointerException if the provided compressor is null
+//         */
+//        public Builder compression(Compressor compressor) {
+//            this.compressor = Objects.requireNonNull(compressor);
+//            return this;
+//        }
 
         /**
          * Tiles will be written from a pool of thread. This function specifies the number of threads to use.
