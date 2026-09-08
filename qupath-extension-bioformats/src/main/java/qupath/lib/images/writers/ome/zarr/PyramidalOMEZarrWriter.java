@@ -76,6 +76,7 @@ public class PyramidalOMEZarrWriter {
         this.server = transformedServerBuilder.build();
 
         this.firstDownsampleOnInputImage = builder.downsamples.getFirst();
+
         this.downsamplesOutputImage = builder.downsamples.stream()
                 .map(downsample -> downsample / this.firstDownsampleOnInputImage)
                 .toList();
@@ -94,14 +95,21 @@ public class PyramidalOMEZarrWriter {
 
         this.root = ZarrGroup.create(path, null);
 
+        var metadata = server.getMetadata();
+        if (firstDownsampleOnInputImage != 1) {
+            metadata = new ImageServerMetadata.Builder(server.getMetadata())
+                    .pixelCalibration(metadata.getPixelCalibration().createScaledInstance(firstDownsampleOnInputImage, firstDownsampleOnInputImage))
+                    .build();
+        }
+
         try {
-            ZarrWriterUtils.createOmeSubGroup(root, path, server.getMetadata());
+            ZarrWriterUtils.createOmeSubGroup(root, path, metadata);
         } catch (Exception e) {
             logger.warn("Error while creating OME XML file of {}. Some image metadata won't be written", path, e);
         }
 
         this.levels = ZarrWriterUtils.createLevels(
-                new ImageServerMetadata.Builder(server.getMetadata())
+                new ImageServerMetadata.Builder(metadata)
                         .width((int) (server.getWidth() / firstDownsampleOnInputImage))
                         .height((int) (server.getHeight() / firstDownsampleOnInputImage))
                         .levelsFromDownsamples(downsamplesOutputImage.stream().mapToDouble(Double::doubleValue).toArray())
@@ -109,7 +117,7 @@ public class PyramidalOMEZarrWriter {
                 root,
                 tileWidth,
                 tileHeight,
-                new OMEZarrAttributesCreator(server.getMetadata()).getLevelAttributes(),
+                new OMEZarrAttributesCreator(metadata).getLevelAttributes(),
                 builder.compressor
         );
 
@@ -133,6 +141,7 @@ public class PyramidalOMEZarrWriter {
             root.writeAttributes(
                     new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
                             .levelsFromDownsamples(firstDownsampleOnInputImage)
+                            .pixelCalibration(server.getMetadata().getPixelCalibration().createScaledInstance(firstDownsampleOnInputImage, firstDownsampleOnInputImage))
                             .build()
                     ).getGroupAttributes()
             );
@@ -167,6 +176,7 @@ public class PyramidalOMEZarrWriter {
                 root.writeAttributes(
                         new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
                                 .levelsFromDownsamples(downsamplesOutputImage.stream().limit(i+1).mapToDouble(d -> d).toArray())
+                                .pixelCalibration(server.getMetadata().getPixelCalibration().createScaledInstance(downsamplesOutputImage.get(i), downsamplesOutputImage.get(i)))
                                 .build()
                         ).getGroupAttributes()
                 );
@@ -250,12 +260,11 @@ public class PyramidalOMEZarrWriter {
          */
         public Builder downsamples(double... downsamples) {
             List<Double> downsampleList = Arrays.stream(downsamples).boxed().toList();
-
             if (downsampleList.isEmpty()) {
                 throw new IllegalArgumentException("At least one downsample should be provided");
             }
-            if (downsampleList.stream().anyMatch(downsample -> downsample < 1)) {
-                throw new IllegalArgumentException(String.format("One of the provided downsamples %s is less than 1", downsampleList));
+            if (downsampleList.stream().anyMatch(downsample -> downsample <= 0)) {
+                throw new IllegalArgumentException(String.format("One of the provided downsamples %s is less than or equal to 0", downsampleList));
             }
 
             this.downsamples = downsampleList.stream().distinct().sorted().toList();
