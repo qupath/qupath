@@ -1,6 +1,5 @@
 package qupath.lib.images.writers.ome.zarr;
 
-import com.bc.zarr.ZarrGroup;
 import dev.zarr.zarrjava.ZarrException;
 import dev.zarr.zarrjava.store.StoreHandle;
 import dev.zarr.zarrjava.v3.Array;
@@ -14,15 +13,8 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
 import java.awt.image.BufferedImage;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -73,29 +65,6 @@ class ZarrWriterUtils {
 
 
     /**
-     * Create an "OME" sub ground in the provided zarr group located in the provided path and create a "METADATA.ome.xml" file inside
-     * it containing the June 2016 Open Microscopy Environment OME Schema applied to the provided metadata.
-     *
-     * @param group the zarr group in which the subgroup and the XML file should be written
-     * @param path the local path of the provided zarr group
-     * @param metadata the metadata that should be used to populate the XML file
-     * @throws ParserConfigurationException if the XML document cannot be created
-     * @throws org.w3c.dom.DOMException if an error occurs while creating the XML content
-     * @throws IOException if an error occurs while writing the XML content to a file
-     * @throws TransformerException if an error occurs while converting the XML content to a byte array
-     * @throws SecurityException if the calling thread doesn't have the permission to write the XML file
-     * @throws InvalidPathException if the XML file path cannot be created
-     * @throws IllegalArgumentException if the provided metadata contains an unexpected entry (e.g. no channels)
-     */
-    public static void createOmeSubGroup(ZarrGroup group, Path path, ImageServerMetadata metadata) throws ParserConfigurationException, IOException, TransformerException {
-        group.createSubGroup(OME_FOLDER_NAME);
-
-        try (OutputStream outputStream = new FileOutputStream(Files.createFile(path.resolve(OME_FOLDER_NAME).resolve(OME_METADATA_FILE_NAME)).toString())) {
-            outputStream.write(OMEXMLCreator.create(metadata));
-        }
-    }
-
-    /**
      * Create and return {@link Array} corresponding to the resolution levels of an image.
      * <p>
      * The pixels of the returned {@link Array} are not written, but basic information (e.g. attributes) is.
@@ -120,8 +89,7 @@ class ZarrWriterUtils {
         Map<Integer, Array> levels = new HashMap<>();
         double[] downsamples = metadata.getPreferredDownsamplesArray();
 
-
-        for (int level=0; level<downsamples.length; level++) {
+        for (int level = 0; level < downsamples.length; level++) {
             Array array = Array.create(
                     storeHandle.resolve(String.valueOf(level)),
                     Array.metadataBuilder()
@@ -143,7 +111,6 @@ class ZarrWriterUtils {
             );
             levels.put(level, array);
         }
-
         return levels;
     }
 

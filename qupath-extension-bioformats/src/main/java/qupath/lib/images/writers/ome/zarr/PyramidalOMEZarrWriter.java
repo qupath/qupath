@@ -159,7 +159,9 @@ public class PyramidalOMEZarrWriter {
                     progress -> onProgress.accept(progress / numberOfDownsamples)
             );
 
-            for (int i=1; i<numberOfDownsamples; i++) {
+            for (int i = 1; i < numberOfDownsamples; i++) {
+                // todo bioformats doesn't open v5 ome zarrs, so changing this would require moving this
+                //  (and all associated ome writers) to somewhere (?) else, eg qupath-imglibs
                 try (ImageServer<BufferedImage> server = new BioFormatsImageServer(
                         path.toUri(),
                         "--series",                          // since all level zarr subgroups are already created (see the constructor), BioFormats treat each subgroup

@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
-import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TileRequestManager;
 import qupath.lib.images.servers.TransformedServerBuilder;
@@ -28,7 +27,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import ucar.ma2.DataType;
 
 /**
  * An OME-Zarr file writer as described by version 0.4 of the specifications of the
