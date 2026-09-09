@@ -42,6 +42,7 @@ class OMEZarrAttributesCreator {
      */
     public Map<String, Object> getGroupAttributes() {
         Map<String, Object> out = new LinkedHashMap<>();
+        out.put("version", VERSION);
         out.put("multiscales", List.of(Map.of(
                         "axes", getAxes(),
                         "datasets", getDatasets(),
@@ -56,13 +57,11 @@ class OMEZarrAttributesCreator {
                                 "defaultT", 0,
                                 "defaultZ", 0,
                                 "model", "color"
-                        )
-                )
-        );
+                )));
         if (metadata.getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
             out.putAll(getLabelInfo());
         }
-        return Map.copyOf(out);
+        return Map.of("ome", out);
     }
 
     private Map<String, Object> getLabelInfo() {
