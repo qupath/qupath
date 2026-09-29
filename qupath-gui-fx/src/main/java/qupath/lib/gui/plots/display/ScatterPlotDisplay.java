@@ -445,6 +445,7 @@ public class ScatterPlotDisplay<T extends PathObject> implements PlotDisplay<T> 
         return new TitledPane(QuPathResources.getString("Charts.ScatterPlotDisplay.display"), hbox);
     }
 
+    // todo unused as canvas scatter doesn't currently support subsampling
     private TitledPane createSamplingOptionPane() {
         var pane = new GridPane();
         int row = 0;

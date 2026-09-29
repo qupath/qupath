@@ -23,8 +23,6 @@
 
 package qupath.lib.gui.plots.display;
 
-import javafx.beans.InvalidationListener;
-import javafx.beans.Observable;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleDoubleProperty;

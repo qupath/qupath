@@ -8,7 +8,6 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import javafx.beans.InvalidationListener;
-import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;

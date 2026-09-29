@@ -10,9 +10,23 @@ import qupath.lib.gui.measure.PathTableData;
  */
 public interface PlotDisplay<T> {
 
+    /**
+     * The observable property underlying the data model
+     * @return the observable
+     */
     ObjectProperty<PathTableData<T>> modelProperty();
 
+    /**
+     * Get the data model underlying the data
+     * @return the data model
+     */
     PathTableData<T> getModel();
+
+    /**
+     * Update the data model underlying the data
+     * @param model the data model
+     */
+    void setModel(PathTableData<T> model);
 
     XYChart<?,?> getChart();
 
@@ -39,13 +53,6 @@ public interface PlotDisplay<T> {
     default void clearPlot() {
         getChart().getData().clear();
     }
-
-    /**
-     * Update the data model underlying the data
-     * @param model the data model
-     */
-    void setModel(PathTableData<T> model);
-
 
     /**
      * Update plot for specified data columns.
