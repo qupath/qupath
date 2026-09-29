@@ -154,8 +154,8 @@ public class ScatterPlotDisplay<T extends PathObject> implements PlotDisplay<T> 
 
         initProperties();
 
-        comboNameX.getSelectionModel().selectedItemProperty().addListener(_ -> requestRefresh());
-        comboNameY.getSelectionModel().selectedItemProperty().addListener(_ -> requestRefresh());
+        comboNameX.getSelectionModel().selectedItemProperty().addListener(_ -> requestReplot());
+        comboNameY.getSelectionModel().selectedItemProperty().addListener(_ -> requestReplot());
 
         var topPane = new GridPane();
         var labelX = new Label(QuPathResources.getString("Charts.ScatterPlotDisplay.x"));
@@ -206,6 +206,11 @@ public class ScatterPlotDisplay<T extends PathObject> implements PlotDisplay<T> 
     }
 
     @Override
+    public XYChart<Number, Number> getChart() {
+        return scatter;
+    }
+
+    @Override
     public ObjectProperty<PathTableData<T>> modelProperty() {
         return model;
     }
@@ -221,7 +226,7 @@ public class ScatterPlotDisplay<T extends PathObject> implements PlotDisplay<T> 
     }
 
     @Override
-    public void requestRefresh() {
+    public void requestReplot() {
         var model = this.model.get();
         if (model == null || isUpdating) {
             setScatterData(Collections.emptyList(), _ -> Double.NaN, _ -> Double.NaN);
@@ -315,7 +320,7 @@ public class ScatterPlotDisplay<T extends PathObject> implements PlotDisplay<T> 
             updateForModel(newValue);
         }
         isUpdating = false;
-        requestRefresh();
+        requestReplot();
     }
 
     private void updateForModel(PathTableData<?> newValue) {

@@ -31,6 +31,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Insets;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -173,7 +174,7 @@ public class HistogramDisplay<T> implements PlotDisplay<T>, ParameterChangeListe
 
 		selectedColumn.bindBidirectional(comboName.valueProperty());
 		selectedColumn.addListener((_) -> {
-			requestRefresh();
+			requestReplot();
 		});
 		histogramChart.setShowTickLabels(paramsHistogram.getBooleanParameterValue("drawAxes"));
 
@@ -204,7 +205,7 @@ public class HistogramDisplay<T> implements PlotDisplay<T>, ParameterChangeListe
 
 		pane.setPadding(new Insets(10, 10, 10, 10));
 
-		requestRefresh();
+		requestReplot();
 	}
 	
 	/**
@@ -267,7 +268,12 @@ public class HistogramDisplay<T> implements PlotDisplay<T>, ParameterChangeListe
 	}
 
 	@Override
-	public void requestRefresh() {
+	public XYChart<Number, Number> getChart() {
+		return histogramChart;
+	}
+
+	@Override
+	public void requestReplot() {
 		final String columnName = selectedColumn.get();
 		var model = getModel();
 		if (model != null && model.getMeasurementNames().contains(columnName)) {
@@ -311,9 +317,14 @@ public class HistogramDisplay<T> implements PlotDisplay<T>, ParameterChangeListe
 			currentBins = nBins;
 			currentValues = values;
 		} else {
-			histogramChart.getHistogramData().clear();
-			currentValues = null;
+			clearPlot();
 		}
+	}
+
+	@Override
+	public void clearPlot() {
+		histogramChart.getHistogramData().clear();
+		currentValues = null;
 	}
 
 	@Override
@@ -355,7 +366,7 @@ public class HistogramDisplay<T> implements PlotDisplay<T>, ParameterChangeListe
 		} else if ("drawAxes".equals(key)) {
 			histogramChart.setShowTickLabels(paramsHistogram.getBooleanParameterValue("drawAxes"));
 		} else if ("nBins".equals(key)) {
-			requestRefresh();
+			requestReplot();
 		} else if ("animate".equals(key)) {
 			histogramChart.setAnimated(paramsHistogram.getBooleanParameterValue("animate"));
 		}

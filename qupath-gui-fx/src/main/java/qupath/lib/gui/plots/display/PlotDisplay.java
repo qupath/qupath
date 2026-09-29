@@ -1,6 +1,7 @@
 package qupath.lib.gui.plots.display;
 
 import javafx.beans.property.ObjectProperty;
+import javafx.scene.chart.XYChart;
 import javafx.scene.layout.Pane;
 import qupath.lib.gui.measure.PathTableData;
 
@@ -10,6 +11,10 @@ import qupath.lib.gui.measure.PathTableData;
 public interface PlotDisplay<T> {
 
     ObjectProperty<PathTableData<T>> modelProperty();
+
+    PathTableData<T> getModel();
+
+    XYChart<?,?> getChart();
 
     /**
      * Return the name of this type of plot, e.g., "Box plot", "Scatter plot", "Histogram"
@@ -26,7 +31,14 @@ public interface PlotDisplay<T> {
     /**
      * Request the plot be updated with current settings
      */
-    void requestRefresh();
+    void requestReplot();
+
+    /**
+     * Clear the plot data and displayed plot.
+     */
+    default void clearPlot() {
+        getChart().getData().clear();
+    }
 
     /**
      * Update the data model underlying the data
@@ -34,7 +46,6 @@ public interface PlotDisplay<T> {
      */
     void setModel(PathTableData<T> model);
 
-    PathTableData<T> getModel();
 
     /**
      * Update plot for specified data columns.

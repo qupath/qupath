@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -34,9 +34,11 @@ import javafx.scene.control.Spinner;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import org.controlsfx.control.CheckComboBox;
@@ -71,8 +73,6 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
     private final BooleanProperty showGrid = new SimpleBooleanProperty(true);
     private final BooleanProperty showAllPoints = new SimpleBooleanProperty(false);
     private final BooleanProperty baseClassOnly = new SimpleBooleanProperty(true);
-
-    // todo showAllPoints as option
 
     private final BorderPane pane = new BorderPane();
     private final ObjectProperty<PathTableData<T>> model = new SimpleObjectProperty<>();
@@ -110,28 +110,41 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
 
         initProperties();
 
-        baseClassOnly.addListener(_ -> requestRefresh());
-        comboNameY.getSelectionModel().selectedItemProperty().addListener(_ -> requestRefresh());
-        comboPathClasses.getItems().addListener((InvalidationListener) _ -> requestRefresh());
-        comboPathClasses.getCheckModel().getCheckedItems().addListener((ListChangeListener<PathClass>) _ -> requestRefresh());
+        baseClassOnly.addListener(_ -> requestReplot());
+        comboNameY.getSelectionModel().selectedItemProperty().addListener(_ -> requestReplot());
+        comboPathClasses.getItems().addListener((InvalidationListener) _ -> requestReplot());
+        comboPathClasses.getItems().addListener((InvalidationListener) _ -> resetTitle());
+        comboPathClasses.getCheckModel().getCheckedItems().addListener((InvalidationListener) _ -> resetTitle());
+        comboPathClasses.getCheckModel().getCheckedItems().addListener((ListChangeListener<PathClass>) _ -> requestReplot());
         FXUtils.installSelectAllOrNoneMenu(comboPathClasses);
 
         var topPane = new GridPane();
-        var labelY = new Label(QuPathResources.getString("Charts.ScatterPlotDisplay.y"));
-        comboNameY.setTooltip(new Tooltip(QuPathResources.getString("Charts.ScatterPlotDisplay.yDescription")));
-        labelY.setLabelFor(comboNameY);
-        topPane.addRow(1, labelY, comboNameY);
         topPane.setHgap(5);
 
-        comboPathClasses.setTooltip(new Tooltip("Path classes to include"));
-        var labelPC = new Label("Path classes");
+        var labelPC = new Label(QuPathResources.getString("Charts.BoxPlotDisplay.pathClasses"));
+        comboPathClasses.setTooltip(new Tooltip(QuPathResources.getString("Charts.BoxPlotDisplay.pathClassesDescription")));
+        comboPathClasses.setMaxWidth(Double.MAX_VALUE);
         labelPC.setLabelFor(comboPathClasses);
-        topPane.addRow(2, labelPC, comboPathClasses);
+        labelPC.setMinWidth(Label.USE_COMPUTED_SIZE);
+        topPane.addRow(1, labelPC, comboPathClasses);
 
+        var labelY = new Label(QuPathResources.getString("Charts.ScatterPlotDisplay.y"));
+        comboNameY.setTooltip(new Tooltip(QuPathResources.getString("Charts.ScatterPlotDisplay.yDescription")));
+        comboNameY.setMaxWidth(Double.MAX_VALUE);
+        labelY.setLabelFor(comboNameY);
+        labelY.setMinWidth(Label.USE_COMPUTED_SIZE);
+        topPane.addRow(2, labelY, comboNameY);
+
+        ColumnConstraints colLabel = new ColumnConstraints();
+        ColumnConstraints colCombo = new ColumnConstraints();
+        colLabel.setMinWidth(ColumnConstraints.CONSTRAIN_TO_PREF);
+        colLabel.setHgrow(Priority.NEVER);
+        colCombo.setHgrow(Priority.ALWAYS);
+        topPane.getColumnConstraints().setAll(colLabel, colCombo);
 
         pane.setTop(topPane);
-        comboNameY.prefWidthProperty().bind(pane.widthProperty());
-        comboPathClasses.prefWidthProperty().bind(pane.widthProperty());
+        comboNameY.prefWidthProperty().bind(topPane.prefWidthProperty());
+        comboPathClasses.prefWidthProperty().bind(topPane.prefWidthProperty());
 
         panelMain.setMinSize(200, 200);
         panelMain.setPrefSize(400, 300);
@@ -140,6 +153,17 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
         pane.setBottom(createMainOptionsPane());
 
         pane.setPadding(new Insets(10, 10, 10, 10));
+    }
+
+    private void resetTitle() {
+        comboPathClasses.setTitle(String.join(", ",
+                comboPathClasses.getCheckModel()
+                        .getCheckedItems()
+                        .stream()
+                        .filter(Objects::nonNull)
+                        .map(PathClass::toString)
+                        .toList())
+        );
     }
 
     @Override
@@ -158,7 +182,7 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
     }
 
     @Override
-    public void requestRefresh() {
+    public void requestReplot() {
         var model = this.model.get();
         if (model == null || isUpdating) {
             return;
@@ -177,7 +201,7 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
             } else {
                 objectFilter = po -> classes.contains(po.getPathClass());
                 classExtractor = PathObject::getPathClass;
-            };
+            }
             setDataFromTable(items, model, objectFilter, classExtractor, y);
         }
     }
@@ -193,6 +217,11 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
     }
 
     @Override
+    public XYChart<String, Number> getChart() {
+        return boxplot;
+    }
+
+    @Override
     public void plotColumns(String... columns) {
         if (columns.length != 1) {
             logger.debug("Only one column is valid for boxplot, supplied {}", columns.length);
@@ -201,7 +230,7 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
         if (comboNameY.getItems().contains(columns[0])) {
             comboNameY.getSelectionModel().select(columns[0]);
         }
-        requestRefresh();
+        requestReplot();
     }
 
     /**
@@ -277,7 +306,7 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
             updateForModel(newValue);
         }
         isUpdating = false;
-        requestRefresh();
+        requestReplot();
     }
 
     private Region createMainOptionsPane() {
@@ -313,7 +342,6 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
 
     private void updatePathClasses(PathTableData<T> newValue) {
         var objects = newValue.getItems();
-        var previousChecks = new ArrayList<>(comboPathClasses.getCheckModel().getCheckedItems());
         Function<PathObject, PathClass> collector = PathObject::getPathClass;
         if (baseClassOnly.get()) {
             collector = (po) -> po.getPathClass().getBaseClass();
@@ -325,26 +353,14 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
         }
         comboPathClasses.getItems().setAll(classes);
         comboPathClasses.getCheckModel().checkAll();
-        // todo deal with checkcombobox shenanigans
-//        if (previousChecks.isEmpty() || comboPathClasses.getItems().stream().anyMatch(previousChecks::contains)) {
-//            // if there were no previous checks, or if none of the previous checks are present, give me everything
-//            comboPathClasses.getCheckModel().checkAll();
-//        } else {
-//            // otherwise, try restoring them...
-//            comboPathClasses.getCheckModel().clearChecks();
-//            for (var pathClass : previousChecks) {
-//                if (comboPathClasses.getItems().contains(pathClass)) {
-//                    comboPathClasses.getCheckModel().check(pathClass);
-//                }
-//            }
-//        }
     }
 
 
     private Region createDisplayOptionsPane() {
         Spinner<Double> spinPointOpacity = new Spinner<>(
                 0.05, 1.0, pointOpacity.get(), 0.05);
-        spinPointOpacity.getValueFactory().valueProperty().bindBidirectional(pointOpacity.asObject());
+        pointOpacity.bind(Bindings.createDoubleBinding(spinPointOpacity::getValue,
+                spinPointOpacity.getValueFactory().valueProperty()));
         spinPointOpacity.setEditable(true);
         spinPointOpacity.setMinWidth(80);
         FXUtils.resetSpinnerNullToPrevious(spinPointOpacity);
@@ -352,6 +368,8 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
         Spinner<Double> spinPointRadius = new Spinner<>(
                 0.5, 20.0, pointRadius.get(), 0.25);
         spinPointRadius.getValueFactory().valueProperty().bindBidirectional(pointRadius.asObject());
+        pointRadius.bind(Bindings.createDoubleBinding(spinPointRadius::getValue,
+                spinPointRadius.getValueFactory().valueProperty()));
         spinPointRadius.setEditable(true);
         spinPointRadius.setMinWidth(80);
         FXUtils.resetSpinnerNullToPrevious(spinPointRadius);

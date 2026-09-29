@@ -390,7 +390,7 @@ public class TMASummaryViewer {
 			if (scatterPane != null)
 				scatterPane.updateChart();
 			if (histogramDisplay != null)
-				histogramDisplay.requestRefresh();
+				histogramDisplay.requestReplot();
 		});
 		menuEdit.getItems().add(miResetMissingScores);
 		
@@ -466,7 +466,7 @@ public class TMASummaryViewer {
 			table.refresh();
 			updateSurvivalCurves();
 			if (histogramDisplay != null)
-				histogramDisplay.requestRefresh();
+				histogramDisplay.requestReplot();
 			updateSurvivalCurves();
 			if (scatterPane != null)
 				scatterPane.updateChart();
@@ -588,7 +588,7 @@ public class TMASummaryViewer {
             @Override
             public void onChanged(ListChangeListener.Change<? extends TMAEntry> c) {
                 if (histogramDisplay != null)
-                    histogramDisplay.requestRefresh();
+                    histogramDisplay.requestReplot();
                 updateSurvivalCurves();
                 if (scatterPane != null)
                     scatterPane.updateChart();
@@ -694,7 +694,7 @@ public class TMASummaryViewer {
 	private void handleTableContentChange() {
 		table.refresh();
 		model.refreshList();
-		histogramDisplay.requestRefresh();
+		histogramDisplay.requestReplot();
 		updateSurvivalCurves();
 		scatterPane.updateChart();
 		table.sort(); // Make sure we're still sorted, if need be
@@ -862,7 +862,7 @@ public class TMASummaryViewer {
 			updateSurvivalCurves();
 		});
 		comboMeasurementMethod.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			histogramDisplay.requestRefresh();
+			histogramDisplay.requestReplot();
 			scatterPane.updateChart();
 			updateSurvivalCurves();
 		});

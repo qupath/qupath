@@ -11,9 +11,9 @@ import qupath.lib.gui.plots.display.PlotDisplay;
 
 class NumericTableCell<T> extends TableCell<T, Number> {
 
-    private final List<PlotDisplay> plotDisplays;
+    private final List<PlotDisplay<?>> plotDisplays;
 
-    public NumericTableCell(Tooltip tooltip, List<PlotDisplay> plotDisplays) {
+    public NumericTableCell(Tooltip tooltip, List<PlotDisplay<?>> plotDisplays) {
         this.plotDisplays = plotDisplays;
         setTooltip(tooltip);
         if (!plotDisplays.isEmpty())

@@ -169,7 +169,7 @@ public class SummaryMeasurementTable {
     private final SplitPane splitPane = new SplitPane();
 
     private final TabPane plotTabs = new TabPane();
-    private List<PlotDisplay> plotDisplays = new ArrayList<>();
+    private final List<PlotDisplay<?>> plotDisplays = new ArrayList<>();
 
     private final Predicate<PathObject> primaryFilter;
 
@@ -205,7 +205,7 @@ public class SummaryMeasurementTable {
      */
     private static BooleanProperty createPartiallyBoundProperty(BooleanProperty prop) {
         var prop2 = new SimpleBooleanProperty(prop.getValue());
-        prop2.addListener((observable, oldValue, newValue) -> prop.setValue(newValue));
+        prop2.addListener((_, _, newValue) -> prop.setValue(newValue));
         return prop2;
     }
 
@@ -262,13 +262,13 @@ public class SummaryMeasurementTable {
                 options.selectedClassVisibilityModeProperty(),
                 bindToOverlayOptions);
 
-        overlayVisibilityPredicate.addListener((v, o, n) -> model.setPredicate(n));
+        overlayVisibilityPredicate.addListener((_, _, n) -> model.setPredicate(n));
         model.setPredicate(overlayVisibilityPredicate.get());
     }
 
     private void handleObjectsChanged(ListChangeListener.Change<? extends PathObject> c) {
-        for (PlotDisplay display : plotDisplays) {
-            display.requestRefresh();
+        for (PlotDisplay<?> display : plotDisplays) {
+            display.requestReplot();
         }
     }
 
@@ -377,7 +377,7 @@ public class SummaryMeasurementTable {
         var tooltipText = model.getHelpText(name);
         TableColumn<PathObject, Number> col = new TableColumn<>(name);
         col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
-        col.setCellFactory(column -> new NumericTableCell<>(getTooltip(tooltipText), plotDisplays));
+        col.setCellFactory(_ -> new NumericTableCell<>(getTooltip(tooltipText), plotDisplays));
         return col;
     }
 
@@ -385,7 +385,7 @@ public class SummaryMeasurementTable {
         var tooltipText = model.getHelpText(name);
         TableColumn<PathObject, String> col = new TableColumn<>(name);
         col.setCellValueFactory(column -> createStringMeasurement(model, column.getValue(), column.getTableColumn().getText()));
-        col.setCellFactory(column -> new BasicTableCell<>(getTooltip(tooltipText)));
+        col.setCellFactory(_ -> new BasicTableCell<>(getTooltip(tooltipText)));
         return col;
     }
 
@@ -393,7 +393,7 @@ public class SummaryMeasurementTable {
         var colThumbnails = new TableColumn<PathObject, PathObject>("Thumbnail");
         colThumbnails.setCellValueFactory(val -> new SimpleObjectProperty<>(val.getValue()));
         colThumbnails.visibleProperty().bind(showThumbnailsProperty);
-        colThumbnails.setCellFactory(column -> PathObjectImageViewers.createTableCell(
+        colThumbnails.setCellFactory(_ -> PathObjectImageViewers.createTableCell(
                 viewer, imageData.getServer(), true, thumbnailPadding));
         return colThumbnails;
     }
@@ -403,7 +403,7 @@ public class SummaryMeasurementTable {
         tfColumnFilter.useRegexProperty().bindBidirectional(useRegexColumnFilter);
 
         var columnFilter = tfColumnFilter.predicateProperty();
-        columnFilter.addListener((v, o, n) -> {
+        columnFilter.addListener((_, _, n) -> {
             for (TableColumn<?, ?> col : table.getColumns()) {
                 if (col == colThumbnails || col.visibleProperty().isBound()) // Retain thumbnails
                     continue;
@@ -421,7 +421,7 @@ public class SummaryMeasurementTable {
         if (primaryFilter == PathObjectFilter.TMA_CORES) {
             CheckBox cbHideMissing = new CheckBox(QuPathResources.getString("Measure.MeasurementTable.hideMissingCores"));
             paneFilter.add(cbHideMissing, 2, 0);
-            cbHideMissing.selectedProperty().addListener((v, o, n) -> {
+            cbHideMissing.selectedProperty().addListener((_, _, n) -> {
                 if (n) {
                     model.setPredicate(p -> (!(p instanceof TMACoreObject)) || !((TMACoreObject)p).isMissing());
                 } else
@@ -447,7 +447,6 @@ public class SummaryMeasurementTable {
         var label = new Label();
         label.textProperty().bind(Bindings.createStringBinding(this::getObjectCountText, table.getItems()));
         label.setAlignment(Pos.CENTER_RIGHT);
-//        label.setPrefWidth(120);
         label.setMaxWidth(Double.MAX_VALUE);
         label.setPadding(new Insets(0, 5, 0, 5));
         return new BorderPane(label);
@@ -469,22 +468,28 @@ public class SummaryMeasurementTable {
 
 
     private void initTabPane() {
-        plotDisplays.add(new HistogramDisplay(model, true));
-        plotDisplays.add(new ScatterPlotDisplay(model));
-        plotDisplays.add(new BoxPlotDisplay(model));
+        plotDisplays.add(new HistogramDisplay<>(model, true));
+        plotDisplays.add(new ScatterPlotDisplay<>(model));
+        plotDisplays.add(new BoxPlotDisplay<>(model));
 
-        for (PlotDisplay display : plotDisplays) {
+        for (PlotDisplay<?> display : plotDisplays) {
             Tab tab = new Tab(display.getName(), display.getPane());
             tab.setClosable(false);
             plotTabs.getTabs().add(tab);
             FXUtils.makeTabUndockable(tab);
         }
-        plotTabs.getSelectionModel().selectFirst();
 
-        // We want to set the scatterpane only if it is shown
-//        plotTabs.getSelectionModel().selectedIndexProperty().addListener((v, o, n) -> {
-//                plotDisplays.get(n.intValue()).setModel(model);
-//        });
+        // show plots only if the tab is visible
+        plotTabs.getSelectionModel().selectedIndexProperty().addListener((_, _, n) -> {
+            for (int i = 0; i < plotTabs.getTabs().size(); i++) {
+                if (i == n.intValue()) {
+                    plotDisplays.get(i).requestReplot();
+                } else {
+                    plotDisplays.get(i).clearPlot();
+                }
+            }
+        });
+        plotTabs.getSelectionModel().selectFirst();
     }
 
     private Action actionShowPlots;
@@ -792,7 +797,7 @@ public class SummaryMeasurementTable {
         } else {
             table.refresh();
             for (var plot: plotDisplays) {
-                plot.requestRefresh();
+                plot.requestReplot();
             }
         }
     }
