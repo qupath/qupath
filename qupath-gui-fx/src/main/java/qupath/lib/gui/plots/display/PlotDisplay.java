@@ -28,6 +28,10 @@ public interface PlotDisplay<T> {
      */
     void setModel(PathTableData<T> model);
 
+    /**
+     * Get the XYChart that's displayed
+     * @return the chart
+     */
     XYChart<?,?> getChart();
 
     /**
