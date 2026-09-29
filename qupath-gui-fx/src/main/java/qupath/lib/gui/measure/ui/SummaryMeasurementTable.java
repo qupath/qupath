@@ -469,7 +469,7 @@ public class SummaryMeasurementTable {
 
     private void initTabPane() {
         plotDisplays.add(new HistogramDisplay<>(model, true));
-        plotDisplays.add(new ScatterPlotDisplay<>(model));
+        plotDisplays.add(new ScatterPlotDisplay<>());
         plotDisplays.add(new BoxPlotDisplay<>(model));
 
         for (PlotDisplay<?> display : plotDisplays) {
@@ -479,13 +479,11 @@ public class SummaryMeasurementTable {
             FXUtils.makeTabUndockable(tab);
         }
 
-        // show plots only if the tab is visible
+        // show scatterplot only if the tab is visible
         plotTabs.getSelectionModel().selectedIndexProperty().addListener((_, _, n) -> {
             for (int i = 0; i < plotTabs.getTabs().size(); i++) {
-                if (i == n.intValue()) {
-                    plotDisplays.get(i).requestReplot();
-                } else {
-                    plotDisplays.get(i).clearPlot();
+                if (plotDisplays.get(i) instanceof ScatterPlotDisplay spd) {
+                    spd.setModel(model);
                 }
             }
         });
