@@ -7,9 +7,11 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
+import javafx.animation.AnimationTimer;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -22,16 +24,22 @@ import javafx.geometry.Orientation;
 import javafx.scene.AccessibleRole;
 import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
 import javafx.scene.chart.Axis;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.ValueAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import javafx.stage.Window;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.jspecify.annotations.NonNull;
+import org.locationtech.jts.geom.Coordinate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +48,13 @@ import org.slf4j.LoggerFactory;
  * @param <X> string or numeric x-axis type
  * @param <Y> string or numeric y-axis type
  */
-public class BoxplotChart<X, Y> extends XYChart<X, Y> {
+public class BoxplotChart<X, Y> extends XYChart<X, Y> implements CanvasChart<X, Y> {
+    private final Canvas canvas = new Canvas();
+    private boolean redrawNeeded;
+
+    // hackery abounds: use a single private node to mark data points being drawn or not for the findObject method
+    private final Node node = new Circle();
+
     private static final Logger logger = LoggerFactory.getLogger(BoxplotChart.class);
     private final Orientation orientation;
     private final Random random = new Random(42);
@@ -81,6 +95,19 @@ public class BoxplotChart<X, Y> extends XYChart<X, Y> {
     public BoxplotChart(Axis<X> xAxis, Axis<Y> yAxis, boolean drawAllPoints) {
         super(xAxis, yAxis);
         setDrawAllPoints(drawAllPoints);
+        sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).subscribe(n -> {
+            if (Boolean.TRUE.equals(n))
+                timer.start();
+            else
+                timer.stop();
+        });
+
+        Pane plotContent = (Pane) lookup(".chart-content");
+        if (plotContent != null) {
+            canvas.widthProperty().bind(plotContent.widthProperty());
+            canvas.heightProperty().bind(plotContent.heightProperty());
+        }
+
         if (!((xAxis instanceof CategoryAxis && yAxis instanceof ValueAxis) || (yAxis instanceof CategoryAxis && xAxis instanceof ValueAxis))) {
             throw new IllegalArgumentException("Illegal axis types: must supply one Category and one Value axis");
         }
@@ -232,12 +259,6 @@ public class BoxplotChart<X, Y> extends XYChart<X, Y> {
 
     @Override
     protected void dataItemAdded(Series<X, Y> series, int itemIndex, Data<X, Y> item) {
-        if (item.getNode() == null) {
-            Node node = createPoint();
-            item.setNode(node);
-            getPlotChildren().add(item.getNode());
-            node.getStyleClass().setAll("chart-symbol", "series" + getData().indexOf(series), "data" + itemIndex);
-        }
         requestChartLayout();
     }
 
@@ -303,7 +324,7 @@ public class BoxplotChart<X, Y> extends XYChart<X, Y> {
     }
 
     protected void resetPlotChildren() {
-        getPlotChildren().clear();
+        canvas.getGraphicsContext2D().clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
     }
 
     protected void drawBox(BoxParams boxParams, double catPos) {
@@ -327,29 +348,24 @@ public class BoxplotChart<X, Y> extends XYChart<X, Y> {
      * @param boxParams the boxplot parameters
      */
     protected void drawPoint(Data<X, Y> data, double catPos, BoxParams boxParams) {
-        Group containerGroup = new Group();
-        getPlotChildren().add(containerGroup);
-
         double value = getNumeric.apply(data).doubleValue();
         double valPos = valueAxis.getDisplayPosition(value);
-        var node = data.getNode();
-
         if (!getDrawAllPoints()) {
-            if ((value > boxParams.lowWhisk) && (value < boxParams.upWhisk)) {
-                node.setVisible(false);
+            if ((value > boxParams.lowWhisk()) && (value < boxParams.upWhisk())) {
                 return;
             }
         }
+        data.setNode(node);
 
         var j = getJitterValue(data);
-        double x = orientation == Orientation.VERTICAL ?  valPos: catPos + j;
-        double y = orientation == Orientation.VERTICAL ? catPos + j: valPos;
-        // nudge points based on point size (i.e., don't center them on the top left).
-        double halfWidth = node.getBoundsInLocal().getWidth() / 2;
-        double halfHeight = node.getBoundsInLocal().getHeight() / 2;
-        node.setLayoutX(x - halfWidth);
-        node.setLayoutY(y - halfHeight);
-        containerGroup.getChildren().add(node);
+        double x = getOrientation() == Orientation.VERTICAL ?  valPos: catPos + j;
+        double y = getOrientation() == Orientation.VERTICAL ? catPos + j: valPos;
+        var context = canvas.getGraphicsContext2D();
+        context.setFill(Color.BLACK);
+        context.setGlobalAlpha(getMarkerOpacity());
+        // nudge points based on point radius (i.e., don't center them on the top left of the point).
+        double rad = getMarkerRadius();
+        context.fillOval(x - rad, y - rad, rad * 2, rad * 2);
     }
 
     protected record BoxParams(double lowWhisk, double lowQuartile, double median, double upQuartile, double upWhisk) {}
@@ -481,6 +497,75 @@ public class BoxplotChart<X, Y> extends XYChart<X, Y> {
         if (valueAxis != null && valueAxis.isAutoRanging() && min <= max) {
             valueAxis.invalidateRange(List.of(min, max));
         }
+    }
+
+    @Override
+    public Optional<Data<X,Y>> findDataPoint(double x, double y, double tolerance) {
+        String category = categoryAxis.getValueForDisplay(getOrientation() == Orientation.HORIZONTAL ? x : y);
+        double value = valueAxis.getValueForDisplay(getOrientation() == Orientation.HORIZONTAL ? y : x).doubleValue();
+
+        List<Data<X,Y>> candidates = new ArrayList<>();
+        for (var series: getData()) {
+            for (var item: series.getData()) {
+                // only drawn items have non-null nodes, and they all share one...
+                if (item.getNode() == null) {
+                    continue;
+                }
+                if (getCategory.apply(item).equals(category)) {
+                    double itemValue = getNumeric.apply(item).doubleValue();
+                    if (itemValue < (value + getMarkerRadius()) && itemValue > (value - getMarkerRadius())) {
+                        candidates.add(item);
+                    }
+                }
+            }
+        }
+        logger.debug("{} candidates found", candidates.size());
+
+        Data<X,Y> closestPoint = null;
+        double minDistance = Double.MAX_VALUE;
+        double maxDistance = getMarkerRadius() / 2;
+
+        Coordinate clickCoord = new Coordinate(x, y);
+        for (Data<X,Y> candidate : candidates) {
+            // candidate values are on data scale
+            double cx = getXAxis().getDisplayPosition(candidate.getXValue());
+            double cy = getYAxis().getDisplayPosition(candidate.getYValue());
+            if (getOrientation() == Orientation.HORIZONTAL) {
+                cx += getJitterValue(candidate);
+            } else {
+                cy += getJitterValue(candidate);
+            }
+            Coordinate candidateCoord = new Coordinate(cx, cy);
+            double distance = candidateCoord.distance(clickCoord);
+            logger.debug("Distance from {} to {}: {}", clickCoord, candidateCoord, distance);
+            if (distance <= minDistance && distance < maxDistance) {
+                minDistance = distance;
+                closestPoint = candidate;
+            }
+        }
+        logger.debug("Min distance found {}", minDistance);
+        return Optional.ofNullable(closestPoint);
+    }
+
+    @Override
+    public Canvas getCanvas() {
+        return this.canvas;
+    }
+
+    private final AnimationTimer timer = new AnimationTimer() {
+
+        @Override
+        public void handle(long now) {
+            handlePulse();
+        }
+
+    };
+
+    private void handlePulse() {
+        if (redrawNeeded) {
+            layoutPlotChildren();
+        }
+        redrawNeeded = false;
     }
 
 }

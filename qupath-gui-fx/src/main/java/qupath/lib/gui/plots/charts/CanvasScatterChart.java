@@ -138,9 +138,8 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
                 (double)getYAxis().getValueForDisplay(y + tolY)
         );
 
-        List<Data<X,Y>> candidates = tree.query(search);
+        @SuppressWarnings("unchecked") List<Data<X,Y>> candidates = (List<Data<X,Y>>)tree.query(search);
         logger.debug("{} candidates found", candidates.size());
-
         Data<X,Y> closestPoint = null;
         double minDistance = Double.MAX_VALUE;
         double maxDistance = getMarkerRadius();

@@ -1,6 +1,7 @@
 package qupath.lib.gui.measure.ui;
 
 import java.util.List;
+import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.Tooltip;
@@ -11,13 +12,9 @@ import qupath.lib.gui.plots.display.PlotDisplay;
 
 class NumericTableCell<T> extends TableCell<T, Number> {
 
-    private final List<PlotDisplay<?>> plotDisplays;
-
-    public NumericTableCell(Tooltip tooltip, List<PlotDisplay<?>> plotDisplays) {
-        this.plotDisplays = plotDisplays;
+    public NumericTableCell(Tooltip tooltip, EventHandler<? super MouseEvent> mouseListener) {
         setTooltip(tooltip);
-        if (!plotDisplays.isEmpty())
-            setOnMouseClicked(this::handleMouseClick);
+        setOnMouseClicked(mouseListener);
     }
 
 
@@ -44,15 +41,4 @@ class NumericTableCell<T> extends TableCell<T, Number> {
             }
         }
     }
-
-    private void handleMouseClick(MouseEvent event) {
-        if (event.isAltDown() && !plotDisplays.isEmpty()) {
-            for (var plotDisplay: plotDisplays) {
-//                plotDisplay.plotColumns(getTableColumn().getText());
-            }
-            event.consume();
-        }
-    }
-
-
 }

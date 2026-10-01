@@ -136,7 +136,6 @@ public class ScatterPlotDisplay<T extends PathObject> implements PlotDisplay<T> 
         BorderPane panelMain = new BorderPane();
 
         scatter = (CanvasScatterChart<Number, Number>) Charts.scatterChart()
-                .useCanvas(true)
                 .viewer(QuPathGUI.getInstance().getViewer())
                 .build();
         scatter.setMarkerRadius(pointRadius.get() * 2); // todo radius vs size

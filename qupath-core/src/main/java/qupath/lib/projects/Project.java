@@ -45,7 +45,6 @@ import java.util.List;
  * @param <T>
  */
 public interface Project<T> extends MinimalMetadataStore {
-		
 	/**
 	 * Get an unmodifiable list representing the <code>PathClass</code>es associated with this project.
 	 * @return
@@ -168,7 +167,7 @@ public interface Project<T> extends MinimalMetadataStore {
 	
 	/**
 	 * Add an image by duplicating an existing entry.
-	 * This retains the same {@link ServerBuilder}, name, description and metadata, but assigns 
+	 * This retains the same {@link ServerBuilder}, name, description and F, but assigns
 	 * a new unique ID.
 	 * 
 	 * @param entry the entry that should be copied
@@ -235,10 +234,6 @@ public interface Project<T> extends MinimalMetadataStore {
 	 * @see #syncChanges()
 	 */
 	long getModificationTimestamp();
-	
-	
-	
-	
 	
 	/**
 	 * Get a manager for scripts saved within this project.

@@ -13,10 +13,8 @@ import javafx.scene.chart.Axis;
 import javafx.scene.chart.ScatterChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.StackPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.common.ColorTools;
 import qupath.lib.gui.plots.charts.CanvasChart;
 import qupath.lib.gui.plots.charts.CanvasScatterChart;
 import qupath.lib.gui.localization.QuPathResources;
@@ -37,7 +35,6 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
     private Integer DEFAULT_MAX_DATAPOINTS = 10_000;
     private Integer maxDatapoints;
     private Random rnd = new Random();
-    private boolean useCanvas = true;
 
     ScatterChartBuilder() {
     }
@@ -87,10 +84,6 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
         return this;
     }
 
-    public ScatterChartBuilder useCanvas(boolean value) {
-        this.useCanvas = value;
-        return this;
-    }
 
     /**
      * Plot centroids for the specified objects using a fixed pixel calibration.
@@ -202,88 +195,30 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
                 );
 
         // if it's a canvaschart, we have to let it do the majic of finding data points for us
-        if (chart instanceof CanvasChart) {
-            CanvasChart<Number, Number> canvasChart = (CanvasChart<Number, Number>) chart;
-            canvasChart.getCanvas().addEventHandler(MouseEvent.ANY, e -> {
-                if (e.getEventType() == MouseEvent.MOUSE_CLICKED) {
-                    double pixelTolerance = markerSize * 1.5;
-                    var item = canvasChart.findDataPoint(e.getX(), e.getY(), pixelTolerance);
-                    item.ifPresent((data) ->
-                            tryToSelect(
-                                (PathObject) data.getExtraValue(),
-                                e.isShiftDown(),
-                                e.getClickCount() == 2));
-                }
-            });
-        } else {
-            // otherwise if we have a hierarchy, and PathObjects, make the plot live
-
-            // todo should not need to do this style wrangling here. thinly subclass scatter to handle this and handle in canvas version
-            // set point style for legends to all be the same div2 because setting radius not width/height
-            String baseStyle = String.format("-fx-background-radius: %fpx; -fx-padding: %fpx;", this.markerSize/2, this.markerSize/2);
-            // counter for the default CHART_COLOR stuff below
-            int n = 1;
-            for (var s : getSeries()) {
-                // if series names are available use them to set the default colors for the legend
-                if (s.getName() != null) {
-                    var pathClass = PathClass.fromString(s.getName());
-                    if (pathClass == null) {
-                        pathClass = PathClass.NULL_CLASS;
-                    }
-                    var color = pathClass.getColor();
-                    chart.setStyle(chart.getStyle() + " CHART_COLOR_" + (n++) + ": " +
-                            String.format("rgba(%d,%d,%d,%.2f);",
-                                    ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), markerOpacity)
-                    );
-                }
-
-                for (var d : s.getData()) {
-                    var extra = d.getExtraValue();
-                    var node = d.getNode();
-                    if (extra instanceof PathObject && node != null) {
-                        if (node instanceof StackPane) {
-                            node.setStyle(baseStyle);
-                            node.addEventHandler(MouseEvent.ANY, e -> {
-                                if (e.getEventType() == MouseEvent.MOUSE_CLICKED)
-                                    tryToSelect((PathObject) extra, e.isShiftDown(), e.getClickCount() == 2);
-                                else if (e.getEventType() == MouseEvent.MOUSE_ENTERED)
-                                    node.setStyle(baseStyle +
-                                            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-                                else if (e.getEventType() == MouseEvent.MOUSE_EXITED)
-                                    node.setStyle(baseStyle);
-                            });
-                        }
-                    } else //noinspection rawtypes
-                        if (extra instanceof ProjectImageEntry pie && node != null) {
-                        node.setStyle(baseStyle);
-                        node.addEventHandler(MouseEvent.ANY, e -> {
-                            if (e.getEventType() == MouseEvent.MOUSE_CLICKED)
-                                Charts.tryToOpen((ProjectImageEntry<BufferedImage>) pie);
-                            else if (e.getEventType() == MouseEvent.MOUSE_ENTERED)
-                                node.setStyle(baseStyle + ";"
-                                        + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-                            else if (e.getEventType() == MouseEvent.MOUSE_EXITED)
-                                node.setStyle(baseStyle);
-                        });
-                    }
-                }
+        // todo redo legends
+        CanvasChart<Number, Number> canvasChart = (CanvasChart<Number, Number>) chart;
+        canvasChart.getCanvas().addEventHandler(MouseEvent.ANY, e -> {
+            if (e.getEventType() == MouseEvent.MOUSE_CLICKED) {
+                double pixelTolerance = markerSize * 1.5;
+                var item = canvasChart.findDataPoint(e.getX(), e.getY(), pixelTolerance);
+                item.ifPresent((data) ->
+                        tryToSelect(
+                            (PathObject) data.getExtraValue(),
+                            e.isShiftDown(),
+                            e.getClickCount() == 2));
             }
-        }
+        });
     }
 
     @Override
     protected ScatterChart<Number, Number> createNewChart(Axis<Number> xAxis, Axis<Number> yAxis) {
-        if (useCanvas) {
-            var cmap = this.getSeries().stream()
-                    .map(XYChart.Series::getName).map(PathClass::fromString)
-                    .collect(Collectors.toMap(PathClass::toString, ColorToolsFX::getPathClassColor));
-            var chart = new CanvasScatterChart<>(xAxis, yAxis, cmap);
-            chart.setMarkerOpacity(this.markerOpacity);
-            chart.setMarkerRadius(this.markerSize);
-            return chart;
-        } else {
-            return new ScatterChart<>(xAxis, yAxis);
-        }
+        var cmap = this.getSeries().stream()
+                .map(XYChart.Series::getName).map(PathClass::fromString)
+                .collect(Collectors.toMap(PathClass::toString, ColorToolsFX::getPathClassColor));
+        var chart = new CanvasScatterChart<>(xAxis, yAxis, cmap);
+        chart.setMarkerOpacity(this.markerOpacity);
+        chart.setMarkerRadius(this.markerSize);
+        return chart;
     }
 
     /**
@@ -312,10 +247,6 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
      * Perform data subsampling to ensure that each series contains <= maxDatapoints.
      */
     private void subsampleSeries() {
-        // todo this is the laziest way but probably better to adapt in a smarter way
-        if (useCanvas) {
-            return;
-        }
         int n = maxDatapoints == null ? DEFAULT_MAX_DATAPOINTS : maxDatapoints;
         for (var series : getSeries()) {
             List<XYChart.Data<Number, Number>> data = series.getData();

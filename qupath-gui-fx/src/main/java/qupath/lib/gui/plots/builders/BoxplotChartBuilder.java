@@ -10,10 +10,7 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.input.MouseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.common.ColorTools;
 import qupath.lib.gui.plots.charts.BoxplotChart;
-import qupath.lib.gui.plots.charts.CanvasBoxplotChart;
-import qupath.lib.gui.plots.charts.CanvasChart;
 import qupath.lib.objects.PathObject;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -22,16 +19,10 @@ public class BoxplotChartBuilder extends Charts.XYCategoryChartBuilder<BoxplotCh
     private boolean showAllPoints = false;
 
     private static final Logger logger = LoggerFactory.getLogger(BoxplotChartBuilder.class);
-    private boolean useCanvas = true;
 
     @Override
     protected BoxplotChart<String, Number> createNewChart(Axis<String> xAxis, Axis<Number> yAxis) {
-        BoxplotChart<String, Number> chart;
-        if (useCanvas) {
-            chart = new CanvasBoxplotChart<>(xAxis, yAxis, showAllPoints);
-        } else {
-            chart = new BoxplotChart<>(xAxis, yAxis, showAllPoints);
-        }
+        BoxplotChart<String, Number> chart = new BoxplotChart<>(xAxis, yAxis, showAllPoints);
         chart.setMarkerOpacity(markerOpacity);
         chart.setMarkerRadius(markerSize);
         return chart;
@@ -49,16 +40,6 @@ public class BoxplotChartBuilder extends Charts.XYCategoryChartBuilder<BoxplotCh
      */
     public BoxplotChartBuilder showAllPoints(boolean value) {
         this.showAllPoints = value;
-        return getThis();
-    }
-
-    /**
-     * Control whether to use canvas-based rendering for the boxplot
-     * @param value the new boolean value
-     * @return this builder
-     */
-    public BoxplotChartBuilder useCanvas(boolean value) {
-        this.useCanvas = value;
         return getThis();
     }
 
@@ -121,59 +102,17 @@ public class BoxplotChartBuilder extends Charts.XYCategoryChartBuilder<BoxplotCh
         super.updateChart(chart);
         chart.getData().setAll(getSeries());
         // todo refactor similar methods somehow
-        if (chart instanceof CanvasChart) {
-            CanvasChart<String, Number> canvasChart = (CanvasChart<String, Number>) chart;
-            canvasChart.getCanvas().addEventHandler(MouseEvent.ANY, e -> {
-                if (e.getEventType() == MouseEvent.MOUSE_CLICKED) {
-                    double pixelTolerance = markerOpacity * 1.5;
-                    Optional<XYChart.Data<String,Number>> item = canvasChart.findDataPoint(e.getX(), e.getY(), pixelTolerance);
-                    item.ifPresent((data) ->
-                            tryToSelect(
-                                (PathObject) data.getExtraValue(),
-                                e.isShiftDown(),
-                                e.getClickCount() == 2));
-                }
-            });
-
-        } else {
-
-            // If we have a hierarchy, and PathObjects, make the plot live
-            for (var s : getSeries()) {
-                for (var d : s.getData()) {
-                    var extra = d.getExtraValue();
-                    var dataNode = d.getNode();
-                    if (extra instanceof PathObject pathObject && dataNode != null) {
-                        String style = "";
-                        dataNode.setStyle(style);
-                        dataNode.setPickOnBounds(true);
-                        dataNode.addEventHandler(MouseEvent.ANY, e -> {
-                            if (e.getEventType() == MouseEvent.MOUSE_CLICKED) {
-                                tryToSelect(pathObject, e.isShiftDown(), e.getClickCount() == 2);
-                            } else if (e.getEventType() == MouseEvent.MOUSE_ENTERED) {
-                                dataNode.setStyle(style + ";"
-                                        + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-                            } else if (e.getEventType() == MouseEvent.MOUSE_EXITED) {
-                                dataNode.setStyle(style);
-                            }
-                        });
-                    } else if (extra instanceof ProjectImageEntry<?> pie && dataNode != null) {
-                        int color = ColorTools.packRGB(127, 127, 127);
-                        String style = String.format("-fx-background-color: rgb(%d,%d,%d,%.2f);",
-                                ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), markerOpacity);
-                        dataNode.setStyle(style);
-                        dataNode.addEventHandler(MouseEvent.ANY, e -> {
-                            if (e.getEventType() == MouseEvent.MOUSE_CLICKED)
-                                Charts.tryToOpen((ProjectImageEntry<BufferedImage>) pie);
-                            else if (e.getEventType() == MouseEvent.MOUSE_ENTERED)
-                                dataNode.setStyle(style + ";"
-                                        + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-                            else if (e.getEventType() == MouseEvent.MOUSE_EXITED)
-                                dataNode.setStyle(style);
-                        });
-                    }
-                }
+        chart.getCanvas().addEventHandler(MouseEvent.ANY, e -> {
+            if (e.getEventType() == MouseEvent.MOUSE_CLICKED) {
+                double pixelTolerance = markerOpacity * 1.5;
+                Optional<XYChart.Data<String,Number>> item = chart.findDataPoint(e.getX(), e.getY(), pixelTolerance);
+                item.ifPresent((data) ->
+                        tryToSelect(
+                            (PathObject) data.getExtraValue(),
+                            e.isShiftDown(),
+                            e.getClickCount() == 2));
             }
-        }
+        });
     }
 
     /**

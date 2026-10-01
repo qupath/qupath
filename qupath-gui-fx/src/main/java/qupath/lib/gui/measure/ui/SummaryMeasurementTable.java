@@ -56,6 +56,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -377,8 +378,18 @@ public class SummaryMeasurementTable {
         var tooltipText = model.getHelpText(name);
         TableColumn<PathObject, Number> col = new TableColumn<>(name);
         col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
-        col.setCellFactory(_ -> new NumericTableCell<>(getTooltip(tooltipText), plotDisplays));
+
+        col.setCellFactory(_ -> new NumericTableCell<>(getTooltip(tooltipText), this::handleNumericCellEvent));
         return col;
+    }
+
+    private void handleNumericCellEvent(MouseEvent mouseEvent) {
+        for (int i = 0; i < plotTabs.getTabs().size(); i++) {
+            if (plotTabs.getTabs().get(i).isSelected()) {
+//                spd.setModel(model);
+                plotDisplays.get(i).requestReplot();
+            }
+        }
     }
 
     private TableColumn<PathObject, String> createStringTableColumn(String name) {
