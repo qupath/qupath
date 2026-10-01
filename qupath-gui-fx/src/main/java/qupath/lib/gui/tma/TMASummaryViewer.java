@@ -858,7 +858,7 @@ public class TMASummaryViewer {
 		
 		comboMainMeasurement.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			histogramDisplay.refreshCombo();
-			histogramDisplay.plotColumns(n);
+			histogramDisplay.plotColumn(n);
 			updateSurvivalCurves();
 		});
 		comboMeasurementMethod.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {

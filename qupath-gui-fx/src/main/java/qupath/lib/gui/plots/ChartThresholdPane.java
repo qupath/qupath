@@ -49,9 +49,9 @@ import java.util.Map;
 /**
  * Pane that can be used to contain an XYChart, adding adjustable thresholds to be displayed.
  */
-public class ChartXThresholdPane extends BorderPane {
+public class ChartThresholdPane extends BorderPane {
 
-    private static final Logger logger = LoggerFactory.getLogger(ChartXThresholdPane.class);
+    private static final Logger logger = LoggerFactory.getLogger(ChartThresholdPane.class);
 
     private XYChart<Number, Number> chart;
     private final NumberAxis xAxis;
@@ -70,7 +70,7 @@ public class ChartXThresholdPane extends BorderPane {
      *
      * @param chart the chart (probably a histogram or similar)
      */
-    public ChartXThresholdPane(final XYChart<Number, Number> chart) {
+    public ChartThresholdPane(final XYChart<Number, Number> chart) {
         this.chart = chart;
         this.xAxis = (NumberAxis) chart.getXAxis();
         this.yAxis = (NumberAxis) chart.getYAxis();

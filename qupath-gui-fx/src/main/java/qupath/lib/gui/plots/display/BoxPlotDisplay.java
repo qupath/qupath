@@ -215,19 +215,12 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
         return model.get();
     }
 
-    @Override
-    public XYChart<String, Number> getChart() {
-        return boxplot;
-    }
-
-    @Override
-    public void plotColumns(String... columns) {
-        if (columns.length != 1) {
-            logger.debug("Only one column is valid for boxplot, supplied {}", columns.length);
+    public void plotColumn(String name) {
+        if (comboNameY.getItems().contains(name)) {
+            comboNameY.getSelectionModel().select(name);
+        } else {
+            logger.warn("Unknown column {}", name);
             return;
-        }
-        if (comboNameY.getItems().contains(columns[0])) {
-            comboNameY.getSelectionModel().select(columns[0]);
         }
         requestReplot();
     }

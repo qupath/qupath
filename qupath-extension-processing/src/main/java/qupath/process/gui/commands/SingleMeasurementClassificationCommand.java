@@ -55,7 +55,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.plots.ChartXThresholdPane;
+import qupath.lib.gui.plots.ChartThresholdPane;
 import qupath.lib.gui.plots.charts.HistogramChart;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -224,7 +224,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			GridPaneUtils.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
 					+ "save the classifier in the current project, so it may be used for scripting later", labelSave, tfSaveName, btnSave);
 			
-			var chartPane = new ChartXThresholdPane(histogramPane);
+			var chartPane = new ChartThresholdPane(histogramPane);
 			chartPane.setIsInteractive(true);
 			chartPane.addThreshold(sliderThreshold.valueProperty());
 			
@@ -267,7 +267,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		 * @param histogramPane
 		 * @return
 		 */
-		static BorderPane addLogHistogramCheckbox(ChartXThresholdPane chartPane, HistogramChart histogramPane) {
+		static BorderPane addLogHistogramCheckbox(ChartThresholdPane chartPane, HistogramChart histogramPane) {
 			// Optionally show a log histogram
 			var cbLogHistogram = new CheckBox("Log histogram");
 			histogramPane.countsTransformProperty().bind(Bindings.createObjectBinding(() -> {

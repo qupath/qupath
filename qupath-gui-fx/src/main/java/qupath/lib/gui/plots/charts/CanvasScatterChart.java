@@ -44,11 +44,13 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
     private int colorIdx = 0;
     private final Canvas canvas = new Canvas();
     private boolean redrawNeeded;
+    public static final int NO_SHUFFLE_SEED = -1;
+
 
     // List of all objects to display - we retain this only so that we can shuffle reproducibly if the seed changes
-    private final ObservableList<Data<X,Y>> allData = FXCollections.observableArrayList();
+    private final ObservableList<Pair<String, Data<X,Y>>> allData = FXCollections.observableArrayList();
     // Shuffled objects - this is the main list we use, in preference to allData
-    private final ObservableList<Data<X,Y>> shuffledData = FXCollections.observableArrayList();
+    private final ObservableList<Pair<String, Data<X,Y>>> shuffledData = FXCollections.observableArrayList();
 
     private final DoubleProperty markerRadius = new SimpleDoubleProperty(2);
     private final DoubleProperty markerOpacity = new SimpleDoubleProperty(1);
@@ -59,6 +61,7 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
     private final IntegerProperty randomSeed = new SimpleIntegerProperty(123);
 
     private final Random random = new Random(randomSeed.get());
+
 
     /**
      * Construct a CanvasScatterChart with the two axes and the defined color map.
@@ -286,10 +289,15 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
     @Override
     protected void dataItemAdded(Series<X, Y> series, int itemIndex, Data<X, Y> item) {
         tree.insert(createEnvelope(item), item);
+        allData.add(new Pair<>(series.getName(), item));
     }
 
     @Override
     protected void dataItemRemoved(Data<X, Y> item, Series<X, Y> series) {
+        allData.stream()
+                .filter(p -> p.getValue().equals(item))
+                .findFirst()
+                .ifPresent(allData::remove);
         tree.remove(createEnvelope(item), item);
         removeDataItemFromDisplay(series, item);
     }
@@ -342,6 +350,17 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
         redraw();
     }
 
+    private void shuffleData() {
+        var seed = randomSeed.get();
+        if (seed == NO_SHUFFLE_SEED) {
+            shuffledData.setAll(allData);
+        } else {
+            var toShuffle = new ArrayList<>(allData);
+            Collections.shuffle(toShuffle, new Random(seed));
+            shuffledData.setAll(toShuffle);
+        }
+    }
+
     private void redraw() {
         var context = canvas.getGraphicsContext2D();
         context.setGlobalAlpha(markerOpacity.get());
@@ -353,7 +372,8 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
                 allPoints.add(p);
             }
         }
-        Collections.shuffle(allPoints);
+        Random random = new Random(123);
+        Collections.shuffle(allPoints, random);
         double rad = getMarkerRadius();
         for (var pair: allPoints) {
             var color = getColor(pair.getKey());

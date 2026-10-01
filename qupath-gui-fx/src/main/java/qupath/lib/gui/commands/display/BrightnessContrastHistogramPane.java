@@ -43,7 +43,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.display.AdditiveChannelInfo;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.gui.plots.ChartXThresholdPane;
+import qupath.lib.gui.plots.ChartThresholdPane;
 import qupath.lib.gui.plots.charts.HistogramChart;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -65,7 +65,7 @@ public class BrightnessContrastHistogramPane extends BorderPane {
 
     private final HistogramChart histogramChart = new HistogramChart();
 
-    private final ChartXThresholdPane chartPane = new ChartXThresholdPane(histogramChart);
+    private final ChartThresholdPane chartPane = new ChartThresholdPane(histogramChart);
 
     private final BooleanProperty doLogCounts = PathPrefs.createPersistentPreference("brightnessContrastLogCounts", false);
 

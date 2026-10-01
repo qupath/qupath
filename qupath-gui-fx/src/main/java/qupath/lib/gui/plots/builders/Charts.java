@@ -542,35 +542,32 @@ public class Charts {
 		/**
 		 * Create and add a scatterplot using collections of numeric values, with an associated custom object.
 		 *
-		 * @param <E>   The type of custom object.
 		 * @param name  the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x     x-values
 		 * @param y     y-values
 		 * @param extra array of values to associate with each data point; should be the same length as x and y
 		 * @return this builder
 		 */
-		public <E> T addSeries(String name, X[] x, Y[] y, E[] extra) {
+		public T addSeries(String name, X[] x, Y[] y, Object[] extra) {
 			return addSeries(name, x, y, extra == null ? null : Arrays.asList(extra));
 		}
 
 		/**
 		 * Create and add a scatterplot series using collections of numeric values, with an associated custom object.
 		 *
-		 * @param <E>   The type of custom object.
 		 * @param name  the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x     x-values
 		 * @param y     y-values
 		 * @param extra list of values to associate with each data point; should be the same length as x and y
 		 * @return this builder
 		 */
-		public <E> T addSeries(String name, X[] x, Y[] y, List<E> extra) {
+		public T addSeries(String name, X[] x, Y[] y, List<?> extra) {
 			return addSeries(createSeries(name, x, y, extra));
 		}
 
 		/**
 		 * Create and add a scatterplot series using collections of numeric values, with an associated custom object.
 		 *
-		 * @param <E>   The type of custom object.
 		 * @param name  the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x     x-values
 		 * @param y     y-values
@@ -578,7 +575,7 @@ public class Charts {
 		 * @return this builder
 		 */
 		@SuppressWarnings("unchecked")
-		public <E> T addSeries(String name, Collection<X> x, Collection<Y> y, List<E> extra) {
+		public T addSeries(String name, Collection<X> x, Collection<Y> y, List<?> extra) {
 			return addSeries(name, (X[]) x.toArray(), (Y[]) y.toArray(), extra == null ? null : FXCollections.observableArrayList(extra));
 		}
 

@@ -70,7 +70,7 @@ import qupath.lib.analysis.stats.survival.KaplanMeierData;
 import qupath.lib.analysis.stats.survival.LogRankTest;
 import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.plots.ChartXThresholdPane;
+import qupath.lib.gui.plots.ChartThresholdPane;
 import qupath.lib.gui.plots.ChartTools;
 import qupath.lib.gui.plots.charts.HistogramChart;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
@@ -112,10 +112,10 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 
 	private PathObjectHierarchy hierarchy;
 	private HistogramChart histogramPanel;
-	private ChartXThresholdPane histogramWrapper;
+	private ChartThresholdPane histogramWrapper;
 
 	private LineChart<Number, Number> chartPValues;
-	private ChartXThresholdPane pValuesWrapper;
+	private ChartThresholdPane pValuesWrapper;
 	private KaplanMeierChartWrapper plotter;
 
 	private ParameterList params;
@@ -585,7 +585,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			GridPane paneHistogram = new GridPane();
 			histogramPanel = new HistogramChart();
 			histogramPanel.setAnimated(false);
-			histogramWrapper = new ChartXThresholdPane(histogramPanel);
+			histogramWrapper = new ChartThresholdPane(histogramPanel);
 			for (ObservableNumberValue val : threshProperties)
 				histogramWrapper.addThreshold(val);
 			histogramWrapper.setPrefHeight(150);
@@ -611,7 +611,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 			pValuesChanged = true;
 			Tooltip.install(chartPValues, new Tooltip(QuPathResources.getString("Tma.KaplanMeierDisplay.distributionOfPValues")));
 			//				chartPValues.getYAxis().setAutoRanging(false);
-			pValuesWrapper = new ChartXThresholdPane(chartPValues);
+			pValuesWrapper = new ChartThresholdPane(chartPValues);
 			for (ObservableNumberValue val : threshProperties)
 				pValuesWrapper.addThreshold(val);
 

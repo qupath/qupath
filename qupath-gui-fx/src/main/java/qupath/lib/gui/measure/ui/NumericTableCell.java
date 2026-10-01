@@ -48,7 +48,7 @@ class NumericTableCell<T> extends TableCell<T, Number> {
     private void handleMouseClick(MouseEvent event) {
         if (event.isAltDown() && !plotDisplays.isEmpty()) {
             for (var plotDisplay: plotDisplays) {
-                plotDisplay.plotColumns(getTableColumn().getText());
+//                plotDisplay.plotColumns(getTableColumn().getText());
             }
             event.consume();
         }

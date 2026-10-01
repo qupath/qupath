@@ -70,7 +70,7 @@ public class BarChartBuilder extends Charts.XYCategoryChartBuilder<BarChartBuild
         var series = Charts.XYChartBuilder.createSeries(
                 name,
                 data.keySet().toArray(String[]::new),
-                data.values().stream().map(Number::doubleValue).toArray(Number[]::new),
+                data.values().toArray(Number[]::new),
                 (List<?>) null
         );
         return addSeries(series);

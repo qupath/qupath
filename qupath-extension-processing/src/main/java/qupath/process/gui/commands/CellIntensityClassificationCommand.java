@@ -39,7 +39,7 @@ import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.plots.ChartXThresholdPane;
+import qupath.lib.gui.plots.ChartThresholdPane;
 import qupath.lib.gui.plots.charts.HistogramChart;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.objects.PathObjectTools;
@@ -136,7 +136,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 		var map = new HashMap<String, double[]>();
 		
 		var histogramPanel = new HistogramChart();
-		var chartPane = new ChartXThresholdPane(histogramPanel);
+		var chartPane = new ChartThresholdPane(histogramPanel);
 		chartPane.setIsInteractive(true);
 		
 		singleThreshold.addListener((v, o, n) -> {

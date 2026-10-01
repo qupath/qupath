@@ -276,10 +276,6 @@ public class HistogramDisplay<T> implements PlotDisplay<T>, ParameterChangeListe
 		return model.get();
 	}
 
-	@Override
-	public XYChart<Number, Number> getChart() {
-		return histogramChart;
-	}
 
 	@Override
 	public void requestReplot() {
@@ -325,29 +321,12 @@ public class HistogramDisplay<T> implements PlotDisplay<T>, ParameterChangeListe
 			currentBins = nBins;
 			currentValues = values;
 		} else {
-			clearPlot();
+			histogramChart.getHistogramData().clear();
+			currentValues = null;
 		}
 	}
 
-	@Override
-	public void clearPlot() {
-		histogramChart.getHistogramData().clear();
-		currentValues = null;
-	}
 
-	@Override
-	public void plotColumns(final String... columns) {
-		if (columns.length != 1) {
-			logger.debug("Only one column support for histogram, supplied {}", columns.length);
-			return;
-		}
-		if (comboName.getItems().contains(columns[0])) {
-			selectedColumn.set(columns[0]);
-		}
-		else {
-			logger.debug("Unknown column requested: {}", columns[0]);
-		}
-	}
 
 	private static void updateCountsTransform(HistogramChart histogramChart, ParameterList params) {
 		var transform = params.getChoiceParameterValue("countsTransform");
@@ -402,4 +381,16 @@ public class HistogramDisplay<T> implements PlotDisplay<T>, ParameterChangeListe
 		table.getItems().setAll(stats);
 	}
 
+	/**
+	 * Update plot for specified data columns.
+	 * @param name the name of the columns to show
+	 */
+	public void plotColumn(String name) {
+		if (comboName.getItems().contains(name)) {
+			selectedColumn.set(name);
+		}
+		else {
+			logger.debug("Unknown column requested: {}", name);
+		}
+	}
 }

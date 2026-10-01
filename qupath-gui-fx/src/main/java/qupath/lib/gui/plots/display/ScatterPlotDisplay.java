@@ -187,27 +187,8 @@ public class ScatterPlotDisplay<T extends PathObject> implements PlotDisplay<T> 
     }
 
     @Override
-    public void plotColumns(String... columns) {
-        if (columns.length != 2) {
-            logger.debug("Only two columns supported for scatter plot, supplied {}", columns.length);
-            return;
-        }
-        if (comboNameX.getItems().contains(columns[0]) && comboNameY.getItems().contains(columns[1])) {
-            comboNameX.getSelectionModel().select(columns[0]);
-            comboNameY.getSelectionModel().select(columns[1]);
-        } else {
-            logger.debug("Unknown columns selected: {} and {}",  columns[0], columns[1]);
-        }
-    }
-
-    @Override
     public PathTableData<T> getModel() {
         return this.model.get();
-    }
-
-    @Override
-    public XYChart<Number, Number> getChart() {
-        return scatter;
     }
 
     @Override

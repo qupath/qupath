@@ -28,8 +28,8 @@ public interface CanvasChart<X, Y> {
      */
     Optional<XYChart.Data<X, Y>> findDataPoint(double x, double y, double tolerance);
 
-    // my best attempt at non-terrible non-clashing default colors. Could instead use something from ColorBrewer
 
+    // my best attempt at non-terrible non-clashing default colors. Could instead use something from ColorBrewer
     /**
      * A default color palette when colors aren't supplied
      * @return An immutable list of pre-defined colors.
