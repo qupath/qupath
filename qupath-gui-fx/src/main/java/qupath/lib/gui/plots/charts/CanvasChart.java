@@ -12,7 +12,7 @@ import javafx.scene.paint.Color;
  * @param <Y> the y-axis type (numeric or string, probably)
  */
 public interface CanvasChart<X, Y> {
-    // note that canvas could be an ObjectProperty
+    // note that canvas could be an ObjectProperty in case we want to drop the old one and swap in a new
 
     /**
      * Get the canvas used to render points
