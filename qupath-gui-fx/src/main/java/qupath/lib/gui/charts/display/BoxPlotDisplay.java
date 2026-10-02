@@ -94,7 +94,6 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
         BorderPane panelMain = new BorderPane();
 
         boxplot = Charts.boxPlot()
-                .useCanvas(true)
                 .viewer(QuPathGUI.getInstance().getViewer())
                 .build();
 
@@ -336,7 +335,10 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
         var objects = newValue.getItems();
         Function<PathObject, PathClass> collector = PathObject::getPathClass;
         if (baseClassOnly.get()) {
-            collector = (po) -> po.getPathClass().getBaseClass();
+            collector = (po) -> {
+                var pc = po.getPathClass();
+                return pc != null ? pc.getBaseClass() : PathClass.NULL_CLASS;
+            };
         }
         var classes = new ArrayList<>(objects.stream().map(collector).sorted().distinct().toList());
         if (classes.contains(null)) {
@@ -351,20 +353,21 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
     private Region createDisplayOptionsPane() {
         Spinner<Double> spinPointOpacity = new Spinner<>(
                 0.05, 1.0, pointOpacity.get(), 0.05);
-        pointOpacity.bind(Bindings.createDoubleBinding(spinPointOpacity::getValue,
-                spinPointOpacity.getValueFactory().valueProperty()));
         spinPointOpacity.setEditable(true);
         spinPointOpacity.setMinWidth(80);
         FXUtils.resetSpinnerNullToPrevious(spinPointOpacity);
+        pointOpacity.bind(Bindings.createDoubleBinding(spinPointOpacity::getValue,
+                spinPointOpacity.getValueFactory().valueProperty()));
+
 
         Spinner<Double> spinPointRadius = new Spinner<>(
                 0.5, 20.0, pointRadius.get(), 0.25);
-        spinPointRadius.getValueFactory().valueProperty().bindBidirectional(pointRadius.asObject());
-        pointRadius.bind(Bindings.createDoubleBinding(spinPointRadius::getValue,
-                spinPointRadius.getValueFactory().valueProperty()));
         spinPointRadius.setEditable(true);
         spinPointRadius.setMinWidth(80);
         FXUtils.resetSpinnerNullToPrevious(spinPointRadius);
+        pointRadius.bind(Bindings.createDoubleBinding(spinPointRadius::getValue,
+                spinPointRadius.getValueFactory().valueProperty()));
+
 
         CheckBox cbShowAll = new CheckBox(QuPathResources.getString("Charts.BoxPlotDisplay.showAllPoints"));
         cbShowAll.setTooltip(new Tooltip(QuPathResources.getString("Charts.BoxPlotDisplay.showAllPointsDescription")));
