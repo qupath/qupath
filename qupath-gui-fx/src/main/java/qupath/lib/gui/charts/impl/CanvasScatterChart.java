@@ -1,6 +1,5 @@
 package qupath.lib.gui.charts.impl;
 
-import com.sun.javafx.charts.Legend;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -17,11 +16,15 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.chart.Axis;
 import javafx.scene.chart.ScatterChart;
 import javafx.scene.chart.ValueAxis;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -46,6 +49,7 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
     private boolean redrawNeeded;
     public static final int NO_SHUFFLE_SEED = -1;
 
+    private final Map<Series<X,Y>, Boolean> seriesVisible = new HashMap<>();
 
     // List of all objects to display - we retain this only so that we can shuffle reproducibly if the seed changes
     private final ObservableList<Pair<String, Data<X,Y>>> allData = FXCollections.observableArrayList();
@@ -84,6 +88,8 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
         this.tree = new Quadtree();
         this.gf = new GeometryFactory();
         initProperties();
+
+        getPlotChildren().add(canvas);
     }
 
     private void initProperties() {
@@ -112,6 +118,19 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
             else
                 timer.stop();;
         });
+
+        // can't select parent of plot children (might be empty), but scenicView to the rescue
+        Pane plotContent = (Pane) lookup(".chart-content");
+
+        if (plotContent != null) {
+            canvas.widthProperty().bind(plotContent.widthProperty());
+            canvas.heightProperty().bind(plotContent.heightProperty());
+            canvas.widthProperty().addListener((v, o, n) ->
+                    redrawNeeded = true);
+            canvas.heightProperty().addListener((v, o, n) ->
+                    redrawNeeded = true);
+        }
+
     }
 
     @Override
@@ -331,21 +350,6 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
 
     @Override
     protected void layoutPlotChildren() {
-        getPlotChildren().clear();
-        getPlotChildren().add(canvas);
-
-        // can't select parent of plot children (might be empty), but scenicView to the rescue
-        Pane plotContent = (Pane) lookup(".chart-content");
-
-        if (plotContent != null) {
-            canvas.widthProperty().bind(plotContent.widthProperty());
-            canvas.heightProperty().bind(plotContent.heightProperty());
-            canvas.widthProperty().addListener((v, o, n) ->
-                    redrawNeeded = true);
-            canvas.heightProperty().addListener((v, o, n) ->
-                    redrawNeeded = true);
-        }
-
         redraw();
     }
 
@@ -366,12 +370,14 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
         context.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
         List<Pair<String, Data<X,Y>>> allPoints = new ArrayList<>();
         for (Series<X,Y> series : getData()) {
-            for (Data<X, Y> elem: series.getData()) {
-                var p = new Pair<>(series.getName(), elem);
-                allPoints.add(p);
+            if (seriesVisible.computeIfAbsent(series, x -> true)) {
+                for (Data<X, Y> elem: series.getData()) {
+                    var p = new Pair<>(series.getName(), elem);
+                    allPoints.add(p);
+                }
             }
         }
-        Random random = new Random(123);
+        Random random = new Random(randomSeed.get());
         Collections.shuffle(allPoints, random);
         double rad = getMarkerRadius();
         for (var pair: allPoints) {
@@ -387,28 +393,41 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
 
     }
 
-    // todo re-do without legend.legenditem
     @Override
     protected void updateLegend() {
-        List<Legend.LegendItem> legendList = new ArrayList<>();
+        Node legend = createLegend();
+        setLegend(legend);
+    }
+
+    Node createLegend() {
+        List<Node> legendList = new ArrayList<>();
+        HBox box = new HBox(); // todo probably need to handle different orientations...
+        box.setAlignment(Pos.CENTER);
+        box.setSpacing(5);
         if (getData() != null) {
             for (Series<X,Y> series : getData()) {
                 legendList.add(createLegendItem(series));
             }
         }
-        Legend legend = new Legend();
-        legend.getItems().setAll(legendList);
-        if (!legendList.isEmpty()) {
-            setLegend(legend);
-        } else {
-            setLegend(null);
-        }
+        box.getChildren().setAll(legendList);
+        return box;
     }
 
-    Legend.LegendItem createLegendItem(Series<X,Y> series) {
-        Legend.LegendItem legendItem = new Legend.LegendItem(series.getName());
-        legendItem.setSymbol(new Circle(5, getColor(series.getName())));
-        return legendItem;
+    Node createLegendItem(Series<X,Y> series) {
+        HBox box = new HBox();
+        box.setAlignment(Pos.CENTER);
+        box.setSpacing(5);
+        Label label = new Label(series.getName());
+        Node symbol = new Circle(5, getColor(series.getName()));
+        symbol.setOnMouseClicked(_ -> {
+            boolean nowVisible = seriesVisible.computeIfAbsent(series, s -> true);
+            seriesVisible.put(series, !nowVisible);
+            symbol.setOpacity(!nowVisible ? 1 : 0.2);
+            redraw();
+        });
+        symbol.getStyleClass().setAll("chart-legend-item-symbol");
+        box.getChildren().addAll(symbol, label);
+        return box;
     }
 
     private Color getColor(String name) {

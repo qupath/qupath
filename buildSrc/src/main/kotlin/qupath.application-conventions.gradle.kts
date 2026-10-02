@@ -21,11 +21,6 @@ application {
     applicationDefaultJvmArgs += "--add-opens"
     applicationDefaultJvmArgs += "javafx.graphics/com.sun.javafx.css=ALL-UNNAMED"
 
-    // javafx charts legend.item
-    applicationDefaultJvmArgs += "--add-exports"
-    applicationDefaultJvmArgs += "javafx.controls/com.sun.javafx.charts=ALL-UNNAMED"
-
-
     // Necessary when using JavaFX 24+
     // See https://gluonhq.com/products/javafx/openjfx-24-release-notes/
     applicationDefaultJvmArgs += "--enable-native-access"
