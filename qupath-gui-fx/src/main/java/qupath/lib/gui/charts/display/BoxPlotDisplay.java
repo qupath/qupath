@@ -194,11 +194,20 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
             Predicate<T> objectFilter;
             Function<T, PathClass> classExtractor;
             if (baseClassOnly.get()) {
-                objectFilter = po -> classes.stream().anyMatch(pc -> po.getPathClass().isDerivedFrom(pc));
-                classExtractor = po -> po.getPathClass().getBaseClass();
+                objectFilter = po -> classes.stream().anyMatch(pc -> {
+                    var poc = po.getPathClass();
+                    return (poc == null && pc == PathClass.NULL_CLASS) || (poc != null && poc.isDerivedFrom(pc));
+                });
+                classExtractor = po -> {
+                    var pc = po.getPathClass();
+                    return pc == null ? PathClass.NULL_CLASS : pc.getBaseClass();
+                };
             } else {
-                objectFilter = po -> classes.contains(po.getPathClass());
-                classExtractor = PathObject::getPathClass;
+                objectFilter = po -> {
+                    var pc = po.getPathClass() == null ? PathClass.NULL_CLASS : po.getPathClass();
+                    return classes.contains(pc);
+                };
+                classExtractor = po -> po.getPathClass() == null ? PathClass.NULL_CLASS : po.getPathClass();
             }
             setDataFromTable(items, model, objectFilter, classExtractor, y);
         }
@@ -333,7 +342,8 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
 
     private void updatePathClasses(PathTableData<T> newValue) {
         var objects = newValue.getItems();
-        Function<PathObject, PathClass> collector = PathObject::getPathClass;
+        Function<PathObject, PathClass> collector = po ->
+            po.getPathClass() != null ? po.getPathClass() : PathClass.NULL_CLASS;
         if (baseClassOnly.get()) {
             collector = (po) -> {
                 var pc = po.getPathClass();
