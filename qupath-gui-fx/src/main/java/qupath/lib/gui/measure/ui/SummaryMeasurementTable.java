@@ -501,7 +501,7 @@ public class SummaryMeasurementTable {
 
     private void initTabPane() {
         createAndAddTab(new HistogramDisplay<>(model, true), "Measure.MeasurementTable.histogram");
-        createAndAddTab(new ScatterPlotDisplay<>(model), "Measure.MeasurementTable.scatterPlot");
+        createAndAddTab(new ScatterPlotDisplay<>(), "Measure.MeasurementTable.scatterPlot");
         createAndAddTab(new BoxPlotDisplay<>(model), "Measure.MeasurementTable.boxPlot");
 
         // show scatterplot only if the tab is visible
