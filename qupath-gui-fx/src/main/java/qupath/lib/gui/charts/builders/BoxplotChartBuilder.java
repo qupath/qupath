@@ -47,7 +47,7 @@ public class BoxplotChartBuilder extends Charts.XYCategoryChartBuilder<BoxplotCh
      * Make a boxplot of a measurement split by class
      * @param name the name of the plot
      * @param collection the path objects to split and plot
-     * @param measurement the measurement to plot on the y axis
+     * @param measurement the measurement to plot on the y-axis
      * @return this builder
      * @param <T> the type of {@link PathObject}
      */
