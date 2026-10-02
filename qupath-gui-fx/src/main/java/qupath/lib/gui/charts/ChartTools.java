@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.plots;
+package qupath.lib.gui.charts;
 
 import javafx.geometry.Point2D;
 import javafx.scene.Group;

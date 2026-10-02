@@ -1,4 +1,4 @@
-package qupath.lib.gui.plots.builders;
+package qupath.lib.gui.charts.builders;
 
 import java.awt.image.BufferedImage;
 import java.util.Collection;
@@ -10,7 +10,7 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.input.MouseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.gui.plots.charts.BoxplotChart;
+import qupath.lib.gui.charts.impl.BoxplotChart;
 import qupath.lib.objects.PathObject;
 import qupath.lib.projects.ProjectImageEntry;
 

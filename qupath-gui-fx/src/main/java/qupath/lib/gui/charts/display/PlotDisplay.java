@@ -1,4 +1,4 @@
-package qupath.lib.gui.plots.display;
+package qupath.lib.gui.charts.display;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.scene.layout.Pane;

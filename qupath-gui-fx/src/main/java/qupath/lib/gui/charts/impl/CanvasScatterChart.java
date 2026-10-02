@@ -1,4 +1,4 @@
-package qupath.lib.gui.plots.charts;
+package qupath.lib.gui.charts.impl;
 
 import com.sun.javafx.charts.Legend;
 import java.util.ArrayList;
@@ -387,6 +387,7 @@ public class CanvasScatterChart<X,Y> extends ScatterChart<X,Y> implements Canvas
 
     }
 
+    // todo re-do without legend.legenditem
     @Override
     protected void updateLegend() {
         List<Legend.LegendItem> legendList = new ArrayList<>();

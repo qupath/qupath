@@ -1,4 +1,4 @@
-package qupath.lib.gui.plots.builders;
+package qupath.lib.gui.charts.builders;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -15,8 +15,8 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.input.MouseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.gui.plots.charts.CanvasChart;
-import qupath.lib.gui.plots.charts.CanvasScatterChart;
+import qupath.lib.gui.charts.impl.CanvasChart;
+import qupath.lib.gui.charts.impl.CanvasScatterChart;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.images.servers.PixelCalibration;

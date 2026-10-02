@@ -1,4 +1,4 @@
-package qupath.lib.gui.plots.builders;
+package qupath.lib.gui.charts.builders;
 
 import java.util.Collection;
 import java.util.Comparator;

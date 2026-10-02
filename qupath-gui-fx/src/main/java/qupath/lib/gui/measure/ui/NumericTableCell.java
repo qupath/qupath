@@ -1,14 +1,11 @@
 package qupath.lib.gui.measure.ui;
 
-import java.util.List;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.plots.display.HistogramDisplay;
-import qupath.lib.gui.plots.display.PlotDisplay;
 
 class NumericTableCell<T> extends TableCell<T, Number> {
 

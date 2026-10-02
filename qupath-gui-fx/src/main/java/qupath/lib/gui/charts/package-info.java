@@ -1,4 +1,4 @@
 /**
  * Classes for plotting and charting.
  */
-package qupath.lib.gui.plots;
+package qupath.lib.gui.charts;

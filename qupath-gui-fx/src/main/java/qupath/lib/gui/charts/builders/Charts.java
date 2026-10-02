@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui.plots.builders;
+package qupath.lib.gui.charts.builders;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;

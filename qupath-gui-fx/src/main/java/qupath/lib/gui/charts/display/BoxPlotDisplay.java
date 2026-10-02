@@ -1,4 +1,4 @@
-package qupath.lib.gui.plots.display;
+package qupath.lib.gui.charts.display;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,9 +48,9 @@ import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
-import qupath.lib.gui.plots.SnapshotTools;
-import qupath.lib.gui.plots.builders.Charts;
-import qupath.lib.gui.plots.charts.BoxplotChart;
+import qupath.lib.gui.charts.SnapshotTools;
+import qupath.lib.gui.charts.builders.Charts;
+import qupath.lib.gui.charts.impl.BoxplotChart;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 

@@ -1,11 +1,11 @@
-package qupath.lib.gui.plots.builders;
+package qupath.lib.gui.charts.builders;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 import javafx.scene.chart.PieChart;
 import javafx.scene.paint.Color;
-import qupath.lib.gui.plots.ChartTools;
+import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;

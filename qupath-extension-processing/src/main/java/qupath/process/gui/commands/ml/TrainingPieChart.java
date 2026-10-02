@@ -5,7 +5,7 @@ import java.util.Map;
 import javafx.application.Platform;
 import javafx.geometry.Side;
 import javafx.scene.chart.PieChart;
-import qupath.lib.gui.plots.ChartTools;
+import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.objects.classes.PathClass;
 

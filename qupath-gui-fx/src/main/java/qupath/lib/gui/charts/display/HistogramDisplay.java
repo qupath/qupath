@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.plots.display;
+package qupath.lib.gui.charts.display;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.Property;
@@ -32,7 +32,6 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
-import javafx.scene.chart.XYChart;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -45,8 +44,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.plots.charts.HistogramChart;
-import qupath.lib.gui.plots.charts.HistogramChart.HistogramData;
+import qupath.lib.gui.charts.impl.HistogramChart;
+import qupath.lib.gui.charts.impl.HistogramChart.HistogramData;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
