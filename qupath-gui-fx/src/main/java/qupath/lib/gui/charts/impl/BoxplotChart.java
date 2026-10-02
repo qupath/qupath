@@ -316,6 +316,7 @@ public class BoxplotChart<X, Y> extends XYChart<X, Y> implements CanvasChart<X, 
             // todo if multiple series, need to dodge the boxes and adjust width
             // see bargap and categorygap in barchart
             double catPos = categoryAxis.getDisplayPosition(category);
+            // todo simpler if these are also drawn on canvas...
             drawBox(boxParams, catPos);
             for (var data: datas) {
                 drawPoint(data, catPos, boxParams);
@@ -324,6 +325,8 @@ public class BoxplotChart<X, Y> extends XYChart<X, Y> implements CanvasChart<X, 
     }
 
     protected void resetPlotChildren() {
+        getPlotChildren().clear();
+        getPlotChildren().add(canvas);
         canvas.getGraphicsContext2D().clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
     }
 
@@ -348,6 +351,7 @@ public class BoxplotChart<X, Y> extends XYChart<X, Y> implements CanvasChart<X, 
      * @param boxParams the boxplot parameters
      */
     protected void drawPoint(Data<X, Y> data, double catPos, BoxParams boxParams) {
+
         double value = getNumeric.apply(data).doubleValue();
         double valPos = valueAxis.getDisplayPosition(value);
         if (!getDrawAllPoints()) {
