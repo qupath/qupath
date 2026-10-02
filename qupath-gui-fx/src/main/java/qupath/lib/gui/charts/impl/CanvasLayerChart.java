@@ -21,6 +21,7 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
 import javafx.scene.paint.LinearGradient;
@@ -345,7 +346,7 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             max = colorVals.stream().max(Double::compareTo).orElse(Double.MAX_VALUE);
         }
 
-        List<Stop> createStops(int nStep) {
+        static List<Stop> createStops(ColorMaps.ColorMap colorMap, double min, double max, int nStep) {
             double range = Math.abs(max - min);
             double step = 1 / (((double)nStep) - 1);
             List<Stop> stops = new ArrayList<>();
@@ -370,11 +371,21 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             Label label = new Label("Bar");
             int width = 100;
             int height = 20;
-            Rectangle symbol = new Rectangle(width, height);
-            List<Stop> stops = createStops(100);
+
+            NumberAxis colorAxis = new NumberAxis();
+            colorAxis.invalidateRange(List.of(min, max));
+
+            Rectangle scaleRect = new Rectangle(width, height);
+            List<Stop> stops = createStops(colorMap, colorAxis.getLowerBound(), colorAxis.getUpperBound(), 100);
             var grad = new LinearGradient(0, 0, 1, 0, true, CycleMethod.NO_CYCLE, stops);
-            symbol.setFill(grad);
-            box.getChildren().addAll(symbol, label);
+            scaleRect.setFill(grad);
+
+            scaleRect.widthProperty().bind(colorAxis.widthProperty());
+
+
+
+            VBox vBox = new VBox(scaleRect, colorAxis);
+            box.getChildren().addAll(vBox, label);
             getCanvas().visibleProperty().addListener(_ -> {
                 if (getCanvas().isVisible()) {
                     box.setOpacity(1);
@@ -382,7 +393,7 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
                     box.setOpacity(0.2);
                 }
             });
-            box.setOnMouseClicked(_ -> this.getCanvas().setVisible(!this.getCanvas().isVisible()));
+            vBox.setOnMouseClicked(_ -> this.getCanvas().setVisible(!this.getCanvas().isVisible()));
             return box;
         }
     }
