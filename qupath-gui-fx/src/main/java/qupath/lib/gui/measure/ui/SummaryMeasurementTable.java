@@ -490,16 +490,33 @@ public class SummaryMeasurementTable {
 
 
     private void initTabPane() {
-        plotDisplays.add(new HistogramDisplay<>(model, true));
-        plotDisplays.add(new ScatterPlotDisplay<>());
-        plotDisplays.add(new BoxPlotDisplay<>(model));
+        var histogramDisplay = new HistogramDisplay<>(model, true);
+        plotDisplays.add(histogramDisplay);
+        Tab histTab = new Tab(
+                QuPathResources.getString("Measure.MeasurementTable.histogram"),
+                histogramDisplay.getPane());
+        histTab.setClosable(false);
+        plotTabs.getTabs().add(histTab);
+        FXUtils.makeTabUndockable(histTab);
 
-        for (PlotDisplay<?> display : plotDisplays) {
-            Tab tab = new Tab(display.getName(), display.getPane());
-            tab.setClosable(false);
-            plotTabs.getTabs().add(tab);
-            FXUtils.makeTabUndockable(tab);
-        }
+        var scatterDisplay = new ScatterPlotDisplay<>();
+        plotDisplays.add(scatterDisplay);
+        Tab scatterTab = new Tab(
+                QuPathResources.getString("Measure.MeasurementTable.scatterPlot"),
+                scatterDisplay.getPane());
+        scatterTab.setClosable(false);
+        plotTabs.getTabs().add(scatterTab);
+        FXUtils.makeTabUndockable(scatterTab);
+
+        var boxPlotDisplay = new BoxPlotDisplay<>();
+        plotDisplays.add(boxPlotDisplay);
+        Tab boxPlotTab = new Tab(
+                QuPathResources.getString("Measure.MeasurementTable.boxPlot"),
+                boxPlotDisplay.getPane());
+        boxPlotTab.setClosable(false);
+        plotTabs.getTabs().add(boxPlotTab);
+        FXUtils.makeTabUndockable(boxPlotTab);
+
 
         // show scatterplot only if the tab is visible
         plotTabs.getSelectionModel().selectedIndexProperty().addListener((_, _, n) -> {

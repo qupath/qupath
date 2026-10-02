@@ -195,10 +195,6 @@ public class ScatterPlotDisplay<T extends PathObject> implements PlotDisplay<T> 
         return model;
     }
 
-    @Override
-    public String getName() {
-        return QuPathResources.getString("Measure.MeasurementTable.scatterPlot");
-    }
 
     @Override
     public Pane getPane() {

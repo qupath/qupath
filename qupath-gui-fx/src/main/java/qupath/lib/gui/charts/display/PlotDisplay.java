@@ -32,12 +32,6 @@ public interface PlotDisplay<T> {
     }
 
     /**
-     * Return the name of this type of plot, e.g., "Box plot", "Scatter plot", "Histogram"
-     * @return the type of plot
-     */
-    String getName();
-
-    /**
      * Get the primary pane used to display the plot
      * @return the pane
      */

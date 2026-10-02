@@ -255,10 +255,6 @@ public class HistogramDisplay<T> implements PlotDisplay<T>, ParameterChangeListe
 		return model;
 	}
 
-	@Override
-	public String getName() {
-		return QuPathResources.getString("Measure.MeasurementTable.histogram");
-	}
 
 	@Override
 	public Pane getPane() {

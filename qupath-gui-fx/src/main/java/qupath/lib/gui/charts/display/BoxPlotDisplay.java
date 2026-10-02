@@ -170,11 +170,6 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
     }
 
     @Override
-    public String getName() {
-        return QuPathResources.getString("Measure.MeasurementTable.boxPlot");
-    }
-
-    @Override
     public Pane getPane() {
         return pane;
     }
