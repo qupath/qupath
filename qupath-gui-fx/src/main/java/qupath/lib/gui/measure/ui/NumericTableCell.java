@@ -14,7 +14,6 @@ class NumericTableCell<T> extends TableCell<T, Number> {
         setOnMouseClicked(mouseListener);
     }
 
-
     @Override
     protected void updateItem(Number item, boolean empty) {
         super.updateItem(item, empty);

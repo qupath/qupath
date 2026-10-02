@@ -45,6 +45,7 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
@@ -63,6 +64,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
+import javafx.util.Callback;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
@@ -378,16 +380,25 @@ public class SummaryMeasurementTable {
         var tooltipText = model.getHelpText(name);
         TableColumn<PathObject, Number> col = new TableColumn<>(name);
         col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
-
-        col.setCellFactory(_ -> new NumericTableCell<>(getTooltip(tooltipText), this::handleNumericCellEvent));
+        col.setCellFactory(new Callback<TableColumn<PathObject, Number>, TableCell<PathObject, Number>>() {
+            @Override
+            public TableCell<PathObject, Number> call(TableColumn<PathObject, Number> param) {
+                return new NumericTableCell<>(getTooltip(tooltipText), e -> handleNumericCellEvent(e, param));
+            }
+        });
         return col;
     }
 
-    private void handleNumericCellEvent(MouseEvent mouseEvent) {
-        for (int i = 0; i < plotTabs.getTabs().size(); i++) {
-            if (plotTabs.getTabs().get(i).isSelected()) {
-//                spd.setModel(model);
-                plotDisplays.get(i).requestReplot();
+    private void handleNumericCellEvent(MouseEvent event, TableColumn<?, ?> column) {
+        if (event.isAltDown()) {
+            for (int i = 0; i < plotTabs.getTabs().size(); i++) {
+                if (plotTabs.getTabs().get(i).isSelected()) {
+                    if (plotDisplays.get(i) instanceof HistogramDisplay<?> p) {
+                        p.plotColumn(column.getText());
+                    } else if  (plotDisplays.get(i) instanceof BoxPlotDisplay<?> p) {
+                        p.plotColumn(column.getText());
+                    }
+                }
             }
         }
     }
