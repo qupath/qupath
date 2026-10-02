@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Function;
+import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -31,11 +32,11 @@ import javafx.scene.shape.Line;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import org.apache.commons.math3.distribution.TDistribution;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.fx.utils.FXUtils;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.objects.PathObject;
@@ -61,8 +62,8 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
         var colormap = ColorMaps.getColorMaps().get("Viridis");
 
         Function<CanvasLayerChart.DataPoint<Number, Number, PathObject>, Number> colorFun = dp -> dp.getAssociatedObject().getMeasurements().get(colorVal).doubleValue();
-        var layer = new CanvasLayerChart.ContinuousScatterLayer<>(new Canvas(), points, colormap, colorFun);
-        var layer2 = new CanvasLayerChart.LinearTrendLayer<>(new Canvas(), points);
+        var layer = new CanvasLayerChart.ContinuousScatterLayer<>(new Canvas(), points, colorVal, colormap, colorFun);
+        var layer2 = new CanvasLayerChart.LinearTrendLayer<>(new Canvas(), points, "Trend", Color.RED);
         chart.layers.add(layer2);
         chart.layers.add(layer);
         var scene = new Scene(chart);
@@ -104,7 +105,14 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
                         canvas.heightProperty().bind(plotContent.heightProperty());
                     }
                 });
+                updateLegend();
             }
+        });
+        sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).subscribe(n -> {
+            if (Boolean.TRUE.equals(n))
+                timer.start();
+            else
+                timer.stop();;
         });
     }
 
@@ -143,7 +151,6 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             // todo redraw only if needed
             layer.updateCanvas(layer.getCanvas(), getXAxis(), getYAxis());
         }
-        updateLegend();
     }
 
     @Override
@@ -176,9 +183,18 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
     }
 
     static class LinearTrendLayer<T> extends NumberNumberLayer<T> {
+        private final String name;
+        private final Color color;
+        private static final double OPACITY_FACTOR = 0.5;
 
         LinearTrendLayer(Canvas canvas, Collection<? extends DataPoint<Number, Number, T>> points) {
+            this(canvas, points, "Trend", Color.GREY);
+        }
+
+        LinearTrendLayer(Canvas canvas, Collection<? extends DataPoint<Number, Number, T>> points, String name, Color color) {
             super(canvas, points);
+            this.name = name;
+            this.color = color;
         }
 
         @Override
@@ -226,8 +242,10 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
             // draw just the line
             var g2d = canvas.getGraphicsContext2D();
+            // todo somehow separate drawing code into path and uncertainty?
+//            drawPath();
             g2d.setGlobalAlpha(1);
-            g2d.setFill(Color.GREY);
+            g2d.setStroke(color);
             g2d.beginPath();
             g2d.moveTo(xAxis.getDisplayPosition(xMin), yAxis.getDisplayPosition(yMin));
             g2d.lineTo(xAxis.getDisplayPosition(xMax), yAxis.getDisplayPosition(yMax));
@@ -245,7 +263,7 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 //            for (int i = 0; i < (nPoints * 2); i++) {
 //                logger.info("{} {}", allXPoints[i], allYPoints[i]);
 //            }
-            g2d.setFill(new Color(0.5, 0.5, 0.5, 0.5));
+            g2d.setFill(color.deriveColor(1, 1, 1, OPACITY_FACTOR));
 //            g2d.setFill(Color.BLACK);
             g2d.fillPolygon(allXPoints, allYPoints, nPoints * 2);
         }
@@ -265,11 +283,12 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
             );
             poly.setStroke(null);
-            poly.setFill(new Color(0.5, 0.5, 0.5, 0.5));
+            poly.setFill(color.deriveColor(1, 1, 1, OPACITY_FACTOR));
             Line line = new Line(linewidth, width / 2, width - linewidth, (width / 2));
             line.setStrokeWidth(linewidth);
+            line.setStroke(color);
             pane.getChildren().addAll(poly, line);
-            Label label = new Label("Foo");
+            Label label = new Label(name);
             node.getChildren().addAll(pane, label);
             getCanvas().visibleProperty().addListener((obs) -> {
                 if (getCanvas().isVisible()) {
@@ -330,20 +349,24 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
     static class ContinuousScatterLayer<T> extends ScatterLayer<T> {
         private final ColorMaps.ColorMap colorMap;
         private final Function<DataPoint<Number, Number, T>, Number> colorFun;
-        private final double min;
-        private final double max;
+        private final NumberAxis colorAxis = new NumberAxis();
+        private final String name;
 
         ContinuousScatterLayer(
                 Canvas canvas,
                 Collection<? extends DataPoint<Number, Number, T>> points,
+                String name,
                 ColorMaps.ColorMap colorMap,
                 Function<DataPoint<Number, Number, T>, Number> colorFun) {
             super(canvas, points);
             this.colorMap = colorMap;
             this.colorFun = colorFun;
+            this.name = name;
             var colorVals = points.stream().map(colorFun).map(Number::doubleValue).toList();
-            min = colorVals.stream().min(Double::compareTo).orElse(Double.MIN_VALUE);
-            max = colorVals.stream().max(Double::compareTo).orElse(Double.MAX_VALUE);
+            double min = colorVals.stream().min(Double::compareTo).orElse(Double.MIN_VALUE);
+            double max = colorVals.stream().max(Double::compareTo).orElse(Double.MAX_VALUE);
+            colorAxis.invalidateRange(List.of(min, max));
+
         }
 
         static List<Stop> createStops(ColorMaps.ColorMap colorMap, double min, double max, int nStep) {
@@ -360,20 +383,23 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
         @Override
         Color getColor(DataPoint<Number, Number, T> point) {
-            return ColorToolsFX.getCachedColor(colorMap.getColor(colorFun.apply(point).doubleValue(), min, max));
+            return ColorToolsFX.getCachedColor(
+                    colorMap.getColor(
+                            colorFun.apply(point).doubleValue(),
+                            colorAxis.getLowerBound(),
+                            colorAxis.getUpperBound())
+            );
         }
 
         @Override
         public Node getLegend() {
             HBox box = new HBox(); // todo probably need to handle different orientations...
-            box.setAlignment(Pos.CENTER);
+            box.setAlignment(Pos.TOP_CENTER);
             box.setSpacing(5);
-            Label label = new Label("Bar");
+            Label label = new Label(name);
             int width = 100;
             int height = 20;
 
-            NumberAxis colorAxis = new NumberAxis();
-            colorAxis.invalidateRange(List.of(min, max));
 
             Rectangle scaleRect = new Rectangle(width, height);
             List<Stop> stops = createStops(colorMap, colorAxis.getLowerBound(), colorAxis.getUpperBound(), 100);
@@ -381,8 +407,6 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             scaleRect.setFill(grad);
 
             scaleRect.widthProperty().bind(colorAxis.widthProperty());
-
-
 
             VBox vBox = new VBox(scaleRect, colorAxis);
             box.getChildren().addAll(vBox, label);
@@ -425,7 +449,8 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             context.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
             context.setGlobalAlpha(1);
             context.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-            Collections.shuffle(getData());
+            // todo not here but somewhere...
+//            Collections.shuffle(getData());
             double rad = getMarkerRadius();
             for (var d: getData()) {
                 var color = getColor(d);
@@ -448,7 +473,7 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             HBox box = new HBox(); // todo probably need to handle different orientations...
             box.setAlignment(Pos.CENTER);
             box.setSpacing(5);
-            Label label = new Label("Bar");
+            Label label = new Label(name);
             Circle symbol = new Circle(5, color);
             box.getChildren().addAll(symbol, label);
 
@@ -536,5 +561,21 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             outList.set(i, inList.get(index));
         }
         return outList;
+    }
+
+    private final AnimationTimer timer = new AnimationTimer() {
+
+        @Override
+        public void handle(long now) {
+            handlePulse();
+        }
+
+    };
+
+    private void handlePulse() {
+        if (redrawNeeded) {
+            layoutPlotChildren();
+        }
+        redrawNeeded = false;
     }
 }
