@@ -1,6 +1,7 @@
 package qupath.lib.gui.charts.impl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.Random;
 import java.util.function.Function;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -46,7 +48,9 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.apache.commons.math3.distribution.TDistribution;
+import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.GridPaneUtils;
@@ -89,8 +93,11 @@ public class CanvasLayerChart<X, Y> extends Region {
 
         Function<CanvasLayerChart.DataPoint<? extends Number, ? extends Number, PathObject>, Number> colorFun = dp -> dp.getAssociatedObject().getMeasurements().get(colorVal).doubleValue();
         var layer = new CanvasLayerChart.ContinuousScatterLayer<>(new Canvas(), points, colorVal, colormap, colorFun);
-        var layer2 = new CanvasLayerChart.LinearTrendLayer<>(new Canvas(), points, "Trend", Color.RED);
+        var layer2 = new CanvasLayerChart.LinearTrendLayer<>(new Canvas(), points, "OLS", Color.RED);
+        var layer3 = new CanvasLayerChart.DemingTrendLayer<>(new Canvas(), points, "Orthogonal", Color.RED);
+
         chart.layers.add(layer2);
+        chart.layers.add(layer3);
         chart.layers.add(layer);
         var scene = new Scene(chart);
 
@@ -168,7 +175,9 @@ public class CanvasLayerChart<X, Y> extends Region {
         baseCanvas.widthProperty().bind(stackPane.widthProperty());
         baseCanvas.heightProperty().bind(stackPane.heightProperty());
         stackPane.getChildren().add(baseCanvas);
+
         stackPane.setMinSize(0, 0);
+
         layers.addListener((ListChangeListener<PlotLayer<X, Y>>) c -> {
             if (c.next()) {
                 c.getAddedSubList().forEach(layer -> {
@@ -199,7 +208,6 @@ public class CanvasLayerChart<X, Y> extends Region {
         double y = insets.getTop();
         double w = getWidth() - insets.getLeft() - insets.getRight();
         double h = getHeight() - insets.getTop() - insets.getBottom();
-        logger.info("Layout children called with params {} {} {} {}", x, y, w, h);
 
         for (Node child: getManagedChildren()) {
             if (child.isManaged()) {
@@ -249,14 +257,12 @@ public class CanvasLayerChart<X, Y> extends Region {
         }
     }
 
-    private void drawTick(Axis.TickMark<X> tick, Canvas baseCanvas) {
-    }
 
-    private Axis<Y> getYAxis() {
+    public Axis<Y> getYAxis() {
         return yAxis;
     }
 
-    private Axis<X> getXAxis() {
+    public Axis<X> getXAxis() {
         return xAxis;
     }
 
@@ -290,8 +296,9 @@ public class CanvasLayerChart<X, Y> extends Region {
 
     static class LinearTrendLayer<T> extends NumberNumberLayer<T> {
         private final String name;
-        private final Color color;
-        private static final double OPACITY_FACTOR = 0.5;
+        protected final Color color;
+        protected static final double OPACITY_FACTOR = 0.5;
+        private RegressionParams regressionParams;
 
         LinearTrendLayer(Canvas canvas, Collection<? extends DataPoint<Number, Number, T>> points) {
             this(canvas, points, "Trend", Color.GREY);
@@ -301,77 +308,103 @@ public class CanvasLayerChart<X, Y> extends Region {
             super(canvas, points);
             this.name = name;
             this.color = color;
+            this.data.addListener((InvalidationListener) _ -> calcOLS());
+            calcOLS();
         }
 
-        @Override
-        public void updateCanvas(Canvas canvas, Axis<Number> xAxis, Axis<Number> yAxis) {
-            canvas.getGraphicsContext2D().clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+        private void calcOLS() {
             SimpleRegression regression = new SimpleRegression();
             double xSum = 0;
-            double n = getData().size();
+            double xMin = Double.MAX_VALUE;
+            double xMax = -Double.MAX_VALUE;
+            int n = getData().size();
             for (DataPoint<? extends Number, ? extends Number, T> dataPoint : getData()) {
                 double x = dataPoint.getX().doubleValue();
                 double y = dataPoint.getY().doubleValue();
                 xSum += x;
-
+                if (x < xMin) {
+                    xMin = x;
+                }
+                if (x > xMax) {
+                    xMax = x;
+                }
                 regression.addData(x, y);
             }
+            // expand a lot just in case
+            xMin = xMin / 2;
+            xMax = xMax * 2;
 
             double xMean = xSum / n;
-            double xMin = ((NumberAxis)xAxis).getLowerBound();
-            double yMin = regression.predict(xMin);
-            double xMax = ((NumberAxis)xAxis).getUpperBound();
-            double yMax = regression.predict(xMax);
 
-            final int nPoints = 200;
-            double[] xPoints = new double[nPoints];
-            double[] yLowerPoints = new double[nPoints];
-            double[] yUpperPoints = new double[nPoints];
 
             double mse = regression.getMeanSquareError();
             double ssd = regression.getXSumSquares();
-            var td = new TDistribution(n - 2);
+            var td = new TDistribution((double) n - 2);
             double ctv = td.inverseCumulativeProbability(0.975);
 
-            double step = Math.abs(xMax - xMin) / (nPoints - 1);
+            int nEvalPoints = 200;
+            double step = Math.abs(xMax - xMin) / (nEvalPoints - 1);
             double x0 = xMin;
 
+            double[] xPoints = new double[nEvalPoints];
+            double[] yLowerPoints = new double[nEvalPoints];
+            double[] yUpperPoints = new double[nEvalPoints];
+
             // calculate confidence band at range of x values
-            for (int i = 0; i < nPoints; i++) {
+            for (int i = 0; i < nEvalPoints; i++) {
                 double yHat0 = regression.predict(x0);
-                double seY0Hat = Math.sqrt(mse * ((1 / n) + (Math.pow(x0 - xMean, 2) / ssd)));
+                double seY0Hat = Math.sqrt(mse * ((1 / (double) n + (Math.pow(x0 - xMean, 2) / ssd))));
                 xPoints[i] = x0;
                 yLowerPoints[i] = yHat0 - (ctv * seY0Hat);
                 yUpperPoints[i] = yHat0 + (ctv * seY0Hat);
                 x0 += step;
             }
 
-            // draw just the line
+            double[] allXPoints = new double[nEvalPoints * 2];
+            double[] allYPoints = new double[nEvalPoints * 2];
+            for (int i = 0; i < nEvalPoints; i++) {
+                // first n points forward in X
+                allXPoints[i] = xPoints[i];
+                allYPoints[i] = yLowerPoints[i];
+                // last n points backwards in X from the top
+                allXPoints[nEvalPoints + i] = xPoints[xPoints.length - i - 1];
+                allYPoints[nEvalPoints + i] = yUpperPoints[yUpperPoints.length - i - 1];
+            }
+            this.regressionParams = new RegressionParams(
+                    regression, xMean, allXPoints, allYPoints
+            );
+        }
+
+        private record RegressionParams(
+                SimpleRegression regression,
+                double xMean,
+                double[] allXPoints, double[] allYPoints) {
+
+        }
+
+        @Override
+        public void updateCanvas(Canvas canvas, Axis<Number> xAxis, Axis<Number> yAxis) {
             var g2d = canvas.getGraphicsContext2D();
-            // todo somehow separate drawing code into path and uncertainty?
-//            drawPath();
+            g2d.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
+            // todo somehow separate drawing code into path/line and uncertainty?
+            // draw just the line
             g2d.setGlobalAlpha(1);
             g2d.setStroke(color);
             g2d.beginPath();
-            g2d.moveTo(xAxis.getDisplayPosition(xMin), yAxis.getDisplayPosition(yMin));
-            g2d.lineTo(xAxis.getDisplayPosition(xMax), yAxis.getDisplayPosition(yMax));
+            double xMin = ((NumberAxis)xAxis).getLowerBound();
+            double xMax = ((NumberAxis)xAxis).getUpperBound();
+            g2d.moveTo(xAxis.getDisplayPosition(xMin), yAxis.getDisplayPosition(regressionParams.regression.predict(xMin)));
+            g2d.lineTo(xAxis.getDisplayPosition(xMax), yAxis.getDisplayPosition(regressionParams.regression.predict(xMax)));
             g2d.stroke();
 
             // draw the polygon
-            double[] allXPoints = new double[nPoints * 2];
-            double[] allYPoints = new double[nPoints * 2];
-            for (int i = 0; i < nPoints; i++) {
-                allXPoints[i] = xAxis.getDisplayPosition(xPoints[i]);
-                allYPoints[i] = yAxis.getDisplayPosition(yLowerPoints[i]);
-                allXPoints[nPoints + i] = xAxis.getDisplayPosition(xPoints[xPoints.length - i - 1]);
-                allYPoints[nPoints + i] = yAxis.getDisplayPosition(yUpperPoints[yUpperPoints.length - i - 1]);
-            }
-//            for (int i = 0; i < (nPoints * 2); i++) {
-//                logger.info("{} {}", allXPoints[i], allYPoints[i]);
-//            }
             g2d.setFill(color.deriveColor(1, 1, 1, OPACITY_FACTOR));
-//            g2d.setFill(Color.BLACK);
-            g2d.fillPolygon(allXPoints, allYPoints, nPoints * 2);
+            g2d.fillPolygon(
+                    Arrays.stream(regressionParams.allXPoints).map(xAxis::getDisplayPosition).toArray(),
+                    Arrays.stream(regressionParams.allYPoints).map(yAxis::getDisplayPosition).toArray(),
+                    regressionParams.allXPoints.length
+            );
         }
 
         @Override
@@ -402,9 +435,133 @@ public class CanvasLayerChart<X, Y> extends Region {
 
     }
 
+    static class DemingTrendLayer<T> extends LinearTrendLayer<T> {
+
+        private OrthogonalRegression regression;
+
+        DemingTrendLayer(Canvas canvas, Collection<? extends DataPoint<Number, Number, T>> dataPoints, String name, Color color) {
+            super(canvas, dataPoints, name, color);
+            data.addListener((InvalidationListener) observable -> regression = calculateRegression(data));
+            regression = calculateRegression(data);
+        }
+
+        @Override
+        public void updateCanvas(Canvas canvas, Axis<Number> xAxis, Axis<Number> yAxis) {
+            double xMin = ((NumberAxis)xAxis).getLowerBound();
+            double yMin = regression.predict(xMin);
+            double xMax = ((NumberAxis)xAxis).getUpperBound();
+            double yMax = regression.predict(xMax);
+
+            var g2d = canvas.getGraphicsContext2D();
+            g2d.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+            g2d.setGlobalAlpha(1);
+            g2d.setStroke(color);
+            g2d.beginPath();
+            g2d.moveTo(xAxis.getDisplayPosition(xMin), yAxis.getDisplayPosition(yMin));
+            g2d.lineTo(xAxis.getDisplayPosition(xMax), yAxis.getDisplayPosition(yMax));
+            g2d.stroke();
+
+
+            // todo don't bootstrap in draw loop idiot
+            int nBootStraps = 1000;
+            int nEvalPoints = 50;
+            double step = Math.abs(xMax - xMin) / (nEvalPoints - 1);
+
+            double[] xPoints = new double[nEvalPoints];
+
+            // todo much better to parallelise this...
+            // calculate confidence band at range of x values
+            double[][] yVals =  new double[nEvalPoints][nBootStraps];
+            for (int i = 0; i < nBootStraps; i++) {
+                var res = resample(data);
+                var reg = calculateRegression(res);
+                double x0 = xMin;
+                for (int j = 0; j < nEvalPoints; j++) {
+                    yVals[j][i] = reg.predict(x0);
+                    xPoints[j] = x0;
+                    x0 += step;
+                }
+            }
+
+            double[] yLowerPoints = new double[nEvalPoints];
+            double[] yUpperPoints = new double[nEvalPoints];
+            for (int j = 0; j < nEvalPoints; j++) {
+                var perc = new Percentile();
+                perc.setData(yVals[j]);
+                yLowerPoints[j] = perc.evaluate(2.5);
+                yUpperPoints[j] = perc.evaluate(97.5);
+            }
+
+            double[] allXPoints = new double[nEvalPoints * 2];
+            double[] allYPoints = new double[nEvalPoints * 2];
+            for (int i = 0; i < nEvalPoints; i++) {
+                // first n points forward in X
+                allXPoints[i] = xPoints[i];
+                allYPoints[i] = yLowerPoints[i];
+                // last n points backwards in X from the top
+                allXPoints[nEvalPoints + i] = xPoints[xPoints.length - i - 1];
+                allYPoints[nEvalPoints + i] = yUpperPoints[yUpperPoints.length - i - 1];
+            }
+
+            g2d.setFill(color.deriveColor(1, 1, 1, OPACITY_FACTOR));
+            g2d.fillPolygon(
+                    Arrays.stream(allXPoints).map(xAxis::getDisplayPosition).toArray(),
+                    Arrays.stream(allYPoints).map(yAxis::getDisplayPosition).toArray(),
+                    allXPoints.length
+            );
+
+        }
+
+        private static <E> List<E> resample(List<E> input) {
+            List<E> output = new ArrayList<>(input.size());
+            Random random = new Random();
+            for (int i = 0; i < input.size(); i++) {
+                output.add(input.get(random.nextInt(input.size())));
+            }
+            return output;
+        }
+
+
+        private static @NonNull OrthogonalRegression calculateRegression(List<? extends DataPoint<? extends Number, ? extends Number, ?>> dataPoints) {
+            double[] x = new double[dataPoints.size()];
+            double[] y = new double[dataPoints.size()];
+            double xSum = 0, ySum = 0, xySum = 0, xsqSum = 0, ysqSum = 0;
+            for (int i = 0; i < dataPoints.size(); i++) {
+                var dataPoint = dataPoints.get(i);
+                x[i] = dataPoint.getX().doubleValue();
+                y[i] = dataPoint.getY().doubleValue();
+                xSum += x[i];
+                ySum += y[i];
+                xsqSum += x[i] * x[i];
+                ysqSum += y[i] * y[i];
+                xySum += x[i] * y[i];
+            }
+            double xBar = xSum / x.length;
+            double yBar = ySum / y.length;
+            double xyBar = xySum / y.length;
+            double xsqBar = xsqSum / x.length;
+            double ysqBar = ysqSum / y.length;
+            double sxx = xsqBar - (xBar * xBar);
+            double syy = ysqBar - (yBar * yBar);
+            double sxy = xyBar - (xBar * yBar);
+
+            // todo delta
+            double delta = 1;
+            double beta1 = (syy - (delta * sxx) + Math.sqrt(Math.pow(syy - (delta * sxx), 2) + 4 * delta * Math.pow(sxy, 2))) / (2 * sxy);
+            double beta0 = yBar - beta1 * xBar;
+            return new OrthogonalRegression(beta1, beta0);
+        }
+
+        private record OrthogonalRegression(double beta1, double beta0) {
+            protected double predict(double x) {
+                return beta0() + (beta1() * x);
+            }
+        }
+    }
+
     static abstract class NumberNumberLayer<T> implements PlotLayer<Number, Number> {
         private final Canvas canvas;
-        private final ObservableList<? extends DataPoint<? extends Number, ? extends Number, T>> data;
+        protected final ObservableList<? extends DataPoint<? extends Number, ? extends Number, T>> data;
 
         public NumberNumberLayer(Canvas canvas, Collection<? extends DataPoint<? extends Number,? extends Number,T>> points) {
             this.canvas = canvas != null ? canvas: new Canvas();
@@ -584,7 +741,6 @@ public class CanvasLayerChart<X, Y> extends Region {
             return legendItem;
         }
 
-
         private double getMarkerRadius() {
             return markerRadius.get();
         }
@@ -649,17 +805,6 @@ public class CanvasLayerChart<X, Y> extends Region {
         public T getAssociatedObject() {
             return associatedObject;
         }
-    }
-
-    static <T> Collection<T> resampleWithReplacement(Collection<T> objects) {
-        List<T> outList = new ArrayList<>(objects.size());
-        List<T> inList = new ArrayList<>(objects);
-        Random random = new Random();
-        for (int i = 0; i < objects.size(); i++) {
-            int index = random.nextInt(objects.size());
-            outList.set(i, inList.get(index));
-        }
-        return outList;
     }
 
     private final AnimationTimer timer = new AnimationTimer() {
