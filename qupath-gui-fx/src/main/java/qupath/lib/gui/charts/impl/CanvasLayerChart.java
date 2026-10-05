@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
@@ -475,17 +476,20 @@ public class CanvasLayerChart<X, Y> extends Region {
 
             // todo much better to parallelise this...
             // calculate confidence band at range of x values
+            double x0 = xMin;
+            for (int j = 0; j < nEvalPoints; j++) {
+                xPoints[j] = x0 + j * step;
+            }
             double[][] yVals =  new double[nEvalPoints][nBootStraps];
-            for (int i = 0; i < nBootStraps; i++) {
+            IntStream.range(0, nBootStraps).forEach(i -> {
                 var res = resample(data);
                 var reg = calculateRegression(res);
-                double x0 = xMin;
+                double xx0 = xMin;
                 for (int j = 0; j < nEvalPoints; j++) {
-                    yVals[j][i] = reg.predict(x0);
-                    xPoints[j] = x0;
-                    x0 += step;
+                    yVals[j][i] = reg.predict(xx0);
+                    xx0 += step;
                 }
-            }
+            });
 
             double[] yLowerPoints = new double[nEvalPoints];
             double[] yUpperPoints = new double[nEvalPoints];
