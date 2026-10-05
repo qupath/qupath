@@ -9,20 +9,30 @@ import java.util.function.Function;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.geometry.HPos;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
+import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.chart.Axis;
 import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -39,13 +49,23 @@ import org.apache.commons.math3.distribution.TDistribution;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.objects.PathObject;
 import qupath.lib.scripting.QP;
 
-public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
+public class CanvasLayerChart<X, Y> extends Region {
     private static final Logger logger = LoggerFactory.getLogger(CanvasLayerChart.class);
+    private final Axis<X> xAxis;
+    private final Axis<Y> yAxis;
+    private final StackPane stackPane = new StackPane();
+    private final GridPane gridPane = new GridPane();
+    private final BorderPane borderPane = new BorderPane();
+    private final Canvas baseCanvas = new Canvas();
+    // todo draw top if not empty
+    private final StringProperty titleProperty = new SimpleStringProperty("");
+    private final ObjectProperty<Side> legendSide = new SimpleObjectProperty<>(Side.BOTTOM);
 
     public static void doStuff() {
         Collection<PathObject> pathObjects = QP.getDetectionObjects();
@@ -59,7 +79,11 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
                                 pp -> pp.getMeasurements().get(yVal))
                 )
                 .toList();
-        var chart = new CanvasLayerChart<>(new NumberAxis(), new NumberAxis());
+        var xax1 = new NumberAxis();
+        xax1.setLabel(xVal);
+        var yax1 = new NumberAxis();
+        yax1.setLabel(yVal);
+        var chart = new CanvasLayerChart<>(xax1, yax1);
 
         var colormap = ColorMaps.getColorMaps().get("Viridis");
 
@@ -93,7 +117,12 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
                         }
             )
                 .toList();
-        var chart2 = new CanvasLayerChart<>(new NumberAxis(), new NumberAxis());
+        var xax2 = new NumberAxis();
+        xax2.setLabel(xVal);
+        var yax2 = new NumberAxis();
+        yax2.setLabel(yVal);
+
+        var chart2 = new CanvasLayerChart<>(xax2, yax2);
         chart2.getLayers().addAll(categoricalLayers);
         var scene2 = new Scene(chart2);
 
@@ -118,26 +147,44 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
      * @param yAxis Y Axis for this XY chart
      */
     public CanvasLayerChart(Axis<X> xAxis, Axis<Y> yAxis) {
-        super(xAxis, yAxis);
-        this.setData(FXCollections.observableArrayList());
+        this.xAxis = xAxis;
+        this.yAxis = yAxis;
+        xAxis.setAnimated(false);
+        yAxis.setAnimated(false);
+        setPadding(new Insets(10, 30, 10, 30));
+        getChildren().add(borderPane);
+
+        borderPane.setCenter(gridPane);
+//        borderPane.setMinSize(0, 0);
+        BorderPane.setMargin(gridPane, new Insets(10, 10, 10, 10));
+
+        gridPane.add(yAxis, 0, 0);
+        gridPane.add(stackPane, 1, 0);
+        gridPane.add(xAxis, 1, 1);
+        yAxis.setSide(Side.LEFT);
+        xAxis.setSide(Side.BOTTOM);
+        GridPaneUtils.setToExpandGridPaneHeight(stackPane);
+        GridPaneUtils.setToExpandGridPaneWidth(stackPane);
+        baseCanvas.widthProperty().bind(stackPane.widthProperty());
+        baseCanvas.heightProperty().bind(stackPane.heightProperty());
+        stackPane.getChildren().add(baseCanvas);
+        stackPane.setMinSize(0, 0);
         layers.addListener((ListChangeListener<PlotLayer<X, Y>>) c -> {
             if (c.next()) {
                 c.getAddedSubList().forEach(layer -> {
-                    // can't select parent of plot children (might be empty), but scenicView to the rescue
-                    Pane plotContent = (Pane) lookup(".chart-content");
-                    plotContent.widthProperty().addListener(_ -> redrawNeeded = true);
-                    plotContent.heightProperty().addListener(_ -> redrawNeeded = true);
+                    gridPane.widthProperty().addListener(_ -> redrawNeeded = true);
+                    gridPane.heightProperty().addListener(_ -> redrawNeeded = true);
                     var canvas = layer.getCanvas();
-                    getPlotChildren().add(canvas);
-                    if (plotContent != null) {
-                        canvas.widthProperty().bind(plotContent.widthProperty());
-                        canvas.heightProperty().bind(plotContent.heightProperty());
-                    }
+                    stackPane.getChildren().add(canvas);
+                    canvas.widthProperty().bind(stackPane.widthProperty());
+                    canvas.heightProperty().bind(stackPane.heightProperty());
                 });
+                updateAxisRange();
                 updateLegend();
+                updatePlot();
             }
         });
-        sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).subscribe(n -> {
+        borderPane.sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).subscribe(n -> {
             if (Boolean.TRUE.equals(n))
                 timer.start();
             else
@@ -145,51 +192,74 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
         });
     }
 
+    @Override
+    protected void layoutChildren() {
+        Insets insets = getPadding();
+        double x = insets.getLeft();
+        double y = insets.getTop();
+        double w = getWidth() - insets.getLeft() - insets.getRight();
+        double h = getHeight() - insets.getTop() - insets.getBottom();
+        logger.info("Layout children called with params {} {} {} {}", x, y, w, h);
+
+        for (Node child: getManagedChildren()) {
+            if (child.isManaged()) {
+                layoutInArea(child, x, y, w, h, 0, HPos.CENTER, VPos.CENTER);
+            }
+        }
+    }
+
     public ObservableList<PlotLayer<X, Y>> getLayers() {
         return layers;
     }
 
-    @Override
-    protected void dataItemAdded(Series<X, Y> series, int itemIndex, Data<X, Y> item) {
-        // probably-no-op
-    }
-
-    @Override
-    protected void dataItemRemoved(Data<X, Y> item, Series<X, Y> series) {
-        // probably-no-op
-    }
-
-    @Override
-    protected void dataItemChanged(Data<X, Y> item) {
-        // probably-no-op
-    }
-
-    @Override
-    protected void seriesAdded(Series<X, Y> series, int seriesIndex) {
-        // probably-no-op
-    }
-
-    @Override
-    protected void seriesRemoved(Series<X, Y> series) {
-        // probably-no-op
-    }
-
-    @Override
-    protected void layoutPlotChildren() {
+    protected void updatePlot() {
         for (PlotLayer<X, Y> layer : layers) {
             // todo redraw only if needed
             layer.updateCanvas(layer.getCanvas(), getXAxis(), getYAxis());
         }
     }
 
-    @Override
     protected void updateAxisRange() {
         for (PlotLayer<X, Y> layer : layers) {
             layer.updateAxes(getXAxis(), getYAxis());
         }
+        baseCanvas.getGraphicsContext2D().clearRect(0, 0, baseCanvas.getWidth(), baseCanvas.getHeight());
+        var xTicks = xAxis.getTickMarks();
+        // todo abstract this over x and y, plus enable line styles
+        for (var tick: xTicks) {
+            var g2d = baseCanvas.getGraphicsContext2D();
+            g2d.setGlobalAlpha(0.2);
+            var color = Color.GRAY;
+            g2d.setStroke(color);
+            g2d.beginPath();
+            g2d.moveTo(tick.getPosition(), 0);
+            g2d.lineTo(tick.getPosition(), baseCanvas.getHeight());
+            g2d.stroke();
+        }
+        var yTicks = yAxis.getTickMarks();
+        for (var tick: yTicks) {
+            var g2d = baseCanvas.getGraphicsContext2D();
+            g2d.setGlobalAlpha(0.2);
+            var color = Color.GRAY;
+            g2d.setStroke(color);
+            g2d.beginPath();
+            g2d.moveTo(0, tick.getPosition());
+            g2d.lineTo(baseCanvas.getWidth(), tick.getPosition());
+            g2d.stroke();
+        }
     }
 
-    @Override
+    private void drawTick(Axis.TickMark<X> tick, Canvas baseCanvas) {
+    }
+
+    private Axis<Y> getYAxis() {
+        return yAxis;
+    }
+
+    private Axis<X> getXAxis() {
+        return xAxis;
+    }
+
     protected void updateLegend() {
         HBox legend = new HBox();
         legend.setAlignment(Pos.CENTER);
@@ -199,6 +269,13 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
         }
         setLegend(legend);
     }
+
+    private void setLegend(Node legend) {
+        // todo move or change me pls
+        BorderPane.setMargin(legend, new Insets(10, 10, 10, 10));
+        borderPane.setBottom(legend);
+    }
+
 
     public interface PlotLayer<X, Y> {
         // may or may not be the same across objects
@@ -299,10 +376,10 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
         @Override
         public Node getLegend() {
-            HBox box = new HBox();
-            box.setSpacing(5);
-            box.setAlignment(Pos.CENTER);
-            StackPane pane = new StackPane();
+            HBox legendItem = new HBox();
+            legendItem.setSpacing(5);
+            legendItem.setAlignment(Pos.CENTER);
+            StackPane symbol = new StackPane();
             // todo parameterize
             double width = 24;
             double linewidth = 4;
@@ -316,18 +393,11 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             Line line = new Line(linewidth, width / 2, width - linewidth, (width / 2));
             line.setStrokeWidth(linewidth);
             line.setStroke(color);
-            pane.getChildren().addAll(poly, line);
+            symbol.getChildren().addAll(poly, line);
             Label label = new Label(name);
-            box.getChildren().addAll(pane, label);
-            getCanvas().visibleProperty().addListener(_ -> {
-                if (getCanvas().isVisible()) {
-                    box.setOpacity(1);
-                } else {
-                    box.setOpacity(0.2);
-                }
-            });
-            box.setOnMouseClicked(_ -> this.getCanvas().setVisible(!this.getCanvas().isVisible()));
-            return box;
+            legendItem.getChildren().addAll(symbol, label);
+            setLegendItemListener(legendItem, this.getCanvas());
+            return legendItem;
         }
 
     }
@@ -421,13 +491,12 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
         @Override
         public Node getLegend() {
-            HBox box = new HBox(); // todo probably need to handle different orientations...
-            box.setAlignment(Pos.TOP_CENTER);
-            box.setSpacing(5);
+            HBox legendContainer = new HBox(); // todo probably need to handle different orientations...
+            legendContainer.setAlignment(Pos.TOP_CENTER);
+            legendContainer.setSpacing(5);
             Label label = new Label(name);
             int width = 100;
             int height = 20;
-
 
             Rectangle scaleRect = new Rectangle(width, height);
             List<Stop> stops = createStops(colorMap, colorAxis.getLowerBound(), colorAxis.getUpperBound(), 100);
@@ -436,18 +505,23 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
             scaleRect.widthProperty().bind(colorAxis.widthProperty());
 
-            VBox vBox = new VBox(scaleRect, colorAxis);
-            box.getChildren().addAll(vBox, label);
-            getCanvas().visibleProperty().addListener(_ -> {
-                if (getCanvas().isVisible()) {
-                    box.setOpacity(1);
-                } else {
-                    box.setOpacity(0.2);
-                }
-            });
-            box.setOnMouseClicked(_ -> this.getCanvas().setVisible(!this.getCanvas().isVisible()));
-            return box;
+            VBox scale = new VBox(scaleRect, colorAxis);
+            legendContainer.getChildren().addAll(scale, label);
+            setLegendItemListener(legendContainer, this.getCanvas());
+            return legendContainer;
         }
+
+    }
+
+    private static void setLegendItemListener(Pane legendItem, Canvas canvas) {
+        canvas.visibleProperty().addListener(_ -> {
+            if (canvas.isVisible()) {
+                legendItem.setOpacity(1);
+            } else {
+                legendItem.setOpacity(0.2);
+            }
+        });
+        legendItem.setOnMouseClicked(_ -> canvas.setVisible(!canvas.isVisible()));
     }
 
     static class ScatterLayer<T> extends NumberNumberLayer<T> {
@@ -500,22 +574,14 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
         @Override
         public Node getLegend() {
-            HBox box = new HBox(); // todo probably need to handle different orientations...
-            box.setAlignment(Pos.CENTER);
-            box.setSpacing(5);
+            HBox legendItem = new HBox(); // todo probably need to handle different orientations...
+            legendItem.setAlignment(Pos.CENTER);
+            legendItem.setSpacing(5);
             Label label = new Label(name);
             Circle symbol = new Circle(5, color);
-            box.getChildren().addAll(symbol, label);
-
-            getCanvas().visibleProperty().addListener(_ -> {
-                if (getCanvas().isVisible()) {
-                    symbol.setOpacity(1);
-                } else {
-                    symbol.setOpacity(0.2);
-                }
-            });
-            box.setOnMouseClicked(_ -> this.getCanvas().setVisible(!this.getCanvas().isVisible()));
-            return box;
+            legendItem.getChildren().addAll(symbol, label);
+            setLegendItemListener(legendItem, this.getCanvas());
+            return legendItem;
         }
 
 
@@ -607,7 +673,8 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
     private void handlePulse() {
         if (redrawNeeded) {
-            layoutPlotChildren();
+            updateAxisRange();
+            updatePlot();
         }
         redrawNeeded = false;
     }
