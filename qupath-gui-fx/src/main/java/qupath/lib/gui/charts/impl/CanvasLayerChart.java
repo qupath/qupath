@@ -8,6 +8,8 @@ import java.util.Random;
 import java.util.function.Function;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -61,7 +63,7 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
         var colormap = ColorMaps.getColorMaps().get("Viridis");
 
-        Function<CanvasLayerChart.DataPoint<Number, Number, PathObject>, Number> colorFun = dp -> dp.getAssociatedObject().getMeasurements().get(colorVal).doubleValue();
+        Function<CanvasLayerChart.DataPoint<? extends Number, ? extends Number, PathObject>, Number> colorFun = dp -> dp.getAssociatedObject().getMeasurements().get(colorVal).doubleValue();
         var layer = new CanvasLayerChart.ContinuousScatterLayer<>(new Canvas(), points, colorVal, colormap, colorFun);
         var layer2 = new CanvasLayerChart.LinearTrendLayer<>(new Canvas(), points, "Trend", Color.RED);
         chart.layers.add(layer2);
@@ -71,6 +73,33 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
         Platform.runLater(() -> {
             Stage stage = new Stage();
             stage.setScene(scene);
+            stage.show();
+        });
+
+        var classes = pathObjects.stream().map(PathObject::getPathClass).distinct().toList();
+
+        var categoricalLayers = classes.stream()
+                .map(
+                        pc -> {
+                            var lpo = pathObjects.stream()
+                                    .filter(po -> po.getPathClass().equals(pc))
+                                    .map(po -> new CanvasLayerChart.PathObjectDataPoint<>(po,
+                                            pp -> pp.getMeasurementList().get(xVal),
+                                            pp -> pp.getMeasurementList().get(yVal)
+                                    ))
+                                    .toList();
+                            var discreteLayer = new CanvasLayerChart.ScatterLayer<>(new Canvas(), lpo, pc.toString(), ColorToolsFX.getPathClassColor(pc));
+                            return discreteLayer;
+                        }
+            )
+                .toList();
+        var chart2 = new CanvasLayerChart<>(new NumberAxis(), new NumberAxis());
+        chart2.getLayers().addAll(categoricalLayers);
+        var scene2 = new Scene(chart2);
+
+        Platform.runLater(() -> {
+            Stage stage = new Stage();
+            stage.setScene(scene2);
             stage.show();
         });
     }
@@ -203,7 +232,7 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             SimpleRegression regression = new SimpleRegression();
             double xSum = 0;
             double n = getData().size();
-            for (DataPoint<Number, Number, ?> dataPoint : getData()) {
+            for (DataPoint<? extends Number, ? extends Number, T> dataPoint : getData()) {
                 double x = dataPoint.getX().doubleValue();
                 double y = dataPoint.getY().doubleValue();
                 xSum += x;
@@ -270,9 +299,9 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
         @Override
         public Node getLegend() {
-            HBox node = new HBox();
-            node.setSpacing(5);
-            node.setAlignment(Pos.CENTER);
+            HBox box = new HBox();
+            box.setSpacing(5);
+            box.setAlignment(Pos.CENTER);
             StackPane pane = new StackPane();
             // todo parameterize
             double width = 24;
@@ -289,25 +318,25 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             line.setStroke(color);
             pane.getChildren().addAll(poly, line);
             Label label = new Label(name);
-            node.getChildren().addAll(pane, label);
-            getCanvas().visibleProperty().addListener((obs) -> {
+            box.getChildren().addAll(pane, label);
+            getCanvas().visibleProperty().addListener(_ -> {
                 if (getCanvas().isVisible()) {
-                    node.setOpacity(1);
+                    box.setOpacity(1);
                 } else {
-                    node.setOpacity(0.2);
+                    box.setOpacity(0.2);
                 }
             });
-            node.setOnMouseClicked(_ -> this.getCanvas().setVisible(!this.getCanvas().isVisible()));
-            return node;
+            box.setOnMouseClicked(_ -> this.getCanvas().setVisible(!this.getCanvas().isVisible()));
+            return box;
         }
 
     }
 
-    static abstract class NumberNumberLayer<T> implements PlotLayer<Number,Number> {
+    static abstract class NumberNumberLayer<T> implements PlotLayer<Number, Number> {
         private final Canvas canvas;
-        private final ObservableList<? extends DataPoint<Number, Number, T>> data;
+        private final ObservableList<? extends DataPoint<? extends Number, ? extends Number, T>> data;
 
-        public NumberNumberLayer(Canvas canvas, Collection<? extends DataPoint<Number,Number,T>> points) {
+        public NumberNumberLayer(Canvas canvas, Collection<? extends DataPoint<? extends Number,? extends Number,T>> points) {
             this.canvas = canvas != null ? canvas: new Canvas();
             if (points == null) {
                 points = Collections.emptyList();
@@ -320,7 +349,7 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             return canvas;
         }
 
-        public ObservableList<? extends DataPoint<Number, Number, T>> getData() {
+        public ObservableList<? extends DataPoint<? extends Number, ? extends Number, T>> getData() {
             return data;
         }
 
@@ -332,7 +361,7 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             double xMax = -Double.MAX_VALUE;
             double yMin = Double.MAX_VALUE;
             double yMax = -Double.MAX_VALUE;
-            for (DataPoint<Number, Number, ?> dataPoint : data) {
+            for (DataPoint<? extends Number, ? extends Number, T> dataPoint : data) {
                 double x = dataPoint.getX().doubleValue();
                 double y = dataPoint.getY().doubleValue();
                 xMin = Math.min(xMin, x);
@@ -348,16 +377,16 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
     static class ContinuousScatterLayer<T> extends ScatterLayer<T> {
         private final ColorMaps.ColorMap colorMap;
-        private final Function<DataPoint<Number, Number, T>, Number> colorFun;
+        private final Function<DataPoint<? extends Number, ? extends Number, T>, Number> colorFun;
         private final NumberAxis colorAxis = new NumberAxis();
         private final String name;
 
         ContinuousScatterLayer(
                 Canvas canvas,
-                Collection<? extends DataPoint<Number, Number, T>> points,
+                Collection<? extends DataPoint<? extends Number, ? extends Number, T>> points,
                 String name,
                 ColorMaps.ColorMap colorMap,
-                Function<DataPoint<Number, Number, T>, Number> colorFun) {
+                Function<DataPoint<? extends Number, ? extends Number, T>, Number> colorFun) {
             super(canvas, points);
             this.colorMap = colorMap;
             this.colorFun = colorFun;
@@ -366,7 +395,6 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             double min = colorVals.stream().min(Double::compareTo).orElse(Double.MIN_VALUE);
             double max = colorVals.stream().max(Double::compareTo).orElse(Double.MAX_VALUE);
             colorAxis.invalidateRange(List.of(min, max));
-
         }
 
         static List<Stop> createStops(ColorMaps.ColorMap colorMap, double min, double max, int nStep) {
@@ -382,7 +410,7 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
         }
 
         @Override
-        Color getColor(DataPoint<Number, Number, T> point) {
+        Color getColor(DataPoint<? extends Number, ? extends Number, T> point) {
             return ColorToolsFX.getCachedColor(
                     colorMap.getColor(
                             colorFun.apply(point).doubleValue(),
@@ -417,7 +445,7 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
                     box.setOpacity(0.2);
                 }
             });
-            vBox.setOnMouseClicked(_ -> this.getCanvas().setVisible(!this.getCanvas().isVisible()));
+            box.setOnMouseClicked(_ -> this.getCanvas().setVisible(!this.getCanvas().isVisible()));
             return box;
         }
     }
@@ -426,16 +454,18 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
 
         private final Color color;
         private final String name;
+        private final DoubleProperty markerRadius = new SimpleDoubleProperty(2);
+        private final DoubleProperty markerOpacity = new SimpleDoubleProperty(1);
 
         ScatterLayer(Canvas canvas,
-                     Collection<? extends DataPoint<Number, Number, T>> points) {
+                     Collection<? extends DataPoint<? extends Number, ? extends Number, T>> points) {
             super(canvas, points);
             this.color = Color.BLACK;
             this.name = "Scatter";
         }
 
         ScatterLayer(Canvas canvas,
-                     Collection<? extends DataPoint<Number, Number, T>> points,
+                     Collection<? extends DataPoint<? extends Number, ? extends Number, T>> points,
                      String name,
                      Color color) {
             super(canvas, points);
@@ -464,7 +494,7 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
             }
         }
 
-        Color getColor(DataPoint<Number, Number, T> dataPoint) {
+        Color getColor(DataPoint<? extends Number, ? extends Number, T> dataPoint) {
             return this.color;
         }
 
@@ -484,14 +514,17 @@ public class CanvasLayerChart<X, Y> extends XYChart<X, Y> {
                     symbol.setOpacity(0.2);
                 }
             });
-            symbol.setOnMouseClicked(_ -> this.getCanvas().setVisible(!this.getCanvas().isVisible()));
+            box.setOnMouseClicked(_ -> this.getCanvas().setVisible(!this.getCanvas().isVisible()));
             return box;
         }
 
 
         private double getMarkerRadius() {
-            // todo
-            return 2;
+            return markerRadius.get();
+        }
+
+        private double getMarkerOpacity() {
+            return markerOpacity.get();
         }
 
     }
