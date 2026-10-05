@@ -72,7 +72,11 @@ public class CanvasLayerChart<X, Y> extends Region {
     private final ObjectProperty<Side> legendSide = new SimpleObjectProperty<>(Side.BOTTOM);
 
     public static void doStuff() {
-        Collection<PathObject> pathObjects = QP.getDetectionObjects();
+
+        Collection<PathObject> pathObjects = new ArrayList<>();
+        for (var object: QP.getSelectedObjects()) {
+            pathObjects.addAll(object.getChildObjects());
+        }
         String xVal = "Nucleus: Area";
         String yVal = "Nucleus: Perimeter";
         String colorVal = "Nucleus: Hematoxylin OD range";
