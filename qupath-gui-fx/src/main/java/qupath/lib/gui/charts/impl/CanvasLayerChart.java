@@ -11,8 +11,10 @@ import java.util.stream.IntStream;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -442,12 +444,13 @@ public class CanvasLayerChart<X, Y> extends Region {
 
     static class DemingTrendLayer<T> extends LinearTrendLayer<T> {
 
-        private OrthogonalRegression regression;
+        private @NonNull BootstrappedOrthogonalRegression regression;
+        private final BooleanProperty doBootstrap = new SimpleBooleanProperty(false);
 
         DemingTrendLayer(Canvas canvas, Collection<? extends DataPoint<Number, Number, T>> dataPoints, String name, Color color) {
             super(canvas, dataPoints, name, color);
-            data.addListener((InvalidationListener) observable -> regression = calculateRegression(data));
-            regression = calculateRegression(data);
+            data.addListener((InvalidationListener) _ -> regression = calculateRegression(data, doBootstrap.get()));
+            regression = calculateRegression(data, doBootstrap.get());
         }
 
         @Override
@@ -466,25 +469,50 @@ public class CanvasLayerChart<X, Y> extends Region {
             g2d.lineTo(xAxis.getDisplayPosition(xMax), yAxis.getDisplayPosition(yMax));
             g2d.stroke();
 
+            if (regression.xPoints != null) {
+                g2d.setFill(color.deriveColor(1, 1, 1, OPACITY_FACTOR));
+                g2d.fillPolygon(
+                        Arrays.stream(regression.xPoints).map(xAxis::getDisplayPosition).toArray(),
+                        Arrays.stream(regression.yPoints).map(yAxis::getDisplayPosition).toArray(),
+                        regression.xPoints.length
+                );
+            }
 
+        }
+
+        private static <E> List<E> resample(List<E> input) {
+            List<E> output = new ArrayList<>(input.size());
+            Random random = new Random();
+            for (int i = 0; i < input.size(); i++) {
+                output.add(input.get(random.nextInt(input.size())));
+            }
+            return output;
+        }
+
+
+        private static @NonNull BootstrappedOrthogonalRegression calculateRegression(List<? extends DataPoint<? extends Number, ? extends Number, ?>> dataPoints, boolean doBootstrap) {
+            OrthogonalRegression result = computeRegression(dataPoints);
+
+            if (!doBootstrap) {
+                return new BootstrappedOrthogonalRegression(result, null, null);
+            }
             // todo don't bootstrap in draw loop idiot
             int nBootStraps = 1000;
             int nEvalPoints = 50;
-            double step = Math.abs(xMax - xMin) / (nEvalPoints - 1);
+            double step = Math.abs(result.xMax() - result.xMin()) / (nEvalPoints - 1);
 
             double[] xPoints = new double[nEvalPoints];
-
             // todo much better to parallelise this...
             // calculate confidence band at range of x values
-            double x0 = xMin;
+            double x0 = result.xMin();
             for (int j = 0; j < nEvalPoints; j++) {
                 xPoints[j] = x0 + j * step;
             }
             double[][] yVals =  new double[nEvalPoints][nBootStraps];
             IntStream.range(0, nBootStraps).forEach(i -> {
-                var res = resample(data);
-                var reg = calculateRegression(res);
-                double xx0 = xMin;
+                var resample = resample(dataPoints);
+                OrthogonalRegression reg = computeRegression(resample);
+                double xx0 = result.xMin();
                 for (int j = 0; j < nEvalPoints; j++) {
                     yVals[j][i] = reg.predict(xx0);
                     xx0 += step;
@@ -511,29 +539,20 @@ public class CanvasLayerChart<X, Y> extends Region {
                 allYPoints[nEvalPoints + i] = yUpperPoints[yUpperPoints.length - i - 1];
             }
 
-            g2d.setFill(color.deriveColor(1, 1, 1, OPACITY_FACTOR));
-            g2d.fillPolygon(
-                    Arrays.stream(allXPoints).map(xAxis::getDisplayPosition).toArray(),
-                    Arrays.stream(allYPoints).map(yAxis::getDisplayPosition).toArray(),
-                    allXPoints.length
-            );
-
+            return new BootstrappedOrthogonalRegression(result, allXPoints, allYPoints);
         }
 
-        private static <E> List<E> resample(List<E> input) {
-            List<E> output = new ArrayList<>(input.size());
-            Random random = new Random();
-            for (int i = 0; i < input.size(); i++) {
-                output.add(input.get(random.nextInt(input.size())));
+        record BootstrappedOrthogonalRegression(OrthogonalRegression regression, double[] xPoints, double[] yPoints) {
+            double predict(double x) {
+                return regression.predict(x);
             }
-            return output;
         }
 
-
-        private static @NonNull OrthogonalRegression calculateRegression(List<? extends DataPoint<? extends Number, ? extends Number, ?>> dataPoints) {
+        private static @NonNull OrthogonalRegression computeRegression(List<? extends DataPoint<? extends Number, ? extends Number, ?>> dataPoints) {
             double[] x = new double[dataPoints.size()];
             double[] y = new double[dataPoints.size()];
             double xSum = 0, ySum = 0, xySum = 0, xsqSum = 0, ysqSum = 0;
+            double xMin = Double.MAX_VALUE, xMax = -Double.MAX_VALUE;
             for (int i = 0; i < dataPoints.size(); i++) {
                 var dataPoint = dataPoints.get(i);
                 x[i] = dataPoint.getX().doubleValue();
@@ -543,7 +562,15 @@ public class CanvasLayerChart<X, Y> extends Region {
                 xsqSum += x[i] * x[i];
                 ysqSum += y[i] * y[i];
                 xySum += x[i] * y[i];
+                if (x[i] < xMin) {
+                    xMin = x[i];
+                }
+                if (x[i] > xMax) {
+                    xMax = x[i];
+                }
             }
+            xMin /= 2;
+            xMax *= 2;
             double xBar = xSum / x.length;
             double yBar = ySum / y.length;
             double xyBar = xySum / y.length;
@@ -553,18 +580,18 @@ public class CanvasLayerChart<X, Y> extends Region {
             double syy = ysqBar - (yBar * yBar);
             double sxy = xyBar - (xBar * yBar);
 
-            // todo delta
-            double delta = 1;
-            double beta1 = (syy - (delta * sxx) + Math.sqrt(Math.pow(syy - (delta * sxx), 2) + 4 * delta * Math.pow(sxy, 2))) / (2 * sxy);
-            double beta0 = yBar - beta1 * xBar;
-            return new OrthogonalRegression(beta1, beta0);
+            double delta = 1; // this allows for non-orthogonal regression variants but we fix it at 1
+            double slope = (syy - (delta * sxx) + Math.sqrt(Math.pow(syy - (delta * sxx), 2) + 4 * delta * Math.pow(sxy, 2))) / (2 * sxy);
+            double intercept = yBar - slope * xBar;
+            return new OrthogonalRegression(xMin, xMax, slope, intercept);
         }
 
-        private record OrthogonalRegression(double beta1, double beta0) {
+        private record OrthogonalRegression(double xMin, double xMax, double slope, double intercept) {
             protected double predict(double x) {
-                return beta0() + (beta1() * x);
+                return intercept() + (slope() * x);
             }
         }
+
     }
 
     static abstract class NumberNumberLayer<T> implements PlotLayer<Number, Number> {
