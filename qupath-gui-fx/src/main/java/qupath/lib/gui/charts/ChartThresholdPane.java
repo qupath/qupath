@@ -54,14 +54,15 @@ public class ChartThresholdPane extends BorderPane {
     private static final Logger logger = LoggerFactory.getLogger(ChartThresholdPane.class);
 
     private XYChart<Number, Number> chart;
-    private NumberAxis xAxis, yAxis;
+    private final NumberAxis xAxis;
+    private final NumberAxis yAxis;
 
-    private DoubleProperty lineWidth = new SimpleDoubleProperty(2);
+    private final DoubleProperty lineWidth = new SimpleDoubleProperty(2);
 
-    private BooleanProperty isInteractive = new SimpleBooleanProperty(false);
+    private final BooleanProperty isInteractive = new SimpleBooleanProperty(false);
 
-    private ObservableList<ObservableNumberValue> thresholds = FXCollections.observableArrayList();
-    private Map<ObservableNumberValue, Line> vLines = new HashMap<>();
+    private final ObservableList<ObservableNumberValue> thresholds = FXCollections.observableArrayList();
+    private final Map<ObservableNumberValue, Line> vLines = new HashMap<>();
 
 
     /**
@@ -271,12 +272,12 @@ public class ChartThresholdPane extends BorderPane {
             });
 
 
-            line.setOnMouseEntered(e -> {
+            line.setOnMouseEntered(_ -> {
                 if (isInteractive())
                     line.setCursor(Cursor.H_RESIZE);
             });
 
-            line.setOnMouseExited(e -> {
+            line.setOnMouseExited(_ -> {
                 if (isInteractive())
                     line.setCursor(Cursor.DEFAULT);
             });
