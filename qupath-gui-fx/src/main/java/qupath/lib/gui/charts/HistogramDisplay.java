@@ -41,7 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.charts.HistogramChart.HistogramData;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
@@ -268,7 +267,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 			Histogram histogram = new Histogram(values, nBins);
 //			histogram.setNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
 
-			HistogramData histogramData = HistogramChart.createHistogramData(histogram, (Integer)null);
+			HistogramChart.HistogramData histogramData = HistogramChart.createHistogramData(histogram, (Integer)null);
 			updateCountsTransform(histogramChart, paramsHistogram);
 			histogramChart.getHistogramData().setAll(histogramData);
 

@@ -1,4 +1,4 @@
-package qupath.lib.gui.charts;
+package qupath.lib.gui.charts.display;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
@@ -37,8 +37,10 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.charts.PathObjectScatterChart;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
+import qupath.lib.gui.charts.CanvasScatterChart;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 
@@ -48,14 +50,14 @@ import java.util.Collections;
 /**
  * A wrapper around {@link PathObjectScatterChart} for displaying data about PathObject measurements.
  */
-public class ScatterPlotDisplay {
+public class ScatterPlotDisplay implements PlotDisplay<PathObject> {
 
     private static final Logger logger = LoggerFactory.getLogger(ScatterPlotDisplay.class);
 
     private final static String KEY = "scatter.plot.";
 
     private final static IntegerProperty PROP_MAX_POINTS = PathPrefs.createPersistentPreference(
-            KEY + "maxPoints", 10_000
+            KEY + "maxPoints", 1_000_000
     );
 
     private final static IntegerProperty PROP_SEED = PathPrefs.createPersistentPreference(
@@ -110,6 +112,15 @@ public class ScatterPlotDisplay {
     private final IntegerProperty totalPoints = new SimpleIntegerProperty();
 
     /**
+     * Create a scatter plot display with the specified model
+     * @param model the data model
+     */
+    public ScatterPlotDisplay(PathTableData<PathObject> model) {
+        this();
+        this.model.set(model);
+    }
+
+    /**
      * Create a scatter plot from a table of PathObject measurements.
      */
     public ScatterPlotDisplay() {
@@ -117,14 +128,14 @@ public class ScatterPlotDisplay {
         BorderPane panelMain = new BorderPane();
 
         scatter = new PathObjectScatterChart(QuPathGUI.getInstance().getViewer());
-        scatter.setPointRadius(pointRadius.get());
+        scatter.setAnimated(false);
+        scatter.setPointRadius(pointRadius.get() * 2); // todo radius vs size
         scatter.setPointOpacity(pointOpacity.get());
-        scatter.setRngSeed(seed.get());
-        scatter.setMaxPoints(maxPoints.get());
+
 
         var popup = new ContextMenu();
         var miCopy = new MenuItem(QuPathResources.getString("Charts.ScatterPlotDisplay.copyToClipboard"));
-        miCopy.setOnAction(e -> SnapshotTools.copyScaledSnapshotToClipboard(scatter, 4));
+        miCopy.setOnAction(_ -> SnapshotTools.copyScaledSnapshotToClipboard(scatter, 4));
         popup.getItems().add(miCopy);
         scatter.setOnContextMenuRequested(e -> popup.show(
                 scatter.getScene().getWindow(), e.getScreenX(), e.getScreenY()));
@@ -133,12 +144,8 @@ public class ScatterPlotDisplay {
 
         initProperties();
 
-        comboNameX.getSelectionModel().selectedItemProperty().addListener((v, o, n) ->
-                refreshScatterPlot()
-        );
-        comboNameY.getSelectionModel().selectedItemProperty().addListener((v, o, n) ->
-                refreshScatterPlot()
-        );
+        comboNameX.getSelectionModel().selectedItemProperty().addListener(_ -> requestReplot());
+        comboNameY.getSelectionModel().selectedItemProperty().addListener(_ -> requestReplot());
 
         var topPane = new GridPane();
         var labelX = new Label(QuPathResources.getString("Charts.ScatterPlotDisplay.x"));
@@ -164,10 +171,47 @@ public class ScatterPlotDisplay {
         pane.setPadding(new Insets(10, 10, 10, 10));
     }
 
+    @Override
+    public void setModel(PathTableData<PathObject> model) {
+        this.model.set(model);
+    }
+
+    @Override
+    public PathTableData<PathObject> getModel() {
+        return this.model.get();
+    }
+
+    @Override
+    public ObjectProperty<PathTableData<PathObject>> modelProperty() {
+        return model;
+    }
+
+
+    @Override
+    public Pane getPane() {
+        return pane;
+    }
+
+    @Override
+    public void requestReplot() {
+        var model = this.model.get();
+        if (model == null || isUpdating) {
+            scatter.setData(Collections.emptyList(), _ -> Double.NaN, _ -> Double.NaN);
+            return;
+        }
+        // Awkward - but SearchableComboBox tends to set values temporarily to null
+        var x = comboNameX.getValue();
+        var y = comboNameY.getValue();
+        if (x != null && y != null) {
+            var items = model.getItems();
+            scatter.setDataFromTable(items, model, x, y);
+            totalPoints.set(items.size());
+        }
+    }
 
     private void initProperties() {
-        pointOpacity.addListener((v, o, n) -> scatter.setPointOpacity(n));
-        pointRadius.addListener((v, o, n) -> scatter.setPointRadius(n));
+        pointOpacity.addListener((_, _, n) -> scatter.setPointOpacity(n));
+        pointRadius.addListener((_, _, n) -> scatter.setPointRadius(n * 2));
 
         scatter.verticalGridLinesVisibleProperty().bindBidirectional(showGrid);
         scatter.horizontalGridLinesVisibleProperty().bindBidirectional(showGrid);
@@ -176,47 +220,22 @@ public class ScatterPlotDisplay {
         scatter.getYAxis().tickLabelsVisibleProperty().bindBidirectional(showAxes);
 
         scatter.legendVisibleProperty().bindBidirectional(showLegend);
-        scatter.autorangeToFullDataProperty().bindBidirectional(autorangeFullData);
 
         maxPoints.addListener((v, o, n) -> scatter.setMaxPoints(n.intValue()));
         seed.addListener((v, o, n) -> scatter.setRngSeed(n.intValue()));
     }
 
-    /**
-     * Set the value of {@link #modelProperty()}.
-     * @param model the new model to set
-     */
-    public void setModel(PathTableData<PathObject> model) {
-        this.model.set(model);
-    }
-
-    /**
-     * Get the value of {@link #modelProperty()}.
-     * @return the model
-     */
-    public PathTableData<PathObject> getModel() {
-        return this.model.get();
-    }
-
-    /**
-     * Get property representing the model used with this display.
-     * @return the model property
-     */
-    public ObjectProperty<PathTableData<PathObject>> modelProperty() {
-        return model;
-    }
-
-    private void handleModelChange(ObservableValue<? extends PathTableData<PathObject>> observable,
-                                   PathTableData<PathObject> oldValue, PathTableData<PathObject> newValue) {
+    private void handleModelChange(ObservableValue<? extends PathTableData<?>> observable,
+                                   PathTableData<?> oldValue, PathTableData<?> newValue) {
         isUpdating = true;
         if (newValue != null) {
             updateForModel(newValue);
         }
         isUpdating = false;
-        refreshScatterPlot();
+        requestReplot();
     }
 
-    private void updateForModel(PathTableData<PathObject> newValue) {
+    private void updateForModel(PathTableData<?> newValue) {
         comboNameX.getItems().setAll(newValue.getMeasurementNames());
         comboNameY.getItems().setAll(newValue.getMeasurementNames());
 
@@ -249,7 +268,6 @@ public class ScatterPlotDisplay {
             comboNameY.getSelectionModel().select(selectColumnY);
         }
     }
-
 
     private Pane createMainOptionsPane() {
         return new VBox(
@@ -392,7 +410,7 @@ public class ScatterPlotDisplay {
 
         var vBoxLabels = new VBox();
         vBoxLabels.setSpacing(2);
-        int nWarningPoints = 40_000;
+        int nWarningPoints = 1_000_000;
         vBoxLabels.getChildren().add(labelPoints);
         vBoxLabels.setAlignment(Pos.CENTER_LEFT);
         VBox.setVgrow(labelPoints, Priority.SOMETIMES);
@@ -400,7 +418,7 @@ public class ScatterPlotDisplay {
 
         if (maxPoints.get() > nWarningPoints)
             vBoxLabels.getChildren().addFirst(labelWarning);
-        maxPoints.addListener((v, o, n) -> {
+        maxPoints.addListener((_, _, n) -> {
             if (n.intValue() > nWarningPoints && !vBoxLabels.getChildren().contains(labelWarning))
                 vBoxLabels.getChildren().addFirst(labelWarning);
             else
@@ -415,7 +433,6 @@ public class ScatterPlotDisplay {
         return new TitledPane(QuPathResources.getString("Charts.ScatterPlotDisplay.sampling"), hBox);
     }
 
-
     /**
      * Create a text field for a user to input an integer value, setting the result in a property if it is valid.
      */
@@ -424,8 +441,8 @@ public class ScatterPlotDisplay {
         textField.setText(defaultText);
         textField.setPromptText(prompt);
         // Handle changes when user pressed enter, or focus lost (e.g. pressing tab)
-        textField.setOnAction(e -> setIntegerPropertyFromText(prop, textField.getText()));
-        textField.focusedProperty().addListener((v, o, n) -> {
+        textField.setOnAction(_ -> setIntegerPropertyFromText(prop, textField.getText()));
+        textField.focusedProperty().addListener((_, _, n) -> {
             if (!n)
                 setIntegerPropertyFromText(prop, textField.getText());
         });
@@ -447,7 +464,6 @@ public class ScatterPlotDisplay {
                     ex.getMessage());
         }
     }
-
 
     /**
      * Get the string used to represent the number of points being displayed.
@@ -490,6 +506,7 @@ public class ScatterPlotDisplay {
         return label;
     }
 
+    // todo extract these to common
     private static BooleanProperty createWeakBoundProperty(BooleanProperty prop) {
         var prop2 = new SimpleBooleanProperty(prop.getValue());
         prop.bind(prop2);
@@ -506,38 +523,6 @@ public class ScatterPlotDisplay {
         var prop2 = new SimpleDoubleProperty(prop.getValue());
         prop.bind(prop2);
         return prop2;
-    }
-
-
-    /**
-     * Get the pane containing the scatter plot and associated UI components, for addition to a scene.
-     * @return A pane
-     */
-    public Pane getPane() {
-        return pane;
-    }
-
-    /**
-     * Refresh the scatter plot, in case the underlying data has been updated.
-     */
-    public void refreshScatterPlot() {
-        var model = this.model.get();
-        if (model == null || isUpdating) {
-            resetScatterplot();
-            return;
-        }
-        // Awkward - but SearchableComboBox tends to set values temporarily to null
-        var x = comboNameX.getValue();
-        var y = comboNameY.getValue();
-        if (x != null && y != null) {
-            var items = model.getItems();
-            scatter.setDataFromTable(items, model, x, y);
-            totalPoints.set(items.size());
-        }
-    }
-
-    private void resetScatterplot() {
-        scatter.setData(Collections.emptyList(), p -> Double.NaN, p -> Double.NaN);
     }
 
 }
