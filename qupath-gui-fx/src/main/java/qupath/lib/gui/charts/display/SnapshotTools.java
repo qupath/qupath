@@ -1,4 +1,4 @@
-package qupath.lib.gui.charts;
+package qupath.lib.gui.charts.display;
 
 import javafx.scene.Node;
 import javafx.scene.Scene;
