@@ -82,18 +82,15 @@ public class BarChartBuilder extends Charts.XYCategoryChartBuilder<BarChartBuild
         chart.getData().setAll(getSeries());
 
         // If we have a hierarchy, and pathClasses, make the plot live
-        int n = 0;
         for (var s : getSeries()) {
             for (var d : s.getData()) {
                 var extra = d.getExtraValue();
                 var node = d.getNode();
                 if (extra instanceof PathClass pathClass && node != null) {
                     var color = pathClass.getColor();
-                    chart.setStyle(chart.getStyle() + " CHART_COLOR_" + (n++) + ": " +
-                            String.format("rgba(%d,%d,%d,%.2f);",
-                                    ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), markerOpacity)
-                    );
-                    String style = "";
+                    String style = String.format("-fx-background-color: rgba(%d,%d,%d,%.2f);",
+                            ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), markerOpacity);
+                    chart.setStyle(style);
                     node.setStyle(style);
                     node.addEventHandler(MouseEvent.ANY, e -> {
                         if (e.getEventType() == MouseEvent.MOUSE_CLICKED)
