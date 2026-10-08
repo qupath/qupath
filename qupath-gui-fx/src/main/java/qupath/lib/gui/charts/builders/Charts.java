@@ -26,11 +26,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.EventHandler;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.chart.Axis;
@@ -38,6 +40,7 @@ import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.Chart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.slf4j.Logger;
@@ -45,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.charts.impl.CanvasChart;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -77,6 +81,10 @@ public class Charts {
 			throw new RuntimeException(e);
 		}
 	}
+
+
+
+
 
 	/**
 	 * Try to select an object if possible (e.g. because a user clicked on it).
@@ -402,7 +410,7 @@ public class Charts {
 	}
 
 	abstract static class XYChartBuilder<T extends XYChartBuilder<T, S, X, Y>, S extends XYChart<X, Y>, X, Y> extends ChartBuilder<T, S> {
-
+		private static final Logger logger = LoggerFactory.getLogger(XYChartBuilder.class);
 
 		protected String xLabel, yLabel;
 		private ObservableList<XYChart.Series<X, Y>> series = FXCollections.observableArrayList();
@@ -475,14 +483,13 @@ public class Charts {
 		/**
 		 * Create a scatterplot using collections of numeric values, with an associated custom object.
 		 *
-		 * @param <T>   The type of custom object.
 		 * @param name  the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param x     x-values
 		 * @param y     y-values
 		 * @param extra list of values to associate with each data point; should be the same length as x and y
 		 * @return a series of data
 		 */
-		public static <T, X, Y> XYChart.Series<X, Y> createSeries(String name, X[] x, Y[] y, List<T> extra) {
+		public static <X, Y> XYChart.Series<X, Y> createSeries(String name, X[] x, Y[] y, List<?> extra) {
 			List<XYChart.Data<X, Y>> data = new ArrayList<>();
 			for (int i = 0; i < x.length; i++) {
 				if (extra != null && i < extra.size())
@@ -604,7 +611,38 @@ public class Charts {
 			this.series.add(series);
 			return getThis();
 		}
-		
+
+
+		EventHandler<MouseEvent> createCanvasMouseHandler(CanvasChart<X, Y> chart) {
+			return e -> {
+				if (e.getEventType() == MouseEvent.MOUSE_CLICKED) {
+					logger.info("{} clicked", chart);
+					double pixelTolerance = markerSize * 1.5;
+					Optional<XYChart.Data<X, Y>> item = chart.findDataPoint(e.getX(), e.getY(), pixelTolerance);
+					item.ifPresent((data) -> {
+						if (data.getExtraValue() instanceof PathObject pathObject) {
+							tryToSelect(
+									pathObject,
+									e.isShiftDown(),
+									e.getClickCount() == 2);
+						} else if (data.getExtraValue() instanceof ProjectImageEntry<?> pie && e.getClickCount() == 2) {
+							Charts.tryToOpen((ProjectImageEntry<BufferedImage>) pie);
+						}
+					});
+				}
+			};
+		}
+
+		/**
+		 * Try to select an object if possible (e.g. because a user clicked on it).
+		 *
+		 * @param pathObject     the object to select
+		 * @param addToSelection if true, add to an existing selection; if false, reset any current selection
+		 * @param centerObject   if true, try to center it in a viewer (if possible)
+		 */
+		private void tryToSelect(PathObject pathObject, boolean addToSelection, boolean centerObject) {
+			Charts.tryToSelectObject(pathObject, viewer, imageData, addToSelection, centerObject);
+		}
 	}
 	
 	abstract static class XYNumberChartBuilder<T extends XYNumberChartBuilder<T, S>, S extends XYChart<Number, Number>> extends XYChartBuilder<T, S, Number, Number> {

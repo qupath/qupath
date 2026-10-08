@@ -4,7 +4,9 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.function.BiFunction;
@@ -13,6 +15,7 @@ import javafx.scene.chart.Axis;
 import javafx.scene.chart.ScatterChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.charts.impl.CanvasChart;
@@ -193,28 +196,25 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
                         Objects.requireNonNull(
                                 getClass().getClassLoader().getResource("css/charts/chart_base.css")).toExternalForm()
                 );
-
-        // if it's a canvaschart, we have to let it do the majic of finding data points for us
-        // todo redo legends
-        CanvasChart<Number, Number> canvasChart = (CanvasChart<Number, Number>) chart;
-        canvasChart.getCanvas().addEventHandler(MouseEvent.ANY, e -> {
-            if (e.getEventType() == MouseEvent.MOUSE_CLICKED) {
-                double pixelTolerance = markerSize * 1.5;
-                var item = canvasChart.findDataPoint(e.getX(), e.getY(), pixelTolerance);
-                item.ifPresent((data) ->
-                        tryToSelect(
-                            (PathObject) data.getExtraValue(),
-                            e.isShiftDown(),
-                            e.getClickCount() == 2));
-            }
-        });
+        if (chart instanceof CanvasChart<?,?>) {
+            // we know this is always a scatter chart because it's all we build; if we ever change that this case is dangerous obviously
+            @SuppressWarnings("unchecked") CanvasChart<Number, Number> canvasChart = (CanvasChart<Number, Number>) chart;
+            canvasChart.getCanvas().addEventHandler(MouseEvent.ANY, createCanvasMouseHandler(canvasChart));
+        }
     }
 
     @Override
     protected ScatterChart<Number, Number> createNewChart(Axis<Number> xAxis, Axis<Number> yAxis) {
-        var cmap = this.getSeries().stream()
-                .map(XYChart.Series::getName).map(PathClass::fromString)
-                .collect(Collectors.toMap(PathClass::toString, ColorToolsFX::getPathClassColor));
+        var data = this.getSeries().getFirst().getData().getFirst();
+        Map<String, Color> cmap = new HashMap<>();
+        // if the scatter chart wraps PathObjects, fetch the class colours. Otherwise, trust the defaults
+        if (data.getExtraValue() instanceof PathObject po) {
+            cmap.putAll(
+                    this.getSeries().stream()
+                        .map(XYChart.Series::getName).map(PathClass::fromString)
+                        .collect(Collectors.toMap(PathClass::toString, ColorToolsFX::getPathClassColor))
+            );
+        }
         var chart = new CanvasScatterChart<>(xAxis, yAxis, cmap);
         chart.setMarkerOpacity(this.markerOpacity);
         chart.setMarkerRadius(this.markerSize);
