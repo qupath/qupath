@@ -34,8 +34,8 @@ import qupath.lib.projects.ProjectImageEntry;
 public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChartBuilder, ScatterChart<Number, Number>> {
 
     private static final Logger logger = LoggerFactory.getLogger(ScatterChartBuilder.class);
+    private static final Integer DEFAULT_MAX_DATAPOINTS = 10_000;
 
-    private Integer DEFAULT_MAX_DATAPOINTS = 10_000;
     private Integer maxDatapoints;
     private Random rnd = new Random();
 
@@ -44,7 +44,7 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
 
     /**
      * Choose the maximum number of supported datapoints per series.
-     * Scattercharts are rather 'heavyweight', and including many thousands of datapoints can cause
+     * ScatterCharts are rather 'heavyweight', and including many thousands of datapoints can cause
      * severe performance issues due to high processing and memory requirements.
      * <p>
      * By default, datapoints will be randomly subsampled to a 'manageable number' where necessary,
@@ -95,7 +95,7 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
      * @param cal         the pixel calibration used to convert the centroids into other units
      * @return this builder
      */
-    public <T> ScatterChartBuilder centroids(Collection<? extends PathObject> pathObjects, PixelCalibration cal) {
+    public ScatterChartBuilder centroids(Collection<? extends PathObject> pathObjects, PixelCalibration cal) {
         xLabel("x (" + cal.getPixelWidthUnit() + ")");
         yLabel("y (" + cal.getPixelHeightUnit() + ")");
         return addSeries(
@@ -205,15 +205,19 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
 
     @Override
     protected ScatterChart<Number, Number> createNewChart(Axis<Number> xAxis, Axis<Number> yAxis) {
-        var data = this.getSeries().getFirst().getData().getFirst();
+
         Map<String, Color> cmap = new HashMap<>();
-        // if the scatter chart wraps PathObjects, fetch the class colours. Otherwise, trust the defaults
-        if (data.getExtraValue() instanceof PathObject po) {
-            cmap.putAll(
-                    this.getSeries().stream()
-                        .map(XYChart.Series::getName).map(PathClass::fromString)
-                        .collect(Collectors.toMap(PathClass::toString, ColorToolsFX::getPathClassColor))
-            );
+        // if the scatter chart wraps PathObjects, fetch the class colors. Otherwise, trust the defaults
+        var series = this.getSeries().getFirst();
+        if (series != null && series.getData() != null && series.getData().getFirst() != null) {
+            var data = series.getData().getFirst();
+            if (data.getExtraValue() instanceof PathObject) {
+                cmap.putAll(
+                        this.getSeries().stream()
+                                .map(XYChart.Series::getName).map(PathClass::fromString)
+                                .collect(Collectors.toMap(PathClass::toString, ColorToolsFX::getPathClassColor))
+                );
+            }
         }
         var chart = new CanvasScatterChart<>(xAxis, yAxis, cmap);
         chart.setMarkerOpacity(this.markerOpacity);
