@@ -521,8 +521,6 @@ public class Charts {
 							.toList());
 		}
 
-
-
 		/**
 		 * Create a series of data from existing data sets.
 		 *
@@ -530,7 +528,7 @@ public class Charts {
 		 * @param data the data points to plot
 		 * @return a series of data
 		 */
-		static <X, Y> XYChart.Series<X, Y> createSeries(String name, Collection<XYChart.Data<X, Y>> data) {
+		public static <X, Y> XYChart.Series<X, Y> createSeries(String name, Collection<XYChart.Data<X, Y>> data) {
 			return new XYChart.Series<>(name, FXCollections.observableArrayList(data));
 		}
 
@@ -553,8 +551,6 @@ public class Charts {
 							.map(p -> new XYChart.Data<>(xFun.apply(p), yFun.apply(p), p))
 							.toList());
 		}
-
-
 
 		/**
 		 * Create a scatterplot using collections of numeric values, with an associated custom object.
@@ -581,8 +577,6 @@ public class Charts {
 			return createSeries(name, data);
 		}
 
-
-
 		/**
 		 * Create and add a scatterplot series using collections of numeric values, with an associated custom object.
 		 *
@@ -592,10 +586,22 @@ public class Charts {
 		 * @param extra list of values to associate with each data point; should be the same length as x and y
 		 * @return this builder
 		 */
-		@SuppressWarnings("unchecked")
 		public T addSeries(String name, Collection<? extends X> x, Collection<? extends Y> y, List<?> extra) {
 			return addSeries(createSeries(name, x, y, extra == null ? null : FXCollections.observableArrayList(extra)));
 		}
+
+		/**
+		 * Create and add a scatterplot series using collections of numeric values, with an associated custom object.
+		 *
+		 * @param name  the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param x     x-values
+		 * @param y     y-values
+		 * @return this builder
+		 */
+		public T addSeries(String name, Collection<? extends X> x, Collection<? extends Y> y) {
+			return addSeries(createSeries(name, x, y, null));
+		}
+
 
 		/**
 		 * Create and add a scatterplot series from existing data.
