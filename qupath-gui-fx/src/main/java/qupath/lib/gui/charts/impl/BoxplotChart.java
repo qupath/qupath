@@ -322,11 +322,12 @@ public class BoxplotChart<X, Y> extends XYChart<X, Y> implements CanvasChart<X, 
                 drawPoint(data, catPos, boxParams);
             }
         }
+        // add canvas last so it's always clickable
+        getPlotChildren().add(canvas);
     }
 
     protected void resetPlotChildren() {
         getPlotChildren().clear();
-        getPlotChildren().add(canvas);
         canvas.getGraphicsContext2D().clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
     }
 
