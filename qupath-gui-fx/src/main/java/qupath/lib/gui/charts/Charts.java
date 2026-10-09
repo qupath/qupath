@@ -122,6 +122,8 @@ public class Charts {
 	/**
 	 * Try to select an object if possible (e.g. because a user clicked on it).
 	 * @param pathObject the object to select
+	 * @param viewer the {@link QuPathViewer} to select the object in
+	 * @param imageData the image data used to find the object
 	 * @param addToSelection if true, add to an existing selection; if false, reset any current selection
 	 * @param centerObject if true, try to center it in a viewer (if possible)
 	 */
