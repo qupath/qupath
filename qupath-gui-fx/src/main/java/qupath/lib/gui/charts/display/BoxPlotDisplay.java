@@ -48,7 +48,6 @@ import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
-import qupath.lib.gui.charts.SnapshotTools;
 import qupath.lib.gui.charts.builders.Charts;
 import qupath.lib.gui.charts.impl.BoxplotChart;
 import qupath.lib.objects.PathObject;
@@ -96,6 +95,7 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
         boxplot = Charts.boxPlot()
                 .viewer(QuPathGUI.getInstance().getViewer())
                 .build();
+        boxplot.setAnimated(false);
 
         var popup = new ContextMenu();
         var miCopy = new MenuItem(QuPathResources.getString("Charts.ScatterPlotDisplay.copyToClipboard"));
@@ -262,14 +262,11 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
             Function<T, PathClass> classExtractor,
             Function<T, Number> yFun) {
 
-        // todo if only base classes...?
         // find the represented classes & sort them
-
         // input: list of objects
         // filter list to contain
         // extract pathclass or base class
         // output: list of series for each pathclass
-
         var newData = objects
                 .stream()
                 .filter(objectFilter)

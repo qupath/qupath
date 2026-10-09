@@ -44,7 +44,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
-import qupath.lib.gui.charts.SnapshotTools;
 import qupath.lib.gui.charts.builders.Charts;
 import qupath.lib.gui.charts.impl.CanvasScatterChart;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -138,6 +137,7 @@ public class ScatterPlotDisplay<T extends PathObject> implements PlotDisplay<T> 
         scatter = (CanvasScatterChart<Number, Number>) Charts.scatterChart()
                 .viewer(QuPathGUI.getInstance().getViewer())
                 .build();
+        scatter.setAnimated(false);
         scatter.setMarkerRadius(pointRadius.get() * 2); // todo radius vs size
         scatter.setMarkerOpacity(pointOpacity.get());
 
