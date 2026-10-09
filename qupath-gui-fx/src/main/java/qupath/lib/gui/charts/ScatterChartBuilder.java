@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javafx.scene.chart.Axis;
 import javafx.scene.chart.ScatterChart;
@@ -20,6 +21,7 @@ import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
@@ -37,6 +39,7 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
 
     private Integer maxDatapoints;
     private Random rnd = new Random();
+    private final Map<String, Color> colorMap = new HashMap<>();
 
     ScatterChartBuilder() {
     }
@@ -70,6 +73,11 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
         return this;
     }
 
+    public ScatterChartBuilder colorMap(Map<String, Color> colorMap) {
+        this.colorMap.putAll(colorMap);
+        return this;
+    }
+
     @Override
     protected String getDefaultWindowTitle() {
         return QuPathResources.getString("Charts.scatterChart");
@@ -88,6 +96,7 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
 
 
     /**
+     * todo option to split by class
      * Plot centroids for the specified objects using a fixed pixel calibration.
      *
      * @param pathObjects the objects to plot
@@ -102,6 +111,33 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
                 pathObjects,
                 (PathObject p) -> PathObjectTools.getROI(p, true).getCentroidX() * cal.getPixelWidth().doubleValue(),
                 (PathObject p) -> -PathObjectTools.getROI(p, true).getCentroidY() * cal.getPixelHeight().doubleValue());
+    }
+
+    private Map<String, Color> makeColorMap() {
+        Map<String, Color> colorMap = new HashMap<>();
+        // if the scatter chart wraps PathObjects, fetch the class colors. Otherwise, trust the defaults
+        var series = this.getSeries();
+        if (series != null && !series.isEmpty() &&
+                series.getFirst().getData() != null && series.getFirst().getData().getFirst() != null) {
+            var data = series.getFirst().getData().getFirst();
+            if (data.getExtraValue() instanceof PathObject) {
+                colorMap.putAll(
+                        this.getSeries().stream()
+                                .map(XYChart.Series::getName)
+                                .collect(Collectors.toMap(
+                                        Function.identity(),
+                                        (s) -> {
+                                            if (s.equals("Unclassified")) {
+                                                return ColorToolsFX.getCachedColor(PathPrefs.colorDefaultObjectsProperty().get());
+                                            } else {
+                                                return ColorToolsFX.getCachedColor(PathClass.getInstance(s).getColor());
+                                            }
+                                        })
+                                )
+                );
+            }
+        }
+        return colorMap;
     }
 
     /**
@@ -127,6 +163,14 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
         return measurements(pathObjects, xMeasurement, yMeasurement, true);
     }
 
+    /**
+     * todo
+     * @param pathObjects
+     * @param xMeasurement
+     * @param yMeasurement
+     * @param seriesByClass
+     * @return
+     */
     public ScatterChartBuilder measurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement, boolean seriesByClass) {
         xLabel(xMeasurement);
         yLabel(yMeasurement);
@@ -233,21 +277,8 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
 
     @Override
     protected ScatterChart<Number, Number> createNewChart(Axis<Number> xAxis, Axis<Number> yAxis) {
-        Map<String, Color> cmap = new HashMap<>();
-        // if the scatter chart wraps PathObjects, fetch the class colors. Otherwise, trust the defaults
-        var series = this.getSeries();
-        if (series != null && !series.isEmpty() &&
-                series.getFirst().getData() != null && series.getFirst().getData().getFirst() != null) {
-            var data = series.getFirst().getData().getFirst();
-            if (data.getExtraValue() instanceof PathObject) {
-                cmap.putAll(
-                        this.getSeries().stream()
-                                .map(XYChart.Series::getName).map(PathClass::fromString)
-                                .collect(Collectors.toMap(PathClass::toString, ColorToolsFX::getPathClassColor))
-                );
-            }
-        }
-        var chart = new CanvasScatterChart<>(xAxis, yAxis, cmap);
+        // todo move the color code to a setter, and auto-set in the pathobject methods
+        var chart = new CanvasScatterChart<>(xAxis, yAxis, colorMap);
         chart.setMarkerOpacity(this.markerOpacity);
         chart.setMarkerRadius(this.markerSize);
         return chart;
