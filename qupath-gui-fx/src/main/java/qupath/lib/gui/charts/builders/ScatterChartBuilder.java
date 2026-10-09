@@ -208,9 +208,10 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
 
         Map<String, Color> cmap = new HashMap<>();
         // if the scatter chart wraps PathObjects, fetch the class colors. Otherwise, trust the defaults
-        var series = this.getSeries().getFirst();
-        if (series != null && series.getData() != null && series.getData().getFirst() != null) {
-            var data = series.getData().getFirst();
+        var series = this.getSeries();
+        if (series != null && !series.isEmpty() &&
+                series.getFirst().getData() != null && series.getFirst().getData().getFirst() != null) {
+            var data = series.getFirst().getData().getFirst();
             if (data.getExtraValue() instanceof PathObject) {
                 cmap.putAll(
                         this.getSeries().stream()
