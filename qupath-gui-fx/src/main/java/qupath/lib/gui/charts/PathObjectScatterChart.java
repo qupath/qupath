@@ -98,7 +98,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     private final IntegerProperty rngSeed = new SimpleIntegerProperty(NO_SHUFFLE_SEED);
     private final DoubleProperty pointOpacity = new SimpleDoubleProperty(1);
     private final DoubleProperty pointRadius = new SimpleDoubleProperty(5);
-    private final IntegerProperty maxPoints = new SimpleIntegerProperty(10000);
+    private final IntegerProperty maxPoints = new SimpleIntegerProperty(1000000);
 
     private final BooleanProperty autorangeToFullData = new SimpleBooleanProperty(true);
 
@@ -156,9 +156,10 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
                 selectionModel = null;
             }
         }
-        maxPoints.addListener(o -> ensureMaxPoints());
         pointOpacity.addListener(o -> updateOpacity());
         pointRadius.addListener(o -> updateRadius());
+
+        maxPoints.addListener(o -> ensureMaxPoints());
         rngSeed.addListener(this::handleRngSeedChange);
         autorangeToFullData.addListener((v, o, n) -> {
             resampleAndUpdate();
@@ -667,7 +668,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
                         .orElse(null);
                 // Need to make sure that the viewer hasn't changed
                 if (pathObject != null && PathObjectTools.hierarchyContainsObject(hierarchy, pathObject)) {
-                    Charts.ScatterChartBuilder.tryToSelect(
+                    Charts.tryToSelectObject(
                             pathObject, viewer, viewer.getImageData(),
                             event.isShiftDown(), event.getClickCount() == 2);
                 }
