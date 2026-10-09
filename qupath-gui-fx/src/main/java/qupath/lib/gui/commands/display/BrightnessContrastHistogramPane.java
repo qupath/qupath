@@ -44,7 +44,7 @@ import qupath.lib.display.AdditiveChannelInfo;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.charts.ChartThresholdPane;
-import qupath.lib.gui.charts.HistogramChart;
+import qupath.lib.gui.charts.impl.HistogramChart;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;

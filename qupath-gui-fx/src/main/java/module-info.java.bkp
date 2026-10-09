@@ -31,7 +31,7 @@ module qupath.gui.fx {
 	exports qupath.lib.gui.models;
 	exports qupath.lib.gui.panes;
 	exports qupath.lib.gui.panes.classify;
-	exports qupath.lib.gui.plots;
+	exports qupath.lib.gui.charts;
 	exports qupath.lib.gui.prefs;
 	exports qupath.lib.gui.plugins;
 	exports qupath.lib.gui.scripting;
