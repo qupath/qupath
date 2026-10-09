@@ -48,7 +48,6 @@ import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
-import qupath.lib.gui.charts.SnapshotTools;
 import qupath.lib.gui.charts.builders.Charts;
 import qupath.lib.gui.charts.impl.BoxplotChart;
 import qupath.lib.objects.PathObject;
