@@ -40,7 +40,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartThresholdPane;
-import qupath.lib.gui.charts.impl.HistogramChart;
+import qupath.lib.gui.charts.HistogramChart;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;

@@ -1,7 +1,8 @@
-package qupath.lib.gui.charts.builders;
+package qupath.lib.gui.charts;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -18,8 +19,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.gui.charts.impl.CanvasChart;
-import qupath.lib.gui.charts.impl.CanvasScatterChart;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.images.servers.PixelCalibration;
@@ -153,38 +152,67 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
 
 
     /**
-     * Plot metadata values against each other
-     * @param projectImageEntries the image entries to collect the metadata from
-     * @param xMeasurement the name of the metadata value to plot on the x-axis
-     * @param yMeasurement the name of the metadata value to plot on the y-axis
+     * Create and add a scatterplot using arrays of numeric values.
+     *
+     * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
+     * @param x    x-values
+     * @param y    y-values
+     * @return this builder
      */
-    public ScatterChartBuilder metadata(Collection<? extends ProjectImageEntry<BufferedImage>> projectImageEntries, String xMeasurement, String yMeasurement) {
-        xLabel(xMeasurement);
-        yLabel(yMeasurement);
-        var filteredEntries = projectImageEntries.stream()
-                .filter(e -> e.getMetadata().get(xMeasurement) != null && e.getMetadata().get(yMeasurement) != null)
-                .toList();
-        BiFunction<ProjectImageEntry<BufferedImage>, String, Double> getMetadata = (it, metadata) -> {
-            String yVal = it.getMetadata().get(metadata);
-            if (yVal == null) {
-                return Double.NaN;
-            }
-            return Double.valueOf(yVal);
-        };
-        Double[] x = filteredEntries.stream()
-                .map(pie -> getMetadata.apply(pie, xMeasurement))
-                .toArray(Double[]::new);
-        Double[] y = filteredEntries.stream()
-                .map(pie -> getMetadata.apply(pie, xMeasurement))
-                .toArray(Double[]::new);
-        return addSeries(
-                Charts.XYChartBuilder.createSeries(null,
-                        x,
-                        y,
-                        filteredEntries
-                )
-        );
+    public ScatterChartBuilder addSeries(String name, double[] x, double[] y) {
+        return addSeries(name, x, y, (List<?>) null);
     }
+
+    /**
+     * Create and add a scatterplot using collections of numeric values, with an associated custom object.
+     *
+     * @param name  the name of the data series (useful if multiple series will be plot, otherwise may be null)
+     * @param x     x-values
+     * @param y     y-values
+     * @param extra array of values to associate with each data point; should be the same length as x and y
+     * @return this builder
+     */
+    public ScatterChartBuilder addSeries(String name, double[] x, double[] y, Object[] extra) {
+        return addSeries(name, x, y, extra == null ? null : Arrays.asList(extra));
+    }
+
+    /**
+     * Create and add a scatterplot series using collections of numeric values, with an associated custom object.
+     *
+     * @param name  the name of the data series (useful if multiple series will be plot, otherwise may be null)
+     * @param x     x-values
+     * @param y     y-values
+     * @param extra list of values to associate with each data point; should be the same length as x and y
+     * @return this builder
+     */
+    public ScatterChartBuilder addSeries(String name, double[] x, double[] y, List<?> extra) {
+        return addSeries(createSeries(name, x, y, extra));
+    }
+
+    /**
+     * Create a scatterplot using collections of numeric values, with an associated custom object.
+     *
+     * @param name  the name of the data series (useful if multiple series will be plotted, otherwise may be null)
+     * @param x     x-values
+     * @param y     y-values
+     * @param extra list of values to associate with each data point; should be the same length as x and y
+     * @return a series of data
+     */
+    public static XYChart.Series<Number, Number> createSeries(String name,
+                                                              double[] x,
+                                                              double[] y,
+                                                              List<?> extra) {
+        List<XYChart.Data<Number, Number>> data = new ArrayList<>();
+        for (int i = 0; i < x.length; i++) {
+            if (extra != null && i < extra.size())
+                data.add(new XYChart.Data<>(x[i], y[i], extra.get(i)));
+            else
+                data.add(new XYChart.Data<>(x[i], y[i]));
+        }
+        return createSeries(name, data);
+    }
+
+
 
     @Override
     protected void updateChart(ScatterChart<Number, Number> chart) {
@@ -205,7 +233,6 @@ public class ScatterChartBuilder extends Charts.XYNumberChartBuilder<ScatterChar
 
     @Override
     protected ScatterChart<Number, Number> createNewChart(Axis<Number> xAxis, Axis<Number> yAxis) {
-
         Map<String, Color> cmap = new HashMap<>();
         // if the scatter chart wraps PathObjects, fetch the class colors. Otherwise, trust the defaults
         var series = this.getSeries();

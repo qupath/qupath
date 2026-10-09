@@ -19,12 +19,12 @@
  * #L%
  */
 
-package qupath.lib.gui.charts.builders;
+package qupath.lib.gui.charts;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -45,10 +45,11 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.charts.impl.CanvasChart;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -69,22 +70,54 @@ import qupath.lib.projects.ProjectImageEntry;
  */
 public class Charts {
 
+	/**
+	 * Create a {@link ScatterChartBuilder} for generating a custom scatter plot.
+	 * @return the builder
+	 */
+	public static ScatterChartBuilder scatterChart() {
+		return new ScatterChartBuilder();
+	}
 
-	public static void tryToOpen(ProjectImageEntry<BufferedImage> pie) {
-		try {
-			var current = QuPathGUI.getInstance().getViewer().getImageData();
-			if (current != null) {
-				current.setChanged(false);
-			}
-			QuPathGUI.getInstance().getViewer().setImageData(pie.readImageData());
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+	/**
+	 * Create {@link BoxplotChartBuilder} for generating a custom box plot.
+	 * @return the builder
+	 */
+	public static BoxplotChartBuilder boxPlot() {
+		return new BoxplotChartBuilder();
+	}
+
+	/**
+	 * Create a {@link PieChartBuilder} for generating a custom pie chart.
+	 * @return the builder
+	 */
+	public static PieChartBuilder pieChart() {
+		return new PieChartBuilder();
+	}
+
+	/**
+	 * Create a {@link ScatterChartBuilder} for generating a custom scatter plot.
+	 * @return the builder
+	 */
+	public static BarChartBuilder barChart() {
+		return new BarChartBuilder();
 	}
 
 
-
-
+	/**
+	 * Try to load and open the specified image entry in the QuPath GUI.
+	 * @param projectImageEntry the image entry
+	 */
+	static void tryToOpen(ProjectImageEntry<BufferedImage> projectImageEntry, QuPathViewer viewer) {
+		try {
+			viewer.setImageData(projectImageEntry.readImageData());
+		} catch (IOException e) {
+			Dialogs.showErrorMessage(
+					MessageFormat.format(
+							QuPathResources.getString("Charts.errorOpeningImage"),
+							projectImageEntry.getImageName()
+					), e);
+		}
+	}
 
 	/**
 	 * Try to select an object if possible (e.g. because a user clicked on it).
@@ -92,7 +125,7 @@ public class Charts {
 	 * @param addToSelection if true, add to an existing selection; if false, reset any current selection
 	 * @param centerObject if true, try to center it in a viewer (if possible)
 	 */
-	public static void tryToSelectObject(PathObject pathObject, QuPathViewer viewer, ImageData<?> imageData, boolean addToSelection, boolean centerObject) {
+	static void tryToSelectObject(PathObject pathObject, QuPathViewer viewer, ImageData<?> imageData, boolean addToSelection, boolean centerObject) {
 		PathObjectHierarchy hierarchy = null;
 		if (imageData != null)
 			hierarchy = imageData.getHierarchy();
@@ -112,11 +145,19 @@ public class Charts {
 		}
 	}
 
-	public static void tryToSelectClass(PathClass pathClass,
-										Collection<PathObject> pathObjects,
-										ImageData<?> imageData,
-										QuPathViewer viewer,
-										boolean addToSelection) {
+	/**
+	 * Try to select all objects of a given class among a collection of objects
+	 * @param pathClass the path class
+	 * @param pathObjects the objects to select a subset of
+	 * @param imageData the image data containing the objects
+	 * @param viewer the QuPath viewer
+	 * @param addToSelection whether to reset the selection or add the objects to it
+	 */
+	static void tryToSelectClass(PathClass pathClass,
+								 Collection<PathObject> pathObjects,
+								 ImageData<?> imageData,
+								 QuPathViewer viewer,
+								 boolean addToSelection) {
 		PathObjectHierarchy hierarchy = null;
 		if (imageData != null)
 			hierarchy = imageData.getHierarchy();
@@ -133,6 +174,7 @@ public class Charts {
 		else if (!objects.isEmpty())
 			hierarchy.getSelectionModel().setSelectedObjects(objects, objects.getFirst().getParent());
 	}
+
 
 	// See https://stackoverflow.com/questions/17164375/subclassing-a-java-builder-class/34741836#34741836
 	// for a great description of what is going on here...
@@ -360,9 +402,6 @@ public class Charts {
 		 * @see #show()
 		 */
 		public Stage toStage() {
-			if (!Platform.isFxApplicationThread()) {
-				return FXUtils.callOnApplicationThread(() -> toStage());
-			}
 			var stage = new Stage();
 			
 			// Figure out a suitable parent
@@ -480,25 +519,6 @@ public class Charts {
 							.toList());
 		}
 
-		/**
-		 * Create a scatterplot using collections of numeric values, with an associated custom object.
-		 *
-		 * @param name  the name of the data series (useful if multiple series will be plotted, otherwise may be null)
-		 * @param x     x-values
-		 * @param y     y-values
-		 * @param extra list of values to associate with each data point; should be the same length as x and y
-		 * @return a series of data
-		 */
-		public static <X, Y> XYChart.Series<X, Y> createSeries(String name, X[] x, Y[] y, List<?> extra) {
-			List<XYChart.Data<X, Y>> data = new ArrayList<>();
-			for (int i = 0; i < x.length; i++) {
-				if (extra != null && i < extra.size())
-					data.add(new XYChart.Data<>(x[i], y[i], extra.get(i)));
-				else
-					data.add(new XYChart.Data<>(x[i], y[i]));
-			}
-			return createSeries(name, data);
-		}
 
 
 		/**
@@ -535,42 +555,31 @@ public class Charts {
 
 
 		/**
-		 * Create and add a scatterplot using arrays of numeric values.
+		 * Create a scatterplot using collections of numeric values, with an associated custom object.
 		 *
-		 * @param name the name of the data series (useful if multiple series will be plot, otherwise may be null)
-		 * @param x    x-values
-		 * @param y    y-values
-		 * @return this builder
-		 */
-		public T addSeries(String name, X[] x, Y[] y) {
-			return addSeries(name, x, y, (List<?>) null);
-		}
-
-		/**
-		 * Create and add a scatterplot using collections of numeric values, with an associated custom object.
-		 *
-		 * @param name  the name of the data series (useful if multiple series will be plot, otherwise may be null)
-		 * @param x     x-values
-		 * @param y     y-values
-		 * @param extra array of values to associate with each data point; should be the same length as x and y
-		 * @return this builder
-		 */
-		public T addSeries(String name, X[] x, Y[] y, Object[] extra) {
-			return addSeries(name, x, y, extra == null ? null : Arrays.asList(extra));
-		}
-
-		/**
-		 * Create and add a scatterplot series using collections of numeric values, with an associated custom object.
-		 *
-		 * @param name  the name of the data series (useful if multiple series will be plot, otherwise may be null)
+		 * @param name  the name of the data series (useful if multiple series will be plotted, otherwise may be null)
 		 * @param x     x-values
 		 * @param y     y-values
 		 * @param extra list of values to associate with each data point; should be the same length as x and y
-		 * @return this builder
+		 * @return a series of data
 		 */
-		public T addSeries(String name, X[] x, Y[] y, List<?> extra) {
-			return addSeries(createSeries(name, x, y, extra));
+		public static <X, Y> XYChart.Series<X, Y> createSeries(String name,
+															   Collection<? extends X> x,
+															   Collection<? extends Y> y,
+															   List<?> extra) {
+			List<XYChart.Data<X, Y>> data = new ArrayList<>();
+			var xl = x.stream().toList();
+			var yl = y.stream().toList();
+			for (int i = 0; i < x.size(); i++) {
+				if (extra != null && i < extra.size())
+					data.add(new XYChart.Data<>(xl.get(i), yl.get(i), extra.get(i)));
+				else
+					data.add(new XYChart.Data<>(xl.get(i), yl.get(i)));
+			}
+			return createSeries(name, data);
 		}
+
+
 
 		/**
 		 * Create and add a scatterplot series using collections of numeric values, with an associated custom object.
@@ -582,8 +591,8 @@ public class Charts {
 		 * @return this builder
 		 */
 		@SuppressWarnings("unchecked")
-		public T addSeries(String name, Collection<X> x, Collection<Y> y, List<?> extra) {
-			return addSeries(name, (X[]) x.toArray(), (Y[]) y.toArray(), extra == null ? null : FXCollections.observableArrayList(extra));
+		public T addSeries(String name, Collection<? extends X> x, Collection<? extends Y> y, List<?> extra) {
+			return addSeries(createSeries(name, x, y, extra == null ? null : FXCollections.observableArrayList(extra)));
 		}
 
 		/**
@@ -626,7 +635,7 @@ public class Charts {
 									e.isShiftDown(),
 									e.getClickCount() == 2);
 						} else if (data.getExtraValue() instanceof ProjectImageEntry<?> pie && e.getClickCount() == 2) {
-							Charts.tryToOpen((ProjectImageEntry<BufferedImage>) pie);
+							Charts.tryToOpen((ProjectImageEntry<BufferedImage>) pie, viewer);
 						}
 					});
 				}
@@ -743,34 +752,6 @@ public class Charts {
 		
 	}
 
-
-	/**
-	 * Create a {@link ScatterChartBuilder} for generating a custom scatter plot.
-	 * @return the builder
-	 */
-	public static ScatterChartBuilder scatterChart() {
-		return new ScatterChartBuilder();
-	}
-
-	public static BoxplotChartBuilder boxPlot() {
-		return new BoxplotChartBuilder();
-	}
-
-	/**
-	 * Create a {@link PieChartBuilder} for generating a custom pie chart.
-	 * @return the builder
-	 */
-	public static PieChartBuilder pieChart() {
-		return new PieChartBuilder();
-	}
-
-	/**
-	 * Create a {@link ScatterChartBuilder} for generating a custom scatter plot.
-	 * @return the builder
-	 */
-	public static BarChartBuilder barChart() {
-		return new BarChartBuilder();
-	}
 
 	abstract static class XYCategoryChartBuilder<T extends XYCategoryChartBuilder<T, S>, S extends XYChart<String, Number>> extends XYChartBuilder<T, S, String, Number> {
 

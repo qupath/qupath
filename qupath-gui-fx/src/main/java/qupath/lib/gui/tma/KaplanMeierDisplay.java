@@ -72,7 +72,7 @@ import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.ChartThresholdPane;
 import qupath.lib.gui.charts.ChartTools;
-import qupath.lib.gui.charts.impl.HistogramChart;
+import qupath.lib.gui.charts.HistogramChart;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.measurements.MeasurementList;

@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.charts.impl;
+package qupath.lib.gui.charts;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;

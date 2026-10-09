@@ -1,4 +1,4 @@
-package qupath.lib.gui.charts.builders;
+package qupath.lib.gui.charts;
 
 import java.util.Collection;
 import javafx.collections.FXCollections;
@@ -7,7 +7,6 @@ import javafx.scene.chart.Axis;
 import javafx.scene.input.MouseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.gui.charts.impl.BoxplotChart;
 import qupath.lib.objects.PathObject;
 
 public class BoxplotChartBuilder extends Charts.XYCategoryChartBuilder<BoxplotChartBuilder, BoxplotChart<String, Number>> {

@@ -56,7 +56,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartThresholdPane;
-import qupath.lib.gui.charts.impl.HistogramChart;
+import qupath.lib.gui.charts.HistogramChart;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;

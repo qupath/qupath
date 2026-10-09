@@ -1,4 +1,4 @@
-package qupath.lib.gui.charts.impl;
+package qupath.lib.gui.charts;
 
 import java.util.List;
 import java.util.Optional;

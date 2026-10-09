@@ -1,4 +1,4 @@
-package qupath.lib.gui.charts.builders;
+package qupath.lib.gui.charts;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -66,11 +66,11 @@ public class BarChartBuilder extends Charts.XYCategoryChartBuilder<BarChartBuild
      * @param data a map of String values to associated numeric values
      * @return this builder
      */
-    public <T extends Number> BarChartBuilder series(String name, Map<String, T> data) {
+    public BarChartBuilder series(String name, Map<String, Number> data) {
         var series = Charts.XYChartBuilder.createSeries(
                 name,
-                data.keySet().toArray(String[]::new),
-                data.values().toArray(Number[]::new),
+                data.keySet().stream().toList(),
+                data.values().stream().toList(),
                 (List<?>) null
         );
         return addSeries(series);
