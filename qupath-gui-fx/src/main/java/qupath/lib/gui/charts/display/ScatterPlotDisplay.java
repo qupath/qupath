@@ -137,6 +137,7 @@ public class ScatterPlotDisplay<T extends PathObject> implements PlotDisplay<T> 
         scatter = (CanvasScatterChart<Number, Number>) Charts.scatterChart()
                 .viewer(QuPathGUI.getInstance().getViewer())
                 .build();
+        scatter.setAnimated(false);
         scatter.setMarkerRadius(pointRadius.get() * 2); // todo radius vs size
         scatter.setMarkerOpacity(pointOpacity.get());
 
