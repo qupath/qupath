@@ -45,6 +45,7 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
@@ -56,12 +57,14 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
+import javafx.util.Callback;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
@@ -72,8 +75,10 @@ import qupath.fx.dialogs.FileChoosers;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
-import qupath.lib.gui.charts.HistogramDisplay;
-import qupath.lib.gui.charts.ScatterPlotDisplay;
+import qupath.lib.gui.charts.display.BoxPlotDisplay;
+import qupath.lib.gui.charts.display.HistogramDisplay;
+import qupath.lib.gui.charts.display.PlotDisplay;
+import qupath.lib.gui.charts.display.ScatterPlotDisplay;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.measure.PathTableData;
@@ -167,8 +172,7 @@ public class SummaryMeasurementTable {
     private final SplitPane splitPane = new SplitPane();
 
     private final TabPane plotTabs = new TabPane();
-    private HistogramDisplay histogramDisplay;
-    private ScatterPlotDisplay scatterPlotDisplay;
+    private final List<PlotDisplay<?>> plotDisplays = new ArrayList<>();
 
     private final Predicate<PathObject> primaryFilter;
 
@@ -204,7 +208,7 @@ public class SummaryMeasurementTable {
      */
     private static BooleanProperty createPartiallyBoundProperty(BooleanProperty prop) {
         var prop2 = new SimpleBooleanProperty(prop.getValue());
-        prop2.addListener((observable, oldValue, newValue) -> prop.setValue(newValue));
+        prop2.addListener((_, _, newValue) -> prop.setValue(newValue));
         return prop2;
     }
 
@@ -215,12 +219,13 @@ public class SummaryMeasurementTable {
 
         findViewer();
         initOverlayVisibilityBinding();
+        initTabPane();
+
         initTable();
 
         synchronizer = new ViewerTableSynchronizer(viewer, hierarchy, table);
 
         initSplitPane();
-        initTabPane();
 
         model.getItems().addListener(this::handleObjectsChanged);
 
@@ -260,13 +265,14 @@ public class SummaryMeasurementTable {
                 options.selectedClassVisibilityModeProperty(),
                 bindToOverlayOptions);
 
-        overlayVisibilityPredicate.addListener((v, o, n) -> model.setPredicate(n));
+        overlayVisibilityPredicate.addListener((_, _, n) -> model.setPredicate(n));
         model.setPredicate(overlayVisibilityPredicate.get());
     }
 
     private void handleObjectsChanged(ListChangeListener.Change<? extends PathObject> c) {
-        histogramDisplay.refreshHistogram();
-        scatterPlotDisplay.refreshScatterPlot();
+        for (PlotDisplay<?> display : plotDisplays) {
+            display.requestReplot();
+        }
     }
 
     /**
@@ -374,15 +380,34 @@ public class SummaryMeasurementTable {
         var tooltipText = model.getHelpText(name);
         TableColumn<PathObject, Number> col = new TableColumn<>(name);
         col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
-        col.setCellFactory(column -> new NumericTableCell<>(getTooltip(tooltipText), histogramDisplay));
+        col.setCellFactory(new Callback<TableColumn<PathObject, Number>, TableCell<PathObject, Number>>() {
+            @Override
+            public TableCell<PathObject, Number> call(TableColumn<PathObject, Number> param) {
+                return new NumericTableCell<>(getTooltip(tooltipText), e -> handleNumericCellEvent(e, param));
+            }
+        });
         return col;
+    }
+
+    private void handleNumericCellEvent(MouseEvent event, TableColumn<?, ?> column) {
+        if (event.isAltDown()) {
+            for (int i = 0; i < plotTabs.getTabs().size(); i++) {
+                if (plotTabs.getTabs().get(i).isSelected()) {
+                    if (plotDisplays.get(i) instanceof HistogramDisplay<?> p) {
+                        p.plotColumn(column.getText());
+                    } else if  (plotDisplays.get(i) instanceof BoxPlotDisplay<?> p) {
+                        p.plotColumn(column.getText());
+                    }
+                }
+            }
+        }
     }
 
     private TableColumn<PathObject, String> createStringTableColumn(String name) {
         var tooltipText = model.getHelpText(name);
         TableColumn<PathObject, String> col = new TableColumn<>(name);
         col.setCellValueFactory(column -> createStringMeasurement(model, column.getValue(), column.getTableColumn().getText()));
-        col.setCellFactory(column -> new BasicTableCell<>(getTooltip(tooltipText)));
+        col.setCellFactory(_ -> new BasicTableCell<>(getTooltip(tooltipText)));
         return col;
     }
 
@@ -390,7 +415,7 @@ public class SummaryMeasurementTable {
         var colThumbnails = new TableColumn<PathObject, PathObject>("Thumbnail");
         colThumbnails.setCellValueFactory(val -> new SimpleObjectProperty<>(val.getValue()));
         colThumbnails.visibleProperty().bind(showThumbnailsProperty);
-        colThumbnails.setCellFactory(column -> PathObjectImageViewers.createTableCell(
+        colThumbnails.setCellFactory(_ -> PathObjectImageViewers.createTableCell(
                 viewer, imageData.getServer(), true, thumbnailPadding));
         return colThumbnails;
     }
@@ -400,7 +425,7 @@ public class SummaryMeasurementTable {
         tfColumnFilter.useRegexProperty().bindBidirectional(useRegexColumnFilter);
 
         var columnFilter = tfColumnFilter.predicateProperty();
-        columnFilter.addListener((v, o, n) -> {
+        columnFilter.addListener((_, _, n) -> {
             for (TableColumn<?, ?> col : table.getColumns()) {
                 if (col == colThumbnails || col.visibleProperty().isBound()) // Retain thumbnails
                     continue;
@@ -418,7 +443,7 @@ public class SummaryMeasurementTable {
         if (primaryFilter == PathObjectFilter.TMA_CORES) {
             CheckBox cbHideMissing = new CheckBox(QuPathResources.getString("Measure.MeasurementTable.hideMissingCores"));
             paneFilter.add(cbHideMissing, 2, 0);
-            cbHideMissing.selectedProperty().addListener((v, o, n) -> {
+            cbHideMissing.selectedProperty().addListener((_, _, n) -> {
                 if (n) {
                     model.setPredicate(p -> (!(p instanceof TMACoreObject)) || !((TMACoreObject)p).isMissing());
                 } else
@@ -444,7 +469,6 @@ public class SummaryMeasurementTable {
         var label = new Label();
         label.textProperty().bind(Bindings.createStringBinding(this::getObjectCountText, table.getItems()));
         label.setAlignment(Pos.CENTER_RIGHT);
-//        label.setPrefWidth(120);
         label.setMaxWidth(Double.MAX_VALUE);
         label.setPadding(new Insets(0, 5, 0, 5));
         return new BorderPane(label);
@@ -465,28 +489,30 @@ public class SummaryMeasurementTable {
     }
 
 
+    void createAndAddTab(PlotDisplay<?> display, String key) {
+        plotDisplays.add(display);
+        Tab histTab = new Tab(
+                QuPathResources.getString(key),
+                display.getPane());
+        histTab.setClosable(false);
+        plotTabs.getTabs().add(histTab);
+        FXUtils.makeTabUndockable(histTab);
+    }
+
     private void initTabPane() {
-        histogramDisplay = new HistogramDisplay(model, true);
-        scatterPlotDisplay = new ScatterPlotDisplay();
+        createAndAddTab(new HistogramDisplay<>(model, true), "Measure.MeasurementTable.histogram");
+        createAndAddTab(new ScatterPlotDisplay<>(), "Measure.MeasurementTable.scatterPlot");
+        createAndAddTab(new BoxPlotDisplay<>(model), "Measure.MeasurementTable.boxPlot");
 
-        Tab tabHistogram = new Tab(QuPathResources.getString("Measure.MeasurementTable.histogram"), histogramDisplay.getPane());
-        tabHistogram.setClosable(false);
-        plotTabs.getTabs().add(tabHistogram);
-
-        Tab tabScatter = new Tab(QuPathResources.getString("Measure.MeasurementTable.scatterPlot"), scatterPlotDisplay.getPane());
-        tabScatter.setClosable(false);
-        plotTabs.getTabs().add(tabScatter);
-
-        plotTabs.getSelectionModel().selectFirst();
-
-        // We want to set the scatterpane only if it is shown
-        tabScatter.selectedProperty().addListener((v, o, n) -> {
-            if (n)
-                scatterPlotDisplay.setModel(model);
+        // show scatterplot only if the tab is visible
+        plotTabs.getSelectionModel().selectedIndexProperty().addListener((_, _, n) -> {
+            for (int i = 0; i < plotTabs.getTabs().size(); i++) {
+                if (plotDisplays.get(i) instanceof ScatterPlotDisplay spd) {
+                    spd.setModel(model);
+                }
+            }
         });
-
-        FXUtils.makeTabUndockable(tabHistogram);
-        FXUtils.makeTabUndockable(tabScatter);
+        plotTabs.getSelectionModel().selectFirst();
     }
 
     private Action actionShowPlots;
@@ -793,8 +819,9 @@ public class SummaryMeasurementTable {
             updateObjects();
         } else {
             table.refresh();
-            histogramDisplay.refreshHistogram();
-            scatterPlotDisplay.refreshScatterPlot();
+            for (var plot: plotDisplays) {
+                plot.requestReplot();
+            }
         }
     }
 
