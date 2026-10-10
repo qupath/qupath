@@ -33,6 +33,7 @@ import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.chart.AreaChart;
 import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.StackedAreaChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -107,8 +108,12 @@ class MemoryMonitorDialog {
 	private static final double scaleGB = scaleMB/1024.0;
 	
 	private final MemoryService service = new MemoryService();
-	
+
 	MemoryMonitorDialog(QuPathGUI qupath) {
+		this(qupath, true);
+	}
+
+	MemoryMonitorDialog(QuPathGUI qupath, boolean useStackedAreas) {
 		this.qupath = qupath;
 
 		// Create a chart to show how memory use evolves over time
@@ -116,7 +121,14 @@ class MemoryMonitorDialog {
 		xAxis.setLabel(QuPathResources.getString("Commands.MemoryMonitor.time"));
 		var yAxis = new NumberAxis();
 		yAxis.setLabel(QuPathResources.getString("Commands.MemoryMonitor.memory"));
-		var chart = new AreaChart<>(xAxis, yAxis);
+		XYChart<Number, Number> chart;
+		if (useStackedAreas) {
+			chart = new StackedAreaChart<>(xAxis, yAxis);
+			((StackedAreaChart)chart).setCreateSymbols(false);
+		} else {
+			chart = new AreaChart<>(xAxis, yAxis);
+			((AreaChart)chart).setCreateSymbols(false);
+		}
 		yAxis.setAutoRanging(false);
 		yAxis.setLowerBound(0.0);
 		yAxis.setTickUnit(1.0);
@@ -162,13 +174,12 @@ class MemoryMonitorDialog {
 				),
 				usedMemory
 		));
-		chart.getData().add(seriesTotal);
-		chart.getData().add(seriesUsed);
 		chart.getData().add(seriesTileCache);
+		chart.getData().add(seriesUsed);
+		chart.getData().add(seriesTotal);
 		chart.setLegendVisible(true);
 		chart.setLegendSide(Side.TOP);
 		chart.setAnimated(false);
-		chart.setCreateSymbols(false);
 
 		// Add it button to make it possible to clear the tile cache
 		Label labelCacheFill = new Label();
@@ -246,6 +257,7 @@ class MemoryMonitorDialog {
 		var btnReset = new Button(QuPathResources.getString("Commands.MemoryMonitor.resetMonitor"));
 		btnReset.setOnAction(e -> {
 			startTimeMillis = 0L;
+			seriesTileCache.getData().clear();
 			seriesUsed.getData().clear();
 			seriesTotal.getData().clear();
 		});
@@ -326,9 +338,17 @@ class MemoryMonitorDialog {
 			cachedTiles.set(n.numCachedTiles());
 			
 			long time = (timeMillis.get() - startTimeMillis) / 1000;
-			seriesTileCache.getData().add(new XYChart.Data<>(time, cacheSizeBytes.get() * scaleGB));
-			seriesUsed.getData().add(new XYChart.Data<>(time, usedMemory.get() * scaleGB));
-			seriesTotal.getData().add(new XYChart.Data<>(time, totalMemory.get() * scaleGB));
+			double tileCacheValue = cacheSizeBytes.get() * scaleGB;
+			double usedMemoryValue = usedMemory.get() * scaleGB;
+			double totalMemoryValue = totalMemory.get() * scaleGB;
+			seriesTileCache.getData().add(new XYChart.Data<>(time, tileCacheValue));
+			if (chart instanceof StackedAreaChart) {
+				seriesUsed.getData().add(new XYChart.Data<>(time, usedMemoryValue - tileCacheValue));
+				seriesTotal.getData().add(new XYChart.Data<>(time, totalMemoryValue - usedMemoryValue));
+			} else {
+				seriesUsed.getData().add(new XYChart.Data<>(time, usedMemoryValue));
+				seriesTotal.getData().add(new XYChart.Data<>(time, totalMemoryValue));
+			}
 		});
 
 		// Show the GUI
