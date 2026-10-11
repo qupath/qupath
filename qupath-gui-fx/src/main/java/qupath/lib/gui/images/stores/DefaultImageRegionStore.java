@@ -23,10 +23,15 @@
 
 package qupath.lib.gui.images.stores;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Policy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.cache.GenericImageCache;
+import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelType;
@@ -67,9 +72,70 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	// accumulate the requests in a queue.
 	private final BlockingDeque<Request> requestQueue = new LinkedBlockingDeque<>();
 
+	// A cache to store images converted to RGB for display.
+	// Because display settings change frequently (e.g., brightness/contrast) we don't want to use the main ImageCache:
+	// we'd fill it up too quickly, and lose some of the caching benefits.
+	// Also, because display transforms are *quite* quick to compute (but not so fast that they can be calculated
+	// on every repaint without lag), the cache can be synchronous and use soft references.
+	private final Cache<RegionRequest, BufferedImage> displayCache;
+
 	private DefaultImageRegionStore(GenericImageCache<BufferedImage> cache, int thumbnailWidth) {
 		super(cache, thumbnailWidth);
 		Thread.ofVirtual().name("tile-requestor").start(this::processRequests);
+		long displayCacheSize = calculateDisplayCacheSize();
+		logger.info("Display cache size: {} MB", GeneralTools.formatNumber(displayCacheSize / (1024.0 * 1024.0), 1));
+		displayCache = Caffeine.newBuilder()
+				.weigher(DefaultImageRegionStore::weighRGB)
+				.maximumWeight(calculateDisplayCacheSize())
+				.initialCapacity(1024)
+				.softValues()
+				.build();
+	}
+
+	private static long calculateDisplayCacheSize() {
+		// Default to 500 MB.
+		// That could store over 10k x 10k pixels of an RGB image, which would be enough for a few
+		// ultra-high resolution monitors...
+		long defaultMaxSize = 500L * 1024L * 1024L;
+		Runtime rt = Runtime.getRuntime();
+		long maxAvailable = rt.maxMemory(); // Max available memory
+		if (maxAvailable == Long.MAX_VALUE) {
+			return defaultMaxSize;
+		}
+		// 10% of memory, between 100 MB and 2 GB
+		return Math.clamp(maxAvailable / 10, 100L * 1024L * 1024L, 2048L * 1024L * 1024L);
+	}
+
+	/**
+	 * Get the maximum size of the display cache.
+	 * This is distinct from {@link ImageCache}, and used only for storing RGB versions of image tiles to
+	 * improve viewer performance.
+	 * @return the maximum size of the display cache
+	 * @see #setDisplayCacheMaxSizeBytes(long)
+	 */
+	public long getDisplayCacheMaxSizeBytes() {
+        return displayCache.policy().eviction().map(Policy.Eviction::getMaximum).orElse(0L);
+    }
+
+	/**
+	 * Set the maximum size of the display cache.
+	 * This is distinct from {@link ImageCache}, and used only for storing RGB versions of image tiles to
+	 * improve viewer performance.
+	 * @return the maximum size of the display cache
+	 * @see #getDisplayCacheMaxSizeBytes()
+	 */
+	public void setDisplayCacheMaxSizeBytes(long maxSize) {
+		displayCache.policy().eviction().ifPresent(e -> e.setMaximum(Math.max(0L, maxSize)));
+	}
+
+	private static int weighRGB(RegionRequest request, BufferedImage img) {
+		long weight = 4L * img.getWidth() * img.getHeight();
+		if (weight > Integer.MAX_VALUE) {
+			logger.warn("Very large RGB image detected: {} x {}", img.getWidth(), img.getHeight());
+			return Integer.MAX_VALUE;
+		} else {
+			return Math.toIntExact(weight);
+		}
 	}
 
 	DefaultImageRegionStore(GenericImageCache<BufferedImage> cache) {
@@ -243,11 +309,11 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 			// If we have an image, paint it & record coordinates
 			// Apply any required color transformations
 			if (useDisplayCache) {
-				// Apply transforms, creating & caching new temp images
+				// Apply transforms, creating & caching an RGB image to speed things up next time
 				RegionRequest requestCache = RegionRequest.createInstance(displayCachePath, request.getDownsample(), request);
-				imgToDraw = getCache().asMap().computeIfAbsent(requestCache, _ -> toRGB(img, imageDisplay));
+				imgToDraw = displayCache.get(requestCache, _ -> toRGB(img, imageDisplay));
 			} else if (imageDisplay != null) {
-				// Apply transforms, trying to reuse temp image
+				// Apply transforms, trying to reuse the same output image
 				// Note: this assumes pixels can't be transparent
 				imgToDraw = toRGB(img, imageDisplay, imgToDraw);
 			} else {
