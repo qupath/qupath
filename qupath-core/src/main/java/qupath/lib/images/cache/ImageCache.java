@@ -1,7 +1,9 @@
 package qupath.lib.images.cache;
 
+import ij.plugin.Memory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.MemoryTools;
 import qupath.lib.common.ThreadTools;
 
 import java.awt.image.BufferedImage;
@@ -59,16 +61,10 @@ public class ImageCache extends GenericImageCache<BufferedImage> {
 
     /**
      * Get a sensible default cache size, in bytes.
-     * @return half the number of bytes available, if known, or 8 GB otherwise.
+     * @return a quarter of the maximum available memory, if known, or 4 GB otherwise (this is subject to change)
      */
     private static long getDefaultMaxSizeBytes() {
-        Runtime rt = Runtime.getRuntime();
-        long maxAvailable = rt.maxMemory(); // Max available memory
-        if (maxAvailable == Long.MAX_VALUE) {
-            logger.warn("No inherent maximum memory set - for caching purposes, will assume 16 GB");
-            maxAvailable = 16L * 1024L * 1024L * 1024L;
-        }
-        return maxAvailable / 2;
+        return MemoryTools.getMaxMemoryPercent(25).orElse(MemoryTools.gigabytesToBytes(4));
     }
 
     /**

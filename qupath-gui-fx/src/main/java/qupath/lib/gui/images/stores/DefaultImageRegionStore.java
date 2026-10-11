@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.MemoryTools;
 import qupath.lib.images.cache.GenericImageCache;
 import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ImageServer;
@@ -93,17 +94,14 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	}
 
 	private static long calculateDisplayCacheSize() {
-		// Default to 500 MB.
+		// 10% of memory, clamped between 100 MB and 2 GB.
+		// If unknown, default to 500 MB.
 		// That could store over 10k x 10k pixels of an RGB image, which would be enough for a few
 		// ultra-high resolution monitors...
-		long defaultMaxSize = 500L * 1024L * 1024L;
-		Runtime rt = Runtime.getRuntime();
-		long maxAvailable = rt.maxMemory(); // Max available memory
-		if (maxAvailable == Long.MAX_VALUE) {
-			return defaultMaxSize;
-		}
-		// 10% of memory, between 100 MB and 2 GB
-		return Math.clamp(maxAvailable / 10, 100L * 1024L * 1024L, 2048L * 1024L * 1024L);
+		return Math.clamp(
+				MemoryTools.getMaxMemoryPercent(10.0).orElse(MemoryTools.megabytesToBytes(500)),
+				MemoryTools.megabytesToBytes(100),
+				MemoryTools.gigabytesToBytes(2));
 	}
 
 	/**

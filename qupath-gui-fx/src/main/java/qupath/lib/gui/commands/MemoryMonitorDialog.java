@@ -49,6 +49,7 @@ import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
+import qupath.lib.common.MemoryTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -132,7 +133,7 @@ class MemoryMonitorDialog {
 		yAxis.setAutoRanging(false);
 		yAxis.setLowerBound(0.0);
 		yAxis.setTickUnit(1.0);
-		yAxis.setUpperBound(Math.ceil(Runtime.getRuntime().maxMemory() * scaleGB));
+		yAxis.setUpperBound(Math.ceil(MemoryTools.getMaxMemory() * scaleGB));
 		xAxis.setAutoRanging(false);
 		xAxis.tickUnitProperty().bind(Bindings.createLongBinding(() -> {
 			var seconds = (timeMillis.get() - startTimeMillis) / 1000;
@@ -265,7 +266,6 @@ class MemoryMonitorDialog {
 
 		// Add a text field to adjust the number of parallel threads
 		// This is handy to scale back memory use when running things like cell detection
-		var runtime = Runtime.getRuntime();
 		var labThreads = new Label(QuPathResources.getString("Commands.MemoryMonitor.parallelThreads"));
 		var tfThreads = new TextField(Integer.toString(PathPrefs.numCommandThreadsProperty().get()));
 		PathPrefs.numCommandThreadsProperty().addListener((v, o, n) -> {
@@ -290,7 +290,7 @@ class MemoryMonitorDialog {
 		paneRight.add(
 				new Label(MessageFormat.format(
 						QuPathResources.getString("Commands.MemoryMonitor.availableProcessors"),
-						runtime.availableProcessors()
+						Runtime.getRuntime().availableProcessors()
 				)),
 				col,
 				row++,
@@ -397,10 +397,9 @@ class MemoryMonitorDialog {
 
 		@Override
 		protected MemorySnapshot call() {
-			var runtime = Runtime.getRuntime();
-			long totalMemory = runtime.totalMemory();
-			long maxMemory = runtime.maxMemory();
-			long usedMemory = totalMemory - runtime.freeMemory();
+			long totalMemory = MemoryTools.getCurrentTotalMemory();
+			long maxMemory = MemoryTools.getMaxMemory();
+			long usedMemory = MemoryTools.getCurrentUsedMemory();
 			long undoRedoSizeBytes = qupath.getUndoRedoManager().totalBytes();
 			var cache = ImageCache.getSharedInstance();
 			return new MemorySnapshot(
