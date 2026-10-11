@@ -277,7 +277,7 @@ public class GenericImageCache<T> {
     /**
      * Submit an image tile request for an image server, returning a completable future that can be used to get the tile.
      *
-     * @param request the request; note that {@link RegionRequest#getPath()} should make {@link ImageServer#getPath()}
+     * @param request the request; note that {@link RegionRequest#getPath()} should match {@link ImageServer#getPath()}
      *                and uniquely distinguish the server providing these tiles.
      *                If the server should be required to return <i>different</i> tiles, then its path needs to change.
      * @param server  the server that can provide the tile
