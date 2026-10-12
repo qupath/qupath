@@ -34,11 +34,11 @@
 
 ### Dependency updates
 * Bio-Formats 8.5.0
-* Commonmark 0.30.0
+* Commonmark 0.30.1
 * ControlsFX 11.2.6
 * DeepJavaLibrary 0.38.0
-* Groovy 5.1.2
-* Guava 33.7.1
+* Groovy 6.0.0
+* Guava 33.7.2
 * JavaCPP 1.5.13
 * JavaFX 27
 * Logback 1.6.1
