@@ -150,7 +150,7 @@ public class IJTools {
 		long approxMemory = (long) approxPixelCount * bytesPerPixel;
 		
 		// Compute the available memory
-		long presumableFreeMemory = MemoryTools.getTotalFreeMemory();
+		long presumableFreeMemory = MemoryTools.getTotalFreeMemory().orElse(MemoryTools.getCurrentFreeMemory());
 		
 		// Prepare pretty formatting if needed
 		DecimalFormat df = new DecimalFormat("00.00");

@@ -48,8 +48,8 @@ class ImageJServerUtils {
 
         // Open as a virtual stack if we have 1) a TIFF, with 2) multiple slices and 3) a large file size -
         // otherwise try to open directly (which is much faster if memory permits)
-        var maxMemory = MemoryTools.getMaxMemory();
-        long availableMemory = MemoryTools.getTotalFreeMemory();
+        var maxMemory = MemoryTools.getMaxMemoryOrDefault(MemoryTools.gigabytesToBytes(16));
+        long availableMemory = MemoryTools.getTotalFreeMemory().orElse(MemoryTools.getCurrentFreeMemory());
         if (file != null && path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
             // Because ImageJ only supports uncompressed TIFFs, we simply use the file size
             // There is some questionable logic here to try to open virtual stacks at appropriate times

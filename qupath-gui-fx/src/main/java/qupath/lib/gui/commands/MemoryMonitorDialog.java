@@ -84,6 +84,10 @@ class MemoryMonitorDialog {
 
 	private final Stage stage;
 
+	// It's very unlikely (impossibly?) that no max memory is available, but we certainly can't use Long.MAX_VALUE,
+	// so we need some kind of sensible default to set axes.
+	private final long DEFAULT_MAX_MEMORY = MemoryTools.gibibytesToBytes(64L);
+
 	private final XYChart.Series<Number, Number> seriesTileCache = new XYChart.Series<>();
 	private final XYChart.Series<Number, Number> seriesUsed = new XYChart.Series<>();
 	private final XYChart.Series<Number, Number> seriesTotal = new XYChart.Series<>();
@@ -105,8 +109,9 @@ class MemoryMonitorDialog {
 	private final LongProperty undoRedoSizeBytes = new SimpleLongProperty();
 
 	// Let's sometimes scale to MB, sometimes to GB
-	private static final double scaleMB = 1.0/1024.0/1024.0;
-	private static final double scaleGB = scaleMB/1024.0;
+	// Change for v0.8: use 1000, rather than 1024
+	private static final double scaleMB = 1.0/1000.0/1000.0;
+	private static final double scaleGB = scaleMB/1000.0;
 	
 	private final MemoryService service = new MemoryService();
 
@@ -133,7 +138,7 @@ class MemoryMonitorDialog {
 		yAxis.setAutoRanging(false);
 		yAxis.setLowerBound(0.0);
 		yAxis.setTickUnit(1.0);
-		yAxis.setUpperBound(Math.ceil(MemoryTools.getMaxMemory() * scaleGB));
+		yAxis.setUpperBound(Math.ceil(MemoryTools.getMaxMemoryOrDefault(DEFAULT_MAX_MEMORY) * scaleGB));
 		xAxis.setAutoRanging(false);
 		xAxis.tickUnitProperty().bind(Bindings.createLongBinding(() -> {
 			var seconds = (timeMillis.get() - startTimeMillis) / 1000;
@@ -343,8 +348,8 @@ class MemoryMonitorDialog {
 			double totalMemoryValue = totalMemory.get() * scaleGB;
 			seriesTileCache.getData().add(new XYChart.Data<>(time, tileCacheValue));
 			if (chart instanceof StackedAreaChart) {
-				seriesUsed.getData().add(new XYChart.Data<>(time, usedMemoryValue - tileCacheValue));
-				seriesTotal.getData().add(new XYChart.Data<>(time, totalMemoryValue - usedMemoryValue));
+				seriesUsed.getData().add(new XYChart.Data<>(time, Math.max(0, usedMemoryValue - tileCacheValue)));
+				seriesTotal.getData().add(new XYChart.Data<>(time, Math.max(0, totalMemoryValue - usedMemoryValue)));
 			} else {
 				seriesUsed.getData().add(new XYChart.Data<>(time, usedMemoryValue));
 				seriesTotal.getData().add(new XYChart.Data<>(time, totalMemoryValue));
@@ -398,7 +403,7 @@ class MemoryMonitorDialog {
 		@Override
 		protected MemorySnapshot call() {
 			long totalMemory = MemoryTools.getCurrentTotalMemory();
-			long maxMemory = MemoryTools.getMaxMemory();
+			long maxMemory = MemoryTools.getMaxMemoryOrDefault(DEFAULT_MAX_MEMORY);
 			long usedMemory = MemoryTools.getCurrentUsedMemory();
 			long undoRedoSizeBytes = qupath.getUndoRedoManager().totalBytes();
 			var cache = ImageCache.getSharedInstance();

@@ -21,6 +21,7 @@
 
 package qupath.lib.common;
 
+import java.util.Optional;
 import java.util.OptionalLong;
 
 /**
@@ -55,18 +56,18 @@ public class MemoryTools {
     /**
      * Get the total free memory in the Java virtual machine that could potentially be allocated.
      * This is calculated as {@code getMaxMemory() - getUsedMemory()} if the max memory is available.
-     * Otherwise, it returns the same as {@code getAvailableFreeMemory()}.
-     * @return the total free memory, in bytes
+     * Otherwise, it returns an empty optional.
+     * @return the total free memory, in bytes, or an empty optional if the maximum is unavailable.
      * @see #getCurrentFreeMemory()
      * @see #getMaxMemory()
      * @see #getCurrentUsedMemory()
      */
-    public static long getTotalFreeMemory() {
+    public static OptionalLong getTotalFreeMemory() {
         var maxMemory = getMaxMemory();
-        if (isValidMaxMemory(maxMemory)) {
-            return maxMemory - getCurrentUsedMemory();
+        if (maxMemory.isPresent()) {
+            return OptionalLong.of(maxMemory.getAsLong() - getCurrentUsedMemory());
         } else {
-            return getCurrentFreeMemory();
+            return OptionalLong.empty();
         }
     }
 
@@ -82,25 +83,32 @@ public class MemoryTools {
     }
 
     /**
-     * Get the maximum memory that the Java virtual machine will attempt to use.
+     * Get the maximum memory that the Java virtual machine will attempt to use, if available.
      * <p>
      * This is set when QuPath is started, and is a useful value when determining cache sizes.
      * Conceivably, it may not be known if no limit has been set.
-     * @return the maximum memory, in bytes, or {@link Long#MAX_VALUE} if this is not specified.
-     * @see Runtime#maxMemory() ()
-     * @see #maxMemoryKnown()
+     * @return an optional containing maximum memory in bytes, or an empty optional if this is not specified.
+     * @see Runtime#maxMemory()
+     * @see #getMaxMemoryOrDefault(long)
      */
-    public static long getMaxMemory() {
-        return Runtime.getRuntime().maxMemory();
+    public static OptionalLong getMaxMemory() {
+        var maxMemory = Runtime.getRuntime().maxMemory();
+        if (isValidMaxMemory(maxMemory)) {
+            return OptionalLong.of(maxMemory);
+        } else {
+            return OptionalLong.empty();
+        }
     }
 
     /**
-     * Query if the maximum memory is known.
-     * @return true if {@link #getMaxMemory()} returns a valid value, false otherwise (i.e. there is no specified max).
-     * @see #maxMemoryKnown()
+     * Get the maximum memory that the Java virtual machine will attempt to use, if available,
+     * or the default value if no maximum has been specified.
+     * @return the max memory in bytes, or the default value if this is unknown
+     * @see Runtime#maxMemory()
+     * @see #getMaxMemory()
      */
-    public static boolean maxMemoryKnown() {
-        return isValidMaxMemory(getMaxMemory());
+    public static long getMaxMemoryOrDefault(long defaultMaxMemoryBytes) {
+        return getMaxMemory().orElse(defaultMaxMemoryBytes);
     }
 
     /**
@@ -108,19 +116,32 @@ public class MemoryTools {
      * This returns an {@link OptionalLong} so that a default value can easily be used if the maximum memory is unknown.
      * @param percent the percentage
      * @return an optional containing the requested memory value in bytes, or an empty optional if
-     *         {@link #maxMemoryKnown()} is {@code false}.
+     *         {@link #getMaxMemory()} is empty.
      * @throws IllegalArgumentException if percent is less than 0 or greater than 100.
+     * @see #getMemoryPercent(long, double)
      */
     public static OptionalLong getMaxMemoryPercent(double percent) throws IllegalArgumentException {
         var maxMemory = getMaxMemory();
-        if (percent < 0 || percent > 100) {
-            throw new IllegalArgumentException("Percent must be between 0 and 100, not " + percent);
-        }
-        if (isValidMaxMemory(maxMemory)) {
-            return OptionalLong.of(Math.round(maxMemory * (percent / 100.0)));
+        if (maxMemory.isPresent()) {
+            return OptionalLong.of(getMemoryPercent(maxMemory.getAsLong(), percent));
         } else {
             return OptionalLong.empty();
         }
+    }
+
+    /**
+     * Get a percentage of the specified memory.
+     * @param bytes the original input value
+     * @param percent the percentage
+     * @return the value of bytes, multiplied by {@code percent / 100} and rounded
+     * @throws IllegalArgumentException if percent is less than 0 or greater than 100, or bytes is less than 0
+     * @see #getMaxMemoryPercent(double)
+     */
+    public static long getMemoryPercent(long bytes, double percent) {
+        if (percent < 0 || percent > 100 || bytes < 0) {
+            throw new IllegalArgumentException("Percent must be between 0 and 100, not " + percent);
+        }
+        return Math.round(bytes * percent / 100.0);
     }
 
     private static boolean isValidMaxMemory(long maxMemory) {

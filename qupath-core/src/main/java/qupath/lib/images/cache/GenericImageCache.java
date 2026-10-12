@@ -9,6 +9,7 @@ import com.github.benmanes.caffeine.cache.Weigher;
 import org.apache.commons.math3.stat.descriptive.SynchronizedSummaryStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.MemoryTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
@@ -159,12 +160,13 @@ public class GenericImageCache<T> {
      * @param percentage the percentage of RAM to use for caching; this should be between 10 and 90.
      */
     public void setMaxSizeByPercent(double percentage) {
-        // Try to compute a sensible value...
-        Runtime rt = Runtime.getRuntime();
-        long maxAvailable = rt.maxMemory(); // Max available memory
-        if (maxAvailable == Long.MAX_VALUE) {
+        var maxAvailable = MemoryTools.getMaxMemory();
+        long maxMemory;
+        if (maxAvailable.isPresent()) {
             logger.warn("No inherent maximum memory set - for caching purposes, will assume 64 GB");
-            maxAvailable = 64L * 1024L * 1024L * 1024L;
+            maxMemory = MemoryTools.gibibytesToBytes(64L);
+        } else {
+            maxMemory = maxAvailable.getAsLong();
         }
         if (percentage < 10) {
             logger.warn("At least 10% of available memory needs to be used for tile caching (you requested {}%)", percentage);
@@ -173,7 +175,7 @@ public class GenericImageCache<T> {
             logger.warn("No more than 90% of available memory can be used for tile caching (you requested {}%)", percentage);
             percentage = 90;
         }
-        long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
+        long tileCacheSize = MemoryTools.getMemoryPercent(maxMemory, percentage);
         logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));
         setMaxSizeBytes(tileCacheSize);
     }

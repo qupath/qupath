@@ -266,10 +266,10 @@ class ExtractRegionCommand implements Runnable {
 			
 			// TODO: Perform calculation based on actual amount of available memory
 			System.gc();
-			long availableMemory = MemoryTools.getTotalFreeMemory();
+			long availableMemory = MemoryTools.getTotalFreeMemory().orElse(MemoryTools.getCurrentFreeMemory());
 			if (memory >= availableMemory * 0.95) {
 				System.gc();
-				availableMemory = MemoryTools.getTotalFreeMemory();
+				availableMemory = MemoryTools.getTotalFreeMemory().orElse(MemoryTools.getCurrentFreeMemory());
 			}
 			if (memory >= availableMemory * 0.95) {
 				logger.error("Cannot extract region {} - estimated size is too large (approx. {} MB)", pathObject, GeneralTools.formatNumber(memory / (1024.0 * 1024.0), 2));
