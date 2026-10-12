@@ -36,6 +36,7 @@ import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
 import java.awt.Color;
@@ -46,6 +47,7 @@ import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.BlockingDeque;
@@ -175,7 +177,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 		List<RequestedTile> workers = new ArrayList<>();
 		BufferedImage imgTemp = null;
 
-		for (RegionRequest request : ImageRegionStoreHelpers.getTilesToRequest(server, clipShapeVisible, downsampleFactor, zPosition, tPosition, null)) {
+		for (RegionRequest request : getTilesToRequest(server, clipShapeVisible, downsampleFactor, zPosition, tPosition, null)) {
 
 			if (server.isEmptyRegion(request)) {
 				continue;
@@ -255,7 +257,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 		boolean isComplete = true;
 
 		// Check if we have all the regions required for this request
-		List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(server, clipShapeVisible, downsampleFactor, zPosition, tPosition, null);
+		List<RegionRequest> requests = getTilesToRequest(server, clipShapeVisible, downsampleFactor, zPosition, tPosition, null);
 
 		// If we should be painting recursively, ending up with the thumbnail, do so
 		if (imgThumbnail != null) {
@@ -401,5 +403,46 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	}
 
 
+
+		private static double distanceToCentroid(ImageRegion r, double x, double y) {
+		double dx = x - (r.getMinX() + r.getWidth() / 2.0);
+		double dy = y - (r.getMinY() + r.getHeight() / 2.0);
+		return (dx * dx) + (dy * dy);
+	}
+
+
+	/**
+	 * Given ImageServer, determine the boundaries of the image tiles that would be needed to paint
+	 * a specified shape (defined by coordinates in the full-resolution image space).
+	 * The downsampleFactor is used to determine the resolution at which to request the tiles.
+	 *
+	 * @param server The ImageServer from which the tiles would be requested
+	 * @param clipShape The requested shape, defined in the full-resolution image space
+	 * @param downsampleFactor The downsampleFactor determining the resolution at which tiles should be requested
+	 * @param zPosition The zPosition from which to request tiles
+	 * @param tPosition The tPosition from which to request tiles
+	 * @param regions regions The list to which requests should be added, or null if a new list should be created
+	 * @return The list of requests - identical to the one provided as an input parameter, unless this was null
+	 */
+	public static List<RegionRequest> getTilesToRequest(ImageServer<?> server, Shape clipShape, double downsampleFactor, int zPosition, int tPosition, List<RegionRequest> regions) {
+
+		if (server == null)
+			return List.of();
+
+		var request = RegionRequest.createInstance(server.getPath(), downsampleFactor, AwtTools.getImageRegion(clipShape, zPosition, tPosition));
+
+		if (regions == null)
+			regions = new ArrayList<>();
+
+		for (var tile : server.getTileRequestManager().getTileRequests(request))
+			regions.add(tile.getRegionRequest());
+
+		double x = request.getX() + request.getWidth() / 2.0;
+		double y = request.getY() + request.getHeight() / 2.0;
+
+		regions.sort(Comparator.comparingDouble(r -> distanceToCentroid(r, x, y)));
+
+		return regions;
+	}
 
 }

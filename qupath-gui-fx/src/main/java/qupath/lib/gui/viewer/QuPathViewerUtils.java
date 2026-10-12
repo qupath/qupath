@@ -6,7 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.images.stores.ImageRegionStoreHelpers;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -258,7 +258,7 @@ class QuPathViewerUtils {
         int t = viewer.getTPosition();
         var regionStore = viewer.getImageRegionStore();
         var imageDisplay = viewer.getImageDisplay();
-        RegionRequest request = ImageRegionStoreHelpers.getTileRequest(server, xx, yy, viewer.getDownsampleFactor(),
+        RegionRequest request = getTileRequest(server, xx, yy, viewer.getDownsampleFactor(),
                 z, t);
         if (request != null) {
             BufferedImage img = regionStore.getCache().getIfPresent(request);
@@ -320,8 +320,23 @@ class QuPathViewerUtils {
             return String.format("%s%.2f, %.2f %s%s", prefix, xDisplay, yDisplay, units, dimensionString);
     }
 
+
+    private static RegionRequest getTileRequest(ImageServer<BufferedImage> server, double x, double y, double downsampleFactor, int zPosition, int tPosition) {
+		int serverWidth = server.getWidth();
+		int serverHeight = server.getHeight();
+		if (x < 0 || y < 0 || x >= serverWidth || y >= serverHeight)
+			return null;
+
+		int level = ServerTools.getPreferredResolutionLevel(server, downsampleFactor);
+		var tile = server.getTileRequestManager()
+				.getTileRequest(level, (int)x, (int)y, zPosition, tPosition);
+
+		return tile == null ? null : tile.getRegionRequest();
+	}
+
+
     static String getFullLocationString(QuPathViewer viewer, double mouseX, double mouseY, boolean useCalibratedUnits) {
-        if (!viewer.componentContains(mouseX, mouseY)) {
+        if (viewer.componentContains(mouseX, mouseY)) {
             Point2D p = viewer.componentPointToImagePoint(mouseX, mouseY, null, false);
             double x = p.getX();
             double y = p.getY();
@@ -339,7 +354,7 @@ class QuPathViewerUtils {
                     .filter(Objects::nonNull)
                     .collect(Collectors.joining("\n"));
 
-classString = classString + "\n";
+            classString = classString + "\n";
 
             if (!overlayStrings.isBlank())
                 overlayStrings = overlayStrings + "\n";
