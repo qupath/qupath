@@ -3,7 +3,7 @@ package qupath.lib.gui.viewer;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import qupath.lib.gui.images.stores.DefaultImageRegionStore;
+import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.viewer.overlays.GridOverlay;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;

@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.images.stores;
+package qupath.lib.images.stores;
 
 import java.util.Arrays;
 import org.slf4j.Logger;

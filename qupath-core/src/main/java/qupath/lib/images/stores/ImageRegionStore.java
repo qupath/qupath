@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.images.stores;
+package qupath.lib.images.stores;
 
 import qupath.lib.images.cache.GenericImageCache;
 import qupath.lib.images.servers.ImageServer;

@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.images.stores;
+package qupath.lib.images.stores;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
@@ -34,6 +34,7 @@ import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -88,7 +89,7 @@ public class ImageRegionStoreHelpers {
 		double x = request.getX() + request.getWidth() / 2.0;
 		double y = request.getY() + request.getHeight() / 2.0;
 
-		regions.sort((r1, r2) -> Double.compare(distanceToCentroid(r1, x, y), distanceToCentroid(r2, x, y)));
+		regions.sort(Comparator.comparingDouble(r -> distanceToCentroid(r, x, y)));
 		
 		return regions;
 	}
@@ -138,8 +139,9 @@ public class ImageRegionStoreHelpers {
 		int xx = (int)(x / tileWidthForLevel) * tileWidthForLevel;
 		int yy = (int)(y / tileHeightForLevel) * tileHeightForLevel;
 
-        return RegionRequest.createInstance(server.getPath(), downsamplePreferred, xx, yy, (int)Math.min(serverWidth, (xx+tileWidthForLevel))-xx,
-                (int)Math.min(serverHeight, (yy+tileHeightForLevel))-yy, zPosition, tPosition);
+        return RegionRequest.createInstance(server.getPath(), downsamplePreferred, xx, yy,
+				Math.min(serverWidth, (xx+tileWidthForLevel))-xx,
+                Math.min(serverHeight, (yy+tileHeightForLevel))-yy, zPosition, tPosition);
 	}
 
 }

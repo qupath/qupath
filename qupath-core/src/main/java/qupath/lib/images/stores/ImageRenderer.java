@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui.images.stores;
+package qupath.lib.images.stores;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;

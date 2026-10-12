@@ -1,20 +1,13 @@
 package qupath.lib.gui.viewer;
 
 import javafx.beans.Observable;
-import javafx.beans.binding.Bindings;
-import javafx.geometry.Insets;
-import javafx.scene.control.Label;
-import javafx.scene.paint.Color;
-import javafx.scene.text.TextAlignment;
 import javafx.util.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
+import qupath.lib.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.localization.QuPathResources;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
