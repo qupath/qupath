@@ -140,7 +140,6 @@ public class GenericImageCache<T> {
      * Rather, it is based upon an estimate of the size of each tile, calculated using a {@link SizeEstimator}.
      * Internally, bytes are rescaled to kilobytes to avoid overflow errors arising from the cache implementation's use
      * of integers.
-     * @return the maximum number of bytes available to store image tiles
      * @see #getMaxSizeBytes()
      */
     public void setMaxSizeBytes(long newMaxSizeBytes) {
@@ -164,9 +163,9 @@ public class GenericImageCache<T> {
         long maxMemory;
         if (maxAvailable.isPresent()) {
             logger.warn("No inherent maximum memory set - for caching purposes, will assume 64 GB");
-            maxMemory = MemoryTools.gibibytesToBytes(64L);
-        } else {
             maxMemory = maxAvailable.getAsLong();
+        } else {
+            maxMemory = MemoryTools.gibibytesToBytes(64L);
         }
         if (percentage < 10) {
             logger.warn("At least 10% of available memory needs to be used for tile caching (you requested {}%)", percentage);

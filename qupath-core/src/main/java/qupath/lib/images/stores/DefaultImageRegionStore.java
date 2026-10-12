@@ -132,7 +132,6 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	 * Set the maximum size of the display cache.
 	 * This is distinct from {@link ImageCache}, and used only for storing RGB versions of image tiles to
 	 * improve viewer performance.
-	 * @return the maximum size of the display cache
 	 * @see #getDisplayCacheMaxSizeBytes()
 	 */
 	public void setDisplayCacheMaxSizeBytes(long maxSize) {

@@ -397,6 +397,12 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 		return regionStore;
 	}
 
+	/**
+	 * Read-only property to indicate whether the viewer contents are still loading.
+	 * This is set to true when tiles are being requested, and should switch to false when a repaint has
+	 * not identified that any tiles were missing for the current field of view.
+	 * @return
+	 */
 	public ReadOnlyBooleanProperty isLoadingProperty() {
 		return isLoading.getReadOnlyProperty();
 	}
@@ -422,7 +428,10 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 		return pane;
 	}
 
-
+	/**
+	 * Text to display within the viewer, whenever no image is open.
+	 * @return
+	 */
 	public StringProperty placeholderTextProperty() {
 		return pane.placeholderTextProperty();
 	}
@@ -462,6 +471,11 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 		}, PathPrefs.viewerBackgroundColorProperty());
 	}
 
+	/**
+	 * Color of the border around the viewer.
+	 * This can be set to indicate that a viewer is 'active'.
+	 * @return
+	 */
 	public ObjectProperty<Color> borderColorProperty() {
 		return pane.borderColorProperty();
 	}
@@ -654,9 +668,14 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 	public boolean isShowing() {
 		return pane.isVisible() && pane.getScene() != null;
 	}
-	
 
 
+	/**
+	 * Initialize the viewer for a new image server.
+	 * This is primarily to set the z and t positions; subclasses may make other adjustments.
+	 * @param server
+	 * @see #setImageData(ImageData)
+	 */
 	protected void initializeForServer(ImageServer<BufferedImage> server) {
 		// Note that the image has updated
 		imageUpdated = true;
@@ -728,6 +747,11 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 		return colorOverlaySuggested.getValue();
 	}
 
+	/**
+	 * Get a JavaFX color that is suggested for use in an overlay.
+	 * This adapts to whether the image is considered 'dark' or 'light', based upon its thumbnail.
+	 * @return
+	 */
 	protected Color getSuggestedOverlayColorFX() {
 		java.awt.Color c = getSuggestedOverlayColor();
 		if (c == ColorToolsAwt.TRANSLUCENT_BLACK)
@@ -1628,6 +1652,12 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 	 */
 	private final DoubleProperty gammaProperty = new SimpleDoubleProperty(1.0);
 
+	/**
+	 * Property representing the gamma value for a gamma transform applied to the viewer contents.
+	 * Note that the gamma is applied to the RGB pixels after any other adjustments (e.g., brightness and contrast,
+	 * lookup tables) have been performed.
+	 * @return
+	 */
 	public DoubleProperty gammaProperty() {
 		return gammaProperty;
 	}
@@ -1719,6 +1749,12 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 		return imgThumbnailRGB.getValue();
 	}
 
+	/**
+	 * Property showing an RGB thumbnail corresponding to the current image, with the current display settings.
+	 * This can be used for an overview image and updates when the display settings change, or z or t index change.
+	 * However, note that the changes may incur some delay, while the thumbnail is generated.
+	 * @return
+	 */
 	protected ReadOnlyObjectProperty<BufferedImage> rgbThumbnailProperty() {
 		return imgThumbnailRGB.getReadOnlyProperty();
 	}
@@ -2038,7 +2074,12 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 	}
 
 
-
+	/**
+	 * Update the affine transform used to convert coordinates from the viewer space into the image space,
+	 * and its inverse.
+	 * This should be called on the JavaFX application thread after any relevant changes are made
+	 * (e.g., rotation, translation, downsample).
+	 */
 	protected void updateAffineTransform() {
 		if (!hasServer())
 			return;
@@ -2085,6 +2126,10 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 
 	};
 
+	/**
+	 * Rotation property for the viewer, defined in radians.
+	 * Note that this automatically converts values to fall within 0 and 2 PI radians.
+	 */
 	public DoubleProperty rotationProperty() {
 		return rotationProperty;
 	}
