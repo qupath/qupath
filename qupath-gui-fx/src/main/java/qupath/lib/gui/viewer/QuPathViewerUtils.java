@@ -254,18 +254,17 @@ class QuPathViewerUtils {
         }
 
         String s = null;
-        int z = viewer.getZPosition();
-        int t = viewer.getTPosition();
+        var plane = viewer.getImagePlane();
         var regionStore = viewer.getImageRegionStore();
         var imageDisplay = viewer.getImageDisplay();
         RegionRequest request = getTileRequest(server, xx, yy, viewer.getDownsampleFactor(),
-                z, t);
+                plane);
         if (request != null) {
             BufferedImage img = regionStore.getCache().getIfPresent(request);
             int xi = 0, yi = 0;
             if (img == null) {
                 // Try getting a value from the thumbnail for the whole image
-                BufferedImage imgThumbnail = regionStore.getCachedThumbnail(server, z, t);
+                BufferedImage imgThumbnail = regionStore.getThumbnailCache().getCachedThumbnail(server, plane);
                 if (imgThumbnail != null) {
                     img = imgThumbnail;
                     double downsample = (double)server.getWidth() / imgThumbnail.getWidth();
@@ -291,14 +290,14 @@ class QuPathViewerUtils {
         if (server.nZSlices() > 1) {
             double zSpacing = server.getPixelCalibration().getZSpacingMicrons();
             if (!useCalibratedUnits || Double.isNaN(zSpacing))
-                zString = "z = " + z;
+                zString = "z = " + plane.getZ();
             else
-                zString = String.format("z = %.2f %s", z*zSpacing, GeneralTools.micrometerSymbol());
+                zString = String.format("z = %.2f %s", plane.getZ()*zSpacing, GeneralTools.micrometerSymbol());
         }
         String tString = null;
         if (server.nTimepoints() > 1) {
             // TODO: Consider use of TimeUnit, if available
-            tString = "t = " + t;
+            tString = "t = " + plane.getZ();
         }
 
         String dimensionString;
@@ -321,7 +320,7 @@ class QuPathViewerUtils {
     }
 
 
-    private static RegionRequest getTileRequest(ImageServer<BufferedImage> server, double x, double y, double downsampleFactor, int zPosition, int tPosition) {
+    private static RegionRequest getTileRequest(ImageServer<BufferedImage> server, double x, double y, double downsampleFactor, ImagePlane plane) {
 		int serverWidth = server.getWidth();
 		int serverHeight = server.getHeight();
 		if (x < 0 || y < 0 || x >= serverWidth || y >= serverHeight)
@@ -329,7 +328,7 @@ class QuPathViewerUtils {
 
 		int level = ServerTools.getPreferredResolutionLevel(server, downsampleFactor);
 		var tile = server.getTileRequestManager()
-				.getTileRequest(level, (int)x, (int)y, zPosition, tPosition);
+				.getTileRequest(level, (int)x, (int)y, plane.getZ(), plane.getT());
 
 		return tile == null ? null : tile.getRegionRequest();
 	}

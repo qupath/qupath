@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,32 +24,29 @@
 package qupath.lib.images.stores;
 
 import qupath.lib.images.cache.GenericImageCache;
-import qupath.lib.images.servers.ImageServer;
 
 /**
- * Interface to define a store for image tiles.
+ * Interface to wrap around an image tile cache.
  * <p>
- * This is used to cache tiles and merge them into larger images, where necessary.
+ * This can be used to access the main cache, and a second cache used to standardized 'thumbnail' image requests.
+ * Implementations determine whether the thumbnail cache stores the thumbnail pixels in the main cache,
+ * or separately.
  *
  * @param <T>
  */
 interface ImageRegionStore<T> {
 
 	/**
-	 * Get a default thumbnail image
-	 * @param server
-	 * @param zPosition
-	 * @param tPosition
-	 * @return
-	 */
-	T getCachedThumbnail(ImageServer<T> server, int zPosition, int tPosition);
-
-	T getThumbnail(ImageServer<T> server, int zPosition, int tPosition);
-
-	/**
-	 * Get the cache associated with this store.
+	 * Get the main image cache associated with this store.
 	 * @return the cache
 	 */
 	GenericImageCache<T> getCache();
+
+	/**
+	 * Get the cache of thumbnail images.
+	 * This is a specialized cache that can only return standardized, low-resolution versions of an image.
+	 * @return the thumbnail store
+	 */
+	ThumbnailCache<T> getThumbnailCache();
 
 }

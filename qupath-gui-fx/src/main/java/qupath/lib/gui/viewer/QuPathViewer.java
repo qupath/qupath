@@ -1526,20 +1526,19 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 		int serverHeight = server.getHeight();
 
 		// Check if we require tiling the image, or if the low-resolution version does all we need
-		int z = getZPosition();
-		int t = getTPosition();
-		BufferedImage imgThumbnail = regionStore.getOrRequestThumbnail(server, z, t);
+		var plane = getImagePlane();
+		BufferedImage imgThumbnail = regionStore.getThumbnailCache().getOrRequestThumbnail(server, plane);
 		boolean thumbnailMissing = imgThumbnail == null;
 		if (thumbnailMissing) {
 			if (this.imgThumbnail.get() == null) {
 				// If we have *no* thumbnail for any z-slice or time point, then we need to request one and wait
-				imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition());
+				imgThumbnail = regionStore.getThumbnailCache().getThumbnail(server, plane);
 			} else {
 				// If we have a thumbnail for another slice, use the closest one and return -
 				// we'll only try the full repaint once the thumbnail for the current slice is available.
 				// This helps avoid making requests for too many (non-thumbnail) tiles when we're quickly browsing
 				// through a stack.
-				var imgThumbnailClosest = regionStore.getClosestCachedThumbnail(server, z, t);
+				var imgThumbnailClosest = regionStore.getThumbnailCache().getClosestCachedThumbnail(server, plane);
 				if (imgThumbnailClosest != null) {
 					if (imageDisplay != null) {
 						imgThumbnailClosest = imageDisplay.applyTransforms(imgThumbnailClosest, null);

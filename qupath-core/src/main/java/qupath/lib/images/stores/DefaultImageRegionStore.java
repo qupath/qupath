@@ -299,7 +299,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 		BufferedImage imgToDraw = null;
 		for (RegionRequest request : requests) {
 			// Load the image
-			BufferedImage img = getIfPresent(request);
+			BufferedImage img = getCache().getIfPresent(request);
 
 			// If there is no image tile, try to get a lower-resolution version to draw -
 			// this can actually paint over previously-available regions, but they will be repainted again when this region's request comes through
@@ -348,7 +348,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 		// If so, create a rectangle that surrounds all of them.
 		Rectangle missingBounds = null;
 		for (RegionRequest request : requests) {
-			BufferedImage img = getIfPresent(request);
+			BufferedImage img = getCache().getIfPresent(request);
 			if (img == null) {// && !mapCache.containsKey(request)) {
 				if (missingBounds == null)
 					missingBounds = AwtTools.getBounds(request);
@@ -403,14 +403,6 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	}
 
 
-
-		private static double distanceToCentroid(ImageRegion r, double x, double y) {
-		double dx = x - (r.getMinX() + r.getWidth() / 2.0);
-		double dy = y - (r.getMinY() + r.getHeight() / 2.0);
-		return (dx * dx) + (dy * dy);
-	}
-
-
 	/**
 	 * Given ImageServer, determine the boundaries of the image tiles that would be needed to paint
 	 * a specified shape (defined by coordinates in the full-resolution image space).
@@ -424,7 +416,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	 * @param regions regions The list to which requests should be added, or null if a new list should be created
 	 * @return The list of requests - identical to the one provided as an input parameter, unless this was null
 	 */
-	public static List<RegionRequest> getTilesToRequest(ImageServer<?> server, Shape clipShape, double downsampleFactor, int zPosition, int tPosition, List<RegionRequest> regions) {
+	private static List<RegionRequest> getTilesToRequest(ImageServer<?> server, Shape clipShape, double downsampleFactor, int zPosition, int tPosition, List<RegionRequest> regions) {
 
 		if (server == null)
 			return List.of();
@@ -444,5 +436,12 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 
 		return regions;
 	}
+
+	private static double distanceToCentroid(ImageRegion r, double x, double y) {
+		double dx = x - (r.getMinX() + r.getWidth() / 2.0);
+		double dy = y - (r.getMinY() + r.getHeight() / 2.0);
+		return (dx * dx) + (dy * dy);
+	}
+
 
 }
