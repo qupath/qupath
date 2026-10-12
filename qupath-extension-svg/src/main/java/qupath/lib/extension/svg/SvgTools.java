@@ -30,7 +30,6 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -488,7 +487,7 @@ public class SvgTools {
 					ImageDisplay display = null;
 					try {
 						if (viewer == null) {
-							store = ImageRegionStoreFactory.getSharedInstance();
+							store = DefaultImageRegionStore.getSharedInstance();
 							display = ImageDisplay.create(imageData);
 						} else {
 							store = viewer.getImageRegionStore();
@@ -500,7 +499,7 @@ public class SvgTools {
 					} catch (IOException e) {
 						logger.warn("Unable to create image display, may not be able to include images", e);
 						if (store == null)
-							store = ImageRegionStoreFactory.getSharedInstance();
+							store = DefaultImageRegionStore.getSharedInstance();
 					}
 					
 					if (imageInclude == ImageIncludeType.LINK) {

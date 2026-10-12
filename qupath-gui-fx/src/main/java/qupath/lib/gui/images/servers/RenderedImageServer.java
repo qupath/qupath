@@ -29,7 +29,6 @@ import qupath.lib.display.settings.DisplaySettingUtils;
 import qupath.lib.display.settings.ImageDisplaySettings;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -84,7 +83,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	) {
 		super();
 
-		this.store = store == null ? ImageRegionStoreFactory.getSharedInstance() : store;
+		this.store = store == null ? DefaultImageRegionStore.getSharedInstance() : store;
 		this.overlayOpacity = overlayOpacity;
 		if (overlayLayers != null)
 			this.overlayLayers.addAll(overlayLayers);

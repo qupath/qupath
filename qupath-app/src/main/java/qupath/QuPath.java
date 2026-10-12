@@ -40,7 +40,7 @@ import qupath.lib.gui.QuPathApp;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.extensions.Subcommand;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
+import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -358,7 +358,7 @@ class ScriptCommand implements Runnable {
 			}
 			
 			// Ensure we have a tile cache set
-			createTileCache();
+			initTileCache();
 
 			// Load image server builders from extensions and install extensions in headless mode
 			ClassLoader extensionClassLoader = QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader();
@@ -445,10 +445,13 @@ class ScriptCommand implements Runnable {
 	
 	
 	/**
-	 * The tile cache is usually set when initializing the GUI; here, we need to create one for performance
+	 * Ensure the tile cache is set to the size specified in the preferences.
 	 */
-	private void createTileCache() {
-		ImageRegionStoreFactory.getSharedInstance(); // This is enough to ensure that it is initialized
+	private void initTileCache() {
+		DefaultImageRegionStore.getSharedInstance()
+				.getCache()
+				.setMaxSizeByPercent(PathPrefs.tileCachePercentageProperty().get());;
+
 	}
 	
 	

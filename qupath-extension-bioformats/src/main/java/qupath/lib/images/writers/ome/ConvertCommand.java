@@ -29,7 +29,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.extensions.Subcommand;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
+import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
@@ -302,7 +302,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 	 * The tile cache is usually set when initializing the GUI; here, we need to create one for performance
 	 */
 	private void createTileCache() {
-		ImageRegionStoreFactory.getSharedInstance();
+		DefaultImageRegionStore.getSharedInstance();
 	}
 
 	/**

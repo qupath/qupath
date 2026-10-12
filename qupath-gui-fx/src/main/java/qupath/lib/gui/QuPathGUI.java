@@ -103,7 +103,6 @@ import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.panes.ImageDetailsPane;
@@ -285,7 +284,10 @@ public class QuPathGUI {
 		// Note that the order is sometimes important.
 		toolManager = ToolManager.create();
 		threadPoolManager = SharedThreadPoolManager.create();
-		imageRegionStore = ImageRegionStoreFactory.getSharedInstance();
+
+		imageRegionStore = DefaultImageRegionStore.getSharedInstance();
+		imageRegionStore.getCache().setMaxSizeByPercent(PathPrefs.tileCachePercentageProperty().get());
+
 		prefsPane = new PreferencePane();
 		viewerManager = ViewerManager.create(this);
 		pathClassManager = PathClassManager.create();

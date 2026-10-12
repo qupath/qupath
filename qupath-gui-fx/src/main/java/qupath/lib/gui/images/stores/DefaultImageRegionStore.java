@@ -62,10 +62,11 @@ import java.util.concurrent.TimeoutException;
  */
 public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedImage> implements ImageRegionRenderer {
 
+	private static final Logger logger = LoggerFactory.getLogger(DefaultImageRegionStore.class);
+
+	public static final DefaultImageRegionStore SHARED_INSTANCE = new DefaultImageRegionStore(ImageCache.getSharedInstance());
 	private static final int DEFAULT_THUMBNAIL_WIDTH = 1000;
 
-	private static final Logger logger = LoggerFactory.getLogger(DefaultImageRegionStore.class);
-	
 	private static boolean DEBUG_TILES = !Objects.equals(System.getProperty("qupath.debug.tiles", "false"), "false");
 
 	// Submitting tile requests is expensive enough to cause noticeable lagging in the viewer,
@@ -102,6 +103,16 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 				MemoryTools.getMaxMemoryPercent(10.0).orElse(MemoryTools.megabytesToBytes(500)),
 				MemoryTools.megabytesToBytes(100),
 				MemoryTools.gigabytesToBytes(2));
+	}
+
+	/**
+	 * Get the shared region store instance.
+	 * This is usually the only instance required throughout the whole QuPath application.
+	 * @return the shared region store
+	 * @since v0.8.0
+	 */
+	public static DefaultImageRegionStore getSharedInstance() {
+		return SHARED_INSTANCE;
 	}
 
 	/**

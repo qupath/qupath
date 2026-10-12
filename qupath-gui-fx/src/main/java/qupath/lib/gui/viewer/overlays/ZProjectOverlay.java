@@ -24,7 +24,6 @@ package qupath.lib.gui.viewer.overlays;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -105,7 +104,7 @@ public class ZProjectOverlay extends AbstractImageOverlay {
 
     private DefaultImageRegionStore getStore() {
         if (store == null) {
-            store = ImageRegionStoreFactory.getSharedInstance();
+            store = DefaultImageRegionStore.getSharedInstance();
         }
         return store;
     }
