@@ -66,7 +66,7 @@ public class ThumbnailCache<T> {
         this.maxThumbnailSize = maxThumbnailSize;
     }
 
-    	/**
+	/**
 	 * Calculate the downsample value to use when generating a thumbnail image.
 	 * @return
 	 */
@@ -101,10 +101,22 @@ public class ThumbnailCache<T> {
 		return ImagePlane.getPlane(server.nZSlices()/2, server.nTimepoints()/2);
 	}
 
+	/**
+	 * Get the region request that would be used to get the default thumbnail.
+	 * For a z-stack and time series, this is taken from the center of the stack, under the assumption it is likely 
+	 * to be more representative than the first slice.
+	 * @param server the image server
+	 * @return a region request for (possibly downsampled) version of the selected slice
+	 */
 	public RegionRequest getThumbnailRequest(final ImageServer<T> server) {
 		return getThumbnailRequest(server, getDefaultThumbnailPlane(server));
 	}
 
+	/**
+	 * Get the region request that would be used to get a thumbnail for a specified plane (z-slice, time point).
+	 * @param server the image server
+	 * @return a region request for (possibly downsampled) version of the selected slice
+	 */
 	public RegionRequest getThumbnailRequest(final ImageServer<T> server, final ImagePlane plane) {
 		return RegionRequest.createInstance(
 				server.getPath(),
@@ -116,12 +128,25 @@ public class ThumbnailCache<T> {
 		return cache.getIfPresent(request);
 	}
 
-
+	/**
+	 * Get a thumbnail for a specified plane, only if it is cached.
+	 * @param server the image server
+	 * @return a thumbnail image, or null if the thumbnail is not cached
+	 */
 	public T getCachedThumbnail(final ImageServer<T> server, final ImagePlane plane) {
 		RegionRequest request = getThumbnailRequest(server, plane);
 		return getIfPresent(request);
 	}
 
+	/**
+	 * Get a cached thumbnail that is 'closest' to a specified plane.
+	 * This is useful when a thumbnail is not available for the desired plane, but a placeholder is needed.
+	 * @param server the image server
+	 * @return a thumbnail image, or null if no thumbnail is cached for this image
+	 * @implNote Currently this uses the absolute displacement in terms of z-slice and time point indices.
+	 *           The identified thumbnail is therefore not necessarily unique and no guarantees are made regarding 
+	 *           which will be returned. In this future, this behavior may change (probably to be more predictable).
+	 */
 	public T getClosestCachedThumbnail(final ImageServer<T> server, final ImagePlane plane) {
 		RegionRequest request = getThumbnailRequest(server, plane);
 		var dist = new PlaneDistance(request.getZ(), request.getT());
@@ -151,10 +176,10 @@ public class ThumbnailCache<T> {
 
 
 	/**
-	 * Get a thumbnail image if it is cached, otherwise request it and return null.
-	 * @param server
-	 * @param plane
-	 * @return
+	 * Get a thumbnail image if it is cached, otherwise request it asynchronously and return null.
+	 * @param server the image server
+	 * @param plane the plane for the thumbnail
+	 * @return the thumbnail if it is cached, or null if it is not cached
 	 */
 	public T getOrRequestThumbnail(final ImageServer<T> server, final ImagePlane plane) {
 		RegionRequest request = getThumbnailRequest(server, plane);
@@ -163,10 +188,10 @@ public class ThumbnailCache<T> {
 	}
 
 	/**
-	 * Get a default thumbnail image.
-	 * @param server
-	 * @param plane
-	 * @return
+	 * Get a thumbnail image for a specified plane, waiting for it if it is not already available.
+	 * @param server the image server
+	 * @param plane the plane for the thumbnail
+	 * @return a thumbnail, or null if the request failed (e.g., due to an exception)
 	 */
 	public T getThumbnail(final ImageServer<T> server, final ImagePlane plane) {
 		RegionRequest request = getThumbnailRequest(server, plane);
@@ -180,9 +205,10 @@ public class ThumbnailCache<T> {
 	}
 
 	/**
-	 * Get a default thumbnail image.
-	 * @param server
-	 * @return
+	 * Get a default thumbnail image, waiting for it if it is not already available.
+	 * @param server the image server
+	 * @return a thumbnail, or null if the request failed (e.g., due to an exception)
+	 * @see #getThumbnailRequest(ImageServer) 
 	 */
 	public T getThumbnail(final ImageServer<T> server) {
 		return getThumbnail(server, getDefaultThumbnailPlane(server));
