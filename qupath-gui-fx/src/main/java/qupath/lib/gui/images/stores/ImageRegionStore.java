@@ -35,10 +35,21 @@ import qupath.lib.images.servers.ImageServer;
  */
 interface ImageRegionStore<T> {
 
+	/**
+	 * Get a default thumbnail image
+	 * @param server
+	 * @param zPosition
+	 * @param tPosition
+	 * @return
+	 */
 	T getCachedThumbnail(ImageServer<T> server, int zPosition, int tPosition);
 
-	T getThumbnail(ImageServer<T> server, int zPosition, int tPosition, boolean addToCache);
+	T getThumbnail(ImageServer<T> server, int zPosition, int tPosition);
 
+	/**
+	 * Get the cache associated with this store.
+	 * @return the cache
+	 */
 	GenericImageCache<T> getCache();
 
 }

@@ -1533,7 +1533,7 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 		if (thumbnailMissing) {
 			if (this.imgThumbnail.get() == null) {
 				// If we have *no* thumbnail for any z-slice or time point, then we need to request one and wait
-				imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition(), true);
+				imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition());
 			} else {
 				// If we have a thumbnail for another slice, use the closest one and return -
 				// we'll only try the full repaint once the thumbnail for the current slice is available.

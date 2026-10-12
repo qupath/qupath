@@ -1590,7 +1590,7 @@ public class QuPathGUI {
 				// generally leading to improved performance in the viewer's setImageData method
 				// (specifically the updating of the ImageDisplay, which needs a thumbnail)
 				final ImageServer<BufferedImage> serverTemp = server;
-				threadPoolManager.submitShortTask(() -> imageRegionStore.getThumbnail(serverTemp, 0, 0, true));
+				threadPoolManager.submitShortTask(() -> imageRegionStore.getThumbnail(serverTemp, 0, 0));
 			}
 			
 			
@@ -1660,7 +1660,7 @@ public class QuPathGUI {
 			if (imageData != null && (imageData.getImageType() == null || imageData.getImageType() == ImageType.UNSET)) {
 				var setType = PathPrefs.imageTypeSettingProperty().get();
 				if (setType == ImageTypeSetting.AUTO_ESTIMATE || setType == ImageTypeSetting.PROMPT) {
-					var type = GuiTools.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
+					var type = GuiTools.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0));
 					logger.info("Image type estimated to be {}", type);
 					if (setType == ImageTypeSetting.PROMPT) {
 						ImageDetailsPane.promptToSetImageType(imageData, type);
@@ -1977,7 +1977,7 @@ public class QuPathGUI {
 				viewer.setImageData(imageData);
 
 				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.PROMPT) {
-					var type = GuiTools.estimateImageType(serverNew, imageRegionStore.getThumbnail(serverNew, 0, 0, true));
+					var type = GuiTools.estimateImageType(serverNew, imageRegionStore.getThumbnail(serverNew, 0, 0));
 					ImageDetailsPane.promptToSetImageType(imageData, type);
 				}
 
@@ -2012,7 +2012,7 @@ public class QuPathGUI {
 	 * @return
 	 */
 	private ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server, final boolean estimateImageType) {
-		return new ImageData<>(server, estimateImageType ? GuiTools.estimateImageType(server, imageRegionStore.getThumbnail(server, 0, 0, true)) : ImageData.ImageType.UNSET);
+		return new ImageData<>(server, estimateImageType ? GuiTools.estimateImageType(server, imageRegionStore.getThumbnail(server, 0, 0)) : ImageData.ImageType.UNSET);
 	}
 	
 	
