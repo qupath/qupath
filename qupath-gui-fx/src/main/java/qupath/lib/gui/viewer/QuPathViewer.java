@@ -93,6 +93,7 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -103,6 +104,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 
 /**
@@ -362,6 +364,7 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 
 	private void repaintAfterPlaneUpdate() {
 		imageUpdated = true;
+		overlayUpdated = true;
 		lastVisibleShape = null; // This ensures an update to the visible region is fired on the next pulse
 	}
 
@@ -982,7 +985,7 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 			rect.setFrameFromDiagonal(coords[0], coords[1], coords[2], coords[3]);
 			return rect;
 		}
-		return transformInverse.createTransformedShape(clip2);
+		return new Area(transformInverse.createTransformedShape(clip2));
 	}
 
 	/**
@@ -1336,7 +1339,7 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 		// The visible shape must have changed if there wasn't one previously...
 		// Otherwise, check if it has changed & update accordingly
 		// This will be used to notify listeners soon
-		boolean shapeChanged = lastVisibleShape == null || !lastVisibleShape.equals(shapeRegion);
+		boolean shapeChanged = lastVisibleShape == null || !shapesEqual(lastVisibleShape, shapeRegion);
 
 		// Store the last shape visible
 		lastVisibleShape = shapeRegion;
@@ -1384,6 +1387,23 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 //			timer.milliseconds();
 //			System.err.println(timer.toString());
 //		}
+	}
+
+	private static boolean shapesEqual(Shape shape1, Shape shape2) {
+		if (Objects.equals(shape1, shape2)) {
+			return true;
+		} else {
+			// Work around shape.equals not being terribly reliable.
+			// See https://github.com/qupath/qupath/pull/2207#discussion_r4259929598
+			return ensureArea(shape1).equals(ensureArea(shape2));
+		}
+	}
+
+	private static Area ensureArea(Shape shape) {
+		if (shape instanceof Area area)
+			return area;
+		else
+			return new Area(shape);
 	}
 
 	private boolean updateImageBuffer(BufferedImage img, Shape shapeRegion) {

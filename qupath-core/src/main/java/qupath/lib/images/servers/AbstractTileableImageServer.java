@@ -165,16 +165,15 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			if (img != null) {
 				return img;
 			}
-//			if (cache.containsKey(request)) {
-//				return cache.getOrDefault(request, null);
-//			}
 		}
 		var img = readTile(tileRequest);
 		if (img != null && isEmptyTile(img)) {
 			emptyTiles.add(tileRequest);
 			return getEmptyTile(img.getWidth(), img.getHeight(), true);
 		}
-		// Try to ensure
+		// Ensure the tile is cached for the next time we need it.
+		// Note that we can't do this via ImageCache.asMap() because we might already be
+		// running within a thread that is modifying the cache.
 		ImageCache.getSharedInstance().put(request, img);
 		return img;
 	}

@@ -113,6 +113,7 @@ class QuPathViewerKeyEventHandler implements EventHandler<KeyEvent> {
 
             int temp;
             switch (code) {
+                // Use the arrow keys to navigate around the TMA grid, possibly skipping cores flagged as 'missing'
                 case LEFT:
                     temp = Math.max(ind - 1, 0);
                     while (skipMissingTMACores && cores.get(temp).isMissing() && temp > 0)
