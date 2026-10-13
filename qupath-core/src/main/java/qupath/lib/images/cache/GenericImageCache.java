@@ -107,7 +107,7 @@ public class GenericImageCache<T> {
 
     /**
      * Create a new image cache.
-     * @param sizeEstimator an estimator that can calculate the size (in bytes) of
+     * @param sizeEstimator an estimator that can calculate the size (in bytes) of an image
      * @param maxSizeBytes the maximum permitted size of the cache, in bytes.
      * @param parallelism the number of parallel threads to use for tile requests
      * @return a new cache
@@ -121,7 +121,7 @@ public class GenericImageCache<T> {
     /**
      * Get the tile cache size, in bytes.
      * <p>
-     * When tiles an attempt is made to cache new tiles that would result in the cache size being exceeded,
+     * When an attempt is made to cache new tiles that would result in the cache size being exceeded,
      * older tiles will be discarded.
      * @return the maximum number of bytes available to store image tiles
      * @see #setMaxSizeBytes(long)
@@ -133,7 +133,7 @@ public class GenericImageCache<T> {
     /**
      * Set the tile cache size, in bytes.
      * <p>
-     * When tiles an attempt is made to cache new tiles that would result in the cache size being exceeded,
+     * When an attempt is made to cache new tiles that would result in the cache size being exceeded,
      * older tiles will be discarded.
      * <p>
      * <b>Note:</b> This is not a strict limit that is enforced precisely.
@@ -194,7 +194,7 @@ public class GenericImageCache<T> {
     }
 
     /**
-     * Estimate a the fill ratio, which is a value between 0 (empty cache) and 1 (full cache).
+     * Estimate the fill ratio, which is a value between 0 (empty cache) and 1 (full cache).
      * It is effectively {@code getCurrentSizeBytes() / getMaxSizeBytes()}.
      * @return a current fill ratio snapshot, or NaN if a fill ratio could not be calculated.
      * @implNote This is not clipped to be strictly between 0 and 1, to assist with debugging
