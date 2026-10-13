@@ -52,6 +52,7 @@ import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
+import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -312,6 +313,8 @@ public class QP {
 			
 			Timeit.class,
 			ScriptAttributes.class,
+
+			ImageCache.class,
 			
 			Version.class,
 			
@@ -332,7 +335,6 @@ public class QP {
 			LabeledImageServer.class,
 			ServerTools.class,
 			PixelClassifierTools.class,
-			
 
 			BioimageIoTools.class,
 			
