@@ -26,9 +26,11 @@ package qupath.lib.images.servers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.regions.RegionRequest;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -40,12 +42,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Service provider for creating ImageServers from a given path - which may be a file path or URL.
@@ -59,7 +61,11 @@ public class ImageServerProvider {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ImageServerProvider.class);
 	
-	private static Map<Class<?>, Map<RegionRequest, ?>> cacheMap = new HashMap<>();
+	private static final Map<Class<?>, Map<RegionRequest, ?>> cacheMap = new ConcurrentHashMap<>();
+
+	static {
+		cacheMap.put(BufferedImage.class, ImageCache.getSharedInstance().asMap());
+	}
 	
 	@SuppressWarnings("rawtypes")
 	private static ServiceLoader<ImageServerBuilder> serviceLoader = ServiceLoader.load(ImageServerBuilder.class);
@@ -69,13 +75,23 @@ public class ImageServerProvider {
 	 * @param <T>
 	 * @param cache
 	 * @param cls
+	 * @deprecated since v0.8.0
 	 */
+	@Deprecated
 	public static <T> void setCache(Map<RegionRequest, T> cache, final Class<T> cls) {
 		cacheMap.put(cls, cache);
 	}
 	
 	/**
 	 * Get the cache in use for image tiles of a specific type.
+	 * <p>
+	 * In practice, the generic parameter is expected to be {@link BufferedImage}.
+	 * Also, since v0.8.0 it is not recommended to add to the returned cache, because doing so from within a
+	 * tile request can result in an exception.
+	 * Instead, use {@link ImageCache#getSharedInstance()} directly.
+	 * <p>
+	 * This method remains because it is used internally by some generic {@link ImageServer} implementations,
+	 * so cannot easily be removed without substantially changing the API.
 	 * @param <T>
 	 * @param cls
 	 * @return

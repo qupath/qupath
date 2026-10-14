@@ -22,11 +22,12 @@ import javafx.util.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.gui.images.stores.DefaultImageRegionStore;
+import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.ViewerManager;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.cache.ImageCache;
 
 /**
  * Class to manage viewer overlays when training a pixel classifier,
@@ -63,10 +64,10 @@ class PixelClassifierOverlayManager {
 
     private Subscription subscription;
 
-    PixelClassifierOverlayManager(ViewerManager viewerManager, DefaultImageRegionStore regionStore, PixelClassifierTraining training) {
+    PixelClassifierOverlayManager(ViewerManager viewerManager, ImageCache cache, PixelClassifierTraining training) {
         this.viewerManager = viewerManager;
         this.training = training;
-        this.featureRenderer = new FeatureRenderer(regionStore);
+        this.featureRenderer = new FeatureRenderer(cache);
     }
 
     private void removeMouseMovedFilters() {

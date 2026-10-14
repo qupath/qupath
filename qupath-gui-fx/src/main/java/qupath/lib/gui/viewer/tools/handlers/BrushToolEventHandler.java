@@ -70,6 +70,7 @@ import qupath.lib.roi.interfaces.ROI;
 import java.awt.geom.Point2D;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Tool for drawing (and subtract from) freehand regions, optionally adapting brush size to magnification.
@@ -446,7 +447,8 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 
 	@Override
 	protected void handleScrollEvent(ScrollEvent event) {
-		if (!event.isConsumed() && event.isAltDown()) {
+		// Don't want to adjust diameter for subclasses (i.e. the wand)
+		if (!event.isConsumed() && event.isAltDown() && Objects.equals(BrushToolEventHandler.class, getClass())) {
 			PathPrefs.brushDiameterProperty().set(
 					GeneralTools.clipValue(
 							(int)Math.round(PathPrefs.brushDiameterProperty().get() + event.getDeltaY()), 10, 500

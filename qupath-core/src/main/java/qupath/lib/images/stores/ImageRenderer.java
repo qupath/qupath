@@ -19,19 +19,16 @@
  * #L%
  */
 
-package qupath.lib.gui.images.stores;
+package qupath.lib.images.stores;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.util.stream.Collectors;
 
 /**
  * Interface for objects capable of converting a {@link BufferedImage} for rendering using {@link Graphics2D}.
  * This typically means applying any color transforms to produce an (A)RGB image.
  * <p>
  * A timestamp and ID are supplied to help with caching.
- * 
- * @author Pete Bankhead
  */
 public interface ImageRenderer {
 	

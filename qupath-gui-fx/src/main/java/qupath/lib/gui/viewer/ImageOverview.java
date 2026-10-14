@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -44,9 +44,6 @@ import java.awt.image.BufferedImage;
 /**
  * A small preview panel to be associated with a viewer, which shows the currently-visible
  * region &amp; can be clicked on to navigate to other regions.
- * 
- * @author Pete Bankhead
- *
  */
 class ImageOverview implements QuPathViewerListener {
 
@@ -94,11 +91,6 @@ class ImageOverview implements QuPathViewerListener {
 		setImage(viewer.getRGBThumbnail());
 		
 		canvas.setOnMouseClicked(e -> {
-			// TODO: Check focus situation
-//			// Pass focus to viewer if required - use first click for focus, not moving yet
-//			if (viewer != null && viewer.isAncestorOf(ImageOverview.this) && !viewer.hasFocus())
-//				viewer.requestFocus();
-//			else
 			mouseViewerToLocation(e.getX(), e.getY());
 		});
 		
@@ -107,9 +99,7 @@ class ImageOverview implements QuPathViewerListener {
 			e.consume();
 		});
 		
-		viewer.zPositionProperty().addListener(v -> repaint());
-		viewer.tPositionProperty().addListener(v -> repaint());
-			
+		viewer.rgbThumbnailProperty().subscribe(this::repaint);
 		viewer.addViewerListener(this);
 	}
 

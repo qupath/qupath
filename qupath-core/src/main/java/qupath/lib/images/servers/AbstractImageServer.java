@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -44,10 +44,7 @@ import java.util.Objects;
 
 /**
  * Abstract implementation of ImageServer providing some common functionality.
- * 
- * @author Pete Bankhead
- * @param <T> 
- *
+ * @param <T> generic type of the image
  */
 public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
@@ -93,28 +90,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	 */
 	protected Map<RegionRequest, T> getCache() {
 		return cache;
-	}
-	
-	protected double getThumbnailDownsampleFactor(int maxWidth, int maxHeight) {
-		if (maxWidth <= 0) {
-			if (maxHeight <= 0) {
-				maxWidth = 1024;
-				maxHeight = 1024;
-			} else {
-				maxWidth = Integer.MAX_VALUE;
-			}
-		} else {
-			if (maxHeight <= 0) {
-				maxHeight = Integer.MAX_VALUE;
-			}			
-		}
-
-		double xDownsample = (double)getWidth() / maxWidth;
-		double yDownsample = (double)getHeight() / maxHeight;
-		double downsample = Math.max(xDownsample, yDownsample);
-		if (downsample < 1)
-			downsample = 1;
-		return downsample;
 	}
 	
 	/**
@@ -330,9 +305,9 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	private class DefaultTileRequestManager implements TileRequestManager {
 		
-		private Collection<TileRequest> allTiles;
-		private Map<String, SpatialIndex> tiles = new LinkedHashMap<>();
-		private ImageServerMetadata currentMetadata;
+		private final Collection<TileRequest> allTiles;
+		private final Map<String, SpatialIndex> tiles = new LinkedHashMap<>();
+		private final ImageServerMetadata currentMetadata;
 		
 		private String getKey(TileRequest tile) {
 			return getKey(tile.getLevel(), tile.getZ(), tile.getT());
@@ -347,13 +322,8 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			allTiles = Collections.unmodifiableList(new ArrayList<>(tiles));
 			for (var tile : allTiles) {
 				var key = getKey(tile);
-				var set = this.tiles.get(key);
-				if (set == null) {
-					set = new Quadtree();
-					this.tiles.put(key, set);
-				}
-				set.insert(getEnvelope(tile.getRegionRequest()), tile);
-//				set.add(tile);
+                var spatialIndex = this.tiles.computeIfAbsent(key, k -> new Quadtree());
+				spatialIndex.insert(getEnvelope(tile.getRegionRequest()), tile);
 			}
 		}
 		
@@ -365,9 +335,9 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		@Override
 		public TileRequest getTileRequest(int level, int x, int y, int z, int t) {
 			var key = getKey(level, z, t);
-			var set = tiles.get(key);
-			if (set != null) {
-				for (var obj : set.query(new Envelope(x, x, y, y))) {
+			var spatialIndex = tiles.get(key);
+			if (spatialIndex != null) {
+				for (var obj : spatialIndex.query(new Envelope(x, x, y, y))) {
 					TileRequest tile = (TileRequest)obj;
 					if (tile.getLevel() == level && tile.getRegionRequest().contains(x, y, z, t))
 						return tile;
@@ -388,10 +358,10 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		public List<TileRequest> getTileRequests(RegionRequest request) {
 			int level = ServerTools.getPreferredResolutionLevel(AbstractImageServer.this, request.getDownsample());
 			var key = getKey(level, request.getZ(), request.getT());
-			var set = tiles.get(key);
+			var spatialIndex = tiles.get(key);
 			var list = new ArrayList<TileRequest>();
-			if (set != null) {
-				for (var obj : set.query(getEnvelope(request))) {
+			if (spatialIndex != null) {
+				for (var obj : spatialIndex.query(getEnvelope(request))) {
 					TileRequest tile = (TileRequest)obj;
 					if (request.intersects(tile.getRegionRequest()))
 						list.add(tile);
@@ -406,6 +376,5 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		}
 		
 	}
-	
-	
+
 }

@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui.images.stores;
+package qupath.lib.images.stores;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**

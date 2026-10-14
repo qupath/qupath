@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2020, 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,29 +21,23 @@
  * #L%
  */
 
-package qupath.lib.gui.images.stores;
-
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
+package qupath.lib.images.cache;
 
 /**
- * Helper class to estimate if the size in bytes for a BufferedImage.
- * 
- * This isn't particularly exact (and doesn't try to deal with anything beyond pixels, 
- * but gives a good enough guide to help with caching.
- * 
- * @author Pete Bankhead
+ * Implementing classes are able to estimate the size given an object of some type -
+ * most likely an image (e.g. AWT BufferedImage or JavaFX Image).  This can be used
+ * by a cache to determine the approximate memory requirements of the objects it contains.
  *
+ * @param <T> generic type for the image
  */
-class BufferedImageSizeEstimator implements SizeEstimator<BufferedImage> {
-	
-	@Override
-	public long getApproxImageSize(BufferedImage img) {
-		if (img == null)
-			return 0;
-		DataBuffer data = img.getRaster().getDataBuffer();
-		long size = (long)data.getSize() * (long)(DataBuffer.getDataTypeSize(data.getDataType())/8) * data.getNumBanks();
-		return size;
-	}
+@FunctionalInterface
+public interface SizeEstimator<T> {
+
+	/**
+	 * Get the approximate image size, in bytes.
+	 * @param value the image
+	 * @return the approximate size, in bytes
+	 */
+	long getApproxImageSize(T value);
 	
 }

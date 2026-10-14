@@ -41,6 +41,7 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.MemoryTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.SingleChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
@@ -264,7 +265,12 @@ class ExtractRegionCommand implements Runnable {
 			double memory = ((long)width * height * nZ * nT * bytesPerPixel) / (downsample * downsample);
 			
 			// TODO: Perform calculation based on actual amount of available memory
-			long availableMemory = GeneralTools.estimateAvailableMemory();
+			System.gc();
+			long availableMemory = MemoryTools.getTotalFreeMemory().orElse(MemoryTools.getCurrentFreeMemory());
+			if (memory >= availableMemory * 0.95) {
+				System.gc();
+				availableMemory = MemoryTools.getTotalFreeMemory().orElse(MemoryTools.getCurrentFreeMemory());
+			}
 			if (memory >= availableMemory * 0.95) {
 				logger.error("Cannot extract region {} - estimated size is too large (approx. {} MB)", pathObject, GeneralTools.formatNumber(memory / (1024.0 * 1024.0), 2));
 				Dialogs.showErrorMessage(title, "Selected region is too large to extract - please selected a smaller region or use a higher downsample factor");

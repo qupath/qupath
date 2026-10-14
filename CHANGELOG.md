@@ -34,6 +34,7 @@
 
 ### Dependency updates
 * Bio-Formats 8.5.0
+* Caffeine 3.2.4
 * Commonmark 0.30.1
 * ControlsFX 11.2.6
 * DeepJavaLibrary 0.38.0

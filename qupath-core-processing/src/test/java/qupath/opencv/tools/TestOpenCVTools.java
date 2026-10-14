@@ -21,7 +21,6 @@
 
 package qupath.opencv.tools;
 
-import java.util.function.DoubleBinaryOperator;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.FloatIndexer;

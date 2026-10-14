@@ -247,3 +247,17 @@
 .bold-title.titled-pane > .title > .text {
   -fx-font-weight: bold;
 }
+
+/* Indicate that the viewer is still loading content */
+.viewer-loading {
+  -fx-background-color: rgba(0, 0, 0, 0.5);
+  -fx-text-fill: white;
+  -fx-font-size: 125%;
+  -fx-font-weight: bold;
+  -fx-padding: 5px;
+}
+
+.viewer-loading > .progress-indicator {
+  -fx-pref-width: 25px;
+  -fx-pref-height: 25px;
+}

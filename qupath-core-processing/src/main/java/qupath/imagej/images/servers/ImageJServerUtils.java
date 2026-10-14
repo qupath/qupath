@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.MemoryTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
@@ -47,9 +48,8 @@ class ImageJServerUtils {
 
         // Open as a virtual stack if we have 1) a TIFF, with 2) multiple slices and 3) a large file size -
         // otherwise try to open directly (which is much faster if memory permits)
-        var runtime = Runtime.getRuntime();
-        long maxMemory = runtime.maxMemory();
-        long availableMemory = maxMemory - (runtime.totalMemory() - runtime.freeMemory());
+        var maxMemory = MemoryTools.getMaxMemoryOrDefault(MemoryTools.gigabytesToBytes(16));
+        long availableMemory = MemoryTools.getTotalFreeMemory().orElse(MemoryTools.getCurrentFreeMemory());
         if (file != null && path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
             // Because ImageJ only supports uncompressed TIFFs, we simply use the file size
             // There is some questionable logic here to try to open virtual stacks at appropriate times

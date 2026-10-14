@@ -102,8 +102,7 @@ import qupath.lib.gui.actions.menus.Menus;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
-import qupath.lib.gui.images.stores.DefaultImageRegionStore;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
+import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.panes.ImageDetailsPane;
@@ -129,6 +128,7 @@ import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
+import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
@@ -284,7 +284,10 @@ public class QuPathGUI {
 		// Note that the order is sometimes important.
 		toolManager = ToolManager.create();
 		threadPoolManager = SharedThreadPoolManager.create();
-		imageRegionStore = ImageRegionStoreFactory.createImageRegionStore();
+
+		imageRegionStore = DefaultImageRegionStore.getSharedInstance();
+		imageRegionStore.getCache().setMaxSizeByPercent(PathPrefs.tileCachePercentageProperty().get());
+
 		prefsPane = new PreferencePane();
 		viewerManager = ViewerManager.create(this);
 		pathClassManager = PathClassManager.create();
@@ -921,10 +924,10 @@ public class QuPathGUI {
 	
 	
 	private void initializeImageTileCache() {
-		PathPrefs.tileCachePercentageProperty().addListener((v, o, n) -> {
-			imageRegionStore.getCache().clear();
+		PathPrefs.tileCachePercentageProperty().subscribe(n -> {
+			if (n != null)
+				ImageCache.getSharedInstance().setMaxSizeByPercent(n.doubleValue());
 		});
-		ImageServerProvider.setCache(imageRegionStore.getCache(), BufferedImage.class);
 		// Turn off the use of ImageIODiskCache (it causes some trouble)
 		ImageIO.setUseCache(false);
 	}
@@ -1164,9 +1167,8 @@ public class QuPathGUI {
 			}
 		}
 
-		// Close the region store to stop any painting requests
-		if (imageRegionStore != null)
-			imageRegionStore.close();
+		// Stop caching tiles
+		ImageCache.getSharedInstance().close();
 
 		// Save the PathClasses
 		pathClassManager.savePathClassesToPreferences();
@@ -1590,7 +1592,7 @@ public class QuPathGUI {
 				// generally leading to improved performance in the viewer's setImageData method
 				// (specifically the updating of the ImageDisplay, which needs a thumbnail)
 				final ImageServer<BufferedImage> serverTemp = server;
-				threadPoolManager.submitShortTask(() -> imageRegionStore.getThumbnail(serverTemp, 0, 0, true));
+				threadPoolManager.submitShortTask(() -> imageRegionStore.getThumbnailCache().getThumbnail(serverTemp));
 			}
 			
 			
@@ -1660,7 +1662,7 @@ public class QuPathGUI {
 			if (imageData != null && (imageData.getImageType() == null || imageData.getImageType() == ImageType.UNSET)) {
 				var setType = PathPrefs.imageTypeSettingProperty().get();
 				if (setType == ImageTypeSetting.AUTO_ESTIMATE || setType == ImageTypeSetting.PROMPT) {
-					var type = GuiTools.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
+					var type = GuiTools.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnailCache().getThumbnail(imageData.getServer()));
 					logger.info("Image type estimated to be {}", type);
 					if (setType == ImageTypeSetting.PROMPT) {
 						ImageDetailsPane.promptToSetImageType(imageData, type);
@@ -1897,7 +1899,7 @@ public class QuPathGUI {
 				List<ProjectImageEntry<BufferedImage>> entries = ProjectCommands.promptToImportImages(this, pathNew);
 				if (entries.isEmpty())
 					return false;
-				return openImageEntry(entries.get(0));
+				return openImageEntry(entries.getFirst());
 			}
 			ImageServer<BufferedImage> serverNew = null;
 
@@ -1977,7 +1979,7 @@ public class QuPathGUI {
 				viewer.setImageData(imageData);
 
 				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.PROMPT) {
-					var type = GuiTools.estimateImageType(serverNew, imageRegionStore.getThumbnail(serverNew, 0, 0, true));
+					var type = GuiTools.estimateImageType(serverNew, imageRegionStore.getThumbnailCache().getThumbnail(serverNew));
 					ImageDetailsPane.promptToSetImageType(imageData, type);
 				}
 
@@ -2012,7 +2014,7 @@ public class QuPathGUI {
 	 * @return
 	 */
 	private ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server, final boolean estimateImageType) {
-		return new ImageData<>(server, estimateImageType ? GuiTools.estimateImageType(server, imageRegionStore.getThumbnail(server, 0, 0, true)) : ImageData.ImageType.UNSET);
+		return new ImageData<>(server, estimateImageType ? GuiTools.estimateImageType(server, imageRegionStore.getThumbnailCache().getThumbnail(server)) : ImageData.ImageType.UNSET);
 	}
 	
 	

@@ -77,6 +77,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -181,7 +182,7 @@ public class PixelClassifierPane {
 	}
 
 	private PixelClassifierOverlayManager createOverlayManager(QuPathGUI qupath, PixelClassifierTraining helper) {
-		var overlayManager = new PixelClassifierOverlayManager(qupath.getViewerManager(), qupath.getImageRegionStore(), helper);
+		var overlayManager = new PixelClassifierOverlayManager(qupath.getViewerManager(), ImageCache.getSharedInstance(), helper);
 		overlayManager.classifierProperty().bind(currentClassifier);
 		overlayManager.livePredictionProperty().bind(livePrediction);
 		return overlayManager;

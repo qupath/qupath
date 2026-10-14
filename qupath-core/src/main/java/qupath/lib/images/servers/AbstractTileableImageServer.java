@@ -21,11 +21,11 @@
 
 package qupath.lib.images.servers;
 
-import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorModelFactory;
+import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.regions.RegionRequest;
 
@@ -42,10 +42,6 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.FutureTask;
 
 /**
  * Abstract {@link ImageServer} for BufferedImages that internally breaks up requests into constituent tiles.
@@ -53,9 +49,6 @@ import java.util.concurrent.FutureTask;
  * The actual request is then handled by assembling the tiles, resizing as required.
  * This makes it possible to cache tiles and reuse them more efficiently, and often requires less effort 
  * to implement a new {@link ImageServer}.
- * 
- * @author Pete Bankhead
- *
  */
 public abstract class AbstractTileableImageServer extends AbstractImageServer<BufferedImage> {
 	
@@ -70,7 +63,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	// Maintain a record of tiles that could not be cached, so we warn for each only once
 	private final transient Set<RegionRequest> failedCacheTiles = new HashSet<>();
-		
+
 	protected AbstractTileableImageServer() {
 		super(BufferedImage.class);
 	}
@@ -142,12 +135,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	}
 	
 	
-	synchronized void resetEmptyTileCache() {
-		logger.debug("Resetting empty tile cache");
-		emptyTileMap.clear();
-	}
-	
-	
 	/**
 	 * Read a single image tile.
 	 * 
@@ -156,31 +143,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * @throws IOException 
 	 */
 	protected abstract BufferedImage readTile(final TileRequest tileRequest) throws IOException;
-	
-	
-	/**
-	 * Map of tiles currently being requested, so avoid duplicate requests (wait instead for the first request to return).
-	 */
-	private final Map<TileRequest, TileTask> pendingTiles = new ConcurrentHashMap<>();
-	
-	/**
-	 * Count of how many duplicate requests are received for a pending tile.
-	 * QuPath *should* strive to minimize these.
-	 */
-	private int duplicateRequestClashCount = 0;
-	
-	private static class TileTask extends FutureTask<BufferedImage> {
-		
-		private Thread thread;
 
-		public TileTask(Thread thread, Callable<BufferedImage> callable) {
-			super(callable);
-			this.thread = thread;
-		}
-		
-		
-		
-	}
 		
 	/**
 	 * Get a tile for the request - ideally from the cache, but otherwise read it and 
@@ -195,50 +158,24 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		var request = tileRequest.getRegionRequest();
 		if (emptyTiles.contains(tileRequest))
 			return getEmptyTile(tileRequest.getTileWidth(), tileRequest.getTileHeight());
-		
+
 		var cache = getCache();
 		if (cache != null) {
-			var imgCached = cache.get(request);
-			if (imgCached != null) { 
-				logger.trace("Returning cached tile: {}", request);
-				return imgCached;
+			var img = cache.getOrDefault(request, null);
+			if (img != null) {
+				return img;
 			}
 		}
-		logger.trace("Reading tile: {}", request);
-		
-		BufferedImage imgCached = null;
-		var futureTask = pendingTiles.computeIfAbsent(tileRequest, t -> new TileTask(Thread.currentThread(), () -> readTile(t)));
-		var myTask = futureTask.thread == Thread.currentThread();
-		try {
-			if (myTask)
-				futureTask.run();
-			else {
-				duplicateRequestClashCount++;
-				logger.debug("Duplicate request for a pending tile ({} total) - {}", duplicateRequestClashCount, tileRequest.getRegionRequest());
-			}
-			imgCached = futureTask.get();
-		} catch (ExecutionException | InterruptedException e) {
-			if (e.getCause() instanceof IOException ioException)
-				throw ioException;
-			throw new IOException(e);
-		} finally {
-			// Put the tile in the appropriate cache
-			if (myTask || (futureTask.state() == Future.State.FAILED || futureTask.state() == Future.State.CANCELLED)) {
-				if (imgCached != null) {
-					if (isEmptyTile(imgCached)) {
-						emptyTiles.add(tileRequest);
-					} else if (cache != null) {
-						cache.put(request, imgCached);
-						// Check if we were able to cache the tile; sometimes we can't if it is too big
-						if (!cache.containsKey(request) && failedCacheTiles.add(request))
-							logger.warn("Unable to add {} to cache.\nYou might need to give QuPath more memory, or to increase the 'Percentage memory for tile caching' preference.", request);
-					}
-				}
-				pendingTiles.remove(tileRequest);
-			}
+		var img = readTile(tileRequest);
+		if (img != null && isEmptyTile(img)) {
+			emptyTiles.add(tileRequest);
+			return getEmptyTile(img.getWidth(), img.getHeight(), true);
 		}
-		
-		return imgCached;
+		// Ensure the tile is cached for the next time we need it.
+		// Note that we can't do this via ImageCache.asMap() because we might already be
+		// running within a thread that is modifying the cache.
+		ImageCache.getSharedInstance().put(request, img);
+		return img;
 	}
 	
 	/**
@@ -255,7 +192,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		return new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 	}
 	
-	
+
 	
 	@Override
 	public BufferedImage readRegion(final RegionRequest request) throws IOException {
@@ -289,9 +226,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			}
 		}
 		
-		// Ensure all tiles are either cached or pending before we continue
-		prerequestTiles(tiles);
-
 		// Determine output image size
 		int width = (int)Math.max(1, Math.round(request.getWidth() / request.getDownsample()));
 		int height = (int)Math.max(1, Math.round(request.getHeight() / request.getDownsample()));
@@ -314,7 +248,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			g2d.dispose();
 			
 			long endTime = System.currentTimeMillis();
-			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (RGB)");
+            logger.trace("Requested {} tiles in {} ms (RGB)", tiles.size(), endTime - startTime);
 
 			return resizeIfNeeded(imgResult, width, height);
 		} else {
@@ -364,14 +298,14 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 						if (raster == null) {
 							raster = imgTile.getRaster().createCompatibleWritableRaster(tileWidth, tileHeight);
 							colorModel = imgTile.getColorModel();
-							alphaPremultiplied = imgTile.isAlphaPremultiplied();							
+							alphaPremultiplied = imgTile.isAlphaPremultiplied();
 						}
 						// Insert the tile into the raster
 						if (dx >= raster.getWidth() ||
 								dy >= raster.getHeight()
 								)
 							continue;
-						
+
 						copyPixels(imgTile.getRaster(), dx, dy, raster);
 					}
 				}
@@ -498,25 +432,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		return createDefaultRGBImage(imgWidth, imgHeight);
 	}
 
-	
-	/**
-	 * Ensure all tiles in a list are either cached or requested.
-	 * If a tile is neither, then a blocking request is made so that the tile will be present later.
-	 * The purpose of this is to avoid sequentially requesting the same tiles from multiple threads,
-	 * which could cause all threads to block waiting on the same tile - rather than trying to 
-	 * get the next one.
-	 * @param tiles
-	 */
-	private void prerequestTiles(Collection<TileRequest> tiles) {
-		var cache = getCache();
-		for (var tile : tiles) {
-			if (cache == null || !cache.containsKey(tile.getRegionRequest()) && !pendingTiles.containsKey(tile)) {
-				var futureTask = pendingTiles.computeIfAbsent(tile, t -> new TileTask(Thread.currentThread(), () -> readTile(t)));
-				if (futureTask.thread == Thread.currentThread())
-					futureTask.run();
-			}
-		}
-	}
 	
 	/**
 	 * This method essentially wraps a call to {@link WritableRaster#setRect(int, int, Raster)}, while working 

@@ -29,10 +29,8 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.extensions.Subcommand;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
-import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
 import qupath.lib.images.writers.ome.zarr.OMEZarrWriter;
@@ -304,24 +302,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 	 * The tile cache is usually set when initializing the GUI; here, we need to create one for performance
 	 */
 	private void createTileCache() {
-		// TODO: Refactor this to avoid replicating logic from QuPathGUI private method
-		Runtime rt = Runtime.getRuntime();
-		long maxAvailable = rt.maxMemory(); // Max available memory
-		if (maxAvailable == Long.MAX_VALUE) {
-			logger.warn("No inherent maximum memory set - for caching purposes, will assume 64 GB");
-			maxAvailable = 64L * 1024L * 1024L * 1024L;
-		}
-		double percentage = PathPrefs.tileCachePercentageProperty().get();
-		if (percentage < 10) {
-			percentage = 10;
-		} else if (percentage > 90) {
-			percentage = 90;			
-		}
-		long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
-		logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));
-		
-		var imageRegionStore = ImageRegionStoreFactory.createImageRegionStore(tileCacheSize);
-		ImageServerProvider.setCache(imageRegionStore.getCache(), BufferedImage.class);
+		DefaultImageRegionStore.getSharedInstance();
 	}
 
 	/**

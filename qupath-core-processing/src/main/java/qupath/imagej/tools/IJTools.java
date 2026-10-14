@@ -55,6 +55,7 @@ import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.MemoryTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -148,9 +149,8 @@ public class IJTools {
 		// Compute (very simply) how much memory this image could take
 		long approxMemory = (long) approxPixelCount * bytesPerPixel;
 		
-		// Compute the available memory, as per https://stackoverflow.com/a/18366283
-		long allocatedMemory      = Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory();
-		long presumableFreeMemory = Runtime.getRuntime().maxMemory() - allocatedMemory;
+		// Compute the available memory
+		long presumableFreeMemory = MemoryTools.getTotalFreeMemory().orElse(MemoryTools.getCurrentFreeMemory());
 		
 		// Prepare pretty formatting if needed
 		DecimalFormat df = new DecimalFormat("00.00");

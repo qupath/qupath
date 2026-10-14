@@ -14,6 +14,7 @@ dependencies {
   api(libs.gson)
   api(libs.jts)
 
+  implementation(libs.caffeine)
   implementation(libs.guava)
   implementation(libs.commons.math)
   implementation(libs.picocli)

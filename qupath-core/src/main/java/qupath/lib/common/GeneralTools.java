@@ -925,7 +925,9 @@ public final class GeneralTools {
 	 * This may be used to help determine whether a memory-hungry operation should be attempted.
 	 * 
 	 * @return the estimated unused memory in bytes
+	 * @deprecated v0.8.0 use instead {@link MemoryTools#getTotalFreeMemory()}
 	 */
+	@Deprecated
 	public static long estimateAvailableMemory() {
 		System.gc();
 		return Runtime.getRuntime().maxMemory() - estimateUsedMemory();
@@ -935,7 +937,9 @@ public final class GeneralTools {
 	 * Estimate the current used memory.
 	 * 
 	 * @return the estimated allocated memory in bytes
+	 * @deprecated v0.8.0 use instead {@link MemoryTools#getCurrentUsedMemory()}
 	 */
+	@Deprecated
 	public static long estimateUsedMemory() {
 		var runtime = Runtime.getRuntime();
 		return runtime.totalMemory() - runtime.freeMemory();

@@ -33,25 +33,21 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
-import qupath.lib.display.ImageDisplay;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.images.stores.ImageRenderer;
+import qupath.lib.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.RegionFilter;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.ops.ImageDataOp;
-import qupath.opencv.ops.ImageDataServer;
-import qupath.opencv.ops.ImageOps;
 
 import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
@@ -60,7 +56,6 @@ import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -75,10 +70,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Function;
 
 /**
- * {@link PathOverlay} that gives the results of pixel classification.
- * 
- * @author Pete Bankhead
- *
+ * Overlay that gives the results of pixel classification.
+ * It can also be used to view features, or other images that are derived from an input image.
  */
 public class PixelClassificationOverlay extends AbstractImageOverlay  {
 	
@@ -110,11 +103,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         super(options);
         
         showOverlay = options.showPixelClassificationProperty();
-        
-        // Choose number of threads based on how intensive the processing will be
-        // TODO: Permit classifier to control request
-//        if (classifierServer.getClassifier() instanceof OpenCVPixelClassifierDNN)
-//        	nThreads = 1;
         
         var threadFactory = ThreadTools.createThreadFactory(
 				"classifier-overlay", true, Thread.NORM_PRIORITY-2);
@@ -151,25 +139,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
     public static PixelClassificationOverlay create(final OverlayOptions options, final PixelClassifier classifier, final int nThreads) {
     	return new PixelClassificationOverlay(options, Math.max(1, nThreads), new ClassifierServerFunction(classifier));
     }
-    
-    
-//    public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
-//    		final ImageDataOp calculator,
-//    		PixelCalibration resolution, ImageRenderer renderer) {
-//    	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(calculator, resolution), renderer);
-//    }
-    
-//    /**
-//     * Create an overlay to display a live image displaying the features for a {@link PixelClassifier}.
-//     * @param viewer the viewer to which the overlay should be added 
-//     * @param featureServer an {@link ImageServer} representing the features
-//     * @param renderer a rendered used to convert the features to RGB
-//     * @return
-//     */
-//    public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
-//    		final ImageServer<BufferedImage> featureServer, ImageRenderer renderer) {
-//    	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(featureServer), renderer);
-//    }
+
     
     /**
      * Create an overlay to display a live image that can be created from an existing {@link ImageData}.
@@ -205,55 +175,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
     	overlay.cachedServers = map;
     	overlay.setRenderer(renderer);
     	return overlay;
-    }
-    
-    /**
-     * Create an overlay to display a live image that can be created from an existing {@link ImageData}.
-     * 
-     * @param options options to control the overlay display
-     * @param fun function to create an {@link ImageServer} from the {@link ImageData}
-     * @param renderer rendered used to create an RGB image
-     * @return the {@link PixelClassificationOverlay}
-     * @deprecated Use {@link #create(OverlayOptions, Function, ImageRenderer)} instead.
-     */
-    @Deprecated
-    public static PixelClassificationOverlay createFeatureDisplayOverlay(final OverlayOptions options,
-    		final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun, ImageRenderer renderer) {
-    	var overlay = new PixelClassificationOverlay(options, 1, fun);
-    	overlay.setRenderer(renderer);
-    	return overlay;
-    }
-    
-    
-    static class FeatureCalculatorServerFunction implements Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> {
-    	
-    	private ImageServer<BufferedImage> server;
-    	private ImageDataOp calculator;
-    	private PixelCalibration resolution;
-    	
-    	private FeatureCalculatorServerFunction(ImageDataOp calculator, PixelCalibration resolution) {
-    		this.calculator = calculator;
-    		this.resolution = resolution;
-    	}
-    	
-    	private FeatureCalculatorServerFunction(ImageServer<BufferedImage> server) {
-    		this.server = server;
-    	}
-
-		@Override
-		public ImageServer<BufferedImage> apply(ImageData<BufferedImage> imageData) {
-			if (imageData == null) {
-				server = null;
-				return null;
-			}
-			if (server != null && (server instanceof ImageDataServer && ((ImageDataServer<?>)server).getImageData() != imageData))
-				server = null;
-			if (server == null && calculator != null && calculator.supportsImage(imageData)) {
-				server = ImageOps.buildServer(imageData, calculator, resolution);
-			}
-	    	return server;
-		}
-    	
     }
     
     
@@ -342,8 +263,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
      */
     public void setLivePrediction(boolean livePrediction) {
     	this.livePrediction = livePrediction;
-//    	if (livePrediction)
-//    		viewer.repaint();
     }    
     
     /**
@@ -366,7 +285,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         if (imageData == null)
             return;
                 
-//        ImageServer<BufferedImage> server = imageData.getServer();
         var server = getPixelClassificationServer(imageData);
         if (server == null)
         	return;
@@ -399,7 +317,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         	rendererLastTimestamp = renderer.getLastChangeTimestamp();
         }
         
-//        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
 		double requestedDownsample = ServerTools.getPreferredDownsampleFactor(server, downsampleFactor);
 
 		var gCopy = (Graphics2D)g2d.create();
@@ -409,7 +326,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         else
         	// Only use specified interpolation when upsampling
     		setInterpolation(gCopy);
-//        	gCopy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
         var comp = getAlphaComposite();
     	var previousComposite = gCopy.getComposite();
@@ -421,23 +337,17 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         }
         
         
-        Collection<TileRequest> tiles = server.getTileRequestManager().getTileRequests(fullRequest);
-        
-        if (fullRequest != null) {
-        	double x = (Math.max(0, fullRequest.getMinX()) + Math.min(server.getWidth(), fullRequest.getMaxX())) / 2.0;
-        	double y = (Math.max(0, fullRequest.getMinY()) + Math.min(server.getHeight(), fullRequest.getMaxY())) / 2.0;
-        	var p = new Point2(x, y);
-        	tiles = new ArrayList<>(tiles);
-        	((List<TileRequest>)tiles).sort(
-        			Comparator.comparingDouble((TileRequest t) -> p.distanceSq(t.getImageX() + t.getImageWidth() / 2.0, t.getImageY() + t.getImageHeight() / 2.0))
-//        			.reversed()
-        			);
-        }
+        List<TileRequest> tiles = new ArrayList<>(server.getTileRequestManager().getTileRequests(fullRequest));
+
+        double x = (Math.max(0, fullRequest.getMinX()) + Math.min(server.getWidth(), fullRequest.getMaxX())) / 2.0;
+        double y = (Math.max(0, fullRequest.getMinY()) + Math.min(server.getHeight(), fullRequest.getMaxY())) / 2.0;
+        var p = new Point2(x, y);
+        tiles.sort(
+                Comparator.comparingDouble((TileRequest t) -> p.distanceSq(t.getImageX() + t.getImageWidth() / 2.0, t.getImageY() + t.getImageHeight() / 2.0))
+        );
 
         // Clear pending requests, since we'll insert new ones (perhaps in a different order)
     	this.pendingRequests.clear();
-
-//        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
 
         // Loop through & paint classified tiles if we have them, or request tiles if we don't
         for (TileRequest tile : tiles) {
@@ -467,8 +377,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
             	gCopy.fillRect(request.getX(), request.getY(), request.getWidth(), request.getHeight());
             	// Get the cached RGB painted version (since painting can be a fairly expensive operation)
             	gCopy.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
-//                g2d.setColor(Color.RED);
-//                g2d.drawRect(request.getX(), request.getY(), request.getWidth(), request.getHeight());
                 continue;
             }
             
@@ -571,16 +479,15 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
             	var changed = new ArrayList<PathObject>();
                 var hierarchy = imageData == null ? null : imageData.getHierarchy();
                 try {
-                	classifierServer.readRegion(tile.getRegionRequest());
+					// Since v0.8.0, we must request the tile via the cache - the ImageServer can't cache it otherwise
+					ImageCache.getSharedInstance().requestImageTile(tile.getRegionRequest(), classifierServer).get();
+
                 	repaintAllViewers();
                     var channelType = classifierServer.getMetadata().getChannelType();
                     if (channelType == ChannelType.CLASSIFICATION || channelType == ChannelType.PROBABILITY || channelType == ChannelType.MULTICLASS_PROBABILITY) {
 		                if (hierarchy != null) {
-//		                	if (pendingRequests.size() <= 1)
-//		                		changed.add(hierarchy.getRootObject());
 	                		changed.add(hierarchy.getRootObject());
 		                	hierarchy.getAnnotationsForRegion(tile.getRegionRequest(), changed);
-//		                	changed.addAll(hierarchy.getAnnotationObjects());
 		                }
                     }
                 } catch (Exception e) {
@@ -682,7 +589,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 				return fromRenderer;
 		}
     	
-//    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
     	var channelType = server.getMetadata().getChannelType();
     	
     	double scale = 1.0;

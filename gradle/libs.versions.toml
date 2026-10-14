@@ -5,7 +5,7 @@ bioimageIoSpec  = "0.2.1"
 omeZarrReader   = "0.6.0"
 blosc           = "1.21.6+01"
 
-caffeine        = "3.2.3"
+caffeine        = "3.2.4"
 commonmark      = "0.30.1"
 commonsMath3    = "3.6.1"
 commonsText     = "1.14.0"

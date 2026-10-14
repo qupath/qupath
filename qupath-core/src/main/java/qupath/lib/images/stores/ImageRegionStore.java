@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,19 +21,32 @@
  * #L%
  */
 
-package qupath.lib.gui.images.stores;
+package qupath.lib.images.stores;
+
+import qupath.lib.images.cache.GenericImageCache;
 
 /**
- * Implementing classes are able to estimate the size given an object of some time - 
- * most likely an image (e.g. AWT BufferedImage or JavaFX Image).  This can be used
- * by a cache to determine the approximate size of the objects it contains.
- * 
- * @author Pete Bankhead
+ * Interface to wrap around an image tile cache.
+ * <p>
+ * This can be used to access the main cache, and a second cache used to standardized 'thumbnail' image requests.
+ * Implementations determine whether the thumbnail cache stores the thumbnail pixels in the main cache,
+ * or separately.
  *
  * @param <T>
  */
-interface SizeEstimator<T> {
-	
-	public long getApproxImageSize(T value);
-	
+interface ImageRegionStore<T> {
+
+	/**
+	 * Get the main image cache associated with this store.
+	 * @return the cache
+	 */
+	GenericImageCache<T> getCache();
+
+	/**
+	 * Get the cache of thumbnail images.
+	 * This is a specialized cache that can only return standardized, low-resolution versions of an image.
+	 * @return the thumbnail store
+	 */
+	ThumbnailCache<T> getThumbnailCache();
+
 }

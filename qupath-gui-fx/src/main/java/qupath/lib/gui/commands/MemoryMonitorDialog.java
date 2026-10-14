@@ -22,7 +22,9 @@
 package qupath.lib.gui.commands;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.concurrent.ScheduledService;
 import javafx.concurrent.Task;
@@ -31,6 +33,7 @@ import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.chart.AreaChart;
 import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.StackedAreaChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -46,9 +49,11 @@ import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.utils.FXUtils;
+import qupath.lib.common.MemoryTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.images.cache.ImageCache;
 
 import java.text.MessageFormat;
 
@@ -79,8 +84,13 @@ class MemoryMonitorDialog {
 
 	private final Stage stage;
 
-	private final XYChart.Series<Number, Number> seriesTotal = new XYChart.Series<>();
+	// It's very unlikely (impossibly?) that no max memory is available, but we certainly can't use Long.MAX_VALUE,
+	// so we need some kind of sensible default to set axes.
+	private final long DEFAULT_MAX_MEMORY = MemoryTools.gibibytesToBytes(64L);
+
+	private final XYChart.Series<Number, Number> seriesTileCache = new XYChart.Series<>();
 	private final XYChart.Series<Number, Number> seriesUsed = new XYChart.Series<>();
+	private final XYChart.Series<Number, Number> seriesTotal = new XYChart.Series<>();
 
 	// Store time
 	private long startTimeMillis;
@@ -93,15 +103,23 @@ class MemoryMonitorDialog {
 
 	// Observable properties to store cache values
 	private final LongProperty cachedTiles = new SimpleLongProperty();
+	private final LongProperty cacheSizeBytes = new SimpleLongProperty();
+	private final LongProperty cacheMaxSizeBytes = new SimpleLongProperty();
+	private final DoubleProperty cacheFillPercent = new SimpleDoubleProperty();
 	private final LongProperty undoRedoSizeBytes = new SimpleLongProperty();
 
 	// Let's sometimes scale to MB, sometimes to GB
-	private static final double scaleMB = 1.0/1024.0/1024.0;
-	private static final double scaleGB = scaleMB/1024.0;
+	// Change for v0.8: use 1000, rather than 1024
+	private static final double scaleMB = 1.0/1000.0/1000.0;
+	private static final double scaleGB = scaleMB/1000.0;
 	
 	private final MemoryService service = new MemoryService();
-	
+
 	MemoryMonitorDialog(QuPathGUI qupath) {
+		this(qupath, true);
+	}
+
+	MemoryMonitorDialog(QuPathGUI qupath, boolean useStackedAreas) {
 		this.qupath = qupath;
 
 		// Create a chart to show how memory use evolves over time
@@ -109,11 +127,18 @@ class MemoryMonitorDialog {
 		xAxis.setLabel(QuPathResources.getString("Commands.MemoryMonitor.time"));
 		var yAxis = new NumberAxis();
 		yAxis.setLabel(QuPathResources.getString("Commands.MemoryMonitor.memory"));
-		var chart = new AreaChart<>(xAxis, yAxis);
+		XYChart<Number, Number> chart;
+		if (useStackedAreas) {
+			chart = new StackedAreaChart<>(xAxis, yAxis);
+			((StackedAreaChart)chart).setCreateSymbols(false);
+		} else {
+			chart = new AreaChart<>(xAxis, yAxis);
+			((AreaChart)chart).setCreateSymbols(false);
+		}
 		yAxis.setAutoRanging(false);
 		yAxis.setLowerBound(0.0);
 		yAxis.setTickUnit(1.0);
-		yAxis.setUpperBound(Math.ceil(Runtime.getRuntime().maxMemory() * scaleGB));
+		yAxis.setUpperBound(Math.ceil(MemoryTools.getMaxMemoryOrDefault(DEFAULT_MAX_MEMORY) * scaleGB));
 		xAxis.setAutoRanging(false);
 		xAxis.tickUnitProperty().bind(Bindings.createLongBinding(() -> {
 			var seconds = (timeMillis.get() - startTimeMillis) / 1000;
@@ -141,6 +166,13 @@ class MemoryMonitorDialog {
 				),
 				totalMemory
 		));
+		seriesTileCache.nameProperty().bind(Bindings.createStringBinding(
+				() -> MessageFormat.format(
+						QuPathResources.getString("Commands.MemoryMonitor.tileCacheMemory"),
+						String.format("%.1f", cacheSizeBytes.get() * scaleMB)
+				),
+				cacheSizeBytes
+		));
 		seriesUsed.nameProperty().bind(Bindings.createStringBinding(
 				() -> MessageFormat.format(
 						QuPathResources.getString("Commands.MemoryMonitor.usedMemory"),
@@ -148,14 +180,21 @@ class MemoryMonitorDialog {
 				),
 				usedMemory
 		));
-		chart.getData().add(seriesTotal);
+		chart.getData().add(seriesTileCache);
 		chart.getData().add(seriesUsed);
+		chart.getData().add(seriesTotal);
 		chart.setLegendVisible(true);
 		chart.setLegendSide(Side.TOP);
 		chart.setAnimated(false);
-		chart.setCreateSymbols(false);
 
 		// Add it button to make it possible to clear the tile cache
+		Label labelCacheFill = new Label();
+		cacheFillPercent.bind(cacheSizeBytes.multiply(100.0).divide(cacheMaxSizeBytes));
+		labelCacheFill.textProperty().bind(Bindings.createStringBinding(
+				() -> MessageFormat.format(QuPathResources.getString("Commands.MemoryMonitor.cacheFillPercent"), cacheFillPercent.get()),
+				cacheFillPercent
+		));
+
 		Label labelClearCache = new Label();
 		labelClearCache.textProperty().bind(Bindings.createStringBinding(
 				() -> MessageFormat.format(QuPathResources.getString("Commands.MemoryMonitor.numCachedTiles"), cachedTiles.get()),
@@ -166,7 +205,7 @@ class MemoryMonitorDialog {
 		btnClearCache.setOnAction(e -> {
 			try {
 				logger.info("Clearing cache...");
-				qupath.getViewer().getImageRegionStore().clearCache();
+				ImageCache.getSharedInstance().clearCache();
 				System.gc();
 			} catch (Exception e2) {
 				logger.error("Error clearing cache", e2);
@@ -224,6 +263,7 @@ class MemoryMonitorDialog {
 		var btnReset = new Button(QuPathResources.getString("Commands.MemoryMonitor.resetMonitor"));
 		btnReset.setOnAction(e -> {
 			startTimeMillis = 0L;
+			seriesTileCache.getData().clear();
 			seriesUsed.getData().clear();
 			seriesTotal.getData().clear();
 		});
@@ -231,7 +271,6 @@ class MemoryMonitorDialog {
 
 		// Add a text field to adjust the number of parallel threads
 		// This is handy to scale back memory use when running things like cell detection
-		var runtime = Runtime.getRuntime();
 		var labThreads = new Label(QuPathResources.getString("Commands.MemoryMonitor.parallelThreads"));
 		var tfThreads = new TextField(Integer.toString(PathPrefs.numCommandThreadsProperty().get()));
 		PathPrefs.numCommandThreadsProperty().addListener((v, o, n) -> {
@@ -256,7 +295,7 @@ class MemoryMonitorDialog {
 		paneRight.add(
 				new Label(MessageFormat.format(
 						QuPathResources.getString("Commands.MemoryMonitor.availableProcessors"),
-						runtime.availableProcessors()
+						Runtime.getRuntime().availableProcessors()
 				)),
 				col,
 				row++,
@@ -265,6 +304,7 @@ class MemoryMonitorDialog {
 		);
 		paneRight.add(labThreads, col, row, 1, 1);
 		paneRight.add(tfThreads, col+1, row++, 1, 1);
+		paneRight.add(labelCacheFill, col, row++, 2, 1);
 		paneRight.add(labelClearCache, col, row++, 2, 1);
 		paneRight.add(btnClearCache, col, row++, 2, 1);
 
@@ -288,7 +328,7 @@ class MemoryMonitorDialog {
 
 		// Create a timer that will snapshot the current memory usage & update the chart
 		service.setPeriod(Duration.seconds(1.0));
-		service.lastValueProperty().addListener((v, o, n) -> {
+		service.lastValueProperty().subscribe(n -> {
 			if (n == null)
 				return;
 			if (startTimeMillis <= 0)
@@ -298,11 +338,22 @@ class MemoryMonitorDialog {
 			totalMemory.set(n.totalMemory);
 			usedMemory.set(n.usedMemory);
 			undoRedoSizeBytes.set(n.undoRedoSize());
+			cacheSizeBytes.set(n.tileCacheBytes());
+			cacheMaxSizeBytes.set(n.maxTileCacheBytes());
 			cachedTiles.set(n.numCachedTiles());
 			
 			long time = (timeMillis.get() - startTimeMillis) / 1000;
-			seriesUsed.getData().add(new XYChart.Data<>(time, usedMemory.get() * scaleGB));
-			seriesTotal.getData().add(new XYChart.Data<>(time, totalMemory.get() * scaleGB));
+			double tileCacheValue = cacheSizeBytes.get() * scaleGB;
+			double usedMemoryValue = usedMemory.get() * scaleGB;
+			double totalMemoryValue = totalMemory.get() * scaleGB;
+			seriesTileCache.getData().add(new XYChart.Data<>(time, tileCacheValue));
+			if (chart instanceof StackedAreaChart) {
+				seriesUsed.getData().add(new XYChart.Data<>(time, Math.max(0, usedMemoryValue - tileCacheValue)));
+				seriesTotal.getData().add(new XYChart.Data<>(time, Math.max(0, totalMemoryValue - usedMemoryValue)));
+			} else {
+				seriesUsed.getData().add(new XYChart.Data<>(time, usedMemoryValue));
+				seriesTotal.getData().add(new XYChart.Data<>(time, totalMemoryValue));
+			}
 		});
 
 		// Show the GUI
@@ -346,24 +397,27 @@ class MemoryMonitorDialog {
 		
 	}
 
+
 	private final class MemorySnapshotTask extends Task<MemorySnapshot> {
 
 		@Override
 		protected MemorySnapshot call() {
-			var runtime = Runtime.getRuntime();
-			long totalMemory = runtime.totalMemory();
-			long maxMemory = runtime.maxMemory();
-			long usedMemory = totalMemory - runtime.freeMemory();
+			long totalMemory = MemoryTools.getCurrentTotalMemory();
+			long maxMemory = MemoryTools.getMaxMemoryOrDefault(DEFAULT_MAX_MEMORY);
+			long usedMemory = MemoryTools.getCurrentUsedMemory();
 			long undoRedoSizeBytes = qupath.getUndoRedoManager().totalBytes();
-			long cachedTiles = qupath.getViewer().getImageRegionStore().getCache().size();
+			var cache = ImageCache.getSharedInstance();
 			return new MemorySnapshot(
 					System.currentTimeMillis(),
 					totalMemory,
 					maxMemory,
 					usedMemory,
 					undoRedoSizeBytes,
-					cachedTiles
+					cache.getCurrentSizeBytes(),
+					cache.getMaxSizeBytes(),
+					cache.getTileCount()
 			);
+
 		}
 
 	}
@@ -375,6 +429,8 @@ class MemoryMonitorDialog {
 			long maxMemory,
 			long usedMemory,
 			long undoRedoSize,
+			long tileCacheBytes,
+			long maxTileCacheBytes,
 			long numCachedTiles
 	) {
 

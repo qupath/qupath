@@ -21,34 +21,25 @@
  * #L%
  */
 
-package qupath.lib.gui.images.stores;
+package qupath.lib.images.cache;
 
-import qupath.lib.regions.RegionRequest;
-
-import java.util.Map;
-import java.util.concurrent.RunnableFuture;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
 
 /**
- * Interface for a worker to fetch an image tile related to a specified RegionRequest.
- * 
- * @author Pete Bankhead
- *
- * @param <T>
+ * Helper class to estimate if the size in bytes for a BufferedImage.
+ * <p>
+ * This isn't particularly exact (and doesn't try to incorporate any overhead beyond pixels,
+ * but gives a good enough guide to help with caching.
  */
-interface TileWorker<T> extends RunnableFuture<T> {
+public class BufferedImageSizeEstimator implements SizeEstimator<BufferedImage> {
 	
-	/**
-	 * The region that has been requested for this worker to fetch, including downsample.
-	 * 
-	 * @return
-	 */
-	public RegionRequest getRequest();
-	
-	/**
-	 * The cache where the region should be added, when available.
-	 * 
-	 * @return
-	 */
-	public Map<RegionRequest, T> getRequestedCache();
+	@Override
+	public long getApproxImageSize(BufferedImage img) {
+		if (img == null)
+			return 0;
+		DataBuffer data = img.getRaster().getDataBuffer();
+		return (long)data.getSize() * (long)(DataBuffer.getDataTypeSize(data.getDataType())/8) * data.getNumBanks();
+	}
 	
 }
