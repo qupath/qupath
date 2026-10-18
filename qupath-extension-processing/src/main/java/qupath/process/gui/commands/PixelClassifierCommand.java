@@ -33,14 +33,19 @@ import qupath.process.gui.commands.ml.PixelClassifierPane;
  */
 public class PixelClassifierCommand implements Runnable {
 
+	private PixelClassifierPane trainingDialog;
+
 	@Override
 	public void run() {
 		var qupath = QuPathGUI.getInstance();
 		var imageData = qupath.getImageData();
 		if (imageData == null) {
 			GuiTools.showNoImageError("Pixel classifier");
-		} else
-			new PixelClassifierPane(qupath);
+		} else {
+			if (trainingDialog == null)
+				trainingDialog = new PixelClassifierPane(qupath);
+			trainingDialog.showStage();
+		}
 	}
 
 }

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -32,12 +32,10 @@ import javafx.scene.layout.Region;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.panes.ProjectBrowser;
-import qupath.lib.gui.tools.CommandFinderTools;
 
 /**
  * Inelegantly named class to manage the main components of the main QuPath window.
  * 
- * @author Pete Bankhead
  * @since v0.5.0
  */
 class QuPathMainPaneManager {
@@ -48,7 +46,7 @@ class QuPathMainPaneManager {
 	
 	private SplitPane splitPane;
 	private Region mainViewerPane;
-	
+
 	private ToolBarComponent toolbar;
 	private AnalysisTabPane analysisTabPane;
 	
@@ -65,12 +63,11 @@ class QuPathMainPaneManager {
 		tabPane.setPrefWidth(400);
 		splitPane.setMinWidth(tabPane.getMinWidth() + 200);
 		splitPane.setPrefWidth(tabPane.getPrefWidth() + 200);
-		SplitPane.setResizableWithParent(tabPane, Boolean.FALSE);		
-		
-		var viewerRegion = qupath.getViewerManager().getRegion();
-		mainViewerPane = CommandFinderTools.createCommandFinderPane(qupath, viewerRegion, CommandFinderTools.commandBarDisplayProperty());
+		SplitPane.setResizableWithParent(tabPane, Boolean.FALSE);
+
+		mainViewerPane = qupath.getViewerManager().getRegion();
 		splitPane.getItems().addAll(tabPane, mainViewerPane);
-		SplitPane.setResizableWithParent(viewerRegion, Boolean.TRUE);
+		SplitPane.setResizableWithParent(mainViewerPane, Boolean.TRUE);
 		
 		pane.setCenter(splitPane);
 		

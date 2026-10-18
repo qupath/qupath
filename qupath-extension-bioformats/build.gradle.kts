@@ -14,7 +14,7 @@ base {
 }
 
 var bioformatsVersion = libs.versions.bioformats.get()
-val versionOverride = project.properties["bioformats-version"]
+val versionOverride = ext.properties["bioformats-version"]
 if (versionOverride is String) {
 	println("Using specified Bio-Formats version $versionOverride")
 	bioformatsVersion = versionOverride

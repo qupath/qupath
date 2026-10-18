@@ -25,11 +25,13 @@ package qupath.lib.gui.viewer;
 
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.FloatProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyLongProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleFloatProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -838,7 +840,80 @@ public class OverlayOptions {
 	 */
 	public BooleanProperty showGridProperty() {
 		return showGrid;
-	}	
+	}
+
+
+	/**
+	 * The proportion of the image width to exclude at the left of the image for the curtain overlay effect.
+	 * This should be between 0 and {@link #getCurtainMaxX()}.
+	 */
+	private DoubleProperty curtainMinX = new SimpleDoubleProperty(0);
+
+	/**
+	 * The proportion of the image width to exclude at the right of the image for the curtain overlay effect.
+	 * This should be between {@link #getCurtainMinX()} and 1.
+	 */
+	private DoubleProperty curtainMaxX = new SimpleDoubleProperty(1);
+
+	/**
+	 * The proportion of the image height to exclude at the top of the image for the curtain overlay effect.
+	 * This should be between 0 and {@link #getCurtainMaxY()}.
+	 */
+	private DoubleProperty curtainMinY = new SimpleDoubleProperty(0);
+
+	/**
+	 * The proportion of the image height to exclude at the bottom of the image for the curtain overlay effect.
+	 * This should be between {@link #getCurtainMinY()} and 1.
+	 */
+	private DoubleProperty curtainMaxY = new SimpleDoubleProperty(1);
+
+	public DoubleProperty curtainMinXProperty() {
+		return curtainMinX;
+	}
+
+	public double getCurtainMinX() {
+		return curtainMinXProperty().get();
+	}
+
+	public void setCurtainMinX(double x) {
+		curtainMinXProperty().set(x);
+	}
+
+	public DoubleProperty curtainMaxXProperty() {
+		return curtainMaxX;
+	}
+
+	public double getCurtainMaxX() {
+		return curtainMaxXProperty().get();
+	}
+
+	public void setCurtainMaxX(double x) {
+		curtainMaxXProperty().set(x);
+	}
+
+	public DoubleProperty curtainMinYProperty() {
+		return curtainMinY;
+	}
+
+	public double getCurtainMinY() {
+		return curtainMinYProperty().get();
+	}
+
+	public void setCurtainMinY(double y) {
+		curtainMinYProperty().set(y);
+	}
+
+	public DoubleProperty curtainMaxYProperty() {
+		return curtainMaxY;
+	}
+
+	public double getCurtainMaxY() {
+		return curtainMaxYProperty().get();
+	}
+
+	public void setCurtainMaxY(double y) {
+		curtainMaxYProperty().set(y);
+	}
 	
 	
 }

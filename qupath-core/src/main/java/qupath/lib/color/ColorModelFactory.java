@@ -109,7 +109,7 @@ public final class ColorModelFactory {
      * @param includeAlpha if true, allow alpha values to be included in the colormap
      * @return
      */
-    public static ColorModel createIndexedColorModel(Map<Integer, Integer> labelColors, boolean includeAlpha) {
+    public static IndexColorModel createIndexedColorModel(Map<Integer, Integer> labelColors, boolean includeAlpha) {
     	var stats = labelColors.keySet().stream().mapToInt(c -> c).summaryStatistics();
     	if (stats.getMin() < 0)
     		throw new IllegalArgumentException("Minimum label must be >= 0");

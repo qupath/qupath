@@ -573,13 +573,25 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			return;
 
 		project.removeAllImages(entries, result == ButtonType.YES);
-		refreshTree(null);
+		// Try to select the current open image
+		// See https://forum.image.sc/t/tiny-feature-request-image-list-re-center-after-refresh/121163
+		refreshTree(getRowForOpenImage());
 		syncProject(project);
 		if (tree != null) {
 			boolean isExpanded = tree.getRoot() != null && tree.getRoot().isExpanded();
 			tree.setRoot(model.getRoot());
 			tree.getRoot().setExpanded(isExpanded);
 		}
+	}
+
+	private ImageRow getRowForOpenImage() {
+		var imageData = getCurrentImageData();
+		if (imageData == null || project == null)
+			return null;
+		var entry = project.getEntry(imageData);
+		if (entry == null)
+			return null;
+		return getAllImageRows().stream().filter(r -> entry.equals(r.getEntry())).findFirst().orElse(null);
 	}
 
 
@@ -1177,9 +1189,15 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 									break;
 								}
 							}
-						} else if (child.getValue().equals(imageToSelect))
+						} else if (child.getValue().equals(imageToSelect)) {
 							tree.getSelectionModel().select(child);
+						}
 					}
+					// When selecting a row, also scroll to it
+					// https://forum.image.sc/t/tiny-feature-request-image-list-re-center-after-refresh/121163
+					int ind = tree.getSelectionModel().getSelectedIndex();
+					if (ind >= 0)
+						tree.scrollTo(ind);
 				}
 			} catch (Exception ex) {
 				logger.error("Error getting children objects in the ProjectBrowser", ex);

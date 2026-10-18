@@ -211,6 +211,20 @@ public class TestOpenCVTools {
 		assertEquals(total, pixelsCV.length);
 		assertArrayEquals(pixelsCV, pixelsApply, 1e-6);
 	}
+
+	@Test
+	public void testApplyBioperator() {
+		try (var scope = new PointerScope()) {
+			var matA = new Mat(1, 2, opencv_core.CV_32FC3, Scalar.ONE);
+			var matB = new Mat(1, 2, opencv_core.CV_32FC3, Scalar.ONEHALF);
+
+			var matOutput = OpenCVTools.apply(matA, matB, null, Double::sum);
+			assertArrayEquals(new double[]{1.5, 1.5, 1.5, 1.5, 1.5, 1.5}, OpenCVTools.extractDoubles(matOutput));
+
+			var matOutput2 = OpenCVTools.apply(matA, matB, null, (a, b) -> a * 2 - b * 3);
+			assertArrayEquals(new double[]{0.5, 0.5, 0.5, 0.5, 0.5, 0.5}, OpenCVTools.extractDoubles(matOutput2));
+		}
+	}
 	
 	@Test
 	public void testConverting() {

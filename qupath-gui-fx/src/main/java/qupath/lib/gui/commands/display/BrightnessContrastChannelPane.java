@@ -262,7 +262,7 @@ public class BrightnessContrastChannelPane extends BorderPane {
         var imageDisplay = imageDisplayObjectProperty.getValue();
         if (imageDisplay != null)
             channelList.setAll(imageDisplay.availableChannels());
-        table.setPlaceholder(GuiTools.createPlaceholderText(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.noChannelsAvailable")));
+        table.setPlaceholder(GuiTools.createPlaceholderLabel(QuPathResources.getString("Commands.BrightnessContrast.ChannelPane.noChannelsAvailable")));
         table.addEventHandler(KeyEvent.KEY_PRESSED, new ChannelTableKeypressedListener());
 
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);

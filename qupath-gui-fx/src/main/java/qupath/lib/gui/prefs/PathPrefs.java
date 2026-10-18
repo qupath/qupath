@@ -715,6 +715,17 @@ public class PathPrefs {
 		return useTileBrush;
 	}
 
+	private static final BooleanProperty useRasterBrush = createPersistentPreference("useRasterBrush", false);
+
+	/**
+	 * Request that the brush tool created 'rasterized' shapes.
+	 * These contain only integer coordinates, connected by horizontal or vertical lines.
+	 * @return
+	 */
+	public static BooleanProperty useRasterBrushProperty() {
+		return useRasterBrush;
+	}
+
 	private static BooleanProperty selectionMode = MANAGER.createTransientBooleanProperty("selectionMode", false);
 
 	/**
@@ -1374,7 +1385,21 @@ public class PathPrefs {
 	public static IntegerProperty colorTileProperty() {
 		return colorTile;
 	}
-	
+
+	private static BooleanProperty doAutoSetPathClass = MANAGER.createTransientBooleanProperty("doAutoSetPathClass", false);
+
+	/**
+	 * Request that the classification of new annotations is set automatically.
+	 * The value of the classification to use is given by {@link #autoSetAnnotationClassProperty()}.
+	 * <p>
+	 * This property was introduced in v0.8.0 to make it possible to query and change the auto-set behavior
+	 * from different parts of the QuPath UI.
+	 * @return
+	 * @since v0.8.0
+	 */
+	public static BooleanProperty doAutoSetPathClassProperty() {
+		return doAutoSetPathClass;
+	}
 	
 	private static ObjectProperty<PathClass> autoSetAnnotationClass = MANAGER.createTransientObjectProperty("autoSetAnnotationClass", (PathClass) null);
 	

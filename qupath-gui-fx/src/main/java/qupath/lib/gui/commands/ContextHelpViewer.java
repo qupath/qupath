@@ -86,43 +86,43 @@ import java.util.stream.Collectors;
  */
 public class ContextHelpViewer {
 
-	private static Map<QuPathGUI, ContextHelpViewer> INSTANCES = new ConcurrentHashMap<>();
+	private static final Map<QuPathGUI, ContextHelpViewer> INSTANCES = new ConcurrentHashMap<>();
 
-	private StringProperty title = QuPathResources.getLocalizedResourceManager().createProperty("ContextHelp.title");
-	private QuPathGUI qupath;
+	private final StringProperty title = QuPathResources.getLocalizedResourceManager().createProperty("ContextHelp.title");
+	private final QuPathGUI qupath;
 	
 	private int iconSize = 16;
 
-	private Stage stage;
+	private final Stage stage;
 	private ObservableList<Window> windows;
-	private EventHandler<MouseEvent> handler = this::handleMouseMove;
+	private final EventHandler<MouseEvent> handler = this::handleMouseMove;
 
-	private StringProperty defaultText = QuPathResources.getLocalizedResourceManager().createProperty("ContextHelp.defaultHelpText");
-	private StringProperty helpText = new SimpleStringProperty(defaultText.get());
+	private final StringProperty defaultText = QuPathResources.getLocalizedResourceManager().createProperty("ContextHelp.defaultHelpText");
+	private final StringProperty helpText = new SimpleStringProperty(defaultText.get());
 
-	private Label label;
+	private final Label label;
 
 	private Node lastNode;
-	private VBox vbox;
+	private final VBox vbox;
 	
-	private ObservableList<HelpListEntry> allHelpEntries = FXCollections.observableArrayList(
+	private final ObservableList<HelpListEntry> allHelpEntries = FXCollections.observableArrayList(
 			(HelpListEntry e) -> new Observable[] {e.visibleProperty()});
 
-	private LongBinding warningCount = Bindings.createLongBinding(() ->
+	private final LongBinding warningCount = Bindings.createLongBinding(() ->
 		allHelpEntries.stream().filter(e -> e.visibleProperty().get() && e.getType() == HelpType.WARNING || e.getType() == HelpType.ERROR).count(),
 		allHelpEntries);
 
-	private LongBinding infoCount = Bindings.createLongBinding(() ->
+	private final LongBinding infoCount = Bindings.createLongBinding(() ->
 					allHelpEntries.stream().filter(e -> e.visibleProperty().get() && e.getType() == HelpType.INFO).count(),
 			allHelpEntries);
 
-	private BooleanBinding hasWarnings = warningCount.greaterThan(0);
-	private BooleanBinding hasInfo = infoCount.greaterThan(0);
+	private final BooleanBinding hasWarnings = warningCount.greaterThan(0);
+	private final BooleanBinding hasInfo = infoCount.greaterThan(0);
 
-	private InfoMessage warningMessage = InfoMessage.warning(warningCount);
-	private InfoMessage infoMessage = InfoMessage.info(infoCount);
+	private final InfoMessage warningMessage = InfoMessage.warning(warningCount);
+	private final InfoMessage infoMessage = InfoMessage.info(infoCount);
 
-	private ObjectExpression<InfoMessage> infoOrWarningMessage = Bindings.createObjectBinding(() -> {
+	private final ObjectExpression<InfoMessage> infoOrWarningMessage = Bindings.createObjectBinding(() -> {
 		if (hasWarnings.get())
 			return warningMessage;
 		else if (hasInfo.get())
@@ -131,12 +131,12 @@ public class ContextHelpViewer {
 			return null;
 	}, hasWarnings, hasInfo);
 
-	private ObjectProperty<ImageData<?>> imageDataProperty = new SimpleObjectProperty<>();
+	private final ObjectProperty<ImageData<?>> imageDataProperty = new SimpleObjectProperty<>();
 
 	private PropertyChangeListener imageDataPropertyChange = this::imageDataPropertyChange;
 
-	private ObjectProperty<PixelCalibration> currentPixelSize = new SimpleObjectProperty<>();
-	private BooleanBinding pixelCalibrationUnset = imageDataProperty.isNotNull().and(currentPixelSize.isNull()
+	private final ObjectProperty<PixelCalibration> currentPixelSize = new SimpleObjectProperty<>();
+	private final BooleanBinding pixelCalibrationUnset = imageDataProperty.isNotNull().and(currentPixelSize.isNull()
 			.or(currentPixelSize.isEqualTo(PixelCalibration.getDefaultInstance())));
 
 
@@ -278,7 +278,7 @@ public class ContextHelpViewer {
 		stage.setWidth(300);
 		stage.setHeight(400);
 		stage.setScene(scene);
-		FXUtils.addCloseWindowShortcuts(stage);
+		FXUtils.addCloseWindowShortcuts((Window)stage);
 		return stage;
 	}
 	

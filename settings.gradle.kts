@@ -1,8 +1,9 @@
 import org.apache.tools.ant.taskdefs.condition.Os
+import java.nio.file.Paths
 
 pluginManagement {
     plugins {
-        kotlin("jvm") version "2.3.21"
+        kotlin("jvm") version "2.4.10"
     }
 }
 plugins {
@@ -203,7 +204,19 @@ fun handleExtensionConfig(file: File) {
             "[includeFlat]" -> search = searchIncludeFlat
             "[dependencies]" -> search = searchDependencies
             else -> {
-                when (search) {
+                var localSearch = search
+                // If what we're searching for isn't specified, figure it out
+                // This can simplify the include-extras file layout
+                if (localSearch == searchNothing) {
+                    if (File(line).exists()) {
+                        localSearch = searchIncludeBuild
+                    } else if (File(rootDir, "../" + line).exists()) {
+                        localSearch = searchIncludeFlat
+                    } else if (line.contains(":", ignoreCase = false)) {
+                        localSearch = searchDependencies
+                    }
+                }
+                when (localSearch) {
                     searchIncludeBuild -> includeBuild(line)
                     searchIncludeFlat -> includeFlat(line)
                     searchDependencies -> dependenciesToAdd.add(line)

@@ -310,6 +310,8 @@ public class IconFactory {
 									COMMAND_LIST(IconSuppliers.fontAwesome(FontAwesome.Glyph.LIST_UL)),
 									CONTRAST(IconSuppliers.icoMoon('\ue906')),
 
+									CURTAINS(IconSuppliers.fontAwesome(FontAwesome.Glyph.COLUMNS)),
+
 									DETECTIONS(IconSuppliers.icoMoon('\ue908', DETECTION_COLOR)),
 									DETECTIONS_FILL(IconSuppliers.fillDetectionsIcon()),
 									DOWNLOAD(IconSuppliers.fontAwesome(FontAwesome.Glyph.DOWNLOAD)),

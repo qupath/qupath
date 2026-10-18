@@ -24,6 +24,7 @@ package qupath.lib.common;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -81,6 +82,8 @@ public class Timeit {
 	private static final Logger logger = LoggerFactory.getLogger(Timeit.class);
 	
 	private static final String DEFAULT_END_NAME = "END";
+
+	private Level level = null;
 	
 	private TimeUnit unit;
 	private int maxDecimals = 3;
@@ -89,7 +92,7 @@ public class Timeit {
 	
 	private boolean summarizeCheckpoints = false;
 	
-	private List<Checkpoint> checkpoints = Collections.synchronizedList(new ArrayList<>());
+	private final List<Checkpoint> checkpoints = Collections.synchronizedList(new ArrayList<>());
 	
 	/**
 	 * Start the Timeit and create a checkpoint with the default name.
@@ -189,6 +192,39 @@ public class Timeit {
 	public Timeit checkpoint() throws UnsupportedOperationException {
 		return checkpoint(null);
 	}
+
+	/**
+	 * Log checkpoints at the TRACE level.
+	 * @return this instance
+	 */
+	public Timeit logTrace() {
+		return logLevel(Level.TRACE);
+	}
+
+	/**
+	 * Log checkpoints at the DEBUG level.
+	 * @return this instance
+	 */
+	public Timeit logDebug() {
+		return logLevel(Level.DEBUG);
+	}
+
+	/**
+	 * Log checkpoints at the INFO level.
+	 * @return this instance
+	 */
+	public Timeit logInfo() {
+		return logLevel(Level.INFO);
+	}
+
+	/**
+	 * Log checkpoints at the specified level, or null if no logging should be performed.
+	 * @return this instance
+	 */
+	public Timeit logLevel(Level level) {
+		this.level = level;
+		return this;
+	}
 	
 	/**
 	 * Create a new checkpoint with the specified name.
@@ -204,14 +240,32 @@ public class Timeit {
 			name = "Checkpoint " + (checkpoints.size() + 1);
 		if (!isStarted) {
 			isStarted = true;
-			logger.debug("Timeit now started with checkpoint {}", name);
+			maybeLog("Timeit now started with checkpoint {}", name);
 		}
 		checkpoints.add(new Checkpoint(name));
 		if (DEFAULT_END_NAME.equals(name)) {
 			isStarted = false;
-			logger.debug("Timeit now stopped");
+			maybeLog("Timeit now stopped");
 		}
 		return this;
+	}
+
+	private void maybeLog(String message) {
+		if (level == null)
+			return;
+		logger.atLevel(level).log(message);
+	}
+
+	private void maybeLog(String message, Object arg) {
+		if (level == null)
+			return;
+		logger.atLevel(level).log(message, arg);
+	}
+
+	private void maybeLog(String message, Object... args) {
+		if (level == null)
+			return;
+		logger.atLevel(level).log(message, args);
 	}
 	
 	/**

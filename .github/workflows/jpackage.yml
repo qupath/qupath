@@ -17,7 +17,8 @@ on:
         required: false
         type: string
 
-
+permissions:
+  contents: read
 
 jobs:
   build:

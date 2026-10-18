@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -67,6 +67,11 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
      */
     private static final String ARG_ICC_PROFILE = "--icc-profile";
 
+	/**
+	 * Argument to use when specifying a background color (usually WHITE or BLACK).
+	 */
+	public static final String ARG_BACKGROUND_COLOR = "--background-color";
+
 
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
@@ -98,6 +103,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		return UriImageSupport.createInstance(this.getClass(), supportLevel,
                 DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
 	}
+
 
     /**
      * Update the string arguments to reflect any preferences requested by the user,

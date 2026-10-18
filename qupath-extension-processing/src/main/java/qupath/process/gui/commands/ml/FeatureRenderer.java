@@ -24,9 +24,10 @@ package qupath.process.gui.commands.ml;
 import qupath.lib.display.ChannelDisplayMode;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.gui.images.stores.AbstractImageRenderer;
-import qupath.lib.gui.images.stores.DefaultImageRegionStore;
+import qupath.lib.images.stores.AbstractImageRenderer;
+import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
 
@@ -38,14 +39,14 @@ import java.util.concurrent.atomic.AtomicLong;
 
 class FeatureRenderer extends AbstractImageRenderer {
 		
-	private final DefaultImageRegionStore store;
+	private final ImageCache cache;
 	private DirectServerChannelInfo selectedChannel = null;
 	private WeakReference<ImageData<BufferedImage>> currentData;
 
 	private final AtomicLong eventCount = new AtomicLong();
 
-	FeatureRenderer(DefaultImageRegionStore store) {
-		this.store = store;
+	FeatureRenderer(ImageCache cache) {
+		this.cache = cache;
 	}
 
 	public void setChannel(ImageServer<BufferedImage> server, int channel, double min, double max) {
@@ -77,7 +78,7 @@ class FeatureRenderer extends AbstractImageRenderer {
 		if (selectedChannel == null)
 			return;
 		var imageData = currentData.get();
-		Map<RegionRequest, BufferedImage> tiles = store == null || imageData == null ? Collections.emptyMap() : store.getCachedTilesForServer(imageData.getServer());
+		Map<RegionRequest, BufferedImage> tiles = cache == null || imageData == null ? Collections.emptyMap() : cache.getCachedTilesForServer(imageData.getServer().getPath());
 
 		float maxVal = Float.NEGATIVE_INFINITY;
 		float minVal = Float.POSITIVE_INFINITY;

@@ -30,6 +30,7 @@ import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
+import java.util.function.DoubleBinaryOperator;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
 import org.apache.commons.math3.stat.ranking.NaNStrategy;
@@ -226,7 +227,7 @@ public class OpenCVTools {
 	
 	
 	/**
-	 * Apply an operation to the pixels of an image.
+	 * Apply an operation to the pixels of an image, in-place.
 	 * <p>
 	 * No type conversion is applied; it is recommended to use floating point images, or otherwise check 
 	 * that clipping, rounding and non-finite values are handled as expected.
@@ -235,21 +236,96 @@ public class OpenCVTools {
 	 * @param operator operator to apply to pixels of the image, in-place
 	 */
 	public static void apply(Mat mat, DoubleUnaryOperator operator) {
-		Indexer indexer = mat.createIndexer();
+		apply(mat, mat, operator);
+	}
+
+	/**
+	 * Apply an operation to the pixels of an image.
+	 * @param mat the input image
+	 * @param matOutput the output image; this may be the same as the input image, or null to create an output
+	 *                  of the same size and type as the input.
+	 * @param operator the operator to apply to each pixel of the input image
+	 * @return the output image
+	 * @since v0.8.0
+	 */
+	public static Mat apply(Mat mat, Mat matOutput, DoubleUnaryOperator operator) {
+		if (matOutput == null) {
+			matOutput = new Mat();
+		}
+		if (matOutput.isNull() || matOutput.total() == 0L) {
+			matOutput.create(mat.rows(), mat.cols(), opencv_core.CV_MAKETYPE(mat.depth(), mat.channels()));
+		} else {
+			checkSizeOrThrow(mat, matOutput);
+		}
+		try (var scope = new PointerScope()) {
+			var idx = createLinearIndex(mat.createIndexer());
+			var idxOutput = createLinearIndex(matOutput.createIndexer());
+			long total = idx.size(0);
+			long[] inds = new long[1];
+			for (long i = 0; i < total; i++) {
+				inds[0] = i;
+				double val = operator.applyAsDouble(idx.getDouble(inds));
+				idxOutput.putDouble(inds, val);
+			}
+		}
+		return matOutput;
+	}
+
+	/**
+	 * Check that two Mats have the same dimensions, or throw an exception.
+	 * @param matA
+	 * @param matB
+	 * @throws IllegalArgumentException
+	 */
+	private static void checkSizeOrThrow(Mat matA, Mat matB) throws IllegalArgumentException {
+		if (matA.rows() == matB.rows() && matA.cols() == matB.cols() && matA.channels() == matB.channels())
+			return;
+		throw new IllegalArgumentException("Mat shapes do not match: " + matA + ", " + matB);
+	}
+
+	private static <I extends Indexer> I createLinearIndex(I indexer) {
 		long[] sizes = indexer.sizes();
 		long total = 1;
 		for (long dim : sizes)
 			total *= dim;
-		var indexer2 = indexer.reindex(Index.create(total));
-		long[] inds = new long[1];
-		for (long i = 0; i < total; i++) {
-			inds[0] = i;
-			double val = indexer2.getDouble(inds);
-			val = operator.applyAsDouble(val);
-			indexer2.putDouble(inds, val);
+		return indexer.reindex(Index.create(total));
+	}
+
+	/**
+	 * Apply an operation to the corresponding pixels of two images, to obtain an output image.
+	 * @param matA the first input image
+	 * @param matB the second input image; this must have the same dimensions as matA
+	 * @param matOutput the output image; this may be the same as the first input image, or null to create an output
+	 *                  of the same size and type as the first input.
+	 * @param operator the operator to apply to each corresponding pixel of the input images
+	 * @return the output image
+	 * @since v0.8.0
+	 */
+	public static Mat apply(Mat matA, Mat matB, Mat matOutput, DoubleBinaryOperator operator) {
+		checkSizeOrThrow(matA, matB);
+		if (matOutput == null) {
+			matOutput = new Mat();
 		}
-		indexer2.close();
-		indexer.close();
+		if (matOutput.isNull() || matOutput.total() == 0L) {
+			matOutput.create(matA.rows(), matA.cols(), opencv_core.CV_MAKETYPE(matA.depth(), matA.channels()));
+		} else {
+			checkSizeOrThrow(matA, matOutput);
+		}
+		try (var scope = new PointerScope()) {
+			var idxA = createLinearIndex(matA.createIndexer());
+			var idxB = createLinearIndex(matB.createIndexer());
+			var idxOutput = createLinearIndex(matOutput.createIndexer());
+			long total = idxA.size(0);
+			long[] inds = new long[1];
+			for (long i = 0; i < total; i++) {
+				inds[0] = i;
+				double val = operator.applyAsDouble(
+						idxA.getDouble(inds), idxB.getDouble(inds)
+				);
+				idxOutput.putDouble(inds, val);
+			}
+		}
+		return matOutput;
 	}
 	
 	

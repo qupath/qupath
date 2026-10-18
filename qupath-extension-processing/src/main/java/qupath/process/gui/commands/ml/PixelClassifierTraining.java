@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,6 +21,10 @@
 
 package qupath.process.gui.commands.ml;
 
+import java.util.Comparator;
+import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -57,6 +61,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
+import qupath.opencv.tools.OpenCVTools;
 
 /**
  * Helper class for training a pixel classifier.
@@ -67,14 +72,13 @@ import java.util.WeakHashMap;
 public class PixelClassifierTraining {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierTraining.class);
-	
+
+	private static final PathClass REGION_CLASS = PathClass.StandardPathClasses.REGION;
+
 	private BoundaryStrategy boundaryStrategy = BoundaryStrategy.getSkipBoundaryStrategy();
 
 	private PixelCalibration resolution = PixelCalibration.getDefaultInstance();
     private ImageDataOp featureCalculator;
-    
-    private Mat matTraining;
-    private Mat matTargets;
     
     
     /**
@@ -91,6 +95,8 @@ public class PixelClassifierTraining {
 		if (featureCalculator != null && imageData != null) {
 			if (featureCalculator.supportsImage(imageData)) {
     			return ImageOps.buildServer(imageData, featureCalculator, resolution);
+			} else {
+				logger.warn("Feature calculator does not support {}", imageData);
 			}
 		}
 		return null;
@@ -130,20 +136,18 @@ public class PixelClassifierTraining {
         if (Objects.equals(this.featureCalculator, featureOp))
             return;
         this.featureCalculator = featureOp;
-        resetTrainingData();
     }
 
-    private synchronized ClassifierTrainingData updateTrainingData(Map<PathClass, Integer> labelMap, Collection<ImageData<BufferedImage>> imageDataCollection) throws IOException {
+    private synchronized List<ClassifierTrainingData> updateTrainingData(Map<PathClass, Integer> labelMap, Collection<ImageData<BufferedImage>> imageDataCollection) {
         if (imageDataCollection.isEmpty()) {
-            resetTrainingData();
-            return null;
+            return List.of();
         }
-        
+
         Map<PathClass, Integer> labels = new LinkedHashMap<>();
         
         boolean hasLockedAnnotations = false;
         if (labelMap == null) {
-            Set<PathClass> pathClasses = new TreeSet<>((p1, p2) -> p1.toString().compareTo(p2.toString()));
+            Set<PathClass> pathClasses = new TreeSet<>(Comparator.comparing(PathClass::toString));
         	for (var imageData : imageDataCollection) {
 	        	// Get labels for all annotations
 	            Collection<PathObject> annotations = imageData.getHierarchy().getAnnotationObjects();
@@ -170,13 +174,26 @@ public class PixelClassifierTraining {
         } else {
         	labels.putAll(labelMap);
         }
+
+		// We need at least two classes for anything very meaningful to happen
+		int nTargets = labels.size();
+		if (nTargets <= 1) {
+			logger.warn("Unlocked annotations for at least two classes are required to train a classifier!");
+			if (hasLockedAnnotations)
+				logger.warn("Image contains annotations that *could* be used for training, except they are currently locked. Please unlock them if they should be used.");
+			return List.of();
+		}
         
-        
-        List<Mat> allFeatures = new ArrayList<>();
-        List<Mat> allTargets = new ArrayList<>();
+        List<ClassifierTrainingData> allTraining = new ArrayList<>();
 
         for (var imageData : imageDataCollection) {
-	        // Get features & targets for all the tiles that we need
+
+			String imageName = imageData.getServer().getMetadata().getName();
+
+			List<Mat> allFeatures = new ArrayList<>();
+			List<Mat> allTargets = new ArrayList<>();
+
+			// Get features & targets for all the tiles that we need
 	        var featureServer = getFeatureServer(imageData);
 	        if (featureServer != null) {
 		        var tiles = featureServer.getTileRequestManager().getAllTileRequests();
@@ -190,39 +207,26 @@ public class PixelClassifierTraining {
 	        } else {
 	        	logger.warn("Unable to generate features for {}", imageData);
 	        }
-        }
-        
-        // We need at least two classes for anything very meaningful to happen
-        int nTargets = labels.size();
-        if (nTargets <= 1) {
-        	logger.warn("Unlocked annotations for at least two classes are required to train a classifier!");
-        	if (hasLockedAnnotations)
-        		logger.warn("Image contains annotations that *could* be used for training, except they are currently locked. Please unlock them if they should be used.");
-            resetTrainingData();
-            return null;
-        }
-         
-        if (matTraining == null)
-            matTraining = new Mat();
-        if (matTargets == null)
-            matTargets = new Mat();
-        opencv_core.vconcat(new MatVector(allFeatures.toArray(Mat[]::new)), matTraining);
-        opencv_core.vconcat(new MatVector(allTargets.toArray(Mat[]::new)), matTargets);
 
-        logger.debug("Training data: {} x {}, Target data: {} x {}", matTraining.rows(), matTraining.cols(), matTargets.rows(), matTargets.cols());
-        
-        if (matTraining.rows() == 0) {
-        	logger.warn("No training data found - if you have training annotations, check the features are compatible with the current image.");
-        	return null;
+			var matTraining = new Mat();
+			var matTargets = new Mat();
+			opencv_core.vconcat(new MatVector(allFeatures.toArray(Mat[]::new)), matTraining);
+			opencv_core.vconcat(new MatVector(allTargets.toArray(Mat[]::new)), matTargets);
+
+			logger.debug("Training data: {} x {}, Target data: {} x {} ({})",
+					matTraining.rows(), matTraining.cols(), matTargets.rows(), matTargets.cols(),
+					imageName);
+
+			if (matTraining.rows() == 0) {
+				logger.warn("No training data found - if you have training annotations, check the features are compatible with the current image.");
+				continue;
+			}
+
+			allTraining.add(new ClassifierTrainingData(imageData.getServer().getMetadata().getName(), labels, matTraining, matTargets));
         }
         
-        return new ClassifierTrainingData(labels, matTraining, matTargets);
+		return allTraining;
     }
-    
-    
-
-    
-	private static PathClass REGION_CLASS = PathClass.StandardPathClasses.REGION;
 
     /**
      * Test is a PathObject can be used as a classifier training annotation.
@@ -230,7 +234,7 @@ public class PixelClassifierTraining {
      * @param checkLocked 
      * @return
      */
-    static boolean isTrainableAnnotation(PathObject pathObject, boolean checkLocked) {
+    private static boolean isTrainableAnnotation(PathObject pathObject, boolean checkLocked) {
     	return pathObject != null &&
     			pathObject.hasROI() &&
     			!pathObject.getROI().isEmpty() &&
@@ -250,7 +254,6 @@ public class PixelClassifierTraining {
     	if (this.boundaryStrategy == strategy)
     		return;
     	this.boundaryStrategy = strategy == null ? BoundaryStrategy.getSkipBoundaryStrategy() : strategy;
-    	resetTrainingData();
     }
     
     /**
@@ -261,32 +264,26 @@ public class PixelClassifierTraining {
     public BoundaryStrategy getBoundaryStrategy() {
     	return boundaryStrategy;
     }
-    
-    
-    private synchronized void resetTrainingData() {
-        if (matTraining != null)
-            matTraining.release();
-        matTraining = null;
-        if (matTargets != null)
-            matTargets.release();
-        matTargets = null;
-    }
 
     
     /**
      * Wrapper for training data.
      */
-    public static class ClassifierTrainingData {
+    public static class ClassifierTrainingData implements AutoCloseable {
 
-    	private Mat matTraining;
-    	private Mat matTargets;
+		private final String name;
+    	private final Mat matTraining;
+    	private final Mat matTargets;
 
-    	private Map<PathClass, Integer> pathClassesLabels;
+    	private final Map<PathClass, Integer> pathClassesLabels;
 
-    	private ClassifierTrainingData(Map<PathClass, Integer> pathClassesLabels, Mat matTraining, Mat matTargets) {
+    	private ClassifierTrainingData(String name, Map<PathClass, Integer> pathClassesLabels, Mat matTraining, Mat matTargets) {
+			this.name = name;
     		this.pathClassesLabels = Collections.unmodifiableMap(new LinkedHashMap<>(pathClassesLabels));
     		this.matTraining = matTraining;
     		this.matTargets = matTargets;
+			if (matTraining.rows() != matTargets.rows())
+				throw new IllegalArgumentException("Training data has " + matTraining.rows() + " rows but " + matTargets.rows() + " targets");
     	}
 
     	/**
@@ -305,7 +302,101 @@ public class PixelClassifierTraining {
     		return TrainData.create(matTraining.clone(), opencv_ml.ROW_SAMPLE, matTargets.clone());
     	}
 
-    }
+		/**
+		 * Total number of training samples.
+		 * @return
+		 */
+		public int size() {
+			return matTraining.rows();
+		}
+
+		/**
+		 * Name of the data. This may be derived from an image name.
+		 * @return
+		 */
+		public String getName() {
+			return name;
+		}
+
+		/**
+		 * Split the data into (roughly) equally-sizes parts.
+		 * @param nSplits number of splits to create; this must be {@code &leq; size()}
+		 *                (and in practice should be much less to increase the likelihood of all
+		 *                labels being represented in each split).
+		 * @param rng the random number generator to create the splits; if null, the splits are made
+		 *            without shuffling the initial data.
+		 * @return a list of nSplits splits of the original data
+		 */
+		public List<ClassifierTrainingData> split(int nSplits, Random rng) {
+			int n = size();
+			if (n < nSplits)
+				throw new IllegalArgumentException("nSplits (" + nSplits + ") must be less than the data size (" + n + ")");
+			var inds = IntStream.range(0, n).boxed().collect(Collectors.toCollection(ArrayList::new));
+			if (rng != null)
+				Collections.shuffle(inds, rng);
+			List<ClassifierTrainingData> data = new ArrayList<>();
+			int startInd = 0;
+			for (int i = 0; i < nSplits; i++) {
+				int endInd = i == nSplits - 1 ? n : (int)Math.floor((double)(n * (i+1)) / nSplits);
+				data.add(extractData(getName() + " (split=" + (i+1) + ")", inds.subList(startInd, endInd)));
+				startInd = endInd + 1;
+			}
+			return data;
+		}
+
+		private ClassifierTrainingData extractData(String name, List<Integer> inds) {
+			var train = extractRows(this.matTraining, inds);
+			var targets = extractRows(this.matTargets, inds);
+			return new ClassifierTrainingData(name, getLabelMap(), train, targets);
+		}
+
+		private static Mat extractRows(Mat mat, List<Integer> inds) {
+			var array = new Mat[inds.size()];
+			for (int i = 0; i < inds.size(); i++) {
+				array[i] = mat.row(inds.get(i));
+			}
+			var dest = new Mat();
+			opencv_core.vconcat(new MatVector(array), dest);
+			return dest;
+		}
+
+		@Override
+		public void close() {
+			if (matTraining != null)
+				matTraining.close();
+			if (matTargets != null)
+				matTargets.close();
+		}
+
+		/**
+		 * Merge training data into a single object.
+		 * This assumes that the labels are identical, and the training mats can be concatenated.
+		 * @param trainingData the collection of training data to use
+		 * @return the merged training data
+		 * @throws IllegalArgumentException if no training data is provided, or if it contains incompatible labels
+		 */
+		public static ClassifierTrainingData merge(Collection<ClassifierTrainingData> trainingData) throws IllegalArgumentException {
+			List<Mat> train = new ArrayList<>();
+			List<Mat> target = new ArrayList<>();
+			Map<PathClass, Integer> labels = null;
+			for (var data : trainingData) {
+				if (labels == null)
+					labels = data.pathClassesLabels;
+				else if (!labels.equals(data.pathClassesLabels))
+					throw new IllegalArgumentException("Labels do not match!");
+				train.add(data.matTraining);
+				target.add(data.matTargets);
+			}
+			if (labels == null)
+				throw new IllegalArgumentException("No training data provided!");
+			return new ClassifierTrainingData(
+					trainingData.stream().map(ClassifierTrainingData::getName).collect(Collectors.joining(", ")),
+					labels,
+					OpenCVTools.vConcat(train, new Mat()),
+					OpenCVTools.vConcat(target, new Mat())
+			);
+		}
+	}
     
 
     /**
@@ -315,7 +406,7 @@ public class PixelClassifierTraining {
      * @throws IOException
      */
     public ClassifierTrainingData createTrainingData(ImageData<BufferedImage> imageData) throws IOException {
-    	return createTrainingDataForLabelMap(Collections.singleton(imageData), null);
+    	return createTrainingDataForLabelMap(Collections.singleton(imageData), null).getFirst();
     }
     
     /**
@@ -324,7 +415,7 @@ public class PixelClassifierTraining {
      * @return
      * @throws IOException
      */
-    public ClassifierTrainingData createTrainingData(Collection<ImageData<BufferedImage>> imageData) throws IOException {
+    public List<ClassifierTrainingData> createTrainingData(Collection<ImageData<BufferedImage>> imageData) throws IOException {
     	return createTrainingDataForLabelMap(imageData, null);
     }
 
@@ -335,13 +426,13 @@ public class PixelClassifierTraining {
      * @return a {@link ClassifierTrainingData} object representing training data
      * @throws IOException
      */
-    public ClassifierTrainingData createTrainingDataForLabelMap(Collection<ImageData<BufferedImage>> imageData, Map<PathClass, Integer> labels) throws IOException {
+    public List<ClassifierTrainingData> createTrainingDataForLabelMap(Collection<ImageData<BufferedImage>> imageData, Map<PathClass, Integer> labels) throws IOException {
         return updateTrainingData(labels, imageData);
     }
     
     
-	private static Map<RegionRequest, TileFeatures> cache = Collections.synchronizedMap(new WeakHashMap<>());
-    
+	private static final Map<RegionRequest, TileFeatures> cache = Collections.synchronizedMap(new WeakHashMap<>());
+
     private static TileFeatures getTileFeatures(RegionRequest request, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) {
 		TileFeatures features = cache.get(request);
 		Map<ROI, PathClass> rois = null;
@@ -407,11 +498,11 @@ public class PixelClassifierTraining {
     
     private static class TileFeatures {
     	    	    	
-    	private Map<PathClass, Integer> labels;
-    	private ImageDataServer<BufferedImage> featureServer;
-    	private RegionRequest request;
-    	private Map<ROI, PathClass> rois;
-    	private BoundaryStrategy strategy;
+    	private final Map<PathClass, Integer> labels;
+    	private final ImageDataServer<BufferedImage> featureServer;
+    	private final RegionRequest request;
+    	private final Map<ROI, PathClass> rois;
+    	private final BoundaryStrategy strategy;
     	private Mat matFeatures;
     	private Mat matTargets;
     	

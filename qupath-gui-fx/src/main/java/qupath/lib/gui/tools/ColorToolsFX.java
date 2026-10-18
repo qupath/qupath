@@ -24,6 +24,7 @@
 package qupath.lib.gui.tools;
 
 import javafx.scene.paint.Color;
+import qupath.lib.color.ColorMaps;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -250,6 +251,30 @@ public class ColorToolsFX {
 		if (pathObject instanceof PathTileObject)
 			return PathPrefs.colorTileProperty().getValue();
 		return PathPrefs.colorDefaultObjectsProperty().getValue();
+	}
+
+	/**
+	 * Create a {@link qupath.lib.color.ColorMaps.ColorMap} by linearly interpolating between two or more colors.
+	 * @param name name of the color map
+	 * @param colors ordered array of colors to interpolate between
+	 * @return the color map
+	 * @throws IllegalArgumentException if fewer than 2 colors are provided
+	 */
+	public static ColorMaps.ColorMap createColorMap(String name, Color... colors) throws IllegalArgumentException {
+		int n = colors.length;
+		if (n < 2) {
+			throw new IllegalArgumentException("At least 2 colors must be provided to create a colormap");
+		}
+		double[] r = new double[n];
+		double[] g = new double[n];
+		double[] b = new double[n];
+		for (int i = 0; i < n; i++) {
+			var c = colors[i];
+			r[i] = c.getRed();
+			g[i] = c.getGreen();
+			b[i] = c.getBlue();
+		}
+		return ColorMaps.createColorMap(name, r, g, b);
 	}
 	
 

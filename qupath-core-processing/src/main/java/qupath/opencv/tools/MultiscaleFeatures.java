@@ -490,7 +490,7 @@ public class MultiscaleFeatures {
 		/**
 		 * Set all Gaussian sigma values for the z-dimension filter.
 		 * <p>
-		 * Note that this value is in pixels by default, or may be microns is supported 
+		 * Note that this value is in pixels by default, or may be microns (if supported)
 		 * by setting the pixel calibration.
 		 * 
 		 * @param sigma
@@ -788,7 +788,7 @@ public class MultiscaleFeatures {
 		}
 		
 		private List<FeatureMap> build3D(List<Mat> mats, int ind3D) {
-			if (mats.size() == 0)
+			if (mats.isEmpty())
 				return Collections.emptyList();
 						
 			// We need to ensure images are floating point (prefer 32-bit unless all are already 64-bit)

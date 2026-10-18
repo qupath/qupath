@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,33 +23,22 @@
 
 package qupath.imagej.images.servers;
 
-import ij.CompositeImage;
-import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.gui.Roi;
-import ij.io.Opener;
-import ij.measure.Calibration;
 import ij.plugin.Duplicator;
 import ij.plugin.ImageInfo;
-import ij.process.ByteProcessor;
-import ij.process.ColorProcessor;
-import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
-import ij.process.LUT;
-import ij.process.ShortProcessor;
+import java.lang.ref.SoftReference;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.imagej.tools.IJProperties;
 import qupath.imagej.tools.IJTools;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
-import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
@@ -57,24 +46,13 @@ import qupath.lib.objects.PathObjectReader;
 import qupath.lib.objects.PathObjects;
 
 import java.awt.Rectangle;
-import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
-import java.awt.image.DataBuffer;
-import java.awt.image.DataBufferByte;
-import java.awt.image.DataBufferFloat;
-import java.awt.image.DataBufferUShort;
-import java.awt.image.Raster;
-import java.awt.image.SampleModel;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * ImageServer that uses ImageJ's image-reading capabilities.
@@ -86,12 +64,12 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 	
 	private static final Logger logger = LoggerFactory.getLogger(ImageJServer.class);
 	
-	private ImageServerMetadata originalMetadata;
+	private final ImageServerMetadata originalMetadata;
 	
-	private URI uri;
-	private String[] args;
+	private final URI uri;
+	private final String[] args;
 		
-	private ImagePlus imp;
+	private final ImagePlusSupplier impSupplier;
 		
 	private ColorModel colorModel;
 	
@@ -104,222 +82,36 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 	public ImageJServer(final URI uri, final String...args) throws IOException {
 		super();
 		this.uri = uri;
-		var filePath = GeneralTools.toPath(uri);
-		var file = filePath != null ? filePath.toFile() : null;
-		String path = file == null ? uri.toString() : file.getAbsolutePath();
-		
-		// Open as a virtual stack if we have 1) a TIFF, with 2) multiple slices and 3) a large file size -
-		// otherwise try to open directly (which is much faster if memory permits)
-		long maxMemory = Runtime.getRuntime().maxMemory();
-		if (file != null && path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
-			// Because ImageJ only supports uncompressed TIFFs, we simply use the file size
-			long fileLength = file == null ? Long.MAX_VALUE : file.length();
-			long maxFileLength = Math.max(1024*1024*10, maxMemory / 8);
-			if (fileLength > maxFileLength) {
-				var info = Opener.getTiffFileInfo(path);
-				if (info != null && (info.length > 1 || (info.length == 1 && info[0].nImages > 1))) {
-					logger.debug("Opening {} as virtual stack", uri);
-					imp = IJ.openVirtual(path);
-				}
-			}
-		}
-		if (imp == null) {
-			logger.debug("Opening {} as ImagePlus", uri);
-			imp = IJ.openImage(path);
-		}
-		if (imp == null)
-			throw new IOException("Could not open " + path + " with ImageJ");
-		
-		// Log a warning if the image is very large
-		double sizeBytes = imp.getSizeInBytes();
-		if (!imp.getStack().isVirtual() && sizeBytes > maxMemory / 16.0) {
-			logger.warn("The image is very large relative to the available memory ({} MB / {} MB, {} %)",
-					GeneralTools.formatNumber(sizeBytes / (1024.0 * 1024.0), 1),
-					GeneralTools.formatNumber(maxMemory / (1024.0 * 1024.0), 1),
-					GeneralTools.formatNumber(sizeBytes / maxMemory * 100.0, 1));
-			logger.warn("Consider saving the image in a pyramidal format, e.g. using 'QuPath convert-ome' from the command line to create a pyramidal OME-TIFF.");
-		}
-		
-		Calibration cal = imp.getCalibration();
-		double xMicrons = IJTools.tryToParseMicrons(cal.pixelWidth, cal.getXUnit());
-		double yMicrons = IJTools.tryToParseMicrons(cal.pixelHeight, cal.getYUnit());
-		double zMicrons = IJTools.tryToParseMicrons(cal.pixelDepth, cal.getZUnit());
-		TimeUnit timeUnit = parseTimeUnit(cal.getTimeUnit());
-		double[] timepoints = null;
-		if (timeUnit != null) {
-			timepoints = new double[imp.getNFrames()];
-			for (int i = 0; i < timepoints.length; i++) {
-				timepoints[i] = i * cal.frameInterval;
-			}
-		}
-
-		PixelType pixelType;
-		boolean isRGB = false;
-		switch (imp.getType()) {
-		case (ImagePlus.COLOR_RGB):
-			isRGB = true;
-		case (ImagePlus.COLOR_256):
-		case (ImagePlus.GRAY8):
-			pixelType = PixelType.UINT8;
-			break;
-		case (ImagePlus.GRAY16):
-			pixelType = PixelType.UINT16;
-			break;
-		case (ImagePlus.GRAY32):
-			pixelType = PixelType.FLOAT32;
-			break;
-		default:
-			throw new IllegalArgumentException("Unknown ImagePlus type " + imp.getType());
-		}
-
-		List<ImageChannel> channels;
-		boolean is2D = imp.getNFrames() == 1 && imp.getNSlices() == 1;
-		if (isRGB)
-			channels = ImageChannel.getDefaultRGBChannels();
-		else {
-			String[] sliceLabels = null;
-			int nChannels = imp.getNChannels();
-			
-			// See if we have slice labels that could plausibly act as channel names
-			// For this, they must be non-null and unique for a 2D image
-			if (is2D && nChannels == imp.getStackSize()) {
-				sliceLabels = new String[nChannels];
-				Set<String> sliceLabelSet = new HashSet<>();
-				for (int s = 1; s <= nChannels; s++) {
-					String sliceLabel = imp.getStack().getSliceLabel(s);
-					if (sliceLabel != null && is2D) {
-						sliceLabel = sliceLabel.split("\\R", 2)[0];
-						if (!sliceLabel.isBlank()) {
-							sliceLabels[s-1] = sliceLabel;
-							sliceLabelSet.add(sliceLabel);
-						}
-					}
-				}
-				if (sliceLabelSet.size() < nChannels)
-					sliceLabels = null;
-			}
-			
-			// Get default channels
-			channels = new ArrayList<>(ImageChannel.getDefaultChannelList(imp.getNChannels()));
-			
-			// Try to update the channel names and/or colors from ImageJ if we can
-			if (sliceLabels != null || imp instanceof CompositeImage) {
-				for (int channel = 0; channel < imp.getNChannels(); channel++) {
-					String name = channels.get(channel).getName();
-					Integer color = channels.get(channel).getColor();
-					if (imp instanceof CompositeImage) {
-						LUT lut = ((CompositeImage)imp).getChannelLut(channel+1);
-						int ind = lut.getMapSize()-1;
-						color = lut.getRGB(ind);
-					}
-					if (sliceLabels != null) {
-						name = sliceLabels[channel];
-					}
-					channels.set(
-							channel,
-							ImageChannel.getInstance(name, color)
-							);
-				}
-			}
-		}
-		
 		this.args = args;
-		var builder = new ImageServerMetadata.Builder() //, uri.normalize().toString())
-				.width(imp.getWidth())
-				.height(imp.getHeight())
-				.name(imp.getTitle())
-//				.args(args)
-				.channels(channels)
-				.sizeZ(imp.getNSlices())
-				.sizeT(imp.getNFrames())
-				.rgb(isRGB)
-				.pixelType(pixelType)
-				.zSpacingMicrons(zMicrons)
-				.preferredTileSize(imp.getWidth(), imp.getHeight());
-//				setMagnification(pxlInfo.mag). // Don't know magnification...?
-		
-		if (!Double.isNaN(xMicrons + yMicrons))
-			builder = builder.pixelSizeMicrons(xMicrons, yMicrons);
-		
-		if (timeUnit != null)
-			builder = builder.timepoints(timeUnit, timepoints);
-		
-		originalMetadata = builder.build();
-		
-//		if ((!isRGB() && nChannels() > 1) || getBitsPerPixel() == 32)
-//			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
-	}
-
-	/**
-	 * Attempt to parse a time unit from an ImageJ calibration string.
-	 * @param unit
-	 * @return a time unit if possible, or null if none could be found
-	 */
-	private static TimeUnit parseTimeUnit(String unit) {
-		if (unit == null || unit.isBlank())
-			return null;
-		unit = unit.toLowerCase().strip();
-		switch (unit) {
-		case "s":
-		case "sec":
-		case "second":
-		case "seconds":
-			return TimeUnit.SECONDS;
-		case "ms":
-		case "msec":
-		case "millisecond":
-		case "milliseconds":
-			return TimeUnit.MILLISECONDS;
-		case "us":
-		case "usec":
-		case "microsecond":
-		case "microseconds":
-			return TimeUnit.MICROSECONDS;
-		case "ns":
-		case "nsec":
-		case "nanosecond":
-		case "nanoseconds":
-			return TimeUnit.NANOSECONDS;
-		case "min":
-		case "minute":
-		case "minutes":
-			return TimeUnit.MINUTES;
-		case "h":
-		case "hr":
-		case "hour":
-		case "hours":
-			return TimeUnit.HOURS;
-		case "d":
-		case "day":
-		case "days":
-			return TimeUnit.DAYS;
-		}
-		for (TimeUnit timeUnit : TimeUnit.values()) {
-			if (timeUnit.toString().equalsIgnoreCase(unit))
-				return timeUnit;
-		}
-		return null;
+		var imp = ImageJServerUtils.openImage(uri);
+		if (imp == null)
+			throw new IOException("Could not open " + uri + " with ImageJ");
+		// Store virtual stacks directly, but reload others on demand if memory requirements are too high
+		this.impSupplier = imp.getStack().isVirtual() ? new DirectImagePlusSupplier(imp) :
+				new SoftImagePlusSupplier(imp, uri);
+		this.originalMetadata = ImageJServerUtils.parseMetadata(imp);
 	}
 
 	
 	@Override
 	public Collection<PathObject> readPathObjects() {
+		var imp = impSupplier.get();
 		var roi = imp.getRoi();
 		var overlay = imp.getOverlay();
 		if (roi == null && (overlay == null || overlay.size() == 0))
 			return Collections.emptyList();
 		var list = new ArrayList<PathObject>();
 		if (roi != null) {
-			list.add(roiToPathObject(roi));
+			list.add(roiToPathObject(imp, roi));
 		}
 		if (overlay != null) {
 			for (var r : overlay.toArray())
-				list.add(roiToPathObject(r));
+				list.add(roiToPathObject(imp, r));
 		}
 		return list;
 	}
 	
-	private PathObject roiToPathObject(Roi roiIJ) {
+	private PathObject roiToPathObject(ImagePlus imp, Roi roiIJ) {
 		// Note that because we are reading from the ImagePlus directly, we have to avoid using any calibration information
 		var roi = IJTools.convertToROI(roiIJ, 0, 0, 1, IJTools.getImagePlane(roiIJ, imp));
 		// Create an annotation, unless another object type is specified in the properties
@@ -328,7 +120,10 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 		IJTools.calibrateObject(pathObject, roiIJ);
 		return pathObject;
 	}
-	
+
+	private ImagePlus getImagePlus() {
+		return impSupplier == null ? null : impSupplier.get();
+	}
 	
 	/**
 	 * Get a String representing the image metadata.
@@ -336,10 +131,15 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 	 * Currently, this reflects the contents of the ImageJ 'Show info' command, which is tied to the 'current' slice 
 	 * and therefore not complete for all slices of a multichannel/multidimensional image.
 	 * This behavior may change in the future.
-	 * @return a String representing image metadata in ImageJ's own form
+	 * @return a String representing image metadata in ImageJ's own form, or null if the image is unavailable
 	 */
 	public String dumpMetadata() {
-		return new ImageInfo().getImageInfo(imp);
+		var imp = getImagePlus();
+		if (imp == null) {
+			logger.warn("Can't dump metadata, image is unavailable");
+			return null;
+		} else
+			return new ImageInfo().getImageInfo(imp);
 	}
 	
 	@Override
@@ -353,7 +153,14 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 	}
 	
 	@Override
-	public BufferedImage readTile(TileRequest tile) {
+	public BufferedImage readTile(TileRequest tile) throws IOException {
+
+		var imp = getImagePlus();
+		if (imp == null)
+			throw new IOException("Can't read from image, ImagePlus is null");
+
+		int fullWidth = imp.getWidth();
+		int fullHeight = imp.getHeight();
 
 		var request = tile.getRegionRequest();
 		int z = request.getZ()+1;
@@ -365,12 +172,12 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 			nChannels = 1;
 				
 		double downsample = request.getDownsample();
-		int w = (int)Math.max(1, Math.round(imp.getWidth() / downsample));
-		int h = (int)Math.max(1, Math.round(imp.getHeight() / downsample));
+		int w = (int)Math.max(1, Math.round(fullWidth / downsample));
+		int h = (int)Math.max(1, Math.round(fullHeight / downsample));
 		
-		ImagePlus imp2;
+		ImagePlus impLocal; // A local image, which may be imp or may be a cropped or duplicated region
 		Rectangle roi = null;
-		if (!(request.getX() == 0 && request.getY() == 0 && request.getWidth() == this.imp.getWidth() && request.getHeight() == this.imp.getHeight())) {
+		if (!(request.getX() == 0 && request.getY() == 0 && request.getWidth() == fullWidth && request.getHeight() == fullHeight)) {
 			roi = new Rectangle(request.getX(), request.getY(), request.getWidth(), request.getHeight());
 			// Synchronization introduced because of concurrency issues when cropping!
 			synchronized (imp) {
@@ -379,25 +186,25 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 					var ip = imp.getStack().getProcessor(ind);
 					ip.setRoi(roi);
 					ip = ip.crop();
-					imp2 = imp.createImagePlus();
-					imp2.setProcessor(ip);
+					impLocal = imp.createImagePlus();
+					impLocal.setProcessor(ip);
 					ip.resetRoi();
 				} else {
-					this.imp.setRoi(roi);
+					imp.setRoi(roi);
 					// Crop for required z and time
 					Duplicator duplicator = new Duplicator();
-					imp2 = duplicator.run(this.imp, 1, nChannels, z, z, t, t);
-					this.imp.killRoi();
+					impLocal = duplicator.run(imp, 1, nChannels, z, z, t, t);
+					imp.killRoi();
 				}
 			}
-			if (imp2.getHeight() != request.getHeight()||
-					imp2.getWidth() != request.getWidth())
-				logger.warn("Unexpected image size {}x{} for request {}", imp.getWidth(), imp.getHeight(), request);
+			if (impLocal.getHeight() != request.getHeight()||
+					impLocal.getWidth() != request.getWidth())
+				logger.warn("Unexpected image size {}x{} for request {}", fullWidth, fullHeight, request);
 			z = 1;
 			t = 1;
-			imp2.killRoi();
+			impLocal.killRoi();
 		} else
-			imp2 = this.imp;
+			impLocal = imp;
 		
 		// Deal with any downsampling
 		if (downsample != 1) {
@@ -407,10 +214,10 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 			}
 			ImageStack stackNew = null;
 			// We synchronize on imp2 because it might be the same as imp - and 'resize' respects any crop ROI
-			synchronized (imp2) {
+			synchronized (impLocal) {
 				for (int i = 1; i <= nChannels; i++) {
-					int ind = imp2.getStackIndex(i, z, t);
-					ImageProcessor ip = imp2.getStack().getProcessor(ind);
+					int ind = impLocal.getStackIndex(i, z, t);
+					ImageProcessor ip = impLocal.getStack().getProcessor(ind);
 					ip.setInterpolationMethod(ImageProcessor.BILINEAR);
 					ip = ip.resize(w, h, true);
 					if (stackNew == null)
@@ -418,8 +225,8 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 					stackNew.addSlice("Channel " + i, ip);
 				}
 			}
-			imp2 = new ImagePlus(imp2.getTitle(), stackNew);
-			imp2.setDimensions(nChannels, 1, 1);
+			impLocal = new ImagePlus(impLocal.getTitle(), stackNew);
+			impLocal.setDimensions(nChannels, 1, 1);
 			// Reset other indices
 			z = 1;
 			t = 1;
@@ -427,95 +234,17 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 
 		// If we don't have a color model yet, reuse this one
 		BufferedImage img;
-		synchronized (imp2) {
-			img = convertToBufferedImage(imp2, z, t, colorModel);
+		synchronized (impLocal) {
+			img = ImageJServerUtils.convertToBufferedImage(impLocal, z, t, colorModel);
 		}
-		if (imp != imp2) {
-			imp2.changes = false;
-			imp2.close();
+		if (imp != impLocal) {
+			impLocal.changes = false;
+			impLocal.close();
 		}
 		
-		if (colorModel == null)
+		if (colorModel == null && img != null)
 			colorModel = img.getColorModel();
 
-		return img;
-	}
-	
-	
-	/**
-	 * Convert an ImagePlus to a BufferedImage, for a specific z-slice and timepoint.
-	 * <p>
-	 * Note that ImageJ uses 1-based indices for z and t! Therefore these should be &gt;= 1.
-	 * <p>
-	 * A {@link ColorModel} can optionally be provided; otherwise, a default ColorModel will be 
-	 * created for the image (with may not be particularly suitable).
-	 * 
-	 * @param imp2
-	 * @param z
-	 * @param t
-	 * @param colorModel
-	 * @return
-	 */
-	private static BufferedImage convertToBufferedImage(ImagePlus imp2, int z, int t, ColorModel colorModel) {
-		// Extract processor
-		int nChannels = imp2.getNChannels();
-		int ind = imp2.getStackIndex(1, z, t);
-		ImageProcessor ip = imp2.getStack().getProcessor(ind);
-
-		BufferedImage img = null;
-		int w = ip.getWidth();
-		int h = ip.getHeight();
-		if (ip instanceof ColorProcessor) {
-			img = ip.getBufferedImage();
-		} else {
-			// Try to create a suitable BufferedImage for whatever else we may need
-			SampleModel model;
-			if (colorModel == null) {
-				if (ip instanceof ByteProcessor)
-					colorModel = ColorModelFactory.createColorModel(PixelType.UINT8, ImageChannel.getDefaultChannelList(nChannels));
-				else if (ip instanceof ShortProcessor)
-					colorModel = ColorModelFactory.createColorModel(PixelType.UINT16, ImageChannel.getDefaultChannelList(nChannels));
-				else
-					colorModel = ColorModelFactory.createColorModel(PixelType.FLOAT32, ImageChannel.getDefaultChannelList(nChannels));
-			}
-
-            switch (ip) {
-                case ByteProcessor byteProcessor -> {
-                    model = new BandedSampleModel(DataBuffer.TYPE_BYTE, w, h, nChannels);
-                    byte[][] bytes = new byte[nChannels][w * h];
-                    for (int i = 0; i < nChannels; i++) {
-                        int sliceInd = imp2.getStackIndex(i + 1, z, t);
-                        bytes[i] = ((byte[]) imp2.getStack().getPixels(sliceInd)).clone();
-                    }
-                    DataBufferByte buffer = new DataBufferByte(bytes, w * h);
-                    return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
-                }
-                case ShortProcessor shortProcessor -> {
-                    model = new BandedSampleModel(DataBuffer.TYPE_USHORT, w, h, nChannels);
-                    short[][] bytes = new short[nChannels][w * h];
-                    for (int i = 0; i < nChannels; i++) {
-                        int sliceInd = imp2.getStackIndex(i + 1, z, t);
-                        bytes[i] = ((short[]) imp2.getStack().getPixels(sliceInd)).clone();
-                    }
-                    DataBufferUShort buffer = new DataBufferUShort(bytes, w * h);
-                    return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
-                }
-                case FloatProcessor floatProcessor -> {
-                    model = new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, nChannels);
-                    float[][] bytes = new float[nChannels][w * h];
-                    for (int i = 0; i < nChannels; i++) {
-                        int sliceInd = imp2.getStackIndex(i + 1, z, t);
-                        bytes[i] = ((float[]) imp2.getStack().getPixels(sliceInd)).clone();
-                    }
-                    DataBufferFloat buffer = new DataBufferFloat(bytes, w * h);
-                    return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
-                }
-                default -> {
-					logger.error("Sorry, currently only RGB & single-channel images supported with ImageJ");
-					return null;
-                }
-            }
-		}
 		return img;
 	}
 	
@@ -543,11 +272,65 @@ public class ImageJServer extends AbstractTileableImageServer implements PathObj
 	@Override
 	public void close() throws Exception {
 		super.close();
-		if (imp != null) {
-			imp.changes = false;
-			imp.close();
-			imp = null;
+		impSupplier.close();
+	}
+
+	interface ImagePlusSupplier extends Supplier<ImagePlus>, AutoCloseable {}
+
+	private static class DirectImagePlusSupplier implements ImagePlusSupplier {
+
+		private ImagePlus imp;
+
+		DirectImagePlusSupplier(ImagePlus imp) {
+			this.imp = imp;
 		}
+
+		@Override
+		public ImagePlus get() {
+			return imp;
+		}
+
+		@Override
+		public void close() {
+			if (imp != null) {
+				imp.close();
+				imp = null;
+			}
+		}
+	}
+
+	private static class SoftImagePlusSupplier implements ImagePlusSupplier {
+
+		private final URI uri;
+		private SoftReference<ImagePlus> impRef;
+
+		SoftImagePlusSupplier(ImagePlus imp, URI uri) {
+			this.uri = uri;
+			this.impRef = new SoftReference<>(imp);
+		}
+
+		@Override
+		public synchronized ImagePlus get() {
+			if (impRef != null && impRef.get() instanceof ImagePlus imp) {
+				return imp;
+			}
+			var imp = ImageJServerUtils.openImage(uri);
+			impRef = new SoftReference<>(imp);
+			return imp;
+		}
+
+		@Override
+		public void close() {
+			if (impRef == null)
+				return;
+			var imp = impRef.get();
+			if (imp != null) {
+				imp.close();
+			}
+			impRef.clear();
+			impRef = null;
+		}
+
 	}
 	
 }

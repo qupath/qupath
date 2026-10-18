@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -73,8 +73,6 @@ import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.prefs.QuPathStyleManager.StyleOption;
 import qupath.lib.gui.prefs.SystemMenuBar;
-import qupath.lib.gui.tools.CommandFinderTools;
-import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -262,9 +260,6 @@ public class PreferencePane {
 		@Pref(value = "Prefs.General.imageType", type = ImageTypeSetting.class)
 		public final ObjectProperty<ImageTypeSetting> setImageType = PathPrefs.imageTypeSettingProperty();
 
-		@Pref(value = "Prefs.General.commandBar", type = CommandBarDisplay.class)
-		public final ObjectProperty<CommandBarDisplay> commandBarDisplay = CommandFinderTools.commandBarDisplayProperty();
-		
 		@BooleanPref("Prefs.General.showExperimental")
 		public final BooleanProperty showExperimentalCommands = PathPrefs.showExperimentalOptionsProperty();
 
@@ -445,8 +440,11 @@ public class PreferencePane {
 		public final BooleanProperty clipROIsForHierarchy = PathPrefs.clipROIsForHierarchyProperty();
 
 		@IntegerPref("Prefs.Drawing.brushDiameter")
-		public final IntegerProperty brushDiameter = PathPrefs.brushDiameterProperty();		
-		
+		public final IntegerProperty brushDiameter = PathPrefs.brushDiameterProperty();
+
+		@BooleanPref("Prefs.Drawing.rasterBrush")
+		public final BooleanProperty rasterBrush = PathPrefs.useRasterBrushProperty();
+
 		@BooleanPref("Prefs.Drawing.tileBrush")
 		public final BooleanProperty tileBrush = PathPrefs.useTileBrushProperty();
 

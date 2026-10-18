@@ -23,9 +23,8 @@ package qupath.lib.gui.viewer.overlays;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import qupath.lib.gui.images.stores.DefaultImageRegionStore;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
-import qupath.lib.gui.images.stores.ImageRenderer;
+import qupath.lib.images.stores.DefaultImageRegionStore;
+import qupath.lib.images.stores.ImageRenderer;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -105,7 +104,7 @@ public class ZProjectOverlay extends AbstractImageOverlay {
 
     private DefaultImageRegionStore getStore() {
         if (store == null) {
-            store = ImageRegionStoreFactory.createImageRegionStore();
+            store = DefaultImageRegionStore.getSharedInstance();
         }
         return store;
     }
@@ -138,12 +137,11 @@ public class ZProjectOverlay extends AbstractImageOverlay {
         var store = getStore();
         if (paintCompletelyTimeout > 0) {
             store.paintRegionCompletely(
-                zProjServer, g2d, g2d.getClip(), z, imageRegion.getT(), downsampleFactor,
-                null, renderer.get(), paintCompletelyTimeout);
+                zProjServer, g2d, g2d.getClip(), z, imageRegion.getT(), downsampleFactor, renderer.get(), paintCompletelyTimeout);
         } else {
             store.paintRegion(
                 zProjServer, g2d, g2d.getClip(), z, imageRegion.getT(), downsampleFactor,
-                null, null, renderer.get());
+                null, renderer.get());
         }
     }
 

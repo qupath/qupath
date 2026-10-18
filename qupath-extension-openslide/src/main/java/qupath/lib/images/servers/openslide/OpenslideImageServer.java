@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,6 +24,7 @@
 package qupath.lib.images.servers.openslide;
 
 import com.google.gson.GsonBuilder;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
@@ -83,6 +84,9 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 			osr.close();
 		}
 	}
+
+	// Default color to fill tiles when not overridden within the image properties or string args
+	private static final Color DEFAULT_BACKGROUND_COLOR = Color.WHITE;
 
 	private static final Cleaner cleaner = Cleaner.create();
 	private final OpenSlideState state;
@@ -248,27 +252,78 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		associatedImageList = Collections.unmodifiableList(osr.getAssociatedImages());
 		
 		// Try to get a background color
-		try {
-			String bg = properties.get(OpenSlide.PROPERTY_NAME_BACKGROUND_COLOR);
-			if (bg != null) {
-				if (!bg.startsWith("#"))
-					bg = "#" + bg;
-				backgroundColor = Color.decode(bg);
-			}
-		} catch (Exception e) {
-			backgroundColor = null;
-			logger.debug("Unable to find background color: {}", e.getLocalizedMessage());
-		}
-		
+		backgroundColor = findBackgroundColor(properties, args);
+
 		// Try reading a thumbnail... the point being that if this is going to fail,
 		// we want it to fail quickly so that it may yet be possible to try another server
 		// This can occur with corrupt .svs (.tif) files that Bioformats is able to handle better
 		try {
-			logger.debug("Test reading thumbnail with openslide: passed (" + getDefaultThumbnail(0, 0).toString() + ")");
+            logger.debug("Test reading thumbnail with openslide: passed ({})", getDefaultThumbnail(0, 0).toString());
 		} catch (IOException e) {
 			logger.error("Unable to read thumbnail using OpenSlide: {}", e.getLocalizedMessage());
 			throw(e);
 		}
+	}
+
+	private static Color findBackgroundColor(Map<String, String> properties, String[] args) {
+		// Try to get a background color
+		Color backgroundColor = null;
+		String bgProperty = properties.getOrDefault(OpenSlide.PROPERTY_NAME_BACKGROUND_COLOR, null);
+		if (bgProperty != null && !bgProperty.isBlank()) {
+			try {
+				// Update from properties, if available
+				backgroundColor = parseBackgroundColorFromString(bgProperty).orElse(backgroundColor);
+			} catch (Exception e) {
+				logger.warn("Exception parsing background color from property: {} ({})", bgProperty, e.getMessage(), e);
+			}
+		}
+
+		// Override background color using the args
+		try {
+			backgroundColor = parseColorFromArgs(args).orElse(backgroundColor);
+		} catch (Exception e) {
+			logger.warn("Exception parsing background color from args: {} ({})", Arrays.asList(args), e.getMessage(), e);
+		}
+		return backgroundColor == null ? DEFAULT_BACKGROUND_COLOR : backgroundColor;
+	}
+
+	private static Optional<Color> parseColorFromArgs(String[] args) {
+		for (int i = 0; i < args.length; i++) {
+			String[] split = args[i].split("=");
+			if (OpenslideServerBuilder.ARG_BACKGROUND_COLOR.equalsIgnoreCase(split[0].strip())) {
+				String value;
+				if (split.length > 1)
+					value = split[1];
+				else
+					value = i == args.length-1 ? null : args[i+1];
+				if (value == null || value.isBlank()) {
+					logger.warn("Background color requested, but no value given");
+					return Optional.empty();
+				}
+				return parseBackgroundColorFromString(value);
+			}
+		}
+		return Optional.empty();
+	}
+
+	static Optional<Color> parseBackgroundColorFromString(String value) throws NumberFormatException {
+		if (value == null || value.isBlank())
+			return Optional.empty();
+		var val = value.strip();
+		if (val.equalsIgnoreCase("white"))
+			return Optional.of(Color.WHITE);
+		if (val.equalsIgnoreCase("black"))
+			return Optional.of(Color.BLACK);
+		if (val.equalsIgnoreCase("red"))
+			return Optional.of(Color.RED);
+		if (val.equalsIgnoreCase("green"))
+			return Optional.of(Color.GREEN);
+		if (val.equalsIgnoreCase("blue"))
+			return Optional.of(Color.BLUE);
+		// OpenSlide often uses hex representation
+		if (!val.startsWith("#"))
+			val = "#" + val;
+		return Optional.of(Color.decode(val));
 	}
 	
 	@Override

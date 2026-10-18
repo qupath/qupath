@@ -168,7 +168,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	private TableView<String> createMeasurementTable() {
 		TableView<String> tableMeasurements = new TableView<>();
 
-		tableMeasurements.setPlaceholder(GuiTools.createPlaceholderText(QuPathResources.getString("Panes.SelectedMeasurement.noImageOrObjectSelected")));
+		tableMeasurements.setPlaceholder(GuiTools.createPlaceholderLabel(QuPathResources.getString("Panes.SelectedMeasurement.noImageOrObjectSelected")));
 		allKeys.setAll(tableModel.getAllNames());
 		tableMeasurements.setItems(filteredKeys);
 

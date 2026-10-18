@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -68,8 +68,6 @@ import java.util.concurrent.Executors;
 
 /**
  * Code area control using RichTextFX.
- * 
- * @author Pete Bankhead
  */
 public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPane<CodeArea>> {
 
@@ -77,14 +75,14 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 
 	private static final KeyCodeCombination completionCodeCombination = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.CONTROL_DOWN);
 
-	private static ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
+	private static final ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
 
 	// Delay for async formatting, in milliseconds
 	private static int delayMillis = 20;
 
-	private VirtualizedScrollPane<CodeArea> scrollpane;
-	private CodeArea codeArea;
-	private StringProperty textProperty = new SimpleStringProperty();
+	private final VirtualizedScrollPane<CodeArea> scrollpane;
+	private final CodeArea codeArea;
+	private final StringProperty textProperty = new SimpleStringProperty();
 	
 	private ContextMenu contextMenu;
 
@@ -98,12 +96,20 @@ public class CodeAreaControl implements ScriptEditorControl<VirtualizedScrollPan
 	private CodeAreaControl(boolean isEditable) {
 		this.codeArea = createCodeArea();
 		this.codeArea.setEditable(isEditable);
-		this.codeArea.textProperty().addListener((o, v, n) -> textProperty.set(n));
+		this.codeArea.textProperty().addListener((o, v, n) -> {
+			if (!textProperty.isBound())
+				textProperty.set(n);
+		});
 		textProperty.addListener((o, v, n) -> {
 			if (n.equals(this.codeArea.getText()))
 				return;
 			this.codeArea.clear();
 			this.codeArea.insertText(0, n);
+			// This is a bit of a hack, but we assume the text changes when binding (although it isn't guaranteed)
+			if (textProperty.isBound())
+				codeArea.setEditable(false);
+			else
+				codeArea.setEditable(isEditable);
 		});
 		scrollpane = new VirtualizedScrollPane<>(this.codeArea);
 		if (isEditable) {

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -69,9 +69,6 @@ import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
-import org.bytedeco.opencv.opencv_ml.ANN_MLP;
-import org.bytedeco.opencv.opencv_ml.KNearest;
-import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.controls.PredicateTextField;
@@ -98,9 +95,9 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.projects.ProjectImageEntry;
-import qupath.opencv.ml.OpenCVClassifiers;
-import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
-import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
+import qupath.opencv.ml.models.FeatureImportance;
+import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
+import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
@@ -132,7 +129,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 
 /**
@@ -287,7 +283,7 @@ public class ObjectClassifierCommand implements Runnable {
 
 		private ReadOnlyObjectProperty<PathObjectFilter> objectFilter;
 
-		private ReadOnlyObjectProperty<OpenCVStatModel> selectedModel;
+		private ReadOnlyObjectProperty<TrainableModel> selectedModel;
 
 		private ReadOnlyObjectProperty<OutputClasses> outputClasses;
 		private ReadOnlyObjectProperty<TrainingFeatures> trainingFeatures;
@@ -496,7 +492,7 @@ public class ObjectClassifierCommand implements Runnable {
 		 */
 		private FutureTask<ObjectClassifier<BufferedImage>> createClassifierUpdateTask(boolean doClassification) {
 			var filter = objectFilter.get();
-			OpenCVStatModel statModel = selectedModel == null ? null : selectedModel.get();
+			TrainableModel statModel = selectedModel == null ? null : selectedModel.get();
 			if (statModel == null) {
 				logger.warn("No classifier - cannot update classifier");
 				resetPieChart();
@@ -748,7 +744,7 @@ public class ObjectClassifierCommand implements Runnable {
 		private static ObjectClassifier<BufferedImage> createClassifier(
 				Collection<TrainingData<BufferedImage>> training,
 				PathObjectFilter filter,
-				OpenCVStatModel statModel,
+				TrainableModel statModel,
 				FeatureExtractor<BufferedImage> extractor,
 				Normalization normalization,
 				double pcaRetainedVariance,
@@ -857,7 +853,7 @@ public class ObjectClassifierCommand implements Runnable {
 		 */
 		@SuppressWarnings("unchecked")
 		private static <T> FeatureExtractor<T> updateFeatureExtractorAndTrainClassifier(
-				OpenCVStatModel classifier,
+				TrainableModel classifier,
 				Collection<TrainingData<T>> trainingCollection,
 				FeatureExtractor<T> extractor,
 				Normalization normalization,
@@ -865,6 +861,7 @@ public class ObjectClassifierCommand implements Runnable {
 				boolean doMulticlass) {
 
 			var pathClasses = getPathClasses(trainingCollection);
+			int nClasses = pathClasses.size();
 
 			List<Mat> matFeaturesList = new ArrayList<>();
 			List<Mat> matTargetsList = new ArrayList<>();
@@ -890,8 +887,7 @@ public class ObjectClassifierCommand implements Runnable {
 					var map = training.map;
 	
 					int nFeatures = extractor.nFeatures();
-					int nSamples = map.values().stream().mapToInt(l -> l.size()).sum();
-					int nClasses = pathClasses.size();
+					int nSamples = map.values().stream().mapToInt(Set::size).sum();
 					if (nSamples == 0)
 						continue;
 	
@@ -981,13 +977,10 @@ public class ObjectClassifierCommand implements Runnable {
 			try {
 				// Train the classifier - we don't want to enclose this in a PointerScope in case 
 				// new persistent objects are created (e.g. the StatModel)
-				trainClassifier(classifier, matAllFeatures, matAllTargets, doMulticlass);
-	
-				if (classifier instanceof RTreesClassifier) {
-					tryLoggingVariableImportance((RTreesClassifier)classifier, extractor);
-				}
+				trainClassifier(classifier, matAllFeatures, matAllTargets, nClasses, doMulticlass);
+				tryLoggingVariableImportance(classifier, extractor);
 			} catch (Exception e) {
-				logger.error(e.getLocalizedMessage(), e);
+				logger.error(e.getMessage(), e);
 			} finally {
 				matAllFeatures.close();
 				matAllTargets.close();
@@ -995,11 +988,11 @@ public class ObjectClassifierCommand implements Runnable {
 			return extractor;
 		}
 
-		static boolean trainClassifier(OpenCVStatModel classifier, Mat matFeatures, Mat matTargets, boolean doMulticlass) {		
+		static boolean trainClassifier(TrainableModel classifier, Mat matFeatures, Mat matTargets, int nLabels, boolean doMulticlass) {
 			// Train classifier
 			// TODO: Optionally limit the number of training samples we use
 			long startTime = System.currentTimeMillis();
-			var trainData = classifier.createTrainData(matFeatures, matTargets, null, doMulticlass);
+			var trainData = classifier.createTrainData(matFeatures, matTargets, nLabels, null, doMulticlass);
 			classifier.train(trainData);
 			long endTime = System.currentTimeMillis();
 			logger.info("{} classifier trained with {} samples and {} features ({} ms)",
@@ -1008,23 +1001,12 @@ public class ObjectClassifierCommand implements Runnable {
 		}
 
 
-		static boolean tryLoggingVariableImportance(final RTreesClassifier trees, final FeatureExtractor<?> extractor) {
-			var importance = trees.getFeatureImportance();
-			if (importance == null)
-				return false;
-			var sorted = IntStream.range(0, importance.length)
-					.boxed()
-					.sorted((a, b) -> -Double.compare(importance[a], importance[b]))
-					.mapToInt(i -> i).toArray();
-
-			var names = extractor.getFeatureNames();
-			var sb = new StringBuilder("Variable importance:");
-			for (int ind : sorted) {
-				sb.append("\n");
-				sb.append(String.format("%.4f \t %s", importance[ind], names.get(ind)));
-			}
-			logger.info(sb.toString());
-			return true;
+		static void tryLoggingVariableImportance(final TrainableModel model, final FeatureExtractor<?> extractor) {
+			var importance = model.getFeatureImportance(extractor.getFeatureNames());
+			if (importance.isEmpty())
+				return;
+			importance.stream().sorted(Comparator.comparingDouble(FeatureImportance::importance).reversed())
+					.forEach(i -> logger.info("{}: {}", i.name(), i.importance()));
 		}
 
 
@@ -1168,12 +1150,11 @@ public class ObjectClassifierCommand implements Runnable {
 			 * Classifier type
 			 */
 			var labelClassifier = new Label("Classifier");
-			var comboClassifier = new ComboBox<OpenCVStatModel>();
+			var comboClassifier = new ComboBox<TrainableModel>();
 			comboClassifier.getItems().addAll(
-					OpenCVClassifiers.createStatModel(RTrees.class),
-					OpenCVClassifiers.createStatModel(ANN_MLP.class),
-					//					OpenCVClassifiers.createMulticlassStatModel(ANN_MLP.class),
-					OpenCVClassifiers.createStatModel(KNearest.class)
+					OpenCVStatModels.Models.R_TREES.createTrainableModel(),
+					OpenCVStatModels.Models.ANN.createTrainableModel(),
+					OpenCVStatModels.Models.KNN.createTrainableModel()
 					);
 			labelClassifier.setLabelFor(comboClassifier);
 			selectedModel = comboClassifier.getSelectionModel().selectedItemProperty();

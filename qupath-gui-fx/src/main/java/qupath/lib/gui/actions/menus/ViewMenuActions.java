@@ -129,9 +129,11 @@ public class ViewMenuActions implements MenuActions {
 		public final Action SHOW_CONNECTIONS = overlayActions.SHOW_CONNECTIONS;
 
 		public final Action SHOW_PIXEL_CLASSIFICATION = overlayActions.SHOW_PIXEL_CLASSIFICATION;
-		
+
+		public final Action CURTAINS = overlayActions.CURTAINS;
+
 		public final Action SEP_5 = ActionTools.createSeparator();
-		
+
 		public final Action SHOW_OVERVIEW = viewerActions.SHOW_OVERVIEW;
 		public final Action SHOW_LOCATION = viewerActions.SHOW_LOCATION;
 		public final Action SHOW_SCALEBAR = viewerActions.SHOW_SCALEBAR;

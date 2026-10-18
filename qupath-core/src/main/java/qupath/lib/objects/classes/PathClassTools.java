@@ -59,6 +59,17 @@ public final class PathClassTools {
 		return pathClass != null && pathClass != PathClass.NULL_CLASS
 				&& gradedIntensityClassNames.contains(pathClass.getName());
 	}
+
+	/**
+	 * Return true if PathClass is not null, and either {@link #isPositiveOrGradedIntensityClass(PathClass)}
+	 * or {@link #isNegativeClass(PathClass)} return true.
+	 * @param pathClass the class to test
+	 * @return
+	 */
+	public static boolean isIntensityClass(PathClass pathClass) {
+		return pathClass != null &&
+				(PathClassTools.isPositiveOrGradedIntensityClass(pathClass) || PathClassTools.isNegativeClass(pathClass));
+	}
 	
 	/**
 	 * Return true if the PathClass should be ignored from some operations, or is null. 

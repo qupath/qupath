@@ -2168,7 +2168,7 @@ public class TMASummaryViewer {
 			this.commandOriginal = predicate;
 			String quotedRegex = "\"([^\"]*)\"";
 			String test = predicate.replaceAll(quotedRegex, "");
-			isValid = test.replaceAll("[ ()+-<>=*/&|!]", "").trim().isEmpty(); // Check we don't have invalid characters
+			isValid = test.replaceAll("[() +0-9,:;<>=*/&|!\\-.]", "").trim().isEmpty(); // Check we don't have invalid characters
 			
 			if (isValid) {
 				this.command = predicate.replaceAll(quotedRegex, "entry.getMeasurementAsDouble(\"$1\")").trim();
@@ -2178,7 +2178,10 @@ public class TMASummaryViewer {
 			
 			
 			ScriptEngineManager manager = new ScriptEngineManager();
-	        engine = manager.getEngineByName("JavaScript");
+			// Switched from JavaScript, since is no longer bundled
+			engine = manager.getEngineByName("Groovy");
+			if (engine == null)
+				throw new RuntimeException("No Groovy engine found!");
 	        engine.setBindings(bindings, ScriptContext.GLOBAL_SCOPE);
 		}
 

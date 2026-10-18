@@ -201,7 +201,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		imageDataProperty.addListener(this);
 
 		// Create the table
-		table.setPlaceholder(GuiTools.createPlaceholderText(QuPathResources.getString("Panes.ImageDetails.noImageSelected")));
+		table.setPlaceholder(GuiTools.createPlaceholderLabel(QuPathResources.getString("Panes.ImageDetails.noImageSelected")));
 		table.setMinHeight(200);
 		table.setPrefHeight(250);
 		table.setMaxHeight(Double.MAX_VALUE);

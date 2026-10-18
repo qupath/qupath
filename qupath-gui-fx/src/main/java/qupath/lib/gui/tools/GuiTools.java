@@ -204,9 +204,23 @@ public class GuiTools {
 	 * @return a text object showing the requested text
 	 * @see #STYLE_PLACEHOLDER_TEXT
 	 * @since v0.6.0
+	 * @deprecated v0.8.0 because it resulted in CSS warnings during startup.
 	 */
+	@Deprecated
 	public static Text createPlaceholderText(String text) {
 		var textNode = new Text(text);
+		textNode.getStyleClass().add(STYLE_PLACEHOLDER_TEXT);
+		return textNode;
+	}
+
+	/**
+	 * Create a {@link Label} object for use as a placeholder in a list or table.
+	 * @param text the text to display
+	 * @return a label object showing the requested text
+	 * @since v0.8.0
+	 */
+	public static Label createPlaceholderLabel(String text) {
+		var textNode = new Label(text);
 		textNode.getStyleClass().add(STYLE_PLACEHOLDER_TEXT);
 		return textNode;
 	}
@@ -1541,11 +1555,14 @@ public class GuiTools {
         pane.setGraphicTextGap(5);
         pane.setContentDisplay(ContentDisplay.RIGHT);
         pane.setAlignment(Pos.CENTER_LEFT);
+		var textChangeFlag = new SimpleBooleanProperty();
         // See https://stackoverflow.com/questions/52457813/javafx-11-add-a-graphic-to-a-titledpane-on-the-right-side
         right.translateXProperty().bind(Bindings.createDoubleBinding(
                 () -> pane.getWidth() - right.getLayoutX() - right.getWidth() - 10,
-                pane.widthProperty(), right.widthProperty())
+                pane.widthProperty(), right.widthProperty(), textChangeFlag)
         );
+		// It's not elegant, but this helps recover when the text width changes
+		pane.textProperty().subscribe(() -> Platform.runLater(() -> textChangeFlag.set(!textChangeFlag.get())));
         pane.setMaxHeight(Double.MAX_VALUE);
         pane.setCollapsible(false);
         pane.paddingProperty().bind(Bindings.createObjectBinding(() -> {

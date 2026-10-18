@@ -1,14 +1,24 @@
 ## Version 0.8.0 (IN PROGRESS!)
 
 ### Enhancements
+* Much improved pixel classifier user interface (https://github.com/qupath/qupath/pull/2162)
+  * Calculate feature importance
+  * Calculate performance metrics using cross validation
+  * Support 3D feature calculations (for small-ish images!)
+  * Remember settings within a QuPath session
 * Improved brush and wand tools (https://github.com/qupath/qupath/pull/2125 https://github.com/qupath/qupath/pull/2126)
   * View the size of the brush, and adjust it by scrolling with `Alt` key pressed
   * Press `F` while drawing with the brush or wand to fill holes
   * Avoid diagonal lines when using the wand, to make clearer when a pixel is 'inside' or 'outside'
+* New 'curtains' effect with image overlays (https://github.com/qupath/qupath/pull/2175)
 * Much faster `ObjectMeasurements`, especially for images with many channels (https://github.com/qupath/qupath/pull/2113)
 * Show values for only the current visible feature when viewing features through the pixel classifier dialog (https://github.com/qupath/qupath/issues/2123)
 * Support to close more windows with Ctrl/Cmd+W (https://github.com/qupath/qupath/issues/2107)
 * Lots more strings externalized (https://github.com/qupath/qupath/pull/2104)
+* Ask to remove projects that are not found (https://github.com/qupath/qupath/pull/2167)
+* Hold down `Ctrl` (`Cmd` on macOS) when clicking viewer to focus it without creating an annotation with the brush, wand or points tool (https://github.com/qupath/qupath/pull/2185)
+* The 'Auto set' classification for new annotations can be changed from the popup menu in the viewer (https://github.com/qupath/qupath/pull/2186)
+* *File → Export images... → Rendered RGB (with overlays)...* and *Rendered SVG...* now use viewer z and t positions when exporting 2D images
 
 ### Bug fixes
 * StackOverflowError at ROITypeAdapters.writeCoordinates when exporting some geometries (https://github.com/qupath/qupath/issues/2115)
@@ -16,19 +26,31 @@
 * Drawing/moving annotations can cause jiggly class list scrolling behavior (https://github.com/qupath/qupath/issues/2101)
 * Removing child objects can give an unexpected exception in scripts (https://github.com/qupath/qupath/issues/2111)
 * Nested detections render poorly when filled (https://github.com/qupath/qupath/issues/2112)
+* 'Add shape features' wrongly gives 'Length µm' in pixels (https://github.com/qupath/qupath/issues/2158)
+* Adding single points can cause unhelpful 'empty' point annotations to remain (https://github.com/qupath/qupath/issues/2155)
+* Calling `ImageServer.readRegion(RegionRequest)` can return the wrong pixels if `RegionRequest.getPath()` is wrong (https://github.com/qupath/qupath/issues/2164) 
+* The image overview doesn't rescale for very 'tall' images (https://github.com/qupath/qupath/issues/2163)
+* Export snapshot on Linux fails if the extension is not part of the filename (https://github.com/qupath/qupath/issues/2181)
+* Training object classifier for intensity class results in `Positive: Positive` or `Negative: Negative` (https://github.com/qupath/qupath/issues/2200)
+* ImageOps morphological filters (maximum, minimum, opening, closing) are not thread-safe (https://github.com/qupath/qupath/issues/2202)
 
 ### Dependency updates
 * Bio-Formats 8.5.0
-* Commonmark 0.28.0
-* Groovy 5.0.5
-* Guava 33.6.0
+* Caffeine 3.2.4
+* Commonmark 0.30.1
+* ControlsFX 11.2.6
+* DeepJavaLibrary 0.38.0
+* Groovy 6.0.0
+* Guava 33.7.2
 * JavaCPP 1.5.13
-* JavaFX 26.0.1
-* Logback 1.5.32
-* OpenCV 4.13.0
-* SciJava POM 44.0.0
-
-
+* JavaFX 27
+* Logback 1.6.1
+* OpenCV 4.14.0
+* qupath-fxtras 0.4.1
+* SciJava POM 45.1.0
+* SLF4J 2.0.18
+* OpenSlide 4.0.1.2
+* 
 ## Version 0.7.0
 
 ### Enhancements

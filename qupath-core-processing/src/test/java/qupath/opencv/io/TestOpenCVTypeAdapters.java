@@ -184,8 +184,7 @@ public class TestOpenCVTypeAdapters {
 	@Test
 	public void testGetTypeAdaptor() {
 		var gson = new GsonBuilder()
-				.registerTypeAdapter(Mat.class, OpenCVTypeAdapters.getTypeAdaptor(Mat.class))
-				.registerTypeAdapter(SparseMat.class, OpenCVTypeAdapters.getTypeAdaptor(SparseMat.class))
+				.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
 				.create();
 
 		

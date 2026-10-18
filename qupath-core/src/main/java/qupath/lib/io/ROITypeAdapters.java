@@ -272,14 +272,29 @@ class ROITypeAdapters {
 			return factory.createPolygon();
 		JsonArray array = coords.get(0).getAsJsonArray();
 		LinearRing shell = factory.createLinearRing(parseCoordinateArray(array));
-		if (n == 1)
-			return factory.createPolygon(shell);
+		if (n == 1) {
+			if (emptyShell(shell))
+				return factory.createPolygon();
+			else
+				return factory.createPolygon(shell);
+		}
 		LinearRing[] holes = new LinearRing[n-1];
 		for (int i = 1; i < n; i++) {
 			array = coords.get(i).getAsJsonArray();
 			holes[i-1] = factory.createLinearRing(parseCoordinateArray(array));
 		}
 		return factory.createPolygon(shell, holes);
+	}
+
+	private static boolean emptyShell(LinearRing ring) {
+		if (ring.getLength() > 0)
+			return false;
+		for (int i = 0; i < ring.getNumPoints(); i++) {
+			var c = ring.getCoordinateN(i);
+			if (c.getX() != 0 || c.getY() != 0)
+				return false;
+		}
+		return true;
 	}
 
 	static MultiPolygon parseMultiPolygon(JsonArray coords, GeometryFactory factory) {

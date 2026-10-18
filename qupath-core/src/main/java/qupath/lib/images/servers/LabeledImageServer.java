@@ -73,12 +73,9 @@ import java.util.stream.Collectors;
  * constructs tiles from a {@link PathObjectHierarchy} where pixel values are integer labels corresponding 
  * stored and classified annotations.
  * <p>
- * <i>Warning!</i> This is intend for temporary use when exporting labelled images. No attempt is made to 
+ * <i>Warning!</i> This is intended for temporary use when exporting labeled images. No attempt is made to
  * respond to changes within the hierarchy. For consistent results, the hierarchy must remain static for the 
  * time in which this server is being used.
- *
- * @author Pete Bankhead
- *
  */
 public class LabeledImageServer extends AbstractTileableImageServer implements GeneratingImageServer<BufferedImage> {
 
@@ -218,7 +215,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			}
 
 			if (params.grayscaleLut) {
-				if (maxLabel < 255)
+				if (maxLabel < 256)
 					colorModel = COLOR_MODEL_GRAY_UINT8;
 				else if (maxLabel < 65536){
 					colorModel = COLOR_MODEL_GRAY_UINT16;
@@ -335,10 +332,10 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * Previously, this was achieved with a UUID - although this looks strange if exporting classes.
 		 */
 //		private PathClass unannotatedClass = PathClassFactory.getPathClass("Unannotated " + UUID.randomUUID().toString());
-		private PathClass unannotatedClass = PathClass.getInstance("*Background*");
+		private PathClass unannotatedClass = PathClass.getInstance("*Background*", ColorTools.BLACK);
 
 		private Predicate<PathObject> objectFilter = PathObjectFilter.ANNOTATIONS;
-		private Function<PathObject, ROI> roiFunction = p -> p.getROI();
+		private Function<PathObject, ROI> roiFunction = PathObject::getROI;
 
 		private boolean createInstanceLabels = false;
 		private boolean shuffleInstanceLabels = true; // Only if using instance labels

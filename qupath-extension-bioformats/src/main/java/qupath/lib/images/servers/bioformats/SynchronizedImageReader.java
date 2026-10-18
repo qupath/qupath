@@ -27,6 +27,7 @@ import loci.formats.meta.MetadataStore;
 import loci.formats.ome.OMEXMLMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.LogTools;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 
@@ -192,7 +193,7 @@ class SynchronizedImageReader implements Closeable {
             var dir = new File(pathMemoization);
             if (dir.isDirectory())
                 return dir;
-            logger.warn("Memoization path does not refer to a valid directory, will be ignored: {}", dir.getAbsolutePath());
+            LogTools.warnOnce(logger, "Memoization directory is not valid and will be ignored: " + dir.getAbsolutePath());
         }
         return null;
     }

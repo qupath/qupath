@@ -550,8 +550,8 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	}
 
 
-	private static Text createPlaceholderText(String text) {
-		return GuiTools.createPlaceholderText(text);
+	private static Label createPlaceholderText(String text) {
+		return GuiTools.createPlaceholderLabel(text);
 	}
 	
 	class QuPathGridView extends StackPane {
@@ -562,7 +562,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		private final IntegerProperty imageSize = new SimpleIntegerProperty();
 		
-		private final Text textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
+		private final Label textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
 		
 		QuPathGridView() {
 			imageSize.addListener(v -> updateChildren());

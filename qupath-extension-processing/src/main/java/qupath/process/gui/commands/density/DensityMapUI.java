@@ -67,7 +67,7 @@ import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.images.servers.RenderedImageServer;
-import qupath.lib.gui.images.stores.ColorModelRenderer;
+import qupath.lib.images.stores.ColorModelRenderer;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;

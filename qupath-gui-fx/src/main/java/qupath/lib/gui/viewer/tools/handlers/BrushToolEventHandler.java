@@ -25,6 +25,7 @@ package qupath.lib.gui.viewer.tools.handlers;
 
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import javafx.scene.Cursor;
 import javafx.scene.input.InputEvent;
 import javafx.scene.input.KeyCode;
@@ -34,10 +35,14 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.robot.Robot;
+import org.locationtech.jts.algorithm.Distance;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.operation.overlayng.CoverageUnion;
+import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 import org.locationtech.jts.simplify.VWSimplifier;
 import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
@@ -65,6 +70,7 @@ import qupath.lib.roi.interfaces.ROI;
 import java.awt.geom.Point2D;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Tool for drawing (and subtract from) freehand regions, optionally adapting brush size to magnification.
@@ -131,7 +137,12 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 	
 	@Override
 	public void mousePressed(MouseEvent e) {
-		if (!e.isPrimaryButtonDown() || e.isConsumed()) {
+		// v0.8.0 change to skip clicks if ctrl/cmd down,
+		// because this gives a way to bring the viewer into focus
+		// without accidentally creating a new annotation.
+		// We can't use spacebar, because we don't know if it was pressed with
+		// any other window in focus.
+		if (!e.isPrimaryButtonDown() || e.isConsumed() || e.isShortcutDown()) {
             return;
         }
 
@@ -141,7 +152,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null)
 			return;
-		
+
 		PathObject currentObject = viewer.getSelectedObject();
 		
 		// Ignore the current object if it belongs to a different image plane
@@ -153,10 +164,10 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 				currentObject.getROI().getT() != viewer.getTPosition()) {
 			currentObject = null;
 		}
-		
+
 		// Determine if we are creating a new object
 //		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
-		Point2D p = mouseLocationToImage(e, false, requestPixelSnapping());
+		Point2D p = mouseLocationToImage(e, false, false);
 		double xx = p.getX();
 		double yy = p.getY();
 		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight()) {
@@ -436,7 +447,8 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 
 	@Override
 	protected void handleScrollEvent(ScrollEvent event) {
-		if (!event.isConsumed() && event.isAltDown()) {
+		// Don't want to adjust diameter for subclasses (i.e. the wand)
+		if (!event.isConsumed() && event.isAltDown() && Objects.equals(BrushToolEventHandler.class, getClass())) {
 			PathPrefs.brushDiameterProperty().set(
 					GeneralTools.clipValue(
 							(int)Math.round(PathPrefs.brushDiameterProperty().get() + event.getDeltaY()), 10, 500
@@ -489,25 +501,117 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 		
 		// Compute a diameter scaled according to the pressure being applied
 		double diameter = Math.max(1, getBrushDiameter());
-		
+
+		boolean doRasterize = PathPrefs.useRasterBrushProperty().get();
+		if (doRasterize) {
+			double downsample = getViewer().getDownsampleFactor();
+			int resolution = (int)Math.max(1.0, Math.floor(downsample));
+			var c1 = new Coordinate(Math.floor(x), Math.floor(y));
+			var c2 = lastPoint == null ? c1 : new Coordinate(
+					Math.floor(lastPoint.getX()),
+					Math.floor(lastPoint.getY()));
+			double radius = getBrushDiameter() / 2.0;// / resolution;
+			var geom = rasterizedBufferedLine(c1, c2, radius, resolution);
+			if (geom.isEmpty()) {
+				return GeometryTools.createRectangle(Math.floor(x), Math.floor(y), 1, 1);
+			} else {
+				return geom;
+			}
+		}
+
 		Geometry geometry;
 		if (lastPoint == null) {
 			var shapeFactory = new GeometricShapeFactory(getGeometryFactory());
 			shapeFactory.setCentre(new Coordinate(x, y));
 			shapeFactory.setSize(diameter);
-//			shapeFactory.setCentre(new Coordinate(x-diameter/2, y-diameter/2));
 			geometry = shapeFactory.createEllipse();
 		} else {
 			if (lastPoint.distanceSq(x, y) == 0)
 				return null;
+			// For drawing a line, it's better to create the line and buffer
+			// (not add lots of separate circles)
 			var factory = getGeometryFactory();
 			geometry = factory.createLineString(new Coordinate[] {
 					new Coordinate(lastPoint.getX(), lastPoint.getY()),
-					new Coordinate(x, y)}).buffer(diameter/2.0);
+					new Coordinate(x, y)})
+					.buffer(diameter/2.0);
 		}
-		
+
 		return geometry;
 	}
+
+	/**
+	 * Create a geometry containing only integer coordinates and horizontal/vertical lines, derived from
+	 * a line or point that has been buffered with a specified radius.
+	 * @param c1 end point of the line, or center of the circle
+	 * @param c2 second end point of the line, or equal to c1 for a circle
+	 * @param radius buffer radius (or circle radius for a single point)
+	 * @param resolution the resolution of the output geometry; must be &geq; 1.
+	 *                   Use 1 to allow all integer coordinates,
+	 *                   or a higher number to improve performance (by creating less detailed geometries).
+	 * @return the rasterized geometry
+	 */
+	private static Geometry rasterizedBufferedLine(Coordinate c1, Coordinate c2, double radius, int resolution) {
+
+		if (resolution < 0)
+			throw new IllegalArgumentException("Resolution must be >= 1");
+
+		boolean isCircle = c2 == null || c1.equals2D(c2);
+
+		List<Polygon> rasterizedPolygons = new ArrayList<>();
+
+		// Compute the center of the central pixel
+		double centerX = Math.round((c1.getX() + c2.getX()) / 2.0) + 0.5;
+		double centerY = Math.round((c1.getY() + c2.getY()) / 2.0) + 0.5;
+
+		// Compute the number of horizontal grid pixels in the bounding box
+		int nHorizontal = (int)Math.max(1, Math.ceil(Math.abs(c1.getX() - c2.getX()) + radius * 2.0) / (double)resolution);
+		double minX = centerX - (nHorizontal / 2 + 2) * resolution;
+		double maxX = centerX + (nHorizontal / 2 + 2) * resolution;
+
+		// Compute the number of vertical grid pixels in the bounding box
+		int nVertical = (int)Math.max(2, Math.ceil(Math.abs(c1.getY() - c2.getY()) + radius * 2.0) / (double)resolution);
+		double minY = centerY - (nVertical / 2 + 2) * resolution;
+		double maxY = centerY + (nVertical / 2 + 2) * resolution;
+
+		Coordinate c = new Coordinate();
+		for (double y = minY; y <= maxY; y += resolution) {
+			c.setY(y);
+			double scanlineStart = Double.NEGATIVE_INFINITY;
+			double scanlineEnd = Double.NEGATIVE_INFINITY;
+			for (double x = minX; x <= maxX; x += resolution) {
+				c.setX(x);
+				double distance = isCircle ? c1.distance(c) : Distance.pointToSegment(c, c1, c2);
+				if (distance <= radius) {
+					if (!Double.isFinite(scanlineStart)) {
+						// Starting row
+						scanlineStart = x;
+					}
+					scanlineEnd = x;
+				} else {
+					// Finished row
+					if (Double.isFinite(scanlineEnd)) {
+						rasterizedPolygons.add(
+								GeometryTools.createRectangle(scanlineStart - 0.5, y - resolution / 2.0, scanlineEnd - scanlineStart + 1, resolution)
+						);
+						// Break, to avoid wasting time for pixels that are definitely outside
+						break;
+					}
+				}
+			}
+		}
+
+		// Merge the polygons
+		var factory = GeometryTools.getDefaultFactory();
+		var geomNew = CoverageUnion.union(factory.buildGeometry(rasterizedPolygons));
+
+		// Remove unnecessary vertices on vertical lines
+		if (geomNew == null || geomNew.isEmpty())
+			return factory.createPolygon();
+		else
+			return DouglasPeuckerSimplifier.simplify(geomNew, 0);
+	}
+
 	
 	private boolean creatingTiledROI = false;
 	
@@ -521,7 +625,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 		lastPoint = null;
 		Geometry geom = createShape(e, x, y, PathPrefs.useTileBrushProperty().get(), null);
 		if (geom == null || geom.isEmpty())
-			return ROIs.createEmptyROI();
+			return ROIs.createEmptyROI().updatePlane(plane);
 		var viewer = getViewer();
 		geom = GeometryTools.roundCoordinates(geom);
 		geom = GeometryTools.constrainToBounds(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
