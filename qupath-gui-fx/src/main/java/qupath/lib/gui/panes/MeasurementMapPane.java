@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020, 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -78,16 +78,15 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 
 /**
- * Component used for displaying measurement maps, whereby detection objects are recolored 
+ * Component used for displaying measurement maps, where objects are recolored
  * according to measurement values.
- * 
- * @author Pete Bankhead
- *
  */
 public class MeasurementMapPane {
 	
@@ -126,24 +125,92 @@ public class MeasurementMapPane {
 	
 	private final BooleanProperty showMap;
 	private boolean updatingSliders = false;
-	
+
 
 	/**
-	 * Constructor.
-	 * @param qupath the current QuPath instance
+	 * Create a measurement map pane to apply colors to all detection objects.
+	 * @param qupath QuPath instance
+	 * @return a new measurement map pane
 	 */
-	public MeasurementMapPane(final QuPathGUI qupath) {
+	public static MeasurementMapPane createForAllDetections(QuPathGUI qupath) {
+		return createForFilter(qupath, PathObjectFilter.DETECTIONS_ALL);
+	}
+
+	/**
+	 * Create a measurement map pane to apply colors to annotation objects.
+	 * @param qupath QuPath instance
+	 * @return a new measurement map pane
+	 */
+	public static MeasurementMapPane createForAnnotations(QuPathGUI qupath) {
+		return createForFilter(qupath, PathObjectFilter.ANNOTATIONS);
+	}
+
+	/**
+	 * Create a measurement map pane to apply colors to cell objects.
+	 * @param qupath QuPath instance
+	 * @return a new measurement map pane
+	 */
+	public static MeasurementMapPane createForCells(QuPathGUI qupath) {
+		return createForFilter(qupath, PathObjectFilter.CELLS);
+	}
+
+	/**
+	 * Create a measurement map pane to apply colors to tile objects.
+	 * @param qupath QuPath instance
+	 * @return a new measurement map pane
+	 */
+	public static MeasurementMapPane createForTiles(QuPathGUI qupath) {
+		return createForFilter(qupath, PathObjectFilter.TILES);
+	}
+
+	/**
+	 * Create a measurement map pane to apply colors to objects selected using a specific filter.
+	 * @param qupath QuPath instance
+	 * @return a new measurement map pane
+	 */
+	public static MeasurementMapPane createForFilter(QuPathGUI qupath, PathObjectFilter filter) {
+		return new MeasurementMapPane(qupath, filter);
+	}
+
+	/**
+	 * Create a measurement map pane that allows the user to select which object type to color.
+	 * @param qupath QuPath instance
+	 * @return a new measurement map pane
+	 */
+	public static MeasurementMapPane create(QuPathGUI qupath) {
+		return new MeasurementMapPane(
+				qupath,
+				PathObjectFilter.DETECTIONS_ALL,
+				List.of(PathObjectFilter.DETECTIONS_ALL, PathObjectFilter.CELLS,
+						PathObjectFilter.TILES, PathObjectFilter.ANNOTATIONS));
+	}
+
+	private MeasurementMapPane(final QuPathGUI qupath, final PathObjectFilter filter) {
+		this(qupath, filter, List.of(filter));
+	}
+
+	private MeasurementMapPane(final QuPathGUI qupath, final PathObjectFilter filter, final Collection<? extends PathObjectFilter> availableFilters) {
+		Objects.requireNonNull(qupath, "QuPath must not be null.");
+		Objects.requireNonNull(filter, "Filter must not be null.");
+		if (!availableFilters.isEmpty() && !availableFilters.contains(filter)) {
+			throw new IllegalArgumentException("Selected filter is not listed as an available filter");
+		}
 		this.qupath = qupath;
-		
+
 		logger.trace("Creating Measurement Map Pane");
 
+
 		var comboFilter = new ComboBox<PathObjectFilter>();
-		comboFilter.setMaxWidth(Double.MAX_VALUE);
-		comboFilter.getItems().setAll(PathObjectFilter.DETECTIONS_ALL, PathObjectFilter.CELLS, PathObjectFilter.TILES, PathObjectFilter.ANNOTATIONS);
-		comboFilter.getSelectionModel().selectFirst();
-		selectedFilter.bind(comboFilter.getSelectionModel().selectedItemProperty());
-		selectedFilter.addListener((v, o, n) -> updateMeasurements());
-		pane.setTop(comboFilter);
+		if (availableFilters.size() > 1) {
+			comboFilter.setMaxWidth(Double.MAX_VALUE);
+			comboFilter.getItems().setAll(availableFilters);
+			comboFilter.getSelectionModel().selectFirst();
+			selectedFilter.bind(comboFilter.getSelectionModel().selectedItemProperty());
+			selectedFilter.subscribe(this::updateMeasurements);
+			pane.setTop(comboFilter);
+		} else {
+			selectedFilter.setValue(filter);
+		}
 
 		
 		ColorMaps.installColorMaps(getUserColormapPaths().toArray(Path[]::new));
