@@ -372,7 +372,7 @@ public class Commands {
 		pane.add(new Label(QuPathResources.getString("Commands.exportFormat")), 0, row);
 		ComboBox<ImageWriter<BufferedImage>> comboImageType = new ComboBox<>();
 		
-		Function<ImageWriter<BufferedImage>, String> fun = (ImageWriter<BufferedImage> writer) -> writer.getName();
+		Function<ImageWriter<BufferedImage>, String> fun = ImageWriter::getName;
 		comboImageType.setCellFactory(p -> FXUtils.createCustomListCell(fun));
 		comboImageType.setButtonCell(FXUtils.createCustomListCell(fun));
 		
@@ -457,9 +457,16 @@ public class Commands {
 			return;
 		
 		var writer = comboImageType.getSelectionModel().getSelectedItem();
-		boolean supportsPyramid = writer == null ? false : writer.supportsPyramidal();
-		int w = (int)(regionWidth / downsample.get() + 0.5);
-		int h = (int)(regionHeight / downsample.get() + 0.5);
+		if (writer == null) {
+			Dialogs.showErrorNotification(
+					QuPathResources.getString("Commands.exportImageRegion"),
+					QuPathResources.getString("Commands.noWriter")
+			);
+			return;
+		}
+		boolean supportsPyramid = writer.supportsPyramidal();
+		long w = Math.round(regionWidth / downsample.get());
+		long h = Math.round(regionHeight / downsample.get());
 		if (!supportsPyramid && w * h > maxPixels) {
 			Dialogs.showErrorNotification(
 					QuPathResources.getString("Commands.exportImageRegion"),
@@ -495,18 +502,28 @@ public class Commands {
 //		selectedImageType.set(comboImageType.getSelectionModel().getSelectedItem());
 		
 		// Create RegionRequest
+		boolean isStack = server.nZSlices() > 1 || server.nTimepoints() > 1;
 		RegionRequest request = null;
-		if (pathObject != null && pathObject.hasROI())
-			request = RegionRequest.createInstance(server.getPath(), exportDownsample.get(), roi);				
+		if (pathObject != null && pathObject.hasROI()) {
+			request = RegionRequest.createInstance(server.getPath(), exportDownsample.get(), roi);
+		} else if ((server.nZSlices() > 1 && !writer.supportsZ()) ||server.nTimepoints() > 1 && !writer.supportsT()) {
+			request = RegionRequest.createInstance(server.getPath(), exportDownsample.get(),
+					0, 0, server.getWidth(), server.getHeight(), viewer.getZPosition(), viewer.getTPosition());
+		}
 
 		// Create a sensible default file name, and prompt for the actual name
 		String ext = writer.getDefaultExtension();
 		String writerName = writer.getName();
 		String defaultName = GeneralTools.getNameWithoutExtension(new File(ServerTools.getDisplayableImageName(server)));
-		if (roi != null) {
+		if (request != null) {
 			defaultName = String.format("%s (%s, x=%d, y=%d, w=%d, h=%d)", defaultName,
 					GeneralTools.formatNumber(request.getDownsample(), 2),
 					request.getX(), request.getY(), request.getWidth(), request.getHeight());
+			if (isStack) {
+				defaultName = String.format("%s, z=%d, t=%d)",
+						defaultName.substring(0, defaultName.length() - 1),
+						request.getZ(), request.getT());
+			}
 		}
 		File fileOutput = FileChoosers.promptToSaveFile(QuPathResources.getString("Commands.exportImageRegion"),
 				new File(defaultName),
@@ -526,11 +543,12 @@ public class Commands {
 					// See https://github.com/qupath/qupath/pull/1531
 					writer.writeImage(ImageServers.pyramidalize(server, exportDownsample.get()), fileOutput.getAbsolutePath());
 				}
-			} else
+			} else {
 				writer.writeImage(server, request, fileOutput.getAbsolutePath());
+			}
 			lastWriter = writer;
 		} catch (IOException e) {
-			Dialogs.showErrorMessage(QuPathResources.getString("Commands.exportRegion"), e.getLocalizedMessage());
+			Dialogs.showErrorMessage(QuPathResources.getString("Commands.exportRegion"), e.getMessage());
 			logger.error(e.getMessage(), e);
 		}
 	}

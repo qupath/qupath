@@ -132,7 +132,8 @@ class SvgExportCommand implements Runnable {
 			if (selected != null && selected.hasROI()) {
 				request = RegionRequest.createInstance(server.getPath(), downsample.get(), selected.getROI());
 			} else {
-				request = RegionRequest.createInstance(server, downsample.get());
+				request = RegionRequest.createInstance(server.getPath(), downsample.get(),
+						0, 0, server.getWidth(), server.getHeight(), viewer.getZPosition(), viewer.getTPosition());
 			}
 			
 			int width = (int)(request.getWidth() / downsample.get());
