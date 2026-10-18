@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -53,6 +53,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import org.controlsfx.control.CheckListView;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
@@ -116,7 +117,6 @@ import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QP;
 
-import java.awt.Window;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -638,27 +638,38 @@ public class Commands {
 	}
 	
 	/**
-	 * Create a dialog for displaying measurement maps.
+	 * Create a dialog for displaying measurement maps of detection objects.
 	 * @param qupath the {@link QuPathGUI} instance to which the maps refer
 	 * @return a measurement map dialog
 	 */
 	public static Stage createMeasurementMapDialog(QuPathGUI qupath) {
+		return createMeasurementMapDialog(qupath,
+				QuPathResources.getString("Commands.measurementMaps"),
+				MeasurementMapPane.createForAllDetections(qupath));
+	}
+
+	/**
+	 * Create a dialog for displaying the specified measurement map pane.
+	 * @param qupath the {@link QuPathGUI} instance to which the maps refer
+	 * @param title the dialog title
+	 * @param measurementMapPane the measurement map pane to show
+	 * @return a measurement map dialog
+	 */
+	public static Stage createMeasurementMapDialog(QuPathGUI qupath, String title, MeasurementMapPane measurementMapPane) {
+		Objects.requireNonNull(qupath, "QuPath must not be null!");
+		Objects.requireNonNull(measurementMapPane, "Measurement map pane must not be null!");
 		var dialog = new Stage();
-		if (qupath != null)
-			dialog.initOwner(qupath.getStage());
-		FXUtils.addCloseWindowShortcuts(dialog);
-		dialog.setTitle(QuPathResources.getString("Commands.measurementMaps"));
+		dialog.initOwner(qupath.getStage());
+		FXUtils.addCloseWindowShortcuts((Window)dialog);
+		dialog.setTitle(title);
 		
-		var panel = new MeasurementMapPane(qupath);
 		BorderPane pane = new BorderPane();
-		pane.setCenter(panel.getPane());
+		pane.setCenter(measurementMapPane.getPane());
 		
 		Scene scene = new Scene(pane, 300, 400);
 		dialog.setScene(scene);
 		dialog.setMinWidth(300);
 		dialog.setMinHeight(400);
-//		pane.setMinSize(300, 400);
-//		dialog.setResizable(false);
 		
 		dialog.setOnCloseRequest(e -> {
 			OverlayOptions overlayOptions = qupath.getOverlayOptions();
@@ -667,7 +678,7 @@ public class Commands {
 			dialog.hide();
 		});
 		dialog.setOnShowing(e -> {
-			panel.updateMeasurements();
+			measurementMapPane.updateMeasurements();
 		});
 		return dialog;
 	}
@@ -2155,11 +2166,7 @@ public class Commands {
 			);
 			return;
 		}
-		// Show script editor with a new script
-		if ((scriptEditor instanceof Window) && ((Window)scriptEditor).isShowing())
-			((Window)scriptEditor).toFront();
-		else
-			scriptEditor.showEditor();
+		scriptEditor.showEditor();
 	}
 
 	/**
