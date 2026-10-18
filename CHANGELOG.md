@@ -32,6 +32,7 @@
 * The image overview doesn't rescale for very 'tall' images (https://github.com/qupath/qupath/issues/2163)
 * Export snapshot on Linux fails if the extension is not part of the filename (https://github.com/qupath/qupath/issues/2181)
 * Training object classifier for intensity class results in `Positive: Positive` or `Negative: Negative` (https://github.com/qupath/qupath/issues/2200)
+* ImageOps morphological filters (maximum, minimum, opening, closing) are not thread-safe (https://github.com/qupath/qupath/issues/2202)
 
 ### Dependency updates
 * Bio-Formats 8.5.0

@@ -110,7 +110,7 @@ public class ImageOps {
 	 * This is important because it makes name clashes more likely when serializing/deserializing ops, 
 	 * therefore in v0.3 these categories are re-introduced with efforts to maintain backwards compatibility.
 	 */
-	private static List<String> LEGACY_CATEGORIES = Arrays.asList("op.filters.", "op.ml.", "op.normalize.", "op.threshold.");
+	private static final List<String> LEGACY_CATEGORIES = Arrays.asList("op.filters.", "op.ml.", "op.normalize.", "op.threshold.");
 	
 	@SuppressWarnings("unchecked")
 	private static <T> void registerTypes(SubTypeAdapterFactory<T> factory, Class<T> factoryType, Class<?> cls, String base) {
@@ -1511,27 +1511,20 @@ public class ImageOps {
 		abstract static class MorphOp extends PaddedOp {
 			
 			private int radius;
-			private transient Mat kernel;
-			
+
 			MorphOp(int radius) {
 				this.radius = radius;
 			}
 			
 			@Override
 			public List<Mat> transformPadded(Mat input) {
-				opencv_imgproc.morphologyEx(input, input, getOp(), getKernel());
-//				OpenCVTools.applyToChannels(input,
-//						mat -> opencv_imgproc.morphologyEx(mat, mat, getOp(), getKernel()));
-				return Collections.singletonList(input);
+				try (var kernel = createDefaultKernel(radius)) {
+					opencv_imgproc.morphologyEx(input, input, getOp(), kernel);
+					return Collections.singletonList(input);
+				}
 			}
 			
 			protected abstract int getOp();
-			
-			private Mat getKernel() {
-				if (kernel == null || kernel.isNull())
-					kernel = createDefaultKernel(radius);
-				return kernel;
-			}
 
 			@Override
 			protected Padding calculatePadding() {
@@ -1730,7 +1723,6 @@ public class ImageOps {
 		static class FastMaximaOp extends PaddedOp {
 			
 			private int radius;
-			private transient Mat kernel;
 			
 			FastMaximaOp(int radius) {
 				this.radius = radius;
@@ -1738,17 +1730,13 @@ public class ImageOps {
 			
 			@Override
 			public List<Mat> transformPadded(Mat input) {
-				Mat temp = new Mat();
-				opencv_imgproc.morphologyEx(input, temp, opencv_imgproc.MORPH_DILATE, getKernel());
-				input.put(opencv_core.equals(input, temp));
-				temp.close();
-				return Collections.singletonList(input);
-			}
-			
-			private Mat getKernel() {
-				if (kernel == null || kernel.isNull())
-					kernel = createDefaultKernel(radius);
-				return kernel;
+				try (var kernel = createDefaultKernel(radius)) {
+					Mat temp = new Mat();
+					opencv_imgproc.morphologyEx(input, temp, opencv_imgproc.MORPH_DILATE, kernel);
+					input.put(opencv_core.equals(input, temp));
+					temp.close();
+					return Collections.singletonList(input);
+				}
 			}
 
 			@Override
@@ -1762,27 +1750,22 @@ public class ImageOps {
 		static class FastMinimaOp extends PaddedOp {
 			
 			private int radius;
-			private transient Mat kernel;
-			
+
 			FastMinimaOp(int radius) {
 				this.radius = radius;
 			}
 			
 			@Override
 			public List<Mat> transformPadded(Mat input) {
-				Mat temp = new Mat();
-				opencv_imgproc.morphologyEx(input, temp, opencv_imgproc.MORPH_ERODE, getKernel());
-				input.put(opencv_core.equals(input, temp));
-				temp.close();
-				return Collections.singletonList(input);
+				try (var kernel = createDefaultKernel(radius)) {
+					Mat temp = new Mat();
+					opencv_imgproc.morphologyEx(input, temp, opencv_imgproc.MORPH_ERODE, kernel);
+					input.put(opencv_core.equals(input, temp));
+					temp.close();
+					return Collections.singletonList(input);
+				}
 			}
 			
-			private Mat getKernel() {
-				if (kernel == null || kernel.isNull())
-					kernel = createDefaultKernel(radius);
-				return kernel;
-			}
-
 			@Override
 			protected Padding calculatePadding() {
 				return Padding.symmetric(radius);
