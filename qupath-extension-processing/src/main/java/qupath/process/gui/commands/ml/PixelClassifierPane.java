@@ -111,8 +111,6 @@ import java.util.TreeMap;
 
 /**
  * Main user interface for interactively training a {@link PixelClassifier}.
- * 
- * @author Pete Bankhead
  */
 public class PixelClassifierPane {
 	
@@ -200,10 +198,18 @@ public class PixelClassifierPane {
 	 * Show the stage containing this pane.
 	 */
 	public void showStage() {
+		getStage().show();
+	}
+
+	/**
+	 * Get the stage showing this pane.
+	 * @return
+	 */
+	public Stage getStage() {
 		if (stage == null) {
 			stage = createUI();
 		}
-		stage.show();
+		return stage;
 	}
 
 	private void initializeSubscriptions() {
