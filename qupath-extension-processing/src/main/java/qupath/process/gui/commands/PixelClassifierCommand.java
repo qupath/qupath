@@ -21,19 +21,18 @@
 
 package qupath.process.gui.commands;
 
+import javafx.scene.control.ButtonType;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.process.gui.commands.ml.PixelClassifierPane;
 
 /**
  * Open GUI for the current viewer to train a new pixel classifier.
- * 
- * @author Pete Bankhead
- *
  */
 public class PixelClassifierCommand implements Runnable {
 
-	private PixelClassifierPane trainingDialog;
+	private PixelClassifierPane pixelClassifierPane;
 
 	@Override
 	public void run() {
@@ -42,9 +41,24 @@ public class PixelClassifierCommand implements Runnable {
 		if (imageData == null) {
 			GuiTools.showNoImageError("Pixel classifier");
 		} else {
-			if (trainingDialog == null)
-				trainingDialog = new PixelClassifierPane(qupath);
-			trainingDialog.showStage();
+			if (pixelClassifierPane != null) {
+				// If dialog is showing, bring it to the front
+				var stage = pixelClassifierPane.getStage();
+				if (stage != null && stage.isShowing()) {
+					stage.toFront();
+					return;
+				}
+				// Ask user whether to continue training, or start again
+				var response = Dialogs.showYesNoCancelDialog("Pixel classifier", "Continue previous training?");
+				if (response == ButtonType.NO) {
+					pixelClassifierPane = null;
+				} else if (response == ButtonType.CANCEL) {
+					return;
+				}
+			}
+			if (pixelClassifierPane == null)
+				pixelClassifierPane = new PixelClassifierPane(qupath);
+			pixelClassifierPane.showStage();
 		}
 	}
 
