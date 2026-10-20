@@ -57,8 +57,6 @@ import javafx.stage.Stage;
 import javafx.util.Subscription;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,22 +77,18 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.opencv.ml.ConfusionMatrix;
-import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
-import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.ml.models.TrainableModel;
 import qupath.process.gui.commands.ml.op.MultiscaleImageDataOpBuilder;
 import qupath.process.gui.commands.ml.op.ImageDataOpBuilder;
 import qupath.process.gui.commands.ml.PixelClassifierTraining.ClassifierTrainingData;
 
 import java.awt.image.BufferedImage;
-import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -858,12 +852,6 @@ public class PixelClassifierPane {
 		}
 	}
 
-	private static TrainableModel duplicateStatModel(TrainableModel model) {
-		var gson = GsonTools.getInstance();
-		return gson.fromJson(
-				gson.toJson(model, TrainableModel.class), TrainableModel.class
-		);
-	}
 
 	private List<ClassifierTrainingData> getAllTrainingData() {
 		try {
@@ -875,49 +863,6 @@ public class PixelClassifierPane {
 			logger.error("Error when updating training data", e);
 			return List.of();
 		}
-	}
-
-	/**
-	 * Evaluate the predictions of a classifier.
-	 * @param name name for confusion matrix
-	 * @param samples the samples to use as input to the model
-	 * @param normCatTargets the normalized categorical targets
-	 * @param classLabels the class labels associated with the targets; see {@link TrainData#getTrainNormCatResponses()}
-	 * @param model the model to use for prediction
-	 * @param preprocessor the preprocessor to apply to the samples
-	 * @param labels the QuPath-friendly mapping of classes to integer labels
-	 * @return
-	 */
-	private static ConfusionMatrix<PathClass> evaluate(String name, Mat samples, Mat normCatTargets, Mat classLabels, PredictionModel model,
-													   FeaturePreprocessor preprocessor, Map<PathClass, Integer> labels) {
-		if (preprocessor != null) {
-			samples = samples.clone();
-			preprocessor.apply(samples, false);
-		}
-		var confusion = new ConfusionMatrix<>(name, List.copyOf(labels.keySet()));
-		IntBuffer bufferGroundTruth = normCatTargets.createBuffer();
-		IntBuffer bufferClassList = classLabels.createBuffer();
-
-		// This assumes that our labels are dense and start with 0... rather than being
-		// all other the place, and potentially negative
-		int n = labels.values().stream().mapToInt(Integer::intValue).max().orElse(0) + 1;
-		PathClass[] pathClasses = new PathClass[n];
-		for (var entry : labels.entrySet()) {
-			pathClasses[entry.getValue()] = entry.getKey();
-		}
-
-		var testResults = new Mat();
-		model.predict(samples, testResults, new Mat());
-		IntBuffer bufferPrediction = testResults.createBuffer();
-		int nTest = testResults.rows();
-		for (int i = 0; i < nTest; i++) {
-			int targetClassInd = bufferClassList.get(bufferGroundTruth.get(i));
-			confusion.accumulate(
-					pathClasses[targetClassInd],
-					pathClasses[bufferPrediction.get(i)]
-			);
-		}
-		return confusion;
 	}
 
 
@@ -1015,7 +960,6 @@ public class PixelClassifierPane {
 		helper.setResolution(resolution.cal);
 	}
 
-
 	private void computeCrossValidation() {
 		// TODO: Train models using cross validation in a background thread
 		var model = statModel.get();
@@ -1023,53 +967,20 @@ public class PixelClassifierPane {
 			logger.warn("Can't compute cross validation, no model available");
 			return;
 		}
-		var modelCV = duplicateStatModel(model);
-		List<ConfusionMatrix<PathClass>> matrices = new ArrayList<>();
 		List<ClassifierTrainingData> allTrainingData = getAllTrainingData();
 		if (allTrainingData.isEmpty()) {
 			logger.warn("Can't compute cross validation, no training data available");
 			return;
 		}
-		var firstData = allTrainingData.getFirst();
-		var labels = firstData.getLabelMap(); // Labels should be identical, via PixelClassifierTraining
-		String splitType = allTrainingData.size() + " images";
-		if (allTrainingData.size() == 1) {
-			logger.warn("Splitting the training data");
-			int nSplits = Math.min(5, firstData.size() / 10);
-			if (nSplits <= 1) {
-				logger.error("No enough data to compute cross validation (size={})", firstData.size());
-				return;
-			}
-			allTrainingData = firstData.split(nSplits, new Random(advancedOptions.getRngSeed() + 1));
-			splitType = "single image";
-		}
-		var trainer = new ModelTrainer(helper, advancedOptions);
+		List<ConfusionMatrix<PathClass>> matrices = CrossValidation.computeCrossValidation(
+				model,
+				new ModelTrainer(helper, advancedOptions),
+				allTrainingData,
+				new Random(advancedOptions.getRngSeed() + 1)
+		);
 
-		try (var scope = new PointerScope()) {
-			for (int i = 0; i < allTrainingData.size(); i++) {
-				var holdOutData = allTrainingData.get(i);
-				try (ClassifierTrainingData otherImages = ClassifierTrainingData.merge(
-						allTrainingData.stream().filter(d -> d != holdOutData).toList()
-				)) {
-					var trainedModel = trainer.train(modelCV, otherImages);
-					try (var holdOutTest = holdOutData.getTrainData()) {
-						var confusion = evaluate(
-								holdOutData.getName(),
-								holdOutTest.getTrainSamples(),
-								holdOutTest.getTrainNormCatResponses(),
-								holdOutTest.getClassLabels(),
-								trainedModel.model(),
-								trainedModel.featurePreprocessor(),
-								labels);
-						matrices.add(confusion);
-						logger.debug("Fold {}: Accuracy = {}, F1 = {}", i + 1, confusion.getAccuracy(), confusion.getF1());
-					}
-				}
-			}
-			if (matrices.size() > 1)
-				matrices.addFirst(ConfusionMatrix.sum("All splits (" + splitType + ")", matrices));
-			metricsBrowser.getConfusionMatrices().setAll(matrices);
-		}
+
+		metricsBrowser.getConfusionMatrices().setAll(matrices);
 	}
 	
 
