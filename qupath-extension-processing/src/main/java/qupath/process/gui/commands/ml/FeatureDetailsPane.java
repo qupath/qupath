@@ -54,15 +54,20 @@ class FeatureDetailsPane extends Control implements Skinnable {
         var currentImportance = model.getFeatureImportance(featureNames);
         if (!currentImportance.isEmpty()) {
             // Always use feature importance for RTrees when available
-            importance.setAll(currentImportance);
-            hasImportance.set(true);
+            update(currentImportance);
         } else if (!sameContents(importance.stream().map(FeatureImportance::name).toList(), featureNames)) {
             // If we have feature importance values for the same features, don't overwrite them.
-            importance.setAll(featureNames.stream()
+            update(featureNames.stream()
                     .map(n -> new FeatureImportance(n, Double.NaN))
                     .toList());
-            hasImportance.set(false);
         }
+    }
+
+    void update(List<FeatureImportance> currentImportance) {
+        importance.setAll(currentImportance);
+        hasImportance.set(!importance.isEmpty() && !currentImportance.stream()
+                .mapToDouble(FeatureImportance::importance)
+                .allMatch(Double::isNaN));
     }
 
     /**

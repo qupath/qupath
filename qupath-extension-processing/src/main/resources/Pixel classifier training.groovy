@@ -8,6 +8,7 @@ import qupath.lib.images.servers.ImageServerMetadata
 import qupath.opencv.ml.models.TrainableModel
 import qupath.opencv.ml.models.statmodel.OpenCVStatModels
 import qupath.opencv.ops.ImageDataOp
+import qupath.process.gui.commands.ml.ClassifierTrainingData
 import qupath.process.gui.commands.ml.ModelTrainer
 import qupath.process.gui.commands.ml.PixelClassifierTraining
 import qupath.process.gui.commands.ml.op.MultiscaleImageDataOpBuilder
@@ -32,7 +33,7 @@ ImageDataOp featureCalculator = MultiscaleImageDataOpBuilder.create2D(null)
 TrainableModel model = OpenCVStatModels.Models.ANN.createTrainableModel();
 
 PixelClassifierTraining training = new PixelClassifierTraining(featureCalculator);
-PixelClassifierTraining.ClassifierTrainingData trainingData = training.createTrainingData(imageData);
+ClassifierTrainingData trainingData = training.createTrainingData(imageData);
 
 ModelTrainer trainer = new ModelTrainer(
         resolution,

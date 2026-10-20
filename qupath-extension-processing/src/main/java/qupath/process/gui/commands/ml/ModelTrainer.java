@@ -67,7 +67,7 @@ public class ModelTrainer {
         this.rngSeed = rngSeed;
     }
 
-    public TrainedModel train(TrainableModel model, PixelClassifierTraining.ClassifierTrainingData trainingData) {
+    public TrainedModel train(TrainableModel model, ClassifierTrainingData trainingData) {
 
         opencv_core.setRNGSeed(rngSeed);
 

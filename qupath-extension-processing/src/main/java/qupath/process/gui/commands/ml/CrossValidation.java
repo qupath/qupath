@@ -21,32 +21,32 @@ public class CrossValidation {
 
     private static final Logger logger = LoggerFactory.getLogger(CrossValidation.class);
 
-    	public static List<ConfusionMatrix<PathClass>> computeCrossValidation(
+	public static List<ConfusionMatrix<PathClass>> computeCrossValidation(
 									TrainableModel model,
 									ModelTrainer trainer,
-									List<PixelClassifierTraining.ClassifierTrainingData> allTrainingData,
+									List<ClassifierTrainingData> trainingData,
 									Random rng) {
 		var modelCV = duplicateModel(model);
 		List<ConfusionMatrix<PathClass>> matrices = new ArrayList<>();
-		var firstData = allTrainingData.getFirst();
+		var firstData = trainingData.getFirst();
 		var labels = firstData.getLabelMap(); // Labels should be identical, via PixelClassifierTraining
-		String splitType = allTrainingData.size() + " images";
-		if (allTrainingData.size() == 1) {
+		String splitType = trainingData.size() + " images";
+		if (trainingData.size() == 1) {
 			logger.warn("Splitting the training data");
 			int nSplits = Math.min(5, firstData.size() / 10);
 			if (nSplits <= 1) {
 				logger.error("No enough data to compute cross validation (size={})", firstData.size());
 				return List.of();
 			}
-			allTrainingData = firstData.split(nSplits, rng);
+			trainingData = firstData.split(nSplits, rng);
 			splitType = "single image";
 		}
 
 		try (var scope = new PointerScope()) {
-			for (int i = 0; i < allTrainingData.size(); i++) {
-				var holdOutData = allTrainingData.get(i);
-				try (PixelClassifierTraining.ClassifierTrainingData otherImages = PixelClassifierTraining.ClassifierTrainingData.merge(
-						allTrainingData.stream().filter(d -> d != holdOutData).toList()
+			for (int i = 0; i < trainingData.size(); i++) {
+				var holdOutData = trainingData.get(i);
+				try (ClassifierTrainingData otherImages = ClassifierTrainingData.merge(
+						trainingData.stream().filter(d -> d != holdOutData).toList()
 				)) {
 					var trainedModel = trainer.train(modelCV, otherImages);
 					try (var holdOutTest = holdOutData.getTrainData()) {

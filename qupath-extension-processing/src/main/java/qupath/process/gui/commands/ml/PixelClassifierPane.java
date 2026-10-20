@@ -32,12 +32,14 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
@@ -57,6 +59,7 @@ import javafx.stage.Stage;
 import javafx.util.Subscription;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
+import org.controlsfx.dialog.ProgressDialog;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +68,7 @@ import qupath.fx.utils.FXUtils;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.actions.InfoMessage;
@@ -81,12 +85,12 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.opencv.ml.ConfusionMatrix;
 import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
 import qupath.opencv.ml.models.TrainableModel;
 import qupath.process.gui.commands.ml.op.MultiscaleImageDataOpBuilder;
 import qupath.process.gui.commands.ml.op.ImageDataOpBuilder;
-import qupath.process.gui.commands.ml.PixelClassifierTraining.ClassifierTrainingData;
+import qupath.process.gui.commands.ml.tasks.CrossValidationTask;
+import qupath.process.gui.commands.ml.tasks.TrainModelTask;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -94,6 +98,11 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 /**
  * Main user interface for interactively training a {@link PixelClassifier}.
@@ -152,6 +161,8 @@ public class PixelClassifierPane {
 	private Subscription subscription = Subscription.EMPTY;
 
 	private Stage stage;
+
+	private ExecutorService pool;
 
 	/**
 	 * Constructor.
@@ -800,32 +811,38 @@ public class PixelClassifierPane {
 			Dialogs.showErrorNotification("Pixel classifier", "No classifier selected!");
 			return;
 		}
-
-		this.helper.setBoundaryStrategy(advancedOptions.getBoundaryStrategy());
-
-		List<ClassifierTrainingData> allTrainingData = getAllTrainingData();
-		if (allTrainingData.isEmpty()) {
-			pieChart.reset();
+		var trainingImages = trainingImageManager.getTrainingImageData();
+		if (trainingImages.isEmpty()) {
+			Dialogs.showErrorNotification("Pixel classifier", "No images for training!");
 			return;
 		}
 
-		var trainer = new ModelTrainer(helper, advancedOptions);
+		this.helper.setBoundaryStrategy(advancedOptions.getBoundaryStrategy());
 
-		try (var trainingData = ClassifierTrainingData.merge(allTrainingData)) {
-			var trainedModel = trainer.train(model, trainingData);
-
-			currentClassifier.set(trainedModel.createPixelClassifier(
-					model.supportsProbabilities() ? outputType.get() : ImageServerMetadata.ChannelType.CLASSIFICATION));
-
-			updatePieChartCounts(trainedModel.labels(), trainedModel.countsIndexedByLabels());
-			trainingDetailsPane.update(
-					trainedModel.model(),
-					trainedModel.labels(),
-					trainedModel.trainingTime());
-			featureDetailsPane.update(
-					trainedModel.model(),
-					trainedModel.getFeatureNames(imageData));
-		}
+		var task = new TrainModelTask(
+				model,
+				trainingImages,
+				helper,
+				new ModelTrainer(helper, advancedOptions)
+		);
+		var output = model.supportsProbabilities() ? outputType.get() : ImageServerMetadata.ChannelType.CLASSIFICATION;
+		runWithProgress(pool,
+				task,
+				trainedModel -> {
+			if (trainedModel == null) {
+				pieChart.reset();
+			} else {
+				currentClassifier.set(trainedModel.createPixelClassifier(output));
+				updatePieChartCounts(trainedModel.labels(), trainedModel.countsIndexedByLabels());
+				trainingDetailsPane.update(
+						trainedModel.model(),
+						trainedModel.labels(),
+						trainedModel.trainingTime());
+				featureDetailsPane.update(
+						trainedModel.model(),
+						trainedModel.getFeatureNames(imageData));
+			}
+		}, false);
 	}
 
 	private void calculateVariableImportance() {
@@ -853,19 +870,6 @@ public class PixelClassifierPane {
 	}
 
 
-	private List<ClassifierTrainingData> getAllTrainingData() {
-		try {
-			var trainingImages = trainingImageManager.getTrainingImageData();
-			if (trainingImages.size() > 1)
-				logger.debug("Creating training data from {} images", trainingImages.size());
-			return helper.createTrainingData(trainingImages);
-		} catch (Exception e) {
-			logger.error("Error when updating training data", e);
-			return List.of();
-		}
-	}
-
-
 	private void updatePieChartCounts(Map<PathClass, Integer> labels, int[] countsIndexedByLabels) {
 		Map<PathClass, Integer> counts = new LinkedHashMap<>();
 		for (var entry : labels.entrySet()) {
@@ -883,6 +887,9 @@ public class PixelClassifierPane {
 	}
 
 	private void handleStageShown() {
+		this.pool = Executors.newSingleThreadExecutor(
+				ThreadTools.createThreadFactory("pixel-classification-bg", true)
+		);
 		initializeSubscriptions();
 		this.overlayManager.start();
 		var imageData = imageDataProperty.get();
@@ -902,6 +909,8 @@ public class PixelClassifierPane {
 		}
 		overlayManager.stop();
 		trainingImageManager.reset();
+		if (pool != null)
+			pool.shutdown();
 	}
 	
 	
@@ -961,28 +970,54 @@ public class PixelClassifierPane {
 	}
 
 	private void computeCrossValidation() {
-		// TODO: Train models using cross validation in a background thread
 		var model = statModel.get();
 		if (model == null) {
 			logger.warn("Can't compute cross validation, no model available");
 			return;
 		}
-		List<ClassifierTrainingData> allTrainingData = getAllTrainingData();
-		if (allTrainingData.isEmpty()) {
-			logger.warn("Can't compute cross validation, no training data available");
+		var trainingImages = trainingImageManager.getTrainingImageData();
+		if (trainingImages.isEmpty()) {
+			logger.warn("Can't compute cross validation, no images available");
 			return;
 		}
-		List<ConfusionMatrix<PathClass>> matrices = CrossValidation.computeCrossValidation(
-				model,
-				new ModelTrainer(helper, advancedOptions),
-				allTrainingData,
+		var task = new CrossValidationTask(
+				model, helper, trainingImages, new ModelTrainer(helper, advancedOptions),
 				new Random(advancedOptions.getRngSeed() + 1)
 		);
-
-
-		metricsBrowser.getConfusionMatrices().setAll(matrices);
+		runWithProgress(
+				pool,
+				task,
+				matrices -> metricsBrowser.getConfusionMatrices().setAll(matrices),
+				true);
 	}
-	
+
+	private static <V> void runWithProgress(Executor executor, Task<V> task, Consumer<V> onSuccess, boolean canCancel) {
+		if (onSuccess != null) {
+			task.setOnSucceeded(event -> {
+				try {
+					onSuccess.accept(task.get());
+				} catch (InterruptedException e) {
+					if (task.isCancelled()) {
+						logger.info("Task was cancelled");
+					} else {
+						logger.warn("Task was interrupted");
+					}
+				} catch (ExecutionException e) {
+					logger.error("Exception in task: {}", e.getMessage(), e);
+				}
+			});
+		}
+
+		var dialog = new ProgressDialog(task);
+		if (canCancel) {
+			dialog.getDialogPane().getButtonTypes().setAll(ButtonType.CANCEL);
+			if (dialog.getDialogPane().lookupButton(ButtonType.CANCEL) instanceof Button btn) {
+				btn.setOnAction(e -> task.cancel());
+			}
+		}
+		executor.execute(task);
+	}
+
 
 	private void handleHierarchyChange(PathObjectHierarchyEvent event) {
 		// We want to update the classifier for every relevant event...  but not any unnecessary events
