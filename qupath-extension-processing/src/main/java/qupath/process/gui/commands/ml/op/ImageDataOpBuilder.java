@@ -29,8 +29,6 @@ import java.awt.image.BufferedImage;
 
 /**
  * Helper class capable of building (or returning) a {@link ImageDataOp}.
- * 
- * @author Pete Bankhead
  */
 public interface ImageDataOpBuilder {
 

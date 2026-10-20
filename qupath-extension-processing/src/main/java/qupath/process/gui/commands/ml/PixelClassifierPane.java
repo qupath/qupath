@@ -1135,7 +1135,7 @@ public class PixelClassifierPane {
 	 * Its purpose is to simplify the process of training multiple models using identical settings but different
 	 * data, for example for cross-validation.
 	 */
-	private static class ModelTrainer {
+	public static class ModelTrainer {
 
 		private final PixelCalibration resolution;
 		private final int actualMaxSamples;
@@ -1151,6 +1151,27 @@ public class PixelClassifierPane {
 			this.reweightSamples = advancedOptions.getReweightSamples();
 			this.featureNormalization = advancedOptions.getNormalization();
 			this.rngSeed = advancedOptions.getRngSeed();
+		}
+
+		public ModelTrainer(PixelCalibration resolution,
+					 ImageDataOp baseFeatureCalculator) {
+			this(resolution, 100_000, new FeatureNormalization(),
+					baseFeatureCalculator, false, 123);
+		}
+
+		// TODO: Note that FeatureNormalization is mutable; ideally, this should only use immutable objects
+		ModelTrainer(PixelCalibration resolution,
+					 int actualMaxSamples,
+					 FeatureNormalization featureNormalization,
+					 ImageDataOp baseFeatureCalculator,
+					 boolean reweightSamples,
+					 int rngSeed) {
+			this.resolution = resolution;
+			this.actualMaxSamples = actualMaxSamples;
+			this.baseFeatureCalculator = baseFeatureCalculator;
+			this.featureNormalization = featureNormalization;
+			this.reweightSamples = reweightSamples;
+			this.rngSeed = rngSeed;
 		}
 
 		public TrainedModel train(TrainableModel model, ClassifierTrainingData trainingData) {
@@ -1208,7 +1229,7 @@ public class PixelClassifierPane {
 
 	}
 
-	record TrainedModel(TrainableModel model,
+	public record TrainedModel(TrainableModel model,
 	                    ImageDataOp featureCalculator,
 	                    FeaturePreprocessor featurePreprocessor,
 	                    Map<PathClass, Integer> labels,
@@ -1216,11 +1237,11 @@ public class PixelClassifierPane {
 	                    PixelCalibration resolution,
 	                    Duration trainingTime) {
 
-		PixelClassifier createPixelClassifier(ImageServerMetadata.ChannelType outputType) {
+		public PixelClassifier createPixelClassifier(ImageServerMetadata.ChannelType outputType) {
 			return createPixelClassifier(512, 512, outputType);
 		}
 
-		PixelClassifier createPixelClassifier(int inputWidth, int inputHeight, ImageServerMetadata.ChannelType outputType) {
+		public PixelClassifier createPixelClassifier(int inputWidth, int inputHeight, ImageServerMetadata.ChannelType outputType) {
 			if (!model.supportsProbabilities() && !model.supportsProbabilities()) {
 				logger.warn("Output type {} not supported, will use {}", outputType, ImageServerMetadata.ChannelType.CLASSIFICATION);
 			}
