@@ -7,8 +7,7 @@ import org.bytedeco.opencv.opencv_ml.TrainData;
 import qupath.lib.plugins.parameters.ParameterList;
 
 /**
- * Wrapper class for a {@link StatModel}, which standardizes how training may be performed and
- * parameters can be set.
+ * Wrapper for a prediction model that also supports training.
  */
 public interface TrainableModel extends PredictionModel {
 
