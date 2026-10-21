@@ -25,7 +25,6 @@ import qupath.lib.display.ChannelDisplayMode;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.images.stores.AbstractImageRenderer;
-import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ImageServer;

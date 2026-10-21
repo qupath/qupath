@@ -11,6 +11,9 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOps;
+import qupath.process.gui.commands.ml.core.ClassifierTrainingData;
+import qupath.process.gui.commands.ml.core.PixelClassifierTraining;
+import qupath.process.gui.commands.ml.core.TrainedModel;
 
 import java.nio.IntBuffer;
 import java.time.Duration;

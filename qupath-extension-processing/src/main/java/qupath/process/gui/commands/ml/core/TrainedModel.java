@@ -1,4 +1,4 @@
-package qupath.process.gui.commands.ml;
+package qupath.process.gui.commands.ml.core;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +59,7 @@ public record TrainedModel(TrainableModel model,
         return PixelClassifiers.createClassifier(model, featureCalculator, metadata, true);
     }
 
-    List<String> getFeatureNames(ImageData<BufferedImage> imageData) {
+    public List<String> getFeatureNames(ImageData<BufferedImage> imageData) {
         return featureCalculator.getChannels(imageData).stream().map(ImageChannel::getName).toList();
     }
 

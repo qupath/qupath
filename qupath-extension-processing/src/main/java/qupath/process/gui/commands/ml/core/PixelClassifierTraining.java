@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.process.gui.commands.ml;
+package qupath.process.gui.commands.ml.core;
 
 import java.util.Comparator;
 
@@ -40,6 +40,8 @@ import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageDataServer;
 import qupath.opencv.ops.ImageOps;
+import qupath.process.gui.commands.ml.core.BoundaryStrategy;
+import qupath.process.gui.commands.ml.core.ClassifierTrainingData;
 
 import java.awt.BasicStroke;
 import java.awt.image.BufferedImage;
@@ -83,7 +85,7 @@ public class PixelClassifierTraining {
     }
 
     
-    synchronized ImageDataServer<BufferedImage> getFeatureServer(ImageData<BufferedImage> imageData) {
+    public synchronized ImageDataServer<BufferedImage> getFeatureServer(ImageData<BufferedImage> imageData) {
 		if (featureCalculator != null && imageData != null) {
 			if (featureCalculator.supportsImage(imageData)) {
     			return ImageOps.buildServer(imageData, featureCalculator, resolution);

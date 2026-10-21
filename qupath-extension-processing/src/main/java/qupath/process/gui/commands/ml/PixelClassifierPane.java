@@ -87,6 +87,8 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
 import qupath.opencv.ml.models.TrainableModel;
+import qupath.process.gui.commands.ml.core.ClassifierTrainingData;
+import qupath.process.gui.commands.ml.core.PixelClassifierTraining;
 import qupath.process.gui.commands.ml.op.MultiscaleImageDataOpBuilder;
 import qupath.process.gui.commands.ml.op.ImageDataOpBuilder;
 import qupath.process.gui.commands.ml.tasks.CrossValidationTask;

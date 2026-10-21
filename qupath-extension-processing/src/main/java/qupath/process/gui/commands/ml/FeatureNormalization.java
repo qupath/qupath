@@ -27,8 +27,6 @@ import qupath.opencv.ml.FeaturePreprocessor;
 
 /**
  * Helper class for storing parameters that will eventually be used to create a {@link FeaturePreprocessor}.
- * 
- * @author Pete Bankhead
  */
 class FeatureNormalization {
 	

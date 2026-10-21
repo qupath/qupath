@@ -7,10 +7,10 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.ConfusionMatrix;
 import qupath.opencv.ml.models.TrainableModel;
-import qupath.process.gui.commands.ml.ClassifierTrainingData;
-import qupath.process.gui.commands.ml.CrossValidation;
+import qupath.process.gui.commands.ml.core.ClassifierTrainingData;
+import qupath.process.gui.commands.ml.core.CrossValidation;
 import qupath.process.gui.commands.ml.ModelTrainer;
-import qupath.process.gui.commands.ml.PixelClassifierTraining;
+import qupath.process.gui.commands.ml.core.PixelClassifierTraining;
 
 import java.awt.image.BufferedImage;
 import java.util.List;

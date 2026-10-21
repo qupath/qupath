@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.process.gui.commands.ml;
+package qupath.process.gui.commands.ml.core;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.objects.classes.PathClass;
@@ -29,8 +29,6 @@ import qupath.lib.objects.classes.PathClassTools;
  * Helper class for handling the boundaries of training annotations when creating a pixel classifier.
  * <p>
  * The purpose of this is to provide a mechanism for learning the separation between densely packed objects (e.g. nuclei).
- * 
- * @author Pete Bankhead
  */
 public class BoundaryStrategy {
 	
@@ -38,10 +36,10 @@ public class BoundaryStrategy {
 		SKIP, CLASSIFY, SAME, DERIVE;
 	}
 	
-	private static BoundaryStrategy SKIP_STRATEGY = new BoundaryStrategy(Strategy.SKIP, null, 0);
+	private static final BoundaryStrategy SKIP_STRATEGY = new BoundaryStrategy(Strategy.SKIP, null, 0);
 	
 	private Strategy strategy = Strategy.SKIP;
-	private PathClass fixedClass;
+	private final PathClass fixedClass;
 	private double thickness = 1.0;
 	
 	private BoundaryStrategy(Strategy strategy, PathClass pathClass, double thickness) {
@@ -68,33 +66,24 @@ public class BoundaryStrategy {
 	public PathClass getBoundaryClass(PathClass pathClass) {
 		if (pathClass == null || PathClassTools.isIgnoredClass(pathClass))
 			return null;
-		
-		switch (strategy) {
-		case CLASSIFY:
-			return fixedClass;
-		case DERIVE:
-			return PathClass.getInstance(pathClass, "Boundary*", ColorTools.makeScaledRGB(pathClass.getColor(), 0.5));
-		case SAME:
-			return pathClass;
-		case SKIP:
-		default:
-			return null;			
-		}
+
+        return switch (strategy) {
+            case CLASSIFY -> fixedClass;
+            case DERIVE ->
+                    PathClass.getInstance(pathClass, "Boundary*", ColorTools.makeScaledRGB(pathClass.getColor(), 0.5));
+            case SAME -> pathClass;
+            default -> null;
+        };
 	}
 	
 	@Override
 	public String toString() {
-		switch (strategy) {
-		case CLASSIFY:
-			return "Boundary strategy: Classify as " + fixedClass;
-		case DERIVE:
-			return "Boundary strategy: Create derived class";
-		case SAME:
-			return "Boundary strategy: Keep classification";
-		case SKIP:
-		default:
-			return "Boundary strategy: Skip";			
-		}
+        return switch (strategy) {
+            case CLASSIFY -> "Boundary strategy: Classify as " + fixedClass;
+            case DERIVE -> "Boundary strategy: Create derived class";
+            case SAME -> "Boundary strategy: Keep classification";
+            default -> "Boundary strategy: Skip";
+        };
 	}
 	
 	

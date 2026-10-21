@@ -1,4 +1,4 @@
-package qupath.process.gui.commands.ml;
+package qupath.process.gui.commands.ml.core;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_ml;
@@ -33,7 +33,7 @@ public class ClassifierTrainingData implements AutoCloseable {
 
     private final Map<PathClass, Integer> pathClassesLabels;
 
-    ClassifierTrainingData(String name, Map<PathClass, Integer> pathClassesLabels, Mat matTraining, Mat matTargets) {
+    public ClassifierTrainingData(String name, Map<PathClass, Integer> pathClassesLabels, Mat matTraining, Mat matTargets) {
         this.name = name;
         this.pathClassesLabels = Collections.unmodifiableMap(new LinkedHashMap<>(pathClassesLabels));
         this.matTraining = matTraining;

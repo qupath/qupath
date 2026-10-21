@@ -28,6 +28,7 @@ import qupath.lib.gui.viewer.ViewerManager;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.cache.ImageCache;
+import qupath.process.gui.commands.ml.core.PixelClassifierTraining;
 
 /**
  * Class to manage viewer overlays when training a pixel classifier,
