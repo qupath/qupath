@@ -5,7 +5,8 @@ cff-version: 1.2.0
 title: QuPath
 message: >-
   If you use this software, please cite it using the
-  metadata from this file.
+  metadata from this file and also cite the QuPath papers described in the
+  documentation https://qupath.readthedocs.io/en/stable/docs/intro/citing.html
 type: software
 authors:
   - given-names: Peter
