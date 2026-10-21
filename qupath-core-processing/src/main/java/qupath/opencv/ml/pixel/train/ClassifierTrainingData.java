@@ -16,12 +16,13 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * Wrapper for training data.
+ * Helper class to store classifier training data, targets and labels.
  */
 public class ClassifierTrainingData implements AutoCloseable {
 
@@ -31,32 +32,48 @@ public class ClassifierTrainingData implements AutoCloseable {
     private final Mat matTraining;
     private final Mat matTargets;
 
-    private final Map<PathClass, Integer> pathClassesLabels;
+    private final Map<PathClass, Integer> labels;
 
-    public ClassifierTrainingData(String name, Map<PathClass, Integer> pathClassesLabels, Mat matTraining, Mat matTargets) {
+    private ClassifierTrainingData(String name, Mat matFeatures, Mat matTargets, Map<PathClass, Integer> labels) {
+        Objects.requireNonNull(name, "Name must not be null");
+        Objects.requireNonNull(matFeatures, "Features must not be null");
+        Objects.requireNonNull(matTargets, "Targets must not be null");
+        Objects.requireNonNull(labels, "Labels must not be null");
         this.name = name;
-        this.pathClassesLabels = Collections.unmodifiableMap(new LinkedHashMap<>(pathClassesLabels));
-        this.matTraining = matTraining;
+        this.matTraining = matFeatures;
         this.matTargets = matTargets;
-        if (matTraining.rows() != matTargets.rows())
-            throw new IllegalArgumentException("Training data has " + matTraining.rows() + " rows but " + matTargets.rows() + " targets");
+        this.labels = Collections.unmodifiableMap(new LinkedHashMap<>(labels));
+        if (matFeatures.rows() != matTargets.rows())
+            throw new IllegalArgumentException("Training data has " + matFeatures.rows() + " rows but " + matTargets.rows() + " targets");
     }
 
     /**
-     * Get the map of classifications to labels.
-     *
-     * @return
+     * Create a new instance.
+     * @param name name to identify the training data.
+     * @param matFeatures the features, stored row-wise
+     * @param matTargets the targets, stored row-wise
+     * @param pathClassesLabels map giving the classification and its corresponding target label
+     * @return a new training data instance
+     * @throws IllegalArgumentException if any of the parameters are null, or the features and targets have a different number of rows
+     */
+    public static ClassifierTrainingData create(String name, Mat matFeatures, Mat matTargets, Map<PathClass, Integer> pathClassesLabels) {
+        return new ClassifierTrainingData(name, matFeatures, matTargets, pathClassesLabels);
+    }
+
+    /**
+     * Get an unmodifiable map of classifications to labels.
+     * @return the labels
      */
     public synchronized Map<PathClass, Integer> getLabelMap() {
-        return pathClassesLabels;
+        return labels;
     }
 
     /**
-     * Get training data.
-     *
+     * Get training data, containing both features and targets.
+     * Note that this creates a defensive copy of the Mats.
      * @return
      */
-    public TrainData getTrainData() {
+    public TrainData createTrainData() {
         return TrainData.create(matTraining.clone(), opencv_ml.ROW_SAMPLE, matTargets.clone());
     }
 
@@ -108,7 +125,7 @@ public class ClassifierTrainingData implements AutoCloseable {
     private ClassifierTrainingData extractData(String name, List<Integer> inds) {
         var train = extractRows(this.matTraining, inds);
         var targets = extractRows(this.matTargets, inds);
-        return new ClassifierTrainingData(name, getLabelMap(), train, targets);
+        return create(name, train, targets, getLabelMap());
     }
 
     private static Mat extractRows(Mat mat, List<Integer> inds) {
@@ -130,7 +147,7 @@ public class ClassifierTrainingData implements AutoCloseable {
     }
 
     /**
-     * Merge training data into a single object.
+     * Merge training data from multiple sources.
      * This assumes that the labels are identical, and the training mats can be concatenated.
      *
      * @param trainingData the collection of training data to use
@@ -143,19 +160,17 @@ public class ClassifierTrainingData implements AutoCloseable {
         Map<PathClass, Integer> labels = null;
         for (var data : trainingData) {
             if (labels == null)
-                labels = data.pathClassesLabels;
-            else if (!labels.equals(data.pathClassesLabels))
+                labels = data.labels;
+            else if (!labels.equals(data.labels))
                 throw new IllegalArgumentException("Labels do not match!");
             train.add(data.matTraining);
             target.add(data.matTargets);
         }
         if (labels == null)
             throw new IllegalArgumentException("No training data provided!");
-        return new ClassifierTrainingData(
+        return create(
                 trainingData.stream().map(ClassifierTrainingData::getName).collect(Collectors.joining(", ")),
-                labels,
-                OpenCVTools.vConcat(train, new Mat()),
-                OpenCVTools.vConcat(target, new Mat())
+                OpenCVTools.vConcat(train, new Mat()), OpenCVTools.vConcat(target, new Mat()), labels
         );
     }
 }

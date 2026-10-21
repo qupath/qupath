@@ -23,10 +23,14 @@ public class CrossValidation {
 
 	public static List<ConfusionMatrix<PathClass>> computeCrossValidation(
 									TrainableModel model,
-									ModelTrainer trainer,
+									PixelClassifierModelTrainer trainer,
 									List<ClassifierTrainingData> trainingData,
 									Random rng) {
-		var modelCV = duplicateModel(model);
+		try {
+			model = duplicateModel(model);
+		} catch (Exception e) {
+			logger.warn("Unable to duplicate model, original will be used for cross validation");
+		}
 		List<ConfusionMatrix<PathClass>> matrices = new ArrayList<>();
 		var firstData = trainingData.getFirst();
 		var labels = firstData.getLabelMap(); // Labels should be identical, via PixelClassifierTraining
@@ -48,8 +52,8 @@ public class CrossValidation {
 				try (ClassifierTrainingData otherImages = ClassifierTrainingData.merge(
 						trainingData.stream().filter(d -> d != holdOutData).toList()
 				)) {
-					var trainedModel = trainer.train(modelCV, otherImages);
-					try (var holdOutTest = holdOutData.getTrainData()) {
+					var trainedModel = trainer.train(model, otherImages);
+					try (var holdOutTest = holdOutData.createTrainData()) {
 						var confusion = evaluate(
 								holdOutData.getName(),
 								holdOutTest.getTrainSamples(),

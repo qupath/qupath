@@ -25,9 +25,9 @@ import java.util.Map;
  * Its purpose is to simplify the process of training multiple models using identical settings but different
  * data, for example for cross-validation.
  */
-public class ModelTrainer {
+public class PixelClassifierModelTrainer {
 
-    private static final Logger logger = LoggerFactory.getLogger(ModelTrainer.class);
+    private static final Logger logger = LoggerFactory.getLogger(PixelClassifierModelTrainer.class);
 
     private final PixelCalibration resolution;
     private final int actualMaxSamples;
@@ -36,19 +36,19 @@ public class ModelTrainer {
     private final boolean reweightSamples;
     private final int rngSeed;
 
-    public ModelTrainer(PixelCalibration resolution,
-                        ImageDataOp baseFeatureCalculator) {
+    public PixelClassifierModelTrainer(PixelCalibration resolution,
+                                       ImageDataOp baseFeatureCalculator) {
         this(resolution, 100_000, new FeatureNormalization(),
                 baseFeatureCalculator, false, 123);
     }
 
     // TODO: Note that FeatureNormalization is mutable; ideally, this should only use immutable objects
-    public ModelTrainer(PixelCalibration resolution,
-                 int actualMaxSamples,
-                 FeatureNormalization featureNormalization,
-                 ImageDataOp baseFeatureCalculator,
-                 boolean reweightSamples,
-                 int rngSeed) {
+    public PixelClassifierModelTrainer(PixelCalibration resolution,
+                                       int actualMaxSamples,
+                                       FeatureNormalization featureNormalization,
+                                       ImageDataOp baseFeatureCalculator,
+                                       boolean reweightSamples,
+                                       int rngSeed) {
         this.resolution = resolution;
         this.actualMaxSamples = actualMaxSamples;
         this.baseFeatureCalculator = baseFeatureCalculator;
@@ -57,13 +57,13 @@ public class ModelTrainer {
         this.rngSeed = rngSeed;
     }
 
-    public TrainedModel train(TrainableModel model, ClassifierTrainingData trainingData) {
+    public TrainedPixelClassifierModel train(TrainableModel model, ClassifierTrainingData trainingData) {
 
         opencv_core.setRNGSeed(rngSeed);
 
         var labels = trainingData.getLabelMap();
 
-        try (var trainData = trainingData.getTrainData()) {
+        try (var trainData = trainingData.createTrainData()) {
             if (actualMaxSamples > 0 && trainData.getNTrainSamples() > actualMaxSamples)
                 trainData.setTrainTestSplit(actualMaxSamples, true);
             else
@@ -97,7 +97,7 @@ public class ModelTrainer {
                 long endTime = System.nanoTime();
                 trainingTime = Duration.ofNanos(endTime - startTime);
 
-                return new TrainedModel(
+                return new TrainedPixelClassifierModel(
                         model,
                         featureCalculator,
                         preprocessor,

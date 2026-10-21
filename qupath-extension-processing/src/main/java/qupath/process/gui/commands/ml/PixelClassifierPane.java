@@ -88,7 +88,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
 import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.pixel.train.ClassifierTrainingData;
-import qupath.opencv.ml.pixel.train.ModelTrainer;
+import qupath.opencv.ml.pixel.train.PixelClassifierModelTrainer;
 import qupath.opencv.ml.pixel.train.PixelClassifierTraining;
 import qupath.process.gui.commands.ml.op.MultiscaleImageDataOpBuilder;
 import qupath.process.gui.commands.ml.op.ImageDataOpBuilder;
@@ -848,8 +848,8 @@ public class PixelClassifierPane {
 		}, false);
 	}
 
-	private static ModelTrainer createModelTrainer(PixelClassifierTraining helper, PixelClassifierAdvancedOptions advancedOptions) {
-		return new ModelTrainer(
+	private static PixelClassifierModelTrainer createModelTrainer(PixelClassifierTraining helper, PixelClassifierAdvancedOptions advancedOptions) {
+		return new PixelClassifierModelTrainer(
 				helper.getResolution(),
 				advancedOptions.getMaxSamples(),
 				advancedOptions.getNormalization(),

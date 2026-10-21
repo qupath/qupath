@@ -21,15 +21,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-public record TrainedModel(TrainableModel model,
-                           ImageDataOp featureCalculator,
-                           FeaturePreprocessor featurePreprocessor,
-                           Map<PathClass, Integer> labels,
-                           int[] countsIndexedByLabels,
-                           PixelCalibration resolution,
-                           Duration trainingTime) {
+public record TrainedPixelClassifierModel(TrainableModel model,
+                                          ImageDataOp featureCalculator,
+                                          FeaturePreprocessor featurePreprocessor,
+                                          Map<PathClass, Integer> labels,
+                                          int[] countsIndexedByLabels,
+                                          PixelCalibration resolution,
+                                          Duration trainingTime) {
 
-    private static final Logger logger = LoggerFactory.getLogger(TrainedModel.class);
+    private static final Logger logger = LoggerFactory.getLogger(TrainedPixelClassifierModel.class);
 
     public PixelClassifier createPixelClassifier(ImageServerMetadata.ChannelType outputType) {
         return createPixelClassifier(512, 512, outputType);

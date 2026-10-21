@@ -38,9 +38,9 @@ public class BoundaryStrategy {
 	
 	private static final BoundaryStrategy SKIP_STRATEGY = new BoundaryStrategy(Strategy.SKIP, null, 0);
 	
-	private Strategy strategy = Strategy.SKIP;
+	private final Strategy strategy;
 	private final PathClass fixedClass;
-	private double thickness = 1.0;
+	private final double thickness;
 	
 	private BoundaryStrategy(Strategy strategy, PathClass pathClass, double thickness) {
 		this.strategy = strategy;

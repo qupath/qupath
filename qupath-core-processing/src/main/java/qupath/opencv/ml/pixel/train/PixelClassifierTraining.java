@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.RegionRequest;
@@ -71,9 +72,12 @@ public class PixelClassifierTraining {
 
 	private PixelCalibration resolution = PixelCalibration.getDefaultInstance();
     private ImageDataOp featureCalculator;
-    
-    
-    /**
+
+	// TODO: Fix this caching strategy!
+	private static final Map<RegionRequest, TileFeatures> cache = Collections.synchronizedMap(new WeakHashMap<>());
+
+
+	/**
      * Create a new pixel classifier helper, to support generating training data.
      * 
      * @param featureCalculator
@@ -191,7 +195,7 @@ public class PixelClassifierTraining {
 	        if (featureServer != null) {
 		        var tiles = featureServer.getTileRequestManager().getAllTileRequests();
 		        for (var tile : tiles) {
-		            var tileFeatures = getTileFeatures(tile.getRegionRequest(), featureServer, boundaryStrategy, labels);
+		            var tileFeatures = getTileFeatures(tile, featureServer, boundaryStrategy, labels);
 		        	if (tileFeatures != null) {
 		        		allFeatures.add(tileFeatures.getFeatures());
 		        		allTargets.add(tileFeatures.getTargets());
@@ -215,7 +219,7 @@ public class PixelClassifierTraining {
 				continue;
 			}
 
-			allTraining.add(new ClassifierTrainingData(imageData.getServer().getMetadata().getName(), labels, matTraining, matTargets));
+			allTraining.add(ClassifierTrainingData.create(imageData.getServer().getMetadata().getName(), matTraining, matTargets, labels));
         }
         
 		return allTraining;
@@ -290,10 +294,9 @@ public class PixelClassifierTraining {
         return updateTrainingData(labels, imageData);
     }
     
-    
-	private static final Map<RegionRequest, TileFeatures> cache = Collections.synchronizedMap(new WeakHashMap<>());
 
-    private static TileFeatures getTileFeatures(RegionRequest request, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) {
+    private static TileFeatures getTileFeatures(TileRequest tile, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) {
+		var request = tile.getRegionRequest();
 		TileFeatures features = cache.get(request);
 		Map<ROI, PathClass> rois = null;
 		
@@ -339,13 +342,13 @@ public class PixelClassifierTraining {
 					features.labels.equals(labels) &&
 					features.strategy.equals(strategy) &&
 					features.rois.equals(rois) &&
-					features.request.equals(request))
+					features.tile.equals(tile))
 				return features;
 		}
 		
 		// Calculate new features
 		try {
-    		features = new TileFeatures(request, featureServer, strategy, rois, labels);
+    		features = new TileFeatures(tile, featureServer, strategy, rois, labels);
     		cache.put(request, features);
 		} catch (IOException e) {
 			cache.remove(request);
@@ -360,14 +363,14 @@ public class PixelClassifierTraining {
     	    	    	
     	private final Map<PathClass, Integer> labels;
     	private final ImageDataServer<BufferedImage> featureServer;
-    	private final RegionRequest request;
+    	private final TileRequest tile;
     	private final Map<ROI, PathClass> rois;
     	private final BoundaryStrategy strategy;
     	private Mat matFeatures;
     	private Mat matTargets;
     	
-    	private TileFeatures(RegionRequest request, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<ROI, PathClass> rois, Map<PathClass, Integer> labels) throws IOException {
-    		this.request = request;
+    	private TileFeatures(TileRequest tile, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<ROI, PathClass> rois, Map<PathClass, Integer> labels) throws IOException {
+    		this.tile = tile;
     		this.strategy = strategy;
     		this.featureServer = featureServer;
     		this.rois = rois;
@@ -382,11 +385,22 @@ public class PixelClassifierTraining {
     	private void ensureFeaturesCalculated() throws IOException {
     		if (matFeatures != null && matTargets != null)
     			return;
-    		
-    		var features = featureServer.readRegion(request);
-    		
+
+			// We don't change the features, so get the cached tile directly if possible.
+			// This can substantially affect performance for large numbers of features,
+			// because it avoids the need to make a defensive copy of the (possibly many) channels.
+			BufferedImage features = featureServer.getCachedTile(tile);
+			if (features == null) {
+				long startTimeMillis = System.currentTimeMillis();
+				features = featureServer.readRegion(tile.getRegionRequest());
+				long endTimeMillis = System.currentTimeMillis();
+				System.err.println("CALCULATING " + (endTimeMillis - startTimeMillis) + "ms");
+			} else {
+				System.err.println("FOUND CACHED!");
+			}
+
     		// TODO: Handle differing boundary thicknesses
-    		double downsample = request.getDownsample();
+    		double downsample = tile.getDownsample();
     		double boundaryThickness = strategy.getBoundaryThickness();
     		BasicStroke stroke = boundaryThickness > 0 ? new BasicStroke((float)(downsample * boundaryThickness)) : null;
     		BasicStroke singleStroke = new BasicStroke((float)downsample);
@@ -408,6 +422,7 @@ public class PixelClassifierTraining {
     			
     			boolean isArea = roi.isArea();
     			boolean isLine = roi.isLine();
+				var request = tile.getRegionRequest();
     			
     			if (roi.isPoint()) {
     				for (var p : roi.getAllPoints()) {
@@ -467,7 +482,7 @@ public class PixelClassifierTraining {
     		if (n == 0) {
     			// This can happen if a training annotation falls exactly on a tile boundary
     			// (However note that the boundary strategy can still make some annotations useful sometimes)
-    			logger.debug("I thought I'd have features but I don't! " + rois.size() + " - " + request);
+    			logger.debug("I thought I'd have features but I don't! " + rois.size() + " - " + tile);
     			return;
     		}
 

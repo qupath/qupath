@@ -9,7 +9,7 @@ import qupath.opencv.ml.ConfusionMatrix;
 import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.pixel.train.ClassifierTrainingData;
 import qupath.opencv.ml.pixel.train.CrossValidation;
-import qupath.opencv.ml.pixel.train.ModelTrainer;
+import qupath.opencv.ml.pixel.train.PixelClassifierModelTrainer;
 import qupath.opencv.ml.pixel.train.PixelClassifierTraining;
 
 import java.awt.image.BufferedImage;
@@ -26,18 +26,18 @@ public class CrossValidationTask extends Task<List<ConfusionMatrix<PathClass>>> 
     private final TrainableModel model;
     private final PixelClassifierTraining helper;
     private final List<ImageData<BufferedImage>> trainingImages;
-    private final ModelTrainer modelTrainer;
+    private final PixelClassifierModelTrainer pixelClassifierModelTrainer;
     private final Random rng;
 
     public CrossValidationTask(TrainableModel model,
                                PixelClassifierTraining helper,
                                List<ImageData<BufferedImage>> trainingImages,
-                               ModelTrainer modelTrainer,
+                               PixelClassifierModelTrainer pixelClassifierModelTrainer,
                                Random rng) {
         this.model = model;
         this.helper = helper;
         this.trainingImages = List.copyOf(trainingImages);
-        this.modelTrainer = modelTrainer;
+        this.pixelClassifierModelTrainer = pixelClassifierModelTrainer;
         this.rng = rng;
     }
 
@@ -56,7 +56,7 @@ public class CrossValidationTask extends Task<List<ConfusionMatrix<PathClass>>> 
         updateMessage("Calculating cross validation...");
         var result = CrossValidation.computeCrossValidation(
                 model,
-                modelTrainer,
+                pixelClassifierModelTrainer,
                 allTrainingData,
                 rng
         );

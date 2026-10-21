@@ -2,16 +2,22 @@
  * Groovy script to demonstrate training a pixel classifier.
  */
 
+
+import org.bytedeco.opencv.opencv_core.Mat
+import org.bytedeco.opencv.opencv_ml.ANN_MLP
 import qupath.fx.utils.FXUtils
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay
 import qupath.lib.images.servers.ImageServerMetadata
+import qupath.lib.images.servers.PixelType
+import qupath.lib.projects.ProjectImageEntry
 import qupath.opencv.ml.models.TrainableModel
 import qupath.opencv.ml.models.statmodel.OpenCVStatModels
 import qupath.opencv.ops.ImageDataOp
 import qupath.opencv.ml.pixel.train.ClassifierTrainingData
-import qupath.opencv.ml.pixel.train.ModelTrainer
+import qupath.opencv.ml.pixel.train.PixelClassifierModelTrainer
 import qupath.opencv.ml.pixel.train.PixelClassifierTraining
-import qupath.process.gui.commands.ml.op.MultiscaleImageDataOpBuilder
+import qupath.opencv.ops.ImageOps
+import qupath.opencv.tools.MultiscaleFeatures
 
 import static qupath.lib.gui.scripting.QPEx.*
 
@@ -22,35 +28,55 @@ if (viewer == null || imageData == null)
     return;
 
 var server = imageData.getServer();
-var resolution = server.getPixelCalibration();
+var resolution = server.getPixelCalibration()
 
-int tileSize = 512;
+int tileSize = 512
 
-// TODO: Add Javadocs: why is ImageData needed? Looks like it can be null
-ImageDataOp featureCalculator = MultiscaleImageDataOpBuilder.create2D(null)
-        .build(imageData, resolution);
+// Define the feature extractor
+var features = [MultiscaleFeatures.MultiscaleFeature.GAUSSIAN,
+                MultiscaleFeatures.MultiscaleFeature.LAPLACIAN,
+                MultiscaleFeatures.MultiscaleFeature.HESSIAN_EIGENVALUE_MIN,
+                MultiscaleFeatures.MultiscaleFeature.HESSIAN_EIGENVALUE_MAX]
 
-TrainableModel model = OpenCVStatModels.Models.ANN.createTrainableModel();
+ImageDataOp featureCalculator = ImageOps.buildImageDataOp()
+    .appendOps(
+            ImageOps.Core.ensureType(PixelType.FLOAT32),
+            ImageOps.Core.splitMerge(
+                    ImageOps.Filters.features(features, 1.0, 1.0),
+                    ImageOps.Filters.features(features, 2.0, 2.0),
+                    ImageOps.Filters.features(features, 4.0, 4.0),
+            )
+    )
 
-PixelClassifierTraining training = new PixelClassifierTraining(featureCalculator);
-ClassifierTrainingData trainingData = training.createTrainingData(imageData);
+// Create the model to train
+var modelCV = ANN_MLP.create()
+modelCV.setLayerSizes(new Mat(16))
+TrainableModel model = OpenCVStatModels.wrapStatModel(modelCV)
 
-ModelTrainer trainer = new ModelTrainer(
+// Extract the training data from the current image
+PixelClassifierTraining training = new PixelClassifierTraining(featureCalculator)
+ClassifierTrainingData trainingData = training.createTrainingData(imageData)
+
+// Create a trainer
+PixelClassifierModelTrainer trainer = new PixelClassifierModelTrainer(
         resolution,
         featureCalculator
-);
+)
 
+// Train the model
 var trainedModel = trainer.train(
         model,
         trainingData
-);
+)
 
+// Create the pixel classifier
 var pixelClassifier = trainedModel.createPixelClassifier(
         tileSize, tileSize, ImageServerMetadata.ChannelType.CLASSIFICATION
-);
+)
 
+// Show as an overlay
 var overlay = PixelClassificationOverlay.create(
         viewer.getOverlayOptions(), pixelClassifier
-);
-overlay.setLivePrediction(true);
-FXUtils.runOnApplicationThread(() -> viewer.setCustomPixelLayerOverlay(overlay));
+)
+overlay.setLivePrediction(true)
+FXUtils.runOnApplicationThread(() -> viewer.setCustomPixelLayerOverlay(overlay))
