@@ -20,6 +20,7 @@ authors:
     affiliation: >-
       Institute of Genetics and Cancer, University of
       Edinburgh
+    orcid: https://orcid.org/0009-0006-4178-7980
   - given-names: Alan
     family-names: O'Callaghan
     affiliation: >-
@@ -31,6 +32,7 @@ authors:
     affiliation: >-
       Institute of Genetics and Cancer, University of
       Edinburgh
+    orcid: 0000-0002-6488-3901
 keywords:
   - digital pathology
   - microscopy
