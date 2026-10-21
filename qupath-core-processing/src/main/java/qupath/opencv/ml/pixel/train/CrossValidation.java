@@ -1,4 +1,4 @@
-package qupath.process.gui.commands.ml.core;
+package qupath.opencv.ml.pixel.train;
 
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -10,8 +10,6 @@ import qupath.opencv.ml.ConfusionMatrix;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.ml.models.TrainableModel;
-import qupath.process.gui.commands.ml.ModelTrainer;
-import qupath.process.gui.commands.ml.core.ClassifierTrainingData;
 
 import java.nio.IntBuffer;
 import java.util.ArrayList;

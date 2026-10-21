@@ -8,9 +8,9 @@ import qupath.lib.images.servers.ImageServerMetadata
 import qupath.opencv.ml.models.TrainableModel
 import qupath.opencv.ml.models.statmodel.OpenCVStatModels
 import qupath.opencv.ops.ImageDataOp
-import qupath.process.gui.commands.ml.core.ClassifierTrainingData
-import qupath.process.gui.commands.ml.ModelTrainer
-import qupath.process.gui.commands.ml.core.PixelClassifierTraining
+import qupath.opencv.ml.pixel.train.ClassifierTrainingData
+import qupath.opencv.ml.pixel.train.ModelTrainer
+import qupath.opencv.ml.pixel.train.PixelClassifierTraining
 import qupath.process.gui.commands.ml.op.MultiscaleImageDataOpBuilder
 
 import static qupath.lib.gui.scripting.QPEx.*

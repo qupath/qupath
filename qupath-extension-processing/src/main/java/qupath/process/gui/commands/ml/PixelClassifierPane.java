@@ -87,8 +87,9 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
 import qupath.opencv.ml.models.TrainableModel;
-import qupath.process.gui.commands.ml.core.ClassifierTrainingData;
-import qupath.process.gui.commands.ml.core.PixelClassifierTraining;
+import qupath.opencv.ml.pixel.train.ClassifierTrainingData;
+import qupath.opencv.ml.pixel.train.ModelTrainer;
+import qupath.opencv.ml.pixel.train.PixelClassifierTraining;
 import qupath.process.gui.commands.ml.op.MultiscaleImageDataOpBuilder;
 import qupath.process.gui.commands.ml.op.ImageDataOpBuilder;
 import qupath.process.gui.commands.ml.tasks.CrossValidationTask;
@@ -825,7 +826,7 @@ public class PixelClassifierPane {
 				model,
 				trainingImages,
 				helper,
-				new ModelTrainer(helper, advancedOptions)
+				createModelTrainer(helper, advancedOptions)
 		);
 		var output = model.supportsProbabilities() ? outputType.get() : ImageServerMetadata.ChannelType.CLASSIFICATION;
 		runWithProgress(pool,
@@ -847,6 +848,16 @@ public class PixelClassifierPane {
 		}, false);
 	}
 
+	private static ModelTrainer createModelTrainer(PixelClassifierTraining helper, PixelClassifierAdvancedOptions advancedOptions) {
+		return new ModelTrainer(
+				helper.getResolution(),
+				advancedOptions.getMaxSamples(),
+				advancedOptions.getNormalization(),
+				helper.getFeatureOp(),
+				advancedOptions.getReweightSamples(),
+				advancedOptions.getRngSeed());
+	}
+
 	private void calculateVariableImportance() {
 		var trainingImages = trainingImageManager.getTrainingImageData();
 		if (trainingImages.isEmpty()) {
@@ -859,7 +870,7 @@ public class PixelClassifierPane {
 				logger.warn("Can't compute variable importance without training data!");
 				return;
 			}
-			var trainer = new ModelTrainer(helper, advancedOptions);
+			var trainer = createModelTrainer(helper, advancedOptions);
 			try (var scope = new PointerScope()) {
 				try (ClassifierTrainingData otherImages = ClassifierTrainingData.merge(allTrainingData)) {
 					var trainedModel = trainer.train(model, otherImages);
@@ -983,7 +994,7 @@ public class PixelClassifierPane {
 			return;
 		}
 		var task = new CrossValidationTask(
-				model, helper, trainingImages, new ModelTrainer(helper, advancedOptions),
+				model, helper, trainingImages, createModelTrainer(helper, advancedOptions),
 				new Random(advancedOptions.getRngSeed() + 1)
 		);
 		runWithProgress(

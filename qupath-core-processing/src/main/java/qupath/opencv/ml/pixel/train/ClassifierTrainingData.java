@@ -1,4 +1,4 @@
-package qupath.process.gui.commands.ml.core;
+package qupath.opencv.ml.pixel.train;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_ml;

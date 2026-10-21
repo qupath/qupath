@@ -1,4 +1,4 @@
-package qupath.process.gui.commands.ml;
+package qupath.opencv.ml.pixel.train;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -11,9 +11,6 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOps;
-import qupath.process.gui.commands.ml.core.ClassifierTrainingData;
-import qupath.process.gui.commands.ml.core.PixelClassifierTraining;
-import qupath.process.gui.commands.ml.core.TrainedModel;
 
 import java.nio.IntBuffer;
 import java.time.Duration;
@@ -39,16 +36,6 @@ public class ModelTrainer {
     private final boolean reweightSamples;
     private final int rngSeed;
 
-    ModelTrainer(PixelClassifierTraining helper, PixelClassifierAdvancedOptions advancedOptions) {
-        this.resolution = helper.getResolution();
-        this.baseFeatureCalculator = helper.getFeatureOp();
-        ;
-        this.actualMaxSamples = advancedOptions.getMaxSamples();
-        this.reweightSamples = advancedOptions.getReweightSamples();
-        this.featureNormalization = advancedOptions.getNormalization();
-        this.rngSeed = advancedOptions.getRngSeed();
-    }
-
     public ModelTrainer(PixelCalibration resolution,
                         ImageDataOp baseFeatureCalculator) {
         this(resolution, 100_000, new FeatureNormalization(),
@@ -56,7 +43,7 @@ public class ModelTrainer {
     }
 
     // TODO: Note that FeatureNormalization is mutable; ideally, this should only use immutable objects
-    ModelTrainer(PixelCalibration resolution,
+    public ModelTrainer(PixelCalibration resolution,
                  int actualMaxSamples,
                  FeatureNormalization featureNormalization,
                  ImageDataOp baseFeatureCalculator,

@@ -1,4 +1,4 @@
-package qupath.process.gui.commands.ml.core;
+package qupath.opencv.ml.pixel.train;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

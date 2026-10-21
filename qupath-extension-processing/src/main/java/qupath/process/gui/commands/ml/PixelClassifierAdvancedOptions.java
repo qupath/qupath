@@ -9,7 +9,8 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.process.gui.commands.ml.core.BoundaryStrategy;
+import qupath.opencv.ml.pixel.train.BoundaryStrategy;
+import qupath.opencv.ml.pixel.train.FeatureNormalization;
 
 class PixelClassifierAdvancedOptions {
 

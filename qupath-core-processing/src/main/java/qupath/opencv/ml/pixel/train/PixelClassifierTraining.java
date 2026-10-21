@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.process.gui.commands.ml.core;
+package qupath.opencv.ml.pixel.train;
 
 import java.util.Comparator;
 
@@ -40,8 +40,6 @@ import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageDataServer;
 import qupath.opencv.ops.ImageOps;
-import qupath.process.gui.commands.ml.core.BoundaryStrategy;
-import qupath.process.gui.commands.ml.core.ClassifierTrainingData;
 
 import java.awt.BasicStroke;
 import java.awt.image.BufferedImage;

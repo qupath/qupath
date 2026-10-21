@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.process.gui.commands.ml;
+package qupath.opencv.ml.pixel.train;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 import qupath.lib.classifiers.Normalization;
@@ -28,7 +28,7 @@ import qupath.opencv.ml.FeaturePreprocessor;
 /**
  * Helper class for storing parameters that will eventually be used to create a {@link FeaturePreprocessor}.
  */
-class FeatureNormalization {
+public class FeatureNormalization {
 	
 	/**
      * Feature normalization method

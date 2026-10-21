@@ -3,10 +3,10 @@ package qupath.process.gui.commands.ml.tasks;
 import javafx.concurrent.Task;
 import qupath.lib.images.ImageData;
 import qupath.opencv.ml.models.TrainableModel;
-import qupath.process.gui.commands.ml.core.ClassifierTrainingData;
-import qupath.process.gui.commands.ml.ModelTrainer;
-import qupath.process.gui.commands.ml.core.PixelClassifierTraining;
-import qupath.process.gui.commands.ml.core.TrainedModel;
+import qupath.opencv.ml.pixel.train.ClassifierTrainingData;
+import qupath.opencv.ml.pixel.train.ModelTrainer;
+import qupath.opencv.ml.pixel.train.PixelClassifierTraining;
+import qupath.opencv.ml.pixel.train.TrainedModel;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;

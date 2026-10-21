@@ -22,13 +22,12 @@ import javafx.util.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.ViewerManager;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.cache.ImageCache;
-import qupath.process.gui.commands.ml.core.PixelClassifierTraining;
+import qupath.opencv.ml.pixel.train.PixelClassifierTraining;
 
 /**
  * Class to manage viewer overlays when training a pixel classifier,

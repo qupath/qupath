@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.process.gui.commands.ml.core;
+package qupath.opencv.ml.pixel.train;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.objects.classes.PathClass;
