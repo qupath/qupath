@@ -872,10 +872,9 @@ public class PixelClassifierPane {
 			}
 			var trainer = createModelTrainer(helper, advancedOptions);
 			try (var scope = new PointerScope()) {
-				try (ClassifierTrainingData otherImages = ClassifierTrainingData.merge(allTrainingData)) {
-					var trainedModel = trainer.train(model, otherImages);
-					featureDetailsPane.update(model, trainedModel.getFeatureNames(trainingImages.iterator().next()));
-				}
+				ClassifierTrainingData otherImages = ClassifierTrainingData.merge(allTrainingData);
+				var trainedModel = trainer.train(model, otherImages);
+				featureDetailsPane.update(model, trainedModel.getFeatureNames(trainingImages.iterator().next()));
 			}
 		} catch (Exception e) {
 			logger.error("Error calculating variable importance: {}", e.getMessage(), e);
@@ -1006,6 +1005,14 @@ public class PixelClassifierPane {
 
 	private static <V> void runWithProgress(Executor executor, Task<V> task, Consumer<V> onSuccess, boolean canCancel) {
 		if (onSuccess != null) {
+			task.setOnFailed(event -> {
+				var exception = task.getException();
+				if (exception != null) {
+					Dialogs.showErrorMessage("Pixel classifier", task.getException());
+				} else {
+					logger.warn("Pixel classifier failed without throwing an exception");
+				}
+			});
 			task.setOnSucceeded(event -> {
 				try {
 					onSuccess.accept(task.get());

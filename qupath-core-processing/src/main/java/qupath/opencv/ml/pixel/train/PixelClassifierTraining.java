@@ -187,8 +187,8 @@ public class PixelClassifierTraining {
 
 			String imageName = imageData.getServer().getMetadata().getName();
 
-			List<Mat> allFeatures = new ArrayList<>();
-			List<Mat> allTargets = new ArrayList<>();
+			List<FeatureVector> allFeatures = new ArrayList<>();
+			List<TargetVector> allTargets = new ArrayList<>();
 
 			// Get features & targets for all the tiles that we need
 	        var featureServer = getFeatureServer(imageData);
@@ -197,7 +197,7 @@ public class PixelClassifierTraining {
 		        for (var tile : tiles) {
 		            var tileFeatures = getTileFeatures(tile, featureServer, boundaryStrategy, labels);
 		        	if (tileFeatures != null) {
-		        		allFeatures.add(tileFeatures.getFeatures());
+		        		allFeatures.addAll(tileFeatures.getFeatures());
 		        		allTargets.add(tileFeatures.getTargets());
 		        	}
 		        }
@@ -205,21 +205,20 @@ public class PixelClassifierTraining {
 	        	logger.warn("Unable to generate features for {}", imageData);
 	        }
 
-			var matTraining = new Mat();
-			var matTargets = new Mat();
-			opencv_core.vconcat(new MatVector(allFeatures.toArray(Mat[]::new)), matTraining);
-			opencv_core.vconcat(new MatVector(allTargets.toArray(Mat[]::new)), matTargets);
-
-			logger.debug("Training data: {} x {}, Target data: {} x {} ({})",
-					matTraining.rows(), matTraining.cols(), matTargets.rows(), matTargets.cols(),
-					imageName);
-
-			if (matTraining.rows() == 0) {
+			if (allFeatures.isEmpty()) {
 				logger.warn("No training data found - if you have training annotations, check the features are compatible with the current image.");
 				continue;
 			}
 
-			allTraining.add(ClassifierTrainingData.create(imageData.getServer().getMetadata().getName(), matTraining, matTargets, labels));
+			var targets = TargetVector.concat(allTargets);
+			logger.debug("Training data: {} x {}, Target data: {} x {} ({})",
+					allFeatures.size(), allFeatures.getFirst().size(), targets.size(), 1,
+					imageName);
+
+			allTraining.add(ClassifierTrainingData.create(imageData.getServer().getMetadata().getName(),
+					allFeatures,
+					targets,
+					labels));
         }
         
 		return allTraining;
@@ -352,7 +351,7 @@ public class PixelClassifierTraining {
     		cache.put(request, features);
 		} catch (IOException e) {
 			cache.remove(request);
-			logger.error("Error requesting features for " + request, e);
+            logger.error("Error requesting features for {}", request, e);
 		}
 		
 		return features;
@@ -366,8 +365,8 @@ public class PixelClassifierTraining {
     	private final TileRequest tile;
     	private final Map<ROI, PathClass> rois;
     	private final BoundaryStrategy strategy;
-    	private Mat matFeatures;
-    	private Mat matTargets;
+    	private List<FeatureVector> features;
+    	private TargetVector targets;
     	
     	private TileFeatures(TileRequest tile, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<ROI, PathClass> rois, Map<PathClass, Integer> labels) throws IOException {
     		this.tile = tile;
@@ -375,16 +374,14 @@ public class PixelClassifierTraining {
     		this.featureServer = featureServer;
     		this.rois = rois;
     		this.labels = labels;
-    		ensureFeaturesCalculated();
+			calculateFeatures();
     	};
     	
     	/**
     	 * Note that this implementation supports only one target per pixel, i.e. not multi-class classifications.
     	 * @throws IOException
     	 */
-    	private void ensureFeaturesCalculated() throws IOException {
-    		if (matFeatures != null && matTargets != null)
-    			return;
+    	private void calculateFeatures() throws IOException {
 
 			// We don't change the features, so get the cached tile directly if possible.
 			// This can substantially affect performance for large numbers of features,
@@ -455,11 +452,12 @@ public class PixelClassifierTraining {
 	        		g2d.dispose();
     			}
     		}
+
     		// Allocate buffers
     		int capacity = width * height;
     		int nFeatures = features.getRaster().getNumBands();
     		float[] buf = new float[nFeatures];
-    		var extracted = FloatBuffer.allocate(capacity * nFeatures);    		
+    		var allFeatures = new ArrayList<FeatureVector>();
     		var targets = IntBuffer.allocate(capacity);
     		var rasterFeatures = features.getRaster();
     		for (int y = 0; y < height; y++) {
@@ -467,44 +465,25 @@ public class PixelClassifierTraining {
         			int label = raster.getSample(x, y, 0);
         			if (label != 0) {
         				buf = rasterFeatures.getPixel(x, y, buf);
-        				extracted.put(buf);
+						allFeatures.add(FeatureVector.create(buf));
         				targets.put(label-1);
         			}
         		}    			
     		}
-    		
-    		// Create Mats
-    		int n = targets.position();
-    		matFeatures = new Mat(n, nFeatures, opencv_core.CV_32FC1);
-    		matTargets = new Mat(n, 1, opencv_core.CV_32SC1);
-
-    		if (n == 0) {
-    			// This can happen if a training annotation falls exactly on a tile boundary
-    			// (However note that the boundary strategy can still make some annotations useful sometimes)
-                logger.debug("I thought I'd have features but I don't! {} ROIs for {}", rois.size(), tile);
-    			return;
-    		}
-
-    		IntIndexer idxTargets = matTargets.createIndexer();
-    		FloatIndexer idxFeatures = matFeatures.createIndexer();
-    		int t = 0;
-    		for (int i = 0; i < n; i++) {
-    			for (int j = 0; j < nFeatures; j++) {
-    				idxFeatures.put(i, j, extracted.get(t));
-    				t++;
-    			}
-    			idxTargets.put(i, targets.get(i));
-    		}
-    		idxTargets.release();
-    		idxFeatures.release();
-    	}
+			this.features = List.copyOf(allFeatures);
+			assert targets.position() == allFeatures.size();
+			targets.rewind();
+			int[] targetArray = new int[allFeatures.size()];
+			targets.get(targetArray);
+			this.targets = TargetVector.create(targetArray);
+		}
     	
-    	public Mat getFeatures() {
-    		return matFeatures;
+    	public List<FeatureVector> getFeatures() {
+    		return features;
     	}
 
-    	public Mat getTargets() {
-    		return matTargets;
+    	public TargetVector getTargets() {
+    		return targets;
     	}
 
     }

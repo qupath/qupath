@@ -51,22 +51,21 @@ public class CrossValidation {
 		try (var scope = new PointerScope()) {
 			for (int i = 0; i < trainingData.size(); i++) {
 				var holdOutData = trainingData.get(i);
-				try (ClassifierTrainingData otherImages = ClassifierTrainingData.merge(
+				ClassifierTrainingData otherImages = ClassifierTrainingData.merge(
 						trainingData.stream().filter(d -> d != holdOutData).toList()
-				)) {
-					var trainedModel = trainer.train(model, otherImages);
-					try (var holdOutTest = TrainData.create(holdOutData.getSamples(), opencv_ml.ROW_SAMPLE, holdOutData.getTargets())) {
-						var confusion = evaluate(
-								holdOutData.getName(),
-								holdOutTest.getTrainSamples(),
-								holdOutTest.getTrainNormCatResponses(),
-								holdOutTest.getClassLabels(),
-								trainedModel.model(),
-								trainedModel.featurePreprocessor(),
-								labels);
-						matrices.add(confusion);
-						logger.debug("Fold {}: Accuracy = {}, F1 = {}", i + 1, confusion.getAccuracy(), confusion.getF1());
-					}
+				);
+				var trainedModel = trainer.train(model, otherImages);
+				try (var holdOutTest = TrainData.create(holdOutData.getSamples(), opencv_ml.ROW_SAMPLE, holdOutData.getTargets())) {
+					var confusion = evaluate(
+							holdOutData.getName(),
+							holdOutTest.getTrainSamples(),
+							holdOutTest.getTrainNormCatResponses(),
+							holdOutTest.getClassLabels(),
+							trainedModel.model(),
+							trainedModel.featurePreprocessor(),
+							labels);
+					matrices.add(confusion);
+					logger.debug("Fold {}: Accuracy = {}, F1 = {}", i + 1, confusion.getAccuracy(), confusion.getF1());
 				}
 			}
 			if (matrices.size() > 1)

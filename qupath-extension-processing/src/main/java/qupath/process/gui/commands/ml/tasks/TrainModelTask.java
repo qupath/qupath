@@ -43,8 +43,7 @@ public class TrainModelTask extends Task<TrainedPixelClassifierModel> {
 
         updateMessage("Training model...");
         updateProgress(workDone++, totalWork);
-        try (var trainingData = ClassifierTrainingData.merge(allTrainingData)) {
-            return trainer.train(model, trainingData);
-        }
+        var trainingData = ClassifierTrainingData.merge(allTrainingData);
+        return trainer.train(model, trainingData);
     }
 }
