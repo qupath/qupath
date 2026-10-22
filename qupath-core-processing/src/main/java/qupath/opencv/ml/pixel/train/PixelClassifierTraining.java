@@ -394,12 +394,11 @@ public class PixelClassifierTraining {
 				long startTimeMillis = System.currentTimeMillis();
 				features = featureServer.readRegion(tile.getRegionRequest());
 				long endTimeMillis = System.currentTimeMillis();
-				System.err.println("CALCULATING " + (endTimeMillis - startTimeMillis) + "ms");
+				logger.debug("Calculated features in {} ms ({})", (endTimeMillis - startTimeMillis), tile);
 			} else {
-				System.err.println("FOUND CACHED!");
+				logger.debug("Using cached features for {}", tile);
 			}
 
-    		// TODO: Handle differing boundary thicknesses
     		double downsample = tile.getDownsample();
     		double boundaryThickness = strategy.getBoundaryThickness();
     		BasicStroke stroke = boundaryThickness > 0 ? new BasicStroke((float)(downsample * boundaryThickness)) : null;
@@ -482,7 +481,7 @@ public class PixelClassifierTraining {
     		if (n == 0) {
     			// This can happen if a training annotation falls exactly on a tile boundary
     			// (However note that the boundary strategy can still make some annotations useful sometimes)
-    			logger.debug("I thought I'd have features but I don't! " + rois.size() + " - " + tile);
+                logger.debug("I thought I'd have features but I don't! {} ROIs for {}", rois.size(), tile);
     			return;
     		}
 

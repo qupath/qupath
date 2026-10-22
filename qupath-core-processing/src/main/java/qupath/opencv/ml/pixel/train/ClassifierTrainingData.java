@@ -1,10 +1,8 @@
 package qupath.opencv.ml.pixel.train;
 
 import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_ml;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatVector;
-import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.objects.classes.PathClass;
@@ -69,12 +67,19 @@ public class ClassifierTrainingData implements AutoCloseable {
     }
 
     /**
-     * Get training data, containing both features and targets.
-     * Note that this creates a defensive copy of the Mats.
+     * Get the training samples. Note that this returns a defensive copy, so should not be called unnecessarily.
      * @return
      */
-    public TrainData createTrainData() {
-        return TrainData.create(matTraining.clone(), opencv_ml.ROW_SAMPLE, matTargets.clone());
+    public Mat getSamples() {
+        return matTraining.clone();
+    }
+
+    /**
+     * Get the training targets. Note that this returns a defensive copy, so should not be called unnecessarily.
+     * @return
+     */
+    public Mat getTargets() {
+        return matTargets.clone();
     }
 
     /**

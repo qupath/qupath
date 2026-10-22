@@ -2,7 +2,9 @@ package qupath.opencv.ml.pixel.train;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_ml;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -63,7 +65,7 @@ public class PixelClassifierModelTrainer {
 
         var labels = trainingData.getLabelMap();
 
-        try (var trainData = trainingData.createTrainData()) {
+        try (var trainData = TrainData.create(trainingData.getSamples(), opencv_ml.ROW_SAMPLE, trainingData.getTargets())) {
             if (actualMaxSamples > 0 && trainData.getNTrainSamples() > actualMaxSamples)
                 trainData.setTrainTestSplit(actualMaxSamples, true);
             else
@@ -72,7 +74,8 @@ public class PixelClassifierModelTrainer {
             // Apply feature preprocessing, if we need to
             var preprocessor = featureNormalization.build(trainData.getTrainSamples(), false);
             ImageDataOp featureCalculator;
-            if (preprocessor.doesSomething()) {
+            boolean usePreprocessor = preprocessor != null && preprocessor.doesSomething();
+            if (usePreprocessor) {
                 var preprocessingOp = ImageOps.ML.preprocessor(preprocessor);
                 featureCalculator = baseFeatureCalculator.appendOps(preprocessingOp);
             } else {
@@ -86,7 +89,8 @@ public class PixelClassifierModelTrainer {
 
             // Create TrainData in an appropriate format (e.g. labels or one-hot encoding)
             var trainSamples = trainData.getTrainSamples();
-            preprocessor.apply(trainSamples, false);
+            if (usePreprocessor)
+                preprocessor.apply(trainSamples, false);
 
             Duration trainingTime;
             int nLabels = labels.values().stream().mapToInt(Integer::intValue).max().orElse(0);

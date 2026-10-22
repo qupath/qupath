@@ -1,7 +1,9 @@
 package qupath.opencv.ml.pixel.train;
 
 import org.bytedeco.javacpp.PointerScope;
+import org.bytedeco.opencv.global.opencv_ml;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.io.GsonTools;
@@ -53,7 +55,7 @@ public class CrossValidation {
 						trainingData.stream().filter(d -> d != holdOutData).toList()
 				)) {
 					var trainedModel = trainer.train(model, otherImages);
-					try (var holdOutTest = holdOutData.createTrainData()) {
+					try (var holdOutTest = TrainData.create(holdOutData.getSamples(), opencv_ml.ROW_SAMPLE, holdOutData.getTargets())) {
 						var confusion = evaluate(
 								holdOutData.getName(),
 								holdOutTest.getTrainSamples(),
