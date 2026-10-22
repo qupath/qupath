@@ -26,7 +26,7 @@ public interface TrainableModel extends PredictionModel {
     boolean isTrained();
 
     /**
-     * Classifier is able to handle more than one outputs for a single sample.
+     * Classifier is able to handle more than one output for a single sample.
      *
      * @return true if multiclass classification is supported, false otherwise
      */
@@ -79,10 +79,20 @@ public interface TrainableModel extends PredictionModel {
 
 
     /**
+     * Classifier can calculate feature importance values during training.
+     * @return true if {@link #getFeatureImportance(List)} can return a non-empty list after the model has been trained.
+     * @see #getFeatureImportance(List)
+     */
+    default boolean supportsFeatureImportance() {
+        return false;
+    }
+
+    /**
      * Get a list of {@link FeatureImportance}, if calculated during model training.
      * Not all models can provide this; the default implementation returns an empty list.
      * @param names the feature names; this is required to populate the list
      * @return a list of feature importance values, or an empty list if the model cannot calculate feature importance
+     * @see #supportsFeatureImportance()
      */
     default List<FeatureImportance> getFeatureImportance(List<String> names) {
         return List.of();
