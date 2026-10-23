@@ -1097,7 +1097,7 @@ public class ImageOps {
 		/**
 		 * Enum giving ways to combine rotated ridge images.
 		 */
-		public enum RidgeProjections {
+		public enum RotatedFilterProjection {
 			/**
 			 * Calculate the minimum pixel value across rotations.
 			 */
@@ -1120,7 +1120,7 @@ public class ImageOps {
 		 *                    If not set, all projections will be used.
 		 * @return
 		 */
-		public static ImageOp rotatedRidge(double sigmaWidth, RidgeProjections... projections) {
+		public static ImageOp rotatedRidge(double sigmaWidth, RotatedFilterProjection... projections) {
 			return rotatedRidge(sigmaWidth, sigmaWidth * 4,12, projections);
 		}
 
@@ -1135,7 +1135,7 @@ public class ImageOps {
 		 *                    If not set, all projections will be used.
 		 * @return
 		 */
-		public static ImageOp rotatedRidge(double sigmaWidth, double sigmaLength, int nRotations, RidgeProjections... projections) {
+		public static ImageOp rotatedRidge(double sigmaWidth, double sigmaLength, int nRotations, RotatedFilterProjection... projections) {
 			return rotatedGaussian(
 					new GaussianDerivative(sigmaWidth, 2),
 					new GaussianDerivative(sigmaLength, 0),
@@ -1159,7 +1159,7 @@ public class ImageOps {
 		 * @return
 		 */
 		public static ImageOp rotatedGaussian(double width,
-											  double length, int nRotations, RidgeProjections... projections) {
+											  double length, int nRotations, RotatedFilterProjection... projections) {
 			return new RotatedFilterFeatureOp(
 					new GaussianDerivative(width, 0), new GaussianDerivative(length, 0), nRotations, projections);
 		}
@@ -1175,7 +1175,7 @@ public class ImageOps {
 		 */
 		private static ImageOp rotatedGaussian(
 				GaussianDerivative width,
-				GaussianDerivative length, int nRotations, RidgeProjections... projections) {
+				GaussianDerivative length, int nRotations, RotatedFilterProjection... projections) {
 			return new RotatedFilterFeatureOp(
 					width, length, nRotations, projections);
 		}
@@ -1347,26 +1347,25 @@ public class ImageOps {
 				}
 				return builder;
 			}
-			
-			
+
 		}
 
-		@OpType("rotated-ridge")
+		@OpType("rotated-gaussian")
 		static class RotatedFilterFeatureOp extends PaddedOp {
 
 			private GaussianDerivative filterWidth;
 			private GaussianDerivative filterLength;
 			private int nRotations;
-			private List<RidgeProjections> projections;
+			private List<RotatedFilterProjection> projections;
 			private transient List<Mat> kernels;
 
-			RotatedFilterFeatureOp(GaussianDerivative filterWidth, GaussianDerivative filterLength, int nRotations, RidgeProjections... projections) {
+			RotatedFilterFeatureOp(GaussianDerivative filterWidth, GaussianDerivative filterLength, int nRotations, RotatedFilterProjection... projections) {
 				this.filterWidth = validateFilter(filterWidth);
 				this.filterLength = validateFilter(filterLength);
 				if (nRotations < 1)
 					throw new IllegalArgumentException("nRotations must be > 1");
 				this.nRotations = nRotations;
-				this.projections = projections.length == 0 ? List.of(RidgeProjections.values()) : List.of(projections);
+				this.projections = projections.length == 0 ? List.of(RotatedFilterProjection.values()) : List.of(projections);
 			}
 
 			private static GaussianDerivative validateFilter(GaussianDerivative filter) {
@@ -1441,14 +1440,15 @@ public class ImageOps {
 				if (kernels == null || kernels.size() < nRotations || kernels.stream().anyMatch(m -> m.isNull())) {
 					synchronized (this) {
 						if (kernels == null) {
-							kernels = createKernels();
+							kernels = createKernels(nRotations);
+							kernels.forEach(Mat::retainReference); // Don't garbage collect too quickly
 						}
 					}
 				}
 				return kernels;
 			}
 
-			private List<Mat> createKernels() {
+			protected List<Mat> createKernels(int nRotations) {
 				var firstKernel = createFirstKernel();
 				List<Mat> kernels = new ArrayList<>();
 				kernels.add(firstKernel);
@@ -1472,10 +1472,6 @@ public class ImageOps {
 						opencv_imgproc.warpAffine(firstKernel, temp, affine, firstKernel.size());
 						kernels.add(temp);
 					}
-				}
-				// Don't garbage collect too quickly
-				for (var k : kernels) {
-					k.retainReference();
 				}
 				return kernels;
 			}
@@ -1507,18 +1503,21 @@ public class ImageOps {
 
 			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
 				List<ImageChannel> output = new ArrayList<>();
-				String name = "%s (%s %d rotations, sigma=[%.2f,%.2f], order=[%d,%d]";
 				for (var proj : projections) {
 					for (var c : channels) {
 						output.add(ImageChannel.getInstance(
-								String.format(name, c.getName(), proj.toString().toLowerCase(),
-													nRotations, filterWidth.sigma(), filterLength.sigma(), filterWidth.order(), filterLength.order()),
+								updateChannelName(c.getName(), proj),
 								c.getColor()));
 					}
 				}
 				return output;
 			}
 
+			protected String updateChannelName(String inputName, RotatedFilterProjection projection) {
+				String name = "%s (%s %d rotations, sigma=[%.2f,%.2f], order=[%d,%d]";
+				return String.format(name, inputName, projection.toString().toLowerCase(),
+						nRotations, filterWidth.sigma(), filterLength.sigma(), filterWidth.order(), filterLength.order());
+			}
 
 			@Override
 			protected Padding calculatePadding() {
