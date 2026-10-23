@@ -1114,6 +1114,7 @@ public class ImageOps {
 
 		/**
 		 * Apply a ridge-enhancing filter rotated at different orientations, projecting the result onto one or more outputs.
+		 * The filter width uses the second derivative of the Gaussian.
 		 * @param sigmaWidth sigma value for the estimated ridge width; a second order Gaussian derivative would be calculated
 		 * @param projections optional array of projections.
 		 *                    If not set, all projections will be used.
@@ -1125,6 +1126,7 @@ public class ImageOps {
 
 		/**
 		 * Apply a ridge-enhancing filter rotated at different orientations, projecting the result onto one or more outputs.
+		 * The filter width uses the second derivative of the Gaussian.
 		 * @param sigmaWidth sigma value for the estimated ridge width; a second order Gaussian derivative would be calculated
 		 * @param sigmaLength sigma value for the filter length; this is usually &gt; sigmaWidth and relates to the ridge tortuosity
 		 *                    (for ridges with infrequent changes in orientations, a higher value may be used)
@@ -1134,10 +1136,48 @@ public class ImageOps {
 		 * @return
 		 */
 		public static ImageOp rotatedRidge(double sigmaWidth, double sigmaLength, int nRotations, RidgeProjections... projections) {
-			return new RotatedFilterFeatureOp(
-					new RotatedFilterFeatureOp.GaussianDerivative(sigmaWidth, 2),
-					new RotatedFilterFeatureOp.GaussianDerivative(sigmaLength, 0),
+			return rotatedGaussian(
+					new GaussianDerivative(sigmaWidth, 2),
+					new GaussianDerivative(sigmaLength, 0),
 					nRotations, projections);
+		}
+
+		/**
+		 * Record to the sigma value for a Gaussian filter.
+		 * @param sigma Gaussian sigma
+		 * @param order derivative order
+		 */
+		public record GaussianDerivative(double sigma, int order) {}
+
+		/**
+		 * Apply rotated anisotropic Gaussian filter rotated at different orientations, projecting the result onto one or more outputs.
+		 * @param width Gaussian sigma for the filter width
+		 * @param length Gaussian sigma for the filter height
+		 * @param nRotations number of rotations to calculate (typically 8-12)
+		 * @param projections optional array of projections.
+		 *                    If not set, all projections will be used.
+		 * @return
+		 */
+		public static ImageOp rotatedGaussian(double width,
+											  double length, int nRotations, RidgeProjections... projections) {
+			return new RotatedFilterFeatureOp(
+					new GaussianDerivative(width, 0), new GaussianDerivative(length, 0), nRotations, projections);
+		}
+
+		/**
+		 * Apply rotated anisotropic Gaussian filter rotated at different orientations, projecting the result onto one or more outputs.
+		 * @param width Gaussian sigma and order for the filter width
+		 * @param length Gaussian sigma and order for the filter height
+		 * @param nRotations number of rotations to calculate (typically 8-12)
+		 * @param projections optional array of projections.
+		 *                    If not set, all projections will be used.
+		 * @return
+		 */
+		private static ImageOp rotatedGaussian(
+				GaussianDerivative width,
+				GaussianDerivative length, int nRotations, RidgeProjections... projections) {
+			return new RotatedFilterFeatureOp(
+					width, length, nRotations, projections);
 		}
 		
 		/**
@@ -1313,8 +1353,6 @@ public class ImageOps {
 
 		@OpType("rotated-ridge")
 		static class RotatedFilterFeatureOp extends PaddedOp {
-
-			private record GaussianDerivative(double sigma, int order) {}
 
 			private GaussianDerivative filterWidth;
 			private GaussianDerivative filterLength;
@@ -2845,27 +2883,6 @@ public class ImageOps {
 				// Use FastMath - there are too many caveats with OpenCV's pow implementation
 				OpenCVTools.apply(input, d -> FastMath.pow(d, power));
 				return input;
-//				opencv_core.pow(input, power, input);
-//				// For non-integer powers, OpenCV uses the absolute value
-//				if (power == Math.rint(power))
-//					opencv_core.pow(input, power, input);
-//				else {
-//					opencv_core.pow(input, power, input);
-//					Mat mask = opencv_core.lessThan(input, 0.0).asMat();			    
-//					if (opencv_core.countNonZero(mask) != 0) {
-//						if (power < 0) {
-//							var nan = OpenCVTools.scalarMat(Double.NaN, opencv_core.CV_64F);
-//							input.setTo(nan, mask);
-//							nan.close();
-//						} else {
-//							var temp = OpenCVTools.scalarMat(0.0, opencv_core.CV_64F);
-//							opencv_core.subtract(temp, input, input, mask, input.depth());
-//							temp.close();
-//						}
-//					}
-//				    mask.close();
-//				}
-//				return input;
 			}
 			
 		}
