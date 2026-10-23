@@ -71,7 +71,7 @@ public class PixelClassifierModelTrainer {
                 trainData.shuffleTrainTest();
 
             // Apply feature preprocessing, if we need to
-            var preprocessor = featureNormalization.build(trainData.getTrainSamples(), false);
+            var preprocessor = featureNormalization == null ? null : featureNormalization.build(trainData.getTrainSamples(), false);
             ImageDataOp featureCalculator;
             boolean usePreprocessor = preprocessor != null && preprocessor.doesSomething();
             if (usePreprocessor) {
