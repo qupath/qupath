@@ -1774,7 +1774,101 @@ public class ImageOps {
 		}
 		
 	}
-	
+
+
+	/**
+	 * Image transforms.
+	 */
+	@OpType("transforms")
+	public static class Transforms {
+
+		/**
+		 * Create a signed distance transform to each channel of an input image.
+		 * @param threshold the threshold to apply the input to ensure that it is a binary image.
+		 *                  If Double.NaN this is ignored, but then the image must be 8-bit binary.
+		 * @param clip the clip value used to clip the maximum signed distance.
+		 *             If &gt; 0 and finite, this is used to determine how much padding to request
+		 *             so that the output is reliable when applied to a tiled image.
+		 * @return the signed distance op
+		 */
+		public static ImageOp signedDistance(double threshold, double clip) {
+			return new SignedDistanceOp(threshold, clip);
+		}
+
+
+		@OpType("signed-distance")
+		static class SignedDistanceOp extends PaddedOp {
+
+			private double threshold;
+			private double clip;
+
+			SignedDistanceOp(double threshold, double clip) {
+				this.threshold = threshold;
+				this.clip = clip;
+			}
+
+			@Override
+			public List<Mat> transformPadded(Mat input) {
+				List<Mat> splitChannels = OpenCVTools.splitChannels(input);
+				for (var channel : splitChannels) {
+					processSingleChannelInPlace(channel);
+				}
+				return splitChannels;
+			}
+
+			private void processSingleChannelInPlace(Mat input) {
+				try (var scope = new PointerScope()) {
+					Mat binary = new Mat();
+					if (!Double.isNaN(threshold)) {
+						binary.put(opencv_core.greaterThan(input, threshold));
+					} else {
+						input.copyTo(binary);
+					}
+					// Distance transform of binary image
+					Mat dist = new Mat();
+					opencv_imgproc.distanceTransform(binary, dist, opencv_imgproc.DIST_L2, opencv_imgproc.DIST_MASK_PRECISE, opencv_core.CV_32F);
+
+					// Distance transform of inverted binary image
+					Mat distInvert = new Mat();
+					binary.put(opencv_core.equals(binary, 0));
+					opencv_imgproc.distanceTransform(binary, distInvert, opencv_imgproc.DIST_L2, opencv_imgproc.DIST_MASK_PRECISE, opencv_core.CV_32F);
+
+					// Signed distance transform
+					opencv_core.subtract(dist, distInvert, dist);
+
+					if (clip > 0 && Double.isFinite(clip)) {
+						dist.put(opencv_core.min(dist, clip));
+						dist.put(opencv_core.max(dist, -clip));
+					}
+					input.put(dist);
+				}
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return clip > 0 && Double.isFinite(clip) ? Padding.symmetric((int)Math.ceil(clip)) : Padding.empty();
+			}
+
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> input) {
+				return ImageChannel.getChannelList(
+						input.stream().map(ImageChannel::getName).map(this::updateChannelName).toArray(String[]::new)
+				);
+			}
+
+			private String updateChannelName(String name) {
+				return String.format("%s signed-dist (%.2f, %.2f)", name, threshold, clip);
+			}
+
+			@Override
+			public PixelType getOutputType(PixelType type) {
+				return PixelType.FLOAT32;
+			}
+
+		}
+
+	}
+
 	
 	/**
 	 * Channel and color operations.
@@ -2008,7 +2102,7 @@ public class ImageOps {
 
 			@Override
 			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
-				List<String> allNames = channels.stream().map(c -> c.getName()).toList();
+				List<String> allNames = channels.stream().map(ImageChannel::getName).toList();
 				String name = reduceName() + " [" + String.join(", ", allNames) + "]";
 				return ImageChannel.getChannelList(name);
 			}
