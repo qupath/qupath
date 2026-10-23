@@ -400,8 +400,9 @@ public class ImageOps {
 		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData) {
 			if (op == null)
 				return imageData.getServerMetadata().getChannels();
-			else
-				return op.getChannels(imageData.getServerMetadata().getChannels());
+			else {
+                return op.getChannels(imageData.getServerMetadata().getChannels());
+			}
 		}
 
 		@Override
@@ -1342,6 +1343,15 @@ public class ImageOps {
 
 			@Override
 			public List<Mat> transformPadded(Mat input) {
+				var kernels = getKernels();
+				var output = new ArrayList<Mat>();
+				for (var channel : OpenCVTools.splitChannels(input)) {
+					output.addAll(transformSingleChannel(channel, kernels));
+				}
+				return List.copyOf(output);
+			}
+
+			private List<Mat> transformSingleChannel(Mat input, List<Mat> kernels) {
 				var outputType = input.depth() == opencv_core.CV_64F ? input.type() : opencv_core.CV_32FC(OpenCVTools.typeToChannels(input.type()));
 
 				// Preallocate output
@@ -1359,7 +1369,7 @@ public class ImageOps {
 				}
 
 				try (var temp = new Mat()) {
-					for (var k : getKernels()) {
+					for (var k : kernels) {
 						opencv_imgproc.filter2D(input, temp, outputType, k);
 						int ind = 0;
 						for (var proj : projections) {
@@ -1379,7 +1389,7 @@ public class ImageOps {
 						}
 					}
 				}
-				return List.copyOf(output);
+				return output;
 			}
 
 			private static double absMax(double a, double b) {
@@ -2905,16 +2915,18 @@ public class ImageOps {
 			
 			@Override
 			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
-				for (var t : ops)
+				for (var t : ops) {
 					channels = t.getChannels(channels);
+				}
 				return channels;
 			}
 			
 			@Override
 			public PixelType getOutputType(PixelType inputType) {
+				var outputType = inputType;
 				for (var t : ops)
-					inputType = t.getOutputType(inputType);
-				return inputType;
+					outputType = t.getOutputType(outputType);
+				return outputType;
 			}
 			
 			/**
@@ -3177,7 +3189,7 @@ public class ImageOps {
 		 * @param statModel
 		 * @param requestProbabilities
 		 * @return
-		 * @see #predictionModel(PredictionModel, boolean)
+		 * @see #predictionModel(PredictionModel, boolean, List)
 		 * @deprecated since v0.8.0
 		 */
 		@Deprecated
@@ -3192,11 +3204,29 @@ public class ImageOps {
 		 * because it is more flexible.
 		 * @param model
 		 * @param requestProbabilities
+		 * @param outputs output channels to use.
+		 *              This may be any single string if classifications are output.
+		 *              Otherwise, it should give the name of the probability corresponding to each output channel,
+		 *              in order.
 		 * @return
 		 * @since v0.8.0
 		 */
-		public static ImageOp predictionModel(PredictionModel model, boolean requestProbabilities) {
-			return new PredictionModelOp(model, requestProbabilities);
+		public static ImageOp predictionModel(PredictionModel model, boolean requestProbabilities, List<ImageChannel> outputs) {
+			return new PredictionModelOp(model, requestProbabilities, outputs);
+		}
+
+		/**
+		 * Apply a {@link PredictionModel} to pixels to generate a prediction, giving a single-channel classification as
+		 * output (i.e. not probabilities).
+		 * <p>
+		 * This replaces {@link #statModel(TrainableStatModel, boolean)} in v0.8.0,
+		 * because it is more flexible.
+		 * @param model
+		 * @return
+		 * @since v0.8.0
+		 */
+		public static ImageOp predictionModel(PredictionModel model) {
+			return new PredictionModelOp(model, false, List.of(PredictionModelOp.DEFAULT_CLASSIFICATION_CHANNEL));
 		}
 		
 		/**
@@ -3392,12 +3422,22 @@ public class ImageOps {
 		@OpType("prediction-model")
 		static class PredictionModelOp implements ImageOp {
 
+			private static final Logger logger = LoggerFactory.getLogger(PredictionModelOp.class);
+
+			private static final ImageChannel DEFAULT_CLASSIFICATION_CHANNEL = ImageChannel.getInstance("Channel", ColorTools.WHITE);
+			private static final ImageChannel DEFAULT_PROBABILITY_CHANNEL = ImageChannel.getInstance("Probability", ColorTools.WHITE);
+
 			private PredictionModel model;
 			private boolean requestProbabilities;
+			private List<ImageChannel> outputs;
 
-			PredictionModelOp(PredictionModel model, boolean requestProbabilities) {
+			PredictionModelOp(PredictionModel model, boolean requestProbabilities, List<ImageChannel> outputs) {
 				this.model = model;
 				this.requestProbabilities = requestProbabilities;
+				this.outputs = List.copyOf(outputs);
+				if (!requestProbabilities && outputs.size() > 1) {
+					logger.warn("Expect single-channel classification output, but output channels are {}", outputs);
+				}
 			}
 
 			@SuppressWarnings("unchecked")
@@ -3412,6 +3452,19 @@ public class ImageOps {
 					return PixelType.FLOAT32;
 				else
 					return model.getOutputType();
+			}
+
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				if (outputs.isEmpty()) {
+					if (requestProbabilities) {
+						logger.warn("Output channels are unknown, will return a single channel");
+						return List.of(DEFAULT_PROBABILITY_CHANNEL);
+					}
+					return List.of(DEFAULT_CLASSIFICATION_CHANNEL);
+				} else {
+					return outputs;
+				}
 			}
 
 		}
@@ -3442,7 +3495,8 @@ public class ImageOps {
 						if (op == null)
 							op = new PredictionModelOp(
 									OpenCVStatModels.wrapStatModel(model),
-									requestProbabilities);
+									requestProbabilities,
+									List.of());
 					}
 				}
 				return op;
@@ -3451,6 +3505,10 @@ public class ImageOps {
 			@Override
 			public PixelType getOutputType(PixelType inputType) {
 				return getPredictionOp().getOutputType(inputType);
+			}
+
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				return getPredictionOp().getChannels(channels);
 			}
 
 		}

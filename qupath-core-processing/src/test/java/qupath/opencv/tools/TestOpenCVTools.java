@@ -494,9 +494,6 @@ public class TestOpenCVTools {
 		assertArrayEquals(values, OpenCVTools.channelMaximum(mat), eps);
 		
 		// Standard deviations should be zero
-        System.err.println(mat);
-        System.err.println(mat.size());
-        System.err.println(mat.createIndexer());
 		assertArrayEquals(new double[mat.channels()], OpenCVTools.channelStdDev(mat), eps);
 	}
 
