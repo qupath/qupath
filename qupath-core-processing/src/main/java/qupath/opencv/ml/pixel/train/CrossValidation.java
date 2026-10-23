@@ -55,7 +55,7 @@ public class CrossValidation {
 						trainingData.stream().filter(d -> d != holdOutData).toList()
 				);
 				var trainedModel = trainer.train(model, otherImages);
-				try (var holdOutTest = TrainData.create(holdOutData.getSamples(), opencv_ml.ROW_SAMPLE, holdOutData.getTargets())) {
+				try (var holdOutTest = TrainingUtils.createTrainData(holdOutData.getSamples(), holdOutData.getTargets())) {
 					var confusion = evaluate(
 							holdOutData.getName(),
 							holdOutTest.getTrainSamples(),

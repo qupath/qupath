@@ -2,9 +2,7 @@ package qupath.opencv.ml.pixel.train;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_ml;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -40,11 +38,11 @@ public class PixelClassifierModelTrainer {
 
     public PixelClassifierModelTrainer(PixelCalibration resolution,
                                        ImageDataOp baseFeatureCalculator) {
-        this(resolution, 100_000, new FeatureNormalization(),
+        this(resolution, 100_000, null,
                 baseFeatureCalculator, false, 123);
     }
 
-    // TODO: Note that FeatureNormalization is mutable; ideally, this should only use immutable objects
+
     public PixelClassifierModelTrainer(PixelCalibration resolution,
                                        int actualMaxSamples,
                                        FeatureNormalization featureNormalization,
@@ -54,7 +52,8 @@ public class PixelClassifierModelTrainer {
         this.resolution = resolution;
         this.actualMaxSamples = actualMaxSamples;
         this.baseFeatureCalculator = baseFeatureCalculator;
-        this.featureNormalization = featureNormalization;
+        // FeatureNormalization is inconveniently mutable, so make a defensive copy
+        this.featureNormalization = featureNormalization == null ? null : FeatureNormalization.create(featureNormalization);
         this.reweightSamples = reweightSamples;
         this.rngSeed = rngSeed;
     }
@@ -65,7 +64,7 @@ public class PixelClassifierModelTrainer {
 
         var labels = trainingData.getLabelMap();
 
-        try (var trainData = TrainData.create(trainingData.getSamples(), opencv_ml.ROW_SAMPLE, trainingData.getTargets())) {
+        try (var trainData = TrainingUtils.createTrainData(trainingData.getSamples(), trainingData.getTargets())) {
             if (actualMaxSamples > 0 && trainData.getNTrainSamples() > actualMaxSamples)
                 trainData.setTrainTestSplit(actualMaxSamples, true);
             else

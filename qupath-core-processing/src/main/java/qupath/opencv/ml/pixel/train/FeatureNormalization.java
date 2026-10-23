@@ -34,7 +34,33 @@ public class FeatureNormalization {
      * Feature normalization method
      */
     private Normalization normalization = Normalization.NONE;
-    
+
+    /**
+     * Create a new feature normalization with default (do-nothing) values.
+     * @return the feature normalization
+     */
+    public static FeatureNormalization create() {
+        return new FeatureNormalization();
+    }
+
+    /**
+     * Create a new feature normalization that is initialized to have the same values as an existing normalization.
+     * @param existing the existing feature normalization
+     * @return a new feature normalization
+     */
+    public static FeatureNormalization create(FeatureNormalization existing) {
+        return new FeatureNormalization(existing);
+    }
+
+    private FeatureNormalization() {}
+
+    private FeatureNormalization(FeatureNormalization other) {
+        this.missingValue = other.missingValue;
+        this.normalization = other.normalization;
+        this.pcaNormalize = other.pcaNormalize;
+        this.pcaRetained = other.pcaRetained;
+    }
+
     /**
      * Feature normalization method. Applied before any dimensionality reduction.
      * @param normalization
@@ -110,8 +136,13 @@ public class FeatureNormalization {
     public boolean doPCANormalize() {
     	return pcaNormalize;
     }
-    
-    
+
+    /**
+     * Build a feature preprocessor based upon the requested normalization.
+     * @param matTraining feature vectors, stored as samples row-wise
+     * @param applyToTraining if true, apply the preprocessing to matTraining
+     * @return the preprocessor
+     */
     public FeaturePreprocessor build(Mat matTraining, boolean applyToTraining) {
     	return FeaturePreprocessor.builder()
     			.normalize(normalization)

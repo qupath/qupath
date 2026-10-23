@@ -1,11 +1,5 @@
 package qupath.opencv.ml.pixel.train;
 
-import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.indexer.IntIndexer;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
-import org.bytedeco.opencv.opencv_core.Scalar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.objects.classes.PathClass;
@@ -60,33 +54,6 @@ public class ClassifierTrainingData {
         return new ClassifierTrainingData(name, features, targets, pathClassesLabels);
     }
 
-    private static Mat featuresToMat(List<FeatureVector> features) {
-        if (features.isEmpty())
-            return new Mat(0);
-        int nSamples = features.size();
-        var nFeatures = features.getFirst().size();
-        var mat = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1, Scalar.ZERO);
-        try (FloatIndexer idx = mat.createIndexer()) {
-            for (int i = 0; i < nSamples; i++) {
-                var vector = features.get(i);
-                for (int j = 0; j < nFeatures; j++) {
-                    idx.put(i, j, vector.get(j));
-                }
-            }
-        }
-        return mat;
-    }
-
-    private static Mat targetsToMat(TargetVector targets) {
-        var mat = new Mat(targets.size(), 1, opencv_core.CV_32SC1, Scalar.ZERO);
-        try (IntIndexer indexer = mat.createIndexer()) {
-            for (int i = 0; i < targets.size(); i++) {
-                indexer.put(i, targets.get(i));
-            }
-        }
-        return mat;
-    }
-
     /**
      * Get an unmodifiable map of classifications to labels.
      * @return the labels
@@ -96,19 +63,19 @@ public class ClassifierTrainingData {
     }
 
     /**
-     * Get the training samples. Note that this returns a defensive copy, so should not be called unnecessarily.
+     * Get the training samples.
      * @return
      */
-    public Mat getSamples() {
-        return featuresToMat(features);
+    public List<FeatureVector> getSamples() {
+        return features;
     }
 
     /**
-     * Get the training targets. Note that this returns a defensive copy, so should not be called unnecessarily.
+     * Get the training targets.
      * @return
      */
-    public Mat getTargets() {
-        return targetsToMat(targets);
+    public TargetVector getTargets() {
+        return targets;
     }
 
     /**
@@ -168,16 +135,6 @@ public class ClassifierTrainingData {
                 newFeatures,
                 TargetVector.create(newTargets),
                 getLabelMap());
-    }
-
-    private static Mat extractRows(Mat mat, List<Integer> inds) {
-        var array = new Mat[inds.size()];
-        for (int i = 0; i < inds.size(); i++) {
-            array[i] = mat.row(inds.get(i));
-        }
-        var dest = new Mat();
-        opencv_core.vconcat(new MatVector(array), dest);
-        return dest;
     }
 
     /**

@@ -14,7 +14,7 @@ import qupath.opencv.ml.pixel.train.FeatureNormalization;
 
 class PixelClassifierAdvancedOptions {
 
-    private final FeatureNormalization normalization = new FeatureNormalization();
+    private final FeatureNormalization normalization = FeatureNormalization.create();
 
     private BoundaryStrategy boundaryStrategy = BoundaryStrategy.getSkipBoundaryStrategy();
     private boolean reweightSamples = false;
