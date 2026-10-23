@@ -26,6 +26,7 @@ import org.apache.commons.math3.util.FastMath;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -1160,7 +1161,7 @@ public class ImageOps {
 		 */
 		public static ImageOp rotatedGaussian(double width,
 											  double length, int nRotations, RotatedFilterProjection... projections) {
-			return new RotatedFilterFeatureOp(
+			return rotatedGaussian(
 					new GaussianDerivative(width, 0), new GaussianDerivative(length, 0), nRotations, projections);
 		}
 
@@ -1176,8 +1177,170 @@ public class ImageOps {
 		private static ImageOp rotatedGaussian(
 				GaussianDerivative width,
 				GaussianDerivative length, int nRotations, RotatedFilterProjection... projections) {
-			return new RotatedFilterFeatureOp(
+			return new RotatedGaussianFilterOp(
 					width, length, nRotations, projections);
+		}
+
+		/**
+		 * Compute a morphological opening of an image using 12 rotated line filters (1-pixel thick),
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */
+		public static ImageOp rotatedOpen(int lineLength, RotatedFilterProjection... projections) {
+			return rotatedOpen(lineLength, 1, 12, projections);
+		}
+
+		/**
+		 * Compute a morphological opening of an image using rotated line filters,
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param lineThickness thickness of the line filter (must be an odd number)
+		 * @param nRotations number of rotations (typically 12)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */
+		public static ImageOp rotatedOpen(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+			return new RotatedOpenOp(lineLength, lineThickness, nRotations, checkRotatedMorphOpProjections(projections));
+		}
+
+		/**
+		 * Compute a morphological closing of an image using 12 rotated line filters (1-pixel thick),
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */
+		public static ImageOp rotatedClose(int lineLength, RotatedFilterProjection... projections) {
+			return rotatedClose(lineLength, 1, 12, projections);
+		}
+
+		/**
+		 * Compute a morphological closing of an image using rotated line filters,
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param lineThickness thickness of the line filter (must be an odd number)
+		 * @param nRotations number of rotations (typically 12)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */
+		public static ImageOp rotatedClose(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+			return new RotatedCloseOp(lineLength, lineThickness, nRotations, checkRotatedMorphOpProjections(projections));
+		}
+
+		/**
+		 * Compute a morphological dilation of an image using 12 rotated line filters (1-pixel thick),
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */
+		public static ImageOp rotatedDilate(int lineLength, RotatedFilterProjection... projections) {
+			return rotatedDilate(lineLength, 1, 12, projections);
+		}
+
+		/**
+		 * Compute a morphological dilation of an image using rotated line filters,
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param lineThickness thickness of the line filter (must be an odd number)
+		 * @param nRotations number of rotations (typically 12)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */		public static ImageOp rotatedDilate(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+			return new RotatedDilateeOp(lineLength, lineThickness, nRotations, checkRotatedMorphOpProjections(projections));
+		}
+
+		/**
+		 * Compute a morphological erosion of an image using 12 rotated line filters (1-pixel thick),
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */
+		public static ImageOp rotatedErode(int lineLength, RotatedFilterProjection... projections) {
+			return rotatedErode(lineLength, 1, 12, projections);
+		}
+
+		/**
+		 * Compute a morphological erosion of an image using rotated line filters,
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param lineThickness thickness of the line filter (must be an odd number)
+		 * @param nRotations number of rotations (typically 12)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */
+		public static ImageOp rotatedErode(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+			return new RotatedErodeOp(lineLength, lineThickness, nRotations, checkRotatedMorphOpProjections(projections));
+		}
+
+		/**
+		 * Compute a morphological tophat filtering of an image using 12 rotated line filters (1-pixel thick),
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */
+		public static ImageOp rotatedTopHat(int lineLength, RotatedFilterProjection... projections) {
+			return rotatedTopHat(lineLength, 1, 12, projections);
+		}
+
+		/**
+		 * Compute a morphological tophat filtering of an image using rotated line filters,
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param lineThickness thickness of the line filter (must be an odd number)
+		 * @param nRotations number of rotations (typically 12)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */
+		public static ImageOp rotatedTopHat(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+			return new RotatedTopHatOp(lineLength, lineThickness, nRotations, checkRotatedMorphOpProjections(projections));
+		}
+
+		/**
+		 * Compute a morphological blackhat filtering of an image using 12 rotated line filters (1-pixel thick),
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */
+		public static ImageOp rotatedBlackHat(int lineLength, RotatedFilterProjection... projections) {
+			return rotatedBlackHat(lineLength, 1, 12, projections);
+		}
+
+		/**
+		 * Compute a morphological blackhat filtering of an image using rotated line filters,
+		 * projecting the results to create output images.
+		 * @param lineLength length of the line filter (must be an odd number)
+		 * @param lineThickness thickness of the line filter (must be an odd number)
+		 * @param nRotations number of rotations (typically 12)
+		 * @param projections optional array of projections.
+		 * 					  If not specified, minimum and maximum projections will be used.
+		 * @return the op
+		 */		public static ImageOp rotatedBlackHat(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+			return new RotatedBlackHatOp(lineLength, lineThickness, nRotations, checkRotatedMorphOpProjections(projections));
+		}
+
+		private static RotatedFilterProjection[] checkRotatedMorphOpProjections(RotatedFilterProjection... projections) {
+			if (projections.length == 0) {
+				return new RotatedFilterProjection[] {RotatedFilterProjection.MIN, RotatedFilterProjection.MAX};
+			} else {
+				return projections;
+			}
 		}
 		
 		/**
@@ -1351,21 +1514,15 @@ public class ImageOps {
 		}
 
 		@OpType("rotated-gaussian")
-		static class RotatedFilterFeatureOp extends PaddedOp {
+		static class RotatedGaussianFilterOp extends AbstractRotatedFilterOp {
 
 			private GaussianDerivative filterWidth;
 			private GaussianDerivative filterLength;
-			private int nRotations;
-			private List<RotatedFilterProjection> projections;
-			private transient List<Mat> kernels;
 
-			RotatedFilterFeatureOp(GaussianDerivative filterWidth, GaussianDerivative filterLength, int nRotations, RotatedFilterProjection... projections) {
+			RotatedGaussianFilterOp(GaussianDerivative filterWidth, GaussianDerivative filterLength, int nRotations, RotatedFilterProjection... projections) {
+				super(nRotations, projections);
 				this.filterWidth = validateFilter(filterWidth);
 				this.filterLength = validateFilter(filterLength);
-				if (nRotations < 1)
-					throw new IllegalArgumentException("nRotations must be > 1");
-				this.nRotations = nRotations;
-				this.projections = projections.length == 0 ? List.of(RotatedFilterProjection.values()) : List.of(projections);
 			}
 
 			private static GaussianDerivative validateFilter(GaussianDerivative filter) {
@@ -1379,6 +1536,213 @@ public class ImageOps {
 			}
 
 			@Override
+			protected void applyFilter(Mat input, Mat kernel, Mat dest) {
+				opencv_imgproc.filter2D(input, dest, getOutputType(input), kernel);
+			}
+
+			@Override
+			protected Mat createFirstKernel() {
+				double maxSigma = getMaxSigma();
+				int size = (int)Math.ceil(maxSigma * 4) * 2 + 1;
+				var mat = new Mat(size, size, opencv_core.CV_64FC1, Scalar.ZERO);
+				try (DoubleIndexer idx = mat.createIndexer()) {
+					// Use -1 to get positive values for 'bright' ridges, negative values for 'dark' ridges
+					idx.put(size/2, size/2, -1.0);
+					try (var kx = OpenCVTools.getGaussianDerivKernel(filterWidth.sigma(), filterWidth.order(), false)) {
+						try (var ky = OpenCVTools.getGaussianDerivKernel(filterLength.sigma(), filterLength.order(), true)) {
+							opencv_imgproc.sepFilter2D(mat, mat, mat.depth(), kx, ky);
+						}
+					}
+				}
+				return mat;
+			}
+
+			private double getMaxSigma() {
+				return Math.max(filterWidth.sigma(), filterLength.sigma());
+			}
+
+			@Override
+			protected String updateChannelName(String inputName, RotatedFilterProjection projection) {
+				String name = "%s (%s %d rotations, sigma=[%.2f,%.2f], order=[%d,%d]";
+				return String.format(name, inputName, projection.toString().toLowerCase(),
+						nRotations(), filterWidth.sigma(), filterLength.sigma(), filterWidth.order(), filterLength.order());
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				double sigmaMax = getMaxSigma();
+				return getDefaultGaussianPadding(sigmaMax, sigmaMax);
+			}
+
+		}
+
+		static abstract class RotatedLineMorphOp extends AbstractRotatedFilterOp {
+
+			private int lineLength;
+			private int lineThickness;
+
+			RotatedLineMorphOp(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+				super(nRotations, projections);
+				if (lineThickness % 2 != 1) {
+					throw new IllegalArgumentException("Line thickness must be an odd number");
+				}
+				if (lineLength % 2 != 1) {
+					throw new IllegalArgumentException("Line length must be an odd number");
+				}
+				this.lineLength = lineLength;
+				this.lineThickness = lineThickness;
+			}
+
+
+			@Override
+			protected void applyFilter(Mat input, Mat kernel, Mat dest) {
+				opencv_imgproc.morphologyEx(input, dest, getMorphOp(), kernel);
+			}
+
+			protected abstract int getMorphOp();
+
+			protected Mat createFirstKernel() {
+				int size = getMaxFilterDim();
+				var mat = new Mat(size, size, opencv_core.CV_8UC1, Scalar.ZERO);
+				int firstColumn = (size - lineThickness) / 2;
+				try (UByteIndexer idx = mat.createIndexer()) {
+					for (int row = 0; row < size; row++) {
+						for (int col = firstColumn; col < firstColumn+lineThickness; col++) {
+							idx.put(row, col, 1);
+						}
+					}
+				}
+				return mat;
+			}
+
+			protected String updateChannelName(String inputName, RotatedFilterProjection projection) {
+				String name = "%s (%s %s %d rotations, length=%d, thickness=%d";
+				return String.format(name, inputName, getOpName(), projection.toString().toLowerCase(),
+						nRotations(), lineLength, lineThickness);
+			}
+
+			protected String getOpName() {
+				return switch(getMorphOp()) {
+					case opencv_imgproc.MORPH_BLACKHAT -> "Blackhat";
+					case opencv_imgproc.MORPH_CLOSE -> "Close";
+					case opencv_imgproc.MORPH_OPEN -> "Open";
+					case opencv_imgproc.MORPH_DILATE -> "Dilate";
+					case opencv_imgproc.MORPH_ERODE -> "Erode";
+					case opencv_imgproc.MORPH_TOPHAT ->  "Tophat";
+					default -> "Op=" + getMorphOp();
+				};
+			}
+
+			private int getMaxFilterDim() {
+				return Math.max(lineLength, lineThickness);
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(getMaxFilterDim() / 2 + 1);
+			}
+
+		}
+
+		@OpType("rotated-morph-open")
+		static class RotatedOpenOp extends RotatedLineMorphOp {
+
+			RotatedOpenOp(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+				super(lineLength, lineThickness, nRotations, projections);
+			}
+
+			@Override
+			protected int getMorphOp() {
+				return opencv_imgproc.MORPH_OPEN;
+			}
+
+		}
+
+		@OpType("rotated-morph-close")
+		static class RotatedCloseOp extends RotatedLineMorphOp {
+
+			RotatedCloseOp(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+				super(lineLength, lineThickness, nRotations, projections);
+			}
+
+			@Override
+			protected int getMorphOp() {
+				return opencv_imgproc.MORPH_CLOSE;
+			}
+
+		}
+
+		@OpType("rotated-morph-dilate")
+		static class RotatedDilateeOp extends RotatedLineMorphOp {
+
+			RotatedDilateeOp(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+				super(lineLength, lineThickness, nRotations, projections);
+			}
+
+			@Override
+			protected int getMorphOp() {
+				return opencv_imgproc.MORPH_DILATE;
+			}
+
+		}
+
+		@OpType("rotated-morph-erode")
+		static class RotatedErodeOp extends RotatedLineMorphOp {
+
+			RotatedErodeOp(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+				super(lineLength, lineThickness, nRotations, projections);
+			}
+
+			@Override
+			protected int getMorphOp() {
+				return opencv_imgproc.MORPH_ERODE;
+			}
+
+		}
+
+		@OpType("rotated-morph-tophat")
+		static class RotatedTopHatOp extends RotatedLineMorphOp {
+
+			RotatedTopHatOp(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+				super(lineLength, lineThickness, nRotations, projections);
+			}
+
+			@Override
+			protected int getMorphOp() {
+				return opencv_imgproc.MORPH_TOPHAT;
+			}
+
+		}
+
+		@OpType("rotated-morph-blackhat")
+		static class RotatedBlackHatOp extends RotatedLineMorphOp {
+
+			RotatedBlackHatOp(int lineLength, int lineThickness, int nRotations, RotatedFilterProjection... projections) {
+				super(lineLength, lineThickness, nRotations, projections);
+			}
+
+			@Override
+			protected int getMorphOp() {
+				return opencv_imgproc.MORPH_BLACKHAT;
+			}
+
+		}
+
+
+		static abstract class AbstractRotatedFilterOp extends PaddedOp {
+
+			private int nRotations;
+			private List<RotatedFilterProjection> projections;
+			private transient List<Mat> kernels;
+
+			AbstractRotatedFilterOp(int nRotations, RotatedFilterProjection... projections) {
+				if (nRotations < 1)
+					throw new IllegalArgumentException("nRotations must be > 1");
+				this.nRotations = nRotations;
+				this.projections = projections.length == 0 ? List.of(RotatedFilterProjection.values()) : List.of(projections);
+			}
+
+			@Override
 			public List<Mat> transformPadded(Mat input) {
 				var kernels = getKernels();
 				var output = new ArrayList<Mat>();
@@ -1388,10 +1752,13 @@ public class ImageOps {
 				return List.copyOf(output);
 			}
 
-			private List<Mat> transformSingleChannel(Mat input, List<Mat> kernels) {
-				var outputType = input.depth() == opencv_core.CV_64F ? input.type() : opencv_core.CV_32FC(OpenCVTools.typeToChannels(input.type()));
+			protected int nRotations() {
+				return nRotations;
+			}
 
+			private List<Mat> transformSingleChannel(Mat input, List<Mat> kernels) {
 				// Preallocate output
+				int outputType = getOutputType(input);
 				List<Mat> output = new ArrayList<>(projections.size());
 				for (var proj : projections) {
 					Scalar fill = switch(proj) {
@@ -1407,7 +1774,7 @@ public class ImageOps {
 
 				try (var temp = new Mat()) {
 					for (var k : kernels) {
-						opencv_imgproc.filter2D(input, temp, outputType, k);
+						applyFilter(input, k, temp);
 						int ind = 0;
 						for (var proj : projections) {
 							Mat tempOutput = output.get(ind);
@@ -1419,7 +1786,7 @@ public class ImageOps {
 									opencv_core.max(tempOutput, temp, tempOutput);
 								}
 								case MAX_ABS -> {
-									OpenCVTools.apply(tempOutput, temp, tempOutput, RotatedFilterFeatureOp::absMax);
+									OpenCVTools.apply(tempOutput, temp, tempOutput, AbstractRotatedFilterOp::absMax);
 								}
 							}
 							ind++;
@@ -1428,6 +1795,12 @@ public class ImageOps {
 				}
 				return output;
 			}
+
+			protected int getOutputType(Mat input) {
+				return input.depth() == opencv_core.CV_64F ? input.type() : opencv_core.CV_32FC(OpenCVTools.typeToChannels(input.type()));
+			}
+
+			protected abstract void applyFilter(Mat input, Mat kernel, Mat dest);
 
 			private static double absMax(double a, double b) {
 				if (Math.abs(b) > Math.abs(a))
@@ -1476,31 +1849,18 @@ public class ImageOps {
 				return kernels;
 			}
 
-			private double getMaxSigma() {
-				return Math.max(filterWidth.sigma(), filterLength.sigma());
-			}
-
-			private Mat createFirstKernel() {
-				double maxSigma = getMaxSigma();
-				int size = (int)Math.ceil(maxSigma * 4) * 2 + 1;
-				var mat = new Mat(size, size, opencv_core.CV_64FC1, Scalar.ZERO);
-				try (DoubleIndexer idx = mat.createIndexer()) {
-					// Use -1 to get positive values for 'bright' ridges, negative values for 'dark' ridges
-					idx.put(size/2, size/2, -1.0);
-					try (var kx = OpenCVTools.getGaussianDerivKernel(filterWidth.sigma(), filterWidth.order(), false)) {
-						try (var ky = OpenCVTools.getGaussianDerivKernel(filterLength.sigma(), filterLength.order(), true)) {
-							opencv_imgproc.sepFilter2D(mat, mat, mat.depth(), kx, ky);
-						}
-					}
-				}
-				return mat;
-			}
+			/**
+			 * Create the first kernel. This should be square. It will be rotated.
+			 * @return
+			 */
+			protected abstract Mat createFirstKernel();
 
 			@Override
 			public PixelType getOutputType(PixelType pixelType) {
 				return pixelType.isFloatingPoint() ? pixelType : PixelType.FLOAT32;
 			}
 
+			@Override
 			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
 				List<ImageChannel> output = new ArrayList<>();
 				for (var proj : projections) {
@@ -1513,17 +1873,7 @@ public class ImageOps {
 				return output;
 			}
 
-			protected String updateChannelName(String inputName, RotatedFilterProjection projection) {
-				String name = "%s (%s %d rotations, sigma=[%.2f,%.2f], order=[%d,%d]";
-				return String.format(name, inputName, projection.toString().toLowerCase(),
-						nRotations, filterWidth.sigma(), filterLength.sigma(), filterWidth.order(), filterLength.order());
-			}
-
-			@Override
-			protected Padding calculatePadding() {
-				double sigmaMax = getMaxSigma();
-				return getDefaultGaussianPadding(sigmaMax, sigmaMax);
-			}
+			protected abstract String updateChannelName(String inputName, RotatedFilterProjection projection);
 
 		}
 		
