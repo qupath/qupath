@@ -14,7 +14,9 @@ import qupath.opencv.ops.ImageOps;
 
 import java.nio.IntBuffer;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Trainer for an {@link TrainableModel} to use with a {@link PixelClassifier}.
@@ -30,31 +32,25 @@ public class PixelClassifierModelTrainer {
     private static final Logger logger = LoggerFactory.getLogger(PixelClassifierModelTrainer.class);
 
     private final PixelCalibration resolution;
-    private final int actualMaxSamples;
+    private final int maxSamples;
     private final FeatureNormalization featureNormalization;
     private final ImageDataOp baseFeatureCalculator;
-    private final boolean reweightSamples;
+    private final SampleWeightCalculator sampleWeightCalculator;
     private final int rngSeed;
 
-    public PixelClassifierModelTrainer(PixelCalibration resolution,
-                                       ImageDataOp baseFeatureCalculator) {
-        this(resolution, 100_000, null,
-                baseFeatureCalculator, false, 123);
-    }
 
-
-    public PixelClassifierModelTrainer(PixelCalibration resolution,
-                                       int actualMaxSamples,
-                                       FeatureNormalization featureNormalization,
+    private PixelClassifierModelTrainer(PixelCalibration resolution,
                                        ImageDataOp baseFeatureCalculator,
-                                       boolean reweightSamples,
+                                        int maxSamples,
+                                       FeatureNormalization featureNormalization,
+                                       SampleWeightCalculator sampleWeightCalculator,
                                        int rngSeed) {
         this.resolution = resolution;
-        this.actualMaxSamples = actualMaxSamples;
+        this.maxSamples = maxSamples;
         this.baseFeatureCalculator = baseFeatureCalculator;
         // FeatureNormalization is inconveniently mutable, so make a defensive copy
         this.featureNormalization = featureNormalization == null ? null : FeatureNormalization.create(featureNormalization);
-        this.reweightSamples = reweightSamples;
+        this.sampleWeightCalculator = sampleWeightCalculator;
         this.rngSeed = rngSeed;
     }
 
@@ -63,10 +59,13 @@ public class PixelClassifierModelTrainer {
         opencv_core.setRNGSeed(rngSeed);
 
         var labels = trainingData.getLabelMap();
+        var samples = trainingData.getSamples();
+        var targets = trainingData.getTargets();
+        var weights = createWeights(samples, targets);
 
         try (var trainData = TrainingUtils.createTrainData(trainingData.getSamples(), trainingData.getTargets())) {
-            if (actualMaxSamples > 0 && trainData.getNTrainSamples() > actualMaxSamples)
-                trainData.setTrainTestSplit(actualMaxSamples, true);
+            if (maxSamples > 0 && trainData.getNTrainSamples() > maxSamples)
+                trainData.setTrainTestSplit(maxSamples, true);
             else
                 trainData.shuffleTrainTest();
 
@@ -81,19 +80,18 @@ public class PixelClassifierModelTrainer {
                 featureCalculator = baseFeatureCalculator;
             }
 
-            // Using getTrainNormCatResponses() causes confusion if classes are not represented
-            var targets = trainData.getTrainResponses();
-            var countsIndexedByLabels = createCountsIndexedByLabels(targets, labels);
-            Mat weights = reweightSamples ? createWeights(targets, countsIndexedByLabels) : null;
-
             // Create TrainData in an appropriate format (e.g. labels or one-hot encoding)
             var trainSamples = trainData.getTrainSamples();
+            var trainTargets = trainData.getTrainResponses();
             if (usePreprocessor)
                 preprocessor.apply(trainSamples, false);
 
+            // Using getTrainNormCatResponses() causes confusion if classes are not represented
+            var countsIndexedByLabels = createCountsIndexedByLabels(trainData.getTrainResponses(), labels);
+
             Duration trainingTime;
             int nLabels = labels.values().stream().mapToInt(Integer::intValue).max().orElse(0);
-            try (var modelTrainData = model.createTrainData(trainSamples, targets, nLabels, weights, false)) {
+            try (var modelTrainData = model.createTrainData(trainSamples, trainTargets, nLabels, weights, false)) {
                 //		 logger.info("Training data: {} x {}, Target data: {} x {}", trainSamples.rows(), trainSamples.cols(), trainResponses.rows(), trainResponses.cols());
                 long startTime = System.nanoTime();
                 model.train(modelTrainData);
@@ -111,6 +109,13 @@ public class PixelClassifierModelTrainer {
                 );
             }
         }
+    }
+
+    private Mat createWeights(List<FeatureVector> features, TargetVector targets) {
+        if (sampleWeightCalculator == null)
+            return null;
+        float[] weights = sampleWeightCalculator.calculateWeights(features, targets);
+        return new Mat(weights);
     }
 
     private static int[] createCountsIndexedByLabels(Mat targets, Map<PathClass, Integer> labels) {
@@ -139,6 +144,68 @@ public class PixelClassifierModelTrainer {
             }
         }
         return weights;
+    }
+
+    /**
+     * Create a new builder for this model trainer.
+     * @param baseFeatureCalculator main feature calculator, applied before any feature preprocessing
+     * @return a builder
+     */
+    public static Builder builder(ImageDataOp baseFeatureCalculator) {
+        return new Builder(baseFeatureCalculator);
+    }
+
+
+    public static class Builder {
+
+        private PixelCalibration resolution;
+        private int maxSamples = 100_000;
+        private FeatureNormalization featureNormalization;
+        private ImageDataOp baseFeatureCalculator;
+        private SampleWeightCalculator sampleWeightCalculator;
+        private int rngSeed;
+
+        private Builder(ImageDataOp baseFeatureCalculator) {
+            Objects.requireNonNull(baseFeatureCalculator, "Base feature calculator cannot be null.");
+            this.baseFeatureCalculator = baseFeatureCalculator;
+        }
+
+        public Builder resolution(PixelCalibration resolution) {
+            this.resolution = resolution;
+            return this;
+        }
+
+        public Builder maxSamples(int maxSamples) {
+            this.maxSamples = maxSamples;
+            return this;
+        }
+
+        public Builder featureNormalization(FeatureNormalization featureNormalization) {
+            this.featureNormalization = featureNormalization;
+            return this;
+        }
+
+        public Builder weightCalculator(SampleWeightCalculator sampleWeightCalculator) {
+            this.sampleWeightCalculator = sampleWeightCalculator;
+            return this;
+        }
+
+        public Builder rngSeed(int rngSeed) {
+            this.rngSeed = rngSeed;
+            return this;
+        }
+
+        public PixelClassifierModelTrainer build() {
+            return new PixelClassifierModelTrainer(
+                    resolution,
+                    baseFeatureCalculator,
+                    maxSamples,
+                    featureNormalization,
+                    sampleWeightCalculator,
+                    rngSeed
+            );
+        }
+
     }
 
 }

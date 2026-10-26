@@ -90,6 +90,7 @@ import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.pixel.train.ClassifierTrainingData;
 import qupath.opencv.ml.pixel.train.PixelClassifierModelTrainer;
 import qupath.opencv.ml.pixel.train.PixelClassifierTraining;
+import qupath.opencv.ml.pixel.train.SampleWeights;
 import qupath.process.gui.commands.ml.op.MultiscaleImageDataOpBuilder;
 import qupath.process.gui.commands.ml.op.ImageDataOpBuilder;
 import qupath.process.gui.commands.ml.tasks.CrossValidationTask;
@@ -849,13 +850,13 @@ public class PixelClassifierPane {
 	}
 
 	private static PixelClassifierModelTrainer createModelTrainer(PixelClassifierTraining helper, PixelClassifierAdvancedOptions advancedOptions) {
-		return new PixelClassifierModelTrainer(
-				helper.getResolution(),
-				advancedOptions.getMaxSamples(),
-				advancedOptions.getNormalization(),
-				helper.getFeatureOp(),
-				advancedOptions.getReweightSamples(),
-				advancedOptions.getRngSeed());
+		return PixelClassifierModelTrainer.builder(helper.getFeatureOp())
+						.resolution(helper.getResolution())
+								.maxSamples(advancedOptions.getMaxSamples())
+										.featureNormalization(advancedOptions.getNormalization())
+												.weightCalculator(advancedOptions.getReweightSamples() ? SampleWeights.balancedLabels() : null)
+														.rngSeed(advancedOptions.getRngSeed())
+															.build();
 	}
 
 	private void calculateVariableImportance() {

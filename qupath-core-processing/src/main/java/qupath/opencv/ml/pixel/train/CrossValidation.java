@@ -97,7 +97,7 @@ public class CrossValidation {
 		IntBuffer bufferClassList = classLabels.createBuffer();
 
 		// This assumes that our labels are dense and start with 0... rather than being
-		// all other the place, and potentially negative
+		// all over the place, and potentially negative
 		int n = labels.values().stream().mapToInt(Integer::intValue).max().orElse(0) + 1;
 		PathClass[] pathClasses = new PathClass[n];
 		for (var entry : labels.entrySet()) {
