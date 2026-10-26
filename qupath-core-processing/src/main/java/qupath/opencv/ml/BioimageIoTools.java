@@ -30,6 +30,7 @@ import qupath.bioimageio.spec.tensor.OutputTensor;
 import qupath.bioimageio.spec.tensor.Processing;
 import qupath.bioimageio.spec.tensor.Shape;
 import qupath.bioimageio.spec.tensor.axes.ChannelAxis;
+import qupath.bioimageio.spec.tensor.axes.WithHalo;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelType;
@@ -252,6 +253,15 @@ public class BioimageIoTools {
 		// TODO: Consider halo for input?!
 		Padding padding = Padding.empty();
 		var halo = output.getHalo();
+		if (halo == null) {
+			halo = Arrays.stream(output.getAxes()).mapToInt(ax -> {
+				if (ax instanceof WithHalo axWithHalo) {
+					return axWithHalo.getHalo();
+				} else {
+					return 0;
+				}
+			}).toArray();
+		}
 		if (halo != null && halo.length != 0) {
 			padding = Padding.getPadding(halo[indX], halo[indY]);
 		}
