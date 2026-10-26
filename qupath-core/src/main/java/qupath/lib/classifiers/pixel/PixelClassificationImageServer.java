@@ -56,22 +56,23 @@ import java.util.stream.Collectors;
  */
 public class PixelClassificationImageServer extends AbstractTileableImageServer {
 	
-	private static Logger logger = LoggerFactory.getLogger(PixelClassificationImageServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(PixelClassificationImageServer.class);
 	
-	private static int DEFAULT_TILE_SIZE = 512;
-	
-	private ImageData<BufferedImage> imageData;
-	private ImageServer<BufferedImage> server;
-	
-	private String customID;
-	
-	private PixelClassifier classifier;
-	private ColorModel colorModel;
-	
-	private ImageServerMetadata originalMetadata;
-	
-	private static Map<String, String> idCache = new HashMap<>();
-	
+	private static final int DEFAULT_TILE_SIZE = 512;
+
+	private static final Map<String, String> idCache = new HashMap<>();
+
+	private final ImageData<BufferedImage> imageData;
+	private final ImageServer<BufferedImage> server;
+
+	private final String customID;
+
+	private final PixelClassifier classifier;
+	private final ColorModel colorModel;
+
+	private final ImageServerMetadata originalMetadata;
+
+
 	/**
 	 *  Some classifiers cache all their tiles.
 	 *  This is useful for classifiers that depend upon {@link ImageData} that may change.
@@ -148,7 +149,6 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 						.addLevelByDownsample(downsample)
 						.build();
 		
-//		int pad = classifierMetadata.strictInputSize() ? classifierMetadata.getInputPadding() : 0;
 		int pad = classifierMetadata.getInputPadding();
 		
 		var builder = new ImageServerMetadata.Builder(server.getMetadata())
@@ -163,20 +163,15 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		
 		if (classifierMetadata.getOutputType() != ChannelType.CLASSIFICATION)
 			builder.channels(classifierMetadata.getOutputChannels());
-		
-//		if (classifierMetadata.getOutputType() == ChannelType.PROBABILITY)
-//			.channels(classifierMetadata.getOutputChannels())
 
-		
 		originalMetadata = builder.build();
-		
-		
+
 	}
 	
 	/**
 	 * Read all the tiles.
 	 * This is useful for a classifier that can be applied in full to an image without causing memory issues 
-	 * (e.g. a density map), particularly if it is is dependent upon a changing property of the image 
+	 * (e.g. a density map), particularly if it is dependent upon a changing property of the image
 	 * (e.g. its object hierarchy).
 	 * After calling this method, tiles will be returned from an internal cache rather than being computed anew.
 	 */
@@ -188,8 +183,8 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 					.getAllTileRequests()
 					.parallelStream()
 					.filter(t -> !isEmptyRegion(t.getRegionRequest()))
-					.collect(Collectors.toMap(t -> t, t -> tryToReadTile(t)));
-		
+					.collect(Collectors.toMap(t -> t, this::tryToReadTile));
+
 		var iter = tempTileMap.entrySet().iterator();
 		while (iter.hasNext()) {
 			var next = iter.next();
@@ -205,7 +200,6 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			return readTile(tile);
 		} catch (IOException e) {
 			logger.warn("Unable to read tile: " + e.getLocalizedMessage(), e);
-//			logger.debug("Unable to read tile: " + e.getLocalizedMessage(), e);
 			return null;
 		}
 	}
@@ -330,6 +324,5 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return null;
 	}
-	
 
 }
