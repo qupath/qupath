@@ -1,6 +1,5 @@
 package qupath.opencv.ml.pixel.train;
 
-import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.slf4j.Logger;
@@ -69,6 +68,8 @@ public class PixelClassifierModelTrainer {
             else
                 trainData.shuffleTrainTest();
 
+
+
             // Apply feature preprocessing, if we need to
             var preprocessor = featureNormalization == null ? null : featureNormalization.build(trainData.getTrainSamples(), false);
             ImageDataOp featureCalculator;
@@ -128,23 +129,6 @@ public class PixelClassifierModelTrainer {
         return countsIndexedByLabels;
     }
 
-    private static Mat createWeights(Mat targets, int[] countsIndexedByLabels) {
-        int n = (int) targets.total();
-        IntBuffer buffer = targets.createBuffer();
-        Mat weights = new Mat(n, 1, opencv_core.CV_32FC1);
-        try (FloatIndexer bufferWeights = weights.createIndexer()) {
-            float[] weightArray = new float[countsIndexedByLabels.length];
-            for (int i = 0; i < weightArray.length; i++) {
-                int c = countsIndexedByLabels[i];
-                weightArray[i] = c == 0 ? 1 : (float) n / c;
-            }
-            for (int i = 0; i < n; i++) {
-                int label = buffer.get(i);
-                bufferWeights.put(i, weightArray[label]);
-            }
-        }
-        return weights;
-    }
 
     /**
      * Create a new builder for this model trainer.
