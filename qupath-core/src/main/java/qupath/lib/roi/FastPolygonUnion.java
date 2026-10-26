@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2024-2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -210,7 +210,7 @@ public class FastPolygonUnion {
      */
     private static class AdjacencyMatrix {
 
-        private List<BitSet> bits = new ArrayList<>();
+        private final List<BitSet> bits = new ArrayList<>();
 
         private AdjacencyMatrix(int n) {
             for (int i = 0; i < n; i++) {
@@ -228,8 +228,10 @@ public class FastPolygonUnion {
         public boolean setAdjacent(int i, int j) {
             if (bits.get(i).get(j))
                 return false;
-            bits.get(i).set(j);
-            bits.get(j).set(i);
+            synchronized (this) {
+                bits.get(i).set(j);
+                bits.get(j).set(i);
+            }
             return true;
         }
 
