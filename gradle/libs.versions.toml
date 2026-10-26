@@ -6,15 +6,15 @@ omeZarrReader   = "0.6.0"
 blosc           = "1.21.6+01"
 
 caffeine        = "3.2.4"
-commonmark      = "0.30.1"
+commonmark      = "0.31.0"
 commonsMath3    = "3.6.1"
 commonsText     = "1.14.0"
 controlsFX      = "11.2.5"
 
-deepJavaLibrary = "0.38.0"
+deepJavaLibrary = "0.39.0"
 
 groovy          = "6.0.0"
-gson            = "2.14.0"
+gson            = "2.15.0"
 guava           = "33.7.2-jre"
 
 ikonli          = "12.4.0"
@@ -29,7 +29,7 @@ javacpp         = "1.5.10"
 opencv          = "4.14.0-1.5.14"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
-javafx          = "27"
+javafx          = "27.0.1"
 jna             = "5.16.0"
 jfreeSvg        = "5.0.6"
 jfxtras         = "17-r1"
@@ -50,7 +50,7 @@ picocli         = "4.7.7"
 qupath-fxtras   = "0.4.1"
 qupath-training = "0.1.1"
 qupath-djl      = "0.4.3"
-qupath-imglib2  = "0.1.2"
+qupath-imglib2  = "0.2.0-SNAPSHOT"
 
 richtextfx      = "0.11.7"
 
