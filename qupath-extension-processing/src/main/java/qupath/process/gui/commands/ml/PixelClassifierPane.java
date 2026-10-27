@@ -865,21 +865,24 @@ public class PixelClassifierPane {
 			logger.warn("Can't compute variable importance without an image open");
 			return;
 		}
-		try (var model = OpenCVStatModels.Models.R_TREES.createTrainableModel()) {
-			List<ClassifierTrainingData> allTrainingData = helper.createTrainingData(trainingImages);
-			if (allTrainingData.isEmpty()) {
-				logger.warn("Can't compute variable importance without training data!");
-				return;
+		var model = OpenCVStatModels.Models.R_TREES.createTrainableModel();
+		var task = new TrainModelTask(
+				model,
+				trainingImages,
+				helper,
+				createModelTrainer(helper, advancedOptions)
+		);
+		runWithProgress(pool, task, e -> {
+			try {
+				var trainedModel = task.get();
+				featureDetailsPane.update(
+						trainedModel.model(),
+						trainedModel.getFeatureNames(trainingImages.iterator().next()));
+				trainedModel.model().close(); // Need to close after we've got the features
+			} catch (Exception e1) {
+				logger.error("Error calculating feature importance: {}", e1.getMessage(), e1);
 			}
-			var trainer = createModelTrainer(helper, advancedOptions);
-			try (var scope = new PointerScope()) {
-				ClassifierTrainingData otherImages = ClassifierTrainingData.merge(allTrainingData);
-				var trainedModel = trainer.train(model, otherImages);
-				featureDetailsPane.update(model, trainedModel.getFeatureNames(trainingImages.iterator().next()));
-			}
-		} catch (Exception e) {
-			logger.error("Error calculating variable importance: {}", e.getMessage(), e);
-		}
+		}, false);
 	}
 
 
