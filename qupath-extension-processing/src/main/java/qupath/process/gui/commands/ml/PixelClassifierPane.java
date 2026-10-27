@@ -937,9 +937,18 @@ public class PixelClassifierPane {
 			Dialogs.showErrorMessage("Edit parameters", "No classifier selected!");
 			return;
 		}
-		GuiTools.showParameterDialog("Edit parameters", model.getParameterList());
-		updateClassifier();
+		// We need to duplicate the parameters to avoid storing changes if the user cancels the dialog
+		var modelParams = model.getParameterList();
+		var duplicateParams = modelParams.duplicate();
+		if (GuiTools.showParameterDialog("Edit parameters", duplicateParams)) {
+			if (modelParams.update(duplicateParams)) {
+				updateClassifier();
+			} else {
+				logger.debug("No parameters updated");
+			}
+		}
 	}
+
 
 
     private void promptToAddResolution() {
