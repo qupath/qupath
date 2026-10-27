@@ -1,6 +1,5 @@
 package qupath.process.gui.commands.ml.tasks;
 
-import javafx.concurrent.Task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.ImageData;
@@ -19,7 +18,7 @@ import java.util.Random;
 /**
  * Task to compute confusion matrices by training models with cross validation.
  */
-public class CrossValidationTask extends Task<List<ConfusionMatrix<PathClass>>> {
+public class CrossValidationTask extends MonitoredTask<List<ConfusionMatrix<PathClass>>> {
 
     private static final Logger logger = LoggerFactory.getLogger(CrossValidationTask.class);
 
@@ -45,20 +44,21 @@ public class CrossValidationTask extends Task<List<ConfusionMatrix<PathClass>>> 
     protected List<ConfusionMatrix<PathClass>> call() throws Exception {
         if (isCancelled())
             return List.of();
-        updateMessage("Calculating features...");
-        List<ClassifierTrainingData> allTrainingData = helper.createTrainingData(trainingImages);
+
+        List<ClassifierTrainingData> allTrainingData = helper.createTrainingData(trainingImages, rescale(0, 0.5));
         if (allTrainingData.isEmpty()) {
             logger.warn("Can't compute cross validation, no training data available");
             return List.of();
         }
         if (isCancelled())
             return List.of();
-        updateMessage("Calculating cross validation...");
+
         var result = CrossValidation.computeCrossValidation(
                 model,
                 pixelClassifierModelTrainer,
                 allTrainingData,
-                rng
+                rng,
+                rescale(0.5, 1.0)
         );
         if (isCancelled())
             return List.of();

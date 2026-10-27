@@ -1,9 +1,7 @@
 package qupath.opencv.ml.pixel.train;
 
 import org.bytedeco.javacpp.PointerScope;
-import org.bytedeco.opencv.global.opencv_ml;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.io.GsonTools;
@@ -12,6 +10,8 @@ import qupath.opencv.ml.ConfusionMatrix;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.models.PredictionModel;
 import qupath.opencv.ml.models.TrainableModel;
+import qupath.lib.progress.LogProgressMonitor;
+import qupath.lib.progress.ProgressMonitor;
 
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -24,15 +24,32 @@ public class CrossValidation {
     private static final Logger logger = LoggerFactory.getLogger(CrossValidation.class);
 
 	public static List<ConfusionMatrix<PathClass>> computeCrossValidation(
-									TrainableModel model,
-									PixelClassifierModelTrainer trainer,
-									List<ClassifierTrainingData> trainingData,
-									Random rng) {
+			TrainableModel model,
+			PixelClassifierModelTrainer trainer,
+			List<ClassifierTrainingData> trainingData,
+			Random rng) {
+		return computeCrossValidation(model, trainer, trainingData, rng, LogProgressMonitor.debug(logger));
+	}
+
+	public static List<ConfusionMatrix<PathClass>> computeCrossValidation(
+			TrainableModel model,
+			PixelClassifierModelTrainer trainer,
+			List<ClassifierTrainingData> trainingData,
+			Random rng,
+			ProgressMonitor progressMonitor) {
+
+		if (progressMonitor == null) {
+			progressMonitor = ProgressMonitor.NULL;
+		}
+
 		try {
+			progressMonitor.updateProgress("Duplicating model");
 			model = duplicateModel(model);
 		} catch (Exception e) {
 			logger.warn("Unable to duplicate model, original will be used for cross validation");
 		}
+
+		progressMonitor.updateProgress("Splitting data");
 		List<ConfusionMatrix<PathClass>> matrices = new ArrayList<>();
 		var firstData = trainingData.getFirst();
 		var labels = firstData.getLabelMap(); // Labels should be identical, via PixelClassifierTraining
@@ -50,6 +67,7 @@ public class CrossValidation {
 
 		try (var scope = new PointerScope()) {
 			for (int i = 0; i < trainingData.size(); i++) {
+				progressMonitor.updateProgress("Cross validation " + (i + 1), i, trainingData.size());
 				var holdOutData = trainingData.get(i);
 				ClassifierTrainingData otherImages = ClassifierTrainingData.merge(
 						trainingData.stream().filter(d -> d != holdOutData).toList()
@@ -70,6 +88,7 @@ public class CrossValidation {
 			}
 			if (matrices.size() > 1)
 				matrices.addFirst(ConfusionMatrix.sum("All splits (" + splitType + ")", matrices));
+			progressMonitor.updateProgress("Done!", 1.0);
 			return matrices;
 		}
 	}

@@ -1,8 +1,9 @@
 package qupath.process.gui.commands.ml.tasks;
 
-import javafx.concurrent.Task;
+import org.slf4j.LoggerFactory;
 import qupath.lib.images.ImageData;
 import qupath.opencv.ml.models.TrainableModel;
+import qupath.lib.progress.LogProgressMonitor;
 import qupath.opencv.ml.pixel.train.ClassifierTrainingData;
 import qupath.opencv.ml.pixel.train.PixelClassifierModelTrainer;
 import qupath.opencv.ml.pixel.train.PixelClassifierTraining;
@@ -15,7 +16,7 @@ import java.util.List;
 /**
  * Task to train a pixel classifier model.
  */
-public class TrainModelTask extends Task<TrainedPixelClassifierModel> {
+public class TrainModelTask extends MonitoredTask<TrainedPixelClassifierModel> {
 
     private final TrainableModel model;
     private final List<ImageData<BufferedImage>> trainingImages;
@@ -32,18 +33,17 @@ public class TrainModelTask extends Task<TrainedPixelClassifierModel> {
 
     @Override
     protected TrainedPixelClassifierModel call() throws IOException {
-        long totalWork = 2;
-        long workDone = 0;
-        updateMessage("Calculating features...");
-        updateProgress(workDone++, totalWork);
-        List<ClassifierTrainingData> allTrainingData = helper.createTrainingData(trainingImages);
+        var monitor = this.and(LogProgressMonitor.debug(LoggerFactory.getLogger(getClass())));
+        List<ClassifierTrainingData> allTrainingData = helper.createTrainingData(trainingImages, monitor.rescale(0, 0.9));
         if (allTrainingData.isEmpty()) {
             return null;
         }
 
-        updateMessage("Training model...");
-        updateProgress(workDone++, totalWork);
+        // TODO: Add progress monitoring to training
+        updateProgress("Training classifier", 0.9);
         var trainingData = ClassifierTrainingData.merge(allTrainingData);
-        return trainer.train(model, trainingData);
+        var result = trainer.train(model, trainingData);
+        monitor.updateProgress("Done!", 1.0);
+        return result;
     }
 }

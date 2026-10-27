@@ -23,11 +23,6 @@ package qupath.opencv.ml.pixel.train;
 
 import java.util.Comparator;
 
-import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.indexer.IntIndexer;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.color.ColorToolsAwt;
@@ -38,6 +33,8 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.progress.LogProgressMonitor;
+import qupath.lib.progress.ProgressMonitor;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageDataServer;
 import qupath.opencv.ops.ImageOps;
@@ -45,7 +42,6 @@ import qupath.opencv.ops.ImageOps;
 import java.awt.BasicStroke;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -75,6 +71,8 @@ public class PixelClassifierTraining {
 
 	// TODO: Fix this caching strategy!
 	private static final Map<RegionRequest, TileFeatures> cache = Collections.synchronizedMap(new WeakHashMap<>());
+
+	private static final ProgressMonitor DEFAULT_PROGRESS_MONITOR = LogProgressMonitor.debug(logger);
 
 
 	/**
@@ -135,15 +133,21 @@ public class PixelClassifierTraining {
     }
 
     private synchronized List<ClassifierTrainingData> updateTrainingData(Map<PathClass, Integer> labelMap,
-																		 Collection<ImageData<BufferedImage>> imageDataCollection) {
+																		 Collection<ImageData<BufferedImage>> imageDataCollection,
+																		 ProgressMonitor progressMonitor) {
         if (imageDataCollection.isEmpty()) {
             return List.of();
         }
+
+		if (progressMonitor == null) {
+			progressMonitor = ProgressMonitor.NULL;
+		}
 
         Map<PathClass, Integer> labels = new LinkedHashMap<>();
         
         boolean hasLockedAnnotations = false;
         if (labelMap == null) {
+			progressMonitor.updateProgress("Extracting labels", -1);
             Set<PathClass> pathClasses = new TreeSet<>(Comparator.comparing(PathClass::toString));
         	for (var imageData : imageDataCollection) {
 	        	// Get labels for all annotations
@@ -164,8 +168,7 @@ public class PixelClassifierTraining {
         	}
             int lab = 0;
             for (PathClass pathClass : pathClasses) {
-            	Integer temp = Integer.valueOf(lab);
-            	labels.put(pathClass, temp);
+            	labels.put(pathClass, lab);
             	lab++;
             }
         } else {
@@ -183,7 +186,12 @@ public class PixelClassifierTraining {
         
         List<ClassifierTrainingData> allTraining = new ArrayList<>();
 
+		String progressMessage = "Calculating features";
+		double count = 0;
+		progressMonitor.updateProgress(progressMessage, 0.0);
+
         for (var imageData : imageDataCollection) {
+			count++;
 
 			String imageName = imageData.getServer().getMetadata().getName();
 
@@ -204,6 +212,7 @@ public class PixelClassifierTraining {
 	        } else {
 	        	logger.warn("Unable to generate features for {}", imageData);
 	        }
+			progressMonitor.updateProgress(progressMessage, count / imageDataCollection.size());
 
 			if (allFeatures.isEmpty()) {
 				logger.warn("No training data found - if you have training annotations, check the features are compatible with the current image.");
@@ -220,7 +229,9 @@ public class PixelClassifierTraining {
 					targets,
 					labels));
         }
-        
+
+		progressMonitor.updateProgress(progressMessage, 1.0);
+
 		return allTraining;
     }
 
@@ -264,23 +275,45 @@ public class PixelClassifierTraining {
 
 	/**
      * Create training data, using a label map automatically generated from the available classifications.
-     * @param imageData 
+	 * @param imageData image data to use for training
      * @return
      * @throws IOException
      */
     public ClassifierTrainingData createTrainingData(ImageData<BufferedImage> imageData) throws IOException {
-    	return createTrainingDataForLabelMap(Collections.singleton(imageData), null).getFirst();
+    	return createTrainingData(imageData, DEFAULT_PROGRESS_MONITOR);
     }
+
+	/**
+	 * Create training data, using a label map automatically generated from the available classifications.
+	 * @param imageData image data to use for training
+	 * @param progressMonitor progress monitor to notify of updates
+	 * @return
+	 * @throws IOException
+	 */
+	public ClassifierTrainingData createTrainingData(ImageData<BufferedImage> imageData, ProgressMonitor progressMonitor) throws IOException {
+		return createTrainingDataForLabelMap(Collections.singleton(imageData), null, progressMonitor).getFirst();
+	}
     
     /**
      * Create training data, using a label map automatically generated from the available classifications.
-     * @param imageData 
+	 * @param imageData collection of {@link ImageData} used for training
      * @return
      * @throws IOException
      */
     public List<ClassifierTrainingData> createTrainingData(Collection<ImageData<BufferedImage>> imageData) throws IOException {
-    	return createTrainingDataForLabelMap(imageData, null);
+    	return createTrainingData(imageData, DEFAULT_PROGRESS_MONITOR);
     }
+
+	/**
+	 * Create training data, using a label map automatically generated from the available classifications.
+	 * @param imageData collection of {@link ImageData} used for training
+	 * @param progressMonitor progress monitor to notify of updates
+	 * @return
+	 * @throws IOException
+	 */
+	public List<ClassifierTrainingData> createTrainingData(Collection<ImageData<BufferedImage>> imageData, ProgressMonitor progressMonitor) throws IOException {
+		return createTrainingDataForLabelMap(imageData, null, progressMonitor);
+	}
 
     /**
      * Get a classifier training map, using a predefined label map (which determines which classifications to use).
@@ -290,8 +323,20 @@ public class PixelClassifierTraining {
      * @throws IOException
      */
     public List<ClassifierTrainingData> createTrainingDataForLabelMap(Collection<ImageData<BufferedImage>> imageData, Map<PathClass, Integer> labels) throws IOException {
-        return updateTrainingData(labels, imageData);
+        return createTrainingDataForLabelMap(imageData, labels, DEFAULT_PROGRESS_MONITOR);
     }
+
+	/**
+	 * Get a classifier training map, using a predefined label map (which determines which classifications to use).
+	 * @param imageData collection of {@link ImageData} used for training
+	 * @param labels map linking classifications to labels in the output; may be null, in which case a label map will be generated from the data
+	 * @param progressMonitor progress monitor to notify of updates
+	 * @return a {@link ClassifierTrainingData} object representing training data
+	 * @throws IOException
+	 */
+	public List<ClassifierTrainingData> createTrainingDataForLabelMap(Collection<ImageData<BufferedImage>> imageData, Map<PathClass, Integer> labels, ProgressMonitor progressMonitor) throws IOException {
+		return updateTrainingData(labels, imageData, progressMonitor);
+	}
     
 
     private static TileFeatures getTileFeatures(TileRequest tile, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) {
