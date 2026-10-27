@@ -215,7 +215,7 @@ public class PixelClassifierTraining {
 			progressMonitor.updateProgress(progressMessage, count / imageDataCollection.size());
 
 			if (allFeatures.isEmpty()) {
-				logger.warn("No training data found - if you have training annotations, check the features are compatible with the current image.");
+				logger.warn("No training data found for {} - if you have training annotations, check the features are compatible with the current image.", imageName);
 				continue;
 			}
 

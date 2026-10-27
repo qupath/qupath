@@ -293,6 +293,10 @@ abstract class AbstractOpenCVClassifier<T extends StatModel> implements Trainabl
      * @param map
      * @see #getDetails()
      */
-    protected void updateDetails(Map<String, String> map) {}
+    protected void updateDetails(Map<String, String> map) {
+        if (model.isTrained()) {
+            map.put("Input features", Integer.toString(model.getVarCount()));
+            }
+    }
 
 }
