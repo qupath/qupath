@@ -9,7 +9,6 @@ import qupath.fx.utils.FXUtils
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay
 import qupath.lib.images.servers.ImageServerMetadata
 import qupath.lib.images.servers.PixelType
-import qupath.lib.projects.ProjectImageEntry
 import qupath.opencv.ml.models.TrainableModel
 import qupath.opencv.ml.models.statmodel.OpenCVStatModels
 import qupath.opencv.ops.ImageDataOp
@@ -58,10 +57,9 @@ PixelClassifierTraining training = new PixelClassifierTraining(featureCalculator
 ClassifierTrainingData trainingData = training.createTrainingData(imageData)
 
 // Create a trainer
-PixelClassifierModelTrainer trainer = new PixelClassifierModelTrainer(
-        resolution,
-        featureCalculator
-)
+PixelClassifierModelTrainer trainer = PixelClassifierModelTrainer.builder(featureCalculator)
+            .resolution(resolution)
+            .build()
 
 // Train the model
 var trainedModel = trainer.train(
@@ -80,3 +78,4 @@ var overlay = PixelClassificationOverlay.create(
 )
 overlay.setLivePrediction(true)
 FXUtils.runOnApplicationThread(() -> viewer.setCustomPixelLayerOverlay(overlay))
+
