@@ -1,5 +1,8 @@
 package qupath.opencv.ml;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;import java.util.List;
@@ -13,6 +16,8 @@ import java.util.Set;import java.util.concurrent.atomic.AtomicInteger;
  * @param <T> generic parameter for the labels (usually {@link Integer}, {@link String} or {@link qupath.lib.objects.classes.PathClass}).
  */
 public class ConfusionMatrix<T> {
+
+    private static final Logger logger = LoggerFactory.getLogger(ConfusionMatrix.class);
 
     private final Map<T, Map<T, AtomicInteger>> matrix;
     private final Set<T> labels = new LinkedHashSet<>();
@@ -130,17 +135,6 @@ public class ConfusionMatrix<T> {
          return max;
     }
 
-
-//    /**
-//     * Get the normalized count for a specified row and column.
-//     * The normalization is calculated by division by the row sum.
-//     * @param row the row label (true)
-//     * @param col the column label (target)
-//     * @return
-//     */
-//    public synchronized double getNormalizedCount(T row, T col) {
-//        return (double)getCount(row, col) / getRowSum(row);
-//    }
 
     /**
      * Get the sum of confusion matrix entries for a full row.
@@ -293,5 +287,24 @@ public class ConfusionMatrix<T> {
         double nTruePositives = getTruePositives();
         return nTruePositives / getTotal();
     }
+
+    /**
+     * Get a string representation of the confusion matrix, suitable for printing in a monospaced font.
+     * @return the string representation
+     */
+    public String getPrintableString() {
+        return ConfusionMatrixPrinter.getString(this);
+    }
+
+    /**
+     * Get a string representation of the confusion matrix showing percentages,
+     * suitable for printing in a monospaced font.
+     * @return the string representation
+     */
+    public String getPrintableStringWithPercent() {
+        return ConfusionMatrixPrinter.getStringWithPercent(this);
+    }
+
+
 
 }

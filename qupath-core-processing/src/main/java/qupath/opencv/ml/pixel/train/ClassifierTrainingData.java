@@ -118,7 +118,7 @@ public class ClassifierTrainingData {
         for (int i = 0; i < nSplits; i++) {
             int endInd = i == nSplits - 1 ? n : (int) Math.floor((double) (n * (i + 1)) / nSplits);
             data.add(extractData(getName() + " (split=" + (i + 1) + ")", inds.subList(startInd, endInd)));
-            startInd = endInd + 1;
+            startInd = endInd;
         }
         return data;
     }

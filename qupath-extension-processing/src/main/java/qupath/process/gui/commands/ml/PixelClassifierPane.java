@@ -86,6 +86,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.opencv.ml.ConfusionMatrix;
 import qupath.opencv.ml.models.FeatureImportance;
 import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
 import qupath.opencv.ml.models.TrainableModel;
@@ -1039,7 +1040,12 @@ public class PixelClassifierPane {
 		runWithProgress(
 				pool,
 				task,
-				matrices -> metricsBrowser.getConfusionMatrices().setAll(matrices),
+				matrices -> {
+					metricsBrowser.getConfusionMatrices().setAll(matrices);
+					if (matrices.size() > 1) {
+						metricsBrowser.getConfusionMatrices().addFirst(ConfusionMatrix.sum("All splits (" + matrices.size() + ")", matrices));
+					}
+				},
 				true);
 	}
 

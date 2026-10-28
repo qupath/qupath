@@ -53,7 +53,6 @@ public class CrossValidation {
 		List<ConfusionMatrix<PathClass>> matrices = new ArrayList<>();
 		var firstData = trainingData.getFirst();
 		var labels = firstData.getLabelMap(); // Labels should be identical, via PixelClassifierTraining
-		String splitType = trainingData.size() + " images";
 		if (trainingData.size() == 1) {
 			logger.warn("Splitting the training data");
 			int nSplits = Math.min(5, firstData.size() / 10);
@@ -62,7 +61,6 @@ public class CrossValidation {
 				return List.of();
 			}
 			trainingData = firstData.split(nSplits, rng);
-			splitType = "single image";
 		}
 
 		try (var scope = new PointerScope()) {
@@ -86,8 +84,6 @@ public class CrossValidation {
 					logger.debug("Fold {}: Accuracy = {}, F1 = {}", i + 1, confusion.getAccuracy(), confusion.getF1());
 				}
 			}
-			if (matrices.size() > 1)
-				matrices.addFirst(ConfusionMatrix.sum("All splits (" + splitType + ")", matrices));
 			progressMonitor.updateProgress("Done!", 1.0);
 			return matrices;
 		}

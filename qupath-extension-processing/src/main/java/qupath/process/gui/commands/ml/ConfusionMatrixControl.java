@@ -35,7 +35,11 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.opencv.ml.ConfusionMatrix;
 
-
+/**
+ * Control to display a confusion matrix.
+ * @param <T> generic parameter for the confusion matrix labels
+ * @since v0.8.0
+ */
 class ConfusionMatrixControl<T> extends Control implements Skinnable {
 
     /**
@@ -185,7 +189,7 @@ class ConfusionMatrixControl<T> extends Control implements Skinnable {
 
         private void initialize() {
             pane.getChildren().clear();
-            
+
             var matrix = skinnable.confusionMatrix.get();
             if (matrix == null) {
                 var labelPlaceholder = new Label("Nothing to show");
