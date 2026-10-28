@@ -41,4 +41,9 @@ public class RTreesFeatureImportanceCalculator implements FeatureImportanceCalcu
 		}
 	}
 
+	@Override
+	public String getName() {
+		return "RTrees feature importance calculator";
+	}
+
 }

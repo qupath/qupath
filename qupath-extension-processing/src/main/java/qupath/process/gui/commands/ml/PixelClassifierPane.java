@@ -849,6 +849,7 @@ public class PixelClassifierPane {
 				featureDetailsPane.update(
 						trainedModel.model(),
 						trainedModel.getFeatureNames(imageData));
+				featureDetailsPane.setDescription("Values from previously trained model (" + trainedModel.model().getName() + ")");
 			}
 		}, false);
 	}
@@ -871,8 +872,9 @@ public class PixelClassifierPane {
 			logger.warn("Can't compute variable importance without an image open");
 			return;
 		}
+		var calculator = getDefaultFeatureImportanceCalculator();
 		var task = new FeatureImportanceTask(
-				getDefaultFeatureImportanceCalculator(),
+				calculator,
 				helper,
 				trainingImages
 		);
@@ -880,6 +882,7 @@ public class PixelClassifierPane {
 			try {
 				var importance = task.get();
 				featureDetailsPane.update(importance);
+				featureDetailsPane.setDescription("Values from " + calculator.getName());
 			} catch (Exception e1) {
 				logger.error("Error calculating feature importance: {}", e1.getMessage(), e1);
 			}
