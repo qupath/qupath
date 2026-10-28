@@ -10,8 +10,18 @@ import org.bytedeco.opencv.opencv_ml.TrainData;
 
 import java.util.List;
 
+/**
+ * Utility methods for training a pixel classifier.
+ * @since v0.8.0
+ */
 public class TrainingUtils {
 
+    /**
+     * Convert features to an OpenCV {@link TrainData}.
+     * @param features a list of feature vectors (samples)
+     * @param targets target labels; the size of the vector should equal the number of samples
+     * @return a train data
+     */
     public static TrainData createTrainData(List<FeatureVector> features, TargetVector targets) {
         return TrainData.create(
                 featuresToMat(features),
@@ -20,6 +30,11 @@ public class TrainingUtils {
         );
     }
 
+    /**
+     * Convert a list of feature vectors (sampels) to a Mat.
+     * @param features the samples
+     * @return the Mat
+     */
     public static Mat featuresToMat(List<FeatureVector> features) {
         if (features.isEmpty())
             return new Mat(0);
@@ -37,6 +52,11 @@ public class TrainingUtils {
         return mat;
     }
 
+    /**
+     * Convert a target vector of labels to an integer Mat.
+     * @param targets the target labels
+     * @return the Mat
+     */
     public static Mat targetsToMat(TargetVector targets) {
         var mat = new Mat(targets.size(), 1, opencv_core.CV_32SC1, Scalar.ZERO);
         try (IntIndexer indexer = mat.createIndexer()) {

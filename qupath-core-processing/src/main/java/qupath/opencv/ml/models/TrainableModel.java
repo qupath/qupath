@@ -2,7 +2,6 @@ package qupath.opencv.ml.models;
 
 import java.util.List;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.bytedeco.opencv.opencv_ml.TrainData;
 import qupath.lib.plugins.parameters.ParameterList;
 

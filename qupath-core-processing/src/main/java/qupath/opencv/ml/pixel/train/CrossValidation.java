@@ -19,10 +19,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+/**
+ * Helper class to train and evaluate a model by cross-validation.
+ * @since v0.8.0
+ */
 public class CrossValidation {
 
     private static final Logger logger = LoggerFactory.getLogger(CrossValidation.class);
 
+	/**
+	 * Train and evaluate a model using cross-validation.
+	 * @param model the model to train; this will be duplicated (via JSON serialization) if possible.
+	 * @param trainer the trainer
+	 * @param trainingData the data to train the model. If a singleton list is provided, it will be split.
+	 *                     Otherwise, leave-one-out cross-validation will be performed.
+	 * @param rng random number generator used if splitting is required
+	 * @return a list of confusion matrices, created by evaluating a classifier on each training data split
+	 *         after training it on the others.
+	 */
 	public static List<ConfusionMatrix<PathClass>> computeCrossValidation(
 			TrainableModel model,
 			PixelClassifierModelTrainer trainer,
@@ -31,6 +45,17 @@ public class CrossValidation {
 		return computeCrossValidation(model, trainer, trainingData, rng, LogProgressMonitor.debug(logger));
 	}
 
+	/**
+	 * Train and evaluate a model using cross-validation, with progress monitoring.
+	 * @param model the model to train; this will be duplicated (via JSON serialization) if possible.
+	 * @param trainer the trainer
+	 * @param trainingData the data to train the model. If a singleton list is provided, it will be split.
+	 *                     Otherwise, leave-one-out cross-validation will be performed.
+	 * @param rng random number generator used if splitting is required
+	 * @param progressMonitor progress monitor to update during cross-validation.
+	 * @return a list of confusion matrices, created by evaluating a classifier on each training data split
+	 *         after training it on the others.
+	 */
 	public static List<ConfusionMatrix<PathClass>> computeCrossValidation(
 			TrainableModel model,
 			PixelClassifierModelTrainer trainer,

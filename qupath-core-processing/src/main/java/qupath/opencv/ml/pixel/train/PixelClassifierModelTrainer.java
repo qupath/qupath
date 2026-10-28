@@ -25,6 +25,7 @@ import java.util.Objects;
  * <p>
  * Its purpose is to simplify the process of training multiple models using identical settings but different
  * data, for example for cross-validation.
+ * @since v0.8.0
  */
 public class PixelClassifierModelTrainer {
 

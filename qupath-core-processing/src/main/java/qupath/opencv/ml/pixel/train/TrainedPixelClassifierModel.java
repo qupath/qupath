@@ -21,6 +21,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Record to store a trained model that can be used to build a pixel classifier.
+ * @param model the trained model
+ * @param featureCalculator the data op used to extract features
+ * @param featurePreprocessor the feature preprocessor, applied to the features before they are input to the
+ *                           model (optional)
+ * @param labels a label map to interpret the output
+ * @param countsIndexedByLabels a histogram of the number of training samples, indexed by integer label
+ * @param resolution the resolution at which the classifier should be applied
+ * @param trainingTime the total time required to train the model
+ * @since v0.8.0
+ */
 public record TrainedPixelClassifierModel(TrainableModel model,
                                           ImageDataOp featureCalculator,
                                           FeaturePreprocessor featurePreprocessor,
@@ -31,10 +43,24 @@ public record TrainedPixelClassifierModel(TrainableModel model,
 
     private static final Logger logger = LoggerFactory.getLogger(TrainedPixelClassifierModel.class);
 
+    /**
+     * Create a pixel classifier from this model.
+     * @param outputType output type, either {@link qupath.lib.images.servers.ImageServerMetadata.ChannelType#CLASSIFICATION} or
+     * {@link qupath.lib.images.servers.ImageServerMetadata.ChannelType#PROBABILITY}
+     * @return a new pixel classifier, wrapping this model
+     */
     public PixelClassifier createPixelClassifier(ImageServerMetadata.ChannelType outputType) {
         return createPixelClassifier(512, 512, outputType);
     }
 
+    /**
+     * Create a pixel classifier from this model.
+     * @param inputWidth input tile width
+     * @param inputHeight input tile height
+     * @param outputType output type, either {@link qupath.lib.images.servers.ImageServerMetadata.ChannelType#CLASSIFICATION} or
+     * {@link qupath.lib.images.servers.ImageServerMetadata.ChannelType#PROBABILITY}
+     * @return a new pixel classifier, wrapping this model
+     */
     public PixelClassifier createPixelClassifier(int inputWidth, int inputHeight, ImageServerMetadata.ChannelType outputType) {
         if (!model.supportsProbabilities() && !model.supportsProbabilities()) {
             logger.warn("Output type {} not supported, will use {}", outputType, ImageServerMetadata.ChannelType.CLASSIFICATION);
@@ -59,6 +85,12 @@ public record TrainedPixelClassifierModel(TrainableModel model,
         return PixelClassifiers.createClassifier(model, featureCalculator, metadata, true);
     }
 
+    /**
+     * Get the names of the features used to train the model, derived from the input image.
+     * @param imageData the image used to determine the feature names.
+     *                  This is required because some feature names derived from image channel names.
+     * @return a list of feature names
+     */
     public List<String> getFeatureNames(ImageData<BufferedImage> imageData) {
         return featureCalculator.getChannels(imageData).stream().map(ImageChannel::getName).toList();
     }

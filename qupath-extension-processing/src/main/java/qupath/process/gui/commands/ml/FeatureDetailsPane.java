@@ -33,7 +33,6 @@ import javafx.scene.text.TextAlignment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.models.FeatureImportance;
 
 class FeatureDetailsPane extends Control implements Skinnable {

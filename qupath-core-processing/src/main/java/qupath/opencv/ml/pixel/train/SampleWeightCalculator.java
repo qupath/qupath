@@ -6,6 +6,7 @@ import java.util.List;
  * Calculate sample weights for classifier training.
  * <p>
  * This is typically used to weight specific target labels, or address label imbalance.
+ * @since v0.8.0
  */
 @FunctionalInterface
 public interface SampleWeightCalculator {

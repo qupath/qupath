@@ -7,6 +7,7 @@ import java.util.List;
 
 /**
  * Interface for methods to calculate the importance of specific features when training a classifier.
+ * @since v0.8.0
  */
 public interface FeatureImportanceCalculator {
 

@@ -17,6 +17,7 @@ import java.util.stream.IntStream;
 
 /**
  * Helper class to store classifier training data, targets and labels.
+ * @since v0.8.0
  */
 public class ClassifierTrainingData {
 

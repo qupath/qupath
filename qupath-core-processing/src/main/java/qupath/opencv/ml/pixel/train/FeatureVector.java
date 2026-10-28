@@ -5,6 +5,7 @@ import java.util.Objects;
 
 /**
  * Lightweight wrapper around a float array, which does not permit its contents to be modified.
+ * @since v0.8.0
  */
 public class FeatureVector {
 

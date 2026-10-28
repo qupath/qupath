@@ -57,6 +57,7 @@ import java.util.WeakHashMap;
 
 /**
  * Helper class for training a pixel classifier.
+ * @since v0.8.0
  */
 public class PixelClassifierTraining {
 	

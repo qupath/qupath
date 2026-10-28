@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 /**
  * Helper class for computing sample weights.
+ * @since v0.8.0
  */
 public class SampleWeights {
 

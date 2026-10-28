@@ -7,6 +7,7 @@ import java.util.Objects;
 /**
  * Lightweight wrapper around a int array, which does not permit its contents to be modified.
  * Its intended use is to provide the target labels when training a classifier.
+ * @since v0.8.0
  */
 public class TargetVector {
 
