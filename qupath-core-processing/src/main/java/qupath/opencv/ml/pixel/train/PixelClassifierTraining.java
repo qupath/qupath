@@ -25,6 +25,7 @@ import java.util.Comparator;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.color.ColorToolsAwt;
@@ -49,14 +50,13 @@ import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.WeakHashMap;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -67,6 +67,22 @@ public class PixelClassifierTraining {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierTraining.class);
 
+	/**
+	 * Filter check if a PathObject can be used as a classifier training annotation.
+	 * Checks for unlocked annotations with non-empty ROIs and non-null (and non-Region*) classifications.
+	 */
+	public static final Predicate<PathObject> DEFAULT_TRAINING_FILTER = PixelClassifierTraining::isTrainableAnnotation;
+
+	/**
+	 * Default function to extract a classification from a training object.
+	 */
+	public static final Function<PathObject, PathClass> DEFAULT_PATH_CLASS_EXTRACTOR = PathObject::getPathClass;
+
+	/**
+	 * Default function to extract a ROI from a training object.
+	 */
+	public static final Function<PathObject, ROI> DEFAULT_ROI_EXTRACTOR = PathObject::getROI;
+
 	private static final PathClass REGION_CLASS = PathClass.StandardPathClasses.REGION;
 
 	private BoundaryStrategy boundaryStrategy = BoundaryStrategy.getSkipBoundaryStrategy();
@@ -74,12 +90,15 @@ public class PixelClassifierTraining {
 	private PixelCalibration resolution = PixelCalibration.getDefaultInstance();
     private ImageDataOp featureCalculator;
 
-//	private Predicate<PathObject> trainingObjectFilter
+	private Predicate<PathObject> trainingObjectFilter = DEFAULT_TRAINING_FILTER;
+	private Function<PathObject, PathClass> pathClassFunction = DEFAULT_PATH_CLASS_EXTRACTOR;
+	private Function<PathObject, ROI> roiFunction = DEFAULT_ROI_EXTRACTOR;
 
 	private static final Cache<RegionRequest, TileFeatures> cache = Caffeine.newBuilder()
 			.softValues()
 			.weigher(PixelClassifierTraining::weighFeatures)
 			.maximumWeight(MemoryTools.getMaxMemoryPercent(10.0).orElse(1024L * 1024L))
+			.evictionListener(PixelClassifierTraining::onRemoval)
 			.build();
 
 	private static final ProgressMonitor DEFAULT_PROGRESS_MONITOR = LogProgressMonitor.debug(logger);
@@ -93,6 +112,10 @@ public class PixelClassifierTraining {
 		return Math.toIntExact(Math.max(1,
 				Math.round((features.size() * features.getFirst().size() * 4) / 1024.0)
 				));
+	}
+
+	private static void onRemoval(RegionRequest key, TileFeatures value, RemovalCause cause) {
+		logger.trace("Removing {} ({})", key, cause);
 	}
 
 	/**
@@ -165,25 +188,28 @@ public class PixelClassifierTraining {
 
         Map<PathClass, Integer> labels = new LinkedHashMap<>();
         
-        boolean hasLockedAnnotations = false;
         if (labelMap == null) {
 			progressMonitor.updateProgress("Extracting labels", -1);
             Set<PathClass> pathClasses = new TreeSet<>(Comparator.comparing(PathClass::toString));
         	for (var imageData : imageDataCollection) {
 	        	// Get labels for all annotations
-	            Collection<PathObject> annotations = imageData.getHierarchy().getAnnotationObjects();
-	            for (var annotation : annotations) {
-	            	if (isTrainableAnnotation(annotation, true)) {
-	            		var pathClass = annotation.getPathClass();
-	            		pathClasses.add(pathClass);
-	            		// We only use boundary classes for areas
-	            		if (annotation.getROI().isArea()) {
-		            		var boundaryClass = boundaryStrategy.getBoundaryClass(pathClass);
-		            		if (boundaryClass != null)
-		            			pathClasses.add(boundaryClass);
-	            		}
-	            	} else if (isTrainableAnnotation(annotation, false))
-	            		hasLockedAnnotations = true;
+	            Collection<PathObject> pathObjects = imageData.getHierarchy().getAllObjects(false);
+	            for (var pathObject : pathObjects) {
+					if (pathObject == null || !isTrainableObject(pathObject)) {
+						continue;
+					}
+					var roi = roiFunction.apply(pathObject);
+					var pathClass = pathClassFunction.apply(pathObject);
+					if (roi == null || roi.isEmpty() || pathClass == null) {
+						continue;
+					}
+					pathClasses.add(pathClass);
+					// We only use boundary classes for areas
+					if (roi.isArea()) {
+						var boundaryClass = boundaryStrategy.getBoundaryClass(pathClass);
+						if (boundaryClass != null)
+							pathClasses.add(boundaryClass);
+					}
 	            }
         	}
             int lab = 0;
@@ -198,9 +224,9 @@ public class PixelClassifierTraining {
 		// We need at least two classes for anything very meaningful to happen
 		int nTargets = labels.size();
 		if (nTargets <= 1) {
-			logger.warn("Unlocked annotations for at least two classes are required to train a classifier!");
-			if (hasLockedAnnotations)
-				logger.warn("Image contains annotations that *could* be used for training, except they are currently locked. Please unlock them if they should be used.");
+			logger.warn("Classified training objects for at least two classes are required to train a classifier!");
+			if (Objects.equals(trainingObjectFilter, DEFAULT_TRAINING_FILTER))
+				logger.warn("Only classified, unlocked annotations can be used for trainng.");
 			return List.of();
 		}
         
@@ -258,18 +284,25 @@ public class PixelClassifierTraining {
 		return allTraining;
     }
 
+	private boolean isTrainableObject(PathObject pathObject) {
+		if (trainingObjectFilter == null)
+			return true;
+		else
+			return trainingObjectFilter.test(pathObject);
+	}
+
     /**
-     * Test is a PathObject can be used as a classifier training annotation.
-     * @param pathObject
-     * @param checkLocked 
-     * @return
+     * Default test to check if a PathObject can be used as a classifier training annotation.
+	 * Checks for unlocked annotations with non-empty ROIs and non-null (and non-Region*) classifications.
+     * @param pathObject the object to check
+     * @return true if the object can be used for training, false otherwise
      */
-    private static boolean isTrainableAnnotation(PathObject pathObject, boolean checkLocked) {
+    private static boolean isTrainableAnnotation(PathObject pathObject) {
     	return pathObject != null &&
     			pathObject.hasROI() &&
     			!pathObject.getROI().isEmpty() &&
     			pathObject.isAnnotation() &&
-    			(!pathObject.isLocked() || !checkLocked) &&
+    			!pathObject.isLocked() &&
     			pathObject.getPathClass() != null && 
     			pathObject.getPathClass() != REGION_CLASS;
     }
@@ -294,6 +327,58 @@ public class PixelClassifierTraining {
     public BoundaryStrategy getBoundaryStrategy() {
     	return boundaryStrategy;
     }
+
+	/**
+	 * Get the primary filter used to determine if an object can be used for classifier training.
+	 * By default, this is #DEFAULT_TRAINING_FILTER.
+	 * @return
+	 */
+	public Predicate<PathObject> getTrainingObjectFilter() {
+		return trainingObjectFilter;
+	}
+
+	/**
+	 * Set the primary filter used to determine if an object can be used for classifier training.
+	 */
+	public void setTrainingObjectFilter(Predicate<PathObject> trainingObjectFilter) {
+		this.trainingObjectFilter = trainingObjectFilter;
+	}
+
+	/**
+	 * Get the function used to extract a classification from a training object.
+	 * By default, this calls {@code PathObject.getPathClass()}.
+	 * @return the transform
+	 */
+	public Function<PathObject, PathClass> getPathClassExtractor() {
+		return pathClassFunction;
+	}
+
+	/**
+	 * Get the function used to extract a classification from a training object.
+	 * By default, this calls {@code PathObject.getPathClass()}.
+	 */
+	public void setPathClassExtractor(Function<PathObject, PathClass> extractor) {
+		Objects.requireNonNull(extractor, "Path class extractor is null");
+		this.pathClassFunction = extractor;
+	}
+
+	/**
+	 * Get the function used to extract a ROI from a training object.
+	 * By default, this calls {@code PathObject.getROI()}.
+	 * @return the transform
+	 */
+	public Function<PathObject, ROI> getROIExtractor() {
+		return roiFunction;
+	}
+
+	/**
+	 * Get the function used to extract a ROI from a training object.
+	 * By default, this calls {@code PathObject.getROI()}.
+	 */
+	public void setROIExtractor(Function<PathObject, ROI> extractor) {
+		Objects.requireNonNull(extractor, "ROI class extractor is null");
+		this.roiFunction = extractor;
+	}
 
 
 	/**
@@ -362,20 +447,20 @@ public class PixelClassifierTraining {
 	}
     
 
-    private static TileFeatures getTileFeatures(TileRequest tile, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) throws IOException {
+    private TileFeatures getTileFeatures(TileRequest tile, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) throws IOException {
 		var request = tile.getRegionRequest();
 		TileFeatures features = cache.getIfPresent(request);
 		Map<ROI, PathClass> rois = null;
 		
-		var annotations = featureServer.getImageData().getHierarchy().getAllObjectsForRegion(request, null);
-		if (annotations != null && !annotations.isEmpty()) {
-    		rois = new HashMap<>();
-    		for (var annotation : annotations) {
+		var pathObjects = featureServer.getImageData().getHierarchy().getAllObjectsForRegion(request, null);
+		if (pathObjects != null && !pathObjects.isEmpty()) {
+    		rois = new LinkedHashMap<>();
+    		for (var pathObject : pathObjects) {
     			// Don't train from locked annotations
-    			if (!isTrainableAnnotation(annotation, true))
-    				continue;
-    			
-    			var roi = annotation.getROI();
+				if (pathObject == null || !isTrainableObject(pathObject))
+					continue;
+
+    			var roi = roiFunction.apply(pathObject);
     			// For points, make sure at least one point is in the region
     			if (roi != null && roi.isPoint()) {
         			boolean containsPoint = false;
@@ -389,7 +474,7 @@ public class PixelClassifierTraining {
     					continue;
     			}
     			
-    			var pathClass = annotation.getPathClass();
+    			var pathClass = pathClassFunction.apply(pathObject);
     			if (roi != null && labels.containsKey(pathClass)) {
     				rois.put(roi, pathClass);
     			}
