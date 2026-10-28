@@ -6,7 +6,9 @@ import java.util.function.Function;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -16,6 +18,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
@@ -28,20 +31,54 @@ import javafx.scene.paint.Color;
 import javafx.util.Subscription;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.color.ColorMaps;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.opencv.ml.ConfusionMatrix;
 
 
 class ConfusionMatrixControl<T> extends Control implements Skinnable {
 
+    /**
+     * Default function to extract a string representation of the confusion matrix values.
+     * This is used for target and prediction labels.
+     */
     public final Function<T, String> DEFAULT_STRING_EXTRACTOR = Objects::toString;
+
+    /**
+     * Default function to extract a color for each cell, based upon a normalized count.
+     */
     public final DoubleFunction<Color> DEFAULT_COLOR_EXTRACTOR = this::extractColor;
 
+    /**
+     * The confusion matrix being displayed.
+     */
     private final ObjectProperty<ConfusionMatrix<T>> confusionMatrix = new SimpleObjectProperty<>();
+
+    /**
+     * Main label text shown to the left of the confusion matrix.
+     */
     private final StringProperty rowLabel = new SimpleStringProperty("Target");
+
+    /**
+     * Main label text shown above the confusion matrix.
+     */
     private final StringProperty columnLabel = new SimpleStringProperty("Prediction");
 
+    /**
+     * Show percentages as well as counts in each cell.
+     */
+    private final BooleanProperty showPercent = new SimpleBooleanProperty(true);
+
+    /**
+     * Function to extract a string representation of the confusion matrix values.
+     * This is used for target and prediction labels.
+     */
     private final ObjectProperty<Function<T, String>> stringExtractor = new SimpleObjectProperty<>(DEFAULT_STRING_EXTRACTOR);
+
+    /**
+     * Default function to extract a color for each cell, based upon a normalized count.
+     * This is the count of the cell divided by the maximum count in the matrix.
+     */
     private final ObjectProperty<DoubleFunction<Color>> colorExtractor = new SimpleObjectProperty<>(DEFAULT_COLOR_EXTRACTOR);
 
     private final ColorMaps.ColorMap DEFAULT_COLORMAP = ColorToolsFX.createColorMap(
@@ -67,6 +104,18 @@ class ConfusionMatrixControl<T> extends Control implements Skinnable {
 
     public void setConfusionMatrix(ConfusionMatrix<T> confusionMatrix) {
         confusionMatrixProperty().set(confusionMatrix);
+    }
+
+    public BooleanProperty showPercentProperty() {
+        return showPercent;
+    }
+
+    public boolean doShowPercent() {
+        return showPercentProperty().get();
+    }
+
+    public void setShowPercent(boolean showPercent) {
+        showPercentProperty().set(showPercent);
     }
 
     public StringProperty rowLabelProperty() {
@@ -136,7 +185,7 @@ class ConfusionMatrixControl<T> extends Control implements Skinnable {
 
         private void initialize() {
             pane.getChildren().clear();
-
+            
             var matrix = skinnable.confusionMatrix.get();
             if (matrix == null) {
                 var labelPlaceholder = new Label("Nothing to show");
@@ -230,14 +279,26 @@ class ConfusionMatrixControl<T> extends Control implements Skinnable {
             return label;
         }
 
-        private Label createGridLabel(ConfusionMatrix<T> matrix, T row, T col) {
+        private Node createGridLabel(ConfusionMatrix<T> matrix, T row, T col) {
             int count = matrix.getCount(row, col);
             var label = new Label(Integer.toString(count));
             label.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
             label.setAlignment(Pos.CENTER);
-            var bgColorBinding = createBackgroundColorBinding((double)matrix.getCount(row, col) / matrix.getMax());
+            var bgColorBinding = createBackgroundColorBinding((double)count / matrix.getMax());
             label.backgroundProperty().bind(bgColorBinding.map(ConfusionMatrixSkin::colorToBackground));
             label.textFillProperty().bind(bgColorBinding.map(ConfusionMatrixSkin::backgroundColorToTextFill));
+
+            var labelPercent = new Label();
+            double percent = (count * 100.0) / matrix.getTotal();
+            labelPercent.setText(GeneralTools.formatNumber(percent, 1) + "%");
+            labelPercent.setStyle("-fx-font-size: 90%;");
+            labelPercent.setOpacity(0.5);
+            labelPercent.textFillProperty().bind(label.textFillProperty());
+            label.setContentDisplay(ContentDisplay.BOTTOM);
+            label.graphicProperty().bind(
+                    Bindings.when(skinnable.showPercent).then(labelPercent).otherwise((Label)null)
+            );
+
             GridPane.setFillWidth(label, Boolean.TRUE);
             GridPane.setFillHeight(label, Boolean.TRUE);
             GridPane.setHgrow(label, Priority.ALWAYS);
