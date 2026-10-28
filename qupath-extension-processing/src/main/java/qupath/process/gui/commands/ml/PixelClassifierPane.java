@@ -57,7 +57,9 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Subscription;
+import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.controlsfx.dialog.ProgressDialog;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.slf4j.Logger;
@@ -84,14 +86,18 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.opencv.ml.models.FeatureImportance;
 import qupath.opencv.ml.models.statmodel.OpenCVStatModels;
 import qupath.opencv.ml.models.TrainableModel;
+import qupath.opencv.ml.pixel.train.ClassifierTrainingData;
+import qupath.opencv.ml.pixel.train.FeatureImportanceCalculator;
 import qupath.opencv.ml.pixel.train.PixelClassifierModelTrainer;
 import qupath.opencv.ml.pixel.train.PixelClassifierTraining;
 import qupath.opencv.ml.pixel.train.SampleWeights;
 import qupath.process.gui.commands.ml.op.MultiscaleImageDataOpBuilder;
 import qupath.process.gui.commands.ml.op.ImageDataOpBuilder;
 import qupath.process.gui.commands.ml.tasks.CrossValidationTask;
+import qupath.process.gui.commands.ml.tasks.FeatureImportanceTask;
 import qupath.process.gui.commands.ml.tasks.TrainModelTask;
 
 import java.awt.image.BufferedImage;
@@ -334,7 +340,7 @@ public class PixelClassifierPane {
 		}, featureDetailsPane.hasImportanceProperty()));
 		btnImportance.setMaxWidth(Double.MAX_VALUE);
 		btnImportance.disableProperty().bind(imageDataProperty.isNull());
-		btnImportance.setOnAction(e -> calculateVariableImportance());
+		btnImportance.setOnAction(e -> calculateFeatureImportance());
 		paneImportance.setBottom(btnImportance);
 		tabPane.getTabs().add(
 				new Tab("Features", paneImportance)
@@ -857,30 +863,47 @@ public class PixelClassifierPane {
 															.build();
 	}
 
-	private void calculateVariableImportance() {
+	private FeatureImportanceCalculator featureImportanceCalculator;
+
+	private void calculateFeatureImportance() {
 		var trainingImages = trainingImageManager.getTrainingImageData();
 		if (trainingImages.isEmpty()) {
 			logger.warn("Can't compute variable importance without an image open");
 			return;
 		}
-		var model = OpenCVStatModels.Models.R_TREES.createTrainableModel();
-		var task = new TrainModelTask(
-				model,
-				trainingImages,
+		var task = new FeatureImportanceTask(
+				getDefaultFeatureImportanceCalculator(),
 				helper,
-				createModelTrainer(helper, advancedOptions)
+				trainingImages
 		);
 		runWithProgress(pool, task, e -> {
 			try {
-				var trainedModel = task.get();
-				featureDetailsPane.update(
-						trainedModel.model(),
-						trainedModel.getFeatureNames(trainingImages.iterator().next()));
-				trainedModel.model().close(); // Need to close after we've got the features
+				var importance = task.get();
+				featureDetailsPane.update(importance);
 			} catch (Exception e1) {
 				logger.error("Error calculating feature importance: {}", e1.getMessage(), e1);
 			}
 		}, false);
+	}
+
+	/**
+	 * Set the feature importance calculator to use whenever the model does not calculate its own feature importance
+	 * values.
+	 * @param featureImportanceCalculator
+	 */
+	public void setDefaultFeatureImportanceCalculator(FeatureImportanceCalculator featureImportanceCalculator) {
+		this.featureImportanceCalculator = featureImportanceCalculator;
+	}
+
+	/**
+	 * Get the feature importance calculator to use whenever the model does not calculate its own feature importance
+	 * values.
+	 * @return
+	 */
+	public FeatureImportanceCalculator getDefaultFeatureImportanceCalculator() {
+		return featureImportanceCalculator == null ? new RTreesFeatureImportanceCalculator(
+				createModelTrainer(helper, advancedOptions)
+		) : featureImportanceCalculator;
 	}
 
 
