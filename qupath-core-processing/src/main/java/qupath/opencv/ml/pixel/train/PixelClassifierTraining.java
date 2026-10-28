@@ -23,9 +23,12 @@ package qupath.opencv.ml.pixel.train;
 
 import java.util.Comparator;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.common.MemoryTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TileRequest;
@@ -54,6 +57,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
+import java.util.function.Predicate;
 
 /**
  * Helper class for training a pixel classifier.
@@ -70,11 +74,26 @@ public class PixelClassifierTraining {
 	private PixelCalibration resolution = PixelCalibration.getDefaultInstance();
     private ImageDataOp featureCalculator;
 
-	// TODO: Fix this caching strategy!
-	private static final Map<RegionRequest, TileFeatures> cache = Collections.synchronizedMap(new WeakHashMap<>());
+//	private Predicate<PathObject> trainingObjectFilter
+
+	private static final Cache<RegionRequest, TileFeatures> cache = Caffeine.newBuilder()
+			.softValues()
+			.weigher(PixelClassifierTraining::weighFeatures)
+			.maximumWeight(MemoryTools.getMaxMemoryPercent(10.0).orElse(1024L * 1024L))
+			.build();
 
 	private static final ProgressMonitor DEFAULT_PROGRESS_MONITOR = LogProgressMonitor.debug(logger);
 
+
+	private static int weighFeatures(RegionRequest regionRequest, TileFeatures tileFeatures) {
+		var features = tileFeatures.getFeatures();
+		if (features == null || features.isEmpty()) {
+			return 1;
+		}
+		return Math.toIntExact(Math.max(1,
+				Math.round((features.size() * features.getFirst().size() * 4) / 1024.0)
+				));
+	}
 
 	/**
      * Create a new pixel classifier helper, to support generating training data.
@@ -345,7 +364,7 @@ public class PixelClassifierTraining {
 
     private static TileFeatures getTileFeatures(TileRequest tile, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) throws IOException {
 		var request = tile.getRegionRequest();
-		TileFeatures features = cache.get(request);
+		TileFeatures features = cache.getIfPresent(request);
 		Map<ROI, PathClass> rois = null;
 		
 		var annotations = featureServer.getImageData().getHierarchy().getAllObjectsForRegion(request, null);
@@ -379,27 +398,32 @@ public class PixelClassifierTraining {
 		
 		// We don't have any features
 		if (rois == null || rois.isEmpty()) {
-    		if (features != null)
-				cache.remove(request);
+    		if (features != null) {
+				logger.debug("Removing features for {}", request);
+				cache.invalidate(request);
+			}
 			return null;
 		}
 
 		// Check if we can return cached features
 		if (features != null) {
-			if (features.featureServer.equals(featureServer) &&
+			if (Objects.equals(features.featureServer.getPath(), featureServer.getPath()) &&
 					features.labels.equals(labels) &&
 					features.strategy.equals(strategy) &&
 					features.rois.equals(rois) &&
-					features.tile.equals(tile))
+					features.tile.equals(tile)) {
+				logger.debug("Reusing features for {}", request);
 				return features;
+			}
 		}
-		
+		logger.trace("Computing features for {}", request);
+
 		// Calculate new features
 		try {
     		features = new TileFeatures(tile, featureServer, strategy, rois, labels);
     		cache.put(request, features);
 		} catch (IOException e) {
-			cache.remove(request);
+			cache.invalidate(request);
             logger.error("Error requesting features for {}", request, e);
 			throw e;
 		}

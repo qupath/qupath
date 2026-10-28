@@ -18,6 +18,7 @@ dependencies {
   api(libs.bioimageio.spec)
 
   implementation(libs.guava)
+  implementation(libs.caffeine)
   implementation(libs.commons.math)
   testImplementation(project.project(":qupath-core").sourceSets["test"].output)
 }
