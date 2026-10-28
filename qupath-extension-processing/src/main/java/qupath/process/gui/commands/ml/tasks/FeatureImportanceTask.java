@@ -7,6 +7,7 @@ import qupath.opencv.ml.pixel.train.FeatureImportanceCalculator;
 import qupath.opencv.ml.pixel.train.PixelClassifierTraining;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 
@@ -34,8 +35,11 @@ public class FeatureImportanceTask extends MonitoredTask<List<FeatureImportance>
     }
 
     @Override
-    protected List<FeatureImportance> call() throws Exception {
+    protected List<FeatureImportance> call() throws IOException, InterruptedException {
         var trainingData = training.createTrainingData(images, rescale(0, 0.5));
+        if (Thread.interrupted()) {
+            throw new InterruptedException("Feature importance interrupted");
+        }
         return this.calculator.calculateFeatureImportance(
                 trainingData,
                 training.getFeatureOp().getChannels(images.getFirst()).stream().map(ImageChannel::getName).toList(),

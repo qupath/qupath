@@ -846,12 +846,16 @@ public class PixelClassifierPane {
 						trainedModel.model(),
 						trainedModel.labels(),
 						trainedModel.trainingTime());
-				featureDetailsPane.update(
-						trainedModel.model(),
-						trainedModel.getFeatureNames(imageData));
-				featureDetailsPane.setDescription("Values from previously trained model (" + trainedModel.model().getName() + ")");
+				var featureNames = trainedModel.getFeatureNames(imageData);
+				if (trainedModel.model().supportsFeatureImportance()) {
+					featureDetailsPane.updateImportance(
+							"Values from previously trained model (" + trainedModel.model().getName() + ")",
+							trainedModel.model().getFeatureImportance(featureNames));
+				} else {
+					featureDetailsPane.updateNames(featureNames);
+				}
 			}
-		}, false);
+		}, true);
 	}
 
 	private static PixelClassifierModelTrainer createModelTrainer(PixelClassifierTraining helper, PixelClassifierAdvancedOptions advancedOptions) {
@@ -881,8 +885,7 @@ public class PixelClassifierPane {
 		runWithProgress(pool, task, e -> {
 			try {
 				var importance = task.get();
-				featureDetailsPane.update(importance);
-				featureDetailsPane.setDescription("Values from " + calculator.getName());
+				featureDetailsPane.updateImportance("Values from " + calculator.getName(), importance);
 			} catch (Exception e1) {
 				logger.error("Error calculating feature importance: {}", e1.getMessage(), e1);
 			}
@@ -1049,6 +1052,9 @@ public class PixelClassifierPane {
 				} else {
 					logger.warn("Pixel classifier failed without throwing an exception");
 				}
+			});
+			task.setOnCancelled(event -> {
+				logger.info("Task cancelled");
 			});
 			task.setOnSucceeded(event -> {
 				try {

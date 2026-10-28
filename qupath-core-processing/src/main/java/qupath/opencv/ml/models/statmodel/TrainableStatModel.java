@@ -56,6 +56,11 @@ public class TrainableStatModel<T extends StatModel> implements TrainableModel {
     }
 
     @Override
+    public boolean supportsFeatureImportance() {
+        return getWrapper().supportsFeatureImportance();
+    }
+
+    @Override
     public boolean isTrained() {
         return getWrapper().isTrained();
     }

@@ -134,7 +134,7 @@ public class PixelClassifierTraining {
 
     private synchronized List<ClassifierTrainingData> updateTrainingData(Map<PathClass, Integer> labelMap,
 																		 Collection<ImageData<BufferedImage>> imageDataCollection,
-																		 ProgressMonitor progressMonitor) {
+																		 ProgressMonitor progressMonitor) throws InterruptedException, IOException {
         if (imageDataCollection.isEmpty()) {
             return List.of();
         }
@@ -191,6 +191,9 @@ public class PixelClassifierTraining {
 		progressMonitor.updateProgress(progressMessage, 0.0);
 
         for (var imageData : imageDataCollection) {
+			if (Thread.interrupted()) {
+				throw new InterruptedException("Interrupted during feature calculation");
+			}
 			count++;
 
 			String imageName = imageData.getServer().getMetadata().getName();
@@ -279,7 +282,7 @@ public class PixelClassifierTraining {
      * @return
      * @throws IOException
      */
-    public ClassifierTrainingData createTrainingData(ImageData<BufferedImage> imageData) throws IOException {
+    public ClassifierTrainingData createTrainingData(ImageData<BufferedImage> imageData) throws IOException, InterruptedException {
     	return createTrainingData(imageData, DEFAULT_PROGRESS_MONITOR);
     }
 
@@ -290,7 +293,7 @@ public class PixelClassifierTraining {
 	 * @return
 	 * @throws IOException
 	 */
-	public ClassifierTrainingData createTrainingData(ImageData<BufferedImage> imageData, ProgressMonitor progressMonitor) throws IOException {
+	public ClassifierTrainingData createTrainingData(ImageData<BufferedImage> imageData, ProgressMonitor progressMonitor) throws IOException, InterruptedException {
 		return createTrainingDataForLabelMap(Collections.singleton(imageData), null, progressMonitor).getFirst();
 	}
     
@@ -300,7 +303,7 @@ public class PixelClassifierTraining {
      * @return
      * @throws IOException
      */
-    public List<ClassifierTrainingData> createTrainingData(Collection<ImageData<BufferedImage>> imageData) throws IOException {
+    public List<ClassifierTrainingData> createTrainingData(Collection<ImageData<BufferedImage>> imageData) throws IOException, InterruptedException {
     	return createTrainingData(imageData, DEFAULT_PROGRESS_MONITOR);
     }
 
@@ -311,7 +314,7 @@ public class PixelClassifierTraining {
 	 * @return
 	 * @throws IOException
 	 */
-	public List<ClassifierTrainingData> createTrainingData(Collection<ImageData<BufferedImage>> imageData, ProgressMonitor progressMonitor) throws IOException {
+	public List<ClassifierTrainingData> createTrainingData(Collection<ImageData<BufferedImage>> imageData, ProgressMonitor progressMonitor) throws IOException, InterruptedException {
 		return createTrainingDataForLabelMap(imageData, null, progressMonitor);
 	}
 
@@ -322,7 +325,7 @@ public class PixelClassifierTraining {
      * @return a {@link ClassifierTrainingData} object representing training data
      * @throws IOException
      */
-    public List<ClassifierTrainingData> createTrainingDataForLabelMap(Collection<ImageData<BufferedImage>> imageData, Map<PathClass, Integer> labels) throws IOException {
+    public List<ClassifierTrainingData> createTrainingDataForLabelMap(Collection<ImageData<BufferedImage>> imageData, Map<PathClass, Integer> labels) throws IOException, InterruptedException {
         return createTrainingDataForLabelMap(imageData, labels, DEFAULT_PROGRESS_MONITOR);
     }
 
@@ -334,12 +337,12 @@ public class PixelClassifierTraining {
 	 * @return a {@link ClassifierTrainingData} object representing training data
 	 * @throws IOException
 	 */
-	public List<ClassifierTrainingData> createTrainingDataForLabelMap(Collection<ImageData<BufferedImage>> imageData, Map<PathClass, Integer> labels, ProgressMonitor progressMonitor) throws IOException {
+	public List<ClassifierTrainingData> createTrainingDataForLabelMap(Collection<ImageData<BufferedImage>> imageData, Map<PathClass, Integer> labels, ProgressMonitor progressMonitor) throws InterruptedException, IOException {
 		return updateTrainingData(labels, imageData, progressMonitor);
 	}
     
 
-    private static TileFeatures getTileFeatures(TileRequest tile, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) {
+    private static TileFeatures getTileFeatures(TileRequest tile, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) throws IOException {
 		var request = tile.getRegionRequest();
 		TileFeatures features = cache.get(request);
 		Map<ROI, PathClass> rois = null;
@@ -397,6 +400,7 @@ public class PixelClassifierTraining {
 		} catch (IOException e) {
 			cache.remove(request);
             logger.error("Error requesting features for {}", request, e);
+			throw e;
 		}
 		
 		return features;

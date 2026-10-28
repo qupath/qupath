@@ -32,16 +32,18 @@ public class TrainModelTask extends MonitoredTask<TrainedPixelClassifierModel> {
     }
 
     @Override
-    protected TrainedPixelClassifierModel call() throws IOException {
+    protected TrainedPixelClassifierModel call() throws IOException, InterruptedException {
         var monitor = this.and(LogProgressMonitor.debug(LoggerFactory.getLogger(getClass())));
         List<ClassifierTrainingData> allTrainingData = helper.createTrainingData(trainingImages, monitor.rescale(0, 0.9));
         if (allTrainingData.isEmpty()) {
             return null;
         }
 
-        // TODO: Add progress monitoring to training
         updateProgress("Training classifier", 0.9);
         var trainingData = ClassifierTrainingData.merge(allTrainingData);
+        if (Thread.interrupted()) {
+            throw new InterruptedException("Model training interrupted");
+        }
         var result = trainer.train(model, trainingData);
         monitor.updateProgress("Done!", 1.0);
         return result;

@@ -29,6 +29,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
+import javafx.scene.text.TextAlignment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -57,26 +58,21 @@ class FeatureDetailsPane extends Control implements Skinnable {
         super();
     }
 
-    void update(TrainableModel model,
-                List<String> featureNames) {
 
-        var currentImportance = model.getFeatureImportance(featureNames);
-        if (!currentImportance.isEmpty()) {
-            // Always use feature importance for RTrees when available
-            update(currentImportance);
-        } else if (!sameContents(importance.stream().map(FeatureImportance::name).toList(), featureNames)) {
-            // If we have feature importance values for the same features, don't overwrite them.
-            update(featureNames.stream()
-                    .map(n -> new FeatureImportance(n, Double.NaN))
-                    .toList());
-        }
-    }
-
-    void update(List<FeatureImportance> currentImportance) {
-        importance.setAll(currentImportance);
-        hasImportance.set(!importance.isEmpty() && !currentImportance.stream()
+    void updateImportance(String description, List<FeatureImportance> currentImportance) {
+        this.description.set(description);
+        this.importance.setAll(currentImportance);
+        this.hasImportance.set(!importance.isEmpty() && !currentImportance.stream()
                 .mapToDouble(FeatureImportance::importance)
                 .allMatch(Double::isNaN));
+    }
+
+    void updateNames(List<String> featureNames) {
+        if (sameContents(importance.stream().map(FeatureImportance::name).toList(), featureNames))
+            return;
+        updateImportance(null, featureNames.stream()
+                .map(n -> new FeatureImportance(n, Double.NaN))
+                .toList());
     }
 
     /**
@@ -157,6 +153,7 @@ class FeatureDetailsPane extends Control implements Skinnable {
             label.setMaxWidth(Double.MAX_VALUE);
             label.setMaxHeight(Double.MAX_VALUE);
             label.setAlignment(Pos.CENTER);
+            label.setTextAlignment(TextAlignment.CENTER);
             label.setOpacity(0.6);
         }
 

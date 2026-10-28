@@ -12,6 +12,7 @@ import qupath.opencv.ml.pixel.train.PixelClassifierModelTrainer;
 import qupath.opencv.ml.pixel.train.PixelClassifierTraining;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
@@ -41,7 +42,7 @@ public class CrossValidationTask extends MonitoredTask<List<ConfusionMatrix<Path
     }
 
     @Override
-    protected List<ConfusionMatrix<PathClass>> call() throws Exception {
+    protected List<ConfusionMatrix<PathClass>> call() throws IOException, InterruptedException {
         if (isCancelled())
             return List.of();
 
