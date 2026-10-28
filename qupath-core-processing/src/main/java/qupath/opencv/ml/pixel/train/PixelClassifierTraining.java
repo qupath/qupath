@@ -471,10 +471,16 @@ public class PixelClassifierTraining {
     			
     			if (roi.isPoint()) {
     				for (var p : roi.getAllPoints()) {
-        				int x = (int)Math.round((p.getX() - request.getX()) / downsample);    					
-        				int y = (int)Math.round((p.getY() - request.getY()) / downsample); 
-        				if (x >= 0 && y >= 0 && x < width && y < height)
-        					raster.setSample(x, y, 0, lab);
+						// Change for v0.8: previously used Math.round, but this could cause out-of-bounds coordniates.
+						// Also, it meant that a point at (0.5, 0.5) would move to (1, 1),
+						// when it ought to be at (0, 0).
+        				int x = (int)Math.floor((p.getX() - request.getX()) / downsample);
+        				int y = (int)Math.floor((p.getY() - request.getY()) / downsample);
+        				if (x >= 0 && y >= 0 && x < width && y < height) {
+							raster.setSample(x, y, 0, lab);
+						} else {
+							logger.warn("Out of bounds {}, {}", x, y);
+						}
     				}
     			} else {
 	    			var g2d = imgLabels.createGraphics();
