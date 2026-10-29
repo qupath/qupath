@@ -18,16 +18,22 @@ import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.Skin;
 import javafx.scene.control.Skinnable;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
+import javafx.scene.transform.Scale;
 import javafx.util.Subscription;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.color.ColorMaps;
@@ -96,6 +102,44 @@ class ConfusionMatrixControl<T> extends Control implements Skinnable {
         return ColorToolsFX.getCachedColor(
                 DEFAULT_COLORMAP.getColor(value, 0.0, 1.0)
         );
+    }
+
+    ConfusionMatrixControl() {
+        setContextMenu(createContextMenu());
+    }
+
+    private ContextMenu createContextMenu() {
+        ContextMenu contextMenu = new ContextMenu();
+        var miCopy = new MenuItem("Copy to clipboard");
+        miCopy.disableProperty().bind(confusionMatrix.isNull());
+        miCopy.setOnAction(event -> {
+            var content = new ClipboardContent();
+            var matrix = confusionMatrix.get();
+            if (matrix != null) {
+                var sb = new StringBuilder();
+                var delim = '\t';
+                for (var col : matrix.getLabels()) {
+                    sb.append(delim);
+                    sb.append(stringExtractor.get().apply(col));
+                }
+                sb.append(System.lineSeparator());
+                for (var row : matrix.getLabels()) {
+                    sb.append(stringExtractor.get().apply(row));
+                    for (var col : matrix.getLabels()) {
+                        sb.append(delim);
+                        sb.append(matrix.getCount(row, col));
+                    }
+                    sb.append(System.lineSeparator());
+                }
+                content.putString(sb.toString());
+            }
+            var params = new SnapshotParameters();
+            params.setTransform(Scale.scale(2, 2));
+            content.putImage(snapshot(params, null));
+            Clipboard.getSystemClipboard().setContent(content);
+        });
+        contextMenu.getItems().add(miCopy);
+        return contextMenu;
     }
 
     public ObjectProperty<ConfusionMatrix<T>> confusionMatrixProperty() {
