@@ -50,10 +50,10 @@ class MetricsPane<T> extends Control implements Skinnable {
 
     @Override
     protected Skin<?> createDefaultSkin() {
-        return new ConfusionMatrixSkin<>(this);
+        return new MetricsPaneSkin<>(this);
     }
 
-    private static class ConfusionMatrixSkin<T> implements Skin<MetricsPane<T>> {
+    private static class MetricsPaneSkin<T> implements Skin<MetricsPane<T>> {
 
         private final MetricsPane<T> skinnable;
 
@@ -66,7 +66,7 @@ class MetricsPane<T> extends Control implements Skinnable {
 
         private Subscription subscription;
 
-        private ConfusionMatrixSkin(MetricsPane<T> skinnable) {
+        private MetricsPaneSkin(MetricsPane<T> skinnable) {
             this.skinnable = skinnable;
             initializeTable();
             initialize();
