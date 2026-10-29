@@ -1,0 +1,169 @@
+package qupath.opencv.ml.pixel.train;
+
+import org.bytedeco.javacpp.PointerScope;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.lib.io.GsonTools;
+import qupath.lib.objects.classes.PathClass;
+import qupath.opencv.ml.ConfusionMatrix;
+import qupath.opencv.ml.FeaturePreprocessor;
+import qupath.opencv.ml.models.PredictionModel;
+import qupath.opencv.ml.models.TrainableModel;
+import qupath.lib.progress.LogProgressMonitor;
+import qupath.lib.progress.ProgressMonitor;
+
+import java.nio.IntBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+/**
+ * Helper class to train and evaluate a model by cross-validation.
+ * @since v0.8.0
+ */
+public class CrossValidation {
+
+    private static final Logger logger = LoggerFactory.getLogger(CrossValidation.class);
+
+	/**
+	 * Train and evaluate a model using cross-validation.
+	 * @param model the model to train; this will be duplicated (via JSON serialization) if possible.
+	 * @param trainer the trainer
+	 * @param trainingData the data to train the model. If a singleton list is provided, it will be split.
+	 *                     Otherwise, leave-one-out cross-validation will be performed.
+	 * @param rng random number generator used if splitting is required
+	 * @return a list of confusion matrices, created by evaluating a classifier on each training data split
+	 *         after training it on the others.
+	 */
+	public static List<ConfusionMatrix<PathClass>> computeCrossValidation(
+			TrainableModel model,
+			PixelClassifierModelTrainer trainer,
+			List<ClassifierTrainingData> trainingData,
+			Random rng) {
+		return computeCrossValidation(model, trainer, trainingData, rng, LogProgressMonitor.debug(logger));
+	}
+
+	/**
+	 * Train and evaluate a model using cross-validation, with progress monitoring.
+	 * @param model the model to train; this will be duplicated (via JSON serialization) if possible.
+	 * @param trainer the trainer
+	 * @param trainingData the data to train the model. If a singleton list is provided, it will be split.
+	 *                     Otherwise, leave-one-out cross-validation will be performed.
+	 * @param rng random number generator used if splitting is required
+	 * @param progressMonitor progress monitor to update during cross-validation.
+	 * @return a list of confusion matrices, created by evaluating a classifier on each training data split
+	 *         after training it on the others.
+	 */
+	public static List<ConfusionMatrix<PathClass>> computeCrossValidation(
+			TrainableModel model,
+			PixelClassifierModelTrainer trainer,
+			List<ClassifierTrainingData> trainingData,
+			Random rng,
+			ProgressMonitor progressMonitor) {
+
+		if (progressMonitor == null) {
+			progressMonitor = ProgressMonitor.NULL;
+		}
+
+		try {
+			progressMonitor.updateProgress("Duplicating model");
+			model = duplicateModel(model);
+		} catch (Exception e) {
+			logger.warn("Unable to duplicate model, original will be used for cross validation");
+		}
+
+		progressMonitor.updateProgress("Splitting data");
+		List<ConfusionMatrix<PathClass>> matrices = new ArrayList<>();
+		var firstData = trainingData.getFirst();
+		var labels = firstData.getLabelMap(); // Labels should be identical, via PixelClassifierTraining
+		if (trainingData.size() == 1) {
+			logger.warn("Splitting the training data");
+			int nSplits = Math.min(5, firstData.size() / 10);
+			if (nSplits <= 1) {
+				logger.error("No enough data to compute cross validation (size={})", firstData.size());
+				return List.of();
+			}
+			trainingData = firstData.split(nSplits, rng);
+		}
+
+		try (var scope = new PointerScope()) {
+			for (int i = 0; i < trainingData.size(); i++) {
+				progressMonitor.updateProgress("Cross validation " + (i + 1), i, trainingData.size());
+				var holdOutData = trainingData.get(i);
+				ClassifierTrainingData otherImages = ClassifierTrainingData.merge(
+						trainingData.stream().filter(d -> d != holdOutData).toList()
+				);
+				var trainedModel = trainer.train(model, otherImages);
+				try (var holdOutTest = TrainingUtils.createTrainData(holdOutData.getSamples(), holdOutData.getTargets())) {
+					var confusion = evaluate(
+							holdOutData.getName(),
+							holdOutTest.getTrainSamples(),
+							holdOutTest.getTrainNormCatResponses(),
+							holdOutTest.getClassLabels(),
+							trainedModel.model(),
+							trainedModel.featurePreprocessor(),
+							labels);
+					matrices.add(confusion);
+					logger.debug("Fold {}: Accuracy = {}, F1 = {}", i + 1, confusion.getAccuracy(), confusion.getF1());
+				}
+			}
+			progressMonitor.updateProgress("Done!", 1.0);
+			return matrices;
+		}
+	}
+
+
+    /**
+	 * Evaluate the predictions of a classifier.
+	 * @param name name for confusion matrix
+	 * @param samples the samples to use as input to the model
+	 * @param normCatTargets the normalized categorical targets
+	 * @param classLabels the class labels associated with the targets; see {@link org.bytedeco.opencv.opencv_ml.TrainData#getTrainNormCatResponses()}
+	 * @param model the model to use for prediction
+	 * @param preprocessor the preprocessor to apply to the samples
+	 * @param labels the QuPath-friendly mapping of classes to integer labels
+	 * @return
+	 */
+	private static ConfusionMatrix<PathClass> evaluate(String name, Mat samples, Mat normCatTargets, Mat classLabels, PredictionModel model,
+                                                       FeaturePreprocessor preprocessor, Map<PathClass, Integer> labels) {
+		if (preprocessor != null) {
+			samples = samples.clone();
+			preprocessor.apply(samples, false);
+		}
+		var confusion = new ConfusionMatrix<>(name, List.copyOf(labels.keySet()));
+		IntBuffer bufferGroundTruth = normCatTargets.createBuffer();
+		IntBuffer bufferClassList = classLabels.createBuffer();
+
+		// This assumes that our labels are dense and start with 0... rather than being
+		// all over the place, and potentially negative
+		int n = labels.values().stream().mapToInt(Integer::intValue).max().orElse(0) + 1;
+		PathClass[] pathClasses = new PathClass[n];
+		for (var entry : labels.entrySet()) {
+			pathClasses[entry.getValue()] = entry.getKey();
+		}
+
+		var testResults = new Mat();
+		model.predict(samples, testResults, new Mat());
+		IntBuffer bufferPrediction = testResults.createBuffer();
+		int nTest = testResults.rows();
+		for (int i = 0; i < nTest; i++) {
+			int targetClassInd = bufferClassList.get(bufferGroundTruth.get(i));
+			confusion.accumulate(
+					pathClasses[targetClassInd],
+					pathClasses[bufferPrediction.get(i)]
+			);
+		}
+		return confusion;
+	}
+
+
+    private static TrainableModel duplicateModel(TrainableModel model) {
+		var gson = GsonTools.getInstance();
+		return gson.fromJson(
+				gson.toJson(model, TrainableModel.class), TrainableModel.class
+		);
+	}
+
+}

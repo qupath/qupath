@@ -2,8 +2,6 @@ package qupath.process.gui.commands.ml;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -19,7 +17,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.projects.ProjectImageEntry;
 
-class TrainingImageManager {
+public class TrainingImageManager {
 
     private static final Logger logger = LoggerFactory.getLogger(TrainingImageManager.class);
 
@@ -41,12 +39,12 @@ class TrainingImageManager {
      * Often this is just the current image... unless there are a) multiple viewers, and/or b) project images required.
      * @return
      */
-    Collection<ImageData<BufferedImage>> getTrainingImageData() {
+    List<ImageData<BufferedImage>> getTrainingImageData() {
         // We use the current viewer to determine the image type
         var imageData = qupath.getImageData();
         if (imageData == null) {
             logger.warn("Cannot train classifier - a valid image needs to be open in the current viewer");
-            return Collections.emptyList();
+            return List.of();
         }
 
         // Read annotations from all compatible images (which here means same channel names)

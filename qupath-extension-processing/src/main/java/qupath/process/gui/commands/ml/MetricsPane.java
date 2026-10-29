@@ -3,6 +3,9 @@ package qupath.process.gui.commands.ml;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Insets;
@@ -47,10 +50,10 @@ class MetricsPane<T> extends Control implements Skinnable {
 
     @Override
     protected Skin<?> createDefaultSkin() {
-        return new ConfusionMatrixSkin<>(this);
+        return new MetricsPaneSkin<>(this);
     }
 
-    private static class ConfusionMatrixSkin<T> implements Skin<MetricsPane<T>> {
+    private static class MetricsPaneSkin<T> implements Skin<MetricsPane<T>> {
 
         private final MetricsPane<T> skinnable;
 
@@ -63,7 +66,7 @@ class MetricsPane<T> extends Control implements Skinnable {
 
         private Subscription subscription;
 
-        private ConfusionMatrixSkin(MetricsPane<T> skinnable) {
+        private MetricsPaneSkin(MetricsPane<T> skinnable) {
             this.skinnable = skinnable;
             initializeTable();
             initialize();
@@ -147,18 +150,27 @@ class MetricsPane<T> extends Control implements Skinnable {
             }
 
             confusionMatrixControl.setConfusionMatrix(matrix);
-            List<TreeItem<TableItem.NumberItem>> newItems = new ArrayList<>();
 
             var labels = matrix.getLabels();
 
+            // Match expanded/collapsed status
+            var collapsed = root.getChildren().stream()
+                    .filter(Predicate.not(TreeItem::isExpanded))
+                    .map(i -> i.getValue().getName())
+                    .collect(Collectors.toSet());
+
             List<TreeItem<TableItem.NumberItem>> items = new ArrayList<>();
-            if (labels.size() > 2) {
-                items.add(createItem("Average", metricsForMatrix(matrix)));
+            if (labels.size() >= 2) {
+                var newItem = createItem("Average", metricsForMatrix(matrix));
+                newItem.setExpanded(!collapsed.contains(newItem.getValue().getName()));
+                items.add(newItem);
             }
             for (var label : labels) {
-                items.add(
-                        createItem(Objects.toString(label), metricsForLabel(matrix, label)));
+                var newItem = createItem(Objects.toString(label), metricsForLabel(matrix, label));
+                newItem.setExpanded(!collapsed.contains(newItem.getValue().getName()));
+                items.add(newItem);
             }
+
             root.getChildren().setAll(items);
         }
 

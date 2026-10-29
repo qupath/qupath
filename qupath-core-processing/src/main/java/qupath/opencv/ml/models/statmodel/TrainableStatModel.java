@@ -1,6 +1,7 @@
 package qupath.opencv.ml.models.statmodel;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_ml.StatModel;
@@ -55,6 +56,11 @@ public class TrainableStatModel<T extends StatModel> implements TrainableModel {
     }
 
     @Override
+    public boolean supportsFeatureImportance() {
+        return getWrapper().supportsFeatureImportance();
+    }
+
+    @Override
     public boolean isTrained() {
         return getWrapper().isTrained();
     }
@@ -97,6 +103,11 @@ public class TrainableStatModel<T extends StatModel> implements TrainableModel {
     @Override
     public void predict(Mat samples, Mat results, Mat probabilities) {
         getWrapper().predict(samples, results, probabilities);
+    }
+
+    @Override
+    public Map<String, String> getDetails() {
+        return getWrapper().getDetails();
     }
 
     @Override

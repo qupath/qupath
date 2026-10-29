@@ -60,9 +60,9 @@ class QuPathUncaughtExceptionHandler implements UncaughtExceptionHandler {
 				sameExceptionCount++;
 				// Don't continually log the full stack trace
 				if (sameExceptionCount > 3)
-					logger.error("{} (see full stack trace above, or use 'debug' log level)", e.getLocalizedMessage());
+					logger.error("{} (see full stack trace above, or use 'debug' log level)", e.getMessage());
 				else
-					logger.debug(e.getLocalizedMessage(), e);
+					logger.debug(e.getMessage(), e);
 				return;
 			} else
 				sameExceptionCount = 0;

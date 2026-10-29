@@ -11,11 +11,14 @@ import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.SortedList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
@@ -26,10 +29,10 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
+import javafx.scene.text.TextAlignment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.opencv.ml.models.TrainableModel;
 import qupath.opencv.ml.models.FeatureImportance;
 
 class FeatureDetailsPane extends Control implements Skinnable {
@@ -42,27 +45,33 @@ class FeatureDetailsPane extends Control implements Skinnable {
     private final ObservableList<FeatureImportance> unmodifiableImportance =
             FXCollections.unmodifiableObservableList(importance);
 
+    /**
+     * A description to display to the user when feature importance values are available.
+     * This can be used to to explain how the values were calculated.
+     */
+    private final StringProperty description = new SimpleStringProperty();
+
     private final ReadOnlyBooleanWrapper hasImportance = new ReadOnlyBooleanWrapper(false);
 
     FeatureDetailsPane() {
         super();
     }
 
-    void update(TrainableModel model,
-                List<String> featureNames) {
 
-        var currentImportance = model.getFeatureImportance(featureNames);
-        if (!currentImportance.isEmpty()) {
-            // Always use feature importance for RTrees when available
-            importance.setAll(currentImportance);
-            hasImportance.set(true);
-        } else if (!sameContents(importance.stream().map(FeatureImportance::name).toList(), featureNames)) {
-            // If we have feature importance values for the same features, don't overwrite them.
-            importance.setAll(featureNames.stream()
-                    .map(n -> new FeatureImportance(n, Double.NaN))
-                    .toList());
-            hasImportance.set(false);
-        }
+    void updateImportance(String description, List<FeatureImportance> currentImportance) {
+        this.description.set(description);
+        this.importance.setAll(currentImportance);
+        this.hasImportance.set(!importance.isEmpty() && !currentImportance.stream()
+                .mapToDouble(FeatureImportance::importance)
+                .allMatch(Double::isNaN));
+    }
+
+    void updateNames(List<String> featureNames) {
+        if (sameContents(importance.stream().map(FeatureImportance::name).toList(), featureNames))
+            return;
+        updateImportance(null, featureNames.stream()
+                .map(n -> new FeatureImportance(n, Double.NaN))
+                .toList());
     }
 
     /**
@@ -71,6 +80,22 @@ class FeatureDetailsPane extends Control implements Skinnable {
      */
     public ReadOnlyBooleanProperty hasImportanceProperty() {
         return hasImportance.getReadOnlyProperty();
+    }
+
+    public boolean hasImportance() {
+        return hasImportanceProperty().get();
+    }
+
+    public StringProperty descriptionProperty() {
+        return description;
+    }
+
+    public String getDescription() {
+        return descriptionProperty().get();
+    }
+
+    public void setDescription(String description) {
+        descriptionProperty().set(description);
     }
 
     private static <T> boolean sameContents(Collection<T> c1, Collection<T> c2) {
@@ -100,6 +125,7 @@ class FeatureDetailsPane extends Control implements Skinnable {
         private final TableColumn<FeatureImportance, Number> columnImportance = new TableColumn<>("Importance");
 
         private final BorderPane pane = new BorderPane(table);
+        private final Label label = new Label("");
 
         private final DoubleProperty maxImportance = new SimpleDoubleProperty(1.0);
 
@@ -120,6 +146,14 @@ class FeatureDetailsPane extends Control implements Skinnable {
             table.getItems().addListener(this::handleListChange);
             table.setPlaceholder(new Label("No classifier trained"));
             table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_LAST_COLUMN);
+
+            label.setPadding(new Insets(5));
+            label.setWrapText(true);
+            label.setMaxWidth(Double.MAX_VALUE);
+            label.setMaxHeight(Double.MAX_VALUE);
+            label.setAlignment(Pos.CENTER);
+            label.setTextAlignment(TextAlignment.CENTER);
+            label.setOpacity(0.6);
         }
 
         private TableCell<FeatureImportance, Number> createCell(TableColumn<FeatureImportance, Number> column) {
@@ -152,11 +186,17 @@ class FeatureDetailsPane extends Control implements Skinnable {
         public void install() {
             Skin.super.install();
             Bindings.bindContent(baseList, skinnable.unmodifiableImportance);
+            label.textProperty().bind(skinnable.description);
+            pane.bottomProperty().bind(
+                    Bindings.when(label.textProperty().isNotEmpty().and(skinnable.hasImportance)).then(label).otherwise((Label) null));
+
         }
 
         @Override
         public void dispose() {
             Bindings.unbindContent(baseList, skinnable.unmodifiableImportance);
+            label.textProperty().unbind();
+            pane.bottomProperty().unbind();
         }
 
         private void handleListChange(ListChangeListener.Change<? extends FeatureImportance> event) {

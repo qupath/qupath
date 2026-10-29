@@ -175,13 +175,14 @@ public class PixelClassifiers {
 	 */
 	public static PixelClassifier createClassifier(PredictionModel statModel, ImageDataOp calculator, PixelClassifierMetadata metadata, boolean do8Bit) {
 		var ops = new ArrayList<ImageOp>();
-		boolean outputProbability = metadata.getOutputType() == ChannelType.PROBABILITY || metadata.getOutputType() == ChannelType.MULTICLASS_PROBABILITY;
-		ops.add(ImageOps.ML.predictionModel(statModel, outputProbability));
-		if (metadata.getOutputType() == ChannelType.PROBABILITY) {
+		if (metadata.getOutputType() == ChannelType.PROBABILITY || metadata.getOutputType() == ChannelType.MULTICLASS_PROBABILITY) {
+			ops.add(ImageOps.ML.predictionModel(statModel, true, metadata.getOutputChannels()));
 			if (do8Bit)
 				ops.add(ImageOps.Normalize.channelSum(255.0));
 			else
-				ops.add(ImageOps.Normalize.channelSum(1.0));				
+				ops.add(ImageOps.Normalize.channelSum(1.0));
+		} else {
+			ops.add(ImageOps.ML.predictionModel(statModel));
 		}
 		if (do8Bit) {
 			ops.add(ImageOps.Core.ensureType(PixelType.UINT8));

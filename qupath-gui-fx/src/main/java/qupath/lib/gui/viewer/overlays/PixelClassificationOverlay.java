@@ -50,6 +50,7 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
 import java.awt.AlphaComposite;
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
@@ -95,13 +96,16 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
     
     private final ObservableBooleanValue showOverlay;
 
+	// Useful for debugging; can be set in a Groovy script (despite being private)
+	private Color tileBorder = null;
+
 	private RegionFilter lastRegionFilter;
 	private final Map<RegionRequest, Boolean> acceptedTiles = new HashMap<>();
 	private long lastHierarchyEventCount = -1L;
     
     private PixelClassificationOverlay(final OverlayOptions options, final int nThreads, final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun) {
         super(options);
-        
+
         showOverlay = options.showPixelClassificationProperty();
         
         var threadFactory = ThreadTools.createThreadFactory(
@@ -330,9 +334,9 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         var comp = getAlphaComposite();
     	var previousComposite = gCopy.getComposite();
         if (comp != null) {
-        	if (previousComposite instanceof AlphaComposite)
-        		gCopy.setComposite(comp.derive(((AlphaComposite) previousComposite).getAlpha() * comp.getAlpha()));
-        	else
+        	if (previousComposite instanceof AlphaComposite alphaComposite) {
+				gCopy.setComposite(comp.derive(alphaComposite.getAlpha() * comp.getAlpha()));
+			} else
         		gCopy.setComposite(comp);
         }
         
@@ -377,6 +381,10 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
             	gCopy.fillRect(request.getX(), request.getY(), request.getWidth(), request.getHeight());
             	// Get the cached RGB painted version (since painting can be a fairly expensive operation)
             	gCopy.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
+				if (tileBorder != null) {
+					gCopy.setColor(tileBorder);
+					gCopy.drawRect(request.getX(), request.getY(), request.getWidth(), request.getHeight());
+				}
                 continue;
             }
             
