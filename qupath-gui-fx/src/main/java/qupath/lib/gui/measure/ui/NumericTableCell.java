@@ -1,23 +1,18 @@
 package qupath.lib.gui.measure.ui;
 
+import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.charts.HistogramDisplay;
 
 class NumericTableCell<T> extends TableCell<T, Number> {
 
-    private final HistogramDisplay histogramDisplay;
-
-    public NumericTableCell(Tooltip tooltip, HistogramDisplay histogramDisplay) {
-        this.histogramDisplay = histogramDisplay;
+    public NumericTableCell(Tooltip tooltip, EventHandler<? super MouseEvent> mouseListener) {
         setTooltip(tooltip);
-        if (histogramDisplay != null)
-            setOnMouseClicked(this::handleMouseClick);
+        setOnMouseClicked(mouseListener);
     }
-
 
     @Override
     protected void updateItem(Number item, boolean empty) {
@@ -42,13 +37,4 @@ class NumericTableCell<T> extends TableCell<T, Number> {
             }
         }
     }
-
-    private void handleMouseClick(MouseEvent event) {
-        if (event.isAltDown() && histogramDisplay != null) {
-            histogramDisplay.showHistogram(getTableColumn().getText());
-            event.consume();
-        }
-    }
-
-
 }

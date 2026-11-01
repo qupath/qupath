@@ -5,7 +5,13 @@
 .chart-legend {
    -fx-background-color:  transparent;
 }
- 
+
 .chart-plot-background {
     -fx-background-color: transparent;
+}
+
+/* disable weird point shapes for N series */
+.chart-symbol, .chart-legend-item-symbol {
+    -fx-background-radius: 5px;
+    -fx-shape: null;
 }
