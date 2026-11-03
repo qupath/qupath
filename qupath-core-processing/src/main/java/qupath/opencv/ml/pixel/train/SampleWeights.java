@@ -19,7 +19,7 @@ public class SampleWeights {
      * Weight each sample according to the frequency of its target label.
      * The weights are {@code n / count}, where @{code n} is the total number of samples and
      * {@code count} gives the number of occurrences of the target label.
-     * @returnathe sample weight calculator
+     * @return the sample weight calculator
      */
     public static SampleWeightCalculator balancedLabels() {
         return BALANCED;

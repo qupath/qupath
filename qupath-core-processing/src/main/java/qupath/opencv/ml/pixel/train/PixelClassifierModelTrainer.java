@@ -63,7 +63,7 @@ public class PixelClassifierModelTrainer {
         var targets = trainingData.getTargets();
         var weights = createWeights(samples, targets);
 
-        try (var trainData = TrainingUtils.createTrainData(trainingData.getSamples(), trainingData.getTargets())) {
+        try (var trainData = TrainingUtils.createTrainData(trainingData.getSamples(), trainingData.getTargets(), weights)) {
             if (maxSamples > 0 && trainData.getNTrainSamples() > maxSamples)
                 trainData.setTrainTestSplit(maxSamples, true);
             else
@@ -85,16 +85,16 @@ public class PixelClassifierModelTrainer {
             // Create TrainData in an appropriate format (e.g. labels or one-hot encoding)
             var trainSamples = trainData.getTrainSamples();
             var trainTargets = trainData.getTrainResponses();
+            var trainWeights = weights == null ? null : trainData.getTrainSampleWeights();
             if (usePreprocessor)
                 preprocessor.apply(trainSamples, false);
 
             // Using getTrainNormCatResponses() causes confusion if classes are not represented
-            var countsIndexedByLabels = createCountsIndexedByLabels(trainData.getTrainResponses(), labels);
+            var countsIndexedByLabels = createCountsIndexedByLabels(trainTargets, labels);
 
             Duration trainingTime;
             int nLabels = labels.values().stream().mapToInt(Integer::intValue).max().orElse(0);
-            try (var modelTrainData = model.createTrainData(trainSamples, trainTargets, nLabels, weights, false)) {
-                //		 logger.info("Training data: {} x {}, Target data: {} x {}", trainSamples.rows(), trainSamples.cols(), trainResponses.rows(), trainResponses.cols());
+            try (var modelTrainData = model.createTrainData(trainSamples, trainTargets, nLabels, trainWeights, false)) {
                 long startTime = System.nanoTime();
                 model.train(modelTrainData);
                 long endTime = System.nanoTime();
@@ -113,11 +113,11 @@ public class PixelClassifierModelTrainer {
         }
     }
 
-    private Mat createWeights(List<FeatureVector> features, TargetVector targets) {
+    private float[] createWeights(List<FeatureVector> features, TargetVector targets) {
         if (sampleWeightCalculator == null)
             return null;
-        float[] weights = sampleWeightCalculator.calculateWeights(features, targets);
-        return new Mat(weights);
+        else
+            return sampleWeightCalculator.calculateWeights(features, targets);
     }
 
     private static int[] createCountsIndexedByLabels(Mat targets, Map<PathClass, Integer> labels) {

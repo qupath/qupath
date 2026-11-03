@@ -31,6 +31,31 @@ public class TrainingUtils {
     }
 
     /**
+     * Convert features to an OpenCV {@link TrainData}.
+     * @param features a list of feature vectors (samples)
+     * @param targets target labels; the size of the vector should equal the number of samples
+     * @param weights optional array of sample weights; length should equal the number of samples (if not null)
+     * @return a train data
+     */
+    public static TrainData createTrainData(List<FeatureVector> features, TargetVector targets, float[] weights) {
+        if (weights == null || weights.length == 0) {
+            return createTrainData(features, targets);
+        }
+        if (weights.length != features.size()) {
+            throw new IllegalArgumentException("Weights and features must have the same size (" + weights.length + " != " + features.size() + ")");
+        }
+        return TrainData.create(
+                featuresToMat(features),
+                opencv_ml.ROW_SAMPLE,
+                targetsToMat(targets),
+                null,
+                null,
+                new Mat(weights),
+                null
+        );
+    }
+
+    /**
      * Convert a list of feature vectors (sampels) to a Mat.
      * @param features the samples
      * @return the Mat

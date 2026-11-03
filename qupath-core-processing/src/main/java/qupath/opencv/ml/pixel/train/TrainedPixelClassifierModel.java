@@ -62,7 +62,7 @@ public record TrainedPixelClassifierModel(TrainableModel model,
      * @return a new pixel classifier, wrapping this model
      */
     public PixelClassifier createPixelClassifier(int inputWidth, int inputHeight, ImageServerMetadata.ChannelType outputType) {
-        if (!model.supportsProbabilities() && !model.supportsProbabilities()) {
+        if (!model.supportsProbabilities() && outputType != ImageServerMetadata.ChannelType.CLASSIFICATION) {
             logger.warn("Output type {} not supported, will use {}", outputType, ImageServerMetadata.ChannelType.CLASSIFICATION);
         }
 

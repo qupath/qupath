@@ -97,12 +97,15 @@ public class PixelClassifierTraining {
 	private static final Cache<RegionRequest, TileFeatures> cache = Caffeine.newBuilder()
 			.softValues()
 			.weigher(PixelClassifierTraining::weighFeatures)
-			.maximumWeight(MemoryTools.getMaxMemoryPercent(10.0).orElse(1024L * 1024L))
+			.maximumWeight(getMaxCacheSizeBytes() / 1024L)
 			.evictionListener(PixelClassifierTraining::onRemoval)
 			.build();
 
 	private static final ProgressMonitor DEFAULT_PROGRESS_MONITOR = LogProgressMonitor.debug(logger);
 
+	private static long getMaxCacheSizeBytes() {
+		return MemoryTools.getMaxMemoryPercent(10.0).orElse(MemoryTools.gibibytesToBytes(1L));
+	}
 
 	private static int weighFeatures(RegionRequest regionRequest, TileFeatures tileFeatures) {
 		var features = tileFeatures.getFeatures();
