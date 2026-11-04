@@ -6,7 +6,7 @@ omeZarrReader   = "0.6.0"
 blosc           = "1.21.6+01"
 
 caffeine        = "3.2.4"
-commonmark      = "0.31.0"
+commonmark      = "0.32.0"
 commonsMath3    = "3.6.1"
 commonsText     = "1.14.0"
 controlsFX      = "11.2.6"
@@ -15,7 +15,7 @@ deepJavaLibrary = "0.39.0"
 
 groovy          = "6.0.0"
 gson            = "2.15.0"
-guava           = "33.7.2-jre"
+guava           = "33.8.0-jre"
 
 ikonli          = "12.4.0"
 imagej          = "1.54p"
@@ -34,9 +34,9 @@ jna             = "5.16.0"
 jfreeSvg        = "5.0.6"
 jfxtras         = "17-r1"
 jts             = "1.20.0"
-junit           = "6.0.3"
+junit           = "6.1.3"
 
-logback         = "1.6.5"
+logback         = "1.6.6"
 logviewer       = "0.3.0"
 
 extensionmanager= "1.1.1"
@@ -54,7 +54,7 @@ qupath-imglib2  = "0.2.0-SNAPSHOT"
 
 richtextfx      = "0.11.7"
 
-slf4j           = "2.0.18"
+slf4j           = "2.0.20"
 snakeyaml       = "2.6"
 
 
@@ -139,6 +139,6 @@ javafx         = { id = "org.openjfx.javafxplugin",                 version = "0
 # For jpackage
 jpackage       = { id = "org.beryx.runtime",                        version = "2.0.1" } # Non-modular
 # For license report (including 3rd party licenses)
-license-report = { id = "com.github.jk1.dependency-license-report", version = "3.1.4" }
+license-report = { id = "com.github.jk1.dependency-license-report", version = "3.1.5" }
 # For checksums when creating builds
 checksum       = { id = "org.gradle.crypto.checksum",               version = "1.4.0" }
