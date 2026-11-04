@@ -85,7 +85,7 @@ class ANNClassifier extends AbstractOpenCVClassifier<ANN_MLP> {
 
         // Hidden layer sizes
         params.addTitleParameter("Hidden layers");
-        for (int i = 1; i < layerSizes.length; i++) {
+        for (int i = 2; i < layerSizes.length-1; i++) {
             params.addIntParameter("hidden" + i, "Layer " + i, layerSizes[i - 1], "Nodes", "Size of first hidden layer (0 to omit layer)");
         }
 
@@ -283,7 +283,7 @@ class ANNClassifier extends AbstractOpenCVClassifier<ANN_MLP> {
         // Set termination criterion
         model.setTermCriteria(OpenCVStatModels.updateTermCriteria(params, model.getTermCriteria()));
 
-        logger.debug("Initializing ANN with layer sizes: " + GeneralTools.arrayToString(Locale.getDefault(Locale.Category.FORMAT), layers, 0));
+        logger.debug("Initializing ANN with layer sizes: {}", GeneralTools.arrayToString(Locale.getDefault(Locale.Category.FORMAT), layers, 0));
     }
 
 }

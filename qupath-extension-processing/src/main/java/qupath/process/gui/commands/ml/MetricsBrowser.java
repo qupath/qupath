@@ -5,17 +5,24 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.SingleSelectionModel;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.text.Text;
 import org.controlsfx.glyphfont.FontAwesome;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.opencv.ml.ConfusionMatrix;
+
+import java.util.Objects;
 
 public class MetricsBrowser<T> extends BorderPane {
 
@@ -36,6 +43,40 @@ public class MetricsBrowser<T> extends BorderPane {
         init();
         getStyleClass().add("metrics-browser");
         titled.getStyleClass().add("bold-title");
+
+        var popup = createTitledContextMenu();
+        titled.setOnContextMenuRequested(e -> {
+            if (metricsPane.getConfusionMatrix() != null && !titled.textProperty().getValue().isEmpty()) {
+                // Cumbersome way to check if we've right-clicked on the text (not the content of the pane)
+                if (e.getTarget() instanceof Text text) {
+                    if (Objects.equals(text.getText(), titled.getText())) {
+                        popup.show(text.getParent(), e.getScreenX(), e.getScreenY());
+                        popup.setAutoHide(true);
+                        e.consume();
+                    }
+                }
+            }
+        });
+    }
+
+    private ContextMenu createTitledContextMenu() {
+        ContextMenu popup = new ContextMenu();
+        popup.setAutoHide(true);
+        var miCopyToClipboard = new MenuItem("Copy to clipboard");
+        miCopyToClipboard.setOnAction(event -> {
+            var text = titled.getText();
+            if (text == null || text.isEmpty()) {
+                return;
+            }
+            var content = new ClipboardContent();
+            content.putString(text);
+            Clipboard.getSystemClipboard().setContent(content);
+        });
+        miCopyToClipboard.disableProperty().bind(
+                titled.textProperty().isEmpty().or(metricsPane.confusionMatrixProperty().isNull())
+        );
+        popup.getItems().add(miCopyToClipboard);
+        return popup;
     }
 
     public ObservableList<ConfusionMatrix<T>> getConfusionMatrices() {

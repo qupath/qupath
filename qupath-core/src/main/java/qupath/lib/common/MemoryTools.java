@@ -21,7 +21,6 @@
 
 package qupath.lib.common;
 
-import java.util.Optional;
 import java.util.OptionalLong;
 
 /**

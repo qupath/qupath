@@ -328,9 +328,11 @@ public class ParameterPanelFX {
 	protected TextField getTextField(Parameter<?> param, int cols, String key) {
 		TextField tf = new TextField();
 		Object defaultVal = param.getValueOrDefault();
-		if (defaultVal instanceof Number)
-			tf.setText(NumberFormat.getInstance().format(defaultVal));
-		else if (defaultVal != null)
+		if (defaultVal instanceof Number) {
+			var format = NumberFormat.getInstance();
+			format.setMaximumFractionDigits(8);
+			tf.setText(format.format(defaultVal));
+		} else if (defaultVal != null)
 			tf.setText(defaultVal.toString());
 		
 		if (cols > 0)

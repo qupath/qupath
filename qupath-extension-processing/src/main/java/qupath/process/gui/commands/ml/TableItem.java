@@ -62,12 +62,20 @@ class TableItem<T> {
         return name;
     }
 
+    String getName() {
+        return nameProperty().getValue();
+    }
+
     /**
      * Observable exposing the value.
      * @return the value property
      */
     ObservableValue<T> valueProperty() {
         return value;
+    }
+
+    T getValue() {
+        return valueProperty().getValue();
     }
 
     /**

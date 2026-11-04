@@ -1,7 +1,7 @@
 package qupath.process.gui.commands.ml;
 
 import ij.CompositeImage;
-import java.awt.image.BufferedImage;
+
 import java.io.IOException;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -12,16 +12,12 @@ import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.GridPaneUtils;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
-import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
-import qupath.opencv.ops.ImageOp;
-import qupath.opencv.ops.ImageOps;
 
 class PixelClassifierUtils {
 
