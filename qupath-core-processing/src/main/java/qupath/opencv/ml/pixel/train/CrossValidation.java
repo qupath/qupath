@@ -146,14 +146,24 @@ public class CrossValidation {
 
 		var testResults = new Mat();
 		model.predict(samples, testResults, new Mat());
-		IntBuffer bufferPrediction = testResults.createBuffer();
+		if (testResults.cols() > 1) {
+			throw new UnsupportedOperationException("Prediction output expected to have 1 column, not " + testResults.cols());
+		}
 		int nTest = testResults.rows();
-		for (int i = 0; i < nTest; i++) {
-			int targetClassInd = bufferClassList.get(bufferGroundTruth.get(i));
-			confusion.accumulate(
-					pathClasses[targetClassInd],
-					pathClasses[bufferPrediction.get(i)]
-			);
+		try (var indexer = testResults.createIndexer()) {
+			for (int i = 0; i < nTest; i++) {
+				int targetClassInd = bufferClassList.get(bufferGroundTruth.get(i));
+				double prediction = indexer.getDouble(i);
+				int predictionLabel = (int)Math.round(prediction);
+				if (prediction != predictionLabel || predictionLabel < 0 || predictionLabel >= pathClasses.length) {
+					throw new IllegalStateException("Prediction output expected to be an integer label [0, " +
+							pathClasses.length + "), not " + prediction);
+				}
+				confusion.accumulate(
+						pathClasses[targetClassInd],
+						pathClasses[predictionLabel]
+				);
+			}
 		}
 		return confusion;
 	}
@@ -161,8 +171,8 @@ public class CrossValidation {
 
     private static TrainableModel duplicateModel(TrainableModel model) {
 		var gson = GsonTools.getInstance();
-		return gson.fromJson(
-				gson.toJson(model, TrainableModel.class), TrainableModel.class
+		var json = gson.toJson(model, TrainableModel.class);
+		return gson.fromJson(json, TrainableModel.class
 		);
 	}
 
