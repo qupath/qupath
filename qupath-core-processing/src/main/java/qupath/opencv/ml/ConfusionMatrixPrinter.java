@@ -11,91 +11,144 @@ import java.util.Random;
 import java.util.function.Function;
 
 /**
- * Create a string representation of a confusion matrix for (monospaced) printing.
+ * Create a string representation of a confusion matrix for display, either as delimited text or
+ * a more graphical display suitable for use with a monospaced font.
+ * <p>
+ * Instances of this class are immutable, but not necessarily thread-safe because {@link NumberFormat} is
+ * not synchronized, and the string extraction function may or may not be thread-safe.
  */
 public class ConfusionMatrixPrinter<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(ConfusionMatrixPrinter.class);
 
-    private final ConfusionMatrix<T> matrix;
     private final Function<T, String> stringFunction;
     private final NumberFormat formatter;
     private final boolean usePercent;
 
-    private ConfusionMatrixPrinter(ConfusionMatrix<T> matrix, Function<T, String> stringFunction, NumberFormat formatter, boolean usePercent) {
-        Objects.requireNonNull(matrix);
+    private ConfusionMatrixPrinter(Function<T, String> stringFunction, NumberFormat formatter, boolean usePercent) {
         Objects.requireNonNull(stringFunction);
         Objects.requireNonNull(formatter);
-        this.matrix = matrix;
         this.stringFunction = stringFunction;
         this.formatter = formatter;
         this.usePercent = usePercent;
     }
 
     /**
-     * Create a builder to customize the string conversion of a confusion matrix.
-     * @param matrix the confusion matrix
-     * @return a new builder
-     * @param <T> generic parameter of the confusion matric
+     * Create a printer to display confusion matrix counts (not percentages), using the default method of
+     * extracting a string from the confusion matrix labels.
+     * @return the new printer
      */
-    public static <T> Builder<T> builder(ConfusionMatrix<T> matrix) {
-        return new Builder<>(matrix);
+    public static ConfusionMatrixPrinter<Object> create() {
+        return new ConfusionMatrixPrinter<>(Object::toString, NumberFormat.getInstance(), false);
     }
 
     /**
-     * Get a string representation of a confusion matrix, showing raw counts.
-     * @param matrix the confusion matrix
-     * @return the string
+     * Create a new printer that is similar to this one, except that it displays percentages (not counts).
+     * @return the new printer
      */
-    public static String getString(ConfusionMatrix<?> matrix) {
-        return builder(matrix).build().getString();
+    public ConfusionMatrixPrinter<T> percent() {
+        return new ConfusionMatrixPrinter<>(this.stringFunction, this.formatter, true);
     }
 
     /**
-     * Get a string representation of a confusion matrix, showing percentages.
-     * @param matrix the confusion matrix
-     * @return the string
+     * Create a new printer that is similar to this one, except that it displays counts (not percentages).
+     * @return the new printer
      */
-    public static String getStringWithPercent(ConfusionMatrix<?> matrix) {
-        return builder(matrix).percentage(true).build().getString();
+    public ConfusionMatrixPrinter<T> counts() {
+        return new ConfusionMatrixPrinter<>(this.stringFunction, this.formatter, false);
     }
 
     /**
-     * Get the confusion matrix to be converted to a string.
-     * @return
+     * Create a new printer that is similar to this one, except that uses a custom function to extract
+     * strings from labels.
+     * @return the new printer
      */
-    public ConfusionMatrix<T> getConfusionMatrix() {
-        return matrix;
+    public <S> ConfusionMatrixPrinter<S> stringFunction(Function<S, String> stringFunction) {
+        return new ConfusionMatrixPrinter<>(stringFunction, this.formatter, this.usePercent);
     }
 
-    private String getCell(T row, T col) {
+    /**
+     * Create a new printer that is similar to this one, except that uses a custom number formatter.
+     * @return the new printer
+     */
+    public ConfusionMatrixPrinter<T> formatter(NumberFormat formatter) {
+        return new ConfusionMatrixPrinter<>(this.stringFunction, formatter, this.usePercent);
+    }
+
+
+    private <S> String getCellValue(ConfusionMatrix<S> matrix, S row, S col) {
         if (usePercent) {
-            return formatter.format(matrix.getCount(row, col) * 100.0 / matrix.getTotal()) + " %";
+            return formatter.format(matrix.getCount(row, col) * 100.0 / matrix.getTotal()) + "%";
         } else {
             return formatter.format(matrix.getCount(row, col));
         }
     }
 
     /**
-     * Get the string representation.
-     * @return
+     * Get a tab-delimited string containing the labels and values of the confusion matrix.
+     * @param matrix the confusion matrix to display
+     * @return the delimited string
      */
-    public String getString() {
+    public String getTabDelimitedString(ConfusionMatrix<? extends T> matrix) {
+        return getDelimitedString(matrix, "\t", System.lineSeparator());
+    }
+
+    /**
+     * Get a comma-delimited string containing the labels and values of the confusion matrix.
+     * @param matrix the confusion matrix to display
+     * @return the delimited string
+     */
+    public String getCommaDelimitedString(ConfusionMatrix<? extends T> matrix) {
+        return getDelimitedString(matrix, ",", System.lineSeparator());
+    }
+
+    /**
+     * Get a string containing the labels and values of the confusion matrix.
+     * @param matrix the confusion matrix to display
+     * @param delimiter the delimiter to use between values on the same row (usually tab or comma)
+     * @param newline the delimiter to use to indicate the end of a row of the matrix (usually newline or semicolon)
+     * @return the delimited string
+     */
+    public <S extends T> String getDelimitedString(ConfusionMatrix<S> matrix, String delimiter, String newline) {
+        var sb = new StringBuilder();
+        for (var col : matrix.getLabels()) {
+            sb.append(delimiter);
+            sb.append(stringFunction.apply(col));
+        }
+        sb.append(newline);
+        for (var row : matrix.getLabels()) {
+            sb.append(stringFunction.apply(row));
+            for (var col : matrix.getLabels()) {
+                sb.append(delimiter);
+                sb.append(getCellValue(matrix, row, col));
+            }
+            sb.append(newline);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Get a string representation that attempts to graphically display the confusion matrix,
+     * when viewed with a monospaced font.
+     * @param matrix the confusion matrix to display
+     * @return the displayable string
+     */
+    public <S extends T> String getDisplayableString(ConfusionMatrix<S> matrix) {
         var labels = matrix.getLabels();
         int n = labels.size();
         List<String> allStrings = new ArrayList<>();
 
         // Top row
         allStrings.add(" ");
-        for (T col : labels) {
+        for (S col : labels) {
             allStrings.add(stringFunction.apply(col));
         }
 
         // Other rows
-        for (T row : labels) {
+        for (S row : labels) {
             allStrings.add(stringFunction.apply(row));
-            for (T col : labels) {
-                allStrings.add(getCell(row, col));
+            for (S col : labels) {
+                allStrings.add(getCellValue(matrix, row, col));
             }
         }
 
@@ -151,64 +204,6 @@ public class ConfusionMatrixPrinter<T> {
         }
     }
 
-    /**
-     * Builder for {@link ConfusionMatrixPrinter}.
-     * @param <T>
-     */
-    public static class Builder<T> {
-
-        private final ConfusionMatrix<T> matrix;
-        private Function<T, String> stringFunction = Objects::toString;
-        private NumberFormat formatter;
-        private boolean usePercent = false;
-
-        private Builder(ConfusionMatrix<T> matrix) {
-            this.matrix = matrix;
-            this.formatter = NumberFormat.getNumberInstance();
-            this.formatter.setMaximumFractionDigits(2);
-        }
-
-        /**
-         * Define a function to convert labels to strings.
-         * @param stringFunction the string conversion function
-         * @return this builder
-         */
-        public Builder<T> stringFunction(Function<T, String> stringFunction) {
-            Objects.requireNonNull(stringFunction);
-            this.stringFunction = stringFunction;
-            return this;
-        }
-
-        /**
-         * Define a formatter to convert numeric values.
-         * @param formatter the formatter
-         * @return this builder
-         */
-        public Builder<T> formatter(NumberFormat formatter) {
-            Objects.requireNonNull(formatter);
-            this.formatter = formatter;
-            return this;
-        }
-
-        /**
-         * Optionally show percentages instead of counts in the matrix cells.
-         * @param usePercent if true, show percentages; if false, show raw counts.
-         * @return this builder
-         */
-        public Builder<T> percentage(boolean usePercent) {
-            this.usePercent = usePercent;
-            return this;
-        }
-
-        /**
-         * Build the confusion matrix printer.
-         * @return this printer
-         */
-        public ConfusionMatrixPrinter<T> build() {
-            return new ConfusionMatrixPrinter<T>(matrix, stringFunction, formatter, usePercent);
-        }
-
-    }
 
     public static void main(String[] args) {
         List<String> names = List.of("One", "Two", "Three");
@@ -217,6 +212,12 @@ public class ConfusionMatrixPrinter<T> {
         for (int i = 0; i < 500; i++) {
             matrix.accumulate(names.get(rng.nextInt(names.size())), names.get(rng.nextInt(names.size())));
         }
-        logger.info("\n{}", matrix.getPrintableString());
+        logger.info("\n{}", ConfusionMatrixPrinter.create()
+                .getDisplayableString(matrix));
+        logger.info("\n[{}]", ConfusionMatrixPrinter.create()
+                        .percent()
+                        .stringFunction((String s) -> s + "-append")
+                        .formatter(NumberFormat.getCompactNumberInstance())
+                        .getDelimitedString(matrix, ", ", "; "));
     }
 }

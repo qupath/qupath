@@ -8,7 +8,8 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Confusion matrix to help assess classifier performance.
@@ -287,24 +288,6 @@ public class ConfusionMatrix<T> {
         double nTruePositives = getTruePositives();
         return nTruePositives / getTotal();
     }
-
-    /**
-     * Get a string representation of the confusion matrix, suitable for printing in a monospaced font.
-     * @return the string representation
-     */
-    public String getPrintableString() {
-        return ConfusionMatrixPrinter.getString(this);
-    }
-
-    /**
-     * Get a string representation of the confusion matrix showing percentages,
-     * suitable for printing in a monospaced font.
-     * @return the string representation
-     */
-    public String getPrintableStringWithPercent() {
-        return ConfusionMatrixPrinter.getStringWithPercent(this);
-    }
-
 
 
 }
