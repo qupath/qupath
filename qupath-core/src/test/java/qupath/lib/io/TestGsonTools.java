@@ -21,18 +21,25 @@
 
 package qupath.lib.io;
 
+import com.google.common.reflect.TypeToken;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Geometry;
 import qupath.lib.common.ColorTools;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.ROIs;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -162,6 +169,35 @@ public class TestGsonTools {
 		assertTrue(geom.isValid());
 		assertTrue(geom.isEmpty());
 		assertEquals(geom.getFactory(), GeometryTools.getDefaultFactory());
+	}
+
+	@Test
+	public void test_duplicatePathObject() {
+		var roi = ROIs.createEllipseROI(0, 2, 3, 4, ImagePlane.getPlane(5, 6));
+		var pathClass = PathClass.fromString("Any class");
+		var pathObject = PathObjects.createDetectionObject(roi, pathClass);
+		var duplicate = GsonTools.serializeDeserialize(pathObject);
+		assertEquals(roi, duplicate.getROI());
+		assertEquals(pathClass, duplicate.getPathClass());
+	}
+
+	@Test
+	public void test_duplicateMap() {
+		var map = Map.of("First", "My string", "Second", 0.1, "Third", List.of("Any", "Other", "String"));
+		var duplicate = GsonTools.serializeDeserialize(map, Map.class);
+		assertEquals(map, duplicate);
+	}
+
+	@Test
+	public void test_duplicateGenericList() {
+		List<Float> list = List.of(1f, 1.2f, 3f);
+		var duplicate = GsonTools.serializeDeserialize(list, List.class);
+		// Not the same: during deserialization, all numbers become doubles
+		assertNotEquals(list, duplicate);
+
+		// Should be the same, due to type being provided explicitly
+		var duplicateGeneric = GsonTools.serializeDeserialize(GsonTools.getInstance(), list, new TypeToken<List<Float>>(){}.getType());
+		assertEquals(list, duplicateGeneric);
 	}
 
 	
