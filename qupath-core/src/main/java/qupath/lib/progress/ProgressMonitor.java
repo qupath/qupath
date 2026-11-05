@@ -49,6 +49,16 @@ public interface ProgressMonitor {
     }
 
     /**
+     * Update the progress message and indicate that the task is complete.
+     * <p>
+     * This is a convenience that simply calls {@code updateProgresss(message, 1.0}.
+     * @param message the message
+     */
+    default void complete(String message) {
+        updateProgress(message, 1.0);
+    }
+
+    /**
      * Check whether a progress value is indeterminate, i.e. not a finite value &geq; 0.
      *
      * @param progress the progress to check

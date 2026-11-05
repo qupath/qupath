@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -30,7 +30,6 @@ import qupath.lib.common.ThreadTools;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,7 +49,7 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 	private ExecutorService pool;
 	private ExecutorCompletionService<Runnable> service;
 
-	private Map<Future<Runnable>, Runnable> pendingTasks = new ConcurrentHashMap<>();
+	private final Map<Future<Runnable>, Runnable> pendingTasks = new ConcurrentHashMap<>();
 	
 	private SimpleProgressMonitor monitor;
 	
@@ -153,15 +152,10 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 			if (monitor != null)
 				monitor.pluginCompleted("");
 		} catch (InterruptedException e) {
-			logger.error("Plugin interrupted: {}", e.getMessage(), e);
-			monitor.pluginCompleted("Completed with error " + e.getMessage());
-		} catch (ExecutionException e) {
-			logger.error("Error running plugin: {}", e.getMessage(), e);
-			if (pool != null)
-				pool.shutdownNow();
+			logger.error("Task interrupted: {}", e.getMessage(), e);
 			monitor.pluginCompleted("Completed with error " + e.getMessage());
 		} catch (Exception e) {
-			logger.error("Error running plugin: {}", e.getMessage(), e);
+			logger.error("Error running task: {}", e.getMessage(), e);
 			if (pool != null)
 				pool.shutdownNow();
 			monitor.pluginCompleted("Completed with error " + e.getMessage());
@@ -173,10 +167,10 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 	
 	/**
 	 * Perform post-processing after a task has complete.
-	 * 
+	 * <p>
 	 * This is necessary to call the taskComplete method (if the Runnable is an instance of PathTask),
 	 * and also to update any progress monitor.
-	 * 
+	 * <p>
 	 * Note: Subclasses may choose to override this method so that it is called on a particular thread
 	 * (e.g. with Platform.runLater() or SwingUtilities.invokeLater).
 	 * 
@@ -186,11 +180,6 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 		boolean wasCancelled = tasksCancelled || monitor.cancelled();
 		for (var task : tasks)
 			task.taskComplete(wasCancelled);
-
-		// Removed v0.5.0 - TODO: Check if should be reinstated
-//		var imageData = getImageData();
-//		if (imageData != null)
-//			imageData.getHierarchy().fireHierarchyChangedEvent(this);
 	}
 	
 	private void updateMonitor(final PathTask task) {

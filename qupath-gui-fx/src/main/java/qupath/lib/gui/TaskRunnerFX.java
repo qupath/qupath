@@ -46,7 +46,6 @@ import qupath.lib.plugins.AbstractTaskRunner;
 import qupath.lib.plugins.CommandLineTaskRunner;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.SimpleProgressMonitor;
-import qupath.lib.regions.ImageRegion;
 
 import java.text.MessageFormat;
 import java.util.Collection;
@@ -56,9 +55,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Plugin runner that takes care of showing progress (in the appropriate thread) using JavaFX components.
- * 
- * @author Pete Bankhead
- *
  */
 public class TaskRunnerFX extends AbstractTaskRunner {
 
@@ -137,14 +133,14 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 
 	
 	
-	static class PluginProgressMonitorFX implements SimpleProgressMonitor {
+	private static class PluginProgressMonitorFX implements SimpleProgressMonitor {
 
 		private static final Logger logger = LoggerFactory.getLogger(PluginProgressMonitorFX.class);
 
-		private static String STARTING_MESSAGE = QuPathResources.getString("TaskRunnerFX.starting");
-		private static String RUNNING_MESSAGE = QuPathResources.getString("TaskRunnerFX.running");
-		private static String CANCEL_MESSAGE = QuPathResources.getString("TaskRunnerFX.cancelling");
-		private static String COMPLETED_MESSAGE = QuPathResources.getString("TaskRunnerFX.completed");
+		private static final String STARTING_MESSAGE = QuPathResources.getString("TaskRunnerFX.starting");
+		private static final String RUNNING_MESSAGE = QuPathResources.getString("TaskRunnerFX.running");
+		private static final String CANCEL_MESSAGE = QuPathResources.getString("TaskRunnerFX.cancelling");
+		private static final String COMPLETED_MESSAGE = QuPathResources.getString("TaskRunnerFX.completed");
 
 		private Stage owner;
 		
@@ -210,19 +206,13 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 			progressDialog = new Dialog<>();
 			progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 
-			((Button)progressDialog.getDialogPane().lookupButton(ButtonType.CANCEL)).setVisible(false);
-			//			((Button)progressDialog.getDialogPane().lookupButton(ButtonType.CANCEL)).setOnAction(e -> {
-			//				progressDialog.getDialogPane().setHeaderText(CANCEL_MESSAGE);
-			//				progressLabel.setText("Completing tasks currently in progress...");
-			//				cancelPressed = true; //!plugin.cancelPlugin();
-			//			});
+			progressDialog.getDialogPane().lookupButton(ButtonType.CANCEL).setVisible(false);
 			progressDialog.initOwner(owner);
 			// Uses trick from https://www.reddit.com/r/javahelp/comments/39ogiw/cannot_prevent_javafx_dialog_from_closing/
 			progressDialog.getDialogPane().getScene().getWindow().setOnCloseRequest(e -> {
 				if (!permitClose)
 					e.consume();
 			});
-			//			progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 			if (message == null)
 				progressDialog.getDialogPane().setHeaderText(STARTING_MESSAGE);
 			else
