@@ -37,19 +37,19 @@
 ### Dependency updates
 * Bio-Formats 8.5.0
 * Caffeine 3.2.4
-* Commonmark 0.31.0
+* Commonmark 0.32.0
 * ControlsFX 11.2.6
 * DeepJavaLibrary 0.39.0
 * Gson 2.15.0
 * Groovy 6.0.0
-* Guava 33.7.2
-* JavaCPP 1.5.13
+* Guava 33.8.0
+* JavaCPP 1.5.14
 * JavaFX 27.0.1
-* Logback 1.6.1
+* Logback 1.6.6
 * OpenCV 4.14.0
 * qupath-fxtras 0.4.1
 * SciJava POM 45.1.0
-* SLF4J 2.0.18
+* SLF4J 2.0.20
 * OpenSlide 4.0.1.2
 
 ## Version 0.7.0
