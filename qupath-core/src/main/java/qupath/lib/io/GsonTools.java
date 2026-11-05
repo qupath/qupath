@@ -384,6 +384,17 @@ public class GsonTools {
 
 	/**
 	 * Attempt to duplicate an object by first serializing it to JSON, then deserializing it.
+	 * <p>
+	 * Note that it is <b>not</b> guaranteed that the resulting object will be an exact duplicate of the original,
+	 * and {@code Objects.equals(input, output)} may often return false.
+	 * This occurs because information (often type information) may be lost in the JSON representation.
+	 * <p>
+	 * For example, {@code serializeDeserialize(gson, List.of(1, 1.2f, 3)} returns a list that contains
+	 * {@code Double}, even though the original list contains {@code Integer} and {@code Float}.
+	 * <p>
+	 * Nevertheless, the method can be useful to attempt to duplicate objects that cannot be copied another way,
+	 * and which rely upon JSON serialization for persistence.
+	 * It may also be useful to test what information might be lost through serialization and deserialization.
 	 * @param gson the gson instance to use
 	 * @param obj the object to serialize, then deserialize
 	 * @param typeOfT the type to use for the serialization; this may be a generic type, using {@link TypeToken}.
