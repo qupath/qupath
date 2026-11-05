@@ -40,6 +40,7 @@ import qupath.lib.color.ColorMaps;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.opencv.ml.ConfusionMatrix;
+import qupath.opencv.ml.ConfusionMatrixPrinter;
 
 /**
  * Control to display a confusion matrix.
@@ -116,22 +117,10 @@ class ConfusionMatrixControl<T> extends Control implements Skinnable {
             var content = new ClipboardContent();
             var matrix = confusionMatrix.get();
             if (matrix != null) {
-                var sb = new StringBuilder();
-                var delim = '\t';
-                for (var col : matrix.getLabels()) {
-                    sb.append(delim);
-                    sb.append(stringExtractor.get().apply(col));
-                }
-                sb.append(System.lineSeparator());
-                for (var row : matrix.getLabels()) {
-                    sb.append(stringExtractor.get().apply(row));
-                    for (var col : matrix.getLabels()) {
-                        sb.append(delim);
-                        sb.append(matrix.getCount(row, col));
-                    }
-                    sb.append(System.lineSeparator());
-                }
-                content.putString(sb.toString());
+                var string = ConfusionMatrixPrinter.create()
+                        .stringFunction(stringExtractor.get())
+                        .getTabDelimitedString(matrix);
+                content.putString(string);
             }
             var params = new SnapshotParameters();
             params.setTransform(Scale.scale(2, 2));
