@@ -134,7 +134,7 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 					for (Future<?> entry : pendingTasks.keySet().toArray(new Future<?>[0])) {
 						if (entry.cancel(true)) {
 							pendingTasks.remove(entry);
-							monitor.updateProgress(1, "", null);
+							monitor.updateProgress(1, "");
 						} else
 							logger.debug("Cancel returned false for {}", entry);
 					}
@@ -197,7 +197,7 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 		if (monitor == null)
 			return;
 		String text = task == null ? "Completed" : task.getLastResultsDescription();
-		monitor.updateProgress(1, text, null);
+		monitor.updateProgress(1, text);
 	}
 	
 	@Override

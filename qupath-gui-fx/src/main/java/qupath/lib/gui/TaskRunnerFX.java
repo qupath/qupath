@@ -281,7 +281,7 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 
 
 		@Override
-		public void updateProgress(final int progressIncrement, final String message, final ImageRegion region) {
+		public void updateProgress(final int progressIncrement, final String message) {
 			progress.addAndGet(progressIncrement);
 			this.lastMessage = message;
 		}

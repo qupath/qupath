@@ -83,7 +83,7 @@ public class CommandLineTaskRunner extends AbstractTaskRunner {
 		}
 
 		@Override
-		public synchronized void updateProgress(int increment, String message, ImageRegion region) {
+		public synchronized void updateProgress(int increment, String message) {
 			int progressValue = progress.addAndGet(increment);
 			int progressPercent = (int)((double)progressValue / maxProgress * 100 + .5);
 			String newMessage = message + " (" + progressPercent + "%)";

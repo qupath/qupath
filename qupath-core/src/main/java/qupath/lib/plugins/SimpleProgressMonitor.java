@@ -47,7 +47,7 @@ public interface SimpleProgressMonitor {
 	 * @param maxProgress The progress value considered complete.
 	 * @param mayCancel 
 	 */
-	public void startMonitoring(String message, int maxProgress, boolean mayCancel);
+	void startMonitoring(String message, int maxProgress, boolean mayCancel);
 	
 	/**
 	 * Update the displayed progress, and optionally inform the PluginRunner that data related to a specified image region has been updated.
@@ -55,9 +55,8 @@ public interface SimpleProgressMonitor {
 	 * 
 	 * @param increment update progress by the specified increment
 	 * @param message optional message that may be displayed to reflect the current progress status.
-	 * @param region optional region of the image that has been changed; in interactive mode, this region may be repainted.
 	 */
-	public void updateProgress(int increment, String message, ImageRegion region);
+	void updateProgress(int increment, String message);
 	
 	/**
 	 * Notify the monitor that the plugin has completed its work.  This is called automatically by updateProgress if progress &gt;= 1,
@@ -65,12 +64,12 @@ public interface SimpleProgressMonitor {
 	 * 
 	 * @param message message to show upon completion.
 	 */
-	public void pluginCompleted(String message);
-	
+	void pluginCompleted(String message);
+
 	/**
 	 * Returns true if cancel has been requested, for example by the user pressing a 'cancel' button.
 	 * @return
 	 */
-	public boolean cancelled();
+	boolean cancelled();
 
 }
