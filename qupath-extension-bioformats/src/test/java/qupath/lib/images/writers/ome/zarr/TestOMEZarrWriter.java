@@ -275,6 +275,29 @@ public class TestOMEZarrWriter {
     }
 
     @Test
+    void Check_Calibration_When_Downsampled() throws Exception {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
+        SampleImageServer sampleImageServer = new SampleImageServer();
+        double downsample = 2;
+        double[] expectedDownsamples = new double[] {downsample};
+
+        new OMEZarrWriter.Builder(sampleImageServer)
+                .downsamples(expectedDownsamples)
+                .build(outputImagePath)
+                .writeImage();
+
+        double pixelSize = Double.NaN;
+        try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
+            pixelSize = server.getMetadata().getPixelCalibration().getAveragedPixelSize().doubleValue();
+        }
+        Assertions.assertEquals(pixelSize, sampleImageServer.getMetadata().getPixelCalibration().getAveragedPixelSize().doubleValue() / downsample);
+
+        sampleImageServer.close();
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
     void Check_Default_Tile_Width() throws Exception {
         Path path = Files.createTempDirectory(UUID.randomUUID().toString());
         String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
