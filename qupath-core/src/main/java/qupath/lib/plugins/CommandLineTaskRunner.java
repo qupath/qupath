@@ -23,11 +23,9 @@
 
 package qupath.lib.plugins;
 
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.regions.ImageRegion;
-
-import java.util.concurrent.atomic.AtomicInteger;
+import qupath.lib.progress.LogProgressMonitor;
+import qupath.lib.progress.ProgressMonitor;
 
 /**
  * A PluginRunner that simply logs progress and output.
@@ -54,59 +52,9 @@ public class CommandLineTaskRunner extends AbstractTaskRunner {
 	}
 
 	@Override
-	public SimpleProgressMonitor makeProgressMonitor() {
-		return new CommandLineProgressMonitor();
-	}
-	
-	
-	
-	/**
-	 * A {@link SimpleProgressMonitor} that sends progress to a log.
-	 * @author Pete Bankhead
-	 *
-	 */
-	public static class CommandLineProgressMonitor implements SimpleProgressMonitor {
-		
-		private static final Logger logger = LoggerFactory.getLogger(CommandLineProgressMonitor.class);
-		
-		private long startTime;
-		private AtomicInteger progress = new AtomicInteger(0);
-		private int maxProgress;
-		private String lastMessage;
-		
-		@Override
-		public void startMonitoring(String message, int maxProgress, boolean mayCancel) {
-			startTime = System.currentTimeMillis();
-			this.maxProgress = maxProgress;
-			if (message != null)
-				logger.info(message);
-		}
-
-		@Override
-		public synchronized void updateProgress(int increment, String message) {
-			int progressValue = progress.addAndGet(increment);
-			int progressPercent = (int)((double)progressValue / maxProgress * 100 + .5);
-			String newMessage = message + " (" + progressPercent + "%)";
-			if (!newMessage.equals(lastMessage) || progressValue >= maxProgress)
-				logger.info(newMessage);
-			lastMessage = newMessage;
-			
-			if (progressValue >= maxProgress) {
-				pluginCompleted(String.format("Processing complete in %.2f seconds", (System.currentTimeMillis() - startTime)/1000.));
-			}
-		}
-
-		@Override
-		public void pluginCompleted(String message) {
-			logger.info(message);
-		}
-		
-		// Not possible to cancel
-		@Override
-		public boolean cancelled() {
-			return false;
-		}
-		
+	public ProgressMonitor makeProgressMonitor() {
+		// TODO: CHOOSE A BETTER LOGGER!
+		return LogProgressMonitor.info(LoggerFactory.getLogger(CommandLineTaskRunner.class));
 	}
 	
 

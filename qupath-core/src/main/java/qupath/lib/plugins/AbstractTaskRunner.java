@@ -26,36 +26,32 @@ package qupath.lib.plugins;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.progress.ProgressMonitor;
 
 import java.util.Collection;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 
 
 /**
- * Abstract PluginRunner to help with the creation of plugin runners for specific circumstances,
+ * Abstract TaskRunner to help with the creation of runners for specific circumstances,
  * e.g. running through a GUI, or from a command line only.
  */
 public abstract class AbstractTaskRunner implements TaskRunner {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractTaskRunner.class);
+	private static final AtomicLong runnerCounter = new AtomicLong(0L);
 
-	private static int counter = 0;
-
-	private ExecutorService pool;
-	private ExecutorCompletionService<Runnable> service;
-
-	private final Map<Future<Runnable>, Runnable> pendingTasks = new ConcurrentHashMap<>();
-	
-	private SimpleProgressMonitor monitor;
-	
 	private boolean tasksCancelled = false;
 
-	private int numThreads;
+	private final int numThreads;
 
 	/**
 	 * Constructor for a PluginRunner that uses the default number of threads, read from
@@ -79,28 +75,36 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 	 * Create a progress monitor to update the user on what is happening.
 	 * @return
 	 */
-	protected abstract SimpleProgressMonitor makeProgressMonitor();
+	protected abstract ProgressMonitor makeProgressMonitor();
 	
 	@Override
 	public synchronized void runTasks(String message, Collection<? extends Runnable> tasks) {
 		
 		if (tasks.isEmpty())
 			return;
-		
+
+		// Reset the task counter, so that we can use this again
+		var taskCounter = new AtomicLong(0);
+
 		// Reset cancelled status
 		tasksCancelled = false;
-		
+
+		List<PathTask> tasksToPostprocess = tasks.stream()
+				.filter(t -> t instanceof PathTask)
+				.map(t -> (PathTask)t)
+				.toList();
+
+		// If we need to postprocess, treat that as one extra task for the purposes of progress monitoring
+		int totalTasks = tasksToPostprocess.isEmpty() ? tasks.size() :  tasks.size() + 1;
+
 		// Ensure we have a pool
-		if (pool == null || pool.isShutdown()) {
-			int n = numThreads <= 0 ? ThreadTools.getParallelism() : numThreads;
-			pool = Executors.newFixedThreadPool(n, ThreadTools.createThreadFactory("task-runner-"+(++counter)+"-", false));
-			logger.debug("New threadpool created with {} threads", n);
-			service = new ExecutorCompletionService<>(pool);
-		} else if (service == null)
-			service = new ExecutorCompletionService<>(pool);
-		
-		monitor = makeProgressMonitor();
-		monitor.startMonitoring(message, tasks.size(), true);
+		ExecutorService pool = createExecutor(numThreads);
+		ExecutorCompletionService<Runnable> service = new ExecutorCompletionService<>(pool);
+
+		Set<Future<Runnable>> pendingTasks = new HashSet<>();
+
+		ProgressMonitor monitor = makeProgressMonitor();
+		monitor.updateProgress(message, 0);
 		for (Runnable task : tasks) {
 			// If a task if null, then skip it - otherwise the monitor can get stuck
 			if (task == null) {
@@ -108,59 +112,74 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 				continue;
 			}
 			Future<Runnable> future = service.submit(task, task);
-			pendingTasks.put(future, task);
+			pendingTasks.add(future);
 		}
 		// TODO: See if this needs to be shutdown here, or there's a better way..?
 		// In any case, it was inhibiting application shutdown just letting it be...
-		pool.shutdown();
-		awaitCompletion();
-		
-		// Post-process any PathTasks
-		postProcess(tasks.stream().filter(t -> t instanceof PathTask).map(t -> (PathTask)t).toList());
+		Exception exception = null;
+		try {
+			pool.shutdown();
+			awaitCompletion(service, monitor, taskCounter, totalTasks, pendingTasks);
+		} catch (InterruptedException e) {
+			logger.info("Tasks interrupted: {}", e.getMessage(), e);
+			tasksCancelled = true;
+			exception = e;
+		} catch (Exception e) {
+			logger.error("Error running task: {}", e.getMessage(), e);
+			pool.shutdownNow();
+			exception = e;
+		} finally {
+			pendingTasks.clear();
+			try {
+				// Post-process any PathTasks
+				postProcess(tasksToPostprocess);
+			} catch (Exception e) {
+				logger.error("Error during postprocessing: {}", e.getMessage(), e);
+				exception = e;
+			} finally {
+				if (exception != null) {
+					monitor.complete("Completed with error " + exception.getMessage());
+				} else {
+					monitor.complete("");
+				}
+			}
+		}
+	}
+
+
+	private static ExecutorService createExecutor(int numThreads) {
+		int n = numThreads <= 0 ? ThreadTools.getParallelism() : numThreads;
+		var pool = Executors.newFixedThreadPool(n, ThreadTools.createThreadFactory("task-runner-"+runnerCounter.incrementAndGet()+"-", false));
+		logger.debug("New threadpool created with {} threads", n);
+		return pool;
 	}
 
 	
 	/**
 	 * Await the completion of currently-running tasks, notifying any listener if necessary.
 	 */
-	protected void awaitCompletion() {
-		try {
-			while (!pendingTasks.isEmpty()) {
-				Future<Runnable> future = null;
-				// Check if the monitor has been cancelled; if so, do any post processing if a task is available and otherwise cancel remaining ones
-				if (!tasksCancelled && monitor != null && monitor.cancelled() && (future = service.poll()) == null) {
-					// Cancel all enqueued tasks
-					for (Future<?> entry : pendingTasks.keySet().toArray(new Future<?>[0])) {
-						if (entry.cancel(true)) {
-							pendingTasks.remove(entry);
-							monitor.updateProgress(1, "");
-						} else
-							logger.debug("Cancel returned false for {}", entry);
-					}
-					tasksCancelled = true;
-				}
-				future = future == null ? service.take() : future;
-//				logger.warn("Future: {}", future);
-				// If the task finished without being cancelled, run post-processing if required & update the progress monitor
-				if (!future.isCancelled()) {
-					Runnable runnable = future.get();
-					PathTask task = runnable instanceof PathTask ? (PathTask)runnable : null;
-					updateMonitor(task);
-				}
-				pendingTasks.remove(future);
+	private void awaitCompletion(ExecutorCompletionService<Runnable> service, ProgressMonitor monitor, AtomicLong taskCounter, long totalTasks,
+								 Collection<Future<Runnable>> pendingTasks) throws InterruptedException, ExecutionException {
+		while (!pendingTasks.isEmpty()) {
+			// Cancellation has just been detected: cancel all the pending tasks that we can
+			if (!tasksCancelled && Thread.interrupted()) {
+				pendingTasks.forEach(t -> t.cancel(true));
+				tasksCancelled = true;
 			}
-			if (monitor != null)
-				monitor.pluginCompleted("");
-		} catch (InterruptedException e) {
-			logger.error("Task interrupted: {}", e.getMessage(), e);
-			monitor.pluginCompleted("Completed with error " + e.getMessage());
-		} catch (Exception e) {
-			logger.error("Error running task: {}", e.getMessage(), e);
-			if (pool != null)
-				pool.shutdownNow();
-			monitor.pluginCompleted("Completed with error " + e.getMessage());
-		} finally {
-			pendingTasks.clear();
+			// Continue to handle any tasks that have already started
+			var future = service.take();
+			// If the task finished without being cancelled, update the progress monitor
+			if (!future.isCancelled()) {
+				Runnable runnable = future.get();
+				String message = null;
+				if (runnable instanceof PathTask task) {
+					message = task.getLastResultsDescription();
+				}
+				updateMonitor(monitor, message == null ? "Completed" : message, taskCounter, totalTasks);
+			} else {
+				updateMonitor(monitor, "Task cancelled", taskCounter, totalTasks);
+			}
+			pendingTasks.remove(future);
 		}
 	}
 
@@ -177,22 +196,20 @@ public abstract class AbstractTaskRunner implements TaskRunner {
 	 * @param tasks
 	 */
 	protected void postProcess(final Collection<? extends PathTask> tasks) {
-		boolean wasCancelled = tasksCancelled || monitor.cancelled();
+		boolean wasCancelled = isCancelled();
 		for (var task : tasks)
 			task.taskComplete(wasCancelled);
 	}
-	
-	private void updateMonitor(final PathTask task) {
+
+	private void updateMonitor(ProgressMonitor monitor, String text, AtomicLong taskCounter, long totalTasks) {
 		if (monitor == null)
 			return;
-		String text = task == null ? "Completed" : task.getLastResultsDescription();
-		monitor.updateProgress(1, text);
+		monitor.updateProgress(text, taskCounter.incrementAndGet(), totalTasks);
 	}
 	
 	@Override
 	public boolean isCancelled() {
 		return tasksCancelled;
 	}
-	
 
 }
