@@ -51,6 +51,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -348,6 +349,64 @@ public class GsonTools {
 		if (pretty)
 			return getPrettyPrintInstance();
 		return getInstance();
+	}
+
+	/**
+	 * Attempt to duplicate an object by first serializing it to JSON, then deserializing it.
+	 * The type is taken as the object class.
+	 * @param obj the object to serialize, then deserialize
+	 * @return the deserialized object
+	 * @param <T> generic parameter for the object
+	 * @since v0.8.0
+	 * @see #serializeDeserialize(Object, Class)
+	 * @see #serializeDeserialize(Gson, Object, Type)
+	 */
+	public static <T> T serializeDeserialize(T obj) {
+		return serializeDeserialize(getInstance(), obj, obj.getClass());
+	}
+
+	/**
+	 * Attempt to duplicate an object by first serializing it to JSON, then deserializing it, using a specified class.
+	 * @param obj the object to serialize, then deserialize
+	 * @param cls the class to use to define the type for serialization and deserialization.
+	 *            This may be a superclass/interface of the provided object (e.g., one may wish to create a duplicate
+	 *            {@code Map}, without specifying the map implementation), and can be used to influence which
+	 *            serializer/deserializer is used.
+	 * @return the deserialized object
+	 * @param <T> generic parameter for the object
+	 * @since v0.8.0
+	 * @see #serializeDeserialize(Object)
+	 * @see #serializeDeserialize(Gson, Object, Type)
+	 */
+	public static <T> T serializeDeserialize(T obj, Class<T> cls) {
+		return serializeDeserialize(getInstance(), obj, cls);
+	}
+
+	/**
+	 * Attempt to duplicate an object by first serializing it to JSON, then deserializing it.
+	 * <p>
+	 * Note that it is <b>not</b> guaranteed that the resulting object will be an exact duplicate of the original,
+	 * and {@code Objects.equals(input, output)} may often return false.
+	 * This occurs because information (often type information) may be lost in the JSON representation.
+	 * <p>
+	 * For example, {@code serializeDeserialize(gson, List.of(1, 1.2f, 3)} returns a list that contains
+	 * {@code Double}, even though the original list contains {@code Integer} and {@code Float}.
+	 * <p>
+	 * Nevertheless, the method can be useful to attempt to duplicate objects that cannot be copied another way,
+	 * and which rely upon JSON serialization for persistence.
+	 * It may also be useful to test what information might be lost through serialization and deserialization.
+	 * @param gson the gson instance to use
+	 * @param obj the object to serialize, then deserialize
+	 * @param typeOfT the type to use for the serialization; this may be a generic type, using {@link TypeToken}.
+	 * @return the deserialized object
+	 * @param <T> generic parameter for the object
+	 * @since v0.8.0
+	 * @see #serializeDeserialize(Object)
+	 * @see #serializeDeserialize(Object, Class)
+	 */
+	public static <T> T serializeDeserialize(Gson gson, T obj, Type typeOfT) {
+		var json = gson.toJson(obj, typeOfT);
+		return gson.fromJson(json, typeOfT);
 	}
 
 
