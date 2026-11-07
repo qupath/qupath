@@ -296,6 +296,36 @@ public class ServerTools {
 	}
 
 	/**
+	 * Check if a region request is within the bounds of an image, and throw an exception if not.
+	 * @param server the image server, which defines the image bounds
+	 * @param request the region request
+	 * @throws IllegalArgumentException if the request is out-of-bounds
+	 */
+	public static void checkRegionWithinBoundsOrThrow(ImageServer<?> server, RegionRequest request) throws IllegalArgumentException {
+		if (!checkRegionWithinBounds(server, request))
+			throw new IllegalArgumentException("Out-of-bounds region request " + request);
+	}
+
+
+	/**
+	 * Check if a region request is within the bounds of an image.
+	 * @param server the image server, which defines the image bounds
+	 * @param request the region request
+	 * @return true if the request is on an available z-slice and time-point, and falls entirely within the image bounds.
+	 */
+	public static boolean checkRegionWithinBounds(ImageServer<?> server, RegionRequest request) {
+		if (request.getZ() < 0 || request.getZ() >= server.nZSlices())
+			return false;
+		if (request.getT() < 0 || request.getT() >= server.nTimepoints())
+			return false;
+		return request.getMinX() >= 0 &&
+				request.getMinY() >= 0 &&
+				request.getMaxX() <= server.getWidth() &&
+				request.getMinY() <= server.getHeight();
+	}
+
+
+	/**
 	 * Create a list of channels from classification labels.
 	 * Note that the labels must be &ge; 0 or else an {@link IllegalArgumentException} will be thrown.
 	 * It is also expected that the labels densely represent integer values from 0 up to some maximum, although this is 

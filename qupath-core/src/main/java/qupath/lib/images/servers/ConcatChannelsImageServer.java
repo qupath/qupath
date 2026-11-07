@@ -110,8 +110,9 @@ class ConcatChannelsImageServer extends TransformingImageServer<BufferedImage> {
 	}
 	
 	@Override
-	public BufferedImage readRegion(RegionRequest request) throws IOException {
-		
+	public BufferedImage readRegion(RegionRequest request) throws IOException, IllegalArgumentException {
+		ServerTools.checkRegionWithinBoundsOrThrow(this, request);
+
 		List<WritableRaster> rasters = new ArrayList<>();
 		boolean premultiplied = false;
 		int nBands = 0;

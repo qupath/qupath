@@ -34,6 +34,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TransformingImageServer;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
@@ -56,12 +57,10 @@ import java.util.List;
  * ImageServer that applies a color transform to an image. This can either be a single RGB transform, or one or more single-channel (float) transforms.
  * <p>
  * Note: This class may move or be removed in a later version.
- * 
- * @author Pete Bankhead
  */
 public class ChannelDisplayTransformServer extends TransformingImageServer<BufferedImage> implements PathObjectReader {
 	
-	private static Logger logger = LoggerFactory.getLogger(ChannelDisplayTransformServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(ChannelDisplayTransformServer.class);
 	
 	private List<ChannelDisplayInfo> channels;
 	private ImageServerMetadata metadata;
@@ -117,8 +116,9 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 	}
 	
 	@Override
-	public BufferedImage readRegion(final RegionRequest request) throws IOException {
-		
+	public BufferedImage readRegion(final RegionRequest request) throws IOException, IllegalArgumentException {
+		ServerTools.checkRegionWithinBoundsOrThrow(this, request);
+
 		// Transform the pixels, if required
 		BufferedImage img = getWrappedServer().readRegion(request);
 		int width = img.getWidth();
