@@ -111,7 +111,7 @@ public class SlicedImageServer extends TransformingImageServer<BufferedImage> {
     }
 
     @Override
-    public BufferedImage readRegion(final RegionRequest request) throws IOException, IllegalArgumentException {
+    public BufferedImage readRegion(final RegionRequest request) throws IOException {
         ServerTools.checkRegionWithinBoundsOrThrow(this, request);
         return getWrappedServer().readRegion(RegionRequest.createInstance(
                 request.getPath(),

@@ -195,7 +195,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 
 	
 	@Override
-	public BufferedImage readRegion(final RegionRequest request) throws IOException, IllegalArgumentException {
+	public BufferedImage readRegion(final RegionRequest request) throws IOException {
 		ServerTools.checkRegionWithinBoundsOrThrow(this, request);
 		// Check if we already have a tile for precisely this occasion - with the right server path
 		// Make a defensive copy, since the cache is critical

@@ -188,8 +188,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * 
 	 * @param request the region for which pixels are requested
 	 * @return pixels for the region being requested
-	 * @throws IOException if there is an error reading the region
-	 * @throws IllegalArgumentException if the request region is outside the image bounds
+	 * @throws IOException if there is an error reading the region, or the request region is outside the image bounds
 	 * @see #readRegion(double, int, int, int, int, int, int)
 	 * @see #readRegion(double, int, int, int, int)
 	 * @see #readBufferedImage(RegionRequest)
@@ -200,7 +199,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 *           so as to maintain compatibility with older {@link ImageServer} implementations - and throws 
 	 *           an {@link UnsupportedOperationException} if this is not found.
 	 */
-	public default T readRegion(RegionRequest request) throws IOException, IllegalArgumentException {
+	public default T readRegion(RegionRequest request) throws IOException {
 		throw new UnsupportedOperationException("readRegion is not implemented!");
 	}
 
@@ -219,12 +218,11 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @param z index for the z-position
 	 * @param t index for the timepoint
 	 * @return pixels for the region being requested
-	 * @throws IOException if there is an error reading the region
-	 * @throws IllegalArgumentException if the request region is outside the image bounds
+	 * @throws IOException if there is an error reading the region, or the request region is outside the image bounds
 	 * @see #readRegion(RegionRequest)
 	 * @since v0.4.0
 	 */
-	public default T readRegion(double downsample, int x, int y, int width, int height, int z, int t) throws IOException, IllegalArgumentException {
+	public default T readRegion(double downsample, int x, int y, int width, int height, int z, int t) throws IOException {
 		return readRegion(RegionRequest.createInstance(getPath(), downsample, x, y, width, height, z, t));
 	}
 
@@ -241,13 +239,12 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @param width bounding box width
 	 * @param height bounding box height
 	 * @return pixels for the region being requested
-	 * @throws IOException if there is an error reading the region
-	 * @throws IllegalArgumentException if the request region is outside the image bounds
+	 * @throws IOException if there is an error reading the region, or the request region is outside the image bounds
 	 * @see #readRegion(RegionRequest)
 	 * @see #readRegion(double, int, int, int, int, int, int)
 	 * @since v0.4.0
 	 */
-	public default T readRegion(double downsample, int x, int y, int width, int height) throws IOException, IllegalArgumentException {
+	public default T readRegion(double downsample, int x, int y, int width, int height) throws IOException {
 		return readRegion(downsample, x, y, width, height, 0, 0);
 	}
 

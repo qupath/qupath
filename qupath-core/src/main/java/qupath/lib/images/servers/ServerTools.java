@@ -299,11 +299,11 @@ public class ServerTools {
 	 * Check if a region request is within the bounds of an image, and throw an exception if not.
 	 * @param server the image server, which defines the image bounds
 	 * @param request the region request
-	 * @throws IllegalArgumentException if the request is out-of-bounds
+	 * @throws IOException if the request is out-of-bounds
 	 */
-	public static void checkRegionWithinBoundsOrThrow(ImageServer<?> server, RegionRequest request) throws IllegalArgumentException {
+	public static void checkRegionWithinBoundsOrThrow(ImageServer<?> server, RegionRequest request) throws IOException {
 		if (!checkRegionWithinBounds(server, request))
-			throw new IllegalArgumentException("Out-of-bounds region request " + request);
+			throw new IOException("Out-of-bounds region request " + request);
 	}
 
 

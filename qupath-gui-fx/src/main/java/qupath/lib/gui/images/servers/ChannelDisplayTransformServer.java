@@ -116,7 +116,7 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 	}
 	
 	@Override
-	public BufferedImage readRegion(final RegionRequest request) throws IOException, IllegalArgumentException {
+	public BufferedImage readRegion(final RegionRequest request) throws IOException {
 		ServerTools.checkRegionWithinBoundsOrThrow(this, request);
 
 		// Transform the pixels, if required
