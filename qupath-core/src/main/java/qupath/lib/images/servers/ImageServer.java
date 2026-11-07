@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,7 +23,6 @@
 
 package qupath.lib.images.servers;
 
-import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
@@ -32,10 +31,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 
 /**
- * 
  * Generic ImageServer, able to return pixels and metadata.
  * <p>
  * The idea behind making this generic was that it could be used on various platforms and with different UIs, e.g. Swing, JavaFX, 
@@ -45,19 +42,15 @@ import java.util.Objects;
  * <b>Important!</b> The {@link #readBufferedImage(RegionRequest)} method was replaced by {@link #readRegion(RegionRequest)} in 
  * v0.4.0. Implementing classes need only to worry about overriding {@link #readRegion(RegionRequest)} - and legacy implementations 
  * should be updated to override the new method rather than the old one.
- * Default implementations of both methods exist to try to ease the transition, but this may change in the future and 
- * {@link #readBufferedImage(RegionRequest)} is likely to be removed.
- * 
- * @author Pete Bankhead
  *
- * @param <T>
+ * @param <T> generic parameter for the image type (usually BufferedImage)
  */
 public interface ImageServer<T> extends AutoCloseable {
 	
 	/**
 	 * Get a String path that can uniquely identify this image.
 	 * <p>
-	 * For most standard images, this should be a String representation of an absolute URI. 
+	 * For most standard images, this should be a String representation of an absolute URI.
 	 * If multiple images are stored within the same file, then this information should be encoded in the URI.
 	 * <p>
 	 * For images that are generated some other way (e.g. created dynamically) the path may not lend itself to 
@@ -163,23 +156,15 @@ public interface ImageServer<T> extends AutoCloseable {
 	
 	/**
 	 * Legacy method to request pixels for a {@link RegionRequest}, now replaced by {@link #readRegion(RegionRequest)}.
-	 * This method is deprecated; if the generic parameter {@code <T>} represented 
-	 * anything other than a {@link java.awt.image.BufferedImage} then its name became misleading.
+	 * This method has been deprecated since v0.4.0, and since v0.8.0 throws an {@link UnsupportedOperationException}.
 	 * 
 	 * @param request the region for which pixels are requested
-	 * @return pixels for the region being requested
-	 * @throws IOException 
-	 * @deprecated since v0.4.0. Implementations of {@link ImageServer} should override {@link #readRegion(RegionRequest)} instead.
-	 *             This method will be removed in a future release; it exists now only to maintain compatibility with QuPath 
-	 *             extensions that have not yet been updated to use the newer method.
-	 *             
-	 * @implNote The default implementation simply calls {@link #readRegion(RegionRequest)}
+	 * @return nothing; an exception is thrown
+	 * @throws UnsupportedOperationException
 	 */
 	@Deprecated
-	public default T readBufferedImage(RegionRequest request) throws IOException {
-		// Log if this is the first time
-		ImageServers.logFirstDeprecatedReadCall(getClass());
-		return readRegion(request);		
+	public default T readBufferedImage(RegionRequest request) throws UnsupportedOperationException {
+		throw new UnsupportedOperationException("ImageServer.readBufferedImage has been deprecated since QuPath v0.4.0 and will be removed");
 	}
  
 	/**
@@ -203,7 +188,8 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * 
 	 * @param request the region for which pixels are requested
 	 * @return pixels for the region being requested
-	 * @throws IOException
+	 * @throws IOException if there is an error reading the region
+	 * @throws IllegalArgumentException if the request region is outside the image bounds
 	 * @see #readRegion(double, int, int, int, int, int, int)
 	 * @see #readRegion(double, int, int, int, int)
 	 * @see #readBufferedImage(RegionRequest)
@@ -214,18 +200,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 *           so as to maintain compatibility with older {@link ImageServer} implementations - and throws 
 	 *           an {@link UnsupportedOperationException} if this is not found.
 	 */
-	public default T readRegion(RegionRequest request) throws IOException {
-		try {
-			// Try to find if this is a legacy subclass that implemented readBufferedImage(RegionRequest) only
-			// If so, call that method and log a warning if it's the first time
-			var m = getClass().getMethod("readBufferedImage", RegionRequest.class);
-			if (m != null && !Objects.equals(ImageServer.class, m.getDeclaringClass())) {
-				ImageServers.logFirstDeprecatedReadCall(getClass());
-				return (T)m.invoke(this, request);
-			}
-		} catch (Exception e) {
-			LoggerFactory.getLogger(getClass()).debug(e.getLocalizedMessage(), e);
-		}
+	public default T readRegion(RegionRequest request) throws IOException, IllegalArgumentException {
 		throw new UnsupportedOperationException("readRegion is not implemented!");
 	}
 
@@ -244,11 +219,12 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @param z index for the z-position
 	 * @param t index for the timepoint
 	 * @return pixels for the region being requested
-	 * @throws IOException
+	 * @throws IOException if there is an error reading the region
+	 * @throws IllegalArgumentException if the request region is outside the image bounds
 	 * @see #readRegion(RegionRequest)
 	 * @since v0.4.0
 	 */
-	public default T readRegion(double downsample, int x, int y, int width, int height, int z, int t) throws IOException {
+	public default T readRegion(double downsample, int x, int y, int width, int height, int z, int t) throws IOException, IllegalArgumentException {
 		return readRegion(RegionRequest.createInstance(getPath(), downsample, x, y, width, height, z, t));
 	}
 
@@ -265,12 +241,13 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @param width bounding box width
 	 * @param height bounding box height
 	 * @return pixels for the region being requested
-	 * @throws IOException
+	 * @throws IOException if there is an error reading the region
+	 * @throws IllegalArgumentException if the request region is outside the image bounds
 	 * @see #readRegion(RegionRequest)
 	 * @see #readRegion(double, int, int, int, int, int, int)
 	 * @since v0.4.0
 	 */
-	public default T readRegion(double downsample, int x, int y, int width, int height) throws IOException {
+	public default T readRegion(double downsample, int x, int y, int width, int height) throws IOException, IllegalArgumentException {
 		return readRegion(downsample, x, y, width, height, 0, 0);
 	}
 
