@@ -15,8 +15,7 @@ public interface ProgressMonitor {
     /**
      * Default progress monitor that ignores all updates.
      */
-    ProgressMonitor NULL = (m, p) -> {
-    };
+    ProgressMonitor NULL = (m, p) -> {};
 
     /**
      * Handle a progress update.
