@@ -33,6 +33,8 @@
 * Export snapshot on Linux fails if the extension is not part of the filename (https://github.com/qupath/qupath/issues/2181)
 * Training object classifier for intensity class results in `Positive: Positive` or `Negative: Negative` (https://github.com/qupath/qupath/issues/2200)
 * ImageOps morphological filters (maximum, minimum, opening, closing) are not thread-safe (https://github.com/qupath/qupath/issues/2202)
+* Multithreading bug with `FastPolygonUnion` (https://github.com/qupath/qupath/pull/2220)
+* ImageServer.readRegion doesn't have consistent behavior for out-of-bounds requests (https://github.com/qupath/qupath/issues/2223)
 
 ### Dependency updates
 * Bio-Formats 8.5.0

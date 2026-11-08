@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -43,9 +43,6 @@ import java.util.List;
 
 /**
  * Logging appender for directing the default Logback output to other text components.
- * 
- * @author Pete Bankhead
- *
  */
 class LoggingAppender extends AppenderBase<ILoggingEvent> {
 	
@@ -53,7 +50,7 @@ class LoggingAppender extends AppenderBase<ILoggingEvent> {
 
 	private static LoggingAppender instance;
 	private boolean isActive = false;
-	private List<TextAppendable> textComponentsFX = Collections.synchronizedList(new ArrayList<>());
+	private final List<TextAppendable> textComponentsFX = Collections.synchronizedList(new ArrayList<>());
 	private Level minLevel = Level.INFO;
 
 	private LoggingAppender() {
@@ -65,29 +62,23 @@ class LoggingAppender extends AppenderBase<ILoggingEvent> {
 			setName("GUI");
 			setContext(context);
 			start();
-			getRootLogger().addAppender(this);
+			var root = getRootLogger();
+			if (root == null) {
+				throw new IllegalStateException("Cannot get root logger!");
+			}
+			root.addAppender(this);
 		}
 	}
 	
 	static Level getLevel(LogLevel logLevel) {
-		switch(logLevel) {
-		case DEBUG:
-			return Level.DEBUG;
-		case ERROR:
-			return Level.ERROR;
-		case INFO:
-			return Level.INFO;
-		case ALL:
-			return Level.ALL;
-		case OFF:
-			return Level.OFF;
-		case TRACE:
-			return Level.TRACE;
-		case WARN:
-			return Level.WARN;
-		default:
-			return Level.INFO;
-		}
+        return switch (logLevel) {
+            case DEBUG -> Level.DEBUG;
+            case ERROR -> Level.ERROR;
+            case INFO -> Level.INFO;
+            case ALL, TRACE -> Level.TRACE;
+            case OFF -> Level.OFF;
+            case WARN -> Level.WARN;
+        };
 	}
 
 	/**
@@ -104,8 +95,8 @@ class LoggingAppender extends AppenderBase<ILoggingEvent> {
 	}
 	
 	static LoggerContext getLoggerContext() {
-		if (LoggerFactory.getILoggerFactory() instanceof LoggerContext) {
-			return (LoggerContext)LoggerFactory.getILoggerFactory();
+		if (LoggerFactory.getILoggerFactory() instanceof LoggerContext context) {
+			return context;
 		} else
 			return null;
 	}
@@ -138,7 +129,7 @@ class LoggingAppender extends AppenderBase<ILoggingEvent> {
 			appender.start();
 			context.getLogger(Logger.ROOT_LOGGER_NAME).addAppender(appender);
 		} else
-			logger.warn("Cannot append logging info without logback!");
+			logger.warn("Cannot log to {} without logback!", file.getAbsolutePath());
 	}
 
 	/**
@@ -175,23 +166,28 @@ class LoggingAppender extends AppenderBase<ILoggingEvent> {
 		if (isActive && event.getLevel().isGreaterOrEqual(minLevel)) {
 			String message = event.getLevel() + ": " + event.getFormattedMessage() + "\n";
 			if (event.getThrowableProxy() != null && event.getLevel().isGreaterOrEqual(Level.ERROR)) {
-				message += event.getThrowableProxy().getClassName() + ": " + event.getThrowableProxy().getMessage() + "\n";
+				StringBuilder sb = new StringBuilder(message);
+				sb.append(event.getThrowableProxy().getClassName())
+						.append(": ")
+						.append(event.getThrowableProxy().getMessage())
+						.append("\n");
 				for (StackTraceElementProxy element : event.getThrowableProxy().getStackTraceElementProxyArray())
-					message += "    " + element.getSTEAsString() + "\n";
+					sb.append("    ").append(element.getSTEAsString()).append("\n");
 				
 				if (event.getThrowableProxy().getCause() != null) {
-					message += "  Caused by " + event.getThrowableProxy().getCause().getMessage();
+					sb.append("  Caused by ").append(event.getThrowableProxy().getCause().getMessage()).append("\n");
 					for (StackTraceElementProxy element : event.getThrowableProxy().getCause().getStackTraceElementProxyArray())
-						message += "        " + element.getSTEAsString() + "\n";
+						sb.append("        ").append(element.getSTEAsString()).append("\n");
 				}
+				message = sb.toString();
 			}
 			// Buffer the next message
 			buffer(message);
 		}
 	}
 	
-	private boolean flushRequested = false;
-	private StringBuffer buffer = new StringBuffer();
+	private volatile boolean flushRequested = false;
+	private final StringBuffer buffer = new StringBuffer();
 	
 	private void buffer(String message) {
 		synchronized (buffer) {
@@ -216,7 +212,7 @@ class LoggingAppender extends AppenderBase<ILoggingEvent> {
 		} else {
 			if (!flushRequested) {
 				flushRequested = true;
-				Platform.runLater(() -> flushBuffer());
+				Platform.runLater(this::flushBuffer);
 			}
 		}
 	}
