@@ -52,10 +52,12 @@ import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
@@ -118,13 +120,13 @@ class ExtractRegionCommand implements Runnable {
 	
 	private static final String PIXELS_UNIT = "Pixels (downsample)";
 	
-	private DoubleProperty resolution = PathPrefs.createPersistentPreference("ext.ij.extract.resolution", 1.0);
-	private StringProperty resolutionUnit = PathPrefs.createPersistentPreference("ext.ij.extract.resolutionUnit", PIXELS_UNIT);
-	private ObjectProperty<RoiInclude> includeROI = PathPrefs.createPersistentPreference("ext.ij.extract.includeROI", RoiInclude.YES, RoiInclude.class);
-	private BooleanProperty includeOverlay = PathPrefs.createPersistentPreference("ext.ij.extract.includeOverlay", true);
-	private BooleanProperty doTransforms = PathPrefs.createPersistentPreference("ext.ij.extract.doTransforms", false);
-	private BooleanProperty doZ = PathPrefs.createPersistentPreference("ext.ij.extract.doZ", false);
-	private BooleanProperty doT = PathPrefs.createPersistentPreference("ext.ij.extract.doT", false);
+	private final DoubleProperty resolution = PathPrefs.createPersistentPreference("ext.ij.extract.resolution", 1.0);
+	private final StringProperty resolutionUnit = PathPrefs.createPersistentPreference("ext.ij.extract.resolutionUnit", PIXELS_UNIT);
+	private final ObjectProperty<RoiInclude> includeROI = PathPrefs.createPersistentPreference("ext.ij.extract.includeROI", RoiInclude.YES, RoiInclude.class);
+	private final BooleanProperty includeOverlay = PathPrefs.createPersistentPreference("ext.ij.extract.includeOverlay", true);
+	private final BooleanProperty doTransforms = PathPrefs.createPersistentPreference("ext.ij.extract.doTransforms", false);
+	private final BooleanProperty doZ = PathPrefs.createPersistentPreference("ext.ij.extract.doZ", false);
+	private final BooleanProperty doT = PathPrefs.createPersistentPreference("ext.ij.extract.doT", false);
 	
 	/**
 	 * Constructor.
@@ -203,7 +205,7 @@ class ExtractRegionCommand implements Runnable {
 		if (!resolutionUnit.equals(PIXELS_UNIT))
 			downsample = resolution / server.getPixelCalibration().getAveragedPixelSize().doubleValue();
 
-		// Check if the valid is sensible
+		// Check if the downsample is sensible
 		if (downsample <= 0) {
 			Dialogs.showErrorMessage(title, "Invalid resolution - calculated downsample must be greater than zero");
 			return;
@@ -250,8 +252,15 @@ class ExtractRegionCommand implements Runnable {
 			ROI roi = pathObject == null ? null : pathObject.getROI();
 			if (roi == null || PathObjectTools.hasPointROI(pathObject)) {
 				region = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), viewer.getZPosition(), viewer.getTPosition());
-			} else
+			} else {
 				region = RegionRequest.createInstance(server.getPath(), downsample, roi);
+				if (!ServerTools.checkRegionWithinBounds(server, region)) {
+					Dialogs.showErrorNotification(title, "Out-of-bounds: " + ImageRegion.createInstance(
+							region.getX(), region.getY(), region.getWidth(), region.getHeight(), region.getZ(), region.getT()
+					));
+					continue;
+				}
+			}
 
 			// Calculate required z-slices and time-points
 			int zStart = doZ ? 0 : region.getZ();

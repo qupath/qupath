@@ -60,7 +60,8 @@ public class FlippedImageServer extends TransformingImageServer<BufferedImage> {
     }
 
     @Override
-    public BufferedImage readRegion(RegionRequest request) throws IOException {
+    public BufferedImage readRegion(RegionRequest request) throws IOException, IllegalArgumentException {
+        ServerTools.checkRegionWithinBoundsOrThrow(this, request);
         return switch (flip) {
             case NONE -> getWrappedServer().readRegion(request.updatePath(getWrappedServer().getPath()));
             case HORIZONTAL -> readTileWithHorizontalFlip(request);
