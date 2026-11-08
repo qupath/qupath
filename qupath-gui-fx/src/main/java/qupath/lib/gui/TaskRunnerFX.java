@@ -23,30 +23,24 @@
 
 package qupath.lib.gui;
 
-import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.fx.utils.GridPaneUtils;
 import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.gui.progress.ObservableProgressMonitor;
 import qupath.lib.plugins.AbstractTaskRunner;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.progress.LogProgressMonitor;
@@ -54,8 +48,10 @@ import qupath.lib.progress.ProgressMonitor;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Plugin runner that takes care of showing progress (in the appropriate thread) using JavaFX components.
@@ -95,7 +91,7 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 			return LogProgressMonitor.info(LoggerFactory.getLogger(TaskRunnerFX.class));
 		} else {
 			var thread = Thread.currentThread();
-			return new PluginProgressMonitorFX(qupath.getStage(), thread::interrupt);
+			return new PluginProgressMonitorFX(qupath.getStage(), thread::interrupt).getProgressMonitor();
 		}
 	}
 	
@@ -138,7 +134,7 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 
 	
 	
-	private static class PluginProgressMonitorFX implements ProgressMonitor {
+	private static class PluginProgressMonitorFX{
 
 		private static final Logger logger = LoggerFactory.getLogger(PluginProgressMonitorFX.class);
 
@@ -149,17 +145,9 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 
 		private final Stage owner;
 
-		private final AnimationTimer timer = new AnimationTimer() {
-			@Override
-			public void handle(long now) {
-				handlePulse(now);
-			}
-		};
-
 		private Dialog<Void> progressDialog;
 
-		private final StringProperty messageText = new SimpleStringProperty();
-		private final DoubleProperty progressProperty = new SimpleDoubleProperty(0);
+		private final ObservableProgressMonitor progressMonitor;
 
 		private final Runnable cancellationTask;
 
@@ -167,13 +155,10 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 
 		private long startTimeNanos = Long.MIN_VALUE;
 
-		private String currentMessage = null;
-		private double currentProgress = 0;
-
 		private final BooleanProperty cancelPressed = new SimpleBooleanProperty(false);
 
 		public PluginProgressMonitorFX(final Stage owner, final Runnable cancellationTask) {
-			this(owner, Duration.ofMillis(500), cancellationTask);
+			this(owner, Duration.ofMillis(250), cancellationTask);
 		}
 
 
@@ -181,29 +166,34 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 			this.owner = owner;
 			this.nanosToDisplay = delay.toNanos();
 			this.cancellationTask = cancellationTask;
+
+			this.progressMonitor = ObservableProgressMonitor.createForApplicationThread();
+			this.progressMonitor.isStartedProperty().subscribe(this::handleStarted)
+					.and(this.progressMonitor.isCompleteProperty().subscribe(this::handleComplete));
 		}
 
-
-		private void handlePulse(long now) {
-			if (currentMessage != null) {
-				messageText.set(currentMessage);
-			}
-			if (isIndeterminate(currentProgress)) {
-				progressProperty.set(ProgressBar.INDETERMINATE_PROGRESS);
-			} else {
-				progressProperty.set(currentProgress);
-			}
-			if (now - startTimeNanos < nanosToDisplay) {
+		private void handleStarted(boolean isStarted) {
+			if (!isStarted) {
 				return;
 			}
-			if (isComplete()) {
-				stopMonitoring();
-			} else if (progressDialog == null) {
+			CompletableFuture.delayedExecutor(nanosToDisplay, TimeUnit.NANOSECONDS, Platform::runLater)
+					.execute(this::showIfNeeded);
+		}
+
+		private void showIfNeeded() {
+			if (!isComplete()) {
 				createProgressDialog();
 				progressDialog.show();
 			}
 		}
 
+		private void handleComplete(boolean isComplete) {
+			if (!isComplete || progressDialog == null || !progressDialog.isShowing())
+				return;
+			progressDialog.close();
+			long endTimeNanos = System.nanoTime();
+			logger.info(String.format("Processing complete in %.2f seconds", (endTimeNanos - startTimeNanos)/1e9));
+		}
 
 		void createProgressDialog() {
 			if (!Platform.isFxApplicationThread()) {
@@ -212,11 +202,8 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 			}
 
 			var progressLabel = new Label();
-			progressLabel.textProperty().bind(messageText);
+			progressLabel.textProperty().bind(progressMonitor.messageProperty());
 			progressDialog = new Dialog<>();
-			progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
-
-			progressDialog.getDialogPane().lookupButton(ButtonType.CANCEL).setVisible(false);
 			progressDialog.initOwner(owner);
 			// Uses trick from https://www.reddit.com/r/javahelp/comments/39ogiw/cannot_prevent_javafx_dialog_from_closing/
 			progressDialog.getDialogPane().getScene().getWindow().setOnCloseRequest(e -> {
@@ -226,67 +213,48 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 			});
             progressDialog.getDialogPane().headerTextProperty().bind(createHeaderTextBinding());
 
-			BorderPane pane = new BorderPane();
 			progressDialog.setTitle(QuPathResources.getString("TaskRunnerFX.progress"));
 
 
 			var progressBar = new ProgressBar();
-			progressBar.progressProperty().bind(progressProperty);
+			progressBar.progressProperty().bind(progressMonitor.progressProperty());
 
-			Button btnCancel = new Button(QuPathResources.getString("TaskRunnerFX.cancel"));
-			btnCancel.setOnAction(_ -> {
-				cancelPressed.set(true);
-				if (cancellationTask != null) {
-					cancellationTask.run();
-				}
-			});
+			progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+			if (progressDialog.getDialogPane().lookupButton(ButtonType.CANCEL) instanceof Button btnCancel) {
+				btnCancel.setOnAction(_ -> {
+					cancelPressed.set(true);
+					if (cancellationTask != null) {
+						cancellationTask.run();
+					}
+				});
+			}
 
-			GridPane panel = GridPaneUtils.createRowGridControls(progressLabel, progressBar, btnCancel);
-
-			pane.setCenter(panel);
+			VBox box = new VBox(progressLabel, progressBar);
+			box.setFillWidth(true);
+			box.setSpacing(5);
+			progressLabel.setMaxWidth(Double.MAX_VALUE);
+			progressBar.setMaxWidth(Double.MAX_VALUE);
+			box.setPrefWidth(320);
+			box.setPadding(new Insets(10, 10, 10, 10));
 
 			progressDialog.initModality(Modality.APPLICATION_MODAL);
-			pane.setPadding(new Insets(10, 10, 10, 10));
-			progressDialog.getDialogPane().setContent(pane);
+			progressDialog.getDialogPane().setContent(box);
 		}
 
-
-		private void stopMonitoring() {
-			timer.stop();
-
-			if (progressDialog == null || !progressDialog.isShowing())
-				return;
-
-			progressDialog.close();
-			long endTimeNanos = System.nanoTime();
-			logger.info(String.format("Processing complete in %.2f seconds", (endTimeNanos - startTimeNanos)/1e9));
-		}
 
 		private StringBinding createHeaderTextBinding() {
 			return Bindings.createStringBinding(() -> {
 				if (cancelPressed.get())
 					return CANCEL_MESSAGE;
-				var progress = progressProperty.get();
-				if (progress == 0) {
+				var progress = progressMonitor.getProgress();
+				if (progressMonitor.getProgress() <= 0) {
 					return STARTING_MESSAGE;
-				} else if (progress == 1) {
+				} else if (progress >= 1) {
 					return COMPLETED_MESSAGE;
 				} else {
 					return RUNNING_MESSAGE;
 				}
-			}, cancelPressed, progressProperty);
-		}
-
-		@Override
-		public void updateProgress(String message, double progress) {
-			if (progress == 0) {
-				if (!hasStarted()) {
-					this.startTimeNanos = System.nanoTime();
-					timer.start();
-				}
-			}
-			currentMessage = message;
-			currentProgress = progress;
+			}, cancelPressed, progressMonitor.progressProperty());
 		}
 
 		private boolean hasStarted() {
@@ -294,12 +262,15 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 		}
 
 		private boolean isComplete() {
-			double progress = progressProperty.get();
-			return !isIndeterminate(progress) && progress >= 1;
+			return progressMonitor.isComplete();
 		}
 
 		private boolean isCancelled() {
 			return cancelPressed.get();
+		}
+
+		ProgressMonitor getProgressMonitor() {
+			return progressMonitor;
 		}
 
 	}
