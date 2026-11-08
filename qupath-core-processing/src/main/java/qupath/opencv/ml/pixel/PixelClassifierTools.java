@@ -459,10 +459,6 @@ public class PixelClassifierTools {
 		}
 	}
 	
-	
-	
-	
-	
 	/**
 	 * Create an {@link ImageServer} that displays the results of applying a {@link PixelClassifier} to an image.
 	 * @param imageData the image to which the classifier should apply

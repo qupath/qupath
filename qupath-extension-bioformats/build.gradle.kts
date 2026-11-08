@@ -42,6 +42,7 @@ dependencies {
   implementation(libs.picocli)
   implementation(libs.jna)           // needed for OMEZarrReader (see https://github.com/bcdev/jzarr/issues/31)
 
+  implementation("dev.zarr:zarr-java:0.2.0")
   implementation("ome:formats-gpl:${bioformatsVersion}") {
     exclude(group="xalan", module="serializer")
     exclude(group="xalan", module="xalan")
