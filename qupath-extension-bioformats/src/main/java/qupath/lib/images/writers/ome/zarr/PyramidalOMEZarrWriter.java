@@ -12,6 +12,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
+import qupath.lib.progress.ProgressMonitor;
 import qupath.lib.regions.ImageRegion;
 
 import java.awt.image.BufferedImage;
@@ -29,7 +30,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.DoubleConsumer;
 
 /**
  * An OME-Zarr file writer as described by version 0.4 of the specifications of the
@@ -58,7 +58,7 @@ public class PyramidalOMEZarrWriter {
     private final Path path;
     private final ZarrGroup root;
     private final Map<Integer, ZarrArray> levels;
-    private final DoubleConsumer onProgress;
+    private final ProgressMonitor onProgress;
 
     private PyramidalOMEZarrWriter(Builder builder, Path path) throws IOException {
         TransformedServerBuilder transformedServerBuilder = new TransformedServerBuilder(builder.server);
@@ -143,7 +143,7 @@ public class PyramidalOMEZarrWriter {
                     levels.get(0),
                     server,
                     executorService,
-                    progress -> onProgress.accept(progress / numberOfDownsamples)
+                    (message, progress) -> onProgress.updateProgress("Writing level " + 0, progress / numberOfDownsamples)
             );
 
             for (int i=1; i<numberOfDownsamples; i++) {
@@ -153,6 +153,7 @@ public class PyramidalOMEZarrWriter {
                         String.valueOf(numberOfDownsamples - i)  // as a different series, so the series we are interested in must be specified
                 )) {
                     double progressOffset = (double) i / numberOfDownsamples;
+                    int level = i;
                     writeLevel(
                             path.toString(),
                             i,
@@ -160,7 +161,7 @@ public class PyramidalOMEZarrWriter {
                             levels.get(i),
                             server,
                             executorService,
-                            progress -> onProgress.accept(progressOffset + progress / numberOfDownsamples)
+                            (message, progress) -> onProgress.updateProgress("Writing level " + level, progressOffset + progress / numberOfDownsamples)
                     );
                 }
 
@@ -182,7 +183,6 @@ public class PyramidalOMEZarrWriter {
     public static class Builder {
 
         private static final String FILE_EXTENSION = ".ome.zarr";
-        private final static DoubleConsumer NOP_CONSUMER = d -> {};
         private final ImageServer<BufferedImage> server;
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = ThreadTools.getParallelism();
@@ -195,7 +195,7 @@ public class PyramidalOMEZarrWriter {
         private int zEnd;
         private int tStart = 0;
         private int tEnd;
-        private DoubleConsumer onProgress = NOP_CONSUMER;
+        private ProgressMonitor onProgress = ProgressMonitor.NULL;
 
         /**
          * Create the builder.
@@ -370,7 +370,7 @@ public class PyramidalOMEZarrWriter {
          * @return this builder
          * @throws NullPointerException if the provided parameter is null
          */
-        public Builder onProgress(DoubleConsumer onProgress) {
+        public Builder onProgress(ProgressMonitor onProgress) {
             this.onProgress = Objects.requireNonNull(onProgress);
             return this;
         }
@@ -407,7 +407,7 @@ public class PyramidalOMEZarrWriter {
             ZarrArray zarrArray,
             ImageServer<BufferedImage> server,
             ExecutorService executorService,
-            DoubleConsumer onProgress
+            ProgressMonitor onProgress
     ) throws InterruptedException {
         int[] imageDimensions = ZarrWriterUtils.getDimensionsOfImage(server.getMetadata(), downsample);
         Collection<TileRequest> tileRequests = getTileRequestsForLevel(
@@ -442,7 +442,9 @@ public class PyramidalOMEZarrWriter {
                 }
 
                 latch.countDown();
-                onProgress.accept((double) numberOfTilesProcessed.incrementAndGet() / numberOfTiles);
+                onProgress.updateProgress(
+                        null,
+                        (double) numberOfTilesProcessed.incrementAndGet() / numberOfTiles);
             });
         }
         latch.await();
