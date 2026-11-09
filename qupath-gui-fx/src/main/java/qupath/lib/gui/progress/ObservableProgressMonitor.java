@@ -11,9 +11,14 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleObjectProperty;
 import qupath.lib.progress.ProgressMonitor;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Progress monitor that stores the most recent message and progress values in JavaFX properties,
  * which can optionally be updated only on the JavaFX application thread.
+ * @since v0.8.0
  */
 public class ObservableProgressMonitor implements ProgressMonitor {
 
@@ -21,6 +26,8 @@ public class ObservableProgressMonitor implements ProgressMonitor {
 
     private volatile boolean updateRequested = false;
     private volatile MessageAndProgress lastMessageAndProgress;
+
+    private final List<ProgressMonitor> monitors = Collections.synchronizedList(new ArrayList<>());
 
     // By storing the message and progress in the same record, they are always updated together
     // (even if listeners must be informed sequentially).
@@ -38,6 +45,31 @@ public class ObservableProgressMonitor implements ProgressMonitor {
         this.isComplete.bind(messageAndProgress.map(MessageAndProgress::isComplete));
         this.message.bind(messageAndProgress.map(MessageAndProgress::message));
         this.progress.bind(messageAndProgress.map(MessageAndProgress::progress));
+        this.messageAndProgress.subscribe(this::handleUpdate);
+    }
+
+    /**
+     * Add progress monitors that should be updated whenever this monitor updates
+     * its message and progress.
+     * @param monitors the monitors to update
+     */
+    public void addProgressMonitors(ProgressMonitor... monitors) {
+        this.monitors.addAll(List.of(monitors));
+    }
+
+    /**
+     * Remove previously-added progress monitors that should no longer be updated
+     * whenever this monitor updates its message and progress.
+     * @param monitors the monitors to remove
+     */
+    public void removeProgressMonitors(ProgressMonitor... monitors) {
+        this.monitors.removeAll(List.of(monitors));
+    }
+
+    private void handleUpdate(MessageAndProgress messageAndProgress) {
+        for (var monitor : monitors) {
+            monitor.updateProgress(messageAndProgress.message(), messageAndProgress.progress());
+        }
     }
 
     /**
