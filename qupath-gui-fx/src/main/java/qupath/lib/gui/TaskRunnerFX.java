@@ -36,7 +36,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
-import javafx.stage.Stage;
+import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.localization.QuPathResources;
@@ -91,7 +91,12 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 			return LogProgressMonitor.info(LoggerFactory.getLogger(TaskRunnerFX.class));
 		} else {
 			var thread = Thread.currentThread();
-			return new PluginProgressMonitorFX(qupath.getStage(), thread::interrupt).getProgressMonitor();
+			return ProgressMonitorDialog.builder()
+					.owner(qupath.getStage())
+					.delay(Duration.ofMillis(250))
+					.onCancel(thread::interrupt)
+					.build()
+					.getProgressMonitor();
 		}
 	}
 	
@@ -134,16 +139,16 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 
 	
 	
-	private static class PluginProgressMonitorFX{
+	private static class ProgressMonitorDialog {
 
-		private static final Logger logger = LoggerFactory.getLogger(PluginProgressMonitorFX.class);
+		private static final Logger logger = LoggerFactory.getLogger(ProgressMonitorDialog.class);
 
 		private static final String STARTING_MESSAGE = QuPathResources.getString("TaskRunnerFX.starting");
 		private static final String RUNNING_MESSAGE = QuPathResources.getString("TaskRunnerFX.running");
 		private static final String CANCEL_MESSAGE = QuPathResources.getString("TaskRunnerFX.cancelling");
 		private static final String COMPLETED_MESSAGE = QuPathResources.getString("TaskRunnerFX.completed");
 
-		private final Stage owner;
+		private final Window owner;
 
 		private Dialog<Void> progressDialog;
 
@@ -157,25 +162,34 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 
 		private final BooleanProperty cancelPressed = new SimpleBooleanProperty(false);
 
-		public PluginProgressMonitorFX(final Stage owner, final Runnable cancellationTask) {
-			this(owner, Duration.ofMillis(250), cancellationTask);
-		}
+		private final boolean showOnStart;
+		private final boolean hideOnComplete;
 
 
-		public PluginProgressMonitorFX(final Stage owner, Duration delay, final Runnable cancellationTask) {
-			this.owner = owner;
-			this.nanosToDisplay = delay.toNanos();
-			this.cancellationTask = cancellationTask;
+		private ProgressMonitorDialog(final Builder builder) {
+			this.owner = builder.owner;
+			this.nanosToDisplay = builder.delay == null ? 0L : builder.delay.toNanos();
+			this.cancellationTask = builder.onCancel;
+			this.showOnStart = builder.showOnStart;
+			this.hideOnComplete = builder.hideOnComplete;
 
-			this.progressMonitor = ObservableProgressMonitor.createForApplicationThread();
+			this.progressMonitor = builder.progressMonitor == null
+					? ObservableProgressMonitor.createForApplicationThread()
+					: builder.progressMonitor;
+
 			this.progressMonitor.isStartedProperty().subscribe(this::handleStarted)
 					.and(this.progressMonitor.isCompleteProperty().subscribe(this::handleComplete));
 		}
 
+		public static Builder builder() {
+			return new Builder();
+		}
+
 		private void handleStarted(boolean isStarted) {
-			if (!isStarted) {
+			if (!showOnStart || !isStarted) {
 				return;
 			}
+			startTimeNanos = System.nanoTime();
 			CompletableFuture.delayedExecutor(nanosToDisplay, TimeUnit.NANOSECONDS, Platform::runLater)
 					.execute(this::showIfNeeded);
 		}
@@ -188,11 +202,13 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 		}
 
 		private void handleComplete(boolean isComplete) {
-			if (!isComplete || progressDialog == null || !progressDialog.isShowing())
+			if (!isComplete) {
 				return;
-			progressDialog.close();
+			}
 			long endTimeNanos = System.nanoTime();
 			logger.info(String.format("Processing complete in %.2f seconds", (endTimeNanos - startTimeNanos)/1e9));
+			if (hideOnComplete && progressDialog != null)
+				progressDialog.hide();
 		}
 
 		void createProgressDialog() {
@@ -219,14 +235,15 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 			var progressBar = new ProgressBar();
 			progressBar.progressProperty().bind(progressMonitor.progressProperty());
 
-			progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
-			if (progressDialog.getDialogPane().lookupButton(ButtonType.CANCEL) instanceof Button btnCancel) {
-				btnCancel.setOnAction(_ -> {
-					cancelPressed.set(true);
-					if (cancellationTask != null) {
+			if (cancellationTask != null) {
+				progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+				if (progressDialog.getDialogPane().lookupButton(ButtonType.CANCEL) instanceof Button btnCancel) {
+					btnCancel.setOnAction(e -> {
+						cancelPressed.set(true);
 						cancellationTask.run();
-					}
-				});
+						e.consume();
+					});
+				}
 			}
 
 			VBox box = new VBox(progressLabel, progressBar);
@@ -272,6 +289,59 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 		ProgressMonitor getProgressMonitor() {
 			return progressMonitor;
 		}
+
+
+		public static class Builder {
+
+			private Window owner;
+			private Duration delay = Duration.ofNanos(0L);
+			private Runnable onCancel;
+			private ObservableProgressMonitor progressMonitor;
+
+			private boolean showOnStart = true;
+			private boolean hideOnComplete = true;
+
+			public Builder owner(Window owner) {
+				this.owner = owner;
+				return this;
+			}
+
+			public Builder onCancel(Runnable onCancel) {
+				this.onCancel = onCancel;
+				return this;
+			}
+
+			public Builder delay(Duration delay) {
+				this.delay = delay;
+				return this;
+			}
+
+			public Builder delayMillis(long milliseconds) {
+				return delay(Duration.ofMillis(milliseconds));
+			}
+
+			public Builder progressMonitor(ObservableProgressMonitor progressMonitor) {
+				this.progressMonitor = progressMonitor;
+				return this;
+			}
+
+			public Builder showOnStart(boolean showOnStart) {
+				this.showOnStart = showOnStart;
+				return this;
+			}
+
+			public Builder hideOnComplete(boolean hideOnComplete) {
+				this.hideOnComplete = hideOnComplete;
+				return this;
+			}
+
+			public ProgressMonitorDialog build() {
+				return new ProgressMonitorDialog(this);
+			}
+
+
+		}
+
 
 	}
 	
