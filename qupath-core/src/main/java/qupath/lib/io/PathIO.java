@@ -960,14 +960,14 @@ public class PathIO {
 	 */
 	public static void exportObjectsAsGeoJSON(Path path, Collection<? extends PathObject> pathObjects, GeoJsonExportOptions... options) throws IOException {
 		String name = path.getFileName().toString();
-		if (name.toLowerCase().endsWith(".zip")) {
+		if (GeneralTools.endsWithIgnoreCase(name, ".zip")) {
 			try (var zos = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(path)))) {
 				ZipEntry entry = new ZipEntry(GeneralTools.stripExtension(name) + ".geojson");
 				zos.putNextEntry(entry);
 				exportObjectsAsGeoJSON(zos, pathObjects, options);
 				zos.closeEntry();
 			}
-		} else if (name.toLowerCase().endsWith(".gz")) {
+		} else if (GeneralTools.endsWithIgnoreCase(name, ".gz")) {
 			try (var gzos = new GZIPOutputStream(new BufferedOutputStream(Files.newOutputStream(path)))) {
 				exportObjectsAsGeoJSON(gzos, pathObjects, options);
 			}

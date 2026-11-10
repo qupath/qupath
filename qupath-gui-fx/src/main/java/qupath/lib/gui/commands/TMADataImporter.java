@@ -98,7 +98,7 @@ class TMADataImporter {
 			if (imageData == null || imageData.getHierarchy().getTMAGrid() == null)
 				return false;
 			File file = list.get(0);
-			if (file.getName().toLowerCase().endsWith(".qpmap")) {
+			if (GeneralTools.endsWithIgnoreCase(file.getName(), ".qpmap")) {
 				try {
 					CoreInfoGrid grid = new CoreInfoGrid(imageData.getHierarchy().getTMAGrid());
 					boolean success = handleImportGrid(grid, GeneralTools.readFileAsString(file.getAbsolutePath()));

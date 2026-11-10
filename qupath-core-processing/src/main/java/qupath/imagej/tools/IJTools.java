@@ -324,7 +324,7 @@ public class IJTools {
 		fi.directory = file.getParent() + File.separator;
 		fi.fileName = file.getName();
 		String path = server.getPath();
-		if (path != null && path.toLowerCase().startsWith("http"))
+		if (path != null && GeneralTools.startsWithIgnoreCase(path, "http"))
 			fi.url = path;
 		imp.setFileInfo(fi);
 	
@@ -520,7 +520,7 @@ public class IJTools {
 			try (var zipFile = new ZipFile(file)) {
 				for (var enumerator = zipFile.entries(); enumerator.hasMoreElements();) {
 					var entry = enumerator.nextElement();
-					if (entry.getName().toLowerCase().endsWith(".roi"))
+					if (GeneralTools.endsWithIgnoreCase(entry.getName(), ".roi"))
 						return true;
 				}
 			} catch (Exception e) {

@@ -428,7 +428,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		}
 		
 		// Check if this is a directory - if so, look for a single project file
-		boolean maybeZarr = file.isDirectory() && file.getName().toLowerCase().endsWith(".zarr");
+		boolean maybeZarr = file.isDirectory() && GeneralTools.endsWithIgnoreCase(file.getName(), ".zarr");
 		if (singleFile && file.isDirectory() && !maybeZarr) {
 			// Identify all files in the directory, and also all potential project files
 			File[] filesInDirectory = file.listFiles(f -> !f.isHidden());
@@ -545,7 +545,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			// Try importing multiple images to a project
 			String[] potentialFiles = list.stream()
 					.filter(potentialFile -> potentialFile.isFile() ||
-							(potentialFile.isDirectory() && potentialFile.getName().toLowerCase().endsWith(".zarr"))
+							(potentialFile.isDirectory() && GeneralTools.endsWithIgnoreCase(potentialFile.getName(), ".zarr"))
 					)
 					.map(File::getAbsolutePath)
 					.toArray(String[]::new);
@@ -575,7 +575,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
     
      
     private List<File> handlePropertiesFiles(List<File> files) {
-    	var propertyFiles = files.stream().filter(f -> f.getName().toLowerCase().endsWith(".properties")).toList();
+    	var propertyFiles = files.stream().filter(f -> GeneralTools.endsWithIgnoreCase(f.getName(), ".properties")).toList();
     	if (propertyFiles.isEmpty())
     		return files;
     	

@@ -50,7 +50,7 @@ class ImageJServerUtils {
         // otherwise try to open directly (which is much faster if memory permits)
         var maxMemory = MemoryTools.getMaxMemoryOrDefault(MemoryTools.gigabytesToBytes(16));
         long availableMemory = MemoryTools.getTotalFreeMemory().orElse(MemoryTools.getCurrentFreeMemory());
-        if (file != null && path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
+        if (file != null && GeneralTools.endsWithIgnoreCase(path, ".tif") || GeneralTools.endsWithIgnoreCase(path, ".tiff")) {
             // Because ImageJ only supports uncompressed TIFFs, we simply use the file size
             // There is some questionable logic here to try to open virtual stacks at appropriate times
             long fileLength = file == null ? Long.MAX_VALUE : file.length();
