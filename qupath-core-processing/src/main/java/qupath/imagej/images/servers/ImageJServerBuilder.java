@@ -96,7 +96,7 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
             // We also can't use it to read .mrxs files, although they can masquerade as jpegs
 			String format = Opener.getFileFormat(path.toAbsolutePath().toString());
 			if (UNSUPPORTED_FORMATS.contains(format) ||
-                    ("jpg".equals(format) && path.toString().toLowerCase().endsWith(".mrxs")))
+                    ("jpg".equals(format) && GeneralTools.endsWithIgnoreCase(path.toString(), ".mrxs")))
 				return 0f;
 			else
 				return 1f;
