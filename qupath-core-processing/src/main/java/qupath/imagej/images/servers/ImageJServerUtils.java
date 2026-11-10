@@ -24,6 +24,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -50,7 +51,11 @@ class ImageJServerUtils {
         // otherwise try to open directly (which is much faster if memory permits)
         var maxMemory = MemoryTools.getMaxMemoryOrDefault(MemoryTools.gigabytesToBytes(16));
         long availableMemory = MemoryTools.getTotalFreeMemory().orElse(MemoryTools.getCurrentFreeMemory());
-        if (file != null && path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
+        // Locale.ROOT because the default locale decides what lower case means:
+        // a Turkish or Azerbaijani one turns "IMAGE.TIF" into "image.tıf", and
+        // the file stops being recognised as a TIFF.
+        String pathLower = path.toLowerCase(Locale.ROOT);
+        if (file != null && pathLower.endsWith(".tif") || pathLower.endsWith(".tiff")) {
             // Because ImageJ only supports uncompressed TIFFs, we simply use the file size
             // There is some questionable logic here to try to open virtual stacks at appropriate times
             long fileLength = file == null ? Long.MAX_VALUE : file.length();
