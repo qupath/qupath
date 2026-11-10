@@ -335,6 +335,42 @@ public final class GeneralTools {
 			return isMultipartExtension(ext.substring(1));
 		return ext.length() - ext.replace(".", "").length() > 0;
 	}
+
+	/**
+	 * Check if a string ends with a specific suffix, ignoring case.
+	 * This is somewhere between {@link String#equalsIgnoreCase(String)} and {@link String#endsWith(String)}.
+	 * @param path the main string to test
+	 * @param suffix the suffix
+	 * @return true if path ends with suffix, ignoring case
+	 * @since v0.8.0
+	 */
+	public static boolean checkEndsWithIgnoreCase(String path, String suffix) {
+		Objects.requireNonNull(path);
+		Objects.requireNonNull(suffix);
+		if (path.length() < suffix.length())
+			return false;
+		else if (path.length() == suffix.length())
+			return path.equalsIgnoreCase(suffix);
+		else
+			return path.regionMatches(true, path.length() - suffix.length(), suffix, 0, suffix.length());
+	}
+
+	/**
+	 * Check if a string starts with a specific prefix, ignoring case.
+	 * This is somewhere between {@link String#equalsIgnoreCase(String)} and {@link String#startsWith(String)}.
+	 * @param path the main string to test
+	 * @param prefix the prefix
+	 * @return true if path starts with prefix, ignoring case
+	 * @since v0.8.0
+	 */
+	public static boolean checkStartsWithIgnoreCase(String path, String prefix) {
+		Objects.requireNonNull(path);
+		Objects.requireNonNull(prefix);
+		if (path.length() < prefix.length())
+			return false;
+		else
+			return path.substring(0, prefix.length()).equalsIgnoreCase(prefix);
+	}
 	
 	
 	/**
