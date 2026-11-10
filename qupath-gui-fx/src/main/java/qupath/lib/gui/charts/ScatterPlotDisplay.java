@@ -225,7 +225,7 @@ public class ScatterPlotDisplay {
         String selectColumnX = null, selectColumnY = null;
         String defaultX = null, defaultY = null;
         for (String name : newValue.getMeasurementNames()) {
-            if (!name.toLowerCase().startsWith("centroid")) {
+            if (!GeneralTools.startsWithIgnoreCase(name, "centroid")) {
                 if (selectColumnX == null) {
                     selectColumnX = name;
                     continue;

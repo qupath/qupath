@@ -306,7 +306,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	}
 
 	private static boolean isBrightfield(ImageType type) {
-		return type.toString().toLowerCase().startsWith("brightfield");
+		return GeneralTools.startsWithIgnoreCase(type.toString(), "brightfield");
 	}
 	
 	/**

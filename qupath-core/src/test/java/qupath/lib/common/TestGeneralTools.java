@@ -116,21 +116,21 @@ public class TestGeneralTools {
 	@Execution(ExecutionMode.SAME_THREAD)
 	public void test_endsWithIgnoreCase() {
 		var localeDefault = Locale.getDefault();
-		assertTrue(GeneralTools.checkEndsWithIgnoreCase("name.tif", ".tif"));
-		assertTrue(GeneralTools.checkEndsWithIgnoreCase("name.TIF", ".tif"));
-		assertTrue(GeneralTools.checkEndsWithIgnoreCase("name.tif", ".TIF"));
-		assertTrue(GeneralTools.checkEndsWithIgnoreCase("name.TIF", ".TIF"));
-		assertFalse(GeneralTools.checkEndsWithIgnoreCase("name.TIF", ".TIFF"));
-		assertFalse(GeneralTools.checkEndsWithIgnoreCase("name.TIFF", ".TIF"));
+		assertTrue(GeneralTools.endsWithIgnoreCase("name.tif", ".tif"));
+		assertTrue(GeneralTools.endsWithIgnoreCase("name.TIF", ".tif"));
+		assertTrue(GeneralTools.endsWithIgnoreCase("name.tif", ".TIF"));
+		assertTrue(GeneralTools.endsWithIgnoreCase("name.TIF", ".TIF"));
+		assertFalse(GeneralTools.endsWithIgnoreCase("name.TIF", ".TIFF"));
+		assertFalse(GeneralTools.endsWithIgnoreCase("name.TIFF", ".TIF"));
 		try {
 			// See https://github.com/qupath/qupath/pull/2231
 			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
-			assertTrue(GeneralTools.checkEndsWithIgnoreCase("name.tif", ".tif"));
-			assertTrue(GeneralTools.checkEndsWithIgnoreCase("name.TIF", ".tif"));
-			assertTrue(GeneralTools.checkEndsWithIgnoreCase("name.tif", ".TIF"));
-			assertTrue(GeneralTools.checkEndsWithIgnoreCase("name.TIF", ".TIF"));
-			assertFalse(GeneralTools.checkEndsWithIgnoreCase("name.TIF", ".TIFF"));
-			assertFalse(GeneralTools.checkEndsWithIgnoreCase("name.TIFF", ".TIF"));
+			assertTrue(GeneralTools.endsWithIgnoreCase("name.tif", ".tif"));
+			assertTrue(GeneralTools.endsWithIgnoreCase("name.TIF", ".tif"));
+			assertTrue(GeneralTools.endsWithIgnoreCase("name.tif", ".TIF"));
+			assertTrue(GeneralTools.endsWithIgnoreCase("name.TIF", ".TIF"));
+			assertFalse(GeneralTools.endsWithIgnoreCase("name.TIF", ".TIFF"));
+			assertFalse(GeneralTools.endsWithIgnoreCase("name.TIFF", ".TIF"));
 		} finally {
 			Locale.setDefault(localeDefault);
 		}
@@ -140,21 +140,21 @@ public class TestGeneralTools {
 	@Execution(ExecutionMode.SAME_THREAD)
 	public void test_startsWithIgnoreCase() {
 		var localeDefault = Locale.getDefault();
-		assertTrue(GeneralTools.checkStartsWithIgnoreCase("tif.name", "tif."));
-		assertTrue(GeneralTools.checkStartsWithIgnoreCase("TIF.name", "tif."));
-		assertTrue(GeneralTools.checkStartsWithIgnoreCase("tif.name", "TIF."));
-		assertTrue(GeneralTools.checkStartsWithIgnoreCase("TIF.name", "TIF."));
-		assertFalse(GeneralTools.checkStartsWithIgnoreCase("TIF.name", "TIFF."));
-		assertFalse(GeneralTools.checkStartsWithIgnoreCase("TIFF.name", "TIF."));
+		assertTrue(GeneralTools.startsWithIgnoreCase("tif.name", "tif."));
+		assertTrue(GeneralTools.startsWithIgnoreCase("TIF.name", "tif."));
+		assertTrue(GeneralTools.startsWithIgnoreCase("tif.name", "TIF."));
+		assertTrue(GeneralTools.startsWithIgnoreCase("TIF.name", "TIF."));
+		assertFalse(GeneralTools.startsWithIgnoreCase("TIF.name", "TIFF."));
+		assertFalse(GeneralTools.startsWithIgnoreCase("TIFF.name", "TIF."));
 		try {
 			// See https://github.com/qupath/qupath/pull/2231
 			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
-			assertTrue(GeneralTools.checkStartsWithIgnoreCase("tif.name", "tif."));
-			assertTrue(GeneralTools.checkStartsWithIgnoreCase("TIF.name", "tif."));
-			assertTrue(GeneralTools.checkStartsWithIgnoreCase("tif.name", "TIF."));
-			assertTrue(GeneralTools.checkStartsWithIgnoreCase("TIF.name", "TIF."));
-			assertFalse(GeneralTools.checkStartsWithIgnoreCase("TIF.name", "TIFF."));
-			assertFalse(GeneralTools.checkStartsWithIgnoreCase("TIFF.name", "TIF."));
+			assertTrue(GeneralTools.startsWithIgnoreCase("tif.name", "tif."));
+			assertTrue(GeneralTools.startsWithIgnoreCase("TIF.name", "tif."));
+			assertTrue(GeneralTools.startsWithIgnoreCase("tif.name", "TIF."));
+			assertTrue(GeneralTools.startsWithIgnoreCase("TIF.name", "TIF."));
+			assertFalse(GeneralTools.startsWithIgnoreCase("TIF.name", "TIFF."));
+			assertFalse(GeneralTools.startsWithIgnoreCase("TIFF.name", "TIF."));
 		} finally {
 			Locale.setDefault(localeDefault);
 		}

@@ -344,7 +344,7 @@ public final class GeneralTools {
 	 * @return true if path ends with suffix, ignoring case
 	 * @since v0.8.0
 	 */
-	public static boolean checkEndsWithIgnoreCase(String path, String suffix) {
+	public static boolean endsWithIgnoreCase(String path, String suffix) {
 		Objects.requireNonNull(path);
 		Objects.requireNonNull(suffix);
 		if (path.length() < suffix.length())
@@ -363,7 +363,7 @@ public final class GeneralTools {
 	 * @return true if path starts with prefix, ignoring case
 	 * @since v0.8.0
 	 */
-	public static boolean checkStartsWithIgnoreCase(String path, String prefix) {
+	public static boolean startsWithIgnoreCase(String path, String prefix) {
 		Objects.requireNonNull(path);
 		Objects.requireNonNull(prefix);
 		if (path.length() < prefix.length())

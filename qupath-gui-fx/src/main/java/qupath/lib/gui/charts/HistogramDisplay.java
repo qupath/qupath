@@ -128,7 +128,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 		}
 		// Try to select the first column that isn't for 'centroids'...
 		for (String name : model.getMeasurementNames()) {
-			if (!name.toLowerCase().startsWith("centroid")) {
+			if (!GeneralTools.startsWithIgnoreCase(name, "centroid")) {
 				selectColumn = name;
 				break;
 			}

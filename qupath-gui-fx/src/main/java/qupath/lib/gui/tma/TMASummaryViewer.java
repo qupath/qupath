@@ -1268,7 +1268,7 @@ public class TMASummaryViewer {
 		File dir = file.isDirectory() ? file : file.getParentFile();
 
 		for (File fileInput : dir.listFiles()) {
-			if (fileInput.isHidden() || fileInput.isDirectory() || !fileInput.getName().toLowerCase().endsWith(".qptma"))
+			if (fileInput.isHidden() || fileInput.isDirectory() || !GeneralTools.endsWithIgnoreCase(fileInput.getName(), ".qptma"))
 				continue;
 			parseInputFile(fileInput, entriesTemp);
 		}

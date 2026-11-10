@@ -171,7 +171,7 @@ class ProjectImportImagesCommand {
 	            	 else {
 						 // Make the name a little more readable, without adding confusing
 						 String name = item.getName();
-						 if (name.toLowerCase().endsWith("builder"))
+						 if (GeneralTools.endsWithIgnoreCase(name, "builder"))
 							 name = name.substring(0, name.length()-"builder".length()).strip();
 						 setText(name);
 					 }
@@ -287,7 +287,7 @@ class ProjectImportImagesCommand {
 				try {
 					var paths = dragboard.getFiles()
 							.stream()
-							.filter(f -> (f.isFile() || f.isDirectory() && f.getName().toLowerCase().endsWith(".zarr")) && !f.isHidden())
+							.filter(f -> (f.isFile() || f.isDirectory() && GeneralTools.endsWithIgnoreCase(f.getName(), ".zarr")) && !f.isHidden())
 							.map(File::getAbsolutePath)
 							.collect(Collectors.toCollection(ArrayList::new));
 					paths.removeAll(listView.getItems());
@@ -776,7 +776,7 @@ class ProjectImportImagesCommand {
 	static boolean isPossiblePath(final String path) {
 		try {
 			URI uri;
-			if (path.toLowerCase().startsWith("http") || path.toLowerCase().startsWith("file"))
+			if (GeneralTools.startsWithIgnoreCase(path, "http") || GeneralTools.startsWithIgnoreCase(path, "file"))
 				uri = GeneralTools.toEncodedURI(path);
 			else
 				uri = new File(path).toURI();

@@ -298,7 +298,7 @@ public class QuPathStyleManager {
 			// Copy over the files
 			Boolean overwriteExisting = null;
 			for (var file : list) {
-				if (!file.getName().toLowerCase().endsWith(".css")) {
+				if (!GeneralTools.endsWithIgnoreCase(file.getName(), ".css")) {
 					logger.warn("Cannot install style for {} - not a .css file!", file);
 					continue;
 				}
@@ -777,7 +777,7 @@ public class QuPathStyleManager {
 			try {
 				if (Files.isDirectory(cssPath)) {
 					var newStyles = Files.list(cssPath)
-						.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().toLowerCase().endsWith(".css"))
+						.filter(p -> Files.isRegularFile(p) && GeneralTools.endsWithIgnoreCase(p.getFileName().toString(), ".css"))
 						.map(CustomStylesheet::new)
 						.sorted(Comparator.comparing(StyleOption::getName))
 						.toList();
