@@ -36,10 +36,7 @@ class CustomCodeArea extends CodeArea {
     public void paste() {
         var text = DefaultScriptEditor.getClipboardText(false);
         if (text != null) {
-            if (text.equals(Clipboard.getSystemClipboard().getString()))
-                super.paste();
-            else
-                replaceSelection(text);
+            replaceSelection(text);
         }
     }
 }
