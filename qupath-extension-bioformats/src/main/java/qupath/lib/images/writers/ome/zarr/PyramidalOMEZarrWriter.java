@@ -263,6 +263,31 @@ public class PyramidalOMEZarrWriter {
         }
 
         /**
+         * Calculate downsamples by progressively scaling down the image by a fixed factor.
+         * @param scale the scale factor to use. For example, if {@code scale == 2} then downsamples
+         *              would be {@code 1, 2, 4, 8, ...} ending when the downsampled image would
+         *              be smaller than the tile width or height.
+         * @return this builder.
+         */
+        public Builder scaledDownsampling(double scale) {
+            if (scale <= 1) {
+                throw new IllegalArgumentException("Scale should be greater than 1");
+            }
+			// Calculate default downsamples, if we need to
+            List<Double> downsampleList = new ArrayList<>();
+            int imageWidth = server.getWidth();
+            int imageHeight = server.getHeight();
+            int tileWidth = server.getMetadata().getPreferredTileWidth();
+            int tileHeight = server.getMetadata().getPreferredTileHeight();
+            double nextDownsample = 1.0;
+            do {
+                downsampleList.add(nextDownsample);
+                nextDownsample *= scale;
+            } while ((imageWidth / nextDownsample > tileWidth) && (imageHeight / nextDownsample > tileHeight));
+			return downsamples(downsampleList.stream().mapToDouble(d -> d).toArray());
+		}
+
+        /**
          * In Zarr images, data is stored in chunks. This parameter defines the maximum number of chunks on the
          * x,y, and z dimensions. By default, this value is set to -1.
          * <p>
