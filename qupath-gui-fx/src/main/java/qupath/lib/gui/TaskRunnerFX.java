@@ -72,15 +72,13 @@ public class TaskRunnerFX extends AbstractTaskRunner {
 
 	@Override
 	public ProgressMonitor makeProgressMonitor() {
-		var thread = Thread.currentThread();
 		var monitor = ObservableProgressMonitor.createForApplicationThread();
 		ProgressMonitorDialog.builder()
 					.owner(qupath.getStage())
 					.delay(Duration.ofMillis(250))
-					.onCancel(thread::interrupt)
+					.onCancel(Thread.currentThread()::interrupt)
 					.progressMonitor(monitor)
-					.showOnStart(true)
-					.hideOnComplete(true)
+					.showWhenRunning()
 					.showDefaultHeader(true)
 					.buildAsync(); // We only need to build it, we don't need the dialog
 		return monitor;

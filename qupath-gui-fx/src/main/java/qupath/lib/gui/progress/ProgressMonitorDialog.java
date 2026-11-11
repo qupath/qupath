@@ -14,11 +14,20 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Window;
+import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.localization.QuPathResources;
+import qupath.lib.progress.ProgressMonitor;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -66,6 +75,7 @@ public class ProgressMonitorDialog extends Dialog<Void> {
         this.progressMonitor = builder.progressMonitor == null
                 ? ObservableProgressMonitor.createForApplicationThread()
                 : builder.progressMonitor;
+        this.progressMonitor.addProgressMonitors(builder.additionalMonitors.toArray(ProgressMonitor[]::new));
 
         this.progressMonitor.isStartedProperty().subscribe(this::handleStarted)
                 .and(this.progressMonitor.isCompleteProperty().subscribe(this::handleComplete));
@@ -102,8 +112,14 @@ public class ProgressMonitorDialog extends Dialog<Void> {
         }
         long endTimeNanos = System.nanoTime();
         logger.info(String.format("Processing complete in %.2f seconds", (endTimeNanos - startTimeNanos) / 1e9));
-        if (hideOnComplete)
-            hide();
+        if (hideOnComplete) {
+            getWindow().ifPresentOrElse(window -> {
+                // There's some funny logic around when dialogs block 'abnormal' close requests
+                // based upon the number of buttons and whether one of them is 'cancel'...
+                // and a simple call to #hide() or #close() is apparently abnormal.
+                window.fireEvent(new WindowEvent(window, WindowEvent.WINDOW_CLOSE_REQUEST));
+            }, this::hide);
+        }
     }
 
     private void init(Builder builder) {
@@ -120,11 +136,19 @@ public class ProgressMonitorDialog extends Dialog<Void> {
         // Don't permit the dialog
         if (hideOnComplete) {
             // Uses trick from https://www.reddit.com/r/javahelp/comments/39ogiw/cannot_prevent_javafx_dialog_from_closing/
-            dialogPane.getScene().getWindow().setOnCloseRequest(e -> {
+            getWindow().ifPresent(w -> w.setOnCloseRequest(e -> {
                 if (!isComplete() && !isCancelled()) {
-                    e.consume();
+                    if (cancellationTask == null) {
+                        // If we don't have a cancel button, we need a way to close the monitor if it gets stuck
+                        // (i.e. the monitor never has its progress set to >= 1, so isn't 'complete')
+                        if (Dialogs.showYesNoDialog("Close",
+                                "Are you sure you want to close the progress monitor?")) {
+                            return;
+                        }
+                        e.consume();
+                    }
                 }
-            });
+            }));
         }
 
         if (builder.showDefaultHeader)
@@ -158,6 +182,12 @@ public class ProgressMonitorDialog extends Dialog<Void> {
         dialogPane.setContent(box);
     }
 
+    private Optional<Window> getWindow() {
+        var pane = getDialogPane();
+        var scene = pane == null ? null : pane.getScene();
+        var window = scene == null ? null : scene.getWindow();
+        return Optional.ofNullable(window);
+    }
 
     private StringBinding createHeaderTextBinding() {
         return Bindings.createStringBinding(() -> {
@@ -205,10 +235,11 @@ public class ProgressMonitorDialog extends Dialog<Void> {
         private Duration delay = Duration.ofNanos(0L);
         private Runnable onCancel;
         private ObservableProgressMonitor progressMonitor;
+        private final List<ProgressMonitor> additionalMonitors = new ArrayList<>();
 
         private boolean showDefaultHeader = false;
-        private boolean showOnStart = true;
-        private boolean hideOnComplete = true;
+        private boolean showOnStart = false;
+        private boolean hideOnComplete = false;
 
         private Modality modality = Modality.APPLICATION_MODAL;
 
@@ -236,7 +267,7 @@ public class ProgressMonitorDialog extends Dialog<Void> {
          * Set the dialog behavior for when the 'cancel' button is pressed.
          * If this is not set, no 'cancel' button is shown by default.
          * <p>
-         * A typical example would be to interrupt a calling thread.
+         * A possible use is to interrupt the calling thread with {@code onCancel(Thread.currentThread()::interrupt)}.
          * @param onCancel the runnable to run when cancel is pressed
          * @return this builder
          */
@@ -244,6 +275,7 @@ public class ProgressMonitorDialog extends Dialog<Void> {
             this.onCancel = onCancel;
             return this;
         }
+
 
         /**
          * Optionally specify a delay before which the dialog appears.
@@ -271,7 +303,7 @@ public class ProgressMonitorDialog extends Dialog<Void> {
         }
 
         /**
-         * Optionally set the progress monitor for the dialog to use.
+         * Optionally set the main observable progress monitor for the dialog to use.
          * If not set, a new progress monitor will be created.
          * @param progressMonitor the progress monitor
          * @return this builder
@@ -282,9 +314,34 @@ public class ProgressMonitorDialog extends Dialog<Void> {
         }
 
         /**
+         * Optionally add additional progress monitors, which will be updated whenever the main
+         * observable progress monitor associated with this dialog is updated.
+         * <p>
+         * This is useful to add extra behavior, for example logging on progress updates.
+         * @param progressMonitors array of additional progress monitors
+         * @return this builder
+         */
+        public Builder additionalMonitors(ProgressMonitor... progressMonitors) {
+            return additionalMonitors(List.of(progressMonitors));
+        }
+
+        /**
+         * Optionally add additional progress monitors, which will be updated whenever the main
+         * observable progress monitor associated with this dialog is updated.
+         * <p>
+         * This is useful to add extra behavior, for example logging on progress updates.
+         * @param progressMonitors collection of additional progress monitors
+         * @return this builder
+         */
+        public Builder additionalMonitors(Collection<? extends ProgressMonitor> progressMonitors) {
+            additionalMonitors.addAll(progressMonitors);
+            return this;
+        }
+
+        /**
          * Optionally show the dialog automatically after the first progress update,
          * possibly after a delay.
-         * Default is {@code true}.
+         * Default is {@code false}.
          * @param showOnStart true if the dialog should be shown after the first update,
          *                    false if its visibility will be controlled some other way.
          * @return this builder
@@ -297,13 +354,26 @@ public class ProgressMonitorDialog extends Dialog<Void> {
 
         /**
          * Optionally hide the dialog automatically after the progress reaches 1.
-         * Default is {@code true}.
+         * Default is {@code false}.
          * @param hideOnComplete true if the dialog should be hidden when the progress
          *                       is &geq; 1.
          * @return this builder
          */
         public Builder hideOnComplete(boolean hideOnComplete) {
             this.hideOnComplete = hideOnComplete;
+            return this;
+        }
+
+        /**
+         * Request that the dialog is visible only when the progress monitor has started and is not yet complete.
+         * <p>
+         * This is a convenience method that sets {@link #showOnStart(boolean)} and {@link #hideOnComplete(boolean)}
+         * so that both are {@code true}.
+         * @return this builder
+         */
+        public Builder showWhenRunning() {
+            this.showOnStart = true;
+            this.hideOnComplete = true;
             return this;
         }
 
@@ -315,6 +385,30 @@ public class ProgressMonitorDialog extends Dialog<Void> {
         public Builder modality(Modality modality) {
             this.modality = modality;
             return this;
+        }
+
+        /**
+         * Set the dialog modality to WINDOW_MODAL.
+         * @return this builder
+         */
+        public Builder windowModality() {
+            return modality(Modality.WINDOW_MODAL);
+        }
+
+        /**
+         * Set the dialog modality to APPLICATION_MODAL.
+         * @return this builder
+         */
+        public Builder applicationModality() {
+            return modality(Modality.APPLICATION_MODAL);
+        }
+
+        /**
+         * Set the dialog to be non-modal.
+         * @return this builder
+         */
+        public Builder nonModal() {
+            return modality(Modality.NONE);
         }
 
         /**
@@ -351,7 +445,6 @@ public class ProgressMonitorDialog extends Dialog<Void> {
                 return CompletableFuture.supplyAsync(this::build, Platform::runLater);
             }
         }
-
 
     }
 
