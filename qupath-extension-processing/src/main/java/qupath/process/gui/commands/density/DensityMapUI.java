@@ -78,6 +78,7 @@ import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
+import qupath.lib.projects.Projects;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
 import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
@@ -96,6 +97,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -918,7 +920,8 @@ public class DensityMapUI {
 		}
 
 		private void promptToSaveRawImage(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> densityMap, String densityMapName) throws IOException {
-			var file = FileChoosers.promptToSaveFile(title, densityMapName == null ? null : new File(densityMapName),
+			var file = FileChoosers.promptToSaveFile(title,
+					getInitialFile(densityMapName == null ? "Density map (raw)" : densityMapName),
 					FileChoosers.createExtensionFilter("ImageJ tif", ".tif"));
 			if (file != null) {
 				try {
@@ -950,9 +953,22 @@ public class DensityMapUI {
 				fmt = "ImageJ tif";
 				ext = ".tif";
 			}
-			file = FileChoosers.promptToSaveFile(title, null, FileChoosers.createExtensionFilter(fmt, ext));
+			file = FileChoosers.promptToSaveFile(title,
+					getInitialFile("Density map"),
+					FileChoosers.createExtensionFilter(fmt, ext));
 			if (file != null) {
 				QP.writeImage(server, file.getAbsolutePath());
+			}
+		}
+
+		private File getInitialFile(String densityMapName) {
+			Objects.requireNonNull(densityMapName);
+			var project = qupath == null ? null : qupath.getProject();
+			var dirProject = project == null ? null : Projects.getBaseDirectory(project);
+			if (dirProject == null) {
+				return new File(densityMapName);
+			} else {
+				return new File(dirProject, densityMapName);
 			}
 		}
 
