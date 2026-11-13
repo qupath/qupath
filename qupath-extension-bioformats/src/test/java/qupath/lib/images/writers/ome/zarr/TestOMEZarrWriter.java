@@ -280,10 +280,10 @@ public class TestOMEZarrWriter {
         String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
         SampleImageServer sampleImageServer = new SampleImageServer();
         double downsample = 2;
-        double[] expectedDownsamples = new double[] {downsample};
+        double[] downsamples = new double[] {downsample};
 
         new OMEZarrWriter.Builder(sampleImageServer)
-                .downsamples(expectedDownsamples)
+                .downsamples(downsamples)
                 .build(outputImagePath)
                 .writeImage();
 
@@ -291,7 +291,7 @@ public class TestOMEZarrWriter {
         try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
             pixelSize = server.getMetadata().getPixelCalibration().getAveragedPixelSize().doubleValue();
         }
-        Assertions.assertEquals(pixelSize, sampleImageServer.getMetadata().getPixelCalibration().getAveragedPixelSize().doubleValue() / downsample);
+        Assertions.assertEquals(pixelSize, sampleImageServer.getMetadata().getPixelCalibration().getAveragedPixelSize().doubleValue() * downsample);
 
         sampleImageServer.close();
         FileUtils.deleteDirectory(path.toFile());
@@ -581,6 +581,7 @@ public class TestOMEZarrWriter {
             return new ImageServerMetadata.Builder()
                     .width(IMAGE_WIDTH)
                     .height(IMAGE_HEIGHT)
+                    .pixelCalibration(new PixelCalibration.Builder().pixelSizeMicrons(0.5, 0.5).build())
                     .sizeZ(3)
                     .sizeT(2)
                     .pixelType(PixelType.FLOAT64)
