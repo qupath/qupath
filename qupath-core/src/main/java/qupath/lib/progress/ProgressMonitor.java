@@ -1,5 +1,6 @@
 package qupath.lib.progress;
 
+import java.util.Objects;
 import java.util.function.DoubleUnaryOperator;
 
 /**
@@ -15,8 +16,7 @@ public interface ProgressMonitor {
     /**
      * Default progress monitor that ignores all updates.
      */
-    ProgressMonitor NULL = (m, p) -> {
-    };
+    ProgressMonitor NULL = (m, p) -> {};
 
     /**
      * Handle a progress update.
@@ -49,6 +49,16 @@ public interface ProgressMonitor {
     }
 
     /**
+     * Update the progress message and indicate that the task is complete.
+     * <p>
+     * This is a convenience that simply calls {@code updateProgresss(message, 1.0}.
+     * @param message the message
+     */
+    default void complete(String message) {
+        updateProgress(message, 1.0);
+    }
+
+    /**
      * Check whether a progress value is indeterminate, i.e. not a finite value &geq; 0.
      *
      * @param progress the progress to check
@@ -59,12 +69,17 @@ public interface ProgressMonitor {
     }
 
     /**
-     * Combine two progress monitors, applying update messages sequentially.
+     * Create a new progress monitor that sequentially updates the current progress monitor,
+     * along with another monitors.
+     * <p>
+     * Note that updates should be made to the monitor that is returned by this method,
+     * not the original monitors (which still do not know of one another).
      *
-     * @param other the second progress monitor
+     * @param other the other progress monitor to update
      * @return a new progress monitor that updates both this and another
      */
     default ProgressMonitor and(ProgressMonitor other) {
+        Objects.requireNonNull(other);
         return (String message, double progress) -> {
             updateProgress(message, progress);
             other.updateProgress(message, progress);

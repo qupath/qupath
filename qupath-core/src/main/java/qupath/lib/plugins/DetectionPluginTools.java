@@ -134,8 +134,9 @@ public class DetectionPluginTools {
 
 
 		private static void tryToSetObjectLock(final PathObject pathObject, final boolean locked) {
-			if (pathObject instanceof PathROIObject)
-				((PathROIObject)pathObject).setLocked(locked);
+			if (pathObject instanceof PathROIObject roiObject) {
+				roiObject.setLocked(locked);
+			}
 		}
 
 
@@ -146,10 +147,10 @@ public class DetectionPluginTools {
 			
 			try {
 //				// Tile objects handle their own completion
-				if (parentObject instanceof ParallelTileObject) {
+				if (parentObject instanceof ParallelTileObject parallelTileObject) {
 					parentObject.removeAllChildObjects();
 					parentObject.addChildObjects(pathObjectsDetected);
-					((ParallelTileObject)parentObject).setComplete(wasCancelled);
+					parallelTileObject.setComplete(wasCancelled);
 				} else {
 					if (!wasCancelled) {
 						parentObject.removeAllChildObjects();
