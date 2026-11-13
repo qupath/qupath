@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TileRequestManager;
@@ -79,22 +80,28 @@ public class OMEZarrWriter {
         this.server = transformedServerBuilder.build();
 
         this.numberOfThreads = builder.numberOfThreads;
+        var metadata = server.getMetadata();
+        if (downsamples[0] > 1) {
+            metadata = new ImageServerMetadata.Builder(server.getMetadata())
+                .pixelCalibration(metadata.getPixelCalibration().createScaledInstance(downsamples[0], downsamples[0]))
+                .build();
+        }
 
-        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(server.getMetadata());
+        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(metadata);
 
         ZarrGroup root = ZarrGroup.create(path, attributes.getGroupAttributes());
 
         try {
-            ZarrWriterUtils.createOmeSubGroup(root, path, server.getMetadata());
+            ZarrWriterUtils.createOmeSubGroup(root, path, metadata);
         } catch (Exception e) {
             logger.warn("Error while creating OME XML file of {}. Some image metadata won't be written", path, e);
         }
 
         this.levels = ZarrWriterUtils.createLevels(
-                server.getMetadata(),
+                metadata,
                 root,
-                server.getMetadata().getPreferredTileWidth(),
-                server.getMetadata().getPreferredTileHeight(),
+                metadata.getPreferredTileWidth(),
+                metadata.getPreferredTileHeight(),
                 attributes.getLevelAttributes(),
                 builder.compressor
         );
