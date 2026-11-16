@@ -96,7 +96,7 @@ import java.util.stream.Collectors;
 
 /**
  * Create commands for displaying pixel classifiers and density maps.
- * @param <S>
+ * @param <S> the resource type
  *
  */
 public final class LoadResourceCommand<S> implements Runnable {
