@@ -23,8 +23,15 @@ package qupath.process.gui.commands.ui;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectExpression;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
@@ -34,12 +41,15 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.stage.WindowEvent;
+import javafx.util.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
@@ -99,17 +109,50 @@ public final class LoadResourceCommand<S> implements Runnable {
 	// Extra resources, not found within the project
 	private final Map<String, S> externalResources = new TreeMap<>();
 
-	private int nThreads = 1;
-	
-	/**
-	 * Constructor.
-	 * @param qupath
-	 * @param resourceType 
-	 */
+	private final Map<ImageData<BufferedImage>, ImageServer<BufferedImage>> cachedServers = new WeakHashMap<>();
+	private final PixelClassificationOverlay overlay;
+	private final IntegerProperty nThreads = new SimpleIntegerProperty(1);
+	private final ObservableList<String> items = FXCollections.observableArrayList();
+
+	private final ObjectProperty<NamedResource<S>> selectedResource = new SimpleObjectProperty<>();
+
+	private Stage stage;
+	private Subscription subscription;
+
 	private LoadResourceCommand(QuPathGUI qupath, ResourceType<S> resourceType, int nThreads) {
 		this.qupath = qupath;
 		this.resourceType = resourceType;
-		this.nThreads = nThreads;
+		this.nThreads.set(nThreads);
+		this.overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), cachedServers, new ColorModelRenderer(null));
+		updateOverlayThreads();
+		this.subscription = setupSubscriptions();
+	}
+
+	private Subscription setupSubscriptions() {
+		return this.nThreads.subscribe(this::updateOverlayThreads)
+				.and(this.selectedResource.subscribe(this::handleSelectedResourceChange))
+				.and(qupath.projectProperty().subscribe(this::updateAvailableItems));
+	}
+
+	private void updateOverlayThreads() {
+		int n = nThreads.get();
+		if (n < 0) {
+			n = PathPrefs.numCommandThreadsProperty().get();
+		} else if (n == 0) {
+			n = 1;
+		}
+		overlay.setMaxThreads(n);
+	}
+
+	private void handleSelectedResourceChange(NamedResource<S> newValue) {
+		cachedServers.clear();
+		updateServers(newValue, cachedServers);
+		for (var viewer : qupath.getAllViewers()) {
+			viewer.resetCustomPixelLayerOverlay();;
+			if (newValue != null) {
+				viewer.setCustomPixelLayerOverlay(overlay);
+			}
+		}
 	}
 	
 	/**
@@ -129,152 +172,80 @@ public final class LoadResourceCommand<S> implements Runnable {
 	public static LoadResourceCommand<DensityMapBuilder> createLoadDensityMapCommand(QuPathGUI qupath) {
 		return new LoadResourceCommand<>(qupath, new DensityMapType(), 1);
 	}
-	
+
+	private NamedResource<S> resourceForName(String name) {
+		if (name == null)
+			return null;
+		try {
+			var project = qupath.getProject();
+			var manager = resourceType.getManager(project);
+			S resource;
+			boolean isExternal = false;
+			if (manager != null && manager.contains(name)) {
+					resource = manager.get(name);
+			} else{
+				resource = externalResources.get(name);
+				isExternal = true;
+			}
+			if (resource instanceof UriResource uriResource) {
+				int nChanges = UpdateUrisCommand.promptToUpdateUris(
+						List.of(uriResource),
+						project == null ? null : project.getURI(),
+						project == null ? null : project.getPreviousURI(),
+						true
+				);
+				var updater = UriUpdater.create(uriResource);
+				int nMissing = updater.countMissing();
+				if (nMissing > 0) {
+					String message;
+					if (nMissing > 1) {
+						message = nMissing + " URIs could not be found";
+					} else {
+						message = "Cannot find " + uriListString(updater.getMissingItems(), ", ");
+					}
+					Dialogs.showErrorNotification(resourceType.getDialogTitle(), message);
+					logger.error("Missing URIs:\n{}",
+							uriListString(updater.getMissingItems(), "\n"));
+					return null;
+				} else if (nChanges > 0) {
+					// If we made changes, save them
+					if (!isExternal) {
+						if (Dialogs.showConfirmDialog("Save changes", "Overwrite '" + name + "'?")) {
+							manager.put(name, resource);
+						}
+					} else {
+						// TODO: Support overwriting external resource
+						logger.warn("I can't overwrite an external resource (yet)");
+					}
+				}
+			}
+			return new NamedResource<>(name, resource);
+		} catch (Exception ex) {
+			Dialogs.showErrorNotification(resourceType.getDialogTitle(), ex);
+			logger.error(ex.getMessage(), ex);
+			return null;
+		}
+	}
 
 	@Override
 	public void run() {
-		
-		String title = resourceType.getDialogTitle();
-
-		var cachedServers = new WeakHashMap<ImageData<BufferedImage>, ImageServer<BufferedImage>>();
-		var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), cachedServers, new ColorModelRenderer(null));
-		overlay.setMaxThreads(nThreads);
-
-		var comboClassifiers = new ComboBox<String>();
-		try {
-			updateAvailableItems(comboClassifiers.getItems());
-		} catch (IOException e) {
-			logger.error(e.getMessage(), e);
+		if (stage == null) {
+			stage = createStage();
 		}
-		var selectedResource = Bindings.createObjectBinding(() -> {
-			String name = comboClassifiers.getSelectionModel().getSelectedItem();
-			cachedServers.clear();
-			if (name != null) {
-				try {
-					var project = qupath.getProject();
-					var manager = resourceType.getManager(project);
-					S resource;
-					if (manager != null && manager.contains(name))
-						resource = manager.get(name);
-					else
-						resource = externalResources.get(name);
-					if (resource instanceof UriResource uriResource) {
-						UpdateUrisCommand.promptToUpdateUris(
-								List.of(uriResource),
-								project == null ? null : project.getURI(),
-								project == null ? null : project.getPreviousURI(),
-								true
-						);
-						var updater = UriUpdater.create(uriResource);
-						int nMissing = updater.countMissing();
-						if (nMissing > 0) {
-							if (nMissing > 1) {
-								Dialogs.showErrorMessage(resourceType.getDialogTitle(),
-										nMissing + " URIs could not be found");
-							} else {
-								Dialogs.showErrorMessage(resourceType.getDialogTitle(),
-										"Cannot find " + uriListString(updater.getMissingItems(), ", "));
-							}
-							logger.error("Missing URIs:\n{}",
-									uriListString(updater.getMissingItems(), "\n"));
-							return null;
-						}
-					}
-					return resource;
-				} catch (Exception ex) {
-					// TODO: Investigate why this is triggered twice
-					Dialogs.showErrorNotification(resourceType.getDialogTitle(), ex);
-					logger.error(ex.getMessage(), ex);
-				}
-			}
-			return null;
-		}, comboClassifiers.getSelectionModel().selectedItemProperty());
-		
+		stage.show();
+	}
+
+	private Stage createStage() {
+		var comboClassifiers = new ComboBox<>(items);
+		comboClassifiers.getSelectionModel().selectedItemProperty().addListener(this::handleSelectedNameChange);
+		var classifierName = new SimpleStringProperty(null);
+		classifierName.bind(comboClassifiers.getSelectionModel().selectedItemProperty());
+
 		var label = new Label(resourceType.choosePrompt());
 		label.setMinWidth(Label.USE_PREF_SIZE);
 		label.setLabelFor(comboClassifiers);
-		
-		selectedResource.addListener((v, o, n) -> {
-			cachedServers.clear();
-			updateServers(n, cachedServers);
 
-			for (var viewer : qupath.getAllViewers()) {
-				if (n != null) {
-					viewer.resetCustomPixelLayerOverlay();;
-					viewer.setCustomPixelLayerOverlay(overlay);
-				} else
-					viewer.resetCustomPixelLayerOverlay();;
-			}
-		});
-
-
-		// Add file chooser
-		var menu = new ContextMenu();
-		var miLoadClassifier = new MenuItem("Import from files");
-		miLoadClassifier.setOnAction(e -> {
-			List<File> files = FileChoosers.promptForMultipleFiles(title,
-					FileChoosers.createExtensionFilter(resourceType.filePrompt(), ".*json"));
-			if (files == null || files.isEmpty())
-				return;
-			try {
-				addExternalJson(files, resourceType.getManager(qupath.getProject()), externalResources);
-				updateAvailableItems(comboClassifiers.getItems());
-			} catch (IOException ex) {
-				Dialogs.showErrorMessage(title, ex);
-				logger.error(ex.getMessage(), ex);
-			}
-		});
-		var miOpenAsText = new MenuItem("Show as text");
-		miOpenAsText.setOnAction(e -> {
-			var name = comboClassifiers.getSelectionModel().getSelectedItem();
-			var resource = selectedResource.get();
-			if (resource == null)
-				return;
-			try {
-				// Pass the resource class, since it can be required for including the appropriate JSON properties
-				var json = GsonTools.getInstance(true).toJson(resource, resourceType.getResourceClass());
-				if (!name.endsWith(".json"))
-					name = name + ".json";
-				// Show in script editor if possible; this may include better formatting and syntax highlighting
-				var scriptEditor = qupath.getScriptEditor();
-				if (scriptEditor != null)
-					scriptEditor.showScript(name, json);
-				else
-					Dialogs.showTextWindow(qupath.getStage(), name, json, Modality.NONE, false);
-			} catch (Exception ex) {
-				Dialogs.showErrorMessage("Show model as text", "Unable to create a text representation of '" + name + "', sorry!");
-			}
-		});
-		miOpenAsText.disableProperty().bind(selectedResource.isNull());
-		
-		// Enable setting number of threads
-		var miThreads = new MenuItem("Set parallel threads");
-		miThreads.setOnAction(e -> {
-			var params = new ParameterList()
-					.addIntParameter(
-							"nThreads",
-							"Number of parallel threads",
-							nThreads,
-							null,
-							"Number of threads to use for live prediction");
-			if (!GuiTools.showParameterDialog("Set parallel threads", params))
-				return;
-			var val = params.getIntParameterValue("nThreads");
-			if (val == nThreads)
-				return;
-			if (val < 0)
-				nThreads = PathPrefs.numCommandThreadsProperty().get();
-			else
-				nThreads = Math.max(1, val);
-            overlay.setMaxThreads(nThreads);
-		});
-		
-		menu.getItems().addAll(miLoadClassifier, miOpenAsText, new SeparatorMenuItem(), miThreads);
-		var btnLoadExistingClassifier = GuiTools.createMoreButton(menu, Side.RIGHT);
-		
-		var classifierName = new SimpleStringProperty(null);
-		classifierName.bind(comboClassifiers.getSelectionModel().selectedItemProperty());
-		
+		var btnLoadExistingClassifier = GuiTools.createMoreButton(createMoreMenu(), Side.RIGHT);
 
 		var pane = new GridPane();
 		pane.setPadding(new Insets(10.0));
@@ -284,7 +255,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 		GridPaneUtils.addGridRow(pane,0, 0, "Choose model to apply to the current image", label, comboClassifiers, btnLoadExistingClassifier);
 		GridPaneUtils.setToExpandGridPaneWidth(comboClassifiers);
 
-		
+
 		if (resourceType.getResourceClass().equals(PixelClassifier.class)) {
 			var labelRegion = new Label("Region");
 			labelRegion.setMinWidth(Label.USE_PREF_SIZE);
@@ -293,9 +264,9 @@ public final class LoadResourceCommand<S> implements Runnable {
 			@SuppressWarnings("unchecked")
 			var tilePane = PixelClassifierUI.createPixelClassifierButtons(
 					qupath.imageDataProperty(),
-					(ObjectExpression<PixelClassifier>)selectedResource,
+					(ObjectExpression<PixelClassifier>)selectedResource.map(NamedResource::resource),
 					classifierName);
-			
+
 			GridPaneUtils.addGridRow(pane, pane.getRowCount(), 0, "Control where the pixel classification is applied during preview",
 					labelRegion, comboRegionFilter, comboRegionFilter);
 			GridPaneUtils.addGridRow(pane, pane.getRowCount(), 0, "Apply pixel classification", tilePane, tilePane, tilePane);
@@ -303,62 +274,141 @@ public final class LoadResourceCommand<S> implements Runnable {
 			GridPaneUtils.setToExpandGridPaneWidth(tilePane);
 		} else if (resourceType.getResourceClass().equals(DensityMapBuilder.class)) {
 			@SuppressWarnings("unchecked")
-			var buttonPane = DensityMapUI.createButtonPane(qupath, qupath.imageDataProperty(), (ObjectExpression<DensityMapBuilder>)selectedResource, classifierName, Bindings.createObjectBinding(() -> overlay), false);
+			var buttonPane = DensityMapUI.createButtonPane(qupath, qupath.imageDataProperty(),
+					(ObjectExpression<DensityMapBuilder>)selectedResource.map(NamedResource::resource),
+					classifierName, Bindings.createObjectBinding(() -> overlay), false);
 			GridPaneUtils.addGridRow(pane, pane.getRowCount(), 0, null, buttonPane, buttonPane, buttonPane);
 			GridPaneUtils.setToExpandGridPaneWidth(buttonPane);
 		}
-						
+
 
 		// Handle drag and drop
-		pane.setOnDragOver(e -> {
-			e.acceptTransferModes(TransferMode.COPY);
-			e.consume();
-		});
-		
-		pane.setOnDragDropped(e -> {
-			logger.trace("File(s) dragged onto pane");
-			Dragboard dragboard = e.getDragboard();
-			if (dragboard.hasFiles()) {
-				try {
-					addExternalJson(dragboard.getFiles(), resourceType.getManager(qupath.getProject()), externalResources);
-					updateAvailableItems(comboClassifiers.getItems());
-				} catch (Exception ex) {
-					Dialogs.showErrorMessage(title, ex);
-					logger.error(ex.getMessage(), ex);
-				}
-			}
-		});
-		
+		pane.setOnDragOver(this::handleDragOver);
+		pane.setOnDragDropped(this::handleDragDropped);
+
 		var stage = new Stage();
-		stage.setTitle(title);
+		stage.setTitle(resourceType.getDialogTitle());
 		stage.setScene(new Scene(pane));
 		stage.initOwner(qupath.getStage());
 		stage.sizeToScene();
 		stage.setResizable(false);
 		FXUtils.addCloseWindowShortcuts((Window)stage);
-		stage.show();
-		
-		stage.setOnHiding(e -> {
-            overlay.stop();
-			logger.debug("Resetting overlay");
-			for (var viewer : qupath.getAllViewers()) {
-				if (viewer.getCustomPixelLayerOverlay() == overlay)
-					viewer.resetCustomPixelLayerOverlay();
-			}
-		});
-		
-		stage.focusedProperty().addListener((v, o, n) -> {
-			if (n) {
-				for (var viewer : qupath.getAllViewers())
-					viewer.setCustomPixelLayerOverlay(overlay);
-			}
-			// Make sure we have all the servers we need - but don't reset existing ones
-			updateServers(selectedResource.get(), cachedServers);
-		});
-		
+
+		stage.setOnShowing(this::handleStageShowing);
+		stage.setOnHiding(this::handleStageHiding);
+
+		stage.focusedProperty().addListener(this::handleStageFocusChange);
+		return stage;
+	}
+
+	private ContextMenu createMoreMenu() {
+		var menu = new ContextMenu();
+		var miLoadClassifier = new MenuItem("Import from files");
+		miLoadClassifier.setOnAction(this::handleImportFiles);
+		var miOpenAsText = new MenuItem("Show as text");
+		miOpenAsText.setOnAction(this::handleShowSelectedResourceAsText);
+		miOpenAsText.disableProperty().bind(selectedResource.isNull());
+
+		// Enable setting number of threads
+		var miThreads = new MenuItem("Set parallel threads");
+		miThreads.setOnAction(e -> promptToSetThreads());
+
+		menu.getItems().addAll(miLoadClassifier, miOpenAsText, new SeparatorMenuItem(), miThreads);
+		return menu;
+	}
+
+	private void handleSelectedNameChange(ObservableValue<? extends String> observable, String oldValue, String newValue) {
+		selectedResource.set(resourceForName(newValue));
+	}
+
+	private void handleDragOver(DragEvent event) {
+		if (!event.getDragboard().getFiles().isEmpty()) {
+			event.acceptTransferModes(TransferMode.COPY);
+			event.consume();
+		}
+	}
+
+	private void handleDragDropped(DragEvent event) {
+		logger.trace("File(s) dragged onto pane");
+		Dragboard dragboard = event.getDragboard();
+		addExternalFiles(dragboard.getFiles());
+	}
+
+	private void handleStageShowing(WindowEvent event) {
+		if (subscription != null) {
+			subscription.unsubscribe();
+		}
+		subscription = setupSubscriptions();
+		updateAvailableItems();
 		overlay.setLivePrediction(true);
 	}
 
+	private void handleStageHiding(WindowEvent event) {
+		logger.debug("Resetting overlay");
+		for (var viewer : qupath.getAllViewers()) {
+			if (viewer.getCustomPixelLayerOverlay() == overlay)
+				viewer.resetCustomPixelLayerOverlay();
+		}
+		overlay.setLivePrediction(false);
+		overlay.clearCache();
+		if (subscription != null) {
+			subscription.unsubscribe();
+		}
+	}
+
+	private void handleImportFiles(ActionEvent event) {
+		List<File> files = FileChoosers.promptForMultipleFiles(resourceType.getDialogTitle(),
+				FileChoosers.createExtensionFilter(resourceType.filePrompt(), ".*json"));
+		if (files != null)
+			addExternalFiles(files);
+	}
+
+	private void handleStageFocusChange(ObservableValue<? extends Boolean> observableValue, Boolean oldValue, Boolean newValue) {
+		if (Boolean.TRUE.equals(newValue)) {
+			for (var viewer : qupath.getAllViewers())
+				viewer.setCustomPixelLayerOverlay(overlay);
+		}
+		// Make sure we have all the servers we need - but don't reset existing ones
+		updateServers(selectedResource.get(), cachedServers);
+	}
+
+
+	private void handleShowSelectedResourceAsText(ActionEvent e) {
+		var resource = selectedResource.get();
+		if (resource == null)
+			return;
+		String name = resource.name();
+		try {
+			// Pass the resource class, since it can be required for including the appropriate JSON properties
+			var json = GsonTools.getInstance(true).toJson(resource.resource(), resourceType.getResourceClass());
+			if (!name.endsWith(".json"))
+				name = name + ".json";
+			// Show in script editor if possible; this may include better formatting and syntax highlighting
+			var scriptEditor = qupath.getScriptEditor();
+			if (scriptEditor != null)
+				scriptEditor.showScript(name, json);
+			else
+				Dialogs.showTextWindow(qupath.getStage(), name, json, Modality.NONE, false);
+		} catch (Exception ex) {
+			Dialogs.showErrorMessage("Show as text", "Unable to create a text representation of '" + name + "', sorry!");
+			logger.error(ex.getMessage(), ex);
+		}
+	}
+
+
+	private void promptToSetThreads() {
+		var params = new ParameterList()
+				.addIntParameter(
+						"nThreads",
+						"Number of parallel threads",
+						nThreads.get(),
+						null,
+						"Number of threads to use for live prediction");
+		if (!GuiTools.showParameterDialog("Set parallel threads", params))
+			return;
+		var val = params.getIntParameterValue("nThreads");
+		nThreads.set(val);
+	}
 
 	private static String uriListString(Collection<UriUpdater.SingleUriItem> items, String delim) {
 		return items.stream()
@@ -369,13 +419,13 @@ public final class LoadResourceCommand<S> implements Runnable {
 	
 	
 	
-	private void updateServers(S resource, Map<ImageData<BufferedImage>, ImageServer<BufferedImage>> cachedServers) {
+	private void updateServers(NamedResource<S> resource, Map<ImageData<BufferedImage>, ImageServer<BufferedImage>> cachedServers) {
 		for (var viewer : qupath.getAllViewers()) {
 			var imageData = viewer.getImageData();
 			if (imageData != null) {
 				var server = cachedServers.get(imageData);
 				if (server == null && resource != null) {
-					server = resourceType.getClassifierServer(resource, imageData);
+					server = resourceType.getClassifierServer(resource.resource(), imageData);
 					cachedServers.put(imageData, server);
 				}
 			}
@@ -383,15 +433,31 @@ public final class LoadResourceCommand<S> implements Runnable {
 		qupath.getViewerManager().repaintAllViewers();
 	}
 	
+
+	private void addExternalFiles(List<File> files) {
+		if (files.isEmpty())
+			return;
+		try {
+			addExternalJson(files, resourceType.getManager(qupath.getProject()), externalResources);
+			updateAvailableItems();
+		} catch (Exception ex) {
+			Dialogs.showErrorMessage(resourceType.getDialogTitle(), ex);
+			logger.error(ex.getMessage(), ex);
+		}
+	}
 	
-	
-	private void updateAvailableItems(ObservableList<String> items) throws IOException {
+	private void updateAvailableItems() {
 		var tempList = new ArrayList<String>();
 		var manager = resourceType.getManager(qupath.getProject());
-		if (manager != null)
-			tempList.addAll(manager.getNames());
+		if (manager != null) {
+			try {
+				tempList.addAll(manager.getNames());
+			} catch (IOException e) {
+				Dialogs.showErrorMessage(resourceType.getDialogTitle(), e);
+			}
+		}
 		tempList.addAll(externalResources.keySet());
-		if (!(items.containsAll(tempList) && items.size() == tempList.size()))
+		if (!(new HashSet<>(items).containsAll(tempList) && items.size() == tempList.size()))
 			items.setAll(tempList);
 	}
 	
@@ -454,7 +520,9 @@ public final class LoadResourceCommand<S> implements Runnable {
 		if (nSuccess > 0)
 			Dialogs.showInfoNotification("Classifier" + plural2 + " added successfully", String.format("%d classifier" + plural2 + " added", nSuccess));
 	}
-	
+
+
+	private record NamedResource<S> (String name, S resource) {}
 	
 	
 	private interface ResourceType<T> {
@@ -524,7 +592,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 
 		@Override
 		public Manager<DensityMapBuilder> getManager(Project<?> project) {
-			return project.getResources(DensityMaps.PROJECT_LOCATION, getResourceClass(), "json");
+			return project == null ? null : project.getResources(DensityMaps.PROJECT_LOCATION, getResourceClass(), "json");
 		}
 		
 		@Override
