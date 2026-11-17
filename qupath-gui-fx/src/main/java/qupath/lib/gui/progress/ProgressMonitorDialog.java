@@ -133,7 +133,7 @@ public class ProgressMonitorDialog extends Dialog<Void> {
 
         var dialogPane = getDialogPane();
 
-        // Don't permit the dialog
+        // Don't permit the dialog to be closed too early
         if (hideOnComplete) {
             // Uses trick from https://www.reddit.com/r/javahelp/comments/39ogiw/cannot_prevent_javafx_dialog_from_closing/
             getWindow().ifPresent(w -> w.setOnCloseRequest(e -> {
