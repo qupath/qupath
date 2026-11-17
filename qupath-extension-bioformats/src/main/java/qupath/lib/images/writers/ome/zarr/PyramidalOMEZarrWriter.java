@@ -263,10 +263,7 @@ public class PyramidalOMEZarrWriter {
             if (downsampleList.isEmpty()) {
                 throw new IllegalArgumentException("At least one downsample should be provided");
             }
-            if (downsampleList.stream().anyMatch(downsample -> downsample <= 0)) {
-                throw new IllegalArgumentException(String.format("One of the provided downsamples %s is less than or equal to 0", downsampleList));
-            }
-
+            OMEZarrWriter.checkDownsamples(downsamples);
             this.downsamples = downsampleList.stream().distinct().sorted().toList();
             return this;
         }

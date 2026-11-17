@@ -4,7 +4,6 @@ import com.bc.zarr.Compressor;
 import com.bc.zarr.CompressorFactory;
 import com.bc.zarr.ZarrArray;
 import com.bc.zarr.ZarrGroup;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ThreadTools;
@@ -262,12 +261,7 @@ public class OMEZarrWriter {
          * @return this builder
          */
         public Builder downsamples(double... downsamples) {
-            if (Arrays.stream(downsamples).anyMatch(d -> Double.isNaN(d) || Double.isInfinite(d))) {
-                throw new IllegalArgumentException("Downsamples must be finite");
-            }
-            if (Arrays.stream(downsamples).anyMatch(d -> d <= 0)) {
-                throw new IllegalArgumentException("Downsamples must be greater than zero");
-            }
+            checkDownsamples(downsamples);
             this.downsamples = Arrays.stream(downsamples.clone()).distinct().sorted().toArray();
             return this;
         }
@@ -412,4 +406,14 @@ public class OMEZarrWriter {
             return new OMEZarrWriter(this, outputPath);
         }
     }
+
+    static void checkDownsamples(double[] downsamples) {
+        if (Arrays.stream(downsamples).anyMatch(d -> !Double.isFinite(d))) {
+            throw new IllegalArgumentException("Downsamples must be finite");
+        }
+        if (Arrays.stream(downsamples).anyMatch(d -> d <= 0)) {
+            throw new IllegalArgumentException("Downsamples must be greater than zero");
+        }
+    }
+
 }
