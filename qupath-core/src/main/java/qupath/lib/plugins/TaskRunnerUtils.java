@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2023-2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -35,13 +35,13 @@ import java.util.function.IntFunction;
  */
 public class TaskRunnerUtils {
 
-    private static IntFunction<TaskRunner> DEFAULT_HEADLESS_FUNCTION = (int nThreads) -> new CommandLineTaskRunner(nThreads);
+    private static final IntFunction<TaskRunner> DEFAULT_HEADLESS_FUNCTION = (int nThreads) -> CommandLineTaskRunner.create().nThreads(nThreads);
 
     private IntFunction<TaskRunner> headlessFunction = DEFAULT_HEADLESS_FUNCTION;
 
     private IntFunction<TaskRunner> function = DEFAULT_HEADLESS_FUNCTION;
 
-    private static TaskRunnerUtils INSTANCE = new TaskRunnerUtils();
+    private static final TaskRunnerUtils INSTANCE = new TaskRunnerUtils();
 
     private TaskRunnerUtils() {}
 
