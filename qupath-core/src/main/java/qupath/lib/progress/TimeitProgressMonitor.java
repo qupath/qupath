@@ -17,8 +17,8 @@ public class TimeitProgressMonitor implements ProgressMonitor {
     /**
      * Create a basic progress monitor that only logs times.
      */
-    public TimeitProgressMonitor() {
-        this(ProgressMonitor.NULL, new Timeit());
+    public static TimeitProgressMonitor create() {
+        return create(ProgressMonitor.NULL);
     }
 
     /**
@@ -26,8 +26,8 @@ public class TimeitProgressMonitor implements ProgressMonitor {
      * then updates another progress monitor.
      * @param monitor the monitor to update
      */
-    public TimeitProgressMonitor(ProgressMonitor monitor) {
-        this(monitor, new Timeit());
+    public static TimeitProgressMonitor create(ProgressMonitor monitor) {
+        return new TimeitProgressMonitor(monitor, new Timeit());
     }
 
     /**
@@ -36,7 +36,14 @@ public class TimeitProgressMonitor implements ProgressMonitor {
      * @param monitor the monitor to update
      * @param timeit the timeit to use (must not be null)
      */
-    public TimeitProgressMonitor(ProgressMonitor monitor, Timeit timeit) {
+    public static TimeitProgressMonitor create(ProgressMonitor monitor, Timeit timeit) {
+        Objects.requireNonNull(monitor);
+        Objects.requireNonNull(timeit);
+        return new TimeitProgressMonitor(monitor, timeit);
+    }
+
+
+    private TimeitProgressMonitor(ProgressMonitor monitor, Timeit timeit) {
         Objects.requireNonNull(timeit);
         this.monitor = monitor == null ? ProgressMonitor.NULL : monitor;
         this.timeit = timeit;
