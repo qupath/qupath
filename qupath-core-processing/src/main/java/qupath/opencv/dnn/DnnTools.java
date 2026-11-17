@@ -59,6 +59,7 @@ import qupath.opencv.tools.OpenCVTools;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -285,7 +286,7 @@ public class DnnTools {
 			MatShapeVector inputShape = new MatShapeVector();
 			MatShapeVector outputShape = new MatShapeVector();
 			for (var nameBytes : names.get()) {
-				String name = nameBytes.getString();
+				String name = GeneralTools.zapGremlins(nameBytes.getString(StandardCharsets.UTF_8));
 				int id = net.getLayerId(name);
 				net.getLayerShapes(netInputShape, id, inputShape, outputShape);
 				list.add(new DNNLayer(name, id, parseShape(inputShape), parseShape(outputShape)));

@@ -1051,9 +1051,11 @@ public final class GeneralTools {
 				sb.append(c);
 		}
 		if (skipCount == 1)
-			logger.info("Zapped 1 gremlin");
+			logger.debug("Zapped 1 gremlin");
+		else if (skipCount > 1)
+			logger.debug("Zapped {} gremlins", skipCount);
 		else
-			logger.info("Zapped {} gremlins", skipCount);
+			logger.trace("No gremlins to zap");
 		if (skipCount > 0)
 			return sb.toString();
 		return text;
