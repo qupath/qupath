@@ -25,6 +25,8 @@ package qupath.opencv.dnn;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.io.UriResource;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.tools.OpenCVTools;
@@ -38,15 +40,19 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 class DefaultBlobFunction implements BlobFunction<Mat>, UriResource {
-	
+
+	private static final Logger logger = LoggerFactory.getLogger(DefaultBlobFunction.class);
+
 	private final ImageOp preprocessing;
 	private final Size inputSize;
 	private final boolean crop;
+	private final boolean channelsLast;
 
-	DefaultBlobFunction(ImageOp preprocessing, Size inputSize, boolean crop) {
+	DefaultBlobFunction(ImageOp preprocessing, Size inputSize, boolean crop, boolean channelsLast) {
 		this.preprocessing = preprocessing;
 		this.inputSize = inputSize;
 		this.crop = crop;
+		this.channelsLast = channelsLast;
 	}
 	
 	@Override
@@ -84,20 +90,32 @@ class DefaultBlobFunction implements BlobFunction<Mat>, UriResource {
 		}
 		
 		// Convert images to blob
-		return DnnTools.blobFromImages(preprocessed);
+		var blob = DnnTools.blobFromImages(preprocessed);
+		if (channelsLast) {
+			logger.trace("Converting input to channels first: {}", blob);
+			return DnnTools.toChannelsFirst(blob);
+		} else {
+			logger.trace("Returning input blob: {}", blob);
+			return blob;
+		}
 	}
 
 	@Override
 	public List<Mat> fromBlob(Mat blob) {
 		// If 4D, we have an image (including batch)
-		if (blob.dims() == 4)
+		if (blob.dims() == 4) {
+			if (channelsLast) {
+				logger.trace("Converting output to channels last: {}", blob);
+				blob = DnnTools.toChannelsLast(blob);
+			}
 			return DnnTools.imagesFromBlob(blob);
+		}
 		// Otherwise, we have a non-image output with the rows corresponding to batches
 		// TODO: Consider whether transposing is necessary/advisable
 		int nRows = blob.rows();
 		if (nRows == 1)
 			return Collections.singletonList(blob);
-		return IntStream.range(0, nRows).mapToObj(r -> blob.row(r)).toList();
+		return IntStream.range(0, nRows).mapToObj(blob::row).toList();
 	}
 
 	@Override

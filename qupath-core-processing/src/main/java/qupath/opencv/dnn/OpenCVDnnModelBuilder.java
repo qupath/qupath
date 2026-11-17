@@ -36,8 +36,8 @@ import java.util.Set;
  */
 public class OpenCVDnnModelBuilder implements DnnModelBuilder {
 	
-	private static Set<String> weightsExtensions = Set.of(".pb", ".onnx", ".caffemodel", ".t7", ".net", ".weights", ".bin");
-	private static Set<String> configExtensions = Set.of(".prototxt", ".pbtxt", ".cfg", ".xml");
+	private static final Set<String> weightsExtensions = Set.of(".pb", ".onnx", ".caffemodel", ".t7", ".net", ".weights", ".bin");
+	private static final Set<String> configExtensions = Set.of(".prototxt", ".pbtxt", ".cfg", ".xml");
 	
 	
 	private boolean canBuild(DnnModelParams params) {
@@ -47,8 +47,12 @@ public class OpenCVDnnModelBuilder implements DnnModelBuilder {
 			return false;
 		// Check framework
 		var framework = params.getFramework();
-		if (framework != null)
-			return DnnModelParams.FRAMEWORK_OPENCV_DNN.equalsIgnoreCase(framework);
+		if (framework != null) {
+			if (DnnModelParams.FRAMEWORK_OPENCV_DNN.equalsIgnoreCase(framework))
+				return true;
+			else
+				return DnnModelParams.FRAMEWORK_ONNX_RUNTIME.equalsIgnoreCase(framework);
+		}
 		// If the framework isn't specified to be something else, 
 		// estimate if we can handle it
 		for (var uri : params.getURIs()) {
@@ -72,6 +76,10 @@ public class OpenCVDnnModelBuilder implements DnnModelBuilder {
 		var builder = OpenCVDnn.builder(Paths.get(uris.get(0)).toAbsolutePath().toString());
 		if (uris.size() > 1)
 			builder = builder.config(uris.get(1));
+		String layout = params.getLayout();
+		if ("byxc".equalsIgnoreCase(layout) || "yxc".equalsIgnoreCase(layout)) {
+			builder =  builder.channelsLast();
+		}
 		
 		return builder.build();
 	}

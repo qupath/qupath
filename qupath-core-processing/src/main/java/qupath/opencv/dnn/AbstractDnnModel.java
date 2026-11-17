@@ -89,7 +89,7 @@ public abstract class AbstractDnnModel<T> implements DnnModel {
         var prediction = getPredictionFunction().predict(input);
 
         // TODO: Consider warning for multiple outputs (although shouldn't happen because conversion is also covered within this method)
-        var output = prediction.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> getBlobFunction(e.getKey()).fromBlob(e.getValue()).get(0)));
+        var output = prediction.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> getBlobFunction(e.getKey()).fromBlob(e.getValue()).getFirst()));
 
         return output;
     }
@@ -110,7 +110,7 @@ public abstract class AbstractDnnModel<T> implements DnnModel {
         var output = getBlobFunction().fromBlob(prediction);
         if (output.size() > 1)
             LoggerFactory.getLogger(DnnModel.class).warn("Expected single output but got {} outputs - I will return the first only", output.size());
-        return output.get(0);
+        return output.getFirst();
     }
 
     /**
