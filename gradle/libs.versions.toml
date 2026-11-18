@@ -9,9 +9,9 @@ caffeine        = "3.2.4"
 commonmark      = "0.32.0"
 commonsMath3    = "3.6.1"
 commonsText     = "1.14.0"
-controlsFX      = "11.2.6"
+controlsFX      = "11.2.7"
 
-deepJavaLibrary = "0.39.0"
+deepJavaLibrary = "0.40.0"
 
 groovy          = "6.0.0"
 gson            = "2.15.0"
@@ -29,14 +29,14 @@ javacpp         = "1.5.10"
 opencv          = "4.14.0-1.5.14"
 
 # Warning! JavaFX 20.0.1 and later seem to break search links in Javadocs
-javafx          = "27.0.1"
+javafx          = "27.0.1.1"
 jna             = "5.16.0"
 jfreeSvg        = "5.0.6"
 jfxtras         = "17-r1"
 jts             = "1.20.0"
 junit           = "6.1.3"
 
-logback         = "1.6.6"
+logback         = "1.6.7"
 logviewer       = "0.3.0"
 
 extensionmanager= "1.1.1"
