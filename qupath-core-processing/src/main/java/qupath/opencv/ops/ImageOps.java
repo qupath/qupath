@@ -3914,9 +3914,8 @@ public class ImageOps {
 		var matResult = new Mat();
 
 		try (@SuppressWarnings("unchecked")var scope = new PointerScope()) {
-			
 			var output = model.predict(Map.of(inputName, mat));
-			
+
 			if (!output.isEmpty()) {
 				if (outputNames.length == 0 || (outputNames.length == 1 && output.containsKey(outputNames[0])))
 					matResult.put(output.values().iterator().next());
@@ -3932,8 +3931,6 @@ public class ImageOps {
 					opencv_core.merge(new MatVector(tempArray), matResult);
 				}
 			}
-
-			scope.deallocate();
 		}
 
 		return matResult;
