@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.chart.NumberAxis;
@@ -101,6 +102,8 @@ public class ColorScales {
 			scaleRect.widthProperty().bind(colorAxis.widthProperty());
 			HBox.setHgrow(box, Priority.ALWAYS);
 			HBox.setHgrow(scaleRect, Priority.ALWAYS);
+			box.setPadding(new Insets(10));
+			box.setStyle("-fx-border-color: lightgray;");
             return box;
 		}
 

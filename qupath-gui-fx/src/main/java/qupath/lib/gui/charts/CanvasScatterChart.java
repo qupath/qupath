@@ -306,10 +306,6 @@ public class CanvasScatterChart<X extends Number,Y extends Number> extends Scatt
             }
         }
         container.prefWidthProperty().bind(widthProperty());
-//        widthProperty().addListener(_ -> {
-//            container.setPrefWidth(widthProperty().get());
-//            container.setMaxWidth(widthProperty().get());
-//        });
         HBox.setHgrow(container, Priority.ALWAYS);
         container.getChildren().setAll(legendItems);
         setLegend(container);
