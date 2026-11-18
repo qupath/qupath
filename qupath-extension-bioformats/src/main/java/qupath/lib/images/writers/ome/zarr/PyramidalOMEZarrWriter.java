@@ -196,7 +196,7 @@ public class PyramidalOMEZarrWriter {
         private final ImageServer<BufferedImage> server;
         private Compressor compressor = CompressorFactory.createDefaultCompressor();
         private int numberOfThreads = ThreadTools.getParallelism();
-        private List<Double> downsamples = List.of(1d);
+        private List<Double> downsamples;
         private int maxNumberOfChunks = -1;
         private int tileWidth = 1024;
         private int tileHeight = 1024;
@@ -215,6 +215,7 @@ public class PyramidalOMEZarrWriter {
          */
         public Builder(ImageServer<BufferedImage> server) {
             this.server = server;
+            this.downsamples = List.of(server.getDownsampleForResolution(0));
             this.zEnd = this.server.nZSlices();
             this.tEnd = this.server.nTimepoints();
         }
