@@ -13,6 +13,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -21,6 +22,7 @@ import javafx.scene.chart.Axis;
 import javafx.scene.chart.ScatterChart;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.stage.Window;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
@@ -294,17 +296,17 @@ public class CanvasScatterChart<X extends Number,Y extends Number> extends Scatt
     protected void updateLegend() {
         HBox container = new HBox(); // todo probably need to handle different orientations...
         container.setAlignment(Pos.CENTER);
-        container.setSpacing(5);
+        container.setPadding(new Insets(0, 50, 0, 50));
         Set<Node> legendItems = new LinkedHashSet<>();
         if (getData() != null) {
             for (Series<X,Y> series : getData()) {
                 for (var point : series.getData()) {
-                    legendItems.add(
-                            colorScaleObjectProperty.get().getLegendItem(series, point)
-                    );
+                    legendItems.add(colorScaleObjectProperty.get().getLegendItem(series, point));
                 }
             }
         }
+        widthProperty().addListener(_ -> container.setPrefWidth(widthProperty().get()));
+        HBox.setHgrow(container, Priority.ALWAYS);
         container.getChildren().setAll(legendItems);
         setLegend(container);
     }

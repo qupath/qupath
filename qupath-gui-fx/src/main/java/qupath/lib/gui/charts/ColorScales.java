@@ -10,6 +10,7 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
@@ -91,16 +92,15 @@ public class ColorScales {
 			HBox legendContainer = new HBox(); // todo probably need to handle different orientations...
 			legendContainer.setAlignment(Pos.TOP_CENTER);
 			legendContainer.setSpacing(5);
-			// todo parameterize
-			int width = 100;
-			int height = 20;
 
-			scaleRect = new Rectangle(width, height);
+			scaleRect = new Rectangle();
+			scaleRect.setHeight(20);
 			remakeFill();
 
+			var box = new VBox(scaleRect, colorAxis);
 			scaleRect.widthProperty().bind(colorAxis.widthProperty());
-
-            return new VBox(scaleRect, colorAxis);
+			HBox.setHgrow(box, Priority.ALWAYS);
+            return box;
 		}
 
 		protected void remakeFill() {
@@ -147,11 +147,21 @@ public class ColorScales {
 						max = Math.max(max, val);
 					}
 				}
-				if (min == Double.MAX_VALUE && max == -Double.MAX_VALUE) {
+				if (min == Double.POSITIVE_INFINITY && max == -Double.NEGATIVE_INFINITY) {
 					return;
 				}
+				// todo parameterize min/max
+
 				// todo would be nice to set nice ticks without this and setting upper/lower directly
+				colorAxis.setAutoRanging(true);
 				colorAxis.invalidateRange(List.of(min, max));
+
+//				colorAxis.setAutoRanging(false);
+//				colorAxis.setLowerBound(min);
+//				colorAxis.setUpperBound(max);
+
+				colorAxis.setMinorTickVisible(false);
+
 				colorAxis.layout();
 				remakeFill();
 			}
@@ -168,7 +178,7 @@ public class ColorScales {
 			public Color getColor(XYChart.Series<?, ?> series, XYChart.Data<?, ?> data) {
 				double val = getMeasurement(data);
 				if (!Double.isFinite(val) || Double.isNaN(val)) {
-					// todo
+					// todo parameterize
 					return Color.TRANSPARENT;
 				}
 				return ColorToolsFX.getCachedColor(

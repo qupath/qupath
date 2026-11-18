@@ -384,7 +384,7 @@ public class Charts {
 		 */
 		public Stage show() {
 			if (!Platform.isFxApplicationThread())
-				return FXUtils.callOnApplicationThread(() -> show());
+				return FXUtils.callOnApplicationThread(this::show);
 			var stage = toStage();
 			stage.show();
 			return stage;
@@ -676,7 +676,6 @@ public class Charts {
 		EventHandler<MouseEvent> createCanvasMouseHandler(CanvasChart<X, Y> chart) {
 			return e -> {
 				if (e.getEventType() == MouseEvent.MOUSE_CLICKED) {
-					logger.info("{} clicked", chart);
 					Optional<XYChart.Data<X, Y>> item = chart.findDataPoint(e.getX(), e.getY());
 					item.ifPresent((data) -> {
 						if (data.getExtraValue() instanceof PathObject pathObject) {
