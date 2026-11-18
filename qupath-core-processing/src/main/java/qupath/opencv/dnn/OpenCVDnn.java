@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -69,14 +69,14 @@ import java.util.stream.Collectors;
  */
 public class OpenCVDnn extends AbstractDnnModel<Mat> implements UriResource {
 	
-	private static Logger logger = LoggerFactory.getLogger(OpenCVDnn.class);
+	private static final Logger logger = LoggerFactory.getLogger(OpenCVDnn.class);
 	
 	
 	/**
 	 * Enum representing different classes of {@link Model} supported by OpenCV.
 	 * These can be used as a more convenient way to run predictions.
 	 */
-	public static enum ModelType {
+	public enum ModelType {
 		
 		/**
 		 * Default {@link Model} class.
@@ -132,6 +132,7 @@ public class OpenCVDnn extends AbstractDnnModel<Mat> implements UriResource {
 		
 	private boolean crop = false;
 	private boolean swapRB = false;
+	private boolean channelsLast = false;
 	private Size size;
 	private Scalar mean;
 	private double scale;
@@ -372,6 +373,7 @@ public class OpenCVDnn extends AbstractDnnModel<Mat> implements UriResource {
 		private Scalar mean = null;
 		private double scale = 1.0;
 		private boolean swapRB = false;
+		private boolean channelsLast = false;
 		
 		private int backend = DnnTools.useCuda() ? opencv_dnn.DNN_BACKEND_CUDA : opencv_dnn.DNN_BACKEND_DEFAULT;
 		private int target = DnnTools.useCuda() ? opencv_dnn.DNN_TARGET_CUDA : opencv_dnn.DNN_TARGET_CPU;
@@ -422,6 +424,28 @@ public class OpenCVDnn extends AbstractDnnModel<Mat> implements UriResource {
 		public Builder config(URI pathConfig) {
 			this.pathConfig = pathConfig;
 			return this;
+		}
+
+		/**
+		 * Optionally specify that the model requires channels-last input ({@code NHWC}),
+		 * so the input should be reordered.
+		 * By default, OpenCV required {@code NCHW}.
+		 * @param channelsLast
+		 * @return
+		 */
+		public Builder channelsLast(boolean channelsLast) {
+			this.channelsLast = channelsLast;
+			return this;
+		}
+
+		/**
+		 * Specify that the model requires channels-last input ({@code NHWC}),
+		 * so the input should be reordered.
+		 * By default, OpenCV required {@code NCHW}.
+		 * @return
+		 */
+		public Builder channelsLast() {
+			return channelsLast(true);
 		}
 		
 		/**
@@ -634,6 +658,7 @@ public class OpenCVDnn extends AbstractDnnModel<Mat> implements UriResource {
 			dnn.scale = scale;
 			dnn.swapRB = swapRB;
 			dnn.outputs = outputs;
+			dnn.channelsLast = channelsLast;
 			return dnn;
 		}
 		
@@ -695,11 +720,6 @@ public class OpenCVDnn extends AbstractDnnModel<Mat> implements UriResource {
 		private Net getNet() {
 			ensureInitialized();
 			return net;
-//			boolean doParallel = false;
-//			if (doParallel)
-//				return localNet.get();
-//			else
-//				return net;
 		}
 		
 
@@ -707,15 +727,14 @@ public class OpenCVDnn extends AbstractDnnModel<Mat> implements UriResource {
 		public Mat predict(Mat input) {
 			
 			var net = getNet();
-//			var net = buildNet();
-			
-			synchronized(net) {
-				net.setInput(input);
+
+			synchronized (net) {
 				// We need to clone so that we can release the lock
 				if (outputLayerNames.size() > 1)
 					logger.warn("Single output requested for multi-output model - only the first will be returned");
-				return net.forward(outputLayerNames.get(0)).clone();
-//				return net.forward().clone();
+				net.setInput(input);
+				var output = net.forward(outputLayerNames.getFirst());
+				return output.clone();
 			}
 		}
 		
@@ -729,7 +748,7 @@ public class OpenCVDnn extends AbstractDnnModel<Mat> implements UriResource {
 			// If we have one input and one output, use simpler method
 			if (input.size() == 1 && outputLayerNames.size() == 1) {
 				var output = predict(input.values().iterator().next());
-				return Map.of(outputLayerNames.get(0), output);
+				return Map.of(outputLayerNames.getFirst(), output);
 			}
 			if (outputLayerNamesVector == null || outputLayerNamesVector.isNull()) {
 				outputLayerNamesVector = new StringVector(outputLayerNames.toArray(String[]::new));
@@ -874,11 +893,11 @@ public class OpenCVDnn extends AbstractDnnModel<Mat> implements UriResource {
 		if (ops.isEmpty())
 			preprocess = null;
 		else if (ops.size() == 1)
-			preprocess = ops.get(0);
+			preprocess = ops.getFirst();
 		else
 			preprocess = ImageOps.Core.sequential(ops);
 		
-		return new DefaultBlobFunction(preprocess, size, crop);
+		return new DefaultBlobFunction(preprocess, size, crop, channelsLast);
 	}
 
 	@Override
