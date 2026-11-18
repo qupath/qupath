@@ -1,5 +1,6 @@
 package qupath.lib.images.writers.ome.zarr;
 
+import java.util.Arrays;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
@@ -40,14 +41,14 @@ class OMEZarrAttributesCreator {
      * be at the root of the image files
      */
     public Map<String, Object> getGroupAttributes() {
-        return Map.of(
-                "multiscales", List.of(Map.of(
+        Map<String, Object> out = new HashMap<>();
+        out.put("multiscales", List.of(Map.of(
                         "axes", getAxes(),
                         "datasets", getDatasets(),
                         "name", metadata.getName(),
                         "version", VERSION
-                )),
-                "omero", Map.of(
+                )));
+        out.put("omero", Map.of(
                         "name", metadata.getName(),
                         "version", VERSION,
                         "channels", getChannels(),
@@ -58,6 +59,33 @@ class OMEZarrAttributesCreator {
                         )
                 )
         );
+        if (metadata.getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
+            out.putAll(getLabelInfo());
+        }
+        return Map.copyOf(out);
+    }
+
+    private Map<String, Object> getLabelInfo() {
+        List<Map<String, Object>> colors = metadata.getClassificationLabels().entrySet()
+                .stream().map(
+                        es -> Map.<String, Object>of(
+                        "label-value", es.getKey(),
+                        "rgba",
+                            new int[] {
+                                    ColorTools.red(es.getValue().getColor()),
+                                    ColorTools.green(es.getValue().getColor()),
+                                    ColorTools.blue(es.getValue().getColor()),
+                                    ColorTools.alpha(es.getValue().getColor())
+                            }
+                        )
+                )
+                .toList();
+        List<Map<String, Object>> props = metadata.getClassificationLabels().entrySet()
+                .stream().map(es -> Map.<String, Object>of(
+                        "label-value", es.getKey(),
+                        "class", es.getValue().toString())
+                ).toList();
+        return Map.of("image-label", Map.of("colors",  colors, "properties", props));
     }
 
     /**
