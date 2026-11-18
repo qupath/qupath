@@ -379,12 +379,7 @@ public class SummaryMeasurementTable {
         var tooltipText = model.getHelpText(name);
         TableColumn<PathObject, Number> col = new TableColumn<>(name);
         col.setCellValueFactory(cellData -> createNumericMeasurement(model, cellData.getValue(), cellData.getTableColumn().getText()));
-        col.setCellFactory(column -> new NumericTableCell<>(getTooltip(tooltipText), e -> handleNumericCellEvent(e, param)));
-            @Override
-            public TableCell<PathObject, Number> call(TableColumn<PathObject, Number> param) {
-                return new NumericTableCell<>(getTooltip(tooltipText), e -> handleNumericCellEvent(e, param));
-            }
-        });
+        col.setCellFactory(param -> new NumericTableCell<>(getTooltip(tooltipText), e -> handleNumericCellEvent(e, param)));
         return col;
     }
 
