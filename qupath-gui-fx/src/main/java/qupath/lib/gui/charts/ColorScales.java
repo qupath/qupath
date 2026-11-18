@@ -116,7 +116,7 @@ public class ColorScales {
 
 		static List<Stop> createStops(ColorMaps.ColorMap colorMap, double min, double max, int nStep) {
 			double range = Math.abs(max - min);
-			double step = 1 / (((double)nStep) - 1);
+			double step = 1.0 / (nStep - 1);
 			List<Stop> stops = new ArrayList<>();
 			for (double current = 0; current <= 1; current+=step) {
 				double cVal = min + (range * current);
@@ -140,8 +140,8 @@ public class ColorScales {
 
 			@Override
 			public void prepare(List<? extends XYChart.Series<?, ?>> seriesList) {
-				double min = Double.MAX_VALUE;
-				double max = -Double.MAX_VALUE;
+				double min = Double.POSITIVE_INFINITY;
+				double max = Double.NEGATIVE_INFINITY;
 				for (var series: seriesList) {
 					for (var data : series.getData()) {
 						double val = getMeasurement(data);
@@ -162,7 +162,11 @@ public class ColorScales {
 			}
 
 			private double getMeasurement(XYChart.Data<?, ?> data) {
-				return ((PathObject)data.getExtraValue()).getMeasurementList().get(measurement);
+                if (data.getExtraValue() instanceof PathObject pathObject) {
+                    return pathObject.getMeasurementList().get(measurement);
+                } else {
+                    return Double.NaN;
+                }
 			}
 
 			@Override
@@ -193,7 +197,7 @@ public class ColorScales {
 	 */
 	public static abstract class AbstractColorScale implements ColorScale {
 
-		private final HashMap<String, Node> legendItems = new HashMap<>();
+		private final Map<String, Node> legendItems = new HashMap<>();
 
 		@Override
 		public void prepare(List<? extends XYChart.Series<?, ?>> seriesList) {}
