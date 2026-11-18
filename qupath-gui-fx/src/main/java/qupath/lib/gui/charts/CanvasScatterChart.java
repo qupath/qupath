@@ -1,8 +1,7 @@
 package qupath.lib.gui.charts;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,11 +49,6 @@ public class CanvasScatterChart<X extends Number,Y extends Number> extends Scatt
     private boolean treeRebuildNeeded;
     private boolean colorScaleDirty;
 
-    public void setColorScale(ColorScale colorScale) {
-        this.colorScaleObjectProperty.set(colorScale);
-    }
-
-
     /**
      * Construct a CanvasScatterChart with the two axes and the defined color map.
      * @param xAxis the x-axis for this chart
@@ -72,36 +66,22 @@ public class CanvasScatterChart<X extends Number,Y extends Number> extends Scatt
         });
     }
 
-    private void initProperties() {
-        // unsure if this is idiomatic
-        pointOpacity.subscribe(this::redraw);
-        pointOpacity.addListener((v, o, n) -> {
-            if (n.doubleValue() <= 0 || n.doubleValue() > 1 || !Double.isFinite(n.doubleValue())) pointOpacity.set(o.doubleValue());
-        });
-        pointRadius.subscribe(this::redraw);
-        pointRadius.addListener((v, o, n) -> {
-            if (n.doubleValue() <= 0 || !Double.isFinite(n.doubleValue())) pointRadius.set(o.doubleValue());
-        });
-        sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).subscribe(n -> {
-            if (Boolean.TRUE.equals(n))
-                timer.start();
-            else
-                timer.stop();;
-        });
-
-        // can't select parent of plot children (might be empty), but scenicView to the rescue
-        Pane plotContent = (Pane) lookup(".chart-content");
-
-        if (plotContent != null) {
-            canvas.widthProperty().bind(plotContent.widthProperty());
-            canvas.heightProperty().bind(plotContent.heightProperty());
-            canvas.widthProperty().addListener((v, o, n) ->
-                    redrawNeeded = true);
-            canvas.heightProperty().addListener((v, o, n) ->
-                    redrawNeeded = true);
-        }
-
+    /**
+     * Set the color scale for this chart
+     * @param colorScale the new scale
+     */
+    public void setColorScale(ColorScale colorScale) {
+        this.colorScaleObjectProperty.set(colorScale);
     }
+
+    /**
+     * Get the color scale for this chart
+     * @return the scale
+     */
+    public ColorScale getColorScale() {
+        return this.colorScaleObjectProperty.get();
+    }
+
 
     @Override
     public Optional<Data<X,Y>> findDataPoint(double x, double y) {
@@ -184,7 +164,7 @@ public class CanvasScatterChart<X extends Number,Y extends Number> extends Scatt
     public void setPointOpacity(double value) {
         this.pointOpacity.set(value);
     }
-    
+
     /**
      * The random seed property
      * @return the property
@@ -204,6 +184,38 @@ public class CanvasScatterChart<X extends Number,Y extends Number> extends Scatt
     @Override
     public Canvas getCanvas() {
         return canvas;
+    }
+
+
+    private void initProperties() {
+        // unsure if this is idiomatic
+        pointOpacity.subscribe(this::redraw);
+        pointOpacity.addListener((v, o, n) -> {
+            if (n.doubleValue() <= 0 || n.doubleValue() > 1 || !Double.isFinite(n.doubleValue())) pointOpacity.set(o.doubleValue());
+        });
+        pointRadius.subscribe(this::redraw);
+        pointRadius.addListener((v, o, n) -> {
+            if (n.doubleValue() <= 0 || !Double.isFinite(n.doubleValue())) pointRadius.set(o.doubleValue());
+        });
+        sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).subscribe(n -> {
+            if (Boolean.TRUE.equals(n))
+                timer.start();
+            else
+                timer.stop();;
+        });
+
+        // can't select parent of plot children (might be empty), but scenicView to the rescue
+        Pane plotContent = (Pane) lookup(".chart-content");
+
+        if (plotContent != null) {
+            canvas.widthProperty().bind(plotContent.widthProperty());
+            canvas.heightProperty().bind(plotContent.heightProperty());
+            canvas.widthProperty().addListener((v, o, n) ->
+                    redrawNeeded = true);
+            canvas.heightProperty().addListener((v, o, n) ->
+                    redrawNeeded = true);
+        }
+
     }
 
     @Override

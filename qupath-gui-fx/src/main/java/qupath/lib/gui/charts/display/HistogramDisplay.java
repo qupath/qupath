@@ -59,7 +59,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Wrapper close to enable the generation and display of histograms relating to a data table.
+ * Wrapper class to enable the generation and display of histograms relating to a data table.
  * Other UI controls are provided to enable selection of specific data columns for display in the histogram.
  * 
  */

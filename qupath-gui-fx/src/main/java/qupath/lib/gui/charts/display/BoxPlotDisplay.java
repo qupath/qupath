@@ -2,7 +2,6 @@ package qupath.lib.gui.charts.display;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
@@ -50,12 +49,10 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.charts.Charts;
-import qupath.lib.gui.charts.BoxplotChart;
+import qupath.lib.gui.charts.BoxPlot;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 
-// todo very heavily copied from scatterplotdisplay... needs to be refactored along with histogramdisplay
-// todo create abstractplotdisplay class?
 /**
  * A wrapper around a box plot for displaying PathObjects.
  */
@@ -63,7 +60,7 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(BoxPlotDisplay.class);
 
-    private final BoxplotChart<String, Number> boxplot;
+    private final BoxPlot<String, Number> boxplot;
     private final SearchableComboBox<String> comboNameY = new SearchableComboBox<>();
     private final CheckComboBox<PathClass> comboPathClasses = new CheckComboBox<>();
     private final DoubleProperty pointRadius = new SimpleDoubleProperty(2);

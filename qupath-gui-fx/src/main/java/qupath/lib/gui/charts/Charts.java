@@ -903,7 +903,7 @@ public class Charts {
 			}
 
 			@Override
-			public String getCategory(XYChart.Series<?, ?> series, XYChart.Data<?, ?> data) {
+			protected String getCategory(XYChart.Series<?, ?> series, XYChart.Data<?, ?> data) {
 				var po = ((PathObject) data.getExtraValue());
 				var pc = po.getPathClass();
 				if (hierarchy != null && hierarchy.getSelectionModel().isSelected(po)) {
@@ -1554,15 +1554,15 @@ public class Charts {
 	/**
 	 * Builder for box plots
 	 */
-	public static class BoxplotChartBuilder extends Charts.XYCategoryChartBuilder<BoxplotChartBuilder, BoxplotChart<String, Number>> {
+	public static class BoxplotChartBuilder extends Charts.XYCategoryChartBuilder<BoxplotChartBuilder, BoxPlot<String, Number>> {
 		private final ObservableList<PathObject> pathObjects = FXCollections.observableArrayList();
 		private boolean showAllPoints = false;
 
 		private static final Logger logger = LoggerFactory.getLogger(BoxplotChartBuilder.class);
 
 		@Override
-		protected BoxplotChart<String, Number> createNewChart(Axis<String> xAxis, Axis<Number> yAxis) {
-			BoxplotChart<String, Number> chart = new BoxplotChart<>(xAxis, yAxis, showAllPoints);
+		protected BoxPlot<String, Number> createNewChart(Axis<String> xAxis, Axis<Number> yAxis) {
+			BoxPlot<String, Number> chart = new BoxPlot<>(xAxis, yAxis, showAllPoints);
 			chart.setMarkerOpacity(markerOpacity);
 			chart.setMarkerRadius(markerSize);
 			return chart;
@@ -1604,7 +1604,7 @@ public class Charts {
 		}
 
 		@Override
-		protected void updateChart(BoxplotChart<String, Number> chart) {
+		protected void updateChart(BoxPlot<String, Number> chart) {
 			super.updateChart(chart);
 			chart.getData().setAll(getSeries());
 			chart.getCanvas().addEventHandler(MouseEvent.ANY, createCanvasMouseHandler(chart));

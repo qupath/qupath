@@ -44,18 +44,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A node-based BoxplotChart
+ * A boxplot implementation using JavaFX Charts.
  * @param <X> string or numeric x-axis type
  * @param <Y> string or numeric y-axis type
  */
-public class BoxplotChart<X, Y> extends XYChart<X, Y> implements CanvasChart<X, Y> {
+public class BoxPlot<X, Y> extends XYChart<X, Y> implements CanvasChart<X, Y> {
     private final Canvas canvas = new Canvas();
     private boolean redrawNeeded;
 
     // hackery abounds: use a single private node to mark data points being drawn or not for the findObject method
     private final Node node = new Circle();
 
-    private static final Logger logger = LoggerFactory.getLogger(BoxplotChart.class);
+    private static final Logger logger = LoggerFactory.getLogger(BoxPlot.class);
     private final Orientation orientation;
     private final Random random = new Random(42);
     protected final CategoryAxis categoryAxis;
@@ -79,7 +79,7 @@ public class BoxplotChart<X, Y> extends XYChart<X, Y> implements CanvasChart<X, 
      * @param xAxis X Axis for this XY chart
      * @param yAxis Y Axis for this XY chart
      */
-    public BoxplotChart(Axis<X> xAxis, Axis<Y> yAxis) {
+    public BoxPlot(Axis<X> xAxis, Axis<Y> yAxis) {
         this(xAxis, yAxis, true);
     }
 
@@ -92,7 +92,7 @@ public class BoxplotChart<X, Y> extends XYChart<X, Y> implements CanvasChart<X, 
      * @param yAxis Y Axis for this XY chart
      * @param drawAllPoints whether to draw all points, or only the outliers (outside 1.5*IQR)
      */
-    public BoxplotChart(Axis<X> xAxis, Axis<Y> yAxis, boolean drawAllPoints) {
+    public BoxPlot(Axis<X> xAxis, Axis<Y> yAxis, boolean drawAllPoints) {
         super(xAxis, yAxis);
         setDrawAllPoints(drawAllPoints);
         sceneProperty().flatMap(Scene::windowProperty).flatMap(Window::showingProperty).subscribe(n -> {

@@ -61,11 +61,6 @@ public class ColorScales {
 			public Color getColor(XYChart.Series<?, ?> series, XYChart.Data<?, ?> data) {
 				return colorMap.computeIfAbsent(series.getName(), _ -> getNextColor());
 			}
-
-			@Override
-			public String getCategory(XYChart.Series<?, ?> series, XYChart.Data<?, ?> data) {
-				return series.getName();
-			}
 		};
 	}
 
@@ -181,11 +176,6 @@ public class ColorScales {
 				);
 			}
 
-			@Override
-			public String getCategory(XYChart.Series<?, ?> series, XYChart.Data<?, ?> data) {
-				// should be able to return anything as it won't get used...
-				return "";
-			}
 		};
 
 
@@ -216,6 +206,10 @@ public class ColorScales {
 				box.getChildren().addAll(symbol, label);
 				return box;
 			});
+		}
+
+		protected String getCategory(XYChart.Series<?, ?> series, XYChart.Data<?, ?> data) {
+			return series.getName();
 		}
 	}
 }

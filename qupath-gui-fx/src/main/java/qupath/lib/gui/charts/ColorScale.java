@@ -25,14 +25,6 @@ public interface ColorScale {
     Color getColor(XYChart.Series<?, ?> series, XYChart.Data<?, ?> data);
 
     /**
-     * Get a string representation of the category a point belongs to
-     * @param series the series the point belongs to
-     * @param data the data item itself
-     * @return can be anything for continuous scales; it should be unused
-     */
-    String getCategory(XYChart.Series<?, ?> series, XYChart.Data<?, ?> data);
-
-    /**
      * Get the legend item for a particular point in a particular series.
      * <br>
      * Note that legend items should be shared between all points that should use the same legend representation;
