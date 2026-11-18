@@ -100,6 +100,7 @@ public class ColorScales {
 			var box = new VBox(scaleRect, colorAxis);
 			scaleRect.widthProperty().bind(colorAxis.widthProperty());
 			HBox.setHgrow(box, Priority.ALWAYS);
+			HBox.setHgrow(scaleRect, Priority.ALWAYS);
             return box;
 		}
 

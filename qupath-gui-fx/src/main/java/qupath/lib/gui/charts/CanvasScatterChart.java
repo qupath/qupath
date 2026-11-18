@@ -296,7 +296,7 @@ public class CanvasScatterChart<X extends Number,Y extends Number> extends Scatt
     protected void updateLegend() {
         HBox container = new HBox(); // todo probably need to handle different orientations...
         container.setAlignment(Pos.CENTER);
-        container.setPadding(new Insets(0, 50, 0, 50));
+        container.setPadding(new Insets(0, 100, 0, 100));
         Set<Node> legendItems = new LinkedHashSet<>();
         if (getData() != null) {
             for (Series<X,Y> series : getData()) {
@@ -305,7 +305,11 @@ public class CanvasScatterChart<X extends Number,Y extends Number> extends Scatt
                 }
             }
         }
-        widthProperty().addListener(_ -> container.setPrefWidth(widthProperty().get()));
+        container.prefWidthProperty().bind(widthProperty());
+//        widthProperty().addListener(_ -> {
+//            container.setPrefWidth(widthProperty().get());
+//            container.setMaxWidth(widthProperty().get());
+//        });
         HBox.setHgrow(container, Priority.ALWAYS);
         container.getChildren().setAll(legendItems);
         setLegend(container);
