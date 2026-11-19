@@ -24,7 +24,6 @@ package qupath.lib.roi;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.PolygonExtracter;
-import org.locationtech.jts.index.hprtree.HPRtree;
 import org.locationtech.jts.operation.overlayng.UnaryUnionNG;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +32,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -93,23 +93,19 @@ public class FastPolygonUnion {
         // Identify all polygons to group together
         var groups = findConnectedGroups(allPolygons);
 
-        // Group as needed
-        var toKeep = new LinkedHashSet<Geometry>(allPolygons);
-        toKeep.removeAll(groups.alreadyGrouped);
-
-        System.err.println("------");
-        System.err.println("Total: " + geoms.size());
-        System.err.println("Groups: " + groups.groups.size());
-        System.err.println("Already grouped: " + groups.alreadyGrouped.size());
-        int n = 0;
-        for (var g : groups.groups) {
-            n += g.size();
+        List<Geometry> toKeep = new ArrayList<>();
+        List<List<Polygon>> toMerge = new ArrayList<>();
+        var distinct = groups.values().stream().map(GroupedGeometry::getOrCreateGroup).distinct().toList();
+        for (var gg : distinct) {
+            assert !gg.isEmpty();
+            if (gg.size() == 1) {
+                toKeep.add(gg.iterator().next().geometry);
+            } else {
+                toMerge.add(gg.stream().map(g -> g.geometry).toList());
+            }
         }
-        System.err.println("Group sum: " + n);
-        System.err.println("Isolated: " + toKeep.size());
-        System.err.println("------");
 
-        toKeep.addAll(groups.groups.parallelStream()
+        toKeep.addAll(toMerge.parallelStream()
                 .map(FastPolygonUnion::unionOpNg)
                 .toList());
 
@@ -137,7 +133,7 @@ public class FastPolygonUnion {
      * @param geoms
      * @return
      */
-    private static Geometry unionOpNg(Collection<Geometry> geoms) {
+    private static Geometry unionOpNg(Collection<? extends Geometry> geoms) {
         var factory = GeometryTools.getDefaultFactory();
 
         if (geoms.isEmpty())
@@ -146,7 +142,7 @@ public class FastPolygonUnion {
             return geoms.iterator().next();
 
         try {
-            return UnaryUnionNG.union(geoms, factory, factory.getPrecisionModel());
+            return UnaryUnionNG.union(List.copyOf(geoms), factory, factory.getPrecisionModel());
         } catch (Exception e) {
             logger.error("Error during unary union operation for {} geometries, will attempt with buffer(0)", geoms.size(), e);
             return factory.createGeometryCollection(geoms.toArray(Geometry[]::new)).buffer(0);
@@ -168,84 +164,70 @@ public class FastPolygonUnion {
             return GeometryTools.getDefaultFactory().createMultiPolygon(list.toArray(Polygon[]::new));
     }
 
-    private static ConnectedGroups findConnectedGroups(List<Polygon> allPolygons) {
-        ConnectedGroups groups = new ConnectedGroups();
-        var tree = new HPRtree();
-        for (var poly : allPolygons) {
-            tree.insert(poly.getEnvelopeInternal(), poly);
-        }
-        Set<Polygon> visited = new HashSet<>();
-        for (var poly : allPolygons) {
-            visited.add(poly);
-            var env = poly.getEnvelopeInternal();
-            for (var poly2 : (List<Polygon>)tree.query(env)) {
-                // Matrix is symmetric, so only test where needed
-                if (poly == poly2 || visited.contains(poly2)) {
-                    continue;
-                }
+    private static Map<Polygon, GroupedGeometry<Polygon>> findConnectedGroups(List<Polygon> allPolygons) {
+        Map<Polygon, GroupedGeometry<Polygon>> groups = new LinkedHashMap<>();
+
+        for (int i = 0; i < allPolygons.size(); i++) {
+            var poly = allPolygons.get(i);
+            int hashCode = Integer.hashCode(i);
+            GroupedGeometry<Polygon> currentGroup = groups.computeIfAbsent(poly, p -> new GroupedGeometry<>(p, hashCode));
+            for (int j = i+1; j < allPolygons.size(); j++) {
+                var poly2 = allPolygons.get(j);
                 // Check if polygons intersect
                 if (poly.intersects(poly2)) {
-                    groups.groupTogether(poly, poly2);
+                    int otherHashCode = Integer.hashCode(j);
+                    var otherGroup = groups.computeIfAbsent(poly2, p -> new GroupedGeometry<>(p, otherHashCode));
+                    currentGroup.merge(otherGroup);
                 }
             }
         }
+
         return groups;
     }
 
 
-    private static class ConnectedGroups {
+    static class GroupedGeometry<T> {
 
-        private final Set<Set<Geometry>> groups = new LinkedHashSet<>();
-        private final Set<Geometry> alreadyGrouped = new HashSet<>();
+        private final T geometry;
+        private Set<GroupedGeometry<T>> group;
+        private final int hashCode;
 
-        synchronized void groupTogether(Geometry geom1, Geometry geom2) {
-            if (!alreadyGrouped.add(geom1)) {
-                // geom1 is in a group already
-                var group1 = findGroup(geom1);
-                if (!group1.contains(geom2)) {
-                    if (alreadyGrouped.add(geom2)) {
-                        // geom2 wasn't grouped, so add it now
-                        group1.add(geom2);
-                    } else {
-                        // geom2 was in a different group, so merge the groups
-                        var group2 = findGroup(geom2);
-                        if (!group1.equals(group2)) {
-                            group1.addAll(group2);
-                        }
-                    }
-                }
-                // Make sure we retain the first group
-                groups.add(group1);
-            } else if (alreadyGrouped.add(geom2)) {
-                // Neither geom1 nor geom2 are in a group, so create a new group
-                var newGroup = new HashSet<Geometry>();
-                newGroup.add(geom1);
-                newGroup.add(geom2);
-                groups.add(newGroup);
+        GroupedGeometry(T geometry, int hashCode) {
+            this.geometry = geometry;
+            this.hashCode = hashCode;
+        }
+
+        private Set<GroupedGeometry<T>> getOrCreateGroup() {
+            if (group == null) {
+                this.group = new HashSet<>();
+                this.group.add(this);
+            }
+            return group;
+        }
+
+        void merge(GroupedGeometry<T> other) {
+            var group = getOrCreateGroup();
+            if (group == other.group) {
+                return;
+            } else if (other.group == null) {
+                group.add(other);
+                other.group = this.group;
             } else {
-                // Only geom2 is in a group, so add geom1 and retain group2
-                var group2 = findGroup(geom2);
-                group2.add(geom1);
-                groups.add(group2);
+                var otherGroup = other.group;
+                this.group.addAll(otherGroup);
+                for (var otherTemp : otherGroup) {
+                    otherTemp.group = this.group;
+                }
             }
         }
 
-        private Set<Geometry> findGroup(Geometry geom) {
-            var iterator = groups.iterator();
-            while (iterator.hasNext()) {
-                var group = iterator.next();
-                if (group.contains(geom)) {
-                    iterator.remove();
-                    return group;
-                }
-            }
+        boolean isGrouped() {
+            return group != null && group.size() > 1;
+        }
 
-//            for (Set<Geometry> group : groups) {
-//                if (group.contains(geom)) {
-//                    return group;
-//                }
-//            }
-            throw new IllegalArgumentException("No group found for geom: " + geom);
+        @Override
+        public int hashCode() {
+            return hashCode;
         }
 
     }
