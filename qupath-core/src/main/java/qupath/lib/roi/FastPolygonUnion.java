@@ -24,7 +24,6 @@ package qupath.lib.roi;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.PolygonExtracter;
-import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.hprtree.HPRtree;
 import org.locationtech.jts.operation.overlayng.UnaryUnionNG;
 import org.slf4j.Logger;
@@ -32,12 +31,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.IntStream;
 
 /**
  * Compute a faster union of large numbers of polygons.
@@ -67,8 +65,6 @@ import java.util.stream.IntStream;
  * </ol>
  * This partitioning of the problem makes it possible to parallelize checking for intersections
  * and computing the union of groups.
- *
- * @author Pete Bankhead
  */
 public class FastPolygonUnion {
 
@@ -94,46 +90,27 @@ public class FastPolygonUnion {
         logger.trace("Calling union for {} geometries", geoms.size());
         List<Polygon> allPolygons = extractAllPolygons(geoms);
 
-        // Create a tree of envelopes and polygon indices
-        var tree = new HPRtree();
-        int n = allPolygons.size();
-        for (int i = 0; i < n; i++) {
-            tree.insert(allPolygons.get(i).getEnvelopeInternal(), i);
+        // Identify all polygons to group together
+        var groups = findConnectedGroups(allPolygons);
+
+        // Group as needed
+        var toKeep = new LinkedHashSet<Geometry>(allPolygons);
+        toKeep.removeAll(groups.alreadyGrouped);
+
+        System.err.println("------");
+        System.err.println("Total: " + geoms.size());
+        System.err.println("Groups: " + groups.groups.size());
+        System.err.println("Already grouped: " + groups.alreadyGrouped.size());
+        int n = 0;
+        for (var g : groups.groups) {
+            n += g.size();
         }
+        System.err.println("Group sum: " + n);
+        System.err.println("Isolated: " + toKeep.size());
+        System.err.println("------");
 
-        // Check for adjacent objects, restricting search using the tree
-        var matrix = new AdjacencyMatrix(n);
-        IntStream.range(0, n)
-                .parallel()
-                .forEach(i -> populateAdjacencyMatrix(allPolygons, matrix, tree, i));
-
-        // Gather all the polygons that should be merged
-        var groupsToMerge = new ArrayList<List<Geometry>>();
-        var toKeep = new ArrayList<Geometry>();
-        var visited = new HashSet<Integer>();
-        for (int i = 0; i < n; i++) {
-            if (matrix.getAdjacentCount(i) == 0) {
-                // Nothing to merge, keep unchanged
-                toKeep.add(allPolygons.get(i));
-                visited.add(i);
-            } else if (visited.contains(i)) {
-                // Already in a group, skip
-                continue;
-            } else {
-                // Generate a new group for merging
-                List<Geometry> temp = new ArrayList<>();
-                for (Integer ind : matrix.getAdjacencyGroup(i)) {
-                    temp.add(allPolygons.get(ind));
-                    if (!visited.add(ind))
-                        logger.warn("Polygon added more than once!");
-                }
-                groupsToMerge.add(temp);
-            }
-        }
-        logger.debug("Number of polygon collections to merge: {}", groupsToMerge.size());
-
-        toKeep.addAll(groupsToMerge.parallelStream()
-                .map(list -> unionOpNg(list))
+        toKeep.addAll(groups.groups.parallelStream()
+                .map(FastPolygonUnion::unionOpNg)
                 .toList());
 
        return createPolygonalGeometry(toKeep);
@@ -191,93 +168,84 @@ public class FastPolygonUnion {
             return GeometryTools.getDefaultFactory().createMultiPolygon(list.toArray(Polygon[]::new));
     }
 
-    private static void populateAdjacencyMatrix(List<Polygon> allPolygons, AdjacencyMatrix matrix, SpatialIndex tree, int ind) {
-        var poly = allPolygons.get(ind);
-        for (int ind2 : (List<Integer>)tree.query(poly.getEnvelopeInternal())) {
-            // Matrix is symmetric, so only test where needed
-            if (ind2 <= ind || matrix.isAdjacent(ind, ind2))
-                continue;
-            // Check if polygons intersect
-            var poly2 = allPolygons.get(ind2);
-            if (poly.intersects(poly2)) {
-                matrix.setAdjacent(ind, ind2);
-            }
+    private static ConnectedGroups findConnectedGroups(List<Polygon> allPolygons) {
+        ConnectedGroups groups = new ConnectedGroups();
+        var tree = new HPRtree();
+        for (var poly : allPolygons) {
+            tree.insert(poly.getEnvelopeInternal(), poly);
         }
-    }
-
-    /**
-     * Simple adjacency matrix to help identify polygons that should be merged.
-     */
-    private static class AdjacencyMatrix {
-
-        private final List<BitSet> bits = new ArrayList<>();
-
-        private AdjacencyMatrix(int n) {
-            for (int i = 0; i < n; i++) {
-                bits.add(new BitSet(n));
-            }
-        }
-
-        /**
-         * Flag that two entries are adjacent.
-         * @param i
-         * @param j
-         * @return true if a change was made, false if the entries were already
-         *         flagged as adjacent.
-         */
-        public boolean setAdjacent(int i, int j) {
-            if (bits.get(i).get(j))
-                return false;
-            synchronized (this) {
-                bits.get(i).set(j);
-                bits.get(j).set(i);
-            }
-            return true;
-        }
-
-        /**
-         * Get indices for all entries that are directly or indirectly adjacent,
-         * i.e. polygons that may need to be merged.
-         * @param i
-         * @return
-         */
-        public Set<Integer> getAdjacencyGroup(int i) {
-            var set = new HashSet<Integer>();
-            accumulateAdjacencyGroup(i, set);
-            return set;
-        }
-
-        /**
-         * Ensure an item is part of a group; if it has not already been added,
-         * any additional adjacent items will be added as well.
-         * @param i
-         * @param group
-         */
-        private void accumulateAdjacencyGroup(int i, Set<Integer> group) {
-            if (group.add(i)) {
-                for (int j : bits.get(i).stream().toArray()) {
-                    accumulateAdjacencyGroup(j, group);
+        Set<Polygon> visited = new HashSet<>();
+        for (var poly : allPolygons) {
+            visited.add(poly);
+            var env = poly.getEnvelopeInternal();
+            for (var poly2 : (List<Polygon>)tree.query(env)) {
+                // Matrix is symmetric, so only test where needed
+                if (poly == poly2 || visited.contains(poly2)) {
+                    continue;
+                }
+                // Check if polygons intersect
+                if (poly.intersects(poly2)) {
+                    groups.groupTogether(poly, poly2);
                 }
             }
         }
+        return groups;
+    }
 
-        /**
-         * Get the number of directly-adjacent items for the given item index.
-         * @param i
-         * @return
-         */
-        public int getAdjacentCount(int i) {
-            return bits.get(i).cardinality();
+
+    private static class ConnectedGroups {
+
+        private final Set<Set<Geometry>> groups = new LinkedHashSet<>();
+        private final Set<Geometry> alreadyGrouped = new HashSet<>();
+
+        synchronized void groupTogether(Geometry geom1, Geometry geom2) {
+            if (!alreadyGrouped.add(geom1)) {
+                // geom1 is in a group already
+                var group1 = findGroup(geom1);
+                if (!group1.contains(geom2)) {
+                    if (alreadyGrouped.add(geom2)) {
+                        // geom2 wasn't grouped, so add it now
+                        group1.add(geom2);
+                    } else {
+                        // geom2 was in a different group, so merge the groups
+                        var group2 = findGroup(geom2);
+                        if (!group1.equals(group2)) {
+                            group1.addAll(group2);
+                        }
+                    }
+                }
+                // Make sure we retain the first group
+                groups.add(group1);
+            } else if (alreadyGrouped.add(geom2)) {
+                // Neither geom1 nor geom2 are in a group, so create a new group
+                var newGroup = new HashSet<Geometry>();
+                newGroup.add(geom1);
+                newGroup.add(geom2);
+                groups.add(newGroup);
+            } else {
+                // Only geom2 is in a group, so add geom1 and retain group2
+                var group2 = findGroup(geom2);
+                group2.add(geom1);
+                groups.add(group2);
+            }
         }
 
-        /**
-         * Query whether two items are flagged as adjacent.
-         * @param i
-         * @param j
-         * @return
-         */
-        public boolean isAdjacent(int i, int j) {
-            return bits.get(i).get(j);
+        private Set<Geometry> findGroup(Geometry geom) {
+            var iterator = groups.iterator();
+            while (iterator.hasNext()) {
+                var group = iterator.next();
+                if (group.contains(geom)) {
+                    iterator.remove();
+                    return group;
+                }
+            }
+
+//            for (Set<Geometry> group : groups) {
+//                if (group.contains(geom)) {
+//                    return group;
+//                }
+//            }
+            throw new IllegalArgumentException("No group found for geom: " + geom);
         }
 
     }

@@ -590,6 +590,8 @@ public class GeometryTools {
     		return getDefaultFactory().createPolygon();
     	if (geometries.size() == 1)
     		return geometries.iterator().next();
+//		if (5 > 2)
+//			return UnaryUnionNG.union(new ArrayList<>(geometries), getDefaultFactory().getPrecisionModel());
 		try {
 			if (geometries.size() > 2 && geometries.stream().allMatch(g -> g instanceof Polygonal)) {
 				// If we have multiple polygonal geometries, do things the 'fast' way
