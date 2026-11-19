@@ -56,7 +56,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.utils.FXUtils;
-import qupath.lib.color.ColorMaps;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -1068,38 +1067,6 @@ public class Charts {
 		}
 
 		/**
-		 * Plot centroids for the specified objects using a fixed pixel calibration.
-		 *<br>
-		 * Objects are colored by their path class and selected status by default, or the default object color if unclassified and not selected.
-		 * @param pathObjects the objects to plot
-		 * @param cal         the pixel calibration used to convert the centroids into other units
-		 * @param colorMeasurement the measurement to extract from each object's measurement list for the point color
-		 * @param colorMapName the color map name (e.g., "Viridis")
-		 * @return this builder
-		 */
-		public ScatterChartBuilder centroids(Collection<? extends PathObject> pathObjects, PixelCalibration cal, String colorMeasurement, String colorMapName) {
-			centroids(pathObjects, cal);
-			colorScale(ColorScales.createMeasurementColorScale(colorMeasurement, ColorMaps.getColorMaps().get(colorMapName)));
-			return this;
-		}
-
-
-		/**
-		 * Plot centroids for the specified objects using a fixed pixel calibration.
-		 *<br>
-		 * Objects are colored by their path class and selected status by default, or the default object color if unclassified and not selected.
-		 * @param pathObjects the objects to plot
-		 * @param cal         the pixel calibration used to convert the centroids into other units
-		 * @param colorMeasurement the measurement to extract from each object's measurement list for the point color
-		 * @return this builder
-		 */
-		public ScatterChartBuilder centroids(Collection<? extends PathObject> pathObjects, PixelCalibration cal, String colorMeasurement) {
-			centroids(pathObjects, cal);
-			colorScale(ColorScales.createMeasurementColorScale(colorMeasurement, ColorMaps.getDefaultColorMap()));
-			return this;
-		}
-
-		/**
 		 * Plot centroids for the specified objects in pixel units.
 		 *
 		 * @param pathObjects the objects to plot.
@@ -1110,29 +1077,6 @@ public class Charts {
 			return centroids(pathObjects, cal);
 		}
 
-		/**
-		 * Plot centroids for the specified objects in pixel units.
-		 *
-		 * @param pathObjects the objects to plot.
-		 * @return this builder
-		 */
-		public ScatterChartBuilder centroids(Collection<? extends PathObject> pathObjects, String colorMeasurement, String colorMapName) {
-			centroids(pathObjects);
-			colorScale(ColorScales.createMeasurementColorScale(colorMeasurement, ColorMaps.getColorMaps().get(colorMapName)));
-			return this;
-		}
-
-		/**
-		 * Plot centroids for the specified objects in pixel units.
-		 *
-		 * @param pathObjects the objects to plot.
-		 * @return this builder
-		 */
-		public ScatterChartBuilder centroids(Collection<? extends PathObject> pathObjects, String colorMeasurement) {
-			centroids(pathObjects);
-			colorScale(ColorScales.createMeasurementColorScale(colorMeasurement, ColorMaps.getDefaultColorMap()));
-			return this;
-		}
 
 		/**
 		 * Plot two measurements against one another for the specified objects.
@@ -1153,37 +1097,6 @@ public class Charts {
 			}
 			return addSeries(null, pathObjects, xFun, yFun);
 		}
-
-		/**
-		 * Plot two measurements against one another for the specified objects, coloring points by a third measurement.
-		 * @param pathObjects the objects to plot
-		 * @param xMeasurement the measurement to extract from each object's measurement list for the x location
-		 * @param yMeasurement the measurement to extract from each object's measurement list for the x location
-		 * @param colorMeasurement the measurement to extract from each object's measurement list for the point color
-		 * @param colorMapName the color map name (e.g., "Viridis")
-		 * @return this builder
-		 */
-		public ScatterChartBuilder measurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement, String colorMeasurement, String colorMapName) {
-			measurements(pathObjects, xMeasurement, yMeasurement);
-			colorScale(ColorScales.createMeasurementColorScale(colorMeasurement, ColorMaps.getColorMaps().get(colorMapName)));
-			return this;
-		}
-
-		/**
-		 * Plot two measurements against one another for the specified objects, coloring points by a third measurement.
-		 * @param pathObjects the objects to plot
-		 * @param xMeasurement the measurement to extract from each object's measurement list for the x location
-		 * @param yMeasurement the measurement to extract from each object's measurement list for the x location
-		 * @param colorMeasurement the measurement to extract from each object's measurement list for the point color
-		 * @return this builder
-		 */
-		public ScatterChartBuilder measurements(Collection<? extends PathObject> pathObjects, String xMeasurement, String yMeasurement, String colorMeasurement) {
-			measurements(pathObjects, xMeasurement, yMeasurement);
-			colorScale(ColorScales.createMeasurementColorScale(colorMeasurement, ColorMaps.getDefaultColorMap()));
-			return this;
-		}
-
-
 
 		/**
 		 * Create and add a scatterplot using arrays of numeric values.

@@ -261,3 +261,8 @@
   -fx-pref-width: 25px;
   -fx-pref-height: 25px;
 }
+
+/* new jfx25+ header bar */
+HeaderBar {
+  -fx-background-color: -fx-background;
+}

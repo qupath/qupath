@@ -3,11 +3,12 @@
 }
 
 .chart-legend {
-   -fx-background-color:  transparent;
+    -fx-background-color: derive(-fx-base, 25%);
+    -fx-border-color: derive(-fx-background,-25%);
 }
 
 .chart-plot-background {
-    -fx-background-color: transparent;
+    -fx-background-color: derive(-fx-base, 25%);
 }
 
 /* disable weird point shapes for N series */

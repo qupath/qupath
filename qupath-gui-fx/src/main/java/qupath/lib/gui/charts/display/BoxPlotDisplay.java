@@ -301,7 +301,6 @@ public class BoxPlotDisplay<T extends PathObject> implements PlotDisplay<T> {
     }
 
     private void updateForModel(PathTableData<T> newValue) {
-        // todo derived classes or classifications
         updatePathClasses(newValue);
         comboNameY.getItems().setAll(newValue.getMeasurementNames());
 

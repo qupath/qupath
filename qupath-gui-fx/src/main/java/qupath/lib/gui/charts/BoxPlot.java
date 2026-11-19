@@ -435,7 +435,7 @@ public class BoxPlot<X, Y> extends XYChart<X, Y> implements CanvasChart<X, Y> {
         return values[Math.clamp(idx, 0, values.length - 1)];
     }
 
-    // todo control jitter width + seed
+    // todo expose control for jitter width + seed
     private double jitter() {
         double spacing = categoryAxis.getCategorySpacing() / 6;
         return random.nextDouble(-spacing, spacing);
@@ -476,7 +476,7 @@ public class BoxPlot<X, Y> extends XYChart<X, Y> implements CanvasChart<X, Y> {
 
         Line highWhisker = makeWhisker(categoryPosition, upWhisk, uq);
         Line highCap = makeLine(categoryPosition, upWhisk, width / 2);
-        // todo fill by category somehow? or is grey fine
+        // todo consider color or fill by series
         Rectangle rect = makeRect(categoryPosition, lq, uq, width);
         rect.setFill(Color.TRANSPARENT);
         rect.setStroke(Color.GRAY);
