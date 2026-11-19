@@ -21,39 +21,28 @@
 
 package qupath.lib.gui.charts;
 
+import java.util.Optional;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.EventHandler;
-import javafx.geometry.Pos;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.ScatterChart;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.Label;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.effect.Effect;
-import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.TilePane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 
@@ -81,7 +70,7 @@ import java.util.function.Function;
  *
  * @since v0.6.0
  */
-public class PathObjectScatterChart extends ScatterChart<Number, Number> {
+public class PathObjectScatterChart extends CanvasScatterChart<Number, Number> {
 
     private static final Logger logger = LoggerFactory.getLogger(PathObjectScatterChart.class);
 
@@ -96,9 +85,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     private final Set<PathObject> selectedObjects = new HashSet<>();
 
     private final IntegerProperty rngSeed = new SimpleIntegerProperty(NO_SHUFFLE_SEED);
-    private final DoubleProperty pointOpacity = new SimpleDoubleProperty(1);
-    private final DoubleProperty pointRadius = new SimpleDoubleProperty(5);
-    private final IntegerProperty maxPoints = new SimpleIntegerProperty(10000);
+    private final IntegerProperty maxPoints = new SimpleIntegerProperty(1000000);
 
     private final BooleanProperty autorangeToFullData = new SimpleBooleanProperty(true);
 
@@ -129,7 +116,6 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
             new Color(0, 0, 0, 0.5d),
             4, 0, 1, 1);
 
-    private final EventHandler<MouseEvent> pointEventHandler = this::handleMouseEvent;
 
 
     /**
@@ -152,13 +138,30 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
                             if (!selectedObjects.isEmpty())
                                 refreshData();
                         });
+                this.setColorScale(Charts.createPathClassColorScale(hierarchy));
             } else {
                 selectionModel = null;
             }
         }
-        maxPoints.addListener(o -> ensureMaxPoints());
-        pointOpacity.addListener(o -> updateOpacity());
-        pointRadius.addListener(o -> updateRadius());
+
+        getCanvas().addEventHandler(MouseEvent.ANY, (MouseEvent event) -> {
+            if (event.getEventType() == MouseEvent.MOUSE_CLICKED) {
+                Optional<Data<Number, Number>> item = this.findDataPoint(event.getX(), event.getY());
+                item.ifPresent((data) -> {
+                    if (data.getExtraValue() instanceof PathObject pathObject) {
+                        Charts.tryToSelectObject(
+                                pathObject,
+                                viewer,
+                                null,
+                                event.isShiftDown(),
+                                event.getClickCount() == 2);
+                    }
+                });
+            }
+        });
+
+
+        maxPoints.addListener(_ -> ensureMaxPoints());
         rngSeed.addListener(this::handleRngSeedChange);
         autorangeToFullData.addListener((v, o, n) -> {
             resampleAndUpdate();
@@ -176,8 +179,13 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     private void handleObjectSelectionChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
         if (this.selectedObjects.equals(allSelected))
             return;
+        var intersection = allSelected.stream()
+                        .filter(allData::contains)
+                        .toList();
         selectedObjects.clear();
-        selectedObjects.addAll(allSelected);
+        selectedObjects.addAll(intersection);
+        layoutPlotChildren();
+        updateLegend();
         refreshData();
     }
 
@@ -186,15 +194,6 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         // We need to update even if not subsampling because
         // shuffling changes the order in which points are plotted
         resampleAndUpdate();
-    }
-
-    private void updateOpacity() {
-        double opacity = pointOpacity.get();
-        for (var item : series.getData()) {
-            if (item.getNode() instanceof Circle circle && !isSelected(item)) {
-                circle.setOpacity(opacity);
-            }
-        }
     }
 
     private boolean isSelected(Data<?, ?> item) {
@@ -210,15 +209,6 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         if (item != null && item.getExtraValue() instanceof PathObject pathObject)
             return pathObject;
         return null;
-    }
-
-    private void updateRadius() {
-        double radius = pointRadius.get();
-        for (var item : series.getData()) {
-            if (item.getNode() instanceof Circle circle) {
-                circle.setRadius(radius);
-            }
-        }
     }
 
     private void ensureMaxPoints() {
@@ -252,25 +242,7 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
     // Update a Data for the specified object.
     // This allows us to reuse objects and avoid adding/removing objects (which is expensive)
     private void updateDataItem(Data<Number, Number> item, PathObject pathObject) {
-        if (pathObject != item.getExtraValue())
-            item.setExtraValue(pathObject);
-        Circle circle;
-        if (item.getNode() instanceof Circle c) {
-            circle = c;
-        } else {
-            circle = createSymbol();
-            item.setNode(circle);
-        }
-        circle.setRadius(pointRadius.get());
-        circle.setOpacity(pointOpacity.get());
-        circle.setFill(ColorToolsFX.getDisplayedColor(pathObject));
-
-        if (isSelected(pathObject)) {
-            circle.setOpacity(1);
-            if (PathPrefs.useSelectedColorProperty().get()) {
-                circle.setFill(ColorToolsFX.getCachedColor(PathPrefs.colorSelectedObjectProperty().getValue()));
-            }
-        }
+        item.setExtraValue(pathObject);
 
         // TODO: Check if this is necessary, or if there's no appreciable overhead when setting to unchanged value
         var x = xFun.apply(pathObject);
@@ -285,8 +257,11 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
         // May be preferable to exclude non-finite values earlier, so that we only subsample points that could
         // actually be included - but that is likely to be more complex (at least to do it efficiently if measurement
         // calculations are expensive)
-        circle.setVisible(x != null && y != null && Double.isFinite(x.doubleValue()) && Double.isFinite(y.doubleValue()));
+        // removed for now as using canvas...
+        // circle.setVisible(x != null && y != null && Double.isFinite(x.doubleValue()) && Double.isFinite(y.doubleValue()));
     }
+
+
 
     /**
      * Set the value of {@link #autorangeToFullDataProperty()}.
@@ -362,86 +337,6 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
      */
     public int getRngSeed() {
         return this.rngSeed.get();
-    }
-
-    /**
-     * Set the value of {@link #pointOpacityProperty()}.
-     * @param pointOpacity the new point opacity
-     */
-    public void setPointOpacity(double pointOpacity) {
-        this.pointOpacity.set(pointOpacity);
-    }
-
-    /**
-     * Get a property representing the opacity of all data points.
-     * Making points translucent can be helpful when there are a lot of them.
-     * @return the point opacity property
-     */
-    public DoubleProperty pointOpacityProperty() {
-        return pointOpacity;
-    }
-
-    /**
-     * Get the value o {@link #pointOpacityProperty()}
-     * @return the point opacity property
-     */
-    public double getPointOpacity() {
-        return pointOpacity.get();
-    }
-
-    /**
-     * Set the value of {@link #pointOpacityProperty()}
-     * @param radius the point radius
-     */
-    public void setPointRadius(double radius) {
-        this.pointRadius.set(radius);
-    }
-
-    /**
-     * Get a property representing the radius of all data points.
-     * @return the point radius property
-     */
-    public DoubleProperty pointRadiusProperty() {
-        return pointRadius;
-    }
-
-    /**
-     * Get the value of {@link #pointOpacityProperty()}
-     * @return the point radius
-     */
-    public double getPointRadius() {
-        return pointRadius.get();
-    }
-
-
-    @Override
-    protected void updateLegend() {
-        List<Label> legendList = new ArrayList<>();
-        for (PathClass pathClass : pathClasses) {
-            var circle = new Circle();
-            // Binding to radius & opacity doesn't work great, as we might not see the colors
-            circle.setRadius(5.0);
-            Integer rgb;
-            if (pathClass == null)
-                rgb = PathPrefs.colorDefaultObjectsProperty().get();
-            else
-                rgb = pathClass.getColor();
-            circle.setFill(ColorToolsFX.getCachedColor(rgb));
-            var item = new Label(
-                    pathClass == null ? QuPathResources.getString("Charts.PathObjectScatterChart.unclassified") : pathClass.toString(),
-                    circle
-            );
-            item.setAlignment(Pos.CENTER_LEFT);
-            item.setContentDisplay(ContentDisplay.LEFT);
-            legendList.add(item);
-        }
-        if (!legendList.isEmpty()) {
-            var legend = new TilePane();
-            legend.getChildren().setAll(legendList);
-            setLegend(legend);
-        } else {
-            setLegend(null);
-        }
     }
 
     private void shuffleData() {
@@ -559,8 +454,8 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
      * @param yFun a function to extract the y value to plot
      */
     public void setData(Collection<? extends PathObject> pathObjects,
-                 Function<PathObject, Number> xFun,
-                 Function<PathObject, Number> yFun) {
+                        Function<PathObject, Number> xFun,
+                        Function<PathObject, Number> yFun) {
 
         // Store functions for lazy computation
         this.xFun = xFun;
@@ -596,32 +491,13 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
      * @param yMeasurement the column to use for y values
      */
     public void setDataFromTable(Collection<? extends PathObject> pathObjects,
-                          PathTableData<PathObject> model,
-                          String xMeasurement, String yMeasurement) {
+                                 PathTableData<PathObject> model,
+                                 String xMeasurement, String yMeasurement) {
         setData(pathObjects,
                 p -> model.getNumericValue(p, xMeasurement),
                 p -> model.getNumericValue(p, yMeasurement));
         getXAxis().setLabel(xMeasurement);
         getYAxis().setLabel(yMeasurement);
-    }
-
-
-    private Circle createSymbol() {
-        var circle = new Circle();
-        // Binding point size & opacity here could sometimes cause trouble -
-        // adding a single listener and refreshing seems more reliably performant
-        circle.addEventHandler(MouseEvent.ANY, pointEventHandler);
-        return circle;
-    }
-
-    @Override
-    protected void dataItemAdded(Series<Number,Number> series, int itemIndex, Data<Number,Number> item) {
-        var node = item.getNode();
-        if (node == null) {
-            // Make sure we create the node, not the superclass
-            item.setNode(createSymbol());
-        }
-        super.dataItemAdded(series, itemIndex, item);
     }
 
     @Override
@@ -641,37 +517,6 @@ public class PathObjectScatterChart extends ScatterChart<Number, Number> {
             var yAxis = getYAxis();
             if (yAxis.isAutoRanging()) {
                 yAxis.invalidateRange(List.of(yMin, yMax));
-            }
-        }
-    }
-
-    private void handleMouseEvent(MouseEvent event) {
-        if (event.getSource() instanceof Circle circle) {
-            if (event.getEventType() == MouseEvent.MOUSE_ENTERED)
-                circle.setEffect(pointHoverEffect);
-            else if (event.getEventType() == MouseEvent.MOUSE_EXITED)
-                circle.setEffect(null);
-            else if (event.getEventType() == MouseEvent.MOUSE_CLICKED && viewer != null && event.getButton() == MouseButton.PRIMARY) {
-                var viewer = this.viewer.get();
-                var hierarchy = viewer == null ? null : viewer.getHierarchy();
-                if (hierarchy == null)
-                    return;
-                // I calculate that clicks will be rare events - and it's better to save the overhead of caching nodes
-                // for the cost of iterating the list once
-                var pathObject = series
-                        .getData()
-                        .stream()
-                        .filter(d -> d.getNode() == circle && d.getExtraValue() instanceof PathObject)
-                        .map(d -> (PathObject)d.getExtraValue())
-                        .findFirst()
-                        .orElse(null);
-                // Need to make sure that the viewer hasn't changed
-                if (pathObject != null && PathObjectTools.hierarchyContainsObject(hierarchy, pathObject)) {
-                    Charts.ScatterChartBuilder.tryToSelect(
-                            pathObject, viewer, viewer.getImageData(),
-                            event.isShiftDown(), event.getClickCount() == 2);
-                }
-                event.consume();
             }
         }
     }
