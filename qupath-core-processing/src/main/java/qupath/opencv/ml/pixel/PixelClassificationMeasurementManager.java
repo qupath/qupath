@@ -74,8 +74,6 @@ import java.util.stream.LongStream;
  
 /**
  * Helper class to compute area-based measurements for regions of interest based on pixel classification.
- * 
- * @author Pete Bankhead
  */
 public class PixelClassificationMeasurementManager {
 	
@@ -88,13 +86,13 @@ public class PixelClassificationMeasurementManager {
 	
 	private ROI rootROI = null; // ROI for the Root object, if required
 		
-	private ThreadLocal<BufferedImage> imgTileMask = new ThreadLocal<>();
+	private final ThreadLocal<BufferedImage> imgTileMask = new ThreadLocal<>();
 	
 	private boolean isMulticlass = false;
 	
-	private double requestedDownsample;
-	private double pixelArea;
-	private String pixelAreaUnits;
+	private final double requestedDownsample;
+	private final double pixelArea;
+	private final String pixelAreaUnits;
 
 	/**
 	 * Constructor.
@@ -176,7 +174,8 @@ public class PixelClassificationMeasurementManager {
 	 * @param name
 	 * @return
 	 * @see #getMeasurementValue(PathObject, String)
-	 */	public Number getCachedMeasurementValue(PathObject pathObject, String name) {
+	 */
+	public Number getCachedMeasurementValue(PathObject pathObject, String name) {
 		return getCachedMeasurementValue(getROI(pathObject), name);
 	}
 
