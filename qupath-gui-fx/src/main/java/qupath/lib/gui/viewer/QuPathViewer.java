@@ -1326,7 +1326,7 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 			if ((now - lastRepaintTimestampNanos.get()) > Math.max(1e9, lastRepaintDurationNanos * maximumRepaintSpacingFactor) &&
 					(getCustomPixelLayerOverlay() != null || !getCustomOverlayLayers().isEmpty())) {
 				overlayUpdated = true;
-				logger.info("Requesting regular overlay update at {} ms", System.currentTimeMillis());
+				logger.trace("Requesting regular overlay update at {} ms", System.currentTimeMillis());
 			}
 		}
 
