@@ -27,6 +27,7 @@ import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jts.operation.overlayng.UnaryUnionNG;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.Timeit;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,6 +37,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Compute a faster union of large numbers of polygons.
@@ -91,25 +93,34 @@ public class FastPolygonUnion {
         List<Polygon> allPolygons = extractAllPolygons(geoms);
 
         // Identify all polygons to group together
+        var timeit = new Timeit();
+        timeit.checkpoint("Groups");
         var groups = findConnectedGroups(allPolygons);
 
         List<Geometry> toKeep = new ArrayList<>();
         List<List<Polygon>> toMerge = new ArrayList<>();
-        var distinct = groups.values().stream().map(GroupedGeometry::getOrCreateGroup).distinct().toList();
+        timeit.checkpoint("Distinct");
+        var distinct = groups.values().stream().map(GroupedValue::getGroup).distinct().toList();
+        timeit.checkpoint("Assembled");
         for (var gg : distinct) {
             assert !gg.isEmpty();
             if (gg.size() == 1) {
-                toKeep.add(gg.iterator().next().geometry);
+                toKeep.add(gg.getValue().iterator().next().getValue());
             } else {
-                toMerge.add(gg.stream().map(g -> g.geometry).toList());
+                toMerge.add(gg.getValue().stream().map(WrappedValue::getValue).toList());
             }
         }
 
+        timeit.checkpoint("Merged");
         toKeep.addAll(toMerge.parallelStream()
                 .map(FastPolygonUnion::unionOpNg)
                 .toList());
 
-       return createPolygonalGeometry(toKeep);
+        timeit.stop();
+
+        System.err.println(timeit);
+
+        return createPolygonalGeometry(toKeep);
     }
 
     /**
@@ -164,19 +175,17 @@ public class FastPolygonUnion {
             return GeometryTools.getDefaultFactory().createMultiPolygon(list.toArray(Polygon[]::new));
     }
 
-    private static Map<Polygon, GroupedGeometry<Polygon>> findConnectedGroups(List<Polygon> allPolygons) {
-        Map<Polygon, GroupedGeometry<Polygon>> groups = new LinkedHashMap<>();
+    private static Map<Polygon, GroupedValue<Polygon>> findConnectedGroups(List<Polygon> allPolygons) {
+        Map<Polygon, GroupedValue<Polygon>> groups = new LinkedHashMap<>();
 
         for (int i = 0; i < allPolygons.size(); i++) {
             var poly = allPolygons.get(i);
-            int hashCode = Integer.hashCode(i);
-            GroupedGeometry<Polygon> currentGroup = groups.computeIfAbsent(poly, p -> new GroupedGeometry<>(p, hashCode));
+            GroupedValue<Polygon> currentGroup = groups.computeIfAbsent(poly, GroupedValue::new);
             for (int j = i+1; j < allPolygons.size(); j++) {
                 var poly2 = allPolygons.get(j);
                 // Check if polygons intersect
                 if (poly.intersects(poly2)) {
-                    int otherHashCode = Integer.hashCode(j);
-                    var otherGroup = groups.computeIfAbsent(poly2, p -> new GroupedGeometry<>(p, otherHashCode));
+                    var otherGroup = groups.computeIfAbsent(poly2, GroupedValue::new);
                     currentGroup.merge(otherGroup);
                 }
             }
@@ -186,49 +195,102 @@ public class FastPolygonUnion {
     }
 
 
-    static class GroupedGeometry<T> {
+    private static class WrappedValue<T> {
 
-        private final T geometry;
-        private Set<GroupedGeometry<T>> group;
+        private final static AtomicLong counter = new AtomicLong();
+
+        private final T value;
         private final int hashCode;
 
-        GroupedGeometry(T geometry, int hashCode) {
-            this.geometry = geometry;
+        WrappedValue(T value) {
+            this(value, Long.hashCode(counter.incrementAndGet()));
+        }
+
+        WrappedValue(T value, int hashCode) {
+            this.value = value;
             this.hashCode = hashCode;
         }
 
-        private Set<GroupedGeometry<T>> getOrCreateGroup() {
-            if (group == null) {
-                this.group = new HashSet<>();
-                this.group.add(this);
-            }
-            return group;
-        }
-
-        void merge(GroupedGeometry<T> other) {
-            var group = getOrCreateGroup();
-            if (group == other.group) {
-                return;
-            } else if (other.group == null) {
-                group.add(other);
-                other.group = this.group;
-            } else {
-                var otherGroup = other.group;
-                this.group.addAll(otherGroup);
-                for (var otherTemp : otherGroup) {
-                    otherTemp.group = this.group;
-                }
-            }
-        }
-
-        boolean isGrouped() {
-            return group != null && group.size() > 1;
+        public T getValue() {
+            return value;
         }
 
         @Override
         public int hashCode() {
             return hashCode;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            return this == o;
+        }
+
+    }
+
+    static class Group<T> extends WrappedValue<Set<T>> {
+
+        Group() {
+            super(new HashSet<>());
+        }
+
+        Group(T value) {
+            this();
+            add(value);
+        }
+
+        void add(T value) {
+            getValue().add(value);
+        }
+
+        void addAll(Group<? extends T> values) {
+            getValue().addAll(values.getValue());
+        }
+
+        int size() {
+            return getValue().size();
+        }
+
+        boolean isEmpty() {
+            return getValue().isEmpty();
+        }
+
+    }
+
+
+    static class GroupedValue<T> extends WrappedValue<T> {
+
+        private Group<GroupedValue<T>> group;
+
+        GroupedValue(T geometry) {
+            super(geometry);
+        }
+
+        Group<GroupedValue<T>> getGroup() {
+            if (group == null) {
+                this.group = new Group<>(this);
+            }
+            return group;
+        }
+
+        void merge(GroupedValue<T> other) {
+            var group = getGroup();
+            if (group == other.group) {
+                // Nothing to do
+                return;
+            } else if (other.group == null) {
+                // Assign group to other
+                group.add(other);
+                other.group = this.group;
+            } else {
+                // Merge groups and assign this group to all others
+                var otherGroup = other.group;
+                this.group.addAll(otherGroup);
+                for (var otherTemp : otherGroup.getValue()) {
+                    otherTemp.group = this.group;
+                }
+            }
+        }
+
 
     }
 
