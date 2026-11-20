@@ -33,9 +33,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -100,7 +98,8 @@ public class FastPolygonUnion {
         List<Geometry> toKeep = new ArrayList<>();
         List<List<Polygon>> toMerge = new ArrayList<>();
         timeit.checkpoint("Distinct");
-        var distinct = groups.values().stream().map(GroupedValue::getGroup).distinct().toList();
+        // Get all the distinct groups
+        List<Group<GroupedValue<Polygon>>> distinct = groups.stream().map(GroupedValue::getGroup).distinct().toList();
         timeit.checkpoint("Assembled");
         for (var gg : distinct) {
             assert !gg.isEmpty();
@@ -170,22 +169,20 @@ public class FastPolygonUnion {
         if (list.isEmpty())
             return GeometryTools.getDefaultFactory().createPolygon();
         else if (list.size() == 1)
-            return list.get(0);
+            return list.getFirst();
         else
             return GeometryTools.getDefaultFactory().createMultiPolygon(list.toArray(Polygon[]::new));
     }
 
-    private static Map<Polygon, GroupedValue<Polygon>> findConnectedGroups(List<Polygon> allPolygons) {
-        Map<Polygon, GroupedValue<Polygon>> groups = new LinkedHashMap<>();
+    private static List<GroupedValue<Polygon>> findConnectedGroups(List<Polygon> allPolygons) {
+        List<GroupedValue<Polygon>> groups = allPolygons.stream().map(GroupedValue::new).toList();
 
         for (int i = 0; i < allPolygons.size(); i++) {
-            var poly = allPolygons.get(i);
-            GroupedValue<Polygon> currentGroup = groups.computeIfAbsent(poly, GroupedValue::new);
+            GroupedValue<Polygon> currentGroup = groups.get(i);
             for (int j = i+1; j < allPolygons.size(); j++) {
-                var poly2 = allPolygons.get(j);
-                // Check if polygons intersect
-                if (poly.intersects(poly2)) {
-                    var otherGroup = groups.computeIfAbsent(poly2, GroupedValue::new);
+                var otherGroup = groups.get(j);
+                // Merge groups if polygons intersect
+                if (currentGroup.getValue().intersects(otherGroup.getValue())) {
                     currentGroup.merge(otherGroup);
                 }
             }
@@ -194,7 +191,11 @@ public class FastPolygonUnion {
         return groups;
     }
 
-
+    /**
+     * Wrap a value so that tests for equality only consider exact equality.
+     * This is useful when using sets, but 'equals' and 'hashCode' calculations are either undesirable or too expensive.
+     * @param <T> type of value to wrap
+     */
     private static class WrappedValue<T> {
 
         private final static AtomicLong counter = new AtomicLong();
@@ -227,6 +228,15 @@ public class FastPolygonUnion {
 
     }
 
+    /**
+     * A wrapped value that wraps a set.
+     * It would be possible to use {@code Set<Set<T>>} instead, but this can be very inefficient when sets get large.
+     * Hashcode calculations defined in AbstractSet involve iterating through all items.
+     * When grouping here, we don't care about regular 'set equality' (in terms of containing the same values),
+     * but rather we only want to know if two objects share a reference to the exact same set object.
+     * Elsewhere, we deal with ensuring that the same item can't occur in multiple groups/sets.
+     * @param <T> generic type of items in the set
+     */
     static class Group<T> extends WrappedValue<Set<T>> {
 
         Group() {
@@ -257,6 +267,10 @@ public class FastPolygonUnion {
     }
 
 
+    /**
+     * A wrapped value that is part of a group, which may be merged with other groups.
+     * @param <T> the type of the value
+     */
     static class GroupedValue<T> extends WrappedValue<T> {
 
         private Group<GroupedValue<T>> group;
