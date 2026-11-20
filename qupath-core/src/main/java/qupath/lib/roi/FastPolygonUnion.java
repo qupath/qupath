@@ -24,6 +24,7 @@ package qupath.lib.roi;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.PolygonExtracter;
+import org.locationtech.jts.index.hprtree.HPRtree;
 import org.locationtech.jts.operation.overlayng.UnaryUnionNG;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,8 +64,8 @@ import java.util.concurrent.atomic.AtomicLong;
  *         Combine all resulting polygons into a single polygon or multipolygon
  *     </lI>
  * </ol>
- * This partitioning of the problem makes it possible to parallelize checking for intersections
- * and computing the union of groups.
+ * This partitioning of the problem makes it possible to parallelize the union of distinct groups,
+ * and create a MultiPolygon quickly at the end.
  */
 public class FastPolygonUnion {
 
@@ -88,38 +89,30 @@ public class FastPolygonUnion {
      */
     public static Geometry union(Collection<? extends Geometry> geoms) {
         logger.trace("Calling union for {} geometries", geoms.size());
+
+        var timeit = new Timeit();
+
+        // Extract all the polygons
+        timeit.checkpoint("Extracting");
         List<Polygon> allPolygons = extractAllPolygons(geoms);
 
-        // Identify all polygons to group together
-        var timeit = new Timeit();
-        timeit.checkpoint("Groups");
-        var groups = findConnectedGroups(allPolygons);
+        // Identify groups of connected polygons that should be merged
+        List<List<Polygon>> groups = findConnectedGroups(allPolygons);
 
-        List<Geometry> toKeep = new ArrayList<>();
-        List<List<Polygon>> toMerge = new ArrayList<>();
-        timeit.checkpoint("Distinct");
-        // Get all the distinct groups
-        List<Group<GroupedValue<Polygon>>> distinct = groups.stream().map(GroupedValue::getGroup).distinct().toList();
-        timeit.checkpoint("Assembled");
-        for (var gg : distinct) {
-            assert !gg.isEmpty();
-            if (gg.size() == 1) {
-                toKeep.add(gg.getValue().iterator().next().getValue());
-            } else {
-                toMerge.add(gg.getValue().stream().map(WrappedValue::getValue).toList());
-            }
-        }
-
-        timeit.checkpoint("Merged");
-        toKeep.addAll(toMerge.parallelStream()
+        // Merge all the groups
+        timeit.checkpoint("Merging");
+        var merged = groups.parallelStream()
                 .map(FastPolygonUnion::unionOpNg)
-                .toList());
+                .toList();
+
+        // Combine into a single polygonal geometry
+        timeit.checkpoint("Combining");
+        var output = createPolygonalGeometry(merged);
 
         timeit.stop();
+        logger.debug("Time to merge {} geometries\n{}", geoms.size(), timeit);
 
-        System.err.println(timeit);
-
-        return createPolygonalGeometry(toKeep);
+        return output;
     }
 
     /**
@@ -140,16 +133,16 @@ public class FastPolygonUnion {
 
     /**
      * Create a standard union with JTS.
-     * @param geoms
-     * @return
+     * @param geoms the geometries to union
+     * @return the resulting geometry
      */
-    private static Geometry unionOpNg(Collection<? extends Geometry> geoms) {
+    private static Geometry unionOpNg(List<? extends Geometry> geoms) {
         var factory = GeometryTools.getDefaultFactory();
 
         if (geoms.isEmpty())
             return factory.createPolygon();
         else if (geoms.size() == 1)
-            return geoms.iterator().next();
+            return geoms.getFirst();
 
         try {
             return UnaryUnionNG.union(List.copyOf(geoms), factory, factory.getPrecisionModel());
@@ -165,7 +158,7 @@ public class FastPolygonUnion {
      * @return a Polygon or MultiPolygon (may be empty)
      */
     private static Geometry createPolygonalGeometry(Collection<? extends Geometry> geoms) {
-        var list = extractAllPolygons(geoms);
+        List<Polygon> list = extractAllPolygons(geoms);
         if (list.isEmpty())
             return GeometryTools.getDefaultFactory().createPolygon();
         else if (list.size() == 1)
@@ -174,21 +167,31 @@ public class FastPolygonUnion {
             return GeometryTools.getDefaultFactory().createMultiPolygon(list.toArray(Polygon[]::new));
     }
 
-    private static List<GroupedValue<Polygon>> findConnectedGroups(List<Polygon> allPolygons) {
-        List<GroupedValue<Polygon>> groups = allPolygons.stream().map(GroupedValue::new).toList();
+    private static List<List<Polygon>> findConnectedGroups(List<Polygon> allPolygons) {
+        List<GroupedValue<Polygon>> groupedValues = allPolygons.stream().map(GroupedValue::new).toList();
 
-        for (int i = 0; i < allPolygons.size(); i++) {
-            GroupedValue<Polygon> currentGroup = groups.get(i);
-            for (int j = i+1; j < allPolygons.size(); j++) {
-                var otherGroup = groups.get(j);
-                // Merge groups if polygons intersect
-                if (currentGroup.getValue().intersects(otherGroup.getValue())) {
-                    currentGroup.merge(otherGroup);
+        var index = new HPRtree();
+        for (var value : groupedValues) {
+            index.insert(value.getValue().getEnvelopeInternal(), value);
+        }
+
+        for (var value : groupedValues) {
+            for (var other : (List<GroupedValue<Polygon>>)index.query(value.getValue().getEnvelopeInternal())) {
+                if (value.getValue().intersects(other.getValue())) {
+                    value.merge(other);
                 }
             }
         }
 
-        return groups;
+       return groupedValues.stream()
+                .map(GroupedValue::getGroup)
+                .distinct()
+                .map(FastPolygonUnion::unwrapGrouped)
+                .toList();
+    }
+
+    private static <T> List<T> unwrapGrouped(Group<GroupedValue<T>> group) {
+        return group.getValue().stream().map(GroupedValue::getValue).toList();
     }
 
     /**
@@ -269,6 +272,8 @@ public class FastPolygonUnion {
 
     /**
      * A wrapped value that is part of a group, which may be merged with other groups.
+     * This ensures that, when other grouped values are merged, they share a reference to the same Group.
+     * Note that it is not threadsafe.
      * @param <T> the type of the value
      */
     static class GroupedValue<T> extends WrappedValue<T> {
@@ -304,7 +309,6 @@ public class FastPolygonUnion {
                 }
             }
         }
-
 
     }
 
