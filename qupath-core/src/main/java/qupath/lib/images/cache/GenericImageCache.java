@@ -340,8 +340,7 @@ public class GenericImageCache<T> {
             return img;
         } catch (IOException e) {
             logger.error("Error reading image region: {} ({})", e.getMessage(), request);
-            logger.debug("Error reading image region", e);
-            return null; // TODO: Consider exception propagation
+            throw new RuntimeException(e);
         }
     }
 

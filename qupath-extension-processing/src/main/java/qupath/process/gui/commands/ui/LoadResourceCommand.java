@@ -567,7 +567,16 @@ public final class LoadResourceCommand<S> implements Runnable {
 		@Override
 		public ImageServer<BufferedImage> getClassifierServer(PixelClassifier resource,
 				ImageData<BufferedImage> imageData) {
-			return PixelClassifierTools.createPixelClassificationServer(imageData, resource);
+			if (resource == null) {
+				logger.warn("Pixel classifier resource is null");
+			} else if (imageData == null) {
+				logger.warn("Image data is null");
+			} else if (resource.supportsImage(imageData)) {
+				return PixelClassifierTools.createPixelClassificationServer(imageData, resource);
+			} else {
+				logger.warn("Pixel classifier does not support {}", imageData.getServer().getMetadata().getName());
+			}
+			return null;
 		}
 
 		@Override
