@@ -66,6 +66,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Function;
@@ -77,6 +78,11 @@ import java.util.function.Function;
 public class PixelClassificationOverlay extends AbstractImageOverlay  {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);
+
+	/**
+	 * Maximum number of times to retry a tile if the request ends in an exception.
+	 */
+	public static int MAX_RETRIES = 2;
 
     private final ObjectProperty<ImageRenderer> renderer = new SimpleObjectProperty<>();
     private long rendererLastTimestamp = 0L;
@@ -102,6 +108,8 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 	private RegionFilter lastRegionFilter;
 	private final Map<RegionRequest, Boolean> acceptedTiles = new HashMap<>();
 	private long lastHierarchyEventCount = -1L;
+
+	private final Map<TileRequest, Integer> failCount = new ConcurrentHashMap<>();
     
     private PixelClassificationOverlay(final OverlayOptions options, final int nThreads, final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun) {
         super(options);
@@ -388,8 +396,8 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
                 continue;
             }
             
-            // Request a tile
-            if (livePrediction) {
+            // Request a tile, if we haven't already failed to get it too many times
+            if (livePrediction && failCount.getOrDefault(tile, 0) < MAX_RETRIES) {
             	requestTile(tile, imageData, server);
             }
         }
@@ -488,7 +496,16 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
                 var hierarchy = imageData == null ? null : imageData.getHierarchy();
                 try {
 					// Since v0.8.0, we must request the tile via the cache - the ImageServer can't cache it otherwise
-					ImageCache.getSharedInstance().requestImageTile(tile.getRegionRequest(), classifierServer).get();
+					var future = ImageCache.getSharedInstance().requestImageTile(tile.getRegionRequest(), classifierServer);
+					if (future.isCancelled()) {
+						logger.debug("Tile request cancelled: {}", tile);
+						return;
+					} else if (future.isCompletedExceptionally()) {
+						var exception = future.exceptionNow();
+						failCount.compute(tile, (TileRequest t, Integer count) -> count == null ? 1 : count + 1);
+						logger.error("Tile request failed: {}", exception.getMessage(), exception);
+						return;
+					}
 
                 	repaintAllViewers();
                     var channelType = classifierServer.getMetadata().getChannelType();
