@@ -25,7 +25,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jts.index.hprtree.HPRtree;
-import org.locationtech.jts.operation.overlayng.UnaryUnionNG;
+import org.locationtech.jts.operation.union.CascadedPolygonUnion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.Timeit;
@@ -102,7 +102,7 @@ public class FastPolygonUnion {
         // Merge all the groups
         timeit.checkpoint("Merging");
         var merged = groups.parallelStream()
-                .map(FastPolygonUnion::unionOpNg)
+                .map(FastPolygonUnion::defaultPolygonUnion)
                 .toList();
 
         // Combine into a single polygonal geometry
@@ -133,22 +133,20 @@ public class FastPolygonUnion {
 
     /**
      * Create a standard union with JTS.
-     * @param geoms the geometries to union
+     * @param polygons the polygons to union
      * @return the resulting geometry
      */
-    private static Geometry unionOpNg(List<? extends Geometry> geoms) {
-        var factory = GeometryTools.getDefaultFactory();
-
-        if (geoms.isEmpty())
-            return factory.createPolygon();
-        else if (geoms.size() == 1)
-            return geoms.getFirst();
+    private static Geometry defaultPolygonUnion(List<Polygon> polygons) {
+        if (polygons.isEmpty())
+            return GeometryTools.getDefaultFactory().createPolygon();
+        else if (polygons.size() == 1)
+            return polygons.getFirst();
 
         try {
-            return UnaryUnionNG.union(List.copyOf(geoms), factory, factory.getPrecisionModel());
+            return CascadedPolygonUnion.union(polygons);
         } catch (Exception e) {
-            logger.error("Error during unary union operation for {} geometries, will attempt with buffer(0)", geoms.size(), e);
-            return factory.createGeometryCollection(geoms.toArray(Geometry[]::new)).buffer(0);
+            logger.error("Error during union operation for {} geometries, will attempt with buffer(0)", polygons.size(), e);
+            return GeometryTools.getDefaultFactory().createGeometryCollection(polygons.toArray(Geometry[]::new)).buffer(0);
         }
     }
 
