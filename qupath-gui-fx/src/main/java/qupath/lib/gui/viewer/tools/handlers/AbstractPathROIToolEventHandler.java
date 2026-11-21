@@ -60,6 +60,10 @@ abstract class AbstractPathROIToolEventHandler<T extends InputEvent> extends Abs
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractPathROIToolEventHandler.class);
 
+	AbstractPathROIToolEventHandler(PixelSnapBehavior pixelSnapBehavior) {
+		super(pixelSnapBehavior);
+	}
+
 	/**
 	 * Create a new ROI with the given starting coordinates.
 	 * 

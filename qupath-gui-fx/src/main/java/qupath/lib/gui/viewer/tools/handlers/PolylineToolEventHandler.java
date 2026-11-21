@@ -36,12 +36,18 @@ import qupath.lib.roi.interfaces.ROI;
  */
 class PolylineToolEventHandler extends AbstractPolyROIToolEventHandler<MouseEvent> {
 
+	public PolylineToolEventHandler() {
+		super(PixelSnapBehavior.SKIP);
+	}
+
 	/**
-	 * Returns false (no pixel snapping for the line tool).
+	 * Snap to the center of the pixel.
+	 * @param value x or y value
+	 * @return
 	 */
 	@Override
-	protected boolean requestPixelSnapping() {
-		return false;
+	protected double snapCoordinate(double value) {
+		return Math.floor(value) + 0.5;
 	}
 	
 	@Override

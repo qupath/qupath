@@ -35,7 +35,11 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 class PolygonToolEventHandler extends AbstractPolyROIToolEventHandler<MouseEvent> {
-	
+
+	PolygonToolEventHandler() {
+		super(PixelSnapBehavior.ROUND);
+	}
+
 	@Override
 	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {
 		return ROIs.createPolygonROI(x, y, plane);

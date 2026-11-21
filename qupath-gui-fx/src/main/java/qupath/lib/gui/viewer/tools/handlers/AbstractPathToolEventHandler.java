@@ -65,6 +65,12 @@ abstract class AbstractPathToolEventHandler<T extends InputEvent> implements Eve
 
 	private final ConstrainingObjects constrainingObjects = new ConstrainingObjects();
 
+	private PixelSnapBehavior pixelSnapBehavior;
+
+	AbstractPathToolEventHandler(PixelSnapBehavior pixelSnapBehavior) {
+		this.pixelSnapBehavior = pixelSnapBehavior;
+	}
+
 	/**
 	 * Ensure that the specified cursor is set in the current viewer.
 	 * @param cursor
@@ -95,9 +101,35 @@ abstract class AbstractPathToolEventHandler<T extends InputEvent> implements Eve
 	protected Point2D mouseLocationToImage(MouseEvent e, boolean constrainToBounds, boolean snapToPixel) {
 		var viewer = getViewer();
 		var p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, constrainToBounds);
-		if (snapToPixel)
-			p.setLocation(Math.floor(p.getX()), Math.floor(p.getY()));
+		if (snapToPixel) {
+			var snap = getPixelSnapBehavior();
+			if (snap != null) {
+				p.setLocation(snap.snapCoordinate(p.getX()), snap.snapCoordinate(p.getY()));
+			}
+
+		}
 		return p;
+	}
+
+	/**
+	 * Get the pixel snap behavior that is used by this tool when pixel snapping is requested.
+	 * @return the pixel snap behavior
+	 */
+	protected PixelSnapBehavior getPixelSnapBehavior() {
+		return pixelSnapBehavior;
+	}
+
+	/**
+	 * Adjust an x or y value whenever 'pixel snapping' is required.
+	 * For some drawing tools, it makes sense to snap to the top left corner of the pixel that is clicked,
+	 * for others it makes sense to snap to the center or the nearest corner.
+	 * <p>
+	 * The default behavior is to snap to the closest corner (i.e. round the value).
+	 * @param value x or y value
+	 * @return the 'snapped' value
+	 */
+	protected double snapCoordinate(double value) {
+		return Math.round(value);
 	}
 
 	
