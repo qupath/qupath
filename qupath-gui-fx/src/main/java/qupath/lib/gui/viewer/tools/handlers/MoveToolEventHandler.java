@@ -69,7 +69,7 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler<MouseEven
 	private ViewerMover mover;
 
 	MoveToolEventHandler() {
-		super(PixelSnapBehavior.ROUND);
+		super(PixelSnapBehavior.StandardBehaviors.ROUND);
 	}
 
 	@Override

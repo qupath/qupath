@@ -37,7 +37,7 @@ import qupath.lib.roi.interfaces.ROI;
 class PolygonToolEventHandler extends AbstractPolyROIToolEventHandler<MouseEvent> {
 
 	PolygonToolEventHandler() {
-		super(PixelSnapBehavior.ROUND);
+		super(PixelSnapBehavior.StandardBehaviors.ROUND);
 	}
 
 	@Override

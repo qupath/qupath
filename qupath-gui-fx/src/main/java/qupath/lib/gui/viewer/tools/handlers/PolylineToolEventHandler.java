@@ -37,7 +37,7 @@ import qupath.lib.roi.interfaces.ROI;
 class PolylineToolEventHandler extends AbstractPolyROIToolEventHandler<MouseEvent> {
 
 	public PolylineToolEventHandler() {
-		super(PixelSnapBehavior.SKIP);
+		super(PixelSnapBehavior.StandardBehaviors.SKIP);
 	}
 
 	/**

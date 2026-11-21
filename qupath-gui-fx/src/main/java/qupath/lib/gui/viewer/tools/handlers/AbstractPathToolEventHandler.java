@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Objects;
 
 /**
  * Abstract implementation of a PathTool.
@@ -117,6 +118,15 @@ abstract class AbstractPathToolEventHandler<T extends InputEvent> implements Eve
 	 */
 	protected PixelSnapBehavior getPixelSnapBehavior() {
 		return pixelSnapBehavior;
+	}
+
+	/**
+	 * Set the pixel snap behavior that is used by this tool when pixel snapping is requested.
+	 * @param behavior the pixel snap behavior (must not be null).
+	 */
+	protected void setPixelSnapBehavior(PixelSnapBehavior behavior) {
+		Objects.requireNonNull(behavior);
+		this.pixelSnapBehavior = behavior;
 	}
 
 	/**

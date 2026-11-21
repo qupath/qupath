@@ -54,7 +54,7 @@ import java.util.List;
 class PointsToolEventHandler extends AbstractPathToolEventHandler<MouseEvent> {
 
 	PointsToolEventHandler() {
-		super(PixelSnapBehavior.SKIP);
+		super(PixelSnapBehavior.StandardBehaviors.SKIP);
 	}
 
 	private PointsROI getCurrentPoints() {
