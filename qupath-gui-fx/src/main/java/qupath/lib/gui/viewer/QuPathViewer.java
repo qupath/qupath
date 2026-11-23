@@ -212,9 +212,13 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 
 	private final ImageDisplay imageDisplay;
 	private long lastDisplayChangeTimestamp = 0; // Used to indicate imageDisplay changes
-	private final LongProperty lastRepaintTimestamp = new SimpleLongProperty(0L); // Used for debugging repaint times
-	private long lastPaint = 0;
-	private long minimumRepaintSpacingMillis = -1; // This can be used (temporarily) to prevent repaints happening too frequently
+	private final LongProperty lastRepaintTimestampNanos = new SimpleLongProperty(0L); // Used for debugging repaint times
+	private long lastRepaintDurationNanos = 0L;    // Duration (in nanoseconds) of the last non-skipped repaint.
+	private long lastPulse = Long.MIN_VALUE;       // Time of the last pulse that was handled (without skipping due to minimum spacing)
+	private long minimumRepaintSpacingMillis = -1; // Minimum spacing between pulses to handle.
+	                                               // Used (temporarily) to prevent frequent repaints when things are
+	                                               // changing quickly.
+	private long maximumRepaintSpacingFactor = 10L;
 
     /**
 	 * Get the main JavaFX component representing this viewer.
@@ -1293,11 +1297,6 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 	}
 
 
-	private void updateRepaintTimestamp() {
-		long timestamp = System.currentTimeMillis();
-		lastRepaintTimestamp.set(timestamp);
-	}
-
 	protected void handlePulse(long now) {
 		boolean empty = getWidth() <= 0 || getHeight() <= 0;
 		if (empty) {
@@ -1309,9 +1308,26 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 
 		// Skip repaint if the minimum time hasn't elapsed
 		if (minimumRepaintSpacingMillis > 0) {
-			long timeSinceRepaint = System.currentTimeMillis() - lastPaint;
-			if (timeSinceRepaint < minimumRepaintSpacingMillis)
+			long nanosSinceLastPulse = now - lastPulse;
+			if (nanosSinceLastPulse * 1_000_000L < minimumRepaintSpacingMillis)
 				return;
+		}
+		lastPulse = now;
+		long startTime = System.nanoTime();
+
+		// Custom overlays can't easily flag when an update is required, so if it is a long time since we've repainted them
+		// (relative to the time taken to repaint) and at least 1 second then we should update the overlays.
+		// This works around a bug whereby a 'live' pixel classification doesn't result in any updates if the viewport
+		// is unchanged, but potentially might help other overlay implementations as well.
+		// It may be removed in the future if another mechanism is found to notify a viewer that an overlay needs to
+		// update, but that's tricky because currently the same overlay can be added to multiple viewers
+		// (and store a reference to none of them).
+		if (!overlayUpdated) {
+			if ((now - lastRepaintTimestampNanos.get()) > Math.max(1e9, lastRepaintDurationNanos * maximumRepaintSpacingFactor) &&
+					(getCustomPixelLayerOverlay() != null || !getCustomOverlayLayers().isEmpty())) {
+				overlayUpdated = true;
+				logger.trace("Requesting regular overlay update at {} ms", System.currentTimeMillis());
+			}
 		}
 
 //		var timer = new Timeit();
@@ -1365,7 +1381,7 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 //			timer.checkpoint("Composite update");
 			updateCompositeBuffer();
 			pane.drawImage(buffers.getCompositeBuffer());
-			updateRepaintTimestamp();
+			lastRepaintTimestampNanos.set(System.nanoTime());
 		}
 
 		imageDataChanging.set(false);
@@ -1378,9 +1394,10 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 
 		if (imageDisplay != null)
 			lastDisplayChangeTimestamp = imageDisplay.getLastChangeTimestamp();
-		lastPaint = System.currentTimeMillis();
+
 		isLoading.set(imageUpdated || overlayUpdated);
 
+		lastRepaintDurationNanos = lastRepaintTimestampNanos.get() - startTime;
 
 //		timer.stop();
 //		if (hasServer() && timer.getCheckpoints().size() > 2 && false) {
@@ -1544,11 +1561,11 @@ public class QuPathViewer implements PathObjectHierarchyListener, PathObjectSele
 	}
 
 	/**
-	 * Get the timestamp referring to the last time this viewer was repainted.
+	 * Get the timestamp referring to the last time this viewer was repainted, in nanoseconds.
 	 * @return
 	 */
 	public ReadOnlyLongProperty repaintTimestamp() {
-		return lastRepaintTimestamp;
+		return lastRepaintTimestampNanos;
 	}
 
 

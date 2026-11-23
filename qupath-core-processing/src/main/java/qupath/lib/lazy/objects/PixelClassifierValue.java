@@ -16,7 +16,7 @@ class PixelClassifierValue implements LazyNumericValue<PathObject> {
 
     @Override
     public String getName() {
-        return "(Live)" + name;
+        return "(Live) " + name;
     }
 
     @Override
