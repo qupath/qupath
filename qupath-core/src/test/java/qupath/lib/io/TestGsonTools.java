@@ -200,5 +200,37 @@ public class TestGsonTools {
 		assertEquals(list, duplicateGeneric);
 	}
 
+
+	@Test
+	public void test_arrows() {
+		var arrow1 = createArrow(0, 1, 2, 3, ">");
+		checkArrows(arrow1, GsonTools.serializeDeserialize(arrow1));
+
+		var arrow2 = createArrow(0, 1, 2, 3, "<");
+		checkArrows(arrow2, GsonTools.serializeDeserialize(arrow2));
+
+		var arrow3 = createArrow(0, 1, 2, 3, "<>");
+		checkArrows(arrow3, GsonTools.serializeDeserialize(arrow3));
+
+		var arrow4 = createArrow(3, 2, 1, 0, ">");
+		checkArrows(arrow4, GsonTools.serializeDeserialize(arrow4));
+
+		var arrow5 = createArrow(3, 2, 1, 0, "<");
+		checkArrows(arrow5, GsonTools.serializeDeserialize(arrow5));
+	}
+
+	private void checkArrows(PathObject arrow1, PathObject arrow2) {
+		assertEquals(arrow1.getROI(), arrow2.getROI());
+		// We haven't implemented equals for getMetadata()...
+		assertEquals(Map.copyOf(arrow1.getMetadata()), Map.copyOf(arrow2.getMetadata()));
+	}
+
+	private static PathObject createArrow(double x, double y, double x2, double y2, String arrowhead) {
+		var line = ROIs.createLineROI(x, y, x2, y2);
+		var annotation = PathObjects.createAnnotationObject(line);
+		annotation.getMetadata().put("arrowhead", arrowhead);
+		return annotation;
+	}
+
 	
 }
