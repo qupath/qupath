@@ -1,5 +1,6 @@
 package qupath.lib.images.writers.ome.zarr;
 
+import dev.zarr.zarrjava.ZarrException;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import org.slf4j.Logger;
@@ -109,6 +110,8 @@ public class OMEZarrWriterCommand implements Runnable {
             } catch (InterruptedException e) {
                 logger.warn("OME Zarr writer closed by interrupt (possibly due to user cancelling it)", e);
                 return;
+            } catch (ZarrException e) {
+                logger.error("Error writing Zarr", e);
             }
             Dialogs.showInfoNotification(
                     QuPathResources.getString("Action.BioFormats.omeZarrWriter"),

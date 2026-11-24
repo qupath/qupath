@@ -1,9 +1,12 @@
 package qupath.lib.images.writers.ome.zarr;
 
-import com.bc.zarr.Compressor;
-import com.bc.zarr.CompressorFactory;
-import com.bc.zarr.ZarrArray;
-import com.bc.zarr.ZarrGroup;
+import dev.zarr.zarrjava.ZarrException;
+import dev.zarr.zarrjava.core.Attributes;
+import dev.zarr.zarrjava.store.FilesystemStore;
+import dev.zarr.zarrjava.store.StoreHandle;
+import dev.zarr.zarrjava.v3.codec.Codec;
+import dev.zarr.zarrjava.v3.Array;
+import dev.zarr.zarrjava.v3.Group;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ThreadTools;
@@ -56,9 +59,9 @@ public class PyramidalOMEZarrWriter {
     private final int tileHeight;
     private final int numberOfThreads;
     private final Path path;
-    private final ZarrGroup root;
-    private final Map<Integer, ZarrArray> levels;
+    private final Map<Integer, Array> levels;
     private final ProgressMonitor onProgress;
+    private final StoreHandle store;
 
     private PyramidalOMEZarrWriter(Builder builder, Path path) throws IOException {
         TransformedServerBuilder transformedServerBuilder = new TransformedServerBuilder(builder.server);
@@ -93,7 +96,14 @@ public class PyramidalOMEZarrWriter {
         this.numberOfThreads = builder.numberOfThreads;
         this.path = path;
 
-        this.root = ZarrGroup.create(path, null);
+        this.store = new FilesystemStore(path).resolve();
+        // todo subgroup?
+//        this.root = ZarrGroup.create(path, null);
+//        try {
+//            ZarrWriterUtils.createOmeSubGroup(root, path, server.getMetadata());
+//        } catch (Exception e) {
+//            logger.warn("Error while creating OME XML file of {}. Some image metadata won't be written", path, e);
+//        }
 
         var metadata = server.getMetadata();
         if (firstDownsampleOnInputImage != 1) {
@@ -103,23 +113,21 @@ public class PyramidalOMEZarrWriter {
         }
 
         try {
-            ZarrWriterUtils.createOmeSubGroup(root, path, metadata);
-        } catch (Exception e) {
-            logger.warn("Error while creating OME XML file of {}. Some image metadata won't be written", path, e);
+            this.levels = ZarrWriterUtils.createLevels(
+                    new ImageServerMetadata.Builder(metadata)
+                            .width((int) (server.getWidth() / firstDownsampleOnInputImage))
+                            .height((int) (server.getHeight() / firstDownsampleOnInputImage))
+                            .levelsFromDownsamples(downsamplesOutputImage.stream().mapToDouble(Double::doubleValue).toArray())
+                            .build(),
+                    store,
+                    tileWidth,
+                    tileHeight,
+                    new OMEZarrAttributesCreator(metadata).getLevelAttributes(),
+                    builder.codecs
+            );
+        } catch (ZarrException e) {
+            throw new RuntimeException(e);
         }
-
-        this.levels = ZarrWriterUtils.createLevels(
-                new ImageServerMetadata.Builder(metadata)
-                        .width((int) (server.getWidth() / firstDownsampleOnInputImage))
-                        .height((int) (server.getHeight() / firstDownsampleOnInputImage))
-                        .levelsFromDownsamples(downsamplesOutputImage.stream().mapToDouble(Double::doubleValue).toArray())
-                        .build(),
-                root,
-                tileWidth,
-                tileHeight,
-                new OMEZarrAttributesCreator(metadata).getLevelAttributes(),
-                builder.compressor
-        );
 
         this.onProgress = builder.onProgress;
     }
@@ -138,12 +146,16 @@ public class PyramidalOMEZarrWriter {
 
         try {
             int numberOfDownsamples = downsamplesOutputImage.size();
-            root.writeAttributes(
-                    new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
-                            .levelsFromDownsamples(firstDownsampleOnInputImage)
-                            .pixelCalibration(server.getMetadata().getPixelCalibration().createScaledInstance(firstDownsampleOnInputImage, firstDownsampleOnInputImage))
-                            .build()
-                    ).getGroupAttributes()
+            var attributes = new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
+                    .levelsFromDownsamples(firstDownsampleOnInputImage)
+                    .pixelCalibration(server.getMetadata().getPixelCalibration().createScaledInstance(firstDownsampleOnInputImage, firstDownsampleOnInputImage))
+                    .build()
+            ).getGroupAttributes();
+            Attributes attrs = new Attributes();
+            attrs.putAll(attributes);
+            Group group = Group.create(
+                    store,
+                    attrs
             );
             writeLevel(
                     server.getPath(),
@@ -155,7 +167,9 @@ public class PyramidalOMEZarrWriter {
                     (message, progress) -> onProgress.updateProgress("Writing level " + 0, progress / numberOfDownsamples)
             );
 
-            for (int i=1; i<numberOfDownsamples; i++) {
+            for (int i = 1; i < numberOfDownsamples; i++) {
+                // todo bioformats doesn't open v5 ome zarrs, so changing this would require moving this
+                //  (and all associated ome writers) to somewhere (?) else, eg qupath-imglibs
                 try (ImageServer<BufferedImage> server = new BioFormatsImageServer(
                         path.toUri(),
                         "--series",                          // since all level zarr subgroups are already created (see the constructor), BioFormats treat each subgroup
@@ -174,13 +188,15 @@ public class PyramidalOMEZarrWriter {
                     );
                 }
 
-                root.writeAttributes(
-                        new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
-                                .levelsFromDownsamples(downsamplesOutputImage.stream().limit(i+1).mapToDouble(d -> d).toArray())
-                                .pixelCalibration(server.getMetadata().getPixelCalibration().createScaledInstance(downsamplesOutputImage.get(i), downsamplesOutputImage.get(i)))
-                                .build()
-                        ).getGroupAttributes()
-                );
+                // todo doesn't seem right to just repeat, subgroup...?
+                var at2 = new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
+                        .levelsFromDownsamples(downsamplesOutputImage.stream().limit(i+1).mapToDouble(d -> d).toArray())
+                        .pixelCalibration(server.getMetadata().getPixelCalibration().createScaledInstance(downsamplesOutputImage.get(i), downsamplesOutputImage.get(i)))
+                        .build()
+                ).getGroupAttributes();
+                Attributes att2 = new Attributes();
+                attrs.putAll(at2);
+                Group.create(store, att2);
             }
         } finally {
             executorService.shutdownNow();
@@ -194,7 +210,7 @@ public class PyramidalOMEZarrWriter {
 
         private static final String FILE_EXTENSION = ".ome.zarr";
         private final ImageServer<BufferedImage> server;
-        private Compressor compressor = CompressorFactory.createDefaultCompressor();
+        private final List<Codec> codecs = new ArrayList<>();
         private int numberOfThreads = ThreadTools.getParallelism();
         private List<Double> downsamples;
         private int maxNumberOfChunks = -1;
@@ -221,14 +237,14 @@ public class PyramidalOMEZarrWriter {
         }
 
         /**
-         * Set the compressor to use when writing the image. By default, the blocs compression is used.
+         * Set the codec to use when writing the image. By default, a blosc codec is used.
          *
-         * @param compressor the compressor to use when writing the image
+         * @param codecs the codec to use when writing the image
          * @return this builder
-         * @throws NullPointerException if the provided compressor is null
+         * @throws NullPointerException if the provided codec is null
          */
-        public Builder compression(Compressor compressor) {
-            this.compressor = Objects.requireNonNull(compressor);
+        public Builder codec(Codec... codecs) {
+            this.codecs.addAll(Arrays.stream(codecs).toList());
             return this;
         }
 
@@ -417,9 +433,14 @@ public class PyramidalOMEZarrWriter {
          * or if the user doesn't have enough permissions
          * @throws IllegalArgumentException if the provided path doesn't end with ".ome.zarr" or a file/directory already
          * exists at this location
+         * @throws ZarrException if a codec has not been specified and the default codec fails to build
          */
-        public PyramidalOMEZarrWriter build(String path) throws IOException {
+        public PyramidalOMEZarrWriter build(String path) throws IOException, ZarrException {
             Path outputPath = Paths.get(path);
+
+            if (codecs.isEmpty()) {
+                codecs.addAll(ZarrWriterUtils.getDefaultCodecs());
+            }
 
             if (!path.endsWith(FILE_EXTENSION)) {
                 throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
@@ -436,12 +457,12 @@ public class PyramidalOMEZarrWriter {
             String path,
             int level,
             double downsample,
-            ZarrArray zarrArray,
+            Array zarrArray,
             ImageServer<BufferedImage> server,
             ExecutorService executorService,
             ProgressMonitor onProgress
     ) throws InterruptedException {
-        int[] imageDimensions = ZarrWriterUtils.getDimensionsOfImage(server.getMetadata(), downsample);
+        long[] imageDimensions = ZarrWriterUtils.getDimensionsOfImage(server.getMetadata(), downsample);
         Collection<TileRequest> tileRequests = getTileRequestsForLevel(
                 path,
                 level,
@@ -450,8 +471,8 @@ public class PyramidalOMEZarrWriter {
                 tileHeight,
                 server.nTimepoints(),
                 server.nZSlices(),
-                imageDimensions[imageDimensions.length - 1],
-                imageDimensions[imageDimensions.length - 2]
+                (int) imageDimensions[imageDimensions.length - 1],
+                (int) imageDimensions[imageDimensions.length - 2]
         );
         int numberOfTiles = tileRequests.size();
 
@@ -460,10 +481,13 @@ public class PyramidalOMEZarrWriter {
         for (TileRequest tileRequest: tileRequests) {
             executorService.execute(() -> {
                 try {
-                    zarrArray.write(
-                            ZarrWriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest())),
+                    ucar.ma2.Array aa = ucar.ma2.Array.factory(
+                            ZarrWriterUtils.getUcarDatatype(server.getPixelType()),
                             ZarrWriterUtils.getDimensionsOfTile(server.getMetadata(), tileRequest),
-                            ZarrWriterUtils.getOffsetsOfTile(server.getMetadata(), tileRequest)
+                            ZarrWriterUtils.convertBufferedImageToArray(server.readRegion(tileRequest.getRegionRequest())));
+                    zarrArray.write(
+                            ZarrWriterUtils.getOffsetsOfTile(server.getMetadata(), tileRequest),
+                            aa
                     );
                 } catch (Throwable e) {
                     if (e.getCause() instanceof InterruptedException) {

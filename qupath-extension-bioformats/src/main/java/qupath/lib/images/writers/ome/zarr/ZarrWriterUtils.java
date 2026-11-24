@@ -1,27 +1,31 @@
 package qupath.lib.images.writers.ome.zarr;
 
-import com.bc.zarr.ArrayParams;
-import com.bc.zarr.Compressor;
-import com.bc.zarr.DataType;
-import com.bc.zarr.DimensionSeparator;
-import com.bc.zarr.ZarrArray;
 import com.bc.zarr.ZarrGroup;
+import com.scalableminds.bloscjava.Blosc;
+import dev.zarr.zarrjava.ZarrException;
+import dev.zarr.zarrjava.core.Attributes;
+import dev.zarr.zarrjava.store.StoreHandle;
+import dev.zarr.zarrjava.v3.Array;
+import dev.zarr.zarrjava.v3.DataType;
+import dev.zarr.zarrjava.v3.codec.Codec;
+import dev.zarr.zarrjava.v3.codec.core.BloscCodec;
+import dev.zarr.zarrjava.v3.codec.core.JpegCodec;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerException;
 import loci.formats.gui.AWTImageTools;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
 import java.awt.image.BufferedImage;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.lang.reflect.Array;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -58,6 +62,24 @@ class ZarrWriterUtils {
     }
 
     /**
+     * Get the {@link ucar.ma2.DataType} for a particular {@link PixelType}.
+     * @param pixelType the input pixel type
+     * @return the corresponding output pixel type
+     */
+    static ucar.ma2.DataType getUcarDatatype(PixelType pixelType) {
+        return switch (pixelType) {
+            case PixelType.UINT8 -> ucar.ma2.DataType.UBYTE;
+            case PixelType.INT8 -> ucar.ma2.DataType.BYTE;
+            case PixelType.UINT16 -> ucar.ma2.DataType.USHORT;
+            case PixelType.INT16 -> ucar.ma2.DataType.SHORT;
+            case PixelType.UINT32 -> ucar.ma2.DataType.UINT;
+            case PixelType.INT32 -> ucar.ma2.DataType.INT;
+            case PixelType.FLOAT32 -> ucar.ma2.DataType.FLOAT;
+            case PixelType.FLOAT64 -> ucar.ma2.DataType.DOUBLE;
+        };
+    }
+
+    /**
      * Create an "OME" sub ground in the provided zarr group located in the provided path and create a "METADATA.ome.xml" file inside
      * it containing the June 2016 Open Microscopy Environment OME Schema applied to the provided metadata.
      *
@@ -73,6 +95,7 @@ class ZarrWriterUtils {
      * @throws IllegalArgumentException if the provided metadata contains an unexpected entry (e.g. no channels)
      */
     public static void createOmeSubGroup(ZarrGroup group, Path path, ImageServerMetadata metadata) throws ParserConfigurationException, IOException, TransformerException {
+        // todo migrate from old zarr
         group.createSubGroup(OME_FOLDER_NAME);
 
         try (OutputStream outputStream = new FileOutputStream(Files.createFile(path.resolve(OME_FOLDER_NAME).resolve(OME_METADATA_FILE_NAME)).toString())) {
@@ -81,55 +104,54 @@ class ZarrWriterUtils {
     }
 
     /**
-     * Create and return {@link ZarrArray} corresponding to the resolution levels of an image.
+     * Create and return {@link Array} corresponding to the resolution levels of an image.
      * <p>
-     * The pixels of the returned {@link ZarrArray} are not written, but basic information (e.g. attributes) is.
+     * The pixels of the returned {@link Array} are not written, but basic information (e.g. attributes) is.
      *
      * @param metadata the metadata of the image to represent
-     * @param root the {@link ZarrGroup} that should contain the {@link ZarrArray}
+     * @param storeHandle the {@link StoreHandle} that should contain the levels
      * @param chunkWidth the width the chunks of the image should have
      * @param chunkHeight the height the chunks of the image should have
-     * @param levelAttributes the attributes each {@link ZarrArray} should have
-     * @param compressor the compressor to use for pixel values
-     * @return a map whose keys are the level indices and values the {@link ZarrArray} corresponding to each level
+     * @param levelAttributes the attributes each {@link Array} should have
+     * @param codecs the codec to use for compressing pixel values
+     * @return a map whose keys are the level indices and values the corresponding to each level
      * @throws IOException if an error occurs while writing the levels basic information
      */
-    public static Map<Integer, ZarrArray> createLevels(
+    public static Map<Integer, Array> createLevels(
             ImageServerMetadata metadata,
-            ZarrGroup root,
+            StoreHandle storeHandle,
             int chunkWidth,
             int chunkHeight,
             Map<String, Object> levelAttributes,
-            Compressor compressor
-    ) throws IOException {
-        Map<Integer, ZarrArray> levels = new HashMap<>();
+            List<Codec> codecs
+    ) throws IOException, ZarrException {
+        Map<Integer, Array> levels = new HashMap<>();
         double[] downsamples = metadata.getPreferredDownsamplesArray();
 
-        for (int level=0; level<downsamples.length; level++) {
-            levels.put(
-                    level,
-                    root.createArray(
-                            String.valueOf(level),
-                            new ArrayParams()
-                                    .shape(ZarrWriterUtils.getDimensionsOfImage(metadata, downsamples[level]))
-                                    .chunks(ZarrWriterUtils.getDimensionsOfChunks(metadata, chunkWidth, chunkHeight))
-                                    .compressor(compressor)
-                                    .dataType(switch (metadata.getPixelType()) {
-                                        case UINT8 -> DataType.u1;
-                                        case INT8 -> DataType.i1;
-                                        case UINT16 -> DataType.u2;
-                                        case INT16 -> DataType.i2;
-                                        case UINT32 -> DataType.u4;
-                                        case INT32 -> DataType.i4;
-                                        case FLOAT32 -> DataType.f4;
-                                        case FLOAT64 -> DataType.f8;
-                                    })
-                                    .dimensionSeparator(DimensionSeparator.SLASH),
-                            levelAttributes
-                    )
+        for (int level = 0; level < downsamples.length; level++) {
+            Array array = Array.create(
+                    storeHandle.resolve(String.valueOf(level)),
+                    Array.metadataBuilder()
+                            .withShape(ZarrWriterUtils.getDimensionsOfImage(metadata, downsamples[level]))
+                            .withChunkShape(ZarrWriterUtils.getDimensionsOfChunks(metadata, chunkWidth, chunkHeight))
+                            .withCodecs(codecs.toArray(new Codec[0]))
+                            .withDataType(switch (metadata.getPixelType()) {
+                                case UINT8 -> DataType.UINT8;
+                                case INT8 -> DataType.INT8;
+                                case UINT16 -> DataType.UINT16;
+                                case INT16 -> DataType.INT16;
+                                case UINT32 -> DataType.UINT32;
+                                case INT32 -> DataType.INT32;
+                                case FLOAT32 -> DataType.FLOAT32;
+                                case FLOAT64 -> DataType.FLOAT64;
+                            })
+                            .build()
             );
+            Attributes attributes = new Attributes();
+            attributes.putAll(levelAttributes);
+            array = array.setAttributes(attributes);
+            levels.put(level, array);
         }
-
         return levels;
     }
 
@@ -146,7 +168,7 @@ class ZarrWriterUtils {
      * @param downsample the downsample to apply to the dimensions. It is only applied to the Y and X dimensions
      * @return the size of the provided image as described above
      */
-    public static int[] getDimensionsOfImage(ImageServerMetadata metadata, double downsample) {
+    public static long[] getDimensionsOfImage(ImageServerMetadata metadata, double downsample) {
         List<Integer> dimensions = new ArrayList<>();
         if (metadata.getSizeT() > 1) {
             dimensions.add(metadata.getSizeT());
@@ -160,7 +182,7 @@ class ZarrWriterUtils {
         dimensions.add((int) (metadata.getHeight() / downsample));
         dimensions.add((int) (metadata.getWidth() / downsample));
 
-        return dimensions.stream().mapToInt(i -> i).toArray();
+        return dimensions.stream().mapToLong(i -> i).toArray();
     }
 
     /**
@@ -235,7 +257,7 @@ class ZarrWriterUtils {
      * @param tileRequest the tile whose offsets should be computed
      * @return the offsets of the tile as described above
      */
-    public static int[] getOffsetsOfTile(ImageServerMetadata metadata, TileRequest tileRequest) {
+    public static long[] getOffsetsOfTile(ImageServerMetadata metadata, TileRequest tileRequest) {
         List<Integer> offset = new ArrayList<>();
         if (metadata.getSizeT() > 1) {
             offset.add(tileRequest.getT());
@@ -249,7 +271,7 @@ class ZarrWriterUtils {
         offset.add(tileRequest.getTileY());
         offset.add(tileRequest.getTileX());
 
-        return offset.stream().mapToInt(i -> i).toArray();
+        return offset.stream().mapToLong(i -> i).toArray();
     }
 
     /**
@@ -283,9 +305,9 @@ class ZarrWriterUtils {
         Object pixels = AWTImageTools.getPixels(image);
 
         // No need to copy for single array
-        int nChannels = Array.getLength(pixels);
+        int nChannels = java.lang.reflect.Array.getLength(pixels);
         if (nChannels == 1) {
-            return Array.get(pixels, 0);
+            return java.lang.reflect.Array.get(pixels, 0);
         }
 
         return switch (pixels) {
@@ -326,5 +348,18 @@ class ZarrWriterUtils {
             }
             case null, default -> throw new UnsupportedOperationException(String.format("Unknown data type %s", pixels));
         };
+    }
+
+    /**
+     * Get the default codecs to be used for writing Zarrs
+     * @return an immutable list
+     * @throws ZarrException if the default blosc codec can't be created
+     */
+    static List<Codec> getDefaultCodecs() throws ZarrException {
+        // todo unclear what proper defaults are here
+        return List.of(
+                new JpegCodec(),
+                new BloscCodec(new BloscCodec.Configuration(Blosc.Compressor.LZ4, Blosc.Shuffle.NO_SHUFFLE, 5, 0, 0))
+        );
     }
 }
