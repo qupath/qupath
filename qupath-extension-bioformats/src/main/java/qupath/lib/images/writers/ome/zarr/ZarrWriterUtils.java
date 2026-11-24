@@ -3,12 +3,13 @@ package qupath.lib.images.writers.ome.zarr;
 import com.bc.zarr.ZarrGroup;
 import com.scalableminds.bloscjava.Blosc;
 import dev.zarr.zarrjava.ZarrException;
+import dev.zarr.zarrjava.core.Attributes;
 import dev.zarr.zarrjava.store.StoreHandle;
 import dev.zarr.zarrjava.v3.Array;
 import dev.zarr.zarrjava.v3.DataType;
 import dev.zarr.zarrjava.v3.codec.Codec;
-import dev.zarr.zarrjava.v3.codec.CodecBuilder;
 import dev.zarr.zarrjava.v3.codec.core.BloscCodec;
+import dev.zarr.zarrjava.v3.codec.core.JpegCodec;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -112,7 +113,7 @@ class ZarrWriterUtils {
      * @param chunkWidth the width the chunks of the image should have
      * @param chunkHeight the height the chunks of the image should have
      * @param levelAttributes the attributes each {@link Array} should have
-     * @param codec the codec to use for compressing pixel values
+     * @param codecs the codec to use for compressing pixel values
      * @return a map whose keys are the level indices and values the corresponding to each level
      * @throws IOException if an error occurs while writing the levels basic information
      */
@@ -121,8 +122,8 @@ class ZarrWriterUtils {
             StoreHandle storeHandle,
             int chunkWidth,
             int chunkHeight,
-            Map<String, Object> levelAttributes, // todo
-            Codec codec // todo
+            Map<String, Object> levelAttributes,
+            List<Codec> codecs
     ) throws IOException, ZarrException {
         Map<Integer, Array> levels = new HashMap<>();
         double[] downsamples = metadata.getPreferredDownsamplesArray();
@@ -133,7 +134,7 @@ class ZarrWriterUtils {
                     Array.metadataBuilder()
                             .withShape(ZarrWriterUtils.getDimensionsOfImage(metadata, downsamples[level]))
                             .withChunkShape(ZarrWriterUtils.getDimensionsOfChunks(metadata, chunkWidth, chunkHeight))
-                            .withCodecs(codec)
+                            .withCodecs(codecs.toArray(new Codec[0]))
                             .withDataType(switch (metadata.getPixelType()) {
                                 case UINT8 -> DataType.UINT8;
                                 case INT8 -> DataType.INT8;
@@ -144,9 +145,11 @@ class ZarrWriterUtils {
                                 case FLOAT32 -> DataType.FLOAT32;
                                 case FLOAT64 -> DataType.FLOAT64;
                             })
-                            .withCodecs(CodecBuilder::withBlosc)
                             .build()
             );
+            Attributes attributes = new Attributes();
+            attributes.putAll(levelAttributes);
+            array = array.setAttributes(attributes);
             levels.put(level, array);
         }
         return levels;
@@ -347,8 +350,11 @@ class ZarrWriterUtils {
         };
     }
 
-    static Codec getDefaultCodec() throws ZarrException {
+    static List<Codec> getDefaultCodecs() throws ZarrException {
         // todo unclear what proper defaults are here
-        return new BloscCodec(new BloscCodec.Configuration(Blosc.Compressor.LZ4, Blosc.Shuffle.NO_SHUFFLE, 5, 0, 0));
+        return List.of(
+                new JpegCodec(),
+                new BloscCodec(new BloscCodec.Configuration(Blosc.Compressor.LZ4, Blosc.Shuffle.NO_SHUFFLE, 5, 0, 0))
+        );
     }
 }

@@ -1,13 +1,13 @@
 package qupath.lib.images.writers.ome.zarr;
 
-import com.scalableminds.bloscjava.Blosc;
 import dev.zarr.zarrjava.ZarrException;
 import dev.zarr.zarrjava.core.Attributes;
 import dev.zarr.zarrjava.store.FilesystemStore;
 import dev.zarr.zarrjava.v3.Array;
 import dev.zarr.zarrjava.v3.Group;
 import dev.zarr.zarrjava.v3.codec.Codec;
-import dev.zarr.zarrjava.v3.codec.core.BloscCodec;
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ThreadTools;
@@ -115,7 +115,7 @@ public class OMEZarrWriter {
                     metadata.getPreferredTileWidth(),
                     metadata.getPreferredTileHeight(),
                     attributes.getLevelAttributes(),
-                    builder.codec
+                    builder.codecs
             );
         } catch (ZarrException e) {
             throw new RuntimeException(e);
@@ -216,7 +216,7 @@ public class OMEZarrWriter {
         private static final String FILE_EXTENSION = ".ome.zarr";
         private final static Consumer<TileRequest> NOP_CONSUMER = _ -> {};
         private final ImageServer<BufferedImage> server;
-        private Codec codec = null;
+        private final List<Codec> codecs = new ArrayList<>();
 
         private int numberOfThreads = ThreadTools.getParallelism();
         private double[] downsamples = new double[0];
@@ -244,12 +244,12 @@ public class OMEZarrWriter {
         /**
          * Set the codec to use when writing tiles. By default, blosc compression is used.
          *
-         * @param codec the codec to use when writing tiles
+         * @param codecs the codec to use when writing tiles
          * @return this builder
          * @throws NullPointerException if the provided compressor is null
          */
-        public Builder codec(Codec codec) {
-            this.codec = Objects.requireNonNull(codec);
+        public Builder codec(Codec... codecs) {
+            this.codecs.addAll(List.of(codecs));
             return this;
         }
 
@@ -416,8 +416,8 @@ public class OMEZarrWriter {
          */
         public OMEZarrWriter build(String path) throws IOException, ZarrException {
             Path outputPath = Paths.get(path);
-            if (codec == null) {
-                codec = ZarrWriterUtils.getDefaultCodec();
+            if (codecs.isEmpty()) {
+                codecs.addAll(ZarrWriterUtils.getDefaultCodecs());
             }
 
             if (!path.endsWith(FILE_EXTENSION)) {

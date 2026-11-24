@@ -123,7 +123,7 @@ public class PyramidalOMEZarrWriter {
                     tileWidth,
                     tileHeight,
                     new OMEZarrAttributesCreator(metadata).getLevelAttributes(),
-                    builder.codec
+                    builder.codecs
             );
         } catch (ZarrException e) {
             throw new RuntimeException(e);
@@ -210,7 +210,7 @@ public class PyramidalOMEZarrWriter {
 
         private static final String FILE_EXTENSION = ".ome.zarr";
         private final ImageServer<BufferedImage> server;
-        private Codec codec = null;
+        private final List<Codec> codecs = new ArrayList<>();
         private int numberOfThreads = ThreadTools.getParallelism();
         private List<Double> downsamples;
         private int maxNumberOfChunks = -1;
@@ -239,12 +239,12 @@ public class PyramidalOMEZarrWriter {
         /**
          * Set the codec to use when writing the image. By default, a blosc codec is used.
          *
-         * @param codec the codec to use when writing the image
+         * @param codecs the codec to use when writing the image
          * @return this builder
          * @throws NullPointerException if the provided codec is null
          */
-        public Builder codec(Codec codec) {
-            this.codec = Objects.requireNonNull(codec);
+        public Builder codec(Codec... codecs) {
+            this.codecs.addAll(Arrays.stream(codecs).toList());
             return this;
         }
 
@@ -438,8 +438,8 @@ public class PyramidalOMEZarrWriter {
         public PyramidalOMEZarrWriter build(String path) throws IOException, ZarrException {
             Path outputPath = Paths.get(path);
 
-            if (codec == null) {
-                codec = ZarrWriterUtils.getDefaultCodec();
+            if (codecs.isEmpty()) {
+                codecs.addAll(ZarrWriterUtils.getDefaultCodecs());
             }
 
             if (!path.endsWith(FILE_EXTENSION)) {

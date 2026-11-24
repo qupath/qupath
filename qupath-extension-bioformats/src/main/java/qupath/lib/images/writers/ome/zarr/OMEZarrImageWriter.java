@@ -1,5 +1,6 @@
 package qupath.lib.images.writers.ome.zarr;
 
+import dev.zarr.zarrjava.ZarrException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServer;
@@ -80,6 +81,9 @@ public class OMEZarrImageWriter implements ImageWriter<BufferedImage> {
                     .writeImage();
         } catch (InterruptedException e) {
             logger.debug("Zarr image writing to {} interrupted", pathOutput, e);
+            Thread.currentThread().interrupt();
+        } catch (ZarrException e) {
+            logger.error("Error writing Zarr to {}", pathOutput, e);
             Thread.currentThread().interrupt();
         }
     }
