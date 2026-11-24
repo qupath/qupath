@@ -9,10 +9,12 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.opencv.ml.pixel.train.BoundaryStrategy;
+import qupath.opencv.ml.pixel.train.FeatureNormalization;
 
 class PixelClassifierAdvancedOptions {
 
-    private final FeatureNormalization normalization = new FeatureNormalization();
+    private final FeatureNormalization normalization = FeatureNormalization.create();
 
     private BoundaryStrategy boundaryStrategy = BoundaryStrategy.getSkipBoundaryStrategy();
     private boolean reweightSamples = false;

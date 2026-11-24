@@ -57,7 +57,6 @@ import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.controlsfx.control.CheckComboBox;
@@ -550,8 +549,8 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 	}
 
 
-	private static Text createPlaceholderText(String text) {
-		return GuiTools.createPlaceholderText(text);
+	private static Label createPlaceholderText(String text) {
+		return GuiTools.createPlaceholderLabel(text);
 	}
 	
 	class QuPathGridView extends StackPane {
@@ -562,7 +561,7 @@ public class PathObjectGridView implements ChangeListener<ImageData<BufferedImag
 		
 		private final IntegerProperty imageSize = new SimpleIntegerProperty();
 		
-		private final Text textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
+		private final Label textEmpty = createPlaceholderText(QuPathResources.getString("GridView.noObjectsAvailable"));
 		
 		QuPathGridView() {
 			imageSize.addListener(v -> updateChildren());

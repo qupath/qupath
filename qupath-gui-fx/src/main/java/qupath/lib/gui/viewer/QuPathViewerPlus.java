@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,21 +24,27 @@
 package qupath.lib.gui.viewer;
 
 
+import javafx.animation.FadeTransition;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
-import qupath.lib.gui.images.stores.DefaultImageRegionStore;
+import javafx.util.Duration;
+import qupath.lib.images.stores.DefaultImageRegionStore;
+import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
-import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.images.servers.ImageServer;
 
 import java.awt.geom.Rectangle2D;
@@ -67,6 +73,8 @@ public class QuPathViewerPlus extends QuPathViewer {
 	private final BorderPane panelLocation = new BorderPane();
 	private final Label labelLocation = new Label(" ");
 	private final BooleanProperty useCalibratedLocationString = PathPrefs.useCalibratedLocationStringProperty();
+
+	private final Label labelLoading = createLoadingLabel();
 
 	private final int padding = 10;
 
@@ -118,16 +126,15 @@ public class QuPathViewerPlus extends QuPathViewer {
 		AnchorPane.setRightAnchor(panelLocation, (double)padding);
 		
 		// Add the scalebar label
-//		Node scalebarNode = PanelToolsFX.createSwingNode(scalebar);
 		Node scalebarNode = scalebar.getNode();
 		basePane.getChildren().add(scalebarNode);
 		AnchorPane.setBottomAnchor(scalebarNode, (double)padding);
 		AnchorPane.setLeftAnchor(scalebarNode, (double)padding);
 
-		
-		// Set spinners' position so they make space for command bar (only if needed!)
-		var commandBarDisplay = CommandFinderTools.commandBarDisplayProperty().getValue();
-		setSpinnersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
+		// Loading label
+		getView().getChildren().add(labelLoading);
+		StackPane.setAlignment(labelLoading, Pos.BOTTOM_CENTER);
+		StackPane.setMargin(labelLoading, new Insets(0, 0, padding, 0));
 
 		basePane.getChildren().addAll(dimensionControls.getPane());
 
@@ -149,6 +156,33 @@ public class QuPathViewerPlus extends QuPathViewer {
 		zProjectOverlayControls = new ZProjectOverlayControls(this, viewerDisplayOptions.showZProjectControlsProperty());
 	}
 
+	private Label createLoadingLabel() {
+		var labelLoading = new Label(QuPathResources.getLocalizedResourceManager().getString("Viewer.loading"));
+		labelLoading.setVisible(isLoading());
+		labelLoading.getStyleClass().add("viewer-loading");
+		var tooltip = new Tooltip(QuPathResources.getLocalizedResourceManager().getString("Viewer.loading.description"));
+		labelLoading.setTooltip(tooltip);
+		var fade = new FadeTransition();
+		fade.setFromValue(1.0);
+		fade.setToValue(0.0);
+		fade.setOnFinished(e -> fade.getNode().setVisible(false));
+		fade.setNode(labelLoading);
+		fade.setDuration(Duration.millis(250));
+		isLoadingProperty().subscribe(n -> {
+			if (n) {
+				fade.stop();
+				labelLoading.setOpacity(1.0);
+				labelLoading.setVisible(true);
+			} else {
+				fade.playFromStart();
+			}
+		});
+		var progress = new ProgressIndicator();
+		progress.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS);
+		labelLoading.setGraphic(progress);
+		return labelLoading;
+	}
+
 	private void updateSpinners() {
 		if (dimensionControls == null)
 			return;
@@ -156,10 +190,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		ImageServer<?> server = getServer();
 		if (server != null) {
 			dimensionControls.zMaxProperty().set(server.nZSlices());
-			dimensionControls.zPositionProperty().set(server.nZSlices() / 2);
-
 			dimensionControls.tMaxProperty().set(server.nTimepoints());
-			dimensionControls.tPositionProperty().set(server.nTimepoints() / 2);
 		} else {
 			dimensionControls.zMaxProperty().set(0);
 			dimensionControls.tMaxProperty().set(0);
@@ -169,8 +200,8 @@ public class QuPathViewerPlus extends QuPathViewer {
 	
 	@Override
 	public void initializeForServer(ImageServer<BufferedImage> server) {
-		super.initializeForServer(server);
 		updateSpinners();
+		super.initializeForServer(server);
 	}
 
 
@@ -256,10 +287,10 @@ public class QuPathViewerPlus extends QuPathViewer {
 	}
 
 	@Override
-	void paintCanvas() {
-		boolean imageWasUpdated = imageUpdated || locationUpdated;
-		
-		super.paintCanvas();
+	public void handlePulse(long now) {
+		boolean imageWasUpdated = imageUpdated;
+
+		super.handlePulse(now);
 		
 		if (scalebar == null)
 			return;

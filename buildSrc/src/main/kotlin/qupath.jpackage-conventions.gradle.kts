@@ -268,7 +268,8 @@ fun getDistOutputDir(): File {
  * Postprocessing of jpackage outputs; this is needed to fix the macOS version
  * and assemble the outputs for the checksums.
  */
-val jpackageFinalize by tasks.registering {
+val jpackageFinalize = tasks.register("jpackageFinalize") {
+    description = "Postprocess jpackage outputs"
     doLast {
         val outputDir = getDistOutputDir()
         // Loop for Mac things to do
@@ -294,7 +295,7 @@ val jpackageFinalize by tasks.registering {
                 delete(appFile)
             }
         }
-        // On windows, for the installer we should also zip up the image
+        // On Windows, for the installer we should also zip up the image
         if (Utils.currentPlatform().isWindows) {
             val imageDir = File(outputDir, qupathAppName)
             if (imageDir.isDirectory() && packageType == "installer") {

@@ -34,8 +34,6 @@ import java.util.List;
 
 /**
  * Request pixels from an image, potentially applying further transforms.
- * 
- * @author Pete Bankhead
  */
 public interface ImageDataOp extends UriResource {
 	

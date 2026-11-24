@@ -99,7 +99,7 @@ public class BioimageIoTools {
 				var basePath = GeneralTools.toPath(baseUri);
 				var relativeSource = weights.getSource();
 				// For now, don't handle URLs
-				if (relativeSource.toLowerCase().startsWith("http:") || relativeSource.toLowerCase().startsWith("https:")) {
+				if (GeneralTools.startsWithIgnoreCase(relativeSource, "http:") || GeneralTools.startsWithIgnoreCase(relativeSource, "https:")) {
 					logger.debug("Don't support source {}", relativeSource);
 					continue;
 				}
@@ -110,7 +110,7 @@ public class BioimageIoTools {
 				} else {
 					Path pathWeights = null;
 					// We can't currently handle zipped weights - so see if we can find unzipped weights
-					if (relativeSource.toLowerCase().endsWith(".zip")) {
+					if (GeneralTools.endsWithIgnoreCase(relativeSource, ".zip")) {
 						pathWeights = basePath.resolve(relativeSource.substring(0, relativeSource.length()-4));
 						if (!Files.exists(pathWeights)) {
 							logger.warn("Please unzip the model weights to {}", pathWeights);

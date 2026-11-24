@@ -71,7 +71,6 @@ public class OpenCVTypeAdapters {
 	 * Register a new JSON-serializable {@link PredictionModel} or {@link TrainableModel},
 	 * using the simple class name as "model-type".
 	 * @param cls the JSON-serializable class
-	 * @return
 	 */
 	public static void registerPredictionModel(Class<? extends PredictionModel> cls) {
 		registerPredictionModel(cls, cls.getSimpleName());
@@ -81,7 +80,6 @@ public class OpenCVTypeAdapters {
 	 * Register a new JSON-serializable {@link PredictionModel} or {@link TrainableModel}.
 	 * @param cls the JSON-serializable class
 	 * @param label the "model-type" label; note that this must be unique.
-	 * @return
 	 */
 	@SuppressWarnings("unchecked")
 	public static void registerPredictionModel(Class<? extends PredictionModel> cls, String label) {

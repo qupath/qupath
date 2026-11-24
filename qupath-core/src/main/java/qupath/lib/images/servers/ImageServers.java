@@ -116,13 +116,7 @@ public class ImageServers {
 			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory())
 			.registerTypeAdapterFactory(ImageServers.getNormalizerFactory());
 	}
-	
-	
-	static void logFirstDeprecatedReadCall(Class<? extends ImageServer> cls) {
-		String warning = cls.getSimpleName() + ".readBufferedImage(RegionRequest) is deprecated - please use " + cls.getSimpleName() + ".readRegion(RegionRequest) instead";
-		if (loggedWarnings.add(warning))
-			LoggerFactory.getLogger(cls).warn(warning);
-	}
+
 	
 	/**
 	 * Get a TypeAdapterFactory to handle {@linkplain ServerBuilder ServerBuilders}.

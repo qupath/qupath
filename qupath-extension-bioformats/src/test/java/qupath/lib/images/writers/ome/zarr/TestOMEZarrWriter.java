@@ -1,5 +1,6 @@
 package qupath.lib.images.writers.ome.zarr;
 
+import java.io.File;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -253,6 +254,32 @@ public class TestOMEZarrWriter {
     }
 
     @Test
+    void Check_Downsamples_Allowed() throws Exception {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
+        SampleImageServer sampleImageServer = new SampleImageServer();
+        double[] allowedDownsamples = new double[]{0.5, 1, 2, 4};
+        double[] notAllowedDownsamples = new double[]{-1, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+        for (double downsample : allowedDownsamples) {
+            new OMEZarrWriter.Builder(sampleImageServer)
+                    .downsamples(downsample)
+                    .build(outputImagePath)
+                    .writeImage();
+            FileUtils.deleteDirectory(new File(outputImagePath));
+        }
+        for (double downsample : notAllowedDownsamples) {
+            Assertions.assertThrows(IllegalArgumentException.class,
+                    () -> new OMEZarrWriter.Builder(sampleImageServer)
+                        .downsamples(downsample)
+                        .build(outputImagePath)
+                        .writeImage()
+            );
+        }
+        sampleImageServer.close();
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+        @Test
     void Check_Downsamples_When_Specified() throws Exception {
         Path path = Files.createTempDirectory(UUID.randomUUID().toString());
         String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
@@ -269,6 +296,29 @@ public class TestOMEZarrWriter {
             downsamples = server.getPreferredDownsamples();
         }
         Assertions.assertArrayEquals(expectedDownsamples, downsamples);
+
+        sampleImageServer.close();
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
+    void Check_Calibration_When_Downsampled() throws Exception {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
+        SampleImageServer sampleImageServer = new SampleImageServer();
+        double downsample = 2;
+        double[] downsamples = new double[] {downsample};
+
+        new OMEZarrWriter.Builder(sampleImageServer)
+                .downsamples(downsamples)
+                .build(outputImagePath)
+                .writeImage();
+
+        double pixelSize = Double.NaN;
+        try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(outputImagePath, BufferedImage.class)) {
+            pixelSize = server.getMetadata().getPixelCalibration().getAveragedPixelSize().doubleValue();
+        }
+        Assertions.assertEquals(pixelSize, sampleImageServer.getMetadata().getPixelCalibration().getAveragedPixelSize().doubleValue() * downsample);
 
         sampleImageServer.close();
         FileUtils.deleteDirectory(path.toFile());
@@ -558,6 +608,7 @@ public class TestOMEZarrWriter {
             return new ImageServerMetadata.Builder()
                     .width(IMAGE_WIDTH)
                     .height(IMAGE_HEIGHT)
+                    .pixelCalibration(new PixelCalibration.Builder().pixelSizeMicrons(0.5, 0.5).build())
                     .sizeZ(3)
                     .sizeT(2)
                     .pixelType(PixelType.FLOAT64)

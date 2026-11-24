@@ -55,6 +55,7 @@ import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.MemoryTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -148,9 +149,8 @@ public class IJTools {
 		// Compute (very simply) how much memory this image could take
 		long approxMemory = (long) approxPixelCount * bytesPerPixel;
 		
-		// Compute the available memory, as per https://stackoverflow.com/a/18366283
-		long allocatedMemory      = Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory();
-		long presumableFreeMemory = Runtime.getRuntime().maxMemory() - allocatedMemory;
+		// Compute the available memory
+		long presumableFreeMemory = MemoryTools.getTotalFreeMemory().orElse(MemoryTools.getCurrentFreeMemory());
 		
 		// Prepare pretty formatting if needed
 		DecimalFormat df = new DecimalFormat("00.00");
@@ -324,7 +324,7 @@ public class IJTools {
 		fi.directory = file.getParent() + File.separator;
 		fi.fileName = file.getName();
 		String path = server.getPath();
-		if (path != null && path.toLowerCase().startsWith("http"))
+		if (path != null && GeneralTools.startsWithIgnoreCase(path, "http"))
 			fi.url = path;
 		imp.setFileInfo(fi);
 	
@@ -520,7 +520,7 @@ public class IJTools {
 			try (var zipFile = new ZipFile(file)) {
 				for (var enumerator = zipFile.entries(); enumerator.hasMoreElements();) {
 					var entry = enumerator.nextElement();
-					if (entry.getName().toLowerCase().endsWith(".roi"))
+					if (GeneralTools.endsWithIgnoreCase(entry.getName(), ".roi"))
 						return true;
 				}
 			} catch (Exception e) {

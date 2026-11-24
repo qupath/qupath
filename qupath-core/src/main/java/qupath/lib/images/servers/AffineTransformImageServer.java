@@ -47,7 +47,7 @@ import java.io.IOException;
  */
 public class AffineTransformImageServer extends TransformingImageServer<BufferedImage> {
 	
-	private static Logger logger = LoggerFactory.getLogger(AffineTransformImageServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(AffineTransformImageServer.class);
 	
 	private ImageServerMetadata metadata;
 	
@@ -187,7 +187,8 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 	
 	@Override
 	public BufferedImage readRegion(final RegionRequest request) throws IOException {
-		
+		ServerTools.checkRegionWithinBoundsOrThrow(this, request);
+
 		double downsample = request.getDownsample();
 		
 		var bounds = AwtTools.getBounds(request);

@@ -39,7 +39,7 @@ import java.util.List;
  */
 public class RearrangeRGBImageServer extends TransformingImageServer<BufferedImage> {
 	
-	private static List<String> VALID_ORDERS = Arrays.asList(
+	private static final List<String> VALID_ORDERS = Arrays.asList(
 			"RGB", "RBG", "GRB", "GBR", "BRG", "BGR"
 			);
 	

@@ -65,9 +65,6 @@ import java.util.stream.Collectors;
 
 /**
  * Helper methods for working with pixel classification.
- * 
- * @author Pete Bankhead
- *
  */
 public class PixelClassifierTools {
 

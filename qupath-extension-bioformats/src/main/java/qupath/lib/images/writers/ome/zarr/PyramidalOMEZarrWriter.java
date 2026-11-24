@@ -15,6 +15,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
+import qupath.lib.progress.ProgressMonitor;
 import qupath.lib.regions.ImageRegion;
 
 import java.awt.image.BufferedImage;
@@ -32,7 +33,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.DoubleConsumer;
 
 /**
  * An OME-Zarr file writer as described by version 0.4 of the specifications of the
@@ -59,9 +59,8 @@ public class PyramidalOMEZarrWriter {
     private final int tileHeight;
     private final int numberOfThreads;
     private final Path path;
-//    private final ZarrGroup root;
     private final Map<Integer, Array> levels;
-    private final DoubleConsumer onProgress;
+    private final ProgressMonitor onProgress;
     private final StoreHandle store;
 
     private PyramidalOMEZarrWriter(Builder builder, Path path) throws IOException {
@@ -80,6 +79,7 @@ public class PyramidalOMEZarrWriter {
         this.server = transformedServerBuilder.build();
 
         this.firstDownsampleOnInputImage = builder.downsamples.getFirst();
+
         this.downsamplesOutputImage = builder.downsamples.stream()
                 .map(downsample -> downsample / this.firstDownsampleOnInputImage)
                 .toList();
@@ -105,9 +105,16 @@ public class PyramidalOMEZarrWriter {
 //            logger.warn("Error while creating OME XML file of {}. Some image metadata won't be written", path, e);
 //        }
 
+        var metadata = server.getMetadata();
+        if (firstDownsampleOnInputImage != 1) {
+            metadata = new ImageServerMetadata.Builder(server.getMetadata())
+                    .pixelCalibration(metadata.getPixelCalibration().createScaledInstance(firstDownsampleOnInputImage, firstDownsampleOnInputImage))
+                    .build();
+        }
+
         try {
             this.levels = ZarrWriterUtils.createLevels(
-                    new ImageServerMetadata.Builder(server.getMetadata())
+                    new ImageServerMetadata.Builder(metadata)
                             .width((int) (server.getWidth() / firstDownsampleOnInputImage))
                             .height((int) (server.getHeight() / firstDownsampleOnInputImage))
                             .levelsFromDownsamples(downsamplesOutputImage.stream().mapToDouble(Double::doubleValue).toArray())
@@ -115,7 +122,7 @@ public class PyramidalOMEZarrWriter {
                     store,
                     tileWidth,
                     tileHeight,
-                    new OMEZarrAttributesCreator(server.getMetadata()).getLevelAttributes(),
+                    new OMEZarrAttributesCreator(metadata).getLevelAttributes(),
                     builder.codec
             );
         } catch (ZarrException e) {
@@ -141,6 +148,7 @@ public class PyramidalOMEZarrWriter {
             int numberOfDownsamples = downsamplesOutputImage.size();
             var attributes = new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
                     .levelsFromDownsamples(firstDownsampleOnInputImage)
+                    .pixelCalibration(server.getMetadata().getPixelCalibration().createScaledInstance(firstDownsampleOnInputImage, firstDownsampleOnInputImage))
                     .build()
             ).getGroupAttributes();
             Attributes attrs = new Attributes();
@@ -156,7 +164,7 @@ public class PyramidalOMEZarrWriter {
                     levels.get(0),
                     server,
                     executorService,
-                    progress -> onProgress.accept(progress / numberOfDownsamples)
+                    (message, progress) -> onProgress.updateProgress("Writing level " + 0, progress / numberOfDownsamples)
             );
 
             for (int i = 1; i < numberOfDownsamples; i++) {
@@ -168,6 +176,7 @@ public class PyramidalOMEZarrWriter {
                         String.valueOf(numberOfDownsamples - i)  // as a different series, so the series we are interested in must be specified
                 )) {
                     double progressOffset = (double) i / numberOfDownsamples;
+                    int level = i;
                     writeLevel(
                             path.toString(),
                             i,
@@ -175,13 +184,14 @@ public class PyramidalOMEZarrWriter {
                             levels.get(i),
                             server,
                             executorService,
-                            progress -> onProgress.accept(progressOffset + progress / numberOfDownsamples)
+                            (message, progress) -> onProgress.updateProgress("Writing level " + level, progressOffset + progress / numberOfDownsamples)
                     );
                 }
 
                 // todo doesn't seem right to just repeat, subgroup...?
                 var at2 = new OMEZarrAttributesCreator(new ImageServerMetadata.Builder(server.getMetadata())
                         .levelsFromDownsamples(downsamplesOutputImage.stream().limit(i+1).mapToDouble(d -> d).toArray())
+                        .pixelCalibration(server.getMetadata().getPixelCalibration().createScaledInstance(downsamplesOutputImage.get(i), downsamplesOutputImage.get(i)))
                         .build()
                 ).getGroupAttributes();
                 Attributes att2 = new Attributes();
@@ -199,11 +209,10 @@ public class PyramidalOMEZarrWriter {
     public static class Builder {
 
         private static final String FILE_EXTENSION = ".ome.zarr";
-        private final static DoubleConsumer NOP_CONSUMER = _ -> {};
         private final ImageServer<BufferedImage> server;
         private Codec codec = null;
         private int numberOfThreads = ThreadTools.getParallelism();
-        private List<Double> downsamples = List.of(1d);
+        private List<Double> downsamples;
         private int maxNumberOfChunks = -1;
         private int tileWidth = 1024;
         private int tileHeight = 1024;
@@ -212,7 +221,7 @@ public class PyramidalOMEZarrWriter {
         private int zEnd;
         private int tStart = 0;
         private int tEnd;
-        private DoubleConsumer onProgress = NOP_CONSUMER;
+        private ProgressMonitor onProgress = ProgressMonitor.NULL;
 
         /**
          * Create the builder.
@@ -222,6 +231,7 @@ public class PyramidalOMEZarrWriter {
          */
         public Builder(ImageServer<BufferedImage> server) {
             this.server = server;
+            this.downsamples = List.of(server.getDownsampleForResolution(0));
             this.zEnd = this.server.nZSlices();
             this.tEnd = this.server.nTimepoints();
         }
@@ -267,17 +277,38 @@ public class PyramidalOMEZarrWriter {
          */
         public Builder downsamples(double... downsamples) {
             List<Double> downsampleList = Arrays.stream(downsamples).boxed().toList();
-
             if (downsampleList.isEmpty()) {
                 throw new IllegalArgumentException("At least one downsample should be provided");
             }
-            if (downsampleList.stream().anyMatch(downsample -> downsample < 1)) {
-                throw new IllegalArgumentException(String.format("One of the provided downsamples %s is less than 1", downsampleList));
-            }
-
+            OMEZarrWriter.checkDownsamples(downsamples);
             this.downsamples = downsampleList.stream().distinct().sorted().toList();
             return this;
         }
+
+        /**
+         * Calculate downsamples by progressively scaling down the image by a fixed factor.
+         * @param scale the scale factor to use. For example, if {@code scale == 2} then downsamples
+         *              would be {@code 1, 2, 4, 8, ...} ending when the downsampled image would
+         *              be smaller than the tile width or height.
+         * @return this builder.
+         */
+        public Builder scaledDownsampling(double scale) {
+            if (scale <= 1) {
+                throw new IllegalArgumentException("Scale should be greater than 1");
+            }
+			// Calculate default downsamples, if we need to
+            List<Double> downsampleList = new ArrayList<>();
+            int imageWidth = server.getWidth();
+            int imageHeight = server.getHeight();
+            int tileWidth = server.getMetadata().getPreferredTileWidth();
+            int tileHeight = server.getMetadata().getPreferredTileHeight();
+            double nextDownsample = 1.0;
+            do {
+                downsampleList.add(nextDownsample);
+                nextDownsample *= scale;
+            } while ((imageWidth / nextDownsample > tileWidth) && (imageHeight / nextDownsample > tileHeight));
+			return downsamples(downsampleList.stream().mapToDouble(d -> d).toArray());
+		}
 
         /**
          * In Zarr images, data is stored in chunks. This parameter defines the maximum number of chunks on the
@@ -387,7 +418,7 @@ public class PyramidalOMEZarrWriter {
          * @return this builder
          * @throws NullPointerException if the provided parameter is null
          */
-        public Builder onProgress(DoubleConsumer onProgress) {
+        public Builder onProgress(ProgressMonitor onProgress) {
             this.onProgress = Objects.requireNonNull(onProgress);
             return this;
         }
@@ -429,7 +460,7 @@ public class PyramidalOMEZarrWriter {
             Array zarrArray,
             ImageServer<BufferedImage> server,
             ExecutorService executorService,
-            DoubleConsumer onProgress
+            ProgressMonitor onProgress
     ) throws InterruptedException {
         long[] imageDimensions = ZarrWriterUtils.getDimensionsOfImage(server.getMetadata(), downsample);
         Collection<TileRequest> tileRequests = getTileRequestsForLevel(
@@ -467,7 +498,9 @@ public class PyramidalOMEZarrWriter {
                 }
 
                 latch.countDown();
-                onProgress.accept((double) numberOfTilesProcessed.incrementAndGet() / numberOfTiles);
+                onProgress.updateProgress(
+                        null,
+                        (double) numberOfTilesProcessed.incrementAndGet() / numberOfTiles);
             });
         }
         latch.await();

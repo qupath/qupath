@@ -40,7 +40,7 @@ import qupath.lib.gui.QuPathApp;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.extensions.Subcommand;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
+import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -358,7 +358,7 @@ class ScriptCommand implements Runnable {
 			}
 			
 			// Ensure we have a tile cache set
-			createTileCache();
+			initTileCache();
 
 			// Load image server builders from extensions and install extensions in headless mode
 			ClassLoader extensionClassLoader = QuPathGUI.getExtensionCatalogManager().getExtensionClassLoader();
@@ -445,29 +445,13 @@ class ScriptCommand implements Runnable {
 	
 	
 	/**
-	 * The tile cache is usually set when initializing the GUI; here, we need to create one for performance
+	 * Ensure the tile cache is set to the size specified in the preferences.
 	 */
-	private void createTileCache() {
-		// TODO: Refactor this to avoid replicating logic from QuPathGUI private method
-		Runtime rt = Runtime.getRuntime();
-		long maxAvailable = rt.maxMemory(); // Max available memory
-		if (maxAvailable == Long.MAX_VALUE) {
-			logger.warn("No inherent maximum memory set - for caching purposes, will assume 64 GB");
-			maxAvailable = 64L * 1024L * 1024L * 1024L;
-		}
-		double percentage = PathPrefs.tileCachePercentageProperty().get();
-		if (percentage < 10) {
-			logger.warn("At least 10% of available memory needs to be used for tile caching (you requested {}%)", percentage);
-			percentage = 10;
-		} else if (percentage > 90) {
-			logger.warn("No more than 90% of available memory can be used for tile caching (you requested {}%)", percentage);
-			percentage = 90;			
-		}
-		long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
-		logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));
-		
-		var imageRegionStore = ImageRegionStoreFactory.createImageRegionStore(tileCacheSize);
-		ImageServerProvider.setCache(imageRegionStore.getCache(), BufferedImage.class);
+	private void initTileCache() {
+		DefaultImageRegionStore.getSharedInstance()
+				.getCache()
+				.setMaxSizeByPercent(PathPrefs.tileCachePercentageProperty().get());;
+
 	}
 	
 	

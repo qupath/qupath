@@ -64,6 +64,7 @@ public abstract class TransformingImageServer<T> extends AbstractImageServer<T> 
 
 	@Override
 	public T readRegion(RegionRequest request) throws IOException {
+		ServerTools.checkRegionWithinBoundsOrThrow(this, request);
 		return server.readRegion(request);
 	}
 

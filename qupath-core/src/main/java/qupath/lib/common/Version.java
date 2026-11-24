@@ -180,7 +180,7 @@ public class Version implements Comparable<Version> {
 		if (versionString == null || versionString.isBlank())
 			return Version.UNKNOWN;
 		
-		if (versionString.toLowerCase().startsWith("v"))
+		if (GeneralTools.startsWithIgnoreCase(versionString, "v"))
 			versionString = versionString.substring(1);
 		int ind = versionString.indexOf("-");
 		if (ind >= 0 && ind < versionString.length()-1) {

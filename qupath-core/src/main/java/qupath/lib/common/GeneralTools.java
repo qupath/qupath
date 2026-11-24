@@ -335,6 +335,42 @@ public final class GeneralTools {
 			return isMultipartExtension(ext.substring(1));
 		return ext.length() - ext.replace(".", "").length() > 0;
 	}
+
+	/**
+	 * Check if a string ends with a specific suffix, ignoring case.
+	 * This is somewhere between {@link String#equalsIgnoreCase(String)} and {@link String#endsWith(String)}.
+	 * @param path the main string to test
+	 * @param suffix the suffix
+	 * @return true if path ends with suffix, ignoring case
+	 * @since v0.8.0
+	 */
+	public static boolean endsWithIgnoreCase(String path, String suffix) {
+		Objects.requireNonNull(path);
+		Objects.requireNonNull(suffix);
+		if (path.length() < suffix.length())
+			return false;
+		else if (path.length() == suffix.length())
+			return path.equalsIgnoreCase(suffix);
+		else
+			return path.regionMatches(true, path.length() - suffix.length(), suffix, 0, suffix.length());
+	}
+
+	/**
+	 * Check if a string starts with a specific prefix, ignoring case.
+	 * This is somewhere between {@link String#equalsIgnoreCase(String)} and {@link String#startsWith(String)}.
+	 * @param path the main string to test
+	 * @param prefix the prefix
+	 * @return true if path starts with prefix, ignoring case
+	 * @since v0.8.0
+	 */
+	public static boolean startsWithIgnoreCase(String path, String prefix) {
+		Objects.requireNonNull(path);
+		Objects.requireNonNull(prefix);
+		if (path.length() < prefix.length())
+			return false;
+		else
+			return path.substring(0, prefix.length()).equalsIgnoreCase(prefix);
+	}
 	
 	
 	/**
@@ -925,7 +961,9 @@ public final class GeneralTools {
 	 * This may be used to help determine whether a memory-hungry operation should be attempted.
 	 * 
 	 * @return the estimated unused memory in bytes
+	 * @deprecated v0.8.0 use instead {@link MemoryTools#getTotalFreeMemory()}
 	 */
+	@Deprecated
 	public static long estimateAvailableMemory() {
 		System.gc();
 		return Runtime.getRuntime().maxMemory() - estimateUsedMemory();
@@ -935,7 +973,9 @@ public final class GeneralTools {
 	 * Estimate the current used memory.
 	 * 
 	 * @return the estimated allocated memory in bytes
+	 * @deprecated v0.8.0 use instead {@link MemoryTools#getCurrentUsedMemory()}
 	 */
+	@Deprecated
 	public static long estimateUsedMemory() {
 		var runtime = Runtime.getRuntime();
 		return runtime.totalMemory() - runtime.freeMemory();
@@ -1011,9 +1051,11 @@ public final class GeneralTools {
 				sb.append(c);
 		}
 		if (skipCount == 1)
-			logger.info("Zapped 1 gremlin");
+			logger.debug("Zapped 1 gremlin");
+		else if (skipCount > 1)
+			logger.debug("Zapped {} gremlins", skipCount);
 		else
-			logger.info("Zapped {} gremlins", skipCount);
+			logger.trace("No gremlins to zap");
 		if (skipCount > 0)
 			return sb.toString();
 		return text;

@@ -17,6 +17,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 public class TestZConcatenatedImageServer {
@@ -443,7 +444,7 @@ public class TestZConcatenatedImageServer {
 
         @Override
         protected String createID() {
-            return SampleServer.class.getName();
+            return UUID.randomUUID().toString();
         }
 
         @Override
@@ -485,7 +486,7 @@ public class TestZConcatenatedImageServer {
 
         @Override
         protected String createID() {
-            return RgbSampleServer.class.getName();
+            return UUID.randomUUID().toString();
         }
 
         @Override
@@ -534,7 +535,7 @@ public class TestZConcatenatedImageServer {
 
         @Override
         protected String createID() {
-            return DoubleSampleServer.class.getName();
+            return UUID.randomUUID().toString();
         }
 
         @Override

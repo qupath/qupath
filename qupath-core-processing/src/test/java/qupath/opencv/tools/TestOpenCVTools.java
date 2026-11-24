@@ -21,7 +21,6 @@
 
 package qupath.opencv.tools;
 
-import java.util.function.DoubleBinaryOperator;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -495,9 +494,6 @@ public class TestOpenCVTools {
 		assertArrayEquals(values, OpenCVTools.channelMaximum(mat), eps);
 		
 		// Standard deviations should be zero
-        System.err.println(mat);
-        System.err.println(mat.size());
-        System.err.println(mat.createIndexer());
 		assertArrayEquals(new double[mat.channels()], OpenCVTools.channelStdDev(mat), eps);
 	}
 

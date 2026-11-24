@@ -200,7 +200,7 @@ public class TMADataIO {
 			ExportCoresPlugin plugin = new ExportCoresPlugin(dirData, renderedImageServer, downsample, coreExt);
 			var qupath = QuPathGUI.getInstance();
 			if (qupath == null || qupath.getImageData() != imageData) {
-				plugin.runPlugin(new CommandLineTaskRunner(), imageData,null);
+				plugin.runPlugin(CommandLineTaskRunner.create().logger(logger), imageData,null);
 			} else {
 				try {
 					qupath.runPlugin(plugin, null, false);

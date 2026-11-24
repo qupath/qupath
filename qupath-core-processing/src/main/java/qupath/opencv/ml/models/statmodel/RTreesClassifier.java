@@ -87,25 +87,6 @@ class RTreesClassifier extends AbstractTreeClassifier<RTrees> {
         return super.getTrainFlags();
     }
 
-    /**
-     * Check if the last time train was called, variable (feature) importance was calculated.
-     *
-     * @return
-     * @see #getFeatureImportance()
-     */
-    public synchronized boolean hasFeatureImportance() {
-        return featureImportance != null;
-    }
-
-    /**
-     * Request the variable importance values from the last trained RTrees classifier, if available.
-     *
-     * @return the ordered array of importance values, or null if this is unavailable
-     * @see #hasFeatureImportance()
-     */
-    public double[] getFeatureImportance() {
-        return featureImportance == null ? null : featureImportance.clone();
-    }
 
     @Override
     void updateModel(RTrees model, ParameterList params, TrainData trainData) {
@@ -199,20 +180,22 @@ class RTreesClassifier extends AbstractTreeClassifier<RTrees> {
         votes.close();
     }
 
-
     /**
-     * Get a list of variable importance values.
-     *
-     * @param names the variable names.
-     * @return a list of variable importance values, or an empty list if these are not available.
-     * This occurs if importance has not been calculated, or the feature names array is
-     * not of a matching length.
-     * @see #getFeatureImportance()
-     * @since v0.8.0
+     * Check if the last time train was called, variable (feature) importance was calculated.
+     * @return true if feature importance values are available, false otherwise
      */
+    public synchronized boolean hasFeatureImportance() {
+        return featureImportance != null;
+    }
+
+    @Override
+    public boolean supportsFeatureImportance() {
+        return true;
+    }
+
     @Override
     public List<FeatureImportance> getFeatureImportance(List<String> names) {
-        double[] importance = getFeatureImportance();
+        double[] importance = featureImportance == null ? null : featureImportance.clone();
         if (importance == null || importance.length != names.size())
             return List.of();
         List<FeatureImportance> list = new ArrayList<>();

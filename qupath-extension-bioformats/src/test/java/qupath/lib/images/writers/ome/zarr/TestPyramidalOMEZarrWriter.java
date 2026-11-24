@@ -1,5 +1,6 @@
 package qupath.lib.images.writers.ome.zarr;
 
+import java.io.File;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -224,6 +225,32 @@ public class TestPyramidalOMEZarrWriter {
         }
         assertDoubleBufferedImagesEqual(expectedImage, image);
 
+        sampleImageServer.close();
+        FileUtils.deleteDirectory(path.toFile());
+    }
+
+    @Test
+    void Check_Downsamples_Allowed() throws Exception {
+        Path path = Files.createTempDirectory(UUID.randomUUID().toString());
+        String outputImagePath = Paths.get(path.toString(), "image.ome.zarr").toString();
+        SampleImageServer sampleImageServer = new SampleImageServer();
+        double[] allowedDownsamples = new double[]{0.5, 1, 2, 4};
+        double[] notAllowedDownsamples = new double[]{-1, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+        for (double downsample : allowedDownsamples) {
+            new PyramidalOMEZarrWriter.Builder(sampleImageServer)
+                    .downsamples(downsample)
+                    .build(outputImagePath)
+                    .writeImage();
+            FileUtils.deleteDirectory(new File(outputImagePath));
+        }
+        for (double downsample : notAllowedDownsamples) {
+            Assertions.assertThrows(IllegalArgumentException.class,
+                    () -> new PyramidalOMEZarrWriter.Builder(sampleImageServer)
+                            .downsamples(downsample)
+                            .build(outputImagePath)
+                            .writeImage()
+            );
+        }
         sampleImageServer.close();
         FileUtils.deleteDirectory(path.toFile());
     }

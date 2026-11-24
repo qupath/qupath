@@ -795,7 +795,7 @@ public class IJExtension implements QuPathExtension {
 		
 		
 		private boolean handleMacro(File file) {
-			if (file.getName().toLowerCase().endsWith(".ijm")) {
+			if (GeneralTools.endsWithIgnoreCase(file.getName(), ".ijm")) {
 				commands.scriptRunner.openMacro(file);
 				return true;
 			}

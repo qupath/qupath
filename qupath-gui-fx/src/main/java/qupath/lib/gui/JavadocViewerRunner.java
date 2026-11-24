@@ -125,7 +125,7 @@ public class JavadocViewerRunner implements Runnable {
         }
 
         // If we have a jar file, we need to check the location...
-        if (codePath.getFileName().toString().toLowerCase().endsWith(".jar")) {
+        if (GeneralTools.endsWithIgnoreCase(codePath.getFileName().toString(), ".jar")) {
             if (codePath.getParent().toString().endsWith("/build/libs")) {
                 // We are probably using gradlew run
                 // We can go up several directories to the root project, and then search inside for javadocs

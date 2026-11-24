@@ -27,6 +27,7 @@ import javafx.event.EventHandler;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import qupath.ext.extensionmanager.gui.ExtensionManager;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.scripting.languages.ScriptLanguageProvider;
@@ -62,7 +63,7 @@ class ScriptEditorDragDropListener implements EventHandler<DragEvent> {
 			if (list == null)
 				return;
 			
-			List<File> jars = list.stream().filter(f -> f.getName().toLowerCase().endsWith(".jar")).toList();
+			List<File> jars = list.stream().filter(f -> GeneralTools.endsWithIgnoreCase(f.getName(), ".jar")).toList();
 			if (!jars.isEmpty())
 				ExtensionManager.promptToCopyFilesToExtensionDirectory(
 						list,
@@ -70,7 +71,7 @@ class ScriptEditorDragDropListener implements EventHandler<DragEvent> {
 						() -> Commands.requestUserDirectory(true)
 				);
 			
-			List<File> remainingFiles = list.stream().filter(f -> !f.getName().toLowerCase().endsWith(".jar")).toList();
+			List<File> remainingFiles = list.stream().filter(f -> !GeneralTools.endsWithIgnoreCase(f.getName(), ".jar")).toList();
 			var supported = ScriptLanguageProvider.getAvailableLanguages().stream()
 					.flatMap(l -> l.getExtensions().stream())
 					.collect(Collectors.toCollection(HashSet::new));

@@ -20,6 +20,7 @@ dependencies {
   implementation(libs.qupath.fxtras)
 
   implementation(libs.guava)
+  implementation(libs.caffeine)
 
   implementation(libs.snakeyaml)
   implementation(libs.picocli)

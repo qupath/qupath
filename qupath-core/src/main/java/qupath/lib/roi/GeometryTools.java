@@ -590,6 +590,8 @@ public class GeometryTools {
     		return getDefaultFactory().createPolygon();
     	if (geometries.size() == 1)
     		return geometries.iterator().next();
+//		if (5 > 2)
+//			return UnaryUnionNG.union(new ArrayList<>(geometries), getDefaultFactory().getPrecisionModel());
 		try {
 			if (geometries.size() > 2 && geometries.stream().allMatch(g -> g instanceof Polygonal)) {
 				// If we have multiple polygonal geometries, do things the 'fast' way
@@ -1098,20 +1100,22 @@ public class GeometryTools {
 	     * 
 	     * @param roi
 	     * @return
-		 * @implNote since v0.6.0 this returns a normalized geometry.
+		 * @implNote in v0.6 and v0.7 this returns a normalized geometry.
+		 *           Since v0.8, only area geometries are normalized (since the ordering of points and lines
+		 *           may be important; see https://github.com/qupath/qupath/issues/2246)
 	     */
 	    public Geometry roiToGeometry(ROI roi) {
 			Geometry geom = null;
 	    	if (roi.isPoint())
 				geom = pointsToGeometry(roi);
 	    	if (roi.isArea())
-				geom = areaToGeometry(roi);
+				geom = areaToGeometry(roi).norm();
 	    	if (roi.isLine())
 				geom = lineToGeometry(roi);
 			if (geom == null)
 		    	throw new UnsupportedOperationException("Unknown ROI " + roi + " - cannot convert to a Geometry!");
 			else
-				return geom.norm();
+				return geom;
 	    }
 	    
 	    private Geometry lineToGeometry(ROI roi) {

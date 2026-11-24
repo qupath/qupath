@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -39,8 +39,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.DoubleConsumer;
-import java.util.function.ObjDoubleConsumer;
 import java.util.function.Predicate;
 import java.util.zip.GZIPOutputStream;
 import org.apache.commons.lang3.Strings;
@@ -58,6 +56,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.progress.ProgressMonitor;
 import qupath.lib.projects.ProjectImageEntry;
 
 
@@ -79,8 +78,6 @@ public class MeasurementExporter {
 	 */
 	private static final String DEFAULT_SEPARATOR = "\t";
 
-	private static final ObjDoubleConsumer<String> NULL_PROGRESS_MONITOR = (message, progress) -> {};
-
 	private List<String> includeOnlyColumns = new ArrayList<>();
 	private List<String> excludeColumns = new ArrayList<>(); // To be removed (may replace with general predicate)
 	private Predicate<PathObject> filter;
@@ -98,7 +95,7 @@ public class MeasurementExporter {
 	
 	private List<ProjectImageEntry<BufferedImage>> imageList;
 
-	private ObjDoubleConsumer<String> progressMonitor = NULL_PROGRESS_MONITOR;
+	private ProgressMonitor progressMonitor = ProgressMonitor.NULL;
 	
 	public MeasurementExporter() {}
 
@@ -256,21 +253,9 @@ public class MeasurementExporter {
 	 * This is a consumer that takes a value between 0.0 (at the start) and 1.0 (export complete).
 	 * @param monitor the optional progress monitor
 	 * @return this exporter
-	 * @deprecated v0.7.0, use {@link #progressMonitor(ObjDoubleConsumer)} instead
 	 */
-	@Deprecated
-	public MeasurementExporter progressMonitor(DoubleConsumer monitor) {
-		return progressMonitor((message, progress) -> monitor.accept(progress));
-	}
-
-	/**
-	 * Set a progress monitor to be notified during export.
-	 * This is a consumer that takes a value between 0.0 (at the start) and 1.0 (export complete).
-	 * @param monitor the optional progress monitor
-	 * @return this exporter
-	 */
-	public MeasurementExporter progressMonitor(ObjDoubleConsumer<String> monitor) {
-		this.progressMonitor = monitor == null ? NULL_PROGRESS_MONITOR : monitor;
+	public MeasurementExporter progressMonitor(ProgressMonitor monitor) {
+		this.progressMonitor = monitor == null ? ProgressMonitor.NULL : monitor;
 		return this;
 	}
 	
@@ -422,10 +407,10 @@ public class MeasurementExporter {
 		// and add 1 unit of work for preparation to determine columns.
 		// (Note this could be improved by creating a weight for each image based upon object
 		// counts, determined during the preparation phase).
-		var monitor = progressMonitor == null ? NULL_PROGRESS_MONITOR : progressMonitor;
+		var monitor = progressMonitor == null ? ProgressMonitor.NULL : progressMonitor;
 		double currentWork = 0;
 		double totalWork = imageList.size() + 1;
-		monitor.accept(QuPathResources.getString("Tools.MeasurementExporter.preparing"), 0.0);
+		monitor.updateProgress(QuPathResources.getString("Tools.MeasurementExporter.preparing"), 0.0);
 
 		long startTime = System.currentTimeMillis();
 		var thread = Thread.currentThread();
@@ -436,7 +421,7 @@ public class MeasurementExporter {
 				checkInterrupted(thread);
 
 				String message = entry.getImageName();
-				monitor.accept(message, (++currentWork) / totalWork);
+				monitor.updateProgress(message, (++currentWork) / totalWork);
 
 				var table = loadTable(entry, type, filter, includeProjectMetadata);
 				var items = table.getItems();
@@ -447,7 +432,7 @@ public class MeasurementExporter {
 
 					// Increment proportionately during long exports
 					if ((++i) % 1000 == 0) {
-						monitor.accept(message, (currentWork + i / (items.size() + 1)) / totalWork);
+						monitor.updateProgress(message, (currentWork + i / (items.size() + 1)) / totalWork);
 					}
 				}
 
@@ -455,7 +440,7 @@ public class MeasurementExporter {
 		} catch (Exception e) {
 			throw new IOException("Error exporting measurements", e);
 		} finally {
-			monitor.accept(QuPathResources.getString("Tools.MeasurementExporter.exportComplete"), 1.0);
+			monitor.updateProgress(QuPathResources.getString("Tools.MeasurementExporter.exportComplete"), 1.0);
 		}
 		long endTime = System.currentTimeMillis();
 		long timeMillis = endTime - startTime;

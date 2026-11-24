@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2021-2022 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2021-2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,6 +25,7 @@ import org.bytedeco.javacpp.FloatPointer;
 import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.SizeTPointer;
+import org.bytedeco.javacpp.indexer.Indexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -59,6 +60,7 @@ import qupath.opencv.tools.OpenCVTools;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -111,6 +113,65 @@ public class DnnTools {
 	 */
 	public static OpenCVDnn.Builder builder(String modelPath) {
 		return OpenCVDnn.builder(modelPath);
+	}
+
+
+	/**
+	 * Convert a NHWC blob to NCHW.
+	 * @param blob the input mat
+	 * @return the permuted mat
+	 * @throws IllegalArgumentException if the input blob is not (at least) 4D
+	 */
+	public static Mat toChannelsFirst(Mat blob) throws IllegalArgumentException {
+		return permute(blob, new int[]{0, 3, 1, 2});
+	}
+
+	/**
+	 * Convert a NCHW blob to NHWC.
+	 * @param blob the input mat
+	 * @return the permuted mat
+	 * @throws IllegalArgumentException if the input blob is not (at least) 4D
+	 */
+	public static Mat toChannelsLast(Mat blob) throws IllegalArgumentException {
+		return permute(blob, new int[]{0, 2, 3, 1});
+	}
+
+
+	private static Mat permute(Mat mat, int[] permuteInds) throws IllegalArgumentException {
+		try (Indexer idx = mat.createIndexer()) {
+			long[] sizes = idx.sizes();
+			if (permuteInds.length != 4)
+				throw new IllegalArgumentException("permuteInds should have length 4, not " + Arrays.toString(permuteInds));
+			if (sizes.length < 4)
+				throw new IllegalArgumentException("Mat must be 4D!");
+			int[] sizes2 = new int[permuteInds.length];
+			for (int i = 0; i < permuteInds.length; i++) {
+				sizes2[permuteInds[i]] = Math.toIntExact(sizes[i]);
+			}
+			var mat2 = new Mat(sizes2.length, sizes2, mat.type(), Scalar.ZERO);
+			try (Indexer idx2 = mat2.createIndexer()) {
+				long[] inds = new long[4];
+				long[] inds2 = new long[4];
+				for (long b = 0; b < sizes[0]; b++) {
+					inds2[permuteInds[0]] = b;
+					inds[0] = b;
+					for (long c = 0; c < sizes[1]; c++) {
+						inds2[permuteInds[1]] = c;
+						inds[1] = c;
+						for (long y = 0; y < sizes[2]; y++) {
+							inds2[permuteInds[2]] = y;
+							inds[2] = y;
+							for (long x = 0; x < sizes[3]; x++) {
+								inds2[permuteInds[3]] = x;
+								inds[3] = x;
+								idx2.putDouble(inds2, idx.getDouble(inds));
+							}
+						}
+					}
+				}
+			}
+			return mat2;
+		}
 	}
 	
 	
@@ -285,7 +346,7 @@ public class DnnTools {
 			MatShapeVector inputShape = new MatShapeVector();
 			MatShapeVector outputShape = new MatShapeVector();
 			for (var nameBytes : names.get()) {
-				String name = nameBytes.getString();
+				String name = GeneralTools.zapGremlins(nameBytes.getString(StandardCharsets.UTF_8));
 				int id = net.getLayerId(name);
 				net.getLayerShapes(netInputShape, id, inputShape, outputShape);
 				list.add(new DNNLayer(name, id, parseShape(inputShape), parseShape(outputShape)));
@@ -329,16 +390,16 @@ public class DnnTools {
 	 */
 	public static class DNNLayer {
 		
-		private String name;
-		private int id;
-		private List<DnnShape> inputShapes;
-		private List<DnnShape> outputShapes;
+		private final String name;
+		private final int id;
+		private final List<DnnShape> inputShapes;
+		private final List<DnnShape> outputShapes;
 		
 		private DNNLayer(String name, int id, List<DnnShape> inputShapes, List<DnnShape> outputShapes) {
 			this.name = name;
 			this.id = id;
-			this.inputShapes = inputShapes;
-			this.outputShapes = outputShapes;
+			this.inputShapes = List.copyOf(inputShapes);
+			this.outputShapes = List.copyOf(outputShapes);
 		}
 		
 		/**
@@ -362,7 +423,7 @@ public class DnnTools {
 		 * @return
 		 */
 		public List<DnnShape> getInputShapes() {
-			return Collections.unmodifiableList(inputShapes);
+			return inputShapes;
 		}
 		
 		/**
@@ -370,7 +431,7 @@ public class DnnTools {
 		 * @return
 		 */
 		public List<DnnShape> getOutputShapes() {
-			return Collections.unmodifiableList(outputShapes);
+			return outputShapes;
 		}
 		
 		@Override

@@ -21,6 +21,8 @@
 
 package qupath.lib.projects;
 
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -318,9 +320,9 @@ public class ResourceManager {
 
 	static class JsonFileResourceManager<T> extends FileResourceManager<T> {
 		
-		private Charset charset = StandardCharsets.UTF_8;
+		private final Charset charset = StandardCharsets.UTF_8;
 		
-		private Class<T> cls;
+		private final Class<T> cls;
 		
 		JsonFileResourceManager(Path dir, Class<T> cls) {
 			super(dir, ".json");
@@ -331,6 +333,8 @@ public class ResourceManager {
 		protected T readFromFile(Path path) throws IOException {
 			try (var reader = Files.newBufferedReader(path, charset)) {
 				return GsonTools.getInstance().fromJson(reader, cls);
+			} catch (JsonParseException e) {
+				throw new JsonIOException(e);
 			}
 		}
 

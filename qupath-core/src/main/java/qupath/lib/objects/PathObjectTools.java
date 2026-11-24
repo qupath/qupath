@@ -2053,7 +2053,7 @@ public class PathObjectTools {
 		} else if (pathObjects.stream().allMatch(p -> p.isDetection())) {
 			result = PathObjects.createDetectionObject(roi);
 		} else
-			throw new IllegalArgumentException("Unknow or mixed object types - cannot merge ROIs for " + pathObjects);
+			throw new IllegalArgumentException("Unknown or mixed object types - cannot merge ROIs for " + pathObjects);
 		result.setPathClass(first.getPathClass());
 		result.setName(first.getName());
 		return result;

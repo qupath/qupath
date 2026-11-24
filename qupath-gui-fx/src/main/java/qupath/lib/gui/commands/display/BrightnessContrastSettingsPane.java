@@ -137,7 +137,7 @@ public class BrightnessContrastSettingsPane extends GridPane {
         });
         comboSettings.setCellFactory(c -> FXUtils.createCustomListCell(ImageDisplaySettings::getName));
         comboSettings.setButtonCell(new SettingListCell(settingsChanged));
-        comboSettings.setPlaceholder(GuiTools.createPlaceholderText(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.noCompatibleSettings")));
+        comboSettings.setPlaceholder(GuiTools.createPlaceholderLabel(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.noCompatibleSettings")));
         resourceManagerProperty.addListener((v, o, n) -> refreshResources());
         var btnSave = new Button(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.save"));
         btnSave.setTooltip(new Tooltip(QuPathResources.getString("Commands.BrightnessContrast.SettingsPane.saveDescription")));

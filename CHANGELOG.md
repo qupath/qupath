@@ -18,6 +18,7 @@
 * Ask to remove projects that are not found (https://github.com/qupath/qupath/pull/2167)
 * Hold down `Ctrl` (`Cmd` on macOS) when clicking viewer to focus it without creating an annotation with the brush, wand or points tool (https://github.com/qupath/qupath/pull/2185)
 * The 'Auto set' classification for new annotations can be changed from the popup menu in the viewer (https://github.com/qupath/qupath/pull/2186)
+* *File → Export images... → Rendered RGB (with overlays)...* and *Rendered SVG...* now use viewer z and t positions when exporting 2D images
 
 ### Bug fixes
 * StackOverflowError at ROITypeAdapters.writeCoordinates when exporting some geometries (https://github.com/qupath/qupath/issues/2115)
@@ -30,22 +31,29 @@
 * Calling `ImageServer.readRegion(RegionRequest)` can return the wrong pixels if `RegionRequest.getPath()` is wrong (https://github.com/qupath/qupath/issues/2164) 
 * The image overview doesn't rescale for very 'tall' images (https://github.com/qupath/qupath/issues/2163)
 * Export snapshot on Linux fails if the extension is not part of the filename (https://github.com/qupath/qupath/issues/2181)
+* Training object classifier for intensity class results in `Positive: Positive` or `Negative: Negative` (https://github.com/qupath/qupath/issues/2200)
+* ImageOps morphological filters (maximum, minimum, opening, closing) are not thread-safe (https://github.com/qupath/qupath/issues/2202)
+* Multithreading bug with `FastPolygonUnion` (https://github.com/qupath/qupath/pull/2220)
+* ImageServer.readRegion doesn't have consistent behavior for out-of-bounds requests (https://github.com/qupath/qupath/issues/2223)
 
 ### Dependency updates
 * Bio-Formats 8.5.0
-* Commonmark 0.30.0
-* ControlsFX 11.2.4
-* Groovy 5.0.8
-* Guava 33.6.0
-* JavaCPP 1.5.13
-* JavaFX 26.0.2
-* Logback 1.6.1
+* Caffeine 3.2.4
+* Commonmark 0.32.0
+* ControlsFX 11.2.7
+* DeepJavaLibrary 0.40.0
+* Gson 2.15.0
+* Groovy 6.0.0
+* Guava 33.8.0
+* JavaCPP 1.5.14
+* JavaFX 27.0.1.1
+* Logback 1.6.7
 * OpenCV 4.14.0
 * qupath-fxtras 0.4.1
-* SciJava POM 44.0.0
-* SLF4J 2.0.18
+* SciJava POM 45.1.0
+* SLF4J 2.0.20
 * OpenSlide 4.0.1.2
-* 
+
 ## Version 0.7.0
 
 ### Enhancements

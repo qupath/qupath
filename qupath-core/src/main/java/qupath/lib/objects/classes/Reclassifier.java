@@ -74,8 +74,9 @@ public class Reclassifier {
 		var pathClass = this.pathClass;
 		if (pathClass == PathClass.NULL_CLASS)
 			pathClass = null;
-		else if (retainIntensityClass && previousClass != null &&
-				(PathClassTools.isPositiveOrGradedIntensityClass(previousClass) || PathClassTools.isNegativeClass(previousClass)) && 
+		else if (retainIntensityClass &&
+				PathClassTools.isIntensityClass(previousClass) && // Previous class is an intensity class
+				!PathClassTools.isIntensityClass(pathClass) &&    // New class is *not* an intensity class
 				(!previousClass.isDerivedClass() || previousClass.getBaseClass() == previousClass.getParentClass())) {
 			pathClass = PathClass.getInstance(pathClass, previousClass.getName(), null);
 		}

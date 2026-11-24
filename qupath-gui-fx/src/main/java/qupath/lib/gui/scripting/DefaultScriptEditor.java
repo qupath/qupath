@@ -110,6 +110,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.WebViews;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.cache.ImageCache;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
@@ -1875,9 +1876,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					
 					if (clearCache.get()) {
 						try {
-							var store = qupath == null ? null : qupath.getImageRegionStore();
-							if (store != null)
-								store.clearCache();
+							ImageCache.getSharedInstance().clearCache();
 							System.gc();
 						} catch (Exception e) {
 							

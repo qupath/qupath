@@ -26,7 +26,6 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -35,8 +34,6 @@ import java.util.Objects;
  * <p>
  * This makes it possible to provide a name and override {@link #toString()} to return a 
  * more readable representation of the resolution.
- * 
- * @author Pete Bankhead
  */
 public class ClassificationResolution {
 	

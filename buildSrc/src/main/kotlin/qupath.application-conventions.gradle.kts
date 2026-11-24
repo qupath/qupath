@@ -17,6 +17,10 @@ application {
     applicationName = qupathAppName
     applicationDefaultJvmArgs += getDefaultJvmArgs()
 
+    // Workaround for https://bugs.openjdk.org/browse/JDK-8396142
+    // TODO: Remove if fixed in JavaFX 28+
+    applicationDefaultJvmArgs += "-Dprism.maxTextureSize=8192"
+
     // Necessary when using ./gradlew run to support style manager to change themes
     applicationDefaultJvmArgs += "--add-opens"
     applicationDefaultJvmArgs += "javafx.graphics/com.sun.javafx.css=ALL-UNNAMED"

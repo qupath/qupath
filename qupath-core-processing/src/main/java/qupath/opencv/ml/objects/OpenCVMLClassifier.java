@@ -227,6 +227,8 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 					}
 				} else {
 					// Use results (indexed values) if we do not require multiclass outputs
+					// We only want to retain intensity classes if we aren't setting new intensity classes.
+					boolean retainIntensityClass = pathClasses.stream().noneMatch(PathClassTools::isIntensityClass);
 					long row = 0;
 					for (var pathObject : tempObjectList) {
 						int prediction = idxResults.get(row);
@@ -240,7 +242,7 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 							pathClass = PathClassTools.mergeClasses(pathObject.getPathClass(), pathClass);
 							probability = Double.NaN;
 						}
-						reclassifiers.add(new Reclassifier(pathObject, pathClass, true, probability));							
+						reclassifiers.add(new Reclassifier(pathObject, pathClass, retainIntensityClass, probability));
 						row++;
 					}
 				}

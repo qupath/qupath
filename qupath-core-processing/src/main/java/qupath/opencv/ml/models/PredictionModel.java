@@ -36,7 +36,7 @@ public interface PredictionModel extends AutoCloseable {
      * For example, RTrees estimates probabilities based on the proportion of votes for the 'winning'
      * classification.
      *
-     * @param samples       the input samples
+     * @param samples       the input samples (row-wise, with each row containing the feature vector for a single sample)
      * @param results       a Mat to receive the results; the type is given by {@link #getOutputType()}
      * @param probabilities a Mat to receive probability estimates, or null if probabilities are not needed.
      *                      If returned, probabilities should be in {@link PixelType#FLOAT32}.

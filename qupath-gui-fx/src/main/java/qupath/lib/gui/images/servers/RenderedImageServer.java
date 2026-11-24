@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2024 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -28,9 +28,8 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.display.settings.DisplaySettingUtils;
 import qupath.lib.display.settings.ImageDisplaySettings;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.images.stores.DefaultImageRegionStore;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
-import qupath.lib.gui.images.stores.ImageRenderer;
+import qupath.lib.images.stores.DefaultImageRegionStore;
+import qupath.lib.images.stores.ImageRenderer;
 import qupath.lib.gui.localization.QuPathResources;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
@@ -70,7 +69,6 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	private final double overlayOpacity;
 	private final Color backgroundColor;
 	private final ImageServerMetadata metadata;
-	private final boolean dedicatedStore;
 	private final LookupOp gammaOp;
 	
 	private RenderedImageServer(
@@ -85,13 +83,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	) {
 		super();
 
-		if (store == null) {
-			this.store = ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().maxMemory() / 4L);
-			this.dedicatedStore = true;
-		} else {
-			this.store = store;
-			this.dedicatedStore = false;
-		}
+		this.store = store == null ? DefaultImageRegionStore.getSharedInstance() : store;
 		this.overlayOpacity = overlayOpacity;
 		if (overlayLayers != null)
 			this.overlayLayers.addAll(overlayLayers);
@@ -377,7 +369,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		store.paintRegionCompletely(
 				imageData.getServer(), g2d, g2d.getClip(),
 				tileRequest.getZ(), tileRequest.getT(),
-				downsample, null, renderer,
+				downsample, renderer,
 				Integer.MAX_VALUE);
 
 		if (gammaOp != null) {
@@ -420,11 +412,4 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		return UUID.randomUUID().toString();
 	}
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		if (dedicatedStore) {
-			store.close();
-		}
-	}
 }

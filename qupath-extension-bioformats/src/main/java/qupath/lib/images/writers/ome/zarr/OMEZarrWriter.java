@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TileRequestManager;
@@ -83,8 +84,14 @@ public class OMEZarrWriter {
         this.server = transformedServerBuilder.build();
 
         this.numberOfThreads = builder.numberOfThreads;
+        var metadata = server.getMetadata();
+        if (downsamples[0] != 1) {
+            metadata = new ImageServerMetadata.Builder(server.getMetadata())
+                .pixelCalibration(metadata.getPixelCalibration().createScaledInstance(downsamples[0], downsamples[0]))
+                .build();
+        }
 
-        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(server.getMetadata());
+        OMEZarrAttributesCreator attributes = new OMEZarrAttributesCreator(metadata);
 
 //        ZarrGroup root = ZarrGroup.create(path, attributes.getGroupAttributes());
         var rootStore = new FilesystemStore(path).resolve();
@@ -103,10 +110,10 @@ public class OMEZarrWriter {
 
         try {
             this.levels = ZarrWriterUtils.createLevels(
-                    server.getMetadata(),
+                    metadata,
                     rootStore,
-                    server.getMetadata().getPreferredTileWidth(),
-                    server.getMetadata().getPreferredTileHeight(),
+                    metadata.getPreferredTileWidth(),
+                    metadata.getPreferredTileHeight(),
                     attributes.getLevelAttributes(),
                     builder.codec
             );
@@ -207,7 +214,7 @@ public class OMEZarrWriter {
     public static class Builder {
 
         private static final String FILE_EXTENSION = ".ome.zarr";
-        private final static Consumer<TileRequest> NOP_CONSUMER = t -> {};
+        private final static Consumer<TileRequest> NOP_CONSUMER = _ -> {};
         private final ImageServer<BufferedImage> server;
         private Codec codec = null;
 
@@ -241,7 +248,7 @@ public class OMEZarrWriter {
          * @return this builder
          * @throws NullPointerException if the provided compressor is null
          */
-        public Builder compression(Codec codec) {
+        public Builder codec(Codec codec) {
             this.codec = Objects.requireNonNull(codec);
             return this;
         }
@@ -274,7 +281,8 @@ public class OMEZarrWriter {
          * @return this builder
          */
         public Builder downsamples(double... downsamples) {
-            this.downsamples = downsamples.clone();
+            checkDownsamples(downsamples);
+            this.downsamples = Arrays.stream(downsamples.clone()).distinct().sorted().toArray();
             return this;
         }
 
@@ -422,4 +430,14 @@ public class OMEZarrWriter {
             return new OMEZarrWriter(this, outputPath);
         }
     }
+
+    static void checkDownsamples(double[] downsamples) {
+        if (Arrays.stream(downsamples).anyMatch(d -> !Double.isFinite(d))) {
+            throw new IllegalArgumentException("Downsamples must be finite");
+        }
+        if (Arrays.stream(downsamples).anyMatch(d -> d <= 0)) {
+            throw new IllegalArgumentException("Downsamples must be greater than zero");
+        }
+    }
+
 }

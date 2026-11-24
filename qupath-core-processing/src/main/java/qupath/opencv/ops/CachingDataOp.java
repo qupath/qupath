@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutionException;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.MemoryTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
@@ -158,7 +159,7 @@ class CachingDataOp implements ImageDataOp {
         var sizeBytes = maxCacheSizeBytes;
         if (sizeBytes <= 0L) {
             sizeBytes = Math.max(DEFAULT_MAX_BYTES,
-                    Runtime.getRuntime().maxMemory() / 5);
+                    MemoryTools.getMaxMemoryPercent(20.0).orElse(DEFAULT_MAX_BYTES));
         }
         this.cache = CacheBuilder.newBuilder()
                 .softValues()

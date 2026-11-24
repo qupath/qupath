@@ -98,7 +98,7 @@ class ShowLicensesCommand {
 			logger.error("Error identifying running file", e);
 		}
 		File fileLicenses = null;
-		if (currentFile != null && currentFile.getName().toLowerCase().endsWith(".jar")) {
+		if (currentFile != null && GeneralTools.endsWithIgnoreCase(currentFile.getName(), ".jar")) {
 			File dirBase = currentFile;
 			if (new File(dirBase, "licenses").isDirectory())
 				fileLicenses = new File(dirBase, "THIRD-PARTY.txt");

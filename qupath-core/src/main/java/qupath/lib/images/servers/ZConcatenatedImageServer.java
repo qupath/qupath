@@ -75,7 +75,7 @@ public class ZConcatenatedImageServer extends AbstractTileableImageServer {
 
     @Override
     protected String createID() {
-        return String.format("%s: %s", getClass().getName(), getURIs());
+        return String.format("%s: %s", getClass().getName(), servers.stream().map(ImageServer::getPath).toList());
     }
 
     @Override

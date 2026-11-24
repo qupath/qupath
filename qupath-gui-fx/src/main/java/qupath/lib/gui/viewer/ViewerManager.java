@@ -88,7 +88,6 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.roi.RoiTools;
@@ -1506,10 +1505,8 @@ public class ViewerManager implements QuPathViewerListener {
 			updateSetAnnotationPathClassMenu(menuSetClass, viewer);
 			menuAnnotations.setVisible(hasAnnotations);
 			topSeparator.setVisible(hasAnnotations || pathObject instanceof TMACoreObject);
-			// Occasionally, the newly-visible top part of a popup menu can have the wrong size?
-			popup.setWidth(popup.getPrefWidth());
 
-			if (viewer == null || splitPaneGrid == null) {
+			if (splitPaneGrid == null) {
 				miDetachViewer.setVisible(false);
 				miAttachViewer.setVisible(false);
 			} else if (splitPaneGrid.isDetached(viewer)) {

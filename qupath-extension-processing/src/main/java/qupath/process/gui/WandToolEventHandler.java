@@ -307,7 +307,7 @@ public class WandToolEventHandler extends BrushToolEventHandler {
 		bounds.setFrame(xStart, yStart, w * downsample, w * downsample);
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-xStart, -yStart);
-		regionStore.paintRegion(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), downsample, null, null, viewer.getImageDisplay());
+		regionStore.paintRegion(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), downsample, null, viewer.getImageDisplay());
 
 		// Optionally include the overlay information when using the wand
 		float opacity = viewer.getOverlayOptions().getOpacity();

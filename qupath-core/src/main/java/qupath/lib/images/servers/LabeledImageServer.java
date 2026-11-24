@@ -73,12 +73,9 @@ import java.util.stream.Collectors;
  * constructs tiles from a {@link PathObjectHierarchy} where pixel values are integer labels corresponding 
  * stored and classified annotations.
  * <p>
- * <i>Warning!</i> This is intend for temporary use when exporting labelled images. No attempt is made to 
+ * <i>Warning!</i> This is intended for temporary use when exporting labeled images. No attempt is made to
  * respond to changes within the hierarchy. For consistent results, the hierarchy must remain static for the 
  * time in which this server is being used.
- *
- * @author Pete Bankhead
- *
  */
 public class LabeledImageServer extends AbstractTileableImageServer implements GeneratingImageServer<BufferedImage> {
 

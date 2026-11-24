@@ -33,6 +33,11 @@ repositories {
 	    url = uri("https://maven.scijava.org/content/repositories/releases/")
 	}
 
+    maven {
+        name = "SciJava public"
+        url = uri("https://maven.scijava.org/content/groups/public/")
+    }
+
     // May be required during development
     maven {
         name = "SciJava snapshots"

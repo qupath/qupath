@@ -52,6 +52,7 @@ import qupath.lib.common.Timeit;
 import qupath.lib.common.Version;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
+import qupath.lib.images.cache.ImageCache;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -312,6 +313,8 @@ public class QP {
 			
 			Timeit.class,
 			ScriptAttributes.class,
+
+			ImageCache.class,
 			
 			Version.class,
 			
@@ -332,7 +335,6 @@ public class QP {
 			LabeledImageServer.class,
 			ServerTools.class,
 			PixelClassifierTools.class,
-			
 
 			BioimageIoTools.class,
 			
@@ -1660,7 +1662,7 @@ public class QP {
 			Class<?> cPlugin = QP.class.getClassLoader().loadClass(className);
 			Constructor<?> cons = cPlugin.getConstructor();
 			final PathPlugin plugin = (PathPlugin)cons.newInstance();
-			return plugin.runPlugin(new CommandLineTaskRunner(), imageData, args);
+			return plugin.runPlugin(CommandLineTaskRunner.create().logger(logger), imageData, args);
 		} catch (Exception e) {
 			logger.error("Unable to run plugin " + className, e);
 			return false;

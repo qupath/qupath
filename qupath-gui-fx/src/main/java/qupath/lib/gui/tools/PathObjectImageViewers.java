@@ -41,8 +41,8 @@ import javafx.scene.image.ImageView;
 import javafx.scene.text.TextAlignment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.gui.images.stores.DefaultImageRegionStore;
-import qupath.lib.gui.images.stores.ImageRenderer;
+import qupath.lib.images.stores.DefaultImageRegionStore;
+import qupath.lib.images.stores.ImageRenderer;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -426,7 +426,7 @@ public class PathObjectImageViewers {
 					double y = roi.getCentroidY() - img.getHeight() / 2.0 * downsample;
 					g2d.translate(-x, -y);
 
-					store.paintRegionCompletely(server, g2d, g2d.getClipBounds(), roi.getZ(), roi.getT(), downsample, null, renderer, 500L);
+					store.paintRegionCompletely(server, g2d, g2d.getClipBounds(), roi.getZ(), roi.getT(), downsample, renderer, 500L);
 					if (paintObject && options != null) {
 						PathObjectPainter.paintObject(pathObject, g2d, options, null, downsample);
 					}

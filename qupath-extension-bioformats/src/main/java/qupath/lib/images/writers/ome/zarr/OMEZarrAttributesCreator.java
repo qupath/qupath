@@ -57,19 +57,29 @@ class OMEZarrAttributesCreator {
                                 "defaultT", 0,
                                 "defaultZ", 0,
                                 "model", "color"
-                )));
+                        )
+                )
+        );
         if (metadata.getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
             out.putAll(getLabelInfo());
         }
-        return Map.of("ome", out);
+        return out;
     }
 
     private Map<String, Object> getLabelInfo() {
         List<Map<String, Object>> colors = metadata.getClassificationLabels().entrySet()
-                .stream().map(es -> Map.<String, Object>of(
+                .stream().map(
+                        es -> Map.<String, Object>of(
                         "label-value", es.getKey(),
-                        "color", ColorTools.unpackARGB(es.getValue().getColor())
-                ))
+                        "rgba",
+                            new int[] {
+                                    ColorTools.red(es.getValue().getColor()),
+                                    ColorTools.green(es.getValue().getColor()),
+                                    ColorTools.blue(es.getValue().getColor()),
+                                    ColorTools.alpha(es.getValue().getColor())
+                            }
+                        )
+                )
                 .toList();
         List<Map<String, Object>> props = metadata.getClassificationLabels().entrySet()
                 .stream().map(es -> Map.<String, Object>of(

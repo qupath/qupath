@@ -26,6 +26,8 @@ package qupath.lib.common;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
@@ -59,10 +61,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("javadoc")
+@Execution(ExecutionMode.SAME_THREAD)
 public class TestGeneralTools {
 	
-	private static Logger logger = LoggerFactory.getLogger(TestGeneralTools.class);
-	private static Locale locale = Locale.US;
+	private static final Logger logger = LoggerFactory.getLogger(TestGeneralTools.class);
+	private static final Locale locale = Locale.US;
 	
 	@Test
 	public void test_fileExtensions() {
@@ -107,7 +110,57 @@ public class TestGeneralTools {
 		assertFalse(GeneralTools.isMultipartExtension("."));
 		assertFalse(GeneralTools.isMultipartExtension("t"));
 	}
-	
+
+
+	@Test
+	@Execution(ExecutionMode.SAME_THREAD)
+	public void test_endsWithIgnoreCase() {
+		var localeDefault = Locale.getDefault();
+		assertTrue(GeneralTools.endsWithIgnoreCase("name.tif", ".tif"));
+		assertTrue(GeneralTools.endsWithIgnoreCase("name.TIF", ".tif"));
+		assertTrue(GeneralTools.endsWithIgnoreCase("name.tif", ".TIF"));
+		assertTrue(GeneralTools.endsWithIgnoreCase("name.TIF", ".TIF"));
+		assertFalse(GeneralTools.endsWithIgnoreCase("name.TIF", ".TIFF"));
+		assertFalse(GeneralTools.endsWithIgnoreCase("name.TIFF", ".TIF"));
+		try {
+			// See https://github.com/qupath/qupath/pull/2231
+			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+			assertTrue(GeneralTools.endsWithIgnoreCase("name.tif", ".tif"));
+			assertTrue(GeneralTools.endsWithIgnoreCase("name.TIF", ".tif"));
+			assertTrue(GeneralTools.endsWithIgnoreCase("name.tif", ".TIF"));
+			assertTrue(GeneralTools.endsWithIgnoreCase("name.TIF", ".TIF"));
+			assertFalse(GeneralTools.endsWithIgnoreCase("name.TIF", ".TIFF"));
+			assertFalse(GeneralTools.endsWithIgnoreCase("name.TIFF", ".TIF"));
+		} finally {
+			Locale.setDefault(localeDefault);
+		}
+	}
+
+	@Test
+	@Execution(ExecutionMode.SAME_THREAD)
+	public void test_startsWithIgnoreCase() {
+		var localeDefault = Locale.getDefault();
+		assertTrue(GeneralTools.startsWithIgnoreCase("tif.name", "tif."));
+		assertTrue(GeneralTools.startsWithIgnoreCase("TIF.name", "tif."));
+		assertTrue(GeneralTools.startsWithIgnoreCase("tif.name", "TIF."));
+		assertTrue(GeneralTools.startsWithIgnoreCase("TIF.name", "TIF."));
+		assertFalse(GeneralTools.startsWithIgnoreCase("TIF.name", "TIFF."));
+		assertFalse(GeneralTools.startsWithIgnoreCase("TIFF.name", "TIF."));
+		try {
+			// See https://github.com/qupath/qupath/pull/2231
+			Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+			assertTrue(GeneralTools.startsWithIgnoreCase("tif.name", "tif."));
+			assertTrue(GeneralTools.startsWithIgnoreCase("TIF.name", "tif."));
+			assertTrue(GeneralTools.startsWithIgnoreCase("tif.name", "TIF."));
+			assertTrue(GeneralTools.startsWithIgnoreCase("TIF.name", "TIF."));
+			assertFalse(GeneralTools.startsWithIgnoreCase("TIF.name", "TIFF."));
+			assertFalse(GeneralTools.startsWithIgnoreCase("TIFF.name", "TIF."));
+		} finally {
+			Locale.setDefault(localeDefault);
+		}
+	}
+
+
 	
 	@Test
 	public void test_filenameValid() {

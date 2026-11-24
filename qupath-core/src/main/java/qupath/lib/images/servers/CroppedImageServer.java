@@ -80,6 +80,8 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 	
 	@Override
 	public BufferedImage readRegion(final RegionRequest request) throws IOException {
+		ServerTools.checkRegionWithinBoundsOrThrow(this, request);
+
 		RegionRequest request2 = RegionRequest.createInstance(
 				request.getPath(), request.getDownsample(),
 				request.getX() + region.getX(),

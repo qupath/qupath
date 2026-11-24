@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2023, 2025 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -41,6 +41,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 
 /**
@@ -49,9 +51,6 @@ import java.util.Map.Entry;
  * Each Parameter requires a key to be associated with it.
  * <p>
  * The order or parameters is maintained.
- * 
- * @author Pete Bankhead
- *
  */
 public class ParameterList implements Serializable {
 	
@@ -350,84 +349,8 @@ public class ParameterList implements Serializable {
 	public boolean containsKey(final Object key) {
 		return params.containsKey(key);
 	}
-	
-	
-	
-//	public Parameter<?> getParameter(String key) {
-//		return params.get(key);
-//	}
-//	
-//	public BooleanParameter getBooleanParameter(String key) {
-//		Parameter<?> p = params.get(key);
-//		if (p instanceof BooleanParameter)
-//			return (BooleanParameter)p;
-//		return null;
-//	}
-//	
-//	public DoubleParameter getDoubleParameter(String key) {
-//		Parameter<?> p = params.get(key);
-//		if (p instanceof DoubleParameter)
-//			return (DoubleParameter)p;
-//		return null;
-//	}
-//	
-//	public IntParameter getIntParameter(String key) {
-//		Parameter<?> p = params.get(key);
-//		if (p instanceof IntParameter)
-//			return (IntParameter)p;
-//		return null;
-//	}
-//	
-//	public StringParameter getStringParameter(String key) {
-//		Parameter<?> p = params.get(key);
-//		if (p instanceof StringParameter)
-//			return (StringParameter)p;
-//		return null;
-//	}
-//	
-//	public ChoiceParameter<?> getChoiceParameter(String key) {
-//		Parameter<?> p = params.get(key);
-//		if (p instanceof ChoiceParameter<?>)
-//			return (ChoiceParameter<?>)p;
-//		return null;
-//	}
-	
-	
-	Boolean getBooleanParameterValue(String key, Boolean defaultValue) {
-		Parameter<?> p = params.get(key);
-		if (p instanceof BooleanParameter)
-			return ((BooleanParameter)p).getValueOrDefault();
-		throw new IllegalArgumentException("No boolean parameter with key '" + key + "'");
-	}
-	
-	Double getDoubleParameterValue(String key, Double defaultValue) {
-		Parameter<?> p = params.get(key);
-		if (p instanceof DoubleParameter)
-			return ((DoubleParameter)p).getValueOrDefault();
-		throw new IllegalArgumentException("No double parameter with key '" + key + "'");
-	}
-	
-	Integer getIntParameterValue(String key, Integer defaultValue) {
-		Parameter<?> p = params.get(key);
-		if (p instanceof IntParameter)
-			return ((IntParameter)p).getValueOrDefault();
-		throw new IllegalArgumentException("No integer parameter with key '" + key + "'");
-	}
-	
-	String getStringParameterValue(String key, String defaultValue) {
-		Parameter<?> p = params.get(key);
-		if (p instanceof StringParameter)
-			return ((StringParameter)p).getValueOrDefault();
-		throw new IllegalArgumentException("No String parameter with key '" + key + "'");
-	}
-	
-	Object getChoiceParameterValue(String key, Object defaultValue) {
-		Parameter<?> p = params.get(key);
-		if (p instanceof ChoiceParameter<?>)
-			return ((ChoiceParameter<?>)p).getValueOrDefault();
-		throw new IllegalArgumentException("No choice parameter with key '" + key + "'");
-	}
-	
+
+
 	/**
 	 * Get a boolean parameter value (or its default) for the specified key.
 	 * @param key
@@ -435,7 +358,10 @@ public class ParameterList implements Serializable {
 	 * @throws IllegalArgumentException if no boolean parameter exists for the specified key
 	 */
 	public Boolean getBooleanParameterValue(String key) {
-		return getBooleanParameterValue(key, null);
+		Parameter<?> p = params.get(key);
+		if (p instanceof BooleanParameter b)
+			return b.getValueOrDefault();
+		throw new IllegalArgumentException("No boolean parameter with key '" + key + "'");
 	}
 	
 	/**
@@ -445,7 +371,10 @@ public class ParameterList implements Serializable {
 	 * @throws IllegalArgumentException if no double parameter exists for the specified key
 	 */
 	public Double getDoubleParameterValue(String key) {
-		return getDoubleParameterValue(key, Double.NaN);
+		Parameter<?> p = params.get(key);
+		if (p instanceof DoubleParameter d)
+			return d.getValueOrDefault();
+		throw new IllegalArgumentException("No double parameter with key '" + key + "'");
 	}
 	
 	/**
@@ -455,7 +384,10 @@ public class ParameterList implements Serializable {
 	 * @throws IllegalArgumentException if no integer parameter exists for the specified key
 	 */
 	public Integer getIntParameterValue(String key) {
-		return getIntParameterValue(key, null);
+		Parameter<?> p = params.get(key);
+		if (p instanceof IntParameter i)
+			return i.getValueOrDefault();
+		throw new IllegalArgumentException("No integer parameter with key '" + key + "'");
 	}
 	
 	/**
@@ -465,7 +397,10 @@ public class ParameterList implements Serializable {
 	 * @throws IllegalArgumentException if no String parameter exists for the specified key
 	 */
 	public String getStringParameterValue(String key) {
-		return getStringParameterValue(key, null);
+		Parameter<?> p = params.get(key);
+		if (p instanceof StringParameter s)
+			return s.getValueOrDefault();
+		throw new IllegalArgumentException("No String parameter with key '" + key + "'");
 	}
 	
 	/**
@@ -475,7 +410,10 @@ public class ParameterList implements Serializable {
 	 * @throws IllegalArgumentException if no choice parameter exists for the specified key
 	 */
 	public Object getChoiceParameterValue(String key) {
-		return getChoiceParameterValue(key, null);
+		Parameter<?> p = params.get(key);
+		if (p instanceof ChoiceParameter<?> c)
+			return c.getValueOrDefault();
+		throw new IllegalArgumentException("No choice parameter with key '" + key + "'");
 	}
 	
 	/**
@@ -502,10 +440,87 @@ public class ParameterList implements Serializable {
 		}
 		return changes;
 	}
-	
-	
-	
-/**
+
+	/**
+	 * Update parameter values to match the values in another parameter list, throwing an exception if the new list
+	 * contains a parameter that is either not found in the current list, or has a different type.
+	 * <p>
+	 * The expected use is to duplicate this list, update values via a user prompt,
+	 * then use this method to update the original values only if the user did not cancel the prompt.
+	 *
+	 * @param newParameters the new parameter list, which will be unchanged
+	 * @return true if changes were made to this list, false otherwise
+	 * @throws IllegalArgumentException if the new list contains any parameters that do not match the current list
+	 */
+	public boolean update(ParameterList newParameters) {
+		return update(newParameters, k -> {
+			throw new IllegalArgumentException("No parameter found for key " + k);
+		});
+	}
+
+	/**
+	 * Update parameter values to match the values in another parameter list, logging a warning if the new list
+	 * contains a parameter that is not found in the current list.
+	 * <p>
+	 * The expected use is to duplicate this list, update values via a user prompt,
+	 * then use this method to update the original values only if the user did not cancel the prompt.
+	 *
+	 * @param newParameters the new parameter list, which will be unchanged
+	 * @return true if changes were made to this list, false otherwise
+	 * @throws IllegalArgumentException if the new list contains a parameter that is found in the current list,
+	 *                                  but has the wrong type.
+	 */
+	public boolean updateQuietly(ParameterList newParameters) {
+		return update(newParameters, k -> logger.warn("No existing parameter found with key {}", k));
+	}
+
+	private boolean update(ParameterList newParameters, Consumer<String> missingKeyHandler) {
+		boolean changes = false;
+		for (Entry<String, Parameter<?>> entry : newParameters.params.entrySet()) {
+			var currentParam = params.getOrDefault(entry.getKey(), null);
+			if (currentParam == null) {
+				missingKeyHandler.accept(entry.getKey());
+			} else {
+				changes = changes | updateParameter(currentParam, entry.getValue());
+			}
+		}
+		return changes;
+	}
+
+	private boolean updateParameter(Parameter<?> p1, Parameter<?> p2) {
+		if (p1 instanceof IntParameter ip && p2 instanceof IntParameter ip2) {
+			return updateIfDifferent(ip, ip2);
+		} else if (p1 instanceof DoubleParameter dp && p2 instanceof DoubleParameter dp2) {
+			return updateIfDifferent(dp, dp2);
+		} else if (p1 instanceof BooleanParameter bp && p2 instanceof BooleanParameter bp2) {
+			return updateIfDifferent(bp, bp2);
+		} else if (p1 instanceof StringParameter sp && p2 instanceof StringParameter sp2) {
+			return updateIfDifferent(sp, sp2);
+		} else if (p1 instanceof ChoiceParameter cp && p2 instanceof ChoiceParameter cp2) {
+			return updateIfDifferent(cp, cp2);
+		} else if (p1 instanceof EmptyParameter ep && p2 instanceof EmptyParameter ep2) {
+			logger.trace("Skipping empty parameter update");
+			return false;
+		} else if (Objects.equals(p1.getClass(), p2.getClass())) {
+			throw new UnsupportedOperationException("Cannot update parameters of type " + p1.getClass());
+		} else {
+			throw new UnsupportedOperationException("Cannot update non-matching parameters " + p1 + " and " + p2);
+		}
+	}
+
+	private static <T> boolean updateIfDifferent(Parameter<T> p1, Parameter<T> p2) {
+		T v1 = p1.getValue();
+		T v2 = p2.getValue();
+		if (Objects.equals(v1, v2)) {
+			return false;
+		} else {
+			p1.setValue(v2);
+			return true;
+		}
+	}
+
+
+	/**
 	 * Update a ParameterList with the values specified in a map.
 	 * 
 	 * @param params
@@ -527,49 +542,6 @@ public class ParameterList implements Serializable {
 			} else
 				parameter.setStringLastValue(locale, entry.getValue());
 		}
-	}
-
-
-	/**
-	 * Check whether two parameter lists contain the same parameters with the same values (or defaults, if no values are set).
-	 * 
-	 * Note: 'hidden' status is ignored for parameters.
-	 * 
-	 * @param params1
-	 * @param params2
-	 * @return true if the two lists contain the same parameters, and return the same results for getValueOrDefault() for all matching parameters.
-	 */
-	public static boolean equalParameters(final ParameterList params1, final ParameterList params2) {
-		// Check whether the previous & current parameters are the same
-		if (params1 == null) {
-			if (params2 == null)
-				return false;
-			else
-				return true;
-		}
-		Map<String, Parameter<?>> map1 = params1.getParameters();
-		Map<String, Parameter<?>> map2 = params2.getParameters();
-		if (!map2.keySet().equals(map1.keySet()))
-			return false;
-		for (Entry<String, Parameter<?>> entry1 : map1.entrySet()) {
-			Parameter<?> param1 = entry1.getValue();
-			Parameter<?> param2 = map2.get(entry1.getKey());
-			if (param1 == param2)
-				continue;
-			if (param1.getClass() != param2.getClass())
-				return true;
-			Object value1 = param1.getValueOrDefault();
-			Object value2 = param2.getValueOrDefault();
-			if (value1 == null) {
-				if (value2 == null)
-					continue;
-				else
-					return true;
-			}
-			if (!value1.equals(value2))
-				return true;
-		}
-		return false;
 	}
 	
 	

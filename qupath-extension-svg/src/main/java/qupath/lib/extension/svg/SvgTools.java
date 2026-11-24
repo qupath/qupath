@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2026 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -29,8 +29,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.gui.images.stores.DefaultImageRegionStore;
-import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
+import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathObjectPainter;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -80,11 +79,6 @@ public class SvgTools {
 	 * @throws IOException
 	 */
 	public static void writeViewerSnapshot(QuPathViewer viewer, File fileSVG) throws IOException {
-//		if (!GeneralTools.checkExtensions(fileSVG.getAbsolutePath(), ".svg")) {
-//			String currentName = fileSVG.getName();
-//			fileSVG = new File(fileSVG.getParent(), GeneralTools.getNameWithoutExtension(fileSVG) + ".svg");
-//			logger.warn("Export file should have SVG extension - updating {} to {}", currentName, fileSVG);
-//		}
 		new SvgBuilder(viewer).writeSVG(fileSVG);
 	}
 	
@@ -117,16 +111,12 @@ public class SvgTools {
 			
 			@Override
 			public String toString() {
-				switch(this) {
-				case EMBED:
-					return "Embed raster";
-				case LINK:
-					return "Linked raster";
-				case NONE:
-					return "SVG vectors only";
-				default:
-					throw new IllegalArgumentException("Unknown type " + this);
-				}
+                return switch (this) {
+                    case EMBED -> "Embed raster";
+                    case LINK -> "Linked raster";
+                    case NONE -> "SVG vectors only";
+                    default -> throw new IllegalArgumentException("Unknown type " + this);
+                };
 			}
 			
 		}
@@ -497,7 +487,7 @@ public class SvgTools {
 					ImageDisplay display = null;
 					try {
 						if (viewer == null) {
-							store = ImageRegionStoreFactory.createImageRegionStore(1024 * 1024L * 16);
+							store = DefaultImageRegionStore.getSharedInstance();
 							display = ImageDisplay.create(imageData);
 						} else {
 							store = viewer.getImageRegionStore();
@@ -509,7 +499,7 @@ public class SvgTools {
 					} catch (IOException e) {
 						logger.warn("Unable to create image display, may not be able to include images", e);
 						if (store == null)
-							store = ImageRegionStoreFactory.createImageRegionStore(1024 * 1024L * 16);
+							store = DefaultImageRegionStore.getSharedInstance();
 					}
 					
 					if (imageInclude == ImageIncludeType.LINK) {
@@ -526,7 +516,7 @@ public class SvgTools {
 					g.setTransform(transform);
 					store.paintRegionCompletely(
 							imageData.getServer(), g, boundsDisplayed,
-							region.getZ(), region.getT(), downsample, null, display, 10000L);
+							region.getZ(), region.getT(), downsample, display, 10000L);
 					g.dispose();
 					g2d.drawImage(imgTemp, transformInverse, null);
 				} else {

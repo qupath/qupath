@@ -21,18 +21,25 @@
 
 package qupath.lib.io;
 
+import com.google.common.reflect.TypeToken;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Geometry;
 import qupath.lib.common.ColorTools;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.ROIs;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -162,6 +169,67 @@ public class TestGsonTools {
 		assertTrue(geom.isValid());
 		assertTrue(geom.isEmpty());
 		assertEquals(geom.getFactory(), GeometryTools.getDefaultFactory());
+	}
+
+	@Test
+	public void test_duplicatePathObject() {
+		var roi = ROIs.createEllipseROI(0, 2, 3, 4, ImagePlane.getPlane(5, 6));
+		var pathClass = PathClass.fromString("Any class");
+		var pathObject = PathObjects.createDetectionObject(roi, pathClass);
+		var duplicate = GsonTools.serializeDeserialize(pathObject);
+		assertEquals(roi, duplicate.getROI());
+		assertEquals(pathClass, duplicate.getPathClass());
+	}
+
+	@Test
+	public void test_duplicateMap() {
+		var map = Map.of("First", "My string", "Second", 0.1, "Third", List.of("Any", "Other", "String"));
+		var duplicate = GsonTools.serializeDeserialize(map, Map.class);
+		assertEquals(map, duplicate);
+	}
+
+	@Test
+	public void test_duplicateGenericList() {
+		List<Float> list = List.of(1f, 1.2f, 3f);
+		var duplicate = GsonTools.serializeDeserialize(list, List.class);
+		// Not the same: during deserialization, all numbers become doubles
+		assertNotEquals(list, duplicate);
+
+		// Should be the same, due to type being provided explicitly
+		var duplicateGeneric = GsonTools.serializeDeserialize(GsonTools.getInstance(), list, new TypeToken<List<Float>>(){}.getType());
+		assertEquals(list, duplicateGeneric);
+	}
+
+
+	@Test
+	public void test_arrows() {
+		var arrow1 = createArrow(0, 1, 2, 3, ">");
+		checkArrows(arrow1, GsonTools.serializeDeserialize(arrow1));
+
+		var arrow2 = createArrow(0, 1, 2, 3, "<");
+		checkArrows(arrow2, GsonTools.serializeDeserialize(arrow2));
+
+		var arrow3 = createArrow(0, 1, 2, 3, "<>");
+		checkArrows(arrow3, GsonTools.serializeDeserialize(arrow3));
+
+		var arrow4 = createArrow(3, 2, 1, 0, ">");
+		checkArrows(arrow4, GsonTools.serializeDeserialize(arrow4));
+
+		var arrow5 = createArrow(3, 2, 1, 0, "<");
+		checkArrows(arrow5, GsonTools.serializeDeserialize(arrow5));
+	}
+
+	private void checkArrows(PathObject arrow1, PathObject arrow2) {
+		assertEquals(arrow1.getROI(), arrow2.getROI());
+		// We haven't implemented equals for getMetadata()...
+		assertEquals(Map.copyOf(arrow1.getMetadata()), Map.copyOf(arrow2.getMetadata()));
+	}
+
+	private static PathObject createArrow(double x, double y, double x2, double y2, String arrowhead) {
+		var line = ROIs.createLineROI(x, y, x2, y2);
+		var annotation = PathObjects.createAnnotationObject(line);
+		annotation.getMetadata().put("arrowhead", arrowhead);
+		return annotation;
 	}
 
 	

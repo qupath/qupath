@@ -1,0 +1,42 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: QuPath
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file and also cite the QuPath papers described in the
+  documentation https://qupath.readthedocs.io/en/stable/docs/intro/citing.html
+type: software
+authors:
+  - given-names: Peter
+    family-names: Bankhead
+    affiliation: >-
+      Institute of Genetics and Cancer, University of
+      Edinburgh
+    orcid: 'https://orcid.org/0000-0003-4851-8813'
+  - given-names: Léo
+    family-names: Leplat
+    affiliation: >-
+      Institute of Genetics and Cancer, University of
+      Edinburgh
+    orcid: https://orcid.org/0009-0006-4178-7980
+  - given-names: Alan
+    family-names: O'Callaghan
+    affiliation: >-
+      Institute of Genetics and Cancer, University of
+      Edinburgh
+    orcid: 'https://orcid.org/0000-0003-4817-6171'
+  - given-names: Melvin
+    family-names: Gelbard
+    affiliation: >-
+      Institute of Genetics and Cancer, University of
+      Edinburgh
+    orcid: 0000-0002-6488-3901
+keywords:
+  - digital pathology
+  - microscopy
+  - bioimaging
+  - bioimage analysis
+  - machine learning
+license: GPL-3.0

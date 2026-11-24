@@ -148,19 +148,17 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	}
 
 	@Override
-	public BufferedImage readRegion(RegionRequest request) throws IOException {
-		switch (rotation) {
-		case ROTATE_180:
-			return rotate180(request);
-		case ROTATE_270:
-			return rotate270(request);
-		case ROTATE_90:
-			return rotate90(request);
-		case ROTATE_NONE:
-		default:
-			// Don't apply any rotation
-			return getWrappedServer().readRegion(request.updatePath(getWrappedServer().getPath()));
-		}
+	public BufferedImage readRegion(RegionRequest request) throws IOException, IllegalArgumentException {
+		ServerTools.checkRegionWithinBoundsOrThrow(this, request);
+
+        return switch (rotation) {
+            case ROTATE_180 -> rotate180(request);
+            case ROTATE_270 -> rotate270(request);
+            case ROTATE_90 -> rotate90(request);
+            default ->
+                	// Don't apply any rotation
+                    getWrappedServer().readRegion(request.updatePath(getWrappedServer().getPath()));
+        };
 	}
 	
 	private BufferedImage rotate90(RegionRequest request) throws IOException {

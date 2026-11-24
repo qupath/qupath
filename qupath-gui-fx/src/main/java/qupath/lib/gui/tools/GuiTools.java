@@ -204,9 +204,23 @@ public class GuiTools {
 	 * @return a text object showing the requested text
 	 * @see #STYLE_PLACEHOLDER_TEXT
 	 * @since v0.6.0
+	 * @deprecated v0.8.0 because it resulted in CSS warnings during startup.
 	 */
+	@Deprecated
 	public static Text createPlaceholderText(String text) {
 		var textNode = new Text(text);
+		textNode.getStyleClass().add(STYLE_PLACEHOLDER_TEXT);
+		return textNode;
+	}
+
+	/**
+	 * Create a {@link Label} object for use as a placeholder in a list or table.
+	 * @param text the text to display
+	 * @return a label object showing the requested text
+	 * @since v0.8.0
+	 */
+	public static Label createPlaceholderLabel(String text) {
+		var textNode = new Label(text);
 		textNode.getStyleClass().add(STYLE_PLACEHOLDER_TEXT);
 		return textNode;
 	}
