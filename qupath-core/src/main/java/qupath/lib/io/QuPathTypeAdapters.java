@@ -436,13 +436,6 @@ class QuPathTypeAdapters {
 				out.endArray();
 			}
 			
-			// Write metadata (new in v0.5.0)
-			var metadata = value.getMetadata();
-			if (!metadata.isEmpty()) {
-				out.name("metadata");
-				gson.toJson(metadata, Map.class, out);
-			}
-			
 			out.endObject(); // Properties
 	
 			out.endObject(); // PathObject/Feature
