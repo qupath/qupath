@@ -350,6 +350,11 @@ class ZarrWriterUtils {
         };
     }
 
+    /**
+     * Get the default codecs to be used for writing Zarrs
+     * @return an immutable list
+     * @throws ZarrException if the default blosc codec can't be created
+     */
     static List<Codec> getDefaultCodecs() throws ZarrException {
         // todo unclear what proper defaults are here
         return List.of(
