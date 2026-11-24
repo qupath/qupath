@@ -1,11 +1,10 @@
 package qupath.lib.images.writers.ome.zarr;
 
-import com.bc.zarr.Compressor;
-import com.bc.zarr.CompressorFactory;
 import dev.zarr.zarrjava.ZarrException;
 import dev.zarr.zarrjava.core.Attributes;
 import dev.zarr.zarrjava.store.FilesystemStore;
 import dev.zarr.zarrjava.store.StoreHandle;
+import dev.zarr.zarrjava.v3.codec.Codec;
 import dev.zarr.zarrjava.v3.Array;
 import dev.zarr.zarrjava.v3.Group;
 import org.slf4j.Logger;
@@ -97,8 +96,9 @@ public class PyramidalOMEZarrWriter {
         this.numberOfThreads = builder.numberOfThreads;
         this.path = path;
 
-//        this.root = ZarrGroup.create(path, null);
         this.store = new FilesystemStore(path).resolve();
+        // todo subgroup?
+//        this.root = ZarrGroup.create(path, null);
 //        try {
 //            ZarrWriterUtils.createOmeSubGroup(root, path, server.getMetadata());
 //        } catch (Exception e) {
@@ -116,7 +116,7 @@ public class PyramidalOMEZarrWriter {
                     tileWidth,
                     tileHeight,
                     new OMEZarrAttributesCreator(server.getMetadata()).getLevelAttributes(),
-                    null
+                    builder.codec
             );
         } catch (ZarrException e) {
             throw new RuntimeException(e);
@@ -199,9 +199,9 @@ public class PyramidalOMEZarrWriter {
     public static class Builder {
 
         private static final String FILE_EXTENSION = ".ome.zarr";
-        private final static DoubleConsumer NOP_CONSUMER = d -> {};
+        private final static DoubleConsumer NOP_CONSUMER = _ -> {};
         private final ImageServer<BufferedImage> server;
-        private Compressor compressor = CompressorFactory.createDefaultCompressor();
+        private Codec codec = null;
         private int numberOfThreads = ThreadTools.getParallelism();
         private List<Double> downsamples = List.of(1d);
         private int maxNumberOfChunks = -1;
@@ -227,14 +227,14 @@ public class PyramidalOMEZarrWriter {
         }
 
         /**
-         * Set the compressor to use when writing the image. By default, the blocs compression is used.
+         * Set the codec to use when writing the image. By default, a blosc codec is used.
          *
-         * @param compressor the compressor to use when writing the image
+         * @param codec the codec to use when writing the image
          * @return this builder
-         * @throws NullPointerException if the provided compressor is null
+         * @throws NullPointerException if the provided codec is null
          */
-        public Builder compression(Compressor compressor) {
-            this.compressor = Objects.requireNonNull(compressor);
+        public Builder codec(Codec codec) {
+            this.codec = Objects.requireNonNull(codec);
             return this;
         }
 
@@ -402,9 +402,14 @@ public class PyramidalOMEZarrWriter {
          * or if the user doesn't have enough permissions
          * @throws IllegalArgumentException if the provided path doesn't end with ".ome.zarr" or a file/directory already
          * exists at this location
+         * @throws ZarrException if a codec has not been specified and the default codec fails to build
          */
-        public PyramidalOMEZarrWriter build(String path) throws IOException {
+        public PyramidalOMEZarrWriter build(String path) throws IOException, ZarrException {
             Path outputPath = Paths.get(path);
+
+            if (codec == null) {
+                codec = ZarrWriterUtils.getDefaultCodec();
+            }
 
             if (!path.endsWith(FILE_EXTENSION)) {
                 throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));

@@ -1,11 +1,21 @@
 package qupath.lib.images.writers.ome.zarr;
 
+import com.bc.zarr.ZarrGroup;
+import com.scalableminds.bloscjava.Blosc;
 import dev.zarr.zarrjava.ZarrException;
 import dev.zarr.zarrjava.store.StoreHandle;
 import dev.zarr.zarrjava.v3.Array;
 import dev.zarr.zarrjava.v3.DataType;
 import dev.zarr.zarrjava.v3.codec.Codec;
 import dev.zarr.zarrjava.v3.codec.CodecBuilder;
+import dev.zarr.zarrjava.v3.codec.core.BloscCodec;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerException;
 import loci.formats.gui.AWTImageTools;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.common.ColorTools;
@@ -50,7 +60,12 @@ class ZarrWriterUtils {
         );
     }
 
-    public static ucar.ma2.DataType getUcarDatatype(PixelType pixelType) {
+    /**
+     * Get the {@link ucar.ma2.DataType} for a particular {@link PixelType}.
+     * @param pixelType the input pixel type
+     * @return the corresponding output pixel type
+     */
+    static ucar.ma2.DataType getUcarDatatype(PixelType pixelType) {
         return switch (pixelType) {
             case PixelType.UINT8 -> ucar.ma2.DataType.UBYTE;
             case PixelType.INT8 -> ucar.ma2.DataType.BYTE;
@@ -63,6 +78,29 @@ class ZarrWriterUtils {
         };
     }
 
+    /**
+     * Create an "OME" sub ground in the provided zarr group located in the provided path and create a "METADATA.ome.xml" file inside
+     * it containing the June 2016 Open Microscopy Environment OME Schema applied to the provided metadata.
+     *
+     * @param group the zarr group in which the subgroup and the XML file should be written
+     * @param path the local path of the provided zarr group
+     * @param metadata the metadata that should be used to populate the XML file
+     * @throws ParserConfigurationException if the XML document cannot be created
+     * @throws org.w3c.dom.DOMException if an error occurs while creating the XML content
+     * @throws IOException if an error occurs while writing the XML content to a file
+     * @throws TransformerException if an error occurs while converting the XML content to a byte array
+     * @throws SecurityException if the calling thread doesn't have the permission to write the XML file
+     * @throws InvalidPathException if the XML file path cannot be created
+     * @throws IllegalArgumentException if the provided metadata contains an unexpected entry (e.g. no channels)
+     */
+    public static void createOmeSubGroup(ZarrGroup group, Path path, ImageServerMetadata metadata) throws ParserConfigurationException, IOException, TransformerException {
+        // todo migrate from old zarr
+        group.createSubGroup(OME_FOLDER_NAME);
+
+        try (OutputStream outputStream = new FileOutputStream(Files.createFile(path.resolve(OME_FOLDER_NAME).resolve(OME_METADATA_FILE_NAME)).toString())) {
+            outputStream.write(OMEXMLCreator.create(metadata));
+        }
+    }
 
     /**
      * Create and return {@link Array} corresponding to the resolution levels of an image.
@@ -95,7 +133,7 @@ class ZarrWriterUtils {
                     Array.metadataBuilder()
                             .withShape(ZarrWriterUtils.getDimensionsOfImage(metadata, downsamples[level]))
                             .withChunkShape(ZarrWriterUtils.getDimensionsOfChunks(metadata, chunkWidth, chunkHeight))
-//                            .withCodecs(codec)
+                            .withCodecs(codec)
                             .withDataType(switch (metadata.getPixelType()) {
                                 case UINT8 -> DataType.UINT8;
                                 case INT8 -> DataType.INT8;
@@ -307,5 +345,10 @@ class ZarrWriterUtils {
             }
             case null, default -> throw new UnsupportedOperationException(String.format("Unknown data type %s", pixels));
         };
+    }
+
+    static Codec getDefaultCodec() throws ZarrException {
+        // todo unclear what proper defaults are here
+        return new BloscCodec(new BloscCodec.Configuration(Blosc.Compressor.LZ4, Blosc.Shuffle.NO_SHUFFLE, 5, 0, 0));
     }
 }

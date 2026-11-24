@@ -1,10 +1,13 @@
 package qupath.lib.images.writers.ome.zarr;
 
+import com.scalableminds.bloscjava.Blosc;
 import dev.zarr.zarrjava.ZarrException;
 import dev.zarr.zarrjava.core.Attributes;
 import dev.zarr.zarrjava.store.FilesystemStore;
 import dev.zarr.zarrjava.v3.Array;
 import dev.zarr.zarrjava.v3.Group;
+import dev.zarr.zarrjava.v3.codec.Codec;
+import dev.zarr.zarrjava.v3.codec.core.BloscCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.common.ThreadTools;
@@ -105,7 +108,7 @@ public class OMEZarrWriter {
                     server.getMetadata().getPreferredTileWidth(),
                     server.getMetadata().getPreferredTileHeight(),
                     attributes.getLevelAttributes(),
-                    null
+                    builder.codec
             );
         } catch (ZarrException e) {
             throw new RuntimeException(e);
@@ -124,33 +127,33 @@ public class OMEZarrWriter {
      * @throws InterruptedException if the calling thread is interrupted
      */
     public void writeImage() throws InterruptedException {
-        ExecutorService executorService = Executors.newFixedThreadPool(
+        try (ExecutorService executorService = Executors.newFixedThreadPool(
                 numberOfThreads,
                 ThreadTools.createThreadFactory("zarr_writer_", false)
-        );
-
-        for (TileRequest tileRequest: server.getTileRequestManager().getAllTileRequests()) {
-            executorService.execute(() -> {
-                try {
-                    writeTile(tileRequest);
-                } catch (Exception e) {
-                    if (e instanceof InterruptedException) {
-                        logger.debug("Writing tile {} interrupted", tileRequest, e);
-                        Thread.currentThread().interrupt();
-                    } else {
-                        logger.error("Error when writing tile {}", tileRequest, e);
+        )) {
+            for (TileRequest tileRequest : server.getTileRequestManager().getAllTileRequests()) {
+                executorService.execute(() -> {
+                    try {
+                        writeTile(tileRequest);
+                    } catch (Exception e) {
+                        if (e instanceof InterruptedException) {
+                            logger.debug("Writing tile {} interrupted", tileRequest, e);
+                            Thread.currentThread().interrupt();
+                        } else {
+                            logger.error("Error when writing tile {}", tileRequest, e);
+                        }
                     }
-                }
-            });
-        }
-        executorService.shutdown();
+                });
+            }
+            executorService.shutdown();
 
-        try {
-            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-        } catch (InterruptedException e) {
-            logger.debug("Waiting interrupted. Stopping tasks", e);
-            executorService.shutdownNow();
-            throw e;
+            try {
+                executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+            } catch (InterruptedException e) {
+                logger.debug("Waiting interrupted. Stopping tasks", e);
+                executorService.shutdownNow();
+                throw e;
+            }
         }
     }
 
@@ -206,7 +209,8 @@ public class OMEZarrWriter {
         private static final String FILE_EXTENSION = ".ome.zarr";
         private final static Consumer<TileRequest> NOP_CONSUMER = t -> {};
         private final ImageServer<BufferedImage> server;
-//        private Compressor compressor = CompressorFactory.createDefaultCompressor(); // todo
+        private Codec codec = null;
+
         private int numberOfThreads = ThreadTools.getParallelism();
         private double[] downsamples = new double[0];
         private int maxNumberOfChunks = -1;
@@ -230,18 +234,17 @@ public class OMEZarrWriter {
             this.zEnd = this.server.nZSlices();
             this.tEnd = this.server.nTimepoints();
         }
-// todo
-//        /**
-//         * Set the compressor to use when writing tiles. By default, the blocs compression is used.
-//         *
-//         * @param compressor the compressor to use when writing tiles
-//         * @return this builder
-//         * @throws NullPointerException if the provided compressor is null
-//         */
-//        public Builder compression(Compressor compressor) {
-//            this.compressor = Objects.requireNonNull(compressor);
-//            return this;
-//        }
+        /**
+         * Set the codec to use when writing tiles. By default, blosc compression is used.
+         *
+         * @param codec the codec to use when writing tiles
+         * @return this builder
+         * @throws NullPointerException if the provided compressor is null
+         */
+        public Builder compression(Codec codec) {
+            this.codec = Objects.requireNonNull(codec);
+            return this;
+        }
 
         /**
          * Tiles will be written from a pool of thread. This function specifies the number of threads to use.
@@ -400,10 +403,14 @@ public class OMEZarrWriter {
          * @throws IOException if the empty image cannot be created. This can happen if the provided path is incorrect
          * or if the user doesn't have enough permissions
          * @throws IllegalArgumentException if the provided path doesn't end with ".ome.zarr" or a file/directory already
+         * @throws ZarrException if no codec has been specified and the default codec fails to build
          * exists at this location
          */
-        public OMEZarrWriter build(String path) throws IOException {
+        public OMEZarrWriter build(String path) throws IOException, ZarrException {
             Path outputPath = Paths.get(path);
+            if (codec == null) {
+                codec = ZarrWriterUtils.getDefaultCodec();
+            }
 
             if (!path.endsWith(FILE_EXTENSION)) {
                 throw new IllegalArgumentException(String.format("The provided path (%s) does not have the OME-Zarr extension (%s)", path, FILE_EXTENSION));
