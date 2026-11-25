@@ -43,7 +43,11 @@ abstract class AbstractPolyROIToolEventHandler<T extends InputEvent> extends Abs
 
 	boolean isFreehandPolyROI = false;
 
-	
+	AbstractPolyROIToolEventHandler(PixelSnapBehavior pixelSnapBehavior) {
+		super(pixelSnapBehavior);
+	}
+
+
 	@Override
 	public void mousePressed(MouseEvent e) {
 		super.mousePressed(e);

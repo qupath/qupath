@@ -53,6 +53,10 @@ import java.util.List;
  */
 class PointsToolEventHandler extends AbstractPathToolEventHandler<MouseEvent> {
 
+	PointsToolEventHandler() {
+		super(PixelSnapBehavior.StandardBehaviors.SKIP);
+	}
+
 	private PointsROI getCurrentPoints() {
 		var viewer = getViewer();
 		PathObject currentObject = viewer.getSelectedObject();
@@ -60,15 +64,7 @@ class PointsToolEventHandler extends AbstractPathToolEventHandler<MouseEvent> {
 			return null;
 		return (currentObject.getROI() instanceof PointsROI) ? (PointsROI)currentObject.getROI() : null;
 	}
-	
-	/**
-	 * Return false.
-	 * @return
-	 */
-	@Override
-	protected boolean requestPixelSnapping() {
-		return false;
-	}
+
 	
 	@Override
 	public void mouseReleased(MouseEvent e) {

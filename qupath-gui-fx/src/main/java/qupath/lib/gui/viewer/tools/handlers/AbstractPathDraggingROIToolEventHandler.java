@@ -43,6 +43,10 @@ import java.util.Collections;
  */
 abstract class AbstractPathDraggingROIToolEventHandler<T extends InputEvent> extends AbstractPathROIToolEventHandler<T> {
 
+	AbstractPathDraggingROIToolEventHandler() {
+		super(PixelSnapBehavior.StandardBehaviors.ROUND);
+	}
+
 	@Override
 	public void mouseDragged(MouseEvent e) {
 		super.mouseDragged(e);

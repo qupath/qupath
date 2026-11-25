@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Objects;
 
 /**
  * Abstract implementation of a PathTool.
@@ -64,6 +65,12 @@ abstract class AbstractPathToolEventHandler<T extends InputEvent> implements Eve
 	private static final Logger logger = LoggerFactory.getLogger(AbstractPathToolEventHandler.class);
 
 	private final ConstrainingObjects constrainingObjects = new ConstrainingObjects();
+
+	private PixelSnapBehavior pixelSnapBehavior;
+
+	AbstractPathToolEventHandler(PixelSnapBehavior pixelSnapBehavior) {
+		this.pixelSnapBehavior = pixelSnapBehavior;
+	}
 
 	/**
 	 * Ensure that the specified cursor is set in the current viewer.
@@ -95,9 +102,44 @@ abstract class AbstractPathToolEventHandler<T extends InputEvent> implements Eve
 	protected Point2D mouseLocationToImage(MouseEvent e, boolean constrainToBounds, boolean snapToPixel) {
 		var viewer = getViewer();
 		var p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, constrainToBounds);
-		if (snapToPixel)
-			p.setLocation(Math.floor(p.getX()), Math.floor(p.getY()));
+		if (snapToPixel) {
+			var snap = getPixelSnapBehavior();
+			if (snap != null) {
+				p.setLocation(snap.snapCoordinate(p.getX()), snap.snapCoordinate(p.getY()));
+			}
+
+		}
 		return p;
+	}
+
+	/**
+	 * Get the pixel snap behavior that is used by this tool when pixel snapping is requested.
+	 * @return the pixel snap behavior
+	 */
+	protected PixelSnapBehavior getPixelSnapBehavior() {
+		return pixelSnapBehavior;
+	}
+
+	/**
+	 * Set the pixel snap behavior that is used by this tool when pixel snapping is requested.
+	 * @param behavior the pixel snap behavior (must not be null).
+	 */
+	protected void setPixelSnapBehavior(PixelSnapBehavior behavior) {
+		Objects.requireNonNull(behavior);
+		this.pixelSnapBehavior = behavior;
+	}
+
+	/**
+	 * Adjust an x or y value whenever 'pixel snapping' is required.
+	 * For some drawing tools, it makes sense to snap to the top left corner of the pixel that is clicked,
+	 * for others it makes sense to snap to the center or the nearest corner.
+	 * <p>
+	 * The default behavior is to snap to the closest corner (i.e. round the value).
+	 * @param value x or y value
+	 * @return the 'snapped' value
+	 */
+	protected double snapCoordinate(double value) {
+		return Math.round(value);
 	}
 
 	

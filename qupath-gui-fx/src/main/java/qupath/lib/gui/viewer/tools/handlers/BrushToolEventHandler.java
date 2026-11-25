@@ -101,7 +101,7 @@ public class BrushToolEventHandler extends AbstractPathROIToolEventHandler<Input
 	private final ViewerListener listener = new ViewerListener();
 
 	public BrushToolEventHandler() {
-		super();
+		super(PixelSnapBehavior.StandardBehaviors.FLOOR); // Important for brush tool!
 		PathPrefs.brushDiameterProperty().subscribe(() -> updateLimitsAndCursor());
 	}
 

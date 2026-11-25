@@ -66,8 +66,12 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler<MouseEven
 	private double dx, dy; // Last dragging displacements
 	private long lastDragTimestamp; // Used to determine if the user has stopped dragging (but may not yet have release the mouse button)
 	
-	private ViewerMover mover;	
-	
+	private ViewerMover mover;
+
+	MoveToolEventHandler() {
+		super(PixelSnapBehavior.StandardBehaviors.ROUND);
+	}
+
 	@Override
 	public void mousePressed(MouseEvent e) {
 		
@@ -166,16 +170,12 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler<MouseEven
 		if (!viewer.isSpaceDown()) {
 			
 			RoiEditor editor = viewer.getROIEditor();
-			Point2D p = mouseLocationToImage(e, true, false);
 
 			// Try moving handle
 			if (editor != null && editor.hasActiveHandle()) {
+				Point2D p = mouseLocationToImage(e, true, requestPixelSnapping());
 				double x = p.getX();
 				double y = p.getY();
-				if (PathPrefs.usePixelSnappingProperty().get() && editor.getROI() != null && editor.getROI().isArea()) {
-					x = (int)x;
-					y = (int)y;
-				}
 				ROI updatedROI = editor.setActiveHandlePosition(x, y, viewer.getDownsampleFactor()/2.0, e.isShiftDown());
 				if (updatedROI == null)
 					// This shouldn't occur...?
@@ -193,6 +193,7 @@ public class MoveToolEventHandler extends AbstractPathToolEventHandler<MouseEven
 			
 			// Try to translate, if that's what is happening
 			ROI currentROI = viewer.getCurrentROI();
+			Point2D p = mouseLocationToImage(e, true, false);
 			if (editor != null && editor.isTranslating()) {
 				Rectangle2D boundsBefore = AwtTools.getBounds2D(currentROI);
 				ROI translatedROI = editor.updateTranslation(p.getX(), p.getY(), viewer.getServerBounds());
