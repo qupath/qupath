@@ -483,7 +483,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		}
 		
 		// Check if it is an object file in GeoJSON format (.geojson)
-		if (PathIO.getObjectFileExtensions(false).containsAll(allUnzippedExtensions)) {
+		if (!allUnzippedExtensions.isEmpty() && PathIO.getObjectFileExtensions(false).containsAll(allUnzippedExtensions)) {
 			if (imageData == null || hierarchy == null) {
 				qupath.getScriptEditor().showScript(file);
 				logger.info("Opening the dragged file in the Script Editor as there is no currently opened image in the viewer");
