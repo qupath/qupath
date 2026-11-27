@@ -103,7 +103,7 @@ public class OmeZarrWriterCommand implements Runnable {
             try {
                 OmeZarrWriter writer = builder.build(fileOutput.getAbsolutePath());
                 writer.writeImage();
-            } catch (IOException | dev.zarr.zarrjava.ZarrException e) {
+            } catch (IOException | IllegalStateException e) {
                 logger.error("Error while writing Zarr image", e);
                 Dialogs.showErrorMessage(QuPathResources.getString("Action.BioFormats.omeZarrWriter"), e.getLocalizedMessage());
                 return;
