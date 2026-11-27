@@ -1,9 +1,10 @@
-package qupath.lib.images.writers.ome.zarr;
+package qupath.lib.gui.commands;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.zarr.OmeZarrWriter;
 import qupath.fx.dialogs.Dialogs;
 import qupath.fx.dialogs.FileChoosers;
 import qupath.lib.gui.QuPathGUI;
@@ -28,9 +29,9 @@ import java.util.stream.DoubleStream;
 /**
  * A GUI command to export the current ImageServer to an OME Zarr directory.
  */
-public class OMEZarrWriterCommand implements Runnable {
+public class OmeZarrWriterCommand implements Runnable {
 
-    private static final Logger logger = LoggerFactory.getLogger(OMEZarrWriterCommand.class);
+    private static final Logger logger = LoggerFactory.getLogger(OmeZarrWriterCommand.class);
     private static final IntegerProperty scaledDownsample = PathPrefs.createPersistentPreference(
             "ome-zarr-scaled-downsample",
             4
@@ -54,7 +55,7 @@ public class OMEZarrWriterCommand implements Runnable {
      *
      * @param qupath the QuPath that owns this command
      */
-    public OMEZarrWriterCommand(QuPathGUI qupath) {
+    public OmeZarrWriterCommand(QuPathGUI qupath) {
         this.qupath = qupath;
     }
 
@@ -88,7 +89,7 @@ public class OMEZarrWriterCommand implements Runnable {
             return;
         }
 
-        OMEZarrWriter.Builder builder = createBuilder(parameters, imageData);
+        OmeZarrWriter.Builder builder = createBuilder(parameters, imageData);
 
         Dialogs.showInfoNotification(
                 QuPathResources.getString("Action.BioFormats.omeZarrWriter"),
@@ -100,9 +101,9 @@ public class OMEZarrWriterCommand implements Runnable {
 
         task = executor.submit(() -> {
             try {
-                OMEZarrWriter writer = builder.build(fileOutput.getAbsolutePath());
+                OmeZarrWriter writer = builder.build(fileOutput.getAbsolutePath());
                 writer.writeImage();
-            } catch (IOException e) {
+            } catch (IOException | IllegalStateException e) {
                 logger.error("Error while writing Zarr image", e);
                 Dialogs.showErrorMessage(QuPathResources.getString("Action.BioFormats.omeZarrWriter"), e.getLocalizedMessage());
                 return;
@@ -200,8 +201,8 @@ public class OMEZarrWriterCommand implements Runnable {
         }
     }
 
-    private OMEZarrWriter.Builder createBuilder(ParameterList parameters, ImageData<BufferedImage> imageData) {
-        OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(imageData.getServer())
+    private OmeZarrWriter.Builder createBuilder(ParameterList parameters, ImageData<BufferedImage> imageData) {
+        OmeZarrWriter.Builder builder = new OmeZarrWriter.Builder(imageData.getServer())
                 .parallelize(parameters.getIntParameterValue("numberOfThreads"))
                 .tileSize(parameters.getIntParameterValue("tileSize"))
                 .downsamples(DoubleStream.iterate(
