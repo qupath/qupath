@@ -1,6 +1,7 @@
 package qupath.lib.gui.charts;
 
 import java.util.List;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.chart.XYChart;
 import javafx.scene.paint.Color;
@@ -34,4 +35,11 @@ public interface ColorScale {
      * @return a Node
      */
     Node getLegendItem(XYChart.Series<?, ?> series, XYChart.Data<?, ?> data);
+
+    /**
+     * Set the side that the legend should be displayed on.
+     * Implementations <i>should</i> ensure that the legend items are arranged appropriately for the given side, but they <i>may</i> ignore it.
+     * @param legendSide the side on which the scale's legend will be shown.
+     */
+    void setSide(Side legendSide);
 }

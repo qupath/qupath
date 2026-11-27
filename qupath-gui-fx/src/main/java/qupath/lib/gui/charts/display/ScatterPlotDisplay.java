@@ -129,7 +129,7 @@ public class ScatterPlotDisplay implements PlotDisplay<PathObject> {
 
         scatter = new PathObjectScatterChart(QuPathGUI.getInstance().getViewer());
         scatter.setAnimated(false);
-        scatter.setPointRadius(pointRadius.get() * 2); // todo radius vs size
+        scatter.setPointRadius(pointRadius.get());
         scatter.setPointOpacity(pointOpacity.get());
 
 
@@ -506,7 +506,6 @@ public class ScatterPlotDisplay implements PlotDisplay<PathObject> {
         return label;
     }
 
-    // todo extract these to common
     private static BooleanProperty createWeakBoundProperty(BooleanProperty prop) {
         var prop2 = new SimpleBooleanProperty(prop.getValue());
         prop.bind(prop2);

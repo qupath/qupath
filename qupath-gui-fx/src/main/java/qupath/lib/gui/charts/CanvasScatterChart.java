@@ -23,6 +23,7 @@ import javafx.scene.chart.ScatterChart;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
@@ -66,6 +67,7 @@ public class CanvasScatterChart<X extends Number,Y extends Number> extends Scatt
             colorScaleDirty = true;
             redrawNeeded = true;
         });
+        legendSideProperty().subscribe(side -> colorScaleObjectProperty.get().setSide(side));
     }
 
     /**
@@ -294,25 +296,38 @@ public class CanvasScatterChart<X extends Number,Y extends Number> extends Scatt
 
     @Override
     protected void updateLegend() {
-        HBox container = new HBox(); // todo probably need to handle different orientations...
-        container.setAlignment(Pos.CENTER);
-        container.setPadding(new Insets(0, 100, 0, 100));
+        Pane container;
+        if (getLegendSide().isVertical()) {
+            VBox box = new VBox();
+            box.setAlignment(Pos.CENTER);
+            box.prefHeightProperty().bind(heightProperty());
+            VBox.setVgrow(box, Priority.ALWAYS);
+            box.setPadding(new Insets(100, 0, 100, 0));
+            container = box;
+        } else {
+            HBox box = new HBox();
+            box.setAlignment(Pos.CENTER);
+            box.prefWidthProperty().bind(widthProperty());
+            HBox.setHgrow(box, Priority.ALWAYS);
+            box.setPadding(new Insets(0, 100, 0, 100));
+            container = box;
+        }
         Set<Node> legendItems = new LinkedHashSet<>();
         if (getData() != null) {
             for (Series<X,Y> series : getData()) {
                 for (var point : series.getData()) {
-                    legendItems.add(colorScaleObjectProperty.get().getLegendItem(series, point));
+                    var item = colorScaleObjectProperty.get().getLegendItem(series, point);
+                    VBox.setVgrow(item, Priority.ALWAYS);
+                    HBox.setHgrow(item, Priority.ALWAYS);
+                    legendItems.add(item);
                 }
             }
         }
-        container.prefWidthProperty().bind(widthProperty());
-        HBox.setHgrow(container, Priority.ALWAYS);
         container.getChildren().setAll(legendItems);
         setLegend(container);
     }
 
     private final AnimationTimer timer = new AnimationTimer() {
-
         @Override
         public void handle(long now) {
             if (colorScaleDirty) {
@@ -333,7 +348,6 @@ public class CanvasScatterChart<X extends Number,Y extends Number> extends Scatt
                 }
                 treeRebuildNeeded = false;
             }
-
         }
     };
 
